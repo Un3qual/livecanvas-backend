@@ -1,0 +1,14 @@
+services:
+  postgresql:
+    image: postgis/postgis:18-3.6-alpine
+    container_name: lc-postgres
+    platform: linux/amd64
+    environment:
+      - POSTGRES_DB=lc_dev
+      - POSTGRES_PASSWORD=development
+    ports:
+      - 5432:5432
+    volumes:
+      - lc_psql:/var/lib/postgresql
+volumes:
+  lc_psql:
