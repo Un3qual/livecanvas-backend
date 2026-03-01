@@ -96,11 +96,6 @@ defmodule LiveCanvas.MixProject do
        depth: 1}
     ]
 
-  defp media_deps,
-    do: [
-      {:membrane_core, "~> 1.2"}
-    ]
-
   defp misc_deps,
     do: [
       {:boundary, "~> 0.10", runtime: false},

@@ -21,7 +21,7 @@ defmodule LiveCanvasGQL.Accounts.Mutations do
         field :result, :integer
       end
 
-      resolve(fn _parent, args, _res ->
+      resolve(fn _parent, _args, _res ->
         {:ok, %{successful: true, result: 123}}
       end)
 
