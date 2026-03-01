@@ -5,18 +5,18 @@ defmodule LiveCanvasGQL.Accounts.Types do
 
   # alias LiveCanvas.Accounts.{User, UserIdentity}
 
-   connection node_type: :user
+  connection(node_type: :user)
 
   @desc "List of supported OAuth providers for logging in."
   enum :oauth_provider do
-    value :apple, description: "Sign in with Apple"
-    value :google, description: "Sign in with Google"
-    value :instagram, description: "Log in with Instagram (not currently supported)"
-    value :facebook, description: "Log in with Facebook (not currently supported)"
-    value :twitter, description: "Log in with Twitter (not currently supported)"
+    value(:apple, description: "Sign in with Apple")
+    value(:google, description: "Sign in with Google")
+    value(:instagram, description: "Log in with Instagram (not currently supported)")
+    value(:facebook, description: "Log in with Facebook (not currently supported)")
+    value(:twitter, description: "Log in with Twitter (not currently supported)")
   end
 
-  node object :user do
+  node object(:user) do
     field :email, :string
     field :inserted_at, non_null(:string)
     # field :user_identities, list_of(non_null(:user_identity)), resolve: dataloader(UserIdentity)
@@ -25,7 +25,7 @@ defmodule LiveCanvasGQL.Accounts.Types do
     field :refresh_token, :token
   end
 
-  node object :user_identity do
+  node object(:user_identity) do
     field :provider, non_null(:string)
     field :oauth_provider, non_null(:oauth_provider)
     field :uid, non_null(:string)
@@ -33,7 +33,7 @@ defmodule LiveCanvasGQL.Accounts.Types do
     field :inserted_at, non_null(:string)
   end
 
-  node object :token do
+  node object(:token) do
     field :serialized_value, non_null(:string)
     field :token_version, non_null(:integer)
     field :expires_at, :string

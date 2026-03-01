@@ -2,10 +2,9 @@ defmodule LiveCanvasWeb.UserRegistrationController do
   use LiveCanvasWeb, :controller
 
   alias LiveCanvas.Accounts
-  alias LiveCanvas.Accounts.User
 
   def new(conn, _params) do
-    changeset = Accounts.change_user_email(%User{})
+    changeset = Accounts.registration_changeset()
     render(conn, :new, changeset: changeset)
   end
 

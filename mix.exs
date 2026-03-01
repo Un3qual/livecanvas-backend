@@ -10,7 +10,7 @@ defmodule LiveCanvas.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
-      compilers: [:phoenix_live_view] ++ Mix.compilers(),
+      compilers: [:boundary, :phoenix_live_view] ++ Mix.compilers(),
       listeners: [Phoenix.CodeReloader]
     ]
   end
@@ -20,7 +20,7 @@ defmodule LiveCanvas.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {LiveCanvas.Application, []},
+      mod: {LiveCanvasApp, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -38,70 +38,80 @@ defmodule LiveCanvas.MixProject do
   # Specifies your project dependencies.
   #
   # Type `mix help deps` for examples and options.
-  defp deps, do: List.flatten([
-    phoenix_deps(),
-    ecto_deps(),
-    absinthe_deps(),
-    test_deps(),
-    js_deps(),
-    misc_deps(),
-  ])
+  defp deps,
+    do:
+      List.flatten([
+        phoenix_deps(),
+        ecto_deps(),
+        absinthe_deps(),
+        test_deps(),
+        js_deps(),
+        misc_deps()
+      ])
 
-  defp phoenix_deps, do: [
-    {:phoenix, "~> 1.8.3"},
-    {:phoenix_ecto, "~> 4.5"},
-    {:phoenix_html, "~> 4.1"},
-    {:phoenix_live_reload, "~> 1.2", only: :dev},
-    {:phoenix_live_view, "~> 1.1.0"},
-    {:phoenix_live_dashboard, "~> 0.8.3"},
-    {:gettext, "~> 1.0"},
-    {:argon2_elixir, "~> 4.0"},
-  ]
+  defp phoenix_deps,
+    do: [
+      {:phoenix, "~> 1.8.3"},
+      {:phoenix_ecto, "~> 4.5"},
+      {:phoenix_html, "~> 4.1"},
+      {:phoenix_live_reload, "~> 1.2", only: :dev},
+      {:phoenix_live_view, "~> 1.1.0"},
+      {:phoenix_live_dashboard, "~> 0.8.3"},
+      {:gettext, "~> 1.0"},
+      {:argon2_elixir, "~> 4.0"}
+    ]
 
-  defp ecto_deps, do: [
-    {:ecto_sql, "~> 3.13"},
-    {:postgrex, ">= 0.0.0"},
-  ]
+  defp ecto_deps,
+    do: [
+      {:ecto_sql, "~> 3.13"},
+      {:postgrex, ">= 0.0.0"}
+    ]
 
-  defp absinthe_deps, do: [
-    {:absinthe, "~> 1.9"},
-    {:absinthe_plug, "~> 1.5"},
-    {:absinthe_phoenix, "~> 2.0"},
-    {:absinthe_relay, "~> 1.6"},
-    {:absinthe_error_payload, "~> 1.2"},
-    {:wormwood, "~> 0.1.3"},
-    {:dataloader, "~> 2.0"}
-  ]
+  defp absinthe_deps,
+    do: [
+      {:absinthe, "~> 1.9"},
+      {:absinthe_plug, "~> 1.5"},
+      {:absinthe_phoenix, "~> 2.0"},
+      {:absinthe_relay, "~> 1.6"},
+      {:absinthe_error_payload, "~> 1.2"},
+      {:wormwood, "~> 0.1.3"},
+      {:dataloader, "~> 2.0"}
+    ]
 
-  defp test_deps, do: [
-    {:lazy_html, ">= 0.1.0", only: :test},
-  ]
+  defp test_deps,
+    do: [
+      {:lazy_html, ">= 0.1.0", only: :test}
+    ]
 
-  defp js_deps, do: [
-    {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
-    {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
-    {:heroicons,
-      github: "tailwindlabs/heroicons",
-      tag: "v2.2.0",
-      sparse: "optimized",
-      app: false,
-      compile: false,
-      depth: 1},
-  ]
+  defp js_deps,
+    do: [
+      {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.3", runtime: Mix.env() == :dev},
+      {:heroicons,
+       github: "tailwindlabs/heroicons",
+       tag: "v2.2.0",
+       sparse: "optimized",
+       app: false,
+       compile: false,
+       depth: 1}
+    ]
 
-  defp media_deps, do: [
-    {:membrane_core, "~> 1.2"}
-  ]
+  defp media_deps,
+    do: [
+      {:membrane_core, "~> 1.2"}
+    ]
 
-  defp misc_deps, do: [
-    {:swoosh, "~> 1.16"},
-    {:req, "~> 0.5"},
-    {:telemetry_metrics, "~> 1.0"},
-    {:telemetry_poller, "~> 1.0"},
-    {:jason, "~> 1.2"},
-    {:dns_cluster, "~> 0.2.0"},
-    {:bandit, "~> 1.5"}
-  ]
+  defp misc_deps,
+    do: [
+      {:boundary, "~> 0.10", runtime: false},
+      {:swoosh, "~> 1.16"},
+      {:req, "~> 0.5"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
+      {:jason, "~> 1.2"},
+      {:dns_cluster, "~> 0.2.0"},
+      {:bandit, "~> 1.5"}
+    ]
 
   # Aliases are shortcuts or tasks specific to the current project.
   # For example, to install project dependencies and perform other setup tasks, run:

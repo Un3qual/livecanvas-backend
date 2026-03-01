@@ -21,7 +21,7 @@ config :live_canvas, :scopes,
   ]
 
 config :live_canvas,
-  ecto_repos: [LiveCanvas.Repo],
+  ecto_repos: [LiveCanvas.Infra.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configure the endpoint
@@ -42,7 +42,7 @@ config :live_canvas, LiveCanvasWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :live_canvas, LiveCanvas.Mailer, adapter: Swoosh.Adapters.Local
+config :live_canvas, LiveCanvas.Infra.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,

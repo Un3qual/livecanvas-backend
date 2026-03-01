@@ -2,7 +2,6 @@ defmodule LiveCanvasWeb.UserAuthTest do
   use LiveCanvasWeb.ConnCase, async: true
 
   alias LiveCanvas.Accounts
-  alias LiveCanvas.Accounts.Scope
   alias LiveCanvasWeb.UserAuth
 
   import LiveCanvas.AccountsFixtures
@@ -35,7 +34,7 @@ defmodule LiveCanvasWeb.UserAuthTest do
     test "keeps session when re-authenticating", %{conn: conn, user: user} do
       conn =
         conn
-        |> assign(:current_scope, Scope.for_user(user))
+        |> assign(:current_scope, Accounts.scope_for_user(user))
         |> put_session(:to_be_removed, "value")
         |> UserAuth.log_in_user(user)
 
@@ -50,7 +49,7 @@ defmodule LiveCanvasWeb.UserAuthTest do
 
       conn =
         conn
-        |> assign(:current_scope, Scope.for_user(other_user))
+        |> assign(:current_scope, Accounts.scope_for_user(other_user))
         |> put_session(:to_be_removed, "value")
         |> UserAuth.log_in_user(user)
 
@@ -190,7 +189,7 @@ defmodule LiveCanvasWeb.UserAuthTest do
       conn =
         conn
         |> fetch_flash()
-        |> assign(:current_scope, Scope.for_user(user))
+        |> assign(:current_scope, Accounts.scope_for_user(user))
         |> UserAuth.require_sudo_mode([])
 
       refute conn.halted
@@ -207,7 +206,7 @@ defmodule LiveCanvasWeb.UserAuthTest do
       conn =
         conn
         |> fetch_flash()
-        |> assign(:current_scope, Scope.for_user(user))
+        |> assign(:current_scope, Accounts.scope_for_user(user))
         |> UserAuth.require_sudo_mode([])
 
       assert redirected_to(conn) == ~p"/users/log-in"
@@ -225,7 +224,7 @@ defmodule LiveCanvasWeb.UserAuthTest do
     test "redirects if user is authenticated", %{conn: conn, user: user} do
       conn =
         conn
-        |> assign(:current_scope, Scope.for_user(user))
+        |> assign(:current_scope, Accounts.scope_for_user(user))
         |> UserAuth.redirect_if_user_is_authenticated([])
 
       assert conn.halted
@@ -283,7 +282,7 @@ defmodule LiveCanvasWeb.UserAuthTest do
     test "does not redirect if user is authenticated", %{conn: conn, user: user} do
       conn =
         conn
-        |> assign(:current_scope, Scope.for_user(user))
+        |> assign(:current_scope, Accounts.scope_for_user(user))
         |> UserAuth.require_authenticated_user([])
 
       refute conn.halted

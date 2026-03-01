@@ -3,10 +3,13 @@ defmodule LiveCanvas.Accounts do
   The Accounts context.
   """
 
-  import Ecto.Query, warn: false
-  alias LiveCanvas.Repo
+  use Boundary, deps: [LiveCanvas.Infra, LiveCanvasSchemas]
 
-  alias LiveCanvas.Accounts.{User, UserToken, UserNotifier}
+  import Ecto.Query, warn: false
+  alias LiveCanvas.Infra.Repo
+  alias LiveCanvasSchemas.{User, UserToken}
+
+  alias LiveCanvas.Accounts.{Passwords, Scope, Tokens, UserChanges, UserNotifier}
 
   ## Database getters
 
@@ -41,7 +44,7 @@ defmodule LiveCanvas.Accounts do
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
     user = Repo.get_by(User, email: email)
-    if User.valid_password?(user, password), do: user
+    if Passwords.valid_password?(user, password), do: user
   end
 
   @doc """
@@ -76,8 +79,16 @@ defmodule LiveCanvas.Accounts do
   """
   def register_user(attrs) do
     %User{}
-    |> User.email_changeset(attrs)
+    |> UserChanges.email_changeset(attrs)
     |> Repo.insert()
+  end
+
+  @doc """
+  Returns the registration changeset used by adapter layers.
+  """
+  def registration_changeset(attrs \\ %{}, opts \\ []) do
+    %User{}
+    |> UserChanges.email_changeset(attrs, opts)
   end
 
   ## Settings
@@ -99,7 +110,8 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Returns an `%Ecto.Changeset{}` for changing the user email.
 
-  See `LiveCanvas.Accounts.User.email_changeset/3` for a list of supported options.
+  See `LiveCanvas.Accounts.UserChanges.email_changeset/3` for a list of
+  supported options.
 
   ## Examples
 
@@ -108,7 +120,7 @@ defmodule LiveCanvas.Accounts do
 
   """
   def change_user_email(user, attrs \\ %{}, opts \\ []) do
-    User.email_changeset(user, attrs, opts)
+    UserChanges.email_changeset(user, attrs, opts)
   end
 
   @doc """
@@ -120,9 +132,9 @@ defmodule LiveCanvas.Accounts do
     context = "change:#{user.email}"
 
     Repo.transact(fn ->
-      with {:ok, query} <- UserToken.verify_change_email_token_query(token, context),
+      with {:ok, query} <- Tokens.verify_change_email_token_query(token, context),
            %UserToken{sent_to: email} <- Repo.one(query),
-           {:ok, user} <- Repo.update(User.email_changeset(user, %{email: email})),
+           {:ok, user} <- Repo.update(UserChanges.email_changeset(user, %{email: email})),
            {_count, _result} <-
              Repo.delete_all(from(UserToken, where: [user_id: ^user.id, context: ^context])) do
         {:ok, user}
@@ -135,7 +147,8 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Returns an `%Ecto.Changeset{}` for changing the user password.
 
-  See `LiveCanvas.Accounts.User.password_changeset/3` for a list of supported options.
+  See `LiveCanvas.Accounts.UserChanges.password_changeset/3` for a list of
+  supported options.
 
   ## Examples
 
@@ -144,7 +157,7 @@ defmodule LiveCanvas.Accounts do
 
   """
   def change_user_password(user, attrs \\ %{}, opts \\ []) do
-    User.password_changeset(user, attrs, opts)
+    UserChanges.password_changeset(user, attrs, opts)
   end
 
   @doc """
@@ -163,9 +176,24 @@ defmodule LiveCanvas.Accounts do
   """
   def update_user_password(user, attrs) do
     user
-    |> User.password_changeset(attrs)
+    |> UserChanges.password_changeset(attrs)
     |> update_user_and_delete_all_tokens()
   end
+
+  @doc """
+  Creates a scope for the given user.
+  """
+  def scope_for_user(user), do: Scope.for_user(user)
+
+  @doc """
+  Returns the empty scope used by adapter layers.
+  """
+  def empty_scope, do: nil
+
+  @doc """
+  Builds a hashed email token payload for the given user.
+  """
+  def build_user_email_token(user, context), do: Tokens.build_email_token(user, context)
 
   ## Session
 
@@ -173,7 +201,7 @@ defmodule LiveCanvas.Accounts do
   Generates a session token.
   """
   def generate_user_session_token(user) do
-    {token, user_token} = UserToken.build_session_token(user)
+    {token, user_token} = Tokens.build_session_token(user)
     Repo.insert!(user_token)
     token
   end
@@ -184,7 +212,7 @@ defmodule LiveCanvas.Accounts do
   If the token is valid `{user, token_inserted_at}` is returned, otherwise `nil` is returned.
   """
   def get_user_by_session_token(token) do
-    {:ok, query} = UserToken.verify_session_token_query(token)
+    {:ok, query} = Tokens.verify_session_token_query(token)
     Repo.one(query)
   end
 
@@ -192,7 +220,7 @@ defmodule LiveCanvas.Accounts do
   Gets the user with the given magic link token.
   """
   def get_user_by_magic_link_token(token) do
-    with {:ok, query} <- UserToken.verify_magic_link_token_query(token),
+    with {:ok, query} <- Tokens.verify_magic_link_token_query(token),
          {user, _token} <- Repo.one(query) do
       user
     else
@@ -219,7 +247,7 @@ defmodule LiveCanvas.Accounts do
      `mix help phx.gen.auth`.
   """
   def login_user_by_magic_link(token) do
-    {:ok, query} = UserToken.verify_magic_link_token_query(token)
+    {:ok, query} = Tokens.verify_magic_link_token_query(token)
 
     case Repo.one(query) do
       # Prevent session fixation attacks by disallowing magic links for unconfirmed users with password
@@ -234,7 +262,7 @@ defmodule LiveCanvas.Accounts do
 
       {%User{confirmed_at: nil} = user, _token} ->
         user
-        |> User.confirm_changeset()
+        |> UserChanges.confirm_changeset()
         |> update_user_and_delete_all_tokens()
 
       {user, token} ->
@@ -257,7 +285,7 @@ defmodule LiveCanvas.Accounts do
   """
   def deliver_user_update_email_instructions(%User{} = user, current_email, update_email_url_fun)
       when is_function(update_email_url_fun, 1) do
-    {encoded_token, user_token} = UserToken.build_email_token(user, "change:#{current_email}")
+    {encoded_token, user_token} = Tokens.build_email_token(user, "change:#{current_email}")
 
     Repo.insert!(user_token)
     UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(encoded_token))
@@ -268,7 +296,7 @@ defmodule LiveCanvas.Accounts do
   """
   def deliver_login_instructions(%User{} = user, magic_link_url_fun)
       when is_function(magic_link_url_fun, 1) do
-    {encoded_token, user_token} = UserToken.build_email_token(user, "login")
+    {encoded_token, user_token} = Tokens.build_email_token(user, "login")
     Repo.insert!(user_token)
     UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(encoded_token))
   end

@@ -5,7 +5,6 @@ defmodule LiveCanvasWeb.UserAuth do
   import Phoenix.Controller
 
   alias LiveCanvas.Accounts
-  alias LiveCanvas.Accounts.Scope
 
   # Make the remember me cookie valid for 14 days. This should match
   # the session validity setting in UserToken.
@@ -68,10 +67,10 @@ defmodule LiveCanvasWeb.UserAuth do
     with {token, conn} <- ensure_user_token(conn),
          {user, token_inserted_at} <- Accounts.get_user_by_session_token(token) do
       conn
-      |> assign(:current_scope, Scope.for_user(user))
+      |> assign(:current_scope, Accounts.scope_for_user(user))
       |> maybe_reissue_user_session_token(user, token_inserted_at)
     else
-      nil -> assign(conn, :current_scope, Scope.for_user(nil))
+      nil -> assign(conn, :current_scope, Accounts.empty_scope())
     end
   end
 

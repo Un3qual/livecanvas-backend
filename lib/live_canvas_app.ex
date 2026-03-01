@@ -1,31 +1,26 @@
-defmodule LiveCanvas.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
+defmodule LiveCanvasApp do
   @moduledoc false
 
   use Application
+
+  use Boundary,
+    top_level?: true,
+    deps: [LiveCanvas, LiveCanvasWeb, LiveCanvasGQL]
 
   @impl true
   def start(_type, _args) do
     children = [
       LiveCanvasWeb.Telemetry,
-      LiveCanvas.Repo,
+      LiveCanvas.repo_module(),
       {DNSCluster, query: Application.get_env(:live_canvas, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: LiveCanvas.PubSub},
-      # Start a worker by calling: LiveCanvas.Worker.start_link(arg)
-      # {LiveCanvas.Worker, arg},
-      # Start to serve requests, typically the last entry
       LiveCanvasWeb.Endpoint
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: LiveCanvas.Supervisor]
     Supervisor.start_link(children, opts)
   end
 
-  # Tell Phoenix to update the endpoint configuration
-  # whenever the application is updated.
   @impl true
   def config_change(changed, _new, removed) do
     LiveCanvasWeb.Endpoint.config_change(changed, removed)

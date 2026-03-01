@@ -17,6 +17,11 @@ defmodule LiveCanvasWeb do
   those modules here.
   """
 
+  use Boundary,
+    top_level?: true,
+    deps: [LiveCanvas, LiveCanvasGQL],
+    exports: [Endpoint, Router, Telemetry, UserAuth]
+
   def static_paths, do: ~w(assets fonts images favicon.ico robots.txt)
 
   def router do

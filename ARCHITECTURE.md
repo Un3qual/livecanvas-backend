@@ -38,6 +38,52 @@ Explicitly deferred from v1:
   processes.
 - Prefer architecture that can evolve without rewriting core domain boundaries.
 
+## Cross-Cutting Maintainability Rules
+
+### Boundary Rules
+
+- Treat each top-level context module as an interface boundary.
+- Enforce internal module boundaries with the `boundary` library instead of
+  relying on convention alone.
+- Use top-level boundary declarations for `LiveCanvasApp`, `LiveCanvas`,
+  `LiveCanvasWeb`, `LiveCanvasGQL`, and `LiveCanvasSchemas`.
+- Use nested core boundaries such as `LiveCanvas.Accounts` and
+  `LiveCanvas.Infra` instead of promoting every subsystem to top-level.
+- Keep Ecto schemas under `LiveCanvasSchemas` so schema-heavy code does not
+  overwhelm the core context folders.
+- Keep `LiveCanvasSchemas` modules schema-only: no changeset building, no repo
+  operations, and no workflow logic.
+- Export only stable entrypoints from each boundary. Temporary exports needed by
+  the Phoenix auth scaffold or compiled test support should be treated as
+  migration allowances, not the long-term target shape.
+- Normalize transport-specific input at the boundary only.
+- Keep internal business logic independent from Absinthe, Plug, Phoenix socket
+  payloads, and controller params.
+
+### Function Anatomy
+
+- Public write paths should split into:
+  - pure decision logic
+  - effectful coordination
+- Pure logic returns domain decisions or normalized change instructions.
+- Coordinators perform `Repo`, PubSub, Presence, and external side effects.
+
+### Process Topology
+
+- Use OTP processes only for explicit runtime entities or asynchronous ownership
+  boundaries.
+- Prefer plain modules for synchronous domain logic.
+- `Live` owns session processes; other contexts stay process-light unless
+  runtime behavior proves otherwise.
+
+### Testing Strategy
+
+- Prefer pure input/output tests for internal business rules.
+- Concentrate side-effect assertions in boundary-level integration tests.
+- Run `mix compile` immediately after adding or changing a boundary declaration
+  so violations surface before larger changes stack up.
+- Avoid introducing abstractions whose only purpose is easy mocking.
+
 ## System Architecture
 
 LiveCanvas runs as a single Phoenix/Absinthe application deployed in Kubernetes.

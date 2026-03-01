@@ -132,7 +132,10 @@ The previous version of this plan treated boundaries as a convention. After revi
 
 - Keep the approved modular monolith, GraphQL-first API, Postgres-only storage, and no-Redis rule.
 - Use the `boundary` library to turn boundary rules into compile-time checks instead of conventions only.
-- Treat `LiveCanvas`, `LiveCanvasWeb`, `LiveCanvasGQL`, and each domain root module as explicit boundary declarations.
+- Treat `LiveCanvasApp`, `LiveCanvas`, `LiveCanvasWeb`, `LiveCanvasGQL`, and `LiveCanvasSchemas` as the top-level boundary roots.
+- Keep domain boundaries nested under `LiveCanvas` (for example:
+  `LiveCanvas.Accounts`, `LiveCanvas.Infra`) instead of promoting every
+  subsystem to top-level.
 - Do not change the current context map.
 - Do change the implementation rules so each context has a clear boundary, pure internal logic, and limited side-effect coordination.
 - Use OTP processes more intentionally in `Live` and only selectively elsewhere.
@@ -145,16 +148,26 @@ The previous version of this plan treated boundaries as a convention. After revi
 **Files:**
 - Modify: `mix.exs`
 - Modify: `lib/live_canvas.ex`
+- Create: `lib/live_canvas_app.ex`
 - Modify: `lib/live_canvas/accounts.ex`
+- Create: `lib/live_canvas/infra.ex`
+- Create: `lib/live_canvas/infra/repo.ex`
+- Create: `lib/live_canvas/infra/mailer.ex`
 - Modify: `lib/live_canvas_web.ex`
 - Modify: `lib/live_canvas_gql/live_canvas_gql.ex`
+- Create: `lib/live_canvas_schemas.ex`
+- Create: `lib/live_canvas_schemas/user.ex`
+- Create: `lib/live_canvas_schemas/user_token.ex`
+- Create: `lib/live_canvas/accounts/user_changes.ex`
+- Create: `lib/live_canvas/accounts/passwords.ex`
+- Create: `lib/live_canvas/accounts/tokens.ex`
 - Reference: `test/support/data_case.ex`
 - Reference: `test/support/conn_case.ex`
 - Reference: `test/support/fixtures/accounts_fixtures.ex`
 
 **Step 1: Add the dependency and compiler**
 
-Update `mix.exs` so the project installs `boundary` and runs the boundary compiler after the standard Elixir compilers:
+Update `mix.exs` so the project installs `boundary` and runs the boundary compiler before the standard Elixir compilers:
 
 ```elixir
 def project do
@@ -166,7 +179,7 @@ def project do
     start_permanent: Mix.env() == :prod,
     aliases: aliases(),
     deps: deps(),
-    compilers: [:phoenix_live_view] ++ Mix.compilers() ++ [:boundary],
+    compilers: [:boundary, :phoenix_live_view] ++ Mix.compilers(),
     listeners: [Phoenix.CodeReloader]
   ]
 end
@@ -189,32 +202,43 @@ Use the existing top-level modules as the first boundary declarations, then grow
 
 ```elixir
 defmodule LiveCanvas do
+  @test_support_exports if Mix.env() == :test, do: [AccountsFixtures, DataCase], else: []
   use Boundary,
     top_level?: true,
-    deps: [LiveCanvasWeb, LiveCanvasGQL],
-    exports: [Accounts, Repo, Mailer]
+    deps: [LiveCanvasSchemas],
+    exports: [Accounts] ++ @test_support_exports
+end
+
+defmodule LiveCanvasApp do
+  use Boundary,
+    top_level?: true,
+    deps: [LiveCanvas, LiveCanvasWeb, LiveCanvasGQL]
 end
 
 defmodule LiveCanvas.Accounts do
-  use Boundary,
-    deps: [Ecto, Ecto.Query, LiveCanvas.Repo],
-    exports: [Scope]
+  use Boundary, deps: [LiveCanvas.Infra, LiveCanvasSchemas]
+end
+
+defmodule LiveCanvas.Infra do
+  use Boundary, exports: [Repo, Mailer]
+end
+
+defmodule LiveCanvasSchemas do
+  use Boundary, top_level?: true, exports: [User, UserToken]
 end
 
 defmodule LiveCanvasWeb do
-  use Boundary,
-    deps: [Phoenix, Plug, LiveCanvas],
-    exports: [Endpoint, Router, UserAuth]
+  use Boundary, top_level?: true, deps: [LiveCanvas, LiveCanvasGQL], exports: [Endpoint, Router, Telemetry, UserAuth]
 end
 
 defmodule LiveCanvasGQL do
-  use Boundary,
-    deps: [Absinthe, LiveCanvas],
-    exports: [Schema, Router]
+  use Boundary, top_level?: true, deps: [LiveCanvas], exports: [Schema, Router]
 end
 ```
 
-The exact `deps` lists should be tightened during implementation, but the architectural direction is fixed: adapters depend inward, domain boundaries do not depend outward.
+The architectural direction is fixed: adapters depend inward on `LiveCanvas`,
+schema modules live in `LiveCanvasSchemas`, and schema-only modules do not
+contain changesets, repo operations, or workflow logic.
 
 **Step 3: Document the test-support rollout explicitly**
 
@@ -239,7 +263,7 @@ Expected: boundary warnings fail the run because `compile --warnings-as-errors` 
 **Step 6: Commit**
 
 ```bash
-git add mix.exs lib/live_canvas.ex lib/live_canvas/accounts.ex lib/live_canvas_web.ex lib/live_canvas_gql/live_canvas_gql.ex
+git add mix.exs lib/live_canvas.ex lib/live_canvas_app.ex lib/live_canvas/accounts.ex lib/live_canvas/infra.ex lib/live_canvas/infra lib/live_canvas_web.ex lib/live_canvas_gql/live_canvas_gql.ex lib/live_canvas_schemas.ex lib/live_canvas_schemas lib/live_canvas/accounts/user_changes.ex lib/live_canvas/accounts/passwords.ex lib/live_canvas/accounts/tokens.ex
 git commit -m "build: add boundary compile-time architecture checks"
 ```
 

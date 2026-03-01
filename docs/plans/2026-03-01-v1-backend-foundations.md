@@ -4,9 +4,9 @@
 
 **Goal:** Build the first production-ready backend slice for LiveCanvas: multi-identity accounts, follower graph, content records, live session lifecycle, live chat, and feed retrieval on the existing Phoenix/Absinthe stack.
 
-**Architecture:** Keep the existing app as a modular monolith. Extend the current Phoenix auth scaffold into a normalized multi-identity `Accounts` context first, then add `Social`, `Content`, `Live`, `Chat`, and `Feed` as explicit contexts with narrow APIs. Use PostgreSQL for durable state, Phoenix Channels / PubSub / Presence for realtime coordination, and Membrane integration points only after the session model and channel contracts are stable.
+**Architecture:** Keep the existing app as a modular monolith. Extend the current Phoenix auth scaffold into a normalized multi-identity `Accounts` context first, then add `Social`, `Content`, `Live`, `Chat`, and `Feed` as explicit contexts with narrow APIs. Enforce those boundaries with the `boundary` library using `LiveCanvasApp` for application wiring, `LiveCanvas` as the core boundary, `LiveCanvasSchemas` for schema-only modules, and nested core boundaries such as `LiveCanvas.Accounts` and `LiveCanvas.Infra`. Keep pure business rules in transport-agnostic internal modules, and use PostgreSQL for durable state plus Phoenix Channels / PubSub / Presence for realtime coordination. Add Membrane integration points only after the session model and channel contracts are stable.
 
-**Tech Stack:** Elixir 1.15+, Phoenix 1.8, Absinthe, Ecto, PostgreSQL, ExUnit, Phoenix Channels, Phoenix Presence, Membrane (later in this plan)
+**Tech Stack:** Elixir 1.15+, Phoenix 1.8, Absinthe, Ecto, PostgreSQL, ExUnit, Phoenix Channels, Phoenix Presence, `boundary`, Membrane (later in this plan)
 
 ---
 
@@ -17,8 +17,175 @@
 - Land domain slices in this order: `Accounts` -> `Social` -> `Content` -> `Live` -> `Chat` -> `Feed`.
 - Preserve backward progress with short commits after each green milestone.
 - Prefer additive migrations over large destructive rewrites; if old auth tables must be reshaped, copy data forward in a dedicated migration.
+- Treat the root context module for each domain as the interface boundary;
+  transport adapters may call only that boundary.
+- Declare each root context module with `use Boundary`, explicit `deps`, and
+  explicit `exports`.
+- Keep `LiveCanvasWeb` and `LiveCanvasGQL` as adapter boundaries that depend on
+  exported `LiveCanvas` APIs only.
+- For each new write path, split the work into pure domain decision code first,
+  then effectful coordination.
+- Put transport-agnostic business rules in internal modules that accept
+  normalized data, not raw params maps.
+- Add pure unit tests for internal business rules before adding GraphQL,
+  channel, or end-to-end coverage for the same behavior.
+- Run `mix compile` after adding or changing a boundary so architectural
+  violations surface immediately.
+- After each task reaches green, factor the code shape before moving to the
+  next task.
+
+### Task 0: Establish Shared Domain Conventions And Wire `boundary`
+
+**Files:**
+- Modify: `mix.exs`
+- Modify: `lib/live_canvas.ex`
+- Create: `lib/live_canvas_app.ex`
+- Modify: `lib/live_canvas/accounts.ex`
+- Create: `lib/live_canvas/infra.ex`
+- Create: `lib/live_canvas/infra/repo.ex`
+- Create: `lib/live_canvas/infra/mailer.ex`
+- Modify: `lib/live_canvas_web.ex`
+- Modify: `lib/live_canvas_gql/live_canvas_gql.ex`
+- Create: `lib/live_canvas_schemas.ex`
+- Create: `lib/live_canvas_schemas/user.ex`
+- Create: `lib/live_canvas_schemas/user_token.ex`
+- Create: `lib/live_canvas/accounts/user_changes.ex`
+- Create: `lib/live_canvas/accounts/passwords.ex`
+- Create: `lib/live_canvas/accounts/tokens.ex`
+- Reference: `ARCHITECTURE.md`
+- Reference: `test/support/data_case.ex`
+- Reference: `test/support/conn_case.ex`
+- Reference: `test/support/fixtures/accounts_fixtures.ex`
+
+**Step 1: Add the dependency and compiler**
+
+Update `mix.exs` so the project installs `boundary` and runs the boundary
+compiler before the regular Elixir compilers:
+
+```elixir
+def project do
+  [
+    app: :live_canvas,
+    version: "0.1.0",
+    elixir: "~> 1.15",
+    elixirc_paths: elixirc_paths(Mix.env()),
+    start_permanent: Mix.env() == :prod,
+    aliases: aliases(),
+    deps: deps(),
+    compilers: [:boundary, :phoenix_live_view] ++ Mix.compilers(),
+    listeners: [Phoenix.CodeReloader]
+  ]
+end
+
+defp misc_deps, do: [
+  {:boundary, "~> 0.10", runtime: false},
+  {:swoosh, "~> 1.16"},
+  {:req, "~> 0.5"},
+  {:telemetry_metrics, "~> 1.0"},
+  {:telemetry_poller, "~> 1.0"},
+  {:jason, "~> 1.2"},
+  {:dns_cluster, "~> 0.2.0"},
+  {:bandit, "~> 1.5"}
+]
+```
+
+**Step 2: Record the shared module shape**
+
+Document and apply this shape to the current root modules:
+
+```elixir
+defmodule LiveCanvas do
+  @test_support_exports if Mix.env() == :test, do: [AccountsFixtures, DataCase], else: []
+  use Boundary,
+    top_level?: true,
+    deps: [LiveCanvasSchemas],
+    exports: [Accounts] ++ @test_support_exports
+end
+
+defmodule LiveCanvasApp do
+  use Application
+  use Boundary, top_level?: true, deps: [LiveCanvas, LiveCanvasWeb, LiveCanvasGQL]
+end
+
+defmodule LiveCanvas.Accounts do
+  use Boundary, deps: [LiveCanvas.Infra, LiveCanvasSchemas]
+end
+
+defmodule LiveCanvas.Infra do
+  use Boundary, exports: [Repo, Mailer]
+end
+
+defmodule LiveCanvasWeb do
+  use Boundary, top_level?: true, deps: [LiveCanvas, LiveCanvasGQL], exports: [Endpoint, Router, Telemetry, UserAuth]
+end
+
+defmodule LiveCanvasGQL do
+  use Boundary, top_level?: true, deps: [LiveCanvas], exports: [Schema, Router]
+end
+
+defmodule LiveCanvasSchemas do
+  use Boundary, top_level?: true, exports: [User, UserToken]
+end
+```
+
+Keep `LiveCanvasSchemas` schema-only. Move changesets into
+`LiveCanvas.Accounts.UserChanges`, token logic into `LiveCanvas.Accounts.Tokens`,
+and other business logic into core modules instead of schema modules.
+
+**Step 3: Record the shared internal shape**
+
+Each new domain context should follow this pattern:
+
+```elixir
+LiveCanvas.Accounts          # boundary API, declared with use Boundary
+LiveCanvas.Accounts.Core     # pure business rules
+LiveCanvas.Accounts.UserChanges
+LiveCanvas.Accounts.Tokens
+LiveCanvas.Infra            # infrastructure sink
+LiveCanvasSchemas.User      # schema only
+```
+
+**Step 4: Record the shared testing shape**
+
+Use this default order:
+- pure business-rule tests
+- context integration tests
+- GraphQL or channel contract tests
+- end-to-end regression tests
+
+Because this repo compiles `test/support` in the test environment, account for
+helper modules when introducing or tightening boundaries. Do not assume only
+`lib/` participates in boundary checks.
+
+**Step 5: Verify the compiler and boundary map**
+
+Run: `mix compile`
+
+Expected: the `boundary` compiler runs and reports only the violations you
+still need to burn down.
+
+**Step 6: Verify the safety net**
+
+Run: `mix precommit`
+
+Expected: boundary warnings fail the run because `compile --warnings-as-errors`
+already sits inside the precommit alias.
+
+**Step 7: Commit**
+
+```bash
+git add mix.exs lib/live_canvas.ex lib/live_canvas_app.ex lib/live_canvas/accounts.ex lib/live_canvas/infra.ex lib/live_canvas/infra lib/live_canvas_web.ex lib/live_canvas_gql/live_canvas_gql.ex lib/live_canvas_schemas.ex lib/live_canvas_schemas lib/live_canvas/accounts/user_changes.ex lib/live_canvas/accounts/passwords.ex lib/live_canvas/accounts/tokens.ex
+git commit -m "build: wire boundary into the modular monolith"
+```
 
 ### Task 1: Reshape `Accounts` Persistence For Multi-Identity Auth
+
+Before writing the effectful implementation, add or update a pure internal rule
+module for the decision-making part of this behavior, then have the boundary
+module coordinate persistence and external side effects.
+
+Declare or update the root context module as a `boundary` boundary with
+explicit `deps` and `exports` before adding new internal modules.
 
 **Files:**
 - Create: `priv/repo/migrations/TIMESTAMP_rebuild_accounts_identity_tables.exs`
@@ -30,8 +197,10 @@
 - Create: `lib/live_canvas/accounts/user_contact_entry.ex`
 - Create: `lib/live_canvas/accounts/user_contact_entry_email_address.ex`
 - Create: `lib/live_canvas/accounts/user_contact_entry_phone_number.ex`
-- Modify: `lib/live_canvas/accounts/user.ex`
-- Modify: `lib/live_canvas/accounts/user_token.ex`
+- Modify: `lib/live_canvas_schemas/user.ex`
+- Modify: `lib/live_canvas_schemas/user_token.ex`
+- Modify: `lib/live_canvas/accounts/user_changes.ex`
+- Modify: `lib/live_canvas/accounts/tokens.ex`
 - Test: `test/live_canvas/accounts_test.exs`
 - Test: `test/support/fixtures/accounts_fixtures.ex`
 
@@ -93,7 +262,7 @@ schema "users_tokens" do
   field :context, :string
   field :sent_to, :string
   field :authenticated_at, :utc_datetime
-  belongs_to :user, LiveCanvas.Accounts.User
+  belongs_to :user, LiveCanvasSchemas.User
   timestamps(type: :utc_datetime, updated_at: false)
 end
 ```
@@ -113,10 +282,17 @@ git commit -m "refactor: normalize account identity storage"
 
 ### Task 2: Rewrite `Accounts` APIs Around Normalized Credentials
 
+Before writing the effectful implementation, add or update a pure internal rule
+module for the decision-making part of this behavior, then have the boundary
+module coordinate persistence and external side effects.
+
+Declare or update the root context module as a `boundary` boundary with
+explicit `deps` and `exports` before adding new internal modules.
+
 **Files:**
 - Modify: `lib/live_canvas/accounts.ex`
-- Modify: `lib/live_canvas/accounts/user.ex`
-- Modify: `lib/live_canvas/accounts/user_token.ex`
+- Modify: `lib/live_canvas/accounts/user_changes.ex`
+- Modify: `lib/live_canvas/accounts/tokens.ex`
 - Modify: `lib/live_canvas/accounts/user_notifier.ex`
 - Modify: `test/live_canvas/accounts_test.exs`
 - Modify: `test/support/fixtures/accounts_fixtures.ex`
@@ -186,11 +362,15 @@ Expected: PASS, including token hashing and normalized email behavior.
 **Step 5: Commit**
 
 ```bash
-git add lib/live_canvas/accounts.ex lib/live_canvas/accounts/user.ex lib/live_canvas/accounts/user_token.ex lib/live_canvas/accounts/user_notifier.ex test/live_canvas/accounts
+git add lib/live_canvas/accounts.ex lib/live_canvas/accounts/user_changes.ex lib/live_canvas/accounts/tokens.ex lib/live_canvas/accounts/user_notifier.ex test/live_canvas/accounts
 git commit -m "feat: add normalized accounts auth APIs"
 ```
 
 ### Task 3: Expose Multi-Identity Account Flows Through GraphQL
+
+Keep this task adapter-thin: GraphQL should normalize request data, call the
+exported `Accounts` boundary API, and avoid moving business rules into
+resolvers.
 
 **Files:**
 - Modify: `lib/live_canvas_gql/schema.ex`
@@ -264,7 +444,22 @@ git add lib/live_canvas_gql/schema.ex lib/live_canvas_gql/accounts test/live_can
 git commit -m "feat: add graphql account entry points"
 ```
 
+**Refactor And Review Gate**
+
+- Confirm the `Accounts` boundary module still contains coordination, not
+  embedded business rules.
+- Confirm new pure internal modules are covered by direct input/output tests.
+- Confirm transport adapters still depend on the boundary only.
+- Run a focused review before starting the next domain slice.
+
 ### Task 4: Add The `Social` Context For Follows, Requests, And Blocks
+
+Before writing the effectful implementation, add or update a pure internal rule
+module for the decision-making part of this behavior, then have the boundary
+module coordinate persistence and external side effects.
+
+Declare or update the root context module as a `boundary` boundary with
+explicit `deps` and `exports` before adding new internal modules.
 
 **Files:**
 - Create: `priv/repo/migrations/TIMESTAMP_create_social_tables.exs`
@@ -343,7 +538,22 @@ git add priv/repo/migrations lib/live_canvas/social.ex lib/live_canvas/social li
 git commit -m "feat: add social graph context"
 ```
 
+**Refactor And Review Gate**
+
+- Confirm the `Social` boundary module still contains coordination, not
+  embedded business rules.
+- Confirm new pure internal modules are covered by direct input/output tests.
+- Confirm transport adapters still depend on the boundary only.
+- Run a focused review before starting the next domain slice.
+
 ### Task 5: Add The `Content` Context For Posts And Media Metadata
+
+Before writing the effectful implementation, add or update a pure internal rule
+module for the decision-making part of this behavior, then have the boundary
+module coordinate persistence and external side effects.
+
+Declare or update the root context module as a `boundary` boundary with
+explicit `deps` and `exports` before adding new internal modules.
 
 **Files:**
 - Create: `priv/repo/migrations/TIMESTAMP_create_content_tables.exs`
@@ -422,7 +632,19 @@ git add priv/repo/migrations lib/live_canvas/content.ex lib/live_canvas/content 
 git commit -m "feat: add content context"
 ```
 
+**Refactor And Review Gate**
+
+- Confirm the `Content` boundary module still contains coordination, not
+  embedded business rules.
+- Confirm new pure internal modules are covered by direct input/output tests.
+- Confirm transport adapters still depend on the boundary only.
+- Run a focused review before starting the next domain slice.
+
 ### Task 6: Add The `Live` Context, Session Supervisor, And Presence Contract
+
+Use supervised processes only where runtime ownership is necessary (for
+example: active live session state, async fanout, or media-session lifecycle).
+Keep durable state transitions and validation logic in plain modules.
 
 **Files:**
 - Create: `priv/repo/migrations/TIMESTAMP_create_live_tables.exs`
@@ -432,7 +654,7 @@ git commit -m "feat: add content context"
 - Create: `lib/live_canvas/live/session_supervisor.ex`
 - Create: `lib/live_canvas/live/session_server.ex`
 - Create: `lib/live_canvas_web/presence.ex`
-- Modify: `lib/live_canvas/application.ex`
+- Modify: `lib/live_canvas_app.ex`
 - Modify: `lib/live_canvas_web/endpoint.ex`
 - Create: `test/live_canvas/live_test.exs`
 - Create: `test/live_canvas/live/session_server_test.exs`
@@ -468,7 +690,7 @@ Create the durable session tables and supervised runtime processes.
 ```elixir
 children = [
   LiveCanvasWeb.Telemetry,
-  LiveCanvas.Repo,
+  LiveCanvas.repo_module(),
   {Phoenix.PubSub, name: LiveCanvas.PubSub},
   LiveCanvasWeb.Presence,
   {DynamicSupervisor, name: LiveCanvas.Live.SessionSupervisor, strategy: :one_for_one},
@@ -495,11 +717,25 @@ Expected: PASS, with session persistence and supervised process startup working.
 **Step 5: Commit**
 
 ```bash
-git add priv/repo/migrations lib/live_canvas/live.ex lib/live_canvas/live lib/live_canvas/application.ex lib/live_canvas_web/presence.ex test/live_canvas/live_test.exs test/live_canvas/live
+git add priv/repo/migrations lib/live_canvas/live.ex lib/live_canvas/live lib/live_canvas_app.ex lib/live_canvas_web/presence.ex test/live_canvas/live_test.exs test/live_canvas/live
 git commit -m "feat: add live session domain"
 ```
 
+**Refactor And Review Gate**
+
+- Confirm the `Live` boundary module still contains coordination, not embedded
+  business rules.
+- Confirm new plain modules hold durable transition logic and supervised
+  processes own only runtime state.
+- Confirm transport adapters still depend on the boundary only.
+- Run a focused review before starting the next domain slice.
+
 ### Task 7: Add The `Chat` Context And Live Channel Topics
+
+Use supervised processes only where runtime ownership is necessary (for
+example: active live session state, async fanout, or backpressure-sensitive
+chat flow). Keep durable state transitions and validation logic in plain
+modules.
 
 **Files:**
 - Create: `priv/repo/migrations/TIMESTAMP_create_chat_tables.exs`
@@ -567,7 +803,23 @@ git add priv/repo/migrations lib/live_canvas/chat.ex lib/live_canvas/chat lib/li
 git commit -m "feat: add live chat channels"
 ```
 
+**Refactor And Review Gate**
+
+- Confirm the `Chat` boundary module still contains coordination, not embedded
+  business rules.
+- Confirm new plain modules hold durable validation logic and runtime
+  processes exist only for real ownership/backpressure concerns.
+- Confirm transport adapters still depend on the boundary only.
+- Run a focused review before starting the next domain slice.
+
 ### Task 8: Add The `Feed` Context And GraphQL Read Models
+
+Before writing the effectful implementation, add or update a pure internal rule
+module for the decision-making part of this behavior, then have the boundary
+module coordinate persistence and external side effects.
+
+Declare or update the root context module as a `boundary` boundary with
+explicit `deps` and `exports` before adding new internal modules.
 
 **Files:**
 - Create: `lib/live_canvas/feed.ex`
@@ -640,6 +892,14 @@ Expected: PASS, with visibility governed by `Social`.
 git add lib/live_canvas/feed.ex lib/live_canvas_gql/feed lib/live_canvas_gql/schema.ex test/live_canvas/feed_test.exs test/live_canvas_gql/feed/feed_queries_test.exs
 git commit -m "feat: add feed read layer"
 ```
+
+**Refactor And Review Gate**
+
+- Confirm the `Feed` boundary module still contains coordination, not embedded
+  business rules.
+- Confirm new pure internal modules are covered by direct input/output tests.
+- Confirm transport adapters still depend on the boundary only.
+- Run a focused review before starting the next domain slice.
 
 ### Task 9: Wire End-To-End Auth, Realtime, And API Regression Coverage
 
@@ -762,13 +1022,17 @@ git commit -m "chore: add membrane integration seam"
 Before calling this plan implemented, run these commands in order:
 
 1. `mix format`
-2. `mix test test/live_canvas/accounts_test.exs test/live_canvas/social_test.exs test/live_canvas/content_test.exs test/live_canvas/live_test.exs test/live_canvas/chat_test.exs test/live_canvas/feed_test.exs -v`
-3. `mix test test/live_canvas_gql test/live_canvas_web/channels test/integration -v`
-4. `mix test`
+2. `mix compile`
+3. `rg -n ":boundary|compilers: .*\\[:boundary" mix.exs`
+4. `rg -n "use Boundary|Refactor And Review Gate" docs/plans/2026-03-01-v1-backend-foundations.md`
+5. `mix test test/live_canvas/accounts_test.exs test/live_canvas/social_test.exs test/live_canvas/content_test.exs test/live_canvas/live_test.exs test/live_canvas/chat_test.exs test/live_canvas/feed_test.exs -v`
+6. `mix test test/live_canvas_gql test/live_canvas_web/channels test/integration -v`
+7. `mix test`
 
 Expected final result:
 
 - no compilation failures
+- no boundary violations
 - all targeted domain tests pass
 - GraphQL and channel contracts pass
 - integration flows pass

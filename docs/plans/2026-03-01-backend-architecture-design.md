@@ -81,3 +81,21 @@ Key rules:
 - Scale the current monolith before splitting runtime responsibilities.
 - Add billing, geo, and richer profile systems in later phases without
   rewriting the v1 context boundaries.
+
+## Maintainability Alignment
+
+- Top-level contexts remain the public boundaries of the modular monolith.
+- Use the `boundary` library as the compile-time enforcement mechanism for
+  those boundaries.
+- The initial boundary map should start with `LiveCanvasApp`, `LiveCanvas`,
+  `LiveCanvasWeb`, `LiveCanvasGQL`, and `LiveCanvasSchemas`, with nested core
+  boundaries such as `LiveCanvas.Accounts` and `LiveCanvas.Infra`.
+- Boundary modules normalize external input and shield internal business rules
+  from transport concerns.
+- Ecto schemas should live under `LiveCanvasSchemas` and remain schema-only.
+- New business rules should prefer pure internal modules plus thin effectful
+  coordinators.
+- OTP processes should model runtime entities such as live sessions, not
+  routine CRUD flows.
+- Tests should favor pure input/output coverage first, then boundary
+  integrations.

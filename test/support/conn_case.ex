@@ -46,7 +46,7 @@ defmodule LiveCanvasWeb.ConnCase do
   """
   def register_and_log_in_user(%{conn: conn} = context) do
     user = LiveCanvas.AccountsFixtures.user_fixture()
-    scope = LiveCanvas.Accounts.Scope.for_user(user)
+    scope = LiveCanvas.Accounts.scope_for_user(user)
 
     opts =
       context

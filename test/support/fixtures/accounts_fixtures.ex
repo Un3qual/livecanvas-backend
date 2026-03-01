@@ -7,7 +7,8 @@ defmodule LiveCanvas.AccountsFixtures do
   import Ecto.Query
 
   alias LiveCanvas.Accounts
-  alias LiveCanvas.Accounts.Scope
+  alias LiveCanvas.Infra.Repo
+  alias LiveCanvasSchemas.UserToken
 
   def unique_user_email, do: "user#{System.unique_integer()}@example.com"
   def valid_user_password, do: "hello world!"
@@ -47,7 +48,7 @@ defmodule LiveCanvas.AccountsFixtures do
   end
 
   def user_scope_fixture(user) do
-    Scope.for_user(user)
+    Accounts.scope_for_user(user)
   end
 
   def set_password(user) do
@@ -64,8 +65,8 @@ defmodule LiveCanvas.AccountsFixtures do
   end
 
   def override_token_authenticated_at(token, authenticated_at) when is_binary(token) do
-    LiveCanvas.Repo.update_all(
-      from(t in Accounts.UserToken,
+    Repo.update_all(
+      from(t in UserToken,
         where: t.token == ^token
       ),
       set: [authenticated_at: authenticated_at]
@@ -73,16 +74,16 @@ defmodule LiveCanvas.AccountsFixtures do
   end
 
   def generate_user_magic_link_token(user) do
-    {encoded_token, user_token} = Accounts.UserToken.build_email_token(user, "login")
-    LiveCanvas.Repo.insert!(user_token)
+    {encoded_token, user_token} = Accounts.build_user_email_token(user, "login")
+    Repo.insert!(user_token)
     {encoded_token, user_token.token}
   end
 
   def offset_user_token(token, amount_to_add, unit) do
     dt = DateTime.add(DateTime.utc_now(:second), amount_to_add, unit)
 
-    LiveCanvas.Repo.update_all(
-      from(ut in Accounts.UserToken, where: ut.token == ^token),
+    Repo.update_all(
+      from(ut in UserToken, where: ut.token == ^token),
       set: [inserted_at: dt, authenticated_at: dt]
     )
   end

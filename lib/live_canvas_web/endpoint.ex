@@ -56,7 +56,6 @@ defmodule LiveCanvasWeb.Endpoint do
   plug(:halt_if_sent)
   plug LiveCanvasWeb.Router
 
-
   defp halt_if_sent(%{state: :sent, halted: false} = conn, _opts), do: halt(conn)
   defp halt_if_sent(conn, _opts), do: conn
 end

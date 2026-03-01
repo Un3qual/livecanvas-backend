@@ -4,7 +4,7 @@ defmodule LiveCanvas.AccountsTest do
   alias LiveCanvas.Accounts
 
   import LiveCanvas.AccountsFixtures
-  alias LiveCanvas.Accounts.{User, UserToken}
+  alias LiveCanvasSchemas.{User, UserToken}
 
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
@@ -84,6 +84,24 @@ defmodule LiveCanvas.AccountsTest do
       assert is_nil(user.hashed_password)
       assert is_nil(user.confirmed_at)
       assert is_nil(user.password)
+    end
+  end
+
+  describe "registration_changeset/2" do
+    test "returns a registration changeset without constructing a schema outside the context" do
+      assert %Ecto.Changeset{} = changeset = Accounts.registration_changeset()
+      assert changeset.required == [:email]
+    end
+  end
+
+  describe "scope helpers" do
+    test "scope_for_user/1 wraps the user in a scope" do
+      user = user_fixture()
+      assert %{user: ^user} = Accounts.scope_for_user(user)
+    end
+
+    test "empty_scope/0 returns nil" do
+      assert is_nil(Accounts.empty_scope())
     end
   end
 

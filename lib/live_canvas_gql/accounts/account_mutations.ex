@@ -15,16 +15,18 @@ defmodule LiveCanvasGQL.Accounts.Mutations do
         field :authorization_code, non_null(:string)
         field :uid, non_null(:string)
       end
+
       output do
         field :successful, non_null(:boolean)
         field :result, :integer
       end
-      resolve fn _parent, args, _res ->
+
+      resolve(fn _parent, args, _res ->
         {:ok, %{successful: true, result: 123}}
-      end
+      end)
+
       # resolve &Resolver.apple_authenticate/2
       # middleware &build_payload/2
     end
-
   end
 end
