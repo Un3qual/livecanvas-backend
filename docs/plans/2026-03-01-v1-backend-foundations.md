@@ -31,8 +31,7 @@
   channel, or end-to-end coverage for the same behavior.
 - Run `mix compile` after adding or changing a boundary so architectural
   violations surface immediately.
-- After each task reaches green, factor the code shape before moving to the
-  next task.
+- After each task reaches green, factor the code shape before moving to the next task.
 
 ### Task 0: Establish Shared Domain Conventions And Wire `boundary`
 
@@ -180,12 +179,9 @@ git commit -m "build: wire boundary into the modular monolith"
 
 ### Task 1: Reshape `Accounts` Persistence For Multi-Identity Auth
 
-Before writing the effectful implementation, add or update a pure internal rule
-module for the decision-making part of this behavior, then have the boundary
-module coordinate persistence and external side effects.
+Before writing the effectful implementation, add or update a pure internal rule module for the decision-making part of this behavior, then have the boundary module coordinate persistence and external side effects.
 
-Declare or update the root context module as a `boundary` boundary with
-explicit `deps` and `exports` before adding new internal modules.
+Declare or update the root context module as a `boundary` boundary with explicit `deps` and `exports` before adding new internal modules.
 
 **Files:**
 - Create: `priv/repo/migrations/TIMESTAMP_rebuild_accounts_identity_tables.exs`
@@ -282,12 +278,9 @@ git commit -m "refactor: normalize account identity storage"
 
 ### Task 2: Rewrite `Accounts` APIs Around Normalized Credentials
 
-Before writing the effectful implementation, add or update a pure internal rule
-module for the decision-making part of this behavior, then have the boundary
-module coordinate persistence and external side effects.
+Before writing the effectful implementation, add or update a pure internal rule module for the decision-making part of this behavior, then have the boundary module coordinate persistence and external side effects.
 
-Declare or update the root context module as a `boundary` boundary with
-explicit `deps` and `exports` before adding new internal modules.
+Declare or update the root context module as a `boundary` boundary with explicit `deps` and `exports` before adding new internal modules.
 
 **Files:**
 - Modify: `lib/live_canvas/accounts.ex`
@@ -372,6 +365,10 @@ Keep this task adapter-thin: GraphQL should normalize request data, call the
 exported `Accounts` boundary API, and avoid moving business rules into
 resolvers.
 
+Before writing the effectful implementation, add or update a pure internal rule module for the decision-making part of this behavior, then have the boundary module coordinate persistence and external side effects.
+
+Declare or update the root context module as a `boundary` boundary with explicit `deps` and `exports` before adding new internal modules.
+
 **Files:**
 - Modify: `lib/live_canvas_gql/schema.ex`
 - Modify: `lib/live_canvas_gql/accounts/account_types.ex`
@@ -454,12 +451,9 @@ git commit -m "feat: add graphql account entry points"
 
 ### Task 4: Add The `Social` Context For Follows, Requests, And Blocks
 
-Before writing the effectful implementation, add or update a pure internal rule
-module for the decision-making part of this behavior, then have the boundary
-module coordinate persistence and external side effects.
+Before writing the effectful implementation, add or update a pure internal rule module for the decision-making part of this behavior, then have the boundary module coordinate persistence and external side effects.
 
-Declare or update the root context module as a `boundary` boundary with
-explicit `deps` and `exports` before adding new internal modules.
+Declare or update the root context module as a `boundary` boundary with explicit `deps` and `exports` before adding new internal modules.
 
 **Files:**
 - Create: `priv/repo/migrations/TIMESTAMP_create_social_tables.exs`
@@ -548,12 +542,9 @@ git commit -m "feat: add social graph context"
 
 ### Task 5: Add The `Content` Context For Posts And Media Metadata
 
-Before writing the effectful implementation, add or update a pure internal rule
-module for the decision-making part of this behavior, then have the boundary
-module coordinate persistence and external side effects.
+Before writing the effectful implementation, add or update a pure internal rule module for the decision-making part of this behavior, then have the boundary module coordinate persistence and external side effects.
 
-Declare or update the root context module as a `boundary` boundary with
-explicit `deps` and `exports` before adding new internal modules.
+Declare or update the root context module as a `boundary` boundary with explicit `deps` and `exports` before adding new internal modules.
 
 **Files:**
 - Create: `priv/repo/migrations/TIMESTAMP_create_content_tables.exs`
@@ -814,12 +805,9 @@ git commit -m "feat: add live chat channels"
 
 ### Task 8: Add The `Feed` Context And GraphQL Read Models
 
-Before writing the effectful implementation, add or update a pure internal rule
-module for the decision-making part of this behavior, then have the boundary
-module coordinate persistence and external side effects.
+Before writing the effectful implementation, add or update a pure internal rule module for the decision-making part of this behavior, then have the boundary module coordinate persistence and external side effects.
 
-Declare or update the root context module as a `boundary` boundary with
-explicit `deps` and `exports` before adding new internal modules.
+Declare or update the root context module as a `boundary` boundary with explicit `deps` and `exports` before adding new internal modules.
 
 **Files:**
 - Create: `lib/live_canvas/feed.ex`
@@ -1023,11 +1011,13 @@ Before calling this plan implemented, run these commands in order:
 
 1. `mix format`
 2. `mix compile`
-3. `rg -n ":boundary|compilers: .*\\[:boundary" mix.exs`
-4. `rg -n "use Boundary|Refactor And Review Gate" docs/plans/2026-03-01-v1-backend-foundations.md`
-5. `mix test test/live_canvas/accounts_test.exs test/live_canvas/social_test.exs test/live_canvas/content_test.exs test/live_canvas/live_test.exs test/live_canvas/chat_test.exs test/live_canvas/feed_test.exs -v`
-6. `mix test test/live_canvas_gql test/live_canvas_web/channels test/integration -v`
-7. `mix test`
+3. `mix test`
+4. `rg -n ":boundary|compilers: .*\\[:boundary\\]" mix.exs`
+5. `rg -n "Refactor And Review Gate" docs/plans/2026-03-01-v1-backend-foundations.md`
+6. `rg -n "use Boundary|interface boundary|pure internal rule module" docs/plans/2026-03-01-v1-backend-foundations.md`
+7. `mix test test/live_canvas/accounts_test.exs test/live_canvas/social_test.exs test/live_canvas/content_test.exs test/live_canvas/live_test.exs test/live_canvas/chat_test.exs test/live_canvas/feed_test.exs -v`
+8. `mix test test/live_canvas_gql test/live_canvas_web/channels test/integration -v`
+9. `mix test`
 
 Expected final result:
 
