@@ -15,13 +15,13 @@ Tracking execution of [2026-03-01-sasa-juric-alignment.md](docs/plans/2026-03-01
 
 - [x] Step 1: Add the new maintainability section after `## Core Principles`
 - [x] Step 2: Verify the section exists with `rg`
-- [ ] Step 3: Commit
+- [x] Step 3: Commit
 
 ## Task 2: Keep The Dated Architecture Snapshot In Sync
 
 - [x] Step 1: Add the new maintainability alignment section
 - [x] Step 2: Verify the section exists with `rg`
-- [ ] Step 3: Commit
+- [x] Step 3: Commit
 
 ## Task 3: Amend The V1 Foundations Plan With Shared Implementation Conventions
 
