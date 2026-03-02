@@ -13,8 +13,8 @@
 ## Progress
 
 - [x] Step 1: Add failing GraphQL mutation tests for account registration and write-side APIs
-- [ ] Step 2: Add failing GraphQL query tests for viewer/account lookups
-- [ ] Step 3: Implement minimal resolver modules and schema wiring
+- [x] Step 2: Add failing GraphQL query tests for viewer/account lookups
+- [x] Step 3: Implement minimal resolver modules and schema wiring
 - [ ] Step 4: Replace or retire stubbed account GraphQL fields
 - [ ] Step 5: Run focused GraphQL tests to verify green
 
@@ -93,7 +93,7 @@ git commit -m "feat: add graphql account mutations"
 - Modify: `lib/live_canvas_gql/schema.ex`
 - Modify: `lib/live_canvas_gql/accounts/account_types.ex`
 
-**Step 1: Write the failing tests**
+- [x] Step 1: Write the failing tests
 
 Add query coverage for a thin read adapter:
 
@@ -114,25 +114,25 @@ test "viewer returns the requested user by id" do
 end
 ```
 
-**Step 2: Run tests to verify they fail**
+- [x] Step 2: Run tests to verify they fail
 
 Run: `mix test test/live_canvas_gql/accounts/account_queries_test.exs --trace`
 
 Expected: FAIL because the schema and resolver modules do not exist yet.
 
-**Step 3: Write minimal implementation**
+- [x] Step 3: Write minimal implementation
 
 - Create `LiveCanvasGQL.Accounts.Resolver` with thin wrappers over `Accounts`
 - Create `LiveCanvasGQL.Accounts.Queries` to define `viewer` and any minimal token validation/read fields still needed
 - Import the query fields into `LiveCanvasGQL.Schema`
 
-**Step 4: Run tests to verify they pass**
+- [x] Step 4: Run tests to verify they pass
 
 Run: `mix test test/live_canvas_gql/accounts/account_queries_test.exs --trace`
 
 Expected: PASS for the new account query surface.
 
-**Step 5: Commit**
+- [x] Step 5: Commit
 
 ```bash
 git add lib/live_canvas_gql/schema.ex lib/live_canvas_gql/accounts/account_queries.ex lib/live_canvas_gql/accounts/account_resolver.ex lib/live_canvas_gql/accounts/account_types.ex test/live_canvas_gql/accounts/account_queries_test.exs

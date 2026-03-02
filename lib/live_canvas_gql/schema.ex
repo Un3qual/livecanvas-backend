@@ -6,17 +6,12 @@ defmodule LiveCanvasGQL.Schema do
 
   # global_id_translator: SmokespotsGraphQL.IDTranslator
   import_types(Absinthe.Plug.Types)
+  import_types(LiveCanvasGQL.Accounts.Queries)
   import_types(LiveCanvasGQL.Accounts.Types)
   # import_types LiveCanvasGQL.Chat.Types
 
   query do
-    field :auth_token_valid, non_null(:boolean) do
-      arg(:serialized_token, non_null(:string))
-
-      resolve(fn %{serialized_token: token}, _ ->
-        {:ok, token == "valid"}
-      end)
-    end
+    import_fields(:account_queries)
 
     # field :convo_lookup, non_null(:conversation) do
     #   arg :conversation_id, non_null(:string)
