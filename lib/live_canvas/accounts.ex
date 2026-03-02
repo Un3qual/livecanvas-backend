@@ -378,10 +378,12 @@ defmodule LiveCanvas.Accounts do
   """
   def deliver_user_update_email_instructions(%User{} = user, _current_email, update_email_url_fun)
       when is_function(update_email_url_fun, 1) do
-    {serialized_value, user_token} = Tokens.build_email_token(user, :email_verification_token)
-
-    Repo.insert!(user_token)
-    UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(serialized_value))
+    with {:ok, %{token: serialized_value}} <- issue_email_verification_token(user) do
+      UserNotifier.deliver_update_email_instructions(
+        user,
+        update_email_url_fun.(serialized_value)
+      )
+    end
   end
 
   @doc """
@@ -389,9 +391,9 @@ defmodule LiveCanvas.Accounts do
   """
   def deliver_login_instructions(%User{} = user, magic_link_url_fun)
       when is_function(magic_link_url_fun, 1) do
-    {serialized_value, user_token} = Tokens.build_email_token(user, :email_magic_link_token)
-    Repo.insert!(user_token)
-    UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(serialized_value))
+    with {:ok, %{token: serialized_value}} <- issue_magic_link_token(user) do
+      UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(serialized_value))
+    end
   end
 
   @doc """

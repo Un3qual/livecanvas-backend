@@ -14,16 +14,16 @@
 
 - [x] Step 1: Add failing tests for an explicit email attachment API
 - [x] Step 2: Add failing tests for public token issuance wrappers
-- [ ] Step 3: Add failing tests for notifier-facing delivery wrappers using the new token APIs
-- [ ] Step 4: Implement the minimal remaining `Accounts` boundary APIs
-- [ ] Step 5: Run focused tests to verify the new surface is green
+- [x] Step 3: Add failing tests for notifier-facing delivery wrappers using the new token APIs
+- [x] Step 4: Implement the minimal remaining `Accounts` boundary APIs
+- [x] Step 5: Run focused tests to verify the new surface is green
 
 ### Task Checklist
 
 - [x] Task 1: Add a public email attachment boundary API
 - [x] Task 2: Add public token issue and verification wrappers
-- [ ] Task 3: Rewire notifier-facing flows through public APIs
-- [ ] Task 4: Final verification
+- [x] Task 3: Rewire notifier-facing flows through public APIs
+- [x] Task 4: Final verification
 
 ### Task 1: Add A Public Email Attachment Boundary API
 

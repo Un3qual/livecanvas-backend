@@ -288,11 +288,20 @@ defmodule LiveCanvas.AccountsTest do
       %{user: user_fixture()}
     end
 
-    test "sends token through notification", %{user: user} do
+    test "sends token through notification via the public email verification wrapper", %{
+      user: user
+    } do
       token =
         extract_user_token(fn url ->
           Accounts.deliver_user_update_email_instructions(user, "current@example.com", url)
         end)
+
+      assert accounts_function_calls_local?(
+               :deliver_user_update_email_instructions,
+               3,
+               :issue_email_verification_token,
+               1
+             )
 
       assert {:ok, %{id: id, raw_secret: raw_secret}} = Tokens.decode_serialized_value(token)
       assert user_token = Repo.get_by(UserToken, id: id)
@@ -553,11 +562,18 @@ defmodule LiveCanvas.AccountsTest do
       %{user: unconfirmed_user_fixture()}
     end
 
-    test "sends token through notification", %{user: user} do
+    test "sends token through notification via the public magic link wrapper", %{user: user} do
       token =
         extract_user_token(fn url ->
           Accounts.deliver_login_instructions(user, url)
         end)
+
+      assert accounts_function_calls_local?(
+               :deliver_login_instructions,
+               2,
+               :issue_magic_link_token,
+               1
+             )
 
       assert {:ok, %{id: id, raw_secret: raw_secret}} = Tokens.decode_serialized_value(token)
       assert user_token = Repo.get_by(UserToken, id: id)
@@ -573,4 +589,37 @@ defmodule LiveCanvas.AccountsTest do
       refute inspect(%User{password: "123456"}) =~ "password: \"123456\""
     end
   end
+
+  defp accounts_function_calls_local?(caller_name, caller_arity, callee_name, callee_arity) do
+    beam_path = :code.which(Accounts)
+
+    with {:ok, {_, [{:abstract_code, {:raw_abstract_v1, forms}}]}} <-
+           :beam_lib.chunks(beam_path, [:abstract_code]),
+         {:function, _, ^caller_name, ^caller_arity, _} = function_form <-
+           Enum.find(forms, &match?({:function, _, ^caller_name, ^caller_arity, _}, &1)) do
+      abstract_form_calls_local?(function_form, callee_name, callee_arity)
+    else
+      _ -> false
+    end
+  end
+
+  defp abstract_form_calls_local?(
+         {:call, _, {:atom, _, found_name}, args},
+         callee_name,
+         callee_arity
+       )
+       when found_name == callee_name and length(args) == callee_arity,
+       do: true
+
+  defp abstract_form_calls_local?(term, callee_name, callee_arity) when is_tuple(term) do
+    term
+    |> Tuple.to_list()
+    |> Enum.any?(&abstract_form_calls_local?(&1, callee_name, callee_arity))
+  end
+
+  defp abstract_form_calls_local?(terms, callee_name, callee_arity) when is_list(terms) do
+    Enum.any?(terms, &abstract_form_calls_local?(&1, callee_name, callee_arity))
+  end
+
+  defp abstract_form_calls_local?(_, _, _), do: false
 end
