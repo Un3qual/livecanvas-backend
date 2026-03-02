@@ -100,6 +100,7 @@ defmodule LiveCanvas.MixProject do
     do: [
       {:boundary, "~> 0.10", runtime: false},
       {:ecto_enum, "~> 1.4"},
+      {:ex_phone_number, "~> 0.4.10"},
       {:swoosh, "~> 1.16"},
       {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},

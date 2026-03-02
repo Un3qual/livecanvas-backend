@@ -66,6 +66,92 @@ defmodule LiveCanvas.AccountsTest do
     end
   end
 
+  describe "get_user_by_phone/1" do
+    test "does not return the user if the phone does not exist" do
+      refute Accounts.get_user_by_phone("+15555550123")
+    end
+
+    test "returns the user if the phone exists" do
+      %{id: id} = user = user_fixture()
+      attach_phone_number(user, "(650) 253-0000")
+
+      assert %User{id: ^id} = Accounts.get_user_by_phone("+1 650-253-0000")
+    end
+  end
+
+  describe "get_user_by_identity/2" do
+    test "does not return the user if the identity does not exist" do
+      refute Accounts.get_user_by_identity(:google_provider, "missing-google-user")
+    end
+
+    test "returns the user if the active identity exists" do
+      %{id: id} = user = user_fixture()
+      attach_user_identity(user, :google_provider, "google-user-1")
+
+      assert %User{id: ^id} =
+               Accounts.get_user_by_identity(:google_provider, "google-user-1")
+    end
+
+    test "does not return the user if the identity is revoked" do
+      user = user_fixture()
+
+      attach_user_identity(user, :google_provider, "google-user-2",
+        revoked_at: DateTime.utc_now()
+      )
+
+      refute Accounts.get_user_by_identity(:google_provider, "google-user-2")
+    end
+  end
+
+  describe "attach_user_phone_number/3" do
+    test "normalizes and attaches the phone number" do
+      user = user_fixture()
+      verified_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+      assert {:ok, join} =
+               Accounts.attach_user_phone_number(user, "(650) 253-0000", verified_at: verified_at)
+
+      assert join.user_id == user.id
+      assert DateTime.compare(join.verified_at, verified_at) == :eq
+
+      user = Accounts.get_user!(user.id) |> Repo.preload(user_phone_numbers: :phone_number)
+      [persisted_join] = user.user_phone_numbers
+
+      assert persisted_join.phone_number.normalized_e164 == "+16502530000"
+    end
+
+    test "returns an error for invalid phone input" do
+      user = user_fixture()
+
+      assert {:error, :invalid_phone_number} = Accounts.attach_user_phone_number(user, "123")
+    end
+  end
+
+  describe "register_user_identity/4" do
+    test "stores the identity and makes it discoverable" do
+      %{id: id} = user = user_fixture()
+
+      assert {:ok, identity} =
+               Accounts.register_user_identity(
+                 user,
+                 :google_provider,
+                 "google-user-3",
+                 provider_data: %{"email" => user.email},
+                 encrypted_tokens: <<1, 2, 3>>
+               )
+
+      assert identity.user_id == user.id
+      assert identity.provider == :google_provider
+      assert identity.provider_uid == "google-user-3"
+      assert identity.provider_data == %{"email" => user.email}
+      assert identity.encrypted_tokens == <<1, 2, 3>>
+      assert is_nil(identity.revoked_at)
+
+      assert %User{id: ^id} =
+               Accounts.get_user_by_identity(:google_provider, "google-user-3")
+    end
+  end
+
   describe "get_user!/1" do
     test "raises if id is invalid" do
       assert_raise Ecto.NoResultsError, fn ->
@@ -115,6 +201,18 @@ defmodule LiveCanvas.AccountsTest do
       assert is_nil(user.hashed_password)
       assert is_nil(user.confirmed_at)
       assert is_nil(user.password)
+    end
+  end
+
+  describe "register_user_with_email/1" do
+    test "creates a verified normalized email join" do
+      assert {:ok, user} = Accounts.register_user_with_email(%{email: "USER@example.com"})
+
+      user = Repo.preload(user, user_email_addresses: :email_address)
+      [join] = user.user_email_addresses
+
+      assert %DateTime{} = join.verified_at
+      assert join.email_address.normalized_email == "user@example.com"
     end
   end
 

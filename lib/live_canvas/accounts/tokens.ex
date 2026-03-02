@@ -110,7 +110,10 @@ defmodule LiveCanvas.Accounts.Tokens do
 
   def valid_secret?(_, _), do: false
 
-  defp build_token(user, context, attrs) do
+  @doc false
+  def build_token(user, context, attrs \\ [])
+
+  def build_token(user, context, attrs) do
     id = Ecto.UUID.generate()
     raw_secret = :crypto.strong_rand_bytes(@rand_size)
     serialized_value = encode_serialized_value(id, raw_secret)

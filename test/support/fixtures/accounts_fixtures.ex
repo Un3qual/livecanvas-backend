@@ -58,6 +58,16 @@ defmodule LiveCanvas.AccountsFixtures do
     user
   end
 
+  def attach_phone_number(user, raw_phone_number, opts \\ []) do
+    {:ok, user_phone_number} = Accounts.attach_user_phone_number(user, raw_phone_number, opts)
+    user_phone_number
+  end
+
+  def attach_user_identity(user, provider, provider_uid, opts \\ []) do
+    {:ok, user_identity} = Accounts.register_user_identity(user, provider, provider_uid, opts)
+    user_identity
+  end
+
   def extract_user_token(fun) do
     {:ok, captured_email} = fun.(&"[TOKEN]#{&1}[TOKEN]")
     [_, token | _] = String.split(captured_email.text_body, "[TOKEN]")

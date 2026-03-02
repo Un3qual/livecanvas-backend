@@ -14,12 +14,15 @@ defmodule LiveCanvas.Accounts do
 
   alias LiveCanvasSchemas.Accounts.{
     EmailAddress,
+    PhoneNumber,
     User,
     UserEmailAddress,
+    UserIdentity,
+    UserPhoneNumber,
     UserToken
   }
 
-  alias LiveCanvas.Accounts.{Passwords, Scope, Tokens, UserChanges, UserNotifier}
+  alias LiveCanvas.Accounts.{Passwords, PhoneNumbers, Scope, Tokens, UserChanges, UserNotifier}
 
   ## Database getters
 
@@ -30,6 +33,31 @@ defmodule LiveCanvas.Accounts do
     email
     |> user_by_email_query()
     |> Repo.one()
+  end
+
+  @doc """
+  Gets a user by normalized E.164 phone number.
+  """
+  def get_user_by_phone(phone_number) when is_binary(phone_number) do
+    with {:ok, normalized_phone_number} <- PhoneNumbers.normalize(phone_number) do
+      normalized_phone_number
+      |> user_by_phone_query()
+      |> Repo.one()
+      |> hydrate_loaded_user()
+    else
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Gets a user by active external identity.
+  """
+  def get_user_by_identity(provider, provider_uid)
+      when is_atom(provider) and is_binary(provider_uid) do
+    provider
+    |> user_by_identity_query(provider_uid)
+    |> Repo.one()
+    |> hydrate_loaded_user()
   end
 
   @doc """
@@ -52,6 +80,17 @@ defmodule LiveCanvas.Accounts do
   Registers a user.
   """
   def register_user(attrs) do
+    register_user_with_email(attrs, [])
+  end
+
+  @doc """
+  Registers a user and marks the primary email as verified immediately.
+  """
+  def register_user_with_email(attrs) do
+    register_user_with_email(attrs, verified_at: DateTime.utc_now())
+  end
+
+  defp register_user_with_email(attrs, attach_opts) do
     changeset = UserChanges.email_changeset(%User{}, attrs)
     email = get_field(changeset, :email)
 
@@ -65,7 +104,7 @@ defmodule LiveCanvas.Accounts do
 
         true ->
           with {:ok, user} <- Repo.insert(changeset),
-               {:ok, _user_email_address} <- attach_email_address(user, email) do
+               {:ok, _user_email_address} <- attach_email_address(user, email, attach_opts) do
             {:ok, put_primary_email(user)}
           end
       end
@@ -162,6 +201,67 @@ defmodule LiveCanvas.Accounts do
   Builds an email token payload for the given user.
   """
   def build_user_email_token(user, context), do: Tokens.build_email_token(user, context)
+
+  @doc """
+  Persists and returns a token payload for the given user and context.
+  """
+  def issue_user_token(user, context, attrs \\ []) do
+    {serialized_value, user_token} = Tokens.build_token(user, context, attrs)
+
+    case Repo.insert(user_token) do
+      {:ok, persisted} -> {:ok, %{token: serialized_value, user_token: persisted}}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  @doc false
+  def normalize_phone_number(raw_phone_number), do: PhoneNumbers.normalize(raw_phone_number)
+
+  @doc """
+  Normalizes and attaches a phone number to the given user.
+  """
+  def attach_user_phone_number(%User{} = user, raw_phone_number, opts \\ []) do
+    with {:ok, normalized_e164} <- normalize_phone_number(raw_phone_number) do
+      Repo.transact(fn ->
+        Repo.insert(
+          %PhoneNumber{normalized_e164: normalized_e164},
+          on_conflict: :nothing,
+          conflict_target: :normalized_e164
+        )
+
+        phone_number = Repo.get_by!(PhoneNumber, normalized_e164: normalized_e164)
+
+        case Repo.insert(
+               %UserPhoneNumber{
+                 user_id: user.id,
+                 phone_number_id: phone_number.id,
+                 verified_at: Keyword.get(opts, :verified_at)
+               },
+               on_conflict: :nothing,
+               conflict_target: [:user_id, :phone_number_id]
+             ) do
+          {:ok, user_phone_number} -> {:ok, Repo.preload(user_phone_number, :phone_number)}
+          {:error, changeset} -> {:error, changeset}
+        end
+      end)
+    end
+  end
+
+  @doc """
+  Registers an external identity for the given user.
+  """
+  def register_user_identity(%User{} = user, provider, provider_uid, opts \\ [])
+      when is_atom(provider) and is_binary(provider_uid) do
+    Repo.insert(%UserIdentity{
+      user_id: user.id,
+      provider: provider,
+      provider_uid: provider_uid,
+      provider_data: Keyword.get(opts, :provider_data, %{}),
+      encrypted_tokens: Keyword.get(opts, :encrypted_tokens),
+      last_used_at: Keyword.get(opts, :last_used_at),
+      revoked_at: Keyword.get(opts, :revoked_at)
+    })
+  end
 
   ## Session
 
@@ -287,7 +387,7 @@ defmodule LiveCanvas.Accounts do
     end)
   end
 
-  defp attach_email_address(user, email, opts \\ [])
+  defp attach_email_address(user, email, opts)
   defp attach_email_address(_user, nil, _opts), do: {:error, :missing_email}
 
   defp attach_email_address(user, email, opts) do
@@ -329,6 +429,24 @@ defmodule LiveCanvas.Accounts do
       select: %{user | email: email_address.normalized_email}
   end
 
+  defp user_by_phone_query(phone_number) do
+    from user in User,
+      join: user_phone_number in assoc(user, :user_phone_numbers),
+      join: phone_number_row in assoc(user_phone_number, :phone_number),
+      where: phone_number_row.normalized_e164 == ^phone_number,
+      limit: 1
+  end
+
+  defp user_by_identity_query(provider, provider_uid) do
+    from user in User,
+      join: user_identity in assoc(user, :user_identities),
+      where:
+        user_identity.provider == ^provider and
+          user_identity.provider_uid == ^provider_uid and
+          is_nil(user_identity.revoked_at),
+      limit: 1
+  end
+
   defp current_email_for_user(user_id) do
     from(email_address in EmailAddress,
       join: user_email_address in UserEmailAddress,
@@ -344,6 +462,9 @@ defmodule LiveCanvas.Accounts do
   defp put_primary_email(%User{} = user) do
     %{user | email: current_email_for_user(user.id)}
   end
+
+  defp hydrate_loaded_user(%User{} = user), do: put_primary_email(user)
+  defp hydrate_loaded_user(nil), do: nil
 
   defp hydrate_user(user, user_token, current_email) do
     %{
