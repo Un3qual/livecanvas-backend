@@ -143,6 +143,18 @@ defmodule LiveCanvas.Accounts do
   end
 
   @doc """
+  Updates the user's account-level privacy mode.
+  """
+  def update_user_privacy_mode(%User{} = user, privacy_mode) do
+    case user
+         |> UserChanges.privacy_changeset(%{privacy_mode: privacy_mode})
+         |> Repo.update() do
+      {:ok, updated_user} -> {:ok, hydrate_loaded_user(updated_user)}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  @doc """
   Updates the user's primary email using the given verification token.
   """
   def update_user_email(user, serialized_value) do

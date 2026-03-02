@@ -30,6 +30,15 @@ defmodule LiveCanvas.Accounts.UserChanges do
   end
 
   @doc """
+  A user changeset for updating account-level privacy state.
+  """
+  def privacy_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:privacy_mode])
+    |> validate_required([:privacy_mode])
+  end
+
+  @doc """
   A user changeset for changing the password.
   """
   def password_changeset(user, attrs, opts \\ []) do

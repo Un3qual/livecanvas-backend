@@ -29,6 +29,8 @@ defmodule LiveCanvas.AccountsFixtures do
   end
 
   def user_fixture(attrs \\ %{}) do
+    attrs = Enum.into(attrs, %{})
+    {privacy_mode, attrs} = Map.pop(attrs, :privacy_mode, :private)
     user = unconfirmed_user_fixture(attrs)
 
     token =
@@ -39,7 +41,7 @@ defmodule LiveCanvas.AccountsFixtures do
     {:ok, {user, _expired_tokens}} =
       Accounts.login_user_by_magic_link(token)
 
-    user
+    maybe_update_user_privacy_mode(user, privacy_mode)
   end
 
   def user_scope_fixture do
@@ -72,6 +74,13 @@ defmodule LiveCanvas.AccountsFixtures do
     {:ok, captured_email} = fun.(&"[TOKEN]#{&1}[TOKEN]")
     [_, token | _] = String.split(captured_email.text_body, "[TOKEN]")
     token
+  end
+
+  defp maybe_update_user_privacy_mode(user, :private), do: user
+
+  defp maybe_update_user_privacy_mode(user, privacy_mode) do
+    {:ok, updated_user} = Accounts.update_user_privacy_mode(user, privacy_mode)
+    updated_user
   end
 
   def override_token_authenticated_at(token, authenticated_at) when is_binary(token) do

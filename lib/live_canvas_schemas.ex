@@ -8,6 +8,7 @@ defmodule LiveCanvasSchemas do
       Accounts.EmailAddress,
       Accounts.PhoneNumber,
       Accounts.User,
+      Accounts.UserPrivacyMode,
       Accounts.UserContactEntry,
       Accounts.UserContactEntryEmailAddress,
       Accounts.UserContactEntryPhoneNumber,

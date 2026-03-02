@@ -6,6 +6,7 @@ defmodule LiveCanvasSchemas.Accounts.User do
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime_usec
+    field :privacy_mode, LiveCanvasSchemas.Accounts.UserPrivacyMode, default: :private
     field :authenticated_at, :utc_datetime_usec, virtual: true
 
     has_many :user_email_addresses, LiveCanvasSchemas.Accounts.UserEmailAddress

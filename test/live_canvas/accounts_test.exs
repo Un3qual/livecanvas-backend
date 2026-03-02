@@ -175,6 +175,22 @@ defmodule LiveCanvas.AccountsTest do
     end
   end
 
+  describe "update_user_privacy_mode/2" do
+    test "persists private visibility" do
+      user = user_fixture()
+
+      assert {:ok, updated_user} = Accounts.update_user_privacy_mode(user, :private)
+      assert updated_user.privacy_mode == :private
+      assert Accounts.get_user!(user.id).privacy_mode == :private
+    end
+
+    test "user_fixture/1 can build a public account" do
+      user = user_fixture(privacy_mode: :public)
+
+      assert user.privacy_mode == :public
+    end
+  end
+
   describe "get_user!/1" do
     test "raises if id is invalid" do
       assert_raise Ecto.NoResultsError, fn ->
