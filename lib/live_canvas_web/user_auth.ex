@@ -119,8 +119,12 @@ defmodule LiveCanvasWeb.UserAuth do
 
   # Do not renew session if the user is already logged in
   # to prevent CSRF errors or data being lost in tabs that are still open
-  defp renew_session(conn, user) when conn.assigns.current_scope.user.id == user.id do
-    conn
+  defp renew_session(conn, user) do
+    if same_authenticated_user?(conn, user) do
+      conn
+    else
+      clear_authenticated_session(conn)
+    end
   end
 
   # This function renews the session ID and erases the whole
@@ -129,7 +133,7 @@ defmodule LiveCanvasWeb.UserAuth do
   # you must explicitly fetch the session data before clearing
   # and then immediately set it after clearing, for example:
   #
-  #     defp renew_session(conn, _user) do
+  #     defp clear_authenticated_session(conn) do
   #       delete_csrf_token()
   #       preferred_locale = get_session(conn, :preferred_locale)
   #
@@ -139,12 +143,22 @@ defmodule LiveCanvasWeb.UserAuth do
   #       |> put_session(:preferred_locale, preferred_locale)
   #     end
   #
-  defp renew_session(conn, _user) do
+  defp clear_authenticated_session(conn) do
     delete_csrf_token()
 
     conn
     |> configure_session(renew: true)
     |> clear_session()
+  end
+
+  defp same_authenticated_user?(conn, user) do
+    current_scope_user_id =
+      case conn.assigns[:current_scope] do
+        %{user: %{id: current_user_id}} -> current_user_id
+        _ -> nil
+      end
+
+    current_scope_user_id == user_id(user) and not is_nil(user_id(user))
   end
 
   defp maybe_write_remember_me_cookie(conn, token, %{"remember_me" => "true"}, _),
@@ -164,6 +178,9 @@ defmodule LiveCanvasWeb.UserAuth do
   defp put_token_in_session(conn, token) do
     put_session(conn, :user_token, token)
   end
+
+  defp user_id(%{id: user_id}), do: user_id
+  defp user_id(_), do: nil
 
   @doc """
   Plug for routes that require sudo mode.

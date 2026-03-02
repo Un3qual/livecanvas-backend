@@ -27,7 +27,7 @@ defmodule LiveCanvas.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, typecheck: :dev, dialyzer: :dev]
     ]
   end
 
@@ -80,7 +80,8 @@ defmodule LiveCanvas.MixProject do
 
   defp test_deps,
     do: [
-      {:lazy_html, ">= 0.1.0", only: :test}
+      {:lazy_html, ">= 0.1.0", only: :test},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
     ]
 
   defp js_deps,
@@ -122,6 +123,7 @@ defmodule LiveCanvas.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      typecheck: ["dialyzer --format short"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind live_canvas", "esbuild live_canvas"],
       "assets.deploy": [
@@ -129,7 +131,12 @@ defmodule LiveCanvas.MixProject do
         "esbuild live_canvas --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "test"
+      ]
     ]
   end
 end

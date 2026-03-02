@@ -5,7 +5,7 @@ defmodule LiveCanvas.Accounts.Tokens do
 
   alias LiveCanvasSchemas.Accounts.UserToken
 
-  @hash_algorithm :sha256
+  @hash_algorithm :sha3_256
   @rand_size 32
   @magic_link_validity_in_minutes 15
   @change_email_validity_in_days 7
@@ -18,11 +18,13 @@ defmodule LiveCanvas.Accounts.Tokens do
   ]
 
   @doc false
+  @spec secret_hash(binary()) :: binary()
   def secret_hash(secret) when is_binary(secret), do: :crypto.hash(@hash_algorithm, secret)
 
   @doc """
   Encodes a token id and raw secret into the transport value.
   """
+  @spec encode_serialized_value(binary(), binary()) :: String.t()
   def encode_serialized_value(id, raw_secret) when is_binary(id) and is_binary(raw_secret) do
     encoded_secret = Base.url_encode64(raw_secret, padding: false)
     "#{id}.#{encoded_secret}"
@@ -31,6 +33,8 @@ defmodule LiveCanvas.Accounts.Tokens do
   @doc """
   Decodes the serialized token value into its id and raw secret.
   """
+  @spec decode_serialized_value(String.t()) ::
+          {:ok, %{id: Ecto.UUID.t(), raw_secret: binary()}} | :error
   def decode_serialized_value(serialized_value) when is_binary(serialized_value) do
     case String.split(serialized_value, ".", parts: 2) do
       [id, encoded_secret] ->
@@ -64,6 +68,8 @@ defmodule LiveCanvas.Accounts.Tokens do
   @doc """
   Returns a query that fetches the token and owning user by token id only.
   """
+  @spec user_token_lookup_query(String.t()) ::
+          {:ok, Ecto.Query.t(), binary()} | :error
   def user_token_lookup_query(serialized_value) do
     with {:ok, %{id: id, raw_secret: raw_secret}} <- decode_serialized_value(serialized_value) do
       query =
@@ -81,6 +87,7 @@ defmodule LiveCanvas.Accounts.Tokens do
   end
 
   @doc false
+  @spec valid_session_token?(%UserToken{}, binary()) :: boolean()
   def valid_session_token?(%UserToken{} = token, raw_secret) do
     valid_secret?(token, raw_secret) and
       token.context == :access_token and
@@ -88,6 +95,7 @@ defmodule LiveCanvas.Accounts.Tokens do
   end
 
   @doc false
+  @spec valid_magic_link_token?(%UserToken{}, binary(), String.t() | nil) :: boolean()
   def valid_magic_link_token?(%UserToken{} = token, raw_secret, current_email) do
     valid_secret?(token, raw_secret) and
       token.context == :email_magic_link_token and
@@ -96,6 +104,7 @@ defmodule LiveCanvas.Accounts.Tokens do
   end
 
   @doc false
+  @spec valid_change_email_token?(%UserToken{}, binary()) :: boolean()
   def valid_change_email_token?(%UserToken{} = token, raw_secret) do
     valid_secret?(token, raw_secret) and
       token.context == :email_verification_token and
@@ -103,6 +112,7 @@ defmodule LiveCanvas.Accounts.Tokens do
   end
 
   @doc false
+  @spec valid_secret?(%UserToken{}, binary()) :: boolean()
   def valid_secret?(%UserToken{secret_hash: stored_secret_hash}, raw_secret)
       when is_binary(stored_secret_hash) and is_binary(raw_secret) do
     Plug.Crypto.secure_compare(stored_secret_hash, secret_hash(raw_secret))
@@ -131,6 +141,7 @@ defmodule LiveCanvas.Accounts.Tokens do
      }}
   end
 
+  @spec token_fresh?(DateTime.t() | term(), keyword()) :: boolean()
   defp token_fresh?(inserted_at, opts) when is_struct(inserted_at, DateTime) do
     unit =
       cond do

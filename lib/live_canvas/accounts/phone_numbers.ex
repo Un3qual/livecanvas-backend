@@ -4,6 +4,7 @@ defmodule LiveCanvas.Accounts.PhoneNumbers do
   @default_region "US"
 
   @doc false
+  @spec normalize(term(), term()) :: {:ok, String.t()} | {:error, :invalid_phone_number}
   def normalize(raw_phone_number, default_region \\ @default_region)
 
   def normalize(raw_phone_number, default_region)

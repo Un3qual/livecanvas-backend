@@ -17,6 +17,12 @@ defmodule LiveCanvas.Accounts.UserTokenTest do
       assert persisted.secret_hash != token
       assert persisted.context == :access_token
     end
+
+    test "hashes token secrets with sha3-256" do
+      raw_secret = "secret-value"
+
+      assert Accounts.Tokens.secret_hash(raw_secret) == :crypto.hash(:sha3_256, raw_secret)
+    end
   end
 
   describe "public token wrappers" do
