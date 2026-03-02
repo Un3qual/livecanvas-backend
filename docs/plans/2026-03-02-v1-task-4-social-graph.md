@@ -15,7 +15,7 @@
 - [x] Task 1: Add the Accounts-owned privacy mode prerequisite
 - [x] Task 2: Add the `Social` persistence, policy, and boundary APIs
 - [x] Task 3: Add the GraphQL `Social` query and mutation surface
-- [ ] Task 4: Run final verification and review
+- [x] Task 4: Run final verification and review
 
 ### Task 1: Add The Accounts-Owned Privacy Mode Prerequisite
 
