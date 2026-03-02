@@ -26,7 +26,7 @@
 
 ## Progress
 
-- [ ] Task 1: Build and test the `mix check.typespecs` gate
+- [x] Task 1: Build and test the `mix check.typespecs` gate
 - [ ] Task 2: Seed the first enforceable slice
 - [ ] Task 3: Add Dialyzer and wire `mix precommit` to `mix typecheck`
 - [ ] Task 4: Add schema `t()` and shared enum union types

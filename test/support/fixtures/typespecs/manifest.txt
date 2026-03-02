@@ -1,0 +1,5 @@
+# Paths are repo-relative and blank/comment lines are ignored.
+
+test/support/fixtures/typespecs/with_spec.ex
+# Missing spec fixture remains intentionally included for strict-mode failure coverage.
+test/support/fixtures/typespecs/missing_spec.ex
