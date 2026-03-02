@@ -3,11 +3,21 @@ defmodule LiveCanvas.Accounts do
   The Accounts context.
   """
 
-  use Boundary, deps: [LiveCanvas.Infra, LiveCanvasSchemas]
+  use Boundary,
+    deps: [LiveCanvas.Infra, LiveCanvasSchemas],
+    exports: [Tokens]
 
   import Ecto.Query, warn: false
+  import Ecto.Changeset, only: [add_error: 3, get_field: 2]
+
   alias LiveCanvas.Infra.Repo
-  alias LiveCanvasSchemas.{User, UserToken}
+
+  alias LiveCanvasSchemas.Accounts.{
+    EmailAddress,
+    User,
+    UserEmailAddress,
+    UserToken
+  }
 
   alias LiveCanvas.Accounts.{Passwords, Scope, Tokens, UserChanges, UserNotifier}
 
@@ -15,72 +25,51 @@ defmodule LiveCanvas.Accounts do
 
   @doc """
   Gets a user by email.
-
-  ## Examples
-
-      iex> get_user_by_email("foo@example.com")
-      %User{}
-
-      iex> get_user_by_email("unknown@example.com")
-      nil
-
   """
   def get_user_by_email(email) when is_binary(email) do
-    Repo.get_by(User, email: email)
+    email
+    |> user_by_email_query()
+    |> Repo.one()
   end
 
   @doc """
   Gets a user by email and password.
-
-  ## Examples
-
-      iex> get_user_by_email_and_password("foo@example.com", "correct_password")
-      %User{}
-
-      iex> get_user_by_email_and_password("foo@example.com", "invalid_password")
-      nil
-
   """
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
-    user = Repo.get_by(User, email: email)
+    user = get_user_by_email(email)
     if Passwords.valid_password?(user, password), do: user
   end
 
   @doc """
   Gets a single user.
-
-  Raises `Ecto.NoResultsError` if the User does not exist.
-
-  ## Examples
-
-      iex> get_user!(123)
-      %User{}
-
-      iex> get_user!(456)
-      ** (Ecto.NoResultsError)
-
   """
-  def get_user!(id), do: Repo.get!(User, id)
+  def get_user!(id), do: Repo.get!(User, id) |> put_primary_email()
 
   ## User registration
 
   @doc """
   Registers a user.
-
-  ## Examples
-
-      iex> register_user(%{field: value})
-      {:ok, %User{}}
-
-      iex> register_user(%{field: bad_value})
-      {:error, %Ecto.Changeset{}}
-
   """
   def register_user(attrs) do
-    %User{}
-    |> UserChanges.email_changeset(attrs)
-    |> Repo.insert()
+    changeset = UserChanges.email_changeset(%User{}, attrs)
+    email = get_field(changeset, :email)
+
+    Repo.transact(fn ->
+      cond do
+        not changeset.valid? ->
+          {:error, changeset}
+
+        email_taken?(email) ->
+          {:error, email_taken_changeset(changeset)}
+
+        true ->
+          with {:ok, user} <- Repo.insert(changeset),
+               {:ok, _user_email_address} <- attach_email_address(user, email) do
+            {:ok, put_primary_email(user)}
+          end
+      end
+    end)
   end
 
   @doc """
@@ -109,35 +98,34 @@ defmodule LiveCanvas.Accounts do
 
   @doc """
   Returns an `%Ecto.Changeset{}` for changing the user email.
-
-  See `LiveCanvas.Accounts.UserChanges.email_changeset/3` for a list of
-  supported options.
-
-  ## Examples
-
-      iex> change_user_email(user)
-      %Ecto.Changeset{data: %User{}}
-
   """
   def change_user_email(user, attrs \\ %{}, opts \\ []) do
     UserChanges.email_changeset(user, attrs, opts)
   end
 
   @doc """
-  Updates the user email using the given token.
-
-  If the token matches, the user email is updated and the token is deleted.
+  Updates the user's primary email using the given verification token.
   """
-  def update_user_email(user, token) do
-    context = "change:#{user.email}"
+  def update_user_email(user, serialized_value) do
+    current_email = current_email_for_user(user.id)
 
     Repo.transact(fn ->
-      with {:ok, query} <- Tokens.verify_change_email_token_query(token, context),
-           %UserToken{sent_to: email} <- Repo.one(query),
-           {:ok, user} <- Repo.update(UserChanges.email_changeset(user, %{email: email})),
+      with true <- current_email == user.email || {:error, :transaction_aborted},
+           {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+           {persisted_user, user_token, persisted_email} <- Repo.one(query),
+           true <- persisted_user.id == user.id || {:error, :transaction_aborted},
+           true <- persisted_email == current_email || {:error, :transaction_aborted},
+           true <-
+             Tokens.valid_change_email_token?(user_token, raw_secret) ||
+               {:error, :transaction_aborted},
+           {:ok, updated_user} <- replace_primary_email(persisted_user, user_token.sent_to),
            {_count, _result} <-
-             Repo.delete_all(from(UserToken, where: [user_id: ^user.id, context: ^context])) do
-        {:ok, user}
+             Repo.delete_all(
+               from(token in UserToken,
+                 where: token.user_id == ^user.id and token.context == ^:email_verification_token
+               )
+             ) do
+        {:ok, updated_user}
       else
         _ -> {:error, :transaction_aborted}
       end
@@ -146,15 +134,6 @@ defmodule LiveCanvas.Accounts do
 
   @doc """
   Returns an `%Ecto.Changeset{}` for changing the user password.
-
-  See `LiveCanvas.Accounts.UserChanges.password_changeset/3` for a list of
-  supported options.
-
-  ## Examples
-
-      iex> change_user_password(user)
-      %Ecto.Changeset{data: %User{}}
-
   """
   def change_user_password(user, attrs \\ %{}, opts \\ []) do
     UserChanges.password_changeset(user, attrs, opts)
@@ -162,17 +141,6 @@ defmodule LiveCanvas.Accounts do
 
   @doc """
   Updates the user password.
-
-  Returns a tuple with the updated user, as well as a list of expired tokens.
-
-  ## Examples
-
-      iex> update_user_password(user, %{password: ...})
-      {:ok, {%User{}, [...]}}
-
-      iex> update_user_password(user, %{password: "too short"})
-      {:error, %Ecto.Changeset{}}
-
   """
   def update_user_password(user, attrs) do
     user
@@ -191,7 +159,7 @@ defmodule LiveCanvas.Accounts do
   def empty_scope, do: nil
 
   @doc """
-  Builds a hashed email token payload for the given user.
+  Builds an email token payload for the given user.
   """
   def build_user_email_token(user, context), do: Tokens.build_email_token(user, context)
 
@@ -201,9 +169,9 @@ defmodule LiveCanvas.Accounts do
   Generates a session token.
   """
   def generate_user_session_token(user) do
-    {token, user_token} = Tokens.build_session_token(user)
+    {serialized_value, user_token} = Tokens.build_session_token(user)
     Repo.insert!(user_token)
-    token
+    serialized_value
   end
 
   @doc """
@@ -211,18 +179,26 @@ defmodule LiveCanvas.Accounts do
 
   If the token is valid `{user, token_inserted_at}` is returned, otherwise `nil` is returned.
   """
-  def get_user_by_session_token(token) do
-    {:ok, query} = Tokens.verify_session_token_query(token)
-    Repo.one(query)
+  def get_user_by_session_token(serialized_value) do
+    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+         {user, user_token, current_email} <- Repo.one(query),
+         true <- Tokens.valid_session_token?(user_token, raw_secret) do
+      user = hydrate_user(user, user_token, current_email)
+      {user, user_token.inserted_at}
+    else
+      _ -> nil
+    end
   end
 
   @doc """
   Gets the user with the given magic link token.
   """
-  def get_user_by_magic_link_token(token) do
-    with {:ok, query} <- Tokens.verify_magic_link_token_query(token),
-         {user, _token} <- Repo.one(query) do
-      user
+  def get_user_by_magic_link_token(serialized_value) do
+    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+         {user, user_token, current_email} <- Repo.one(query),
+         hydrated_user = hydrate_user(user, user_token, current_email),
+         true <- Tokens.valid_magic_link_token?(user_token, raw_secret, hydrated_user.email) do
+      hydrated_user
     else
       _ -> nil
     end
@@ -230,65 +206,45 @@ defmodule LiveCanvas.Accounts do
 
   @doc """
   Logs the user in by magic link.
-
-  There are three cases to consider:
-
-  1. The user has already confirmed their email. They are logged in
-     and the magic link is expired.
-
-  2. The user has not confirmed their email and no password is set.
-     In this case, the user gets confirmed, logged in, and all tokens -
-     including session ones - are expired. In theory, no other tokens
-     exist but we delete all of them for best security practices.
-
-  3. The user has not confirmed their email but a password is set.
-     This cannot happen in the default implementation but may be the
-     source of security pitfalls. See the "Mixing magic link and password registration" section of
-     `mix help phx.gen.auth`.
   """
-  def login_user_by_magic_link(token) do
-    {:ok, query} = Tokens.verify_magic_link_token_query(token)
+  def login_user_by_magic_link(serialized_value) do
+    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+         {user, user_token, current_email} <- Repo.one(query),
+         hydrated_user = hydrate_user(user, user_token, current_email),
+         true <- Tokens.valid_magic_link_token?(user_token, raw_secret, hydrated_user.email) do
+      case hydrated_user do
+        %User{confirmed_at: nil, hashed_password: hash} when not is_nil(hash) ->
+          raise """
+          magic link log in is not allowed for unconfirmed users with a password set!
 
-    case Repo.one(query) do
-      # Prevent session fixation attacks by disallowing magic links for unconfirmed users with password
-      {%User{confirmed_at: nil, hashed_password: hash}, _token} when not is_nil(hash) ->
-        raise """
-        magic link log in is not allowed for unconfirmed users with a password set!
+          This cannot happen with the default implementation, which indicates that you
+          might have adapted the code to a different use case. Please make sure to read the
+          "Mixing magic link and password registration" section of `mix help phx.gen.auth`.
+          """
 
-        This cannot happen with the default implementation, which indicates that you
-        might have adapted the code to a different use case. Please make sure to read the
-        "Mixing magic link and password registration" section of `mix help phx.gen.auth`.
-        """
+        %User{confirmed_at: nil} = confirmed_user ->
+          confirmed_user
+          |> UserChanges.confirm_changeset()
+          |> update_user_and_delete_all_tokens()
 
-      {%User{confirmed_at: nil} = user, _token} ->
-        user
-        |> UserChanges.confirm_changeset()
-        |> update_user_and_delete_all_tokens()
-
-      {user, token} ->
-        Repo.delete!(token)
-        {:ok, {user, []}}
-
-      nil ->
-        {:error, :not_found}
+        confirmed_user ->
+          Repo.delete!(user_token)
+          {:ok, {confirmed_user, []}}
+      end
+    else
+      _ -> {:error, :not_found}
     end
   end
 
   @doc ~S"""
   Delivers the update email instructions to the given user.
-
-  ## Examples
-
-      iex> deliver_user_update_email_instructions(user, current_email, &url(~p"/users/settings/confirm-email/#{&1}"))
-      {:ok, %{to: ..., body: ...}}
-
   """
-  def deliver_user_update_email_instructions(%User{} = user, current_email, update_email_url_fun)
+  def deliver_user_update_email_instructions(%User{} = user, _current_email, update_email_url_fun)
       when is_function(update_email_url_fun, 1) do
-    {encoded_token, user_token} = Tokens.build_email_token(user, "change:#{current_email}")
+    {serialized_value, user_token} = Tokens.build_email_token(user, :email_verification_token)
 
     Repo.insert!(user_token)
-    UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(encoded_token))
+    UserNotifier.deliver_update_email_instructions(user, update_email_url_fun.(serialized_value))
   end
 
   @doc """
@@ -296,16 +252,21 @@ defmodule LiveCanvas.Accounts do
   """
   def deliver_login_instructions(%User{} = user, magic_link_url_fun)
       when is_function(magic_link_url_fun, 1) do
-    {encoded_token, user_token} = Tokens.build_email_token(user, "login")
+    {serialized_value, user_token} = Tokens.build_email_token(user, :email_magic_link_token)
     Repo.insert!(user_token)
-    UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(encoded_token))
+    UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(serialized_value))
   end
 
   @doc """
-  Deletes the signed token with the given context.
+  Deletes the signed access token.
   """
-  def delete_user_session_token(token) do
-    Repo.delete_all(from(UserToken, where: [token: ^token, context: "session"]))
+  def delete_user_session_token(serialized_value) do
+    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+         {_user, user_token, _current_email} <- Repo.one(query),
+         true <- Tokens.valid_session_token?(user_token, raw_secret) do
+      Repo.delete!(user_token)
+    end
+
     :ok
   end
 
@@ -314,12 +275,87 @@ defmodule LiveCanvas.Accounts do
   defp update_user_and_delete_all_tokens(changeset) do
     Repo.transact(fn ->
       with {:ok, user} <- Repo.update(changeset) do
-        tokens_to_expire = Repo.all_by(UserToken, user_id: user.id)
+        tokens_to_expire =
+          Repo.all(from(token in UserToken, where: token.user_id == ^user.id))
 
-        Repo.delete_all(from(t in UserToken, where: t.id in ^Enum.map(tokens_to_expire, & &1.id)))
+        Repo.delete_all(
+          from(token in UserToken, where: token.id in ^Enum.map(tokens_to_expire, & &1.id))
+        )
 
-        {:ok, {user, tokens_to_expire}}
+        {:ok, {put_primary_email(user), tokens_to_expire}}
       end
     end)
   end
+
+  defp attach_email_address(user, email, opts \\ [])
+  defp attach_email_address(_user, nil, _opts), do: {:error, :missing_email}
+
+  defp attach_email_address(user, email, opts) do
+    Repo.insert(
+      %EmailAddress{normalized_email: email},
+      on_conflict: :nothing,
+      conflict_target: :normalized_email
+    )
+
+    email_address = Repo.get_by!(EmailAddress, normalized_email: email)
+
+    Repo.insert(
+      %UserEmailAddress{
+        user_id: user.id,
+        email_address_id: email_address.id,
+        verified_at: Keyword.get(opts, :verified_at, user.confirmed_at)
+      },
+      on_conflict: :nothing,
+      conflict_target: [:user_id, :email_address_id]
+    )
+  end
+
+  defp replace_primary_email(user, email) do
+    Repo.delete_all(from(join in UserEmailAddress, where: join.user_id == ^user.id))
+
+    with {:ok, _join} <- attach_email_address(user, email, verified_at: DateTime.utc_now()) do
+      {:ok, get_user!(user.id)}
+    end
+  end
+
+  defp user_by_email_query(email) do
+    normalized_email = String.downcase(email)
+
+    from user in User,
+      join: user_email_address in assoc(user, :user_email_addresses),
+      join: email_address in assoc(user_email_address, :email_address),
+      where: email_address.normalized_email == ^normalized_email,
+      limit: 1,
+      select: %{user | email: email_address.normalized_email}
+  end
+
+  defp current_email_for_user(user_id) do
+    from(email_address in EmailAddress,
+      join: user_email_address in UserEmailAddress,
+      on: user_email_address.email_address_id == email_address.id,
+      where: user_email_address.user_id == ^user_id,
+      order_by: [asc: user_email_address.inserted_at],
+      limit: 1,
+      select: email_address.normalized_email
+    )
+    |> Repo.one()
+  end
+
+  defp put_primary_email(%User{} = user) do
+    %{user | email: current_email_for_user(user.id)}
+  end
+
+  defp hydrate_user(user, user_token, current_email) do
+    %{
+      user
+      | authenticated_at: user_token.authenticated_at,
+        email: current_email || user_token.sent_to
+    }
+  end
+
+  defp email_taken?(nil), do: false
+  defp email_taken?(email), do: not is_nil(get_user_by_email(email))
+
+  defp email_taken_changeset(changeset),
+    do: add_error(changeset, :email, "has already been taken")
 end

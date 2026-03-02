@@ -99,6 +99,7 @@ defmodule LiveCanvas.MixProject do
   defp misc_deps,
     do: [
       {:boundary, "~> 0.10", runtime: false},
+      {:ecto_enum, "~> 1.4"},
       {:swoosh, "~> 1.16"},
       {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},

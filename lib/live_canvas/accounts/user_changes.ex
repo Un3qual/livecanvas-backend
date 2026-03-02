@@ -1,8 +1,6 @@
 defmodule LiveCanvas.Accounts.UserChanges do
   import Ecto.Changeset
 
-  alias LiveCanvas.Infra.Repo
-
   @doc """
   A user changeset for registering or changing the email.
   """
@@ -12,23 +10,15 @@ defmodule LiveCanvas.Accounts.UserChanges do
     |> validate_email(opts)
   end
 
-  defp validate_email(changeset, opts) do
-    changeset =
-      changeset
-      |> validate_required([:email])
-      |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
-        message: "must have the @ sign and no spaces"
-      )
-      |> validate_length(:email, max: 160)
-
-    if Keyword.get(opts, :validate_unique, true) do
-      changeset
-      |> unsafe_validate_unique(:email, Repo)
-      |> unique_constraint(:email)
-      |> validate_email_changed()
-    else
-      changeset
-    end
+  defp validate_email(changeset, _opts) do
+    changeset
+    |> validate_required([:email])
+    |> update_change(:email, &String.downcase/1)
+    |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
+      message: "must have the @ sign and no spaces"
+    )
+    |> validate_length(:email, max: 160)
+    |> validate_email_changed()
   end
 
   defp validate_email_changed(changeset) do
@@ -73,7 +63,7 @@ defmodule LiveCanvas.Accounts.UserChanges do
   Confirms the account by setting `confirmed_at`.
   """
   def confirm_changeset(user) do
-    now = DateTime.utc_now(:second)
+    now = DateTime.utc_now()
     change(user, confirmed_at: now)
   end
 end

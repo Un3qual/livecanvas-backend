@@ -1,0 +1,20 @@
+defmodule LiveCanvasSchemas.Accounts.User do
+  use Ecto.Schema
+
+  schema "users" do
+    field :email, :string, virtual: true
+    field :password, :string, virtual: true, redact: true
+    field :hashed_password, :string, redact: true
+    field :confirmed_at, :utc_datetime_usec
+    field :authenticated_at, :utc_datetime_usec, virtual: true
+
+    has_many :user_email_addresses, LiveCanvasSchemas.Accounts.UserEmailAddress
+    has_many :email_addresses, through: [:user_email_addresses, :email_address]
+    has_many :user_phone_numbers, LiveCanvasSchemas.Accounts.UserPhoneNumber
+    has_many :phone_numbers, through: [:user_phone_numbers, :phone_number]
+    has_many :user_identities, LiveCanvasSchemas.Accounts.UserIdentity
+    has_many :user_contact_entries, LiveCanvasSchemas.Accounts.UserContactEntry
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end

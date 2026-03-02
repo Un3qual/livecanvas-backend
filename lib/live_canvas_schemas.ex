@@ -1,5 +1,21 @@
 defmodule LiveCanvasSchemas do
   @moduledoc false
 
-  use Boundary, top_level?: true, exports: [User, UserToken]
+  use Boundary,
+    top_level?: true,
+    exports: [
+      Accounts,
+      Accounts.EmailAddress,
+      Accounts.PhoneNumber,
+      Accounts.User,
+      Accounts.UserContactEntry,
+      Accounts.UserContactEntryEmailAddress,
+      Accounts.UserContactEntryPhoneNumber,
+      Accounts.UserEmailAddress,
+      Accounts.UserIdentity,
+      Accounts.UserIdentityProvider,
+      Accounts.UserPhoneNumber,
+      Accounts.UserToken,
+      Accounts.UserTokenContext
+    ]
 end

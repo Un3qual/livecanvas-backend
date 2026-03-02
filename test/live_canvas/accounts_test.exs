@@ -4,7 +4,38 @@ defmodule LiveCanvas.AccountsTest do
   alias LiveCanvas.Accounts
 
   import LiveCanvas.AccountsFixtures
-  alias LiveCanvasSchemas.{User, UserToken}
+  alias LiveCanvas.Accounts.Tokens
+  alias LiveCanvasSchemas.Accounts.{User, UserContactEntry, UserToken}
+
+  describe "schema shape" do
+    test "user exposes join and through email relationships" do
+      assert :user_email_addresses in User.__schema__(:associations)
+      assert :email_addresses in User.__schema__(:associations)
+      assert :phone_numbers in User.__schema__(:associations)
+      refute :email in User.__schema__(:fields)
+    end
+
+    test "contact entries expose through email and phone relationships" do
+      assert :email_addresses in UserContactEntry.__schema__(:associations)
+      assert :phone_numbers in UserContactEntry.__schema__(:associations)
+    end
+
+    test "user token stores secret_hash and UUID primary key" do
+      assert :secret_hash in UserToken.__schema__(:fields)
+      assert "binary_id" == Atom.to_string(UserToken.__schema__(:type, :id))
+      assert :raw_secret in UserToken.__schema__(:virtual_fields)
+      assert :serialized_value in UserToken.__schema__(:virtual_fields)
+      refute :token in UserToken.__schema__(:virtual_fields)
+    end
+
+    test "tokens expose dedicated serialization helpers" do
+      assert {:ok, parts} =
+               Tokens.decode_serialized_value("#{Ecto.UUID.generate()}.c2VjcmV0")
+
+      assert is_binary(parts.id)
+      assert is_binary(parts.raw_secret)
+    end
+  end
 
   describe "get_user_by_email/1" do
     test "does not return the user if the email does not exist" do
@@ -142,11 +173,12 @@ defmodule LiveCanvas.AccountsTest do
           Accounts.deliver_user_update_email_instructions(user, "current@example.com", url)
         end)
 
-      {:ok, token} = Base.url_decode64(token, padding: false)
-      assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, token))
+      assert {:ok, %{id: id, raw_secret: raw_secret}} = Tokens.decode_serialized_value(token)
+      assert user_token = Repo.get_by(UserToken, id: id)
+      assert user_token.secret_hash == Tokens.secret_hash(raw_secret)
       assert user_token.user_id == user.id
       assert user_token.sent_to == user.email
-      assert user_token.context == "change:current@example.com"
+      assert user_token.context == :email_verification_token
     end
   end
 
@@ -165,7 +197,7 @@ defmodule LiveCanvas.AccountsTest do
 
     test "updates the email with a valid token", %{user: user, token: token, email: email} do
       assert {:ok, %{email: ^email}} = Accounts.update_user_email(user, token)
-      changed_user = Repo.get!(User, user.id)
+      changed_user = Accounts.get_user!(user.id)
       assert changed_user.email != user.email
       assert changed_user.email == email
       refute Repo.get_by(UserToken, user_id: user.id)
@@ -175,7 +207,7 @@ defmodule LiveCanvas.AccountsTest do
       assert Accounts.update_user_email(user, "oops") ==
                {:error, :transaction_aborted}
 
-      assert Repo.get!(User, user.id).email == user.email
+      assert Accounts.get_user!(user.id).email == user.email
       assert Repo.get_by(UserToken, user_id: user.id)
     end
 
@@ -183,17 +215,18 @@ defmodule LiveCanvas.AccountsTest do
       assert Accounts.update_user_email(%{user | email: "current@example.com"}, token) ==
                {:error, :transaction_aborted}
 
-      assert Repo.get!(User, user.id).email == user.email
+      assert Accounts.get_user!(user.id).email == user.email
       assert Repo.get_by(UserToken, user_id: user.id)
     end
 
     test "does not update email if token expired", %{user: user, token: token} do
-      {1, nil} = Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
+      {1, nil} =
+        Repo.update_all(UserToken, set: [inserted_at: ~U[2020-01-01 00:00:00.000000Z]])
 
       assert Accounts.update_user_email(user, token) ==
                {:error, :transaction_aborted}
 
-      assert Repo.get!(User, user.id).email == user.email
+      assert Accounts.get_user!(user.id).email == user.email
       assert Repo.get_by(UserToken, user_id: user.id)
     end
   end
@@ -277,24 +310,28 @@ defmodule LiveCanvas.AccountsTest do
 
     test "generates a token", %{user: user} do
       token = Accounts.generate_user_session_token(user)
-      assert user_token = Repo.get_by(UserToken, token: token)
-      assert user_token.context == "session"
+      assert {:ok, %{id: id, raw_secret: raw_secret}} = Tokens.decode_serialized_value(token)
+      assert user_token = Repo.get_by(UserToken, id: id)
+      assert user_token.secret_hash == Tokens.secret_hash(raw_secret)
+      assert user_token.context == :access_token
       assert user_token.authenticated_at != nil
 
       # Creating the same token for another user should fail
       assert_raise Ecto.ConstraintError, fn ->
         Repo.insert!(%UserToken{
-          token: user_token.token,
+          id: Ecto.UUID.generate(),
+          secret_hash: user_token.secret_hash,
           user_id: user_fixture().id,
-          context: "session"
+          context: :access_token
         })
       end
     end
 
     test "duplicates the authenticated_at of given user in new token", %{user: user} do
-      user = %{user | authenticated_at: DateTime.add(DateTime.utc_now(:second), -3600)}
+      user = %{user | authenticated_at: DateTime.add(DateTime.utc_now(), -3600)}
       token = Accounts.generate_user_session_token(user)
-      assert user_token = Repo.get_by(UserToken, token: token)
+      assert {:ok, %{id: id}} = Tokens.decode_serialized_value(token)
+      assert user_token = Repo.get_by(UserToken, id: id)
       assert user_token.authenticated_at == user.authenticated_at
       assert DateTime.compare(user_token.inserted_at, user.authenticated_at) == :gt
     end
@@ -319,7 +356,7 @@ defmodule LiveCanvas.AccountsTest do
     end
 
     test "does not return user for expired token", %{token: token} do
-      dt = ~N[2020-01-01 00:00:00]
+      dt = ~U[2020-01-01 00:00:00.000000Z]
       {1, nil} = Repo.update_all(UserToken, set: [inserted_at: dt, authenticated_at: dt])
       refute Accounts.get_user_by_session_token(token)
     end
@@ -342,7 +379,9 @@ defmodule LiveCanvas.AccountsTest do
     end
 
     test "does not return user for expired token", %{token: token} do
-      {1, nil} = Repo.update_all(UserToken, set: [inserted_at: ~N[2020-01-01 00:00:00]])
+      {1, nil} =
+        Repo.update_all(UserToken, set: [inserted_at: ~U[2020-01-01 00:00:00.000000Z]])
+
       refute Accounts.get_user_by_magic_link_token(token)
     end
   end
@@ -353,7 +392,7 @@ defmodule LiveCanvas.AccountsTest do
       refute user.confirmed_at
       {encoded_token, hashed_token} = generate_user_magic_link_token(user)
 
-      assert {:ok, {user, [%{token: ^hashed_token}]}} =
+      assert {:ok, {user, [%{secret_hash: ^hashed_token}]}} =
                Accounts.login_user_by_magic_link(encoded_token)
 
       assert user.confirmed_at
@@ -399,11 +438,12 @@ defmodule LiveCanvas.AccountsTest do
           Accounts.deliver_login_instructions(user, url)
         end)
 
-      {:ok, token} = Base.url_decode64(token, padding: false)
-      assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, token))
+      assert {:ok, %{id: id, raw_secret: raw_secret}} = Tokens.decode_serialized_value(token)
+      assert user_token = Repo.get_by(UserToken, id: id)
+      assert user_token.secret_hash == Tokens.secret_hash(raw_secret)
       assert user_token.user_id == user.id
       assert user_token.sent_to == user.email
-      assert user_token.context == "login"
+      assert user_token.context == :email_magic_link_token
     end
   end
 

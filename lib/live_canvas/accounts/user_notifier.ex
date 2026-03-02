@@ -2,7 +2,7 @@ defmodule LiveCanvas.Accounts.UserNotifier do
   import Swoosh.Email
 
   alias LiveCanvas.Infra.Mailer
-  alias LiveCanvasSchemas.User
+  alias LiveCanvasSchemas.Accounts.User
 
   # Delivers the email using the application mailer.
   defp deliver(recipient, subject, body) do

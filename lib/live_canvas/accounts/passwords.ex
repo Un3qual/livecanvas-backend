@@ -1,7 +1,7 @@
 defmodule LiveCanvas.Accounts.Passwords do
   @moduledoc false
 
-  alias LiveCanvasSchemas.User
+  alias LiveCanvasSchemas.Accounts.User
 
   @doc """
   Verifies the password.

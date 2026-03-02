@@ -7,8 +7,8 @@ defmodule LiveCanvas.AccountsFixtures do
   import Ecto.Query
 
   alias LiveCanvas.Accounts
+  alias LiveCanvas.Accounts.Tokens
   alias LiveCanvas.Infra.Repo
-  alias LiveCanvasSchemas.UserToken
 
   def unique_user_email, do: "user#{System.unique_integer()}@example.com"
   def valid_user_password, do: "hello world!"
@@ -65,25 +65,28 @@ defmodule LiveCanvas.AccountsFixtures do
   end
 
   def override_token_authenticated_at(token, authenticated_at) when is_binary(token) do
+    {:ok, %{id: id}} = Tokens.decode_serialized_value(token)
+
     Repo.update_all(
-      from(t in UserToken,
-        where: t.token == ^token
+      from(t in "users_tokens",
+        where: field(t, :id) == type(^id, Ecto.UUID)
       ),
       set: [authenticated_at: authenticated_at]
     )
   end
 
   def generate_user_magic_link_token(user) do
-    {encoded_token, user_token} = Accounts.build_user_email_token(user, "login")
+    {encoded_token, user_token} = Accounts.build_user_email_token(user, :email_magic_link_token)
     Repo.insert!(user_token)
-    {encoded_token, user_token.token}
+    {encoded_token, user_token.secret_hash}
   end
 
   def offset_user_token(token, amount_to_add, unit) do
-    dt = DateTime.add(DateTime.utc_now(:second), amount_to_add, unit)
+    dt = DateTime.add(DateTime.utc_now(), amount_to_add, unit)
+    {:ok, %{id: id}} = Tokens.decode_serialized_value(token)
 
     Repo.update_all(
-      from(ut in UserToken, where: ut.token == ^token),
+      from(ut in "users_tokens", where: field(ut, :id) == type(^id, Ecto.UUID)),
       set: [inserted_at: dt, authenticated_at: dt]
     )
   end

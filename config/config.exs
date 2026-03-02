@@ -22,7 +22,7 @@ config :live_canvas, :scopes,
 
 config :live_canvas,
   ecto_repos: [LiveCanvas.Infra.Repo],
-  generators: [timestamp_type: :utc_datetime]
+  generators: [timestamp_type: :utc_datetime_usec]
 
 # Configure the endpoint
 config :live_canvas, LiveCanvasWeb.Endpoint,

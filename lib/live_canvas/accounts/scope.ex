@@ -16,7 +16,7 @@ defmodule LiveCanvas.Accounts.Scope do
   growing application requirements.
   """
 
-  alias LiveCanvasSchemas.User
+  alias LiveCanvasSchemas.Accounts.User
 
   defstruct user: nil
 
