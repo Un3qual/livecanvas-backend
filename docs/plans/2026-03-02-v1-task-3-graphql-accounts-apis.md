@@ -12,7 +12,7 @@
 
 ## Progress
 
-- [ ] Step 1: Add failing GraphQL mutation tests for account registration and write-side APIs
+- [x] Step 1: Add failing GraphQL mutation tests for account registration and write-side APIs
 - [ ] Step 2: Add failing GraphQL query tests for viewer/account lookups
 - [ ] Step 3: Implement minimal resolver modules and schema wiring
 - [ ] Step 4: Replace or retire stubbed account GraphQL fields
@@ -25,7 +25,7 @@
 - Modify: `lib/live_canvas_gql/accounts/account_mutations.ex`
 - Modify: `lib/live_canvas_gql/accounts/account_types.ex`
 
-**Step 1: Write the failing tests**
+- [x] Step 1: Write the failing tests
 
 Add mutations that exercise the real `Accounts` boundary:
 
@@ -59,25 +59,25 @@ test "attachUserPhoneNumber normalizes and persists a phone" do
 end
 ```
 
-**Step 2: Run tests to verify they fail**
+- [x] Step 2: Run tests to verify they fail
 
 Run: `mix test test/live_canvas_gql/accounts/account_mutations_test.exs --trace`
 
 Expected: FAIL because the schema does not expose these fields yet.
 
-**Step 3: Write minimal implementation**
+- [x] Step 3: Write minimal implementation
 
 - Add input objects and payload types for the new mutations
 - Replace the stub-only `apple_authenticate` emphasis with real account mutations
 - Keep the mutation module declarative; delegate all logic to a resolver module
 
-**Step 4: Run tests to verify they pass**
+- [x] Step 4: Run tests to verify they pass
 
 Run: `mix test test/live_canvas_gql/accounts/account_mutations_test.exs --trace`
 
 Expected: PASS for the real account mutations.
 
-**Step 5: Commit**
+- [x] Step 5: Commit
 
 ```bash
 git add lib/live_canvas_gql/accounts/account_mutations.ex lib/live_canvas_gql/accounts/account_types.ex test/live_canvas_gql/accounts/account_mutations_test.exs
