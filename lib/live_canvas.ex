@@ -7,12 +7,14 @@ defmodule LiveCanvas do
   if it comes from the database, an external API or others.
   """
 
-  @test_support_exports if Mix.env() == :test, do: [AccountsFixtures, DataCase], else: []
+  @test_support_exports if Mix.env() == :test,
+                          do: [AccountsFixtures, DataCase, SocialFixtures],
+                          else: []
 
   use Boundary,
     top_level?: true,
     deps: [LiveCanvasSchemas],
-    exports: [Accounts] ++ @test_support_exports
+    exports: [Accounts, Social] ++ @test_support_exports
 
   def repo_module, do: LiveCanvas.Infra.Repo
 

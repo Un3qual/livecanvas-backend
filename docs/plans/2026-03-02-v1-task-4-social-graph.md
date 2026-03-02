@@ -13,7 +13,7 @@
 ## Progress
 
 - [x] Task 1: Add the Accounts-owned privacy mode prerequisite
-- [ ] Task 2: Add the `Social` persistence, policy, and boundary APIs
+- [x] Task 2: Add the `Social` persistence, policy, and boundary APIs
 - [ ] Task 3: Add the GraphQL `Social` query and mutation surface
 - [ ] Task 4: Run final verification and review
 

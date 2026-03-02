@@ -17,6 +17,10 @@ defmodule LiveCanvasSchemas do
       Accounts.UserIdentityProvider,
       Accounts.UserPhoneNumber,
       Accounts.UserToken,
-      Accounts.UserTokenContext
+      Accounts.UserTokenContext,
+      Social,
+      Social.Block,
+      Social.Follow,
+      Social.FollowState
     ]
 end
