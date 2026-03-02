@@ -86,8 +86,7 @@ defmodule LiveCanvas.AccountsFixtures do
   end
 
   def generate_user_magic_link_token(user) do
-    {encoded_token, user_token} = Accounts.build_user_email_token(user, :email_magic_link_token)
-    Repo.insert!(user_token)
+    {:ok, %{token: encoded_token, user_token: user_token}} = Accounts.issue_magic_link_token(user)
     {encoded_token, user_token.secret_hash}
   end
 

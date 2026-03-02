@@ -214,6 +214,27 @@ defmodule LiveCanvas.Accounts do
     end
   end
 
+  @doc """
+  Persists and returns an access token payload for the given user.
+  """
+  def issue_access_token(%User{} = user, attrs \\ []) do
+    issue_user_token(user, :access_token, attrs)
+  end
+
+  @doc """
+  Persists and returns a magic link token payload for the given user.
+  """
+  def issue_magic_link_token(%User{} = user) do
+    issue_user_token(user, :email_magic_link_token, sent_to: user.email)
+  end
+
+  @doc """
+  Persists and returns an email verification token payload for the given user.
+  """
+  def issue_email_verification_token(%User{} = user) do
+    issue_user_token(user, :email_verification_token, sent_to: user.email)
+  end
+
   @doc false
   def normalize_phone_number(raw_phone_number), do: PhoneNumbers.normalize(raw_phone_number)
 
