@@ -221,6 +221,13 @@ git commit -m "feat: add social graph context"
 - Create: `test/live_canvas_gql/social/social_queries_test.exs`
 - Create: `test/live_canvas_gql/social/social_mutations_test.exs`
 
+**Task 3 Step Progress**
+- [x] Step 1: Write the failing tests
+- [ ] Step 2: Run tests to verify they fail
+- [ ] Step 3: Write the minimal implementation
+- [ ] Step 4: Run tests to verify they pass
+- [ ] Step 5: Commit
+
 **Step 1: Write the failing tests**
 
 Add thin adapter tests that prove Absinthe delegates to `LiveCanvas.Social`:
