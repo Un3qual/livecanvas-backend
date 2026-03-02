@@ -248,6 +248,22 @@ defmodule LiveCanvas.Accounts do
   end
 
   @doc """
+  Normalizes and attaches an email address to the given user.
+  """
+  def attach_user_email_address(%User{} = user, email, opts \\ []) do
+    normalized_email =
+      if is_binary(email) do
+        String.downcase(email)
+      else
+        email
+      end
+
+    Repo.transact(fn ->
+      attach_email_address(user, normalized_email, opts)
+    end)
+  end
+
+  @doc """
   Registers an external identity for the given user.
   """
   def register_user_identity(%User{} = user, provider, provider_uid, opts \\ [])
@@ -399,15 +415,24 @@ defmodule LiveCanvas.Accounts do
 
     email_address = Repo.get_by!(EmailAddress, normalized_email: email)
 
-    Repo.insert(
-      %UserEmailAddress{
-        user_id: user.id,
-        email_address_id: email_address.id,
-        verified_at: Keyword.get(opts, :verified_at, user.confirmed_at)
-      },
-      on_conflict: :nothing,
-      conflict_target: [:user_id, :email_address_id]
-    )
+    case Repo.insert(
+           %UserEmailAddress{
+             user_id: user.id,
+             email_address_id: email_address.id,
+             verified_at: Keyword.get(opts, :verified_at, user.confirmed_at)
+           },
+           on_conflict: :nothing,
+           conflict_target: [:user_id, :email_address_id]
+         ) do
+      {:ok, _user_email_address} ->
+        user_email_address =
+          Repo.get_by!(UserEmailAddress, user_id: user.id, email_address_id: email_address.id)
+
+        {:ok, Repo.preload(user_email_address, :email_address)}
+
+      {:error, changeset} ->
+        {:error, changeset}
+    end
   end
 
   defp replace_primary_email(user, email) do

@@ -127,6 +127,29 @@ defmodule LiveCanvas.AccountsTest do
     end
   end
 
+  describe "attach_user_email_address/3" do
+    test "downcases and persists a verified join" do
+      user = user_fixture()
+      verified_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+      assert {:ok, join} =
+               Accounts.attach_user_email_address(user, "NEW@Example.com",
+                 verified_at: verified_at
+               )
+
+      assert join.user_id == user.id
+      assert DateTime.compare(join.verified_at, verified_at) == :eq
+      assert join.email_address.normalized_email == "new@example.com"
+
+      user = Accounts.get_user!(user.id) |> Repo.preload(user_email_addresses: :email_address)
+
+      assert Enum.any?(
+               user.user_email_addresses,
+               &(&1.email_address.normalized_email == "new@example.com")
+             )
+    end
+  end
+
   describe "register_user_identity/4" do
     test "stores the identity and makes it discoverable" do
       %{id: id} = user = user_fixture()
