@@ -15,7 +15,7 @@
 - [x] Step 1: Add failing GraphQL mutation tests for account registration and write-side APIs
 - [x] Step 2: Add failing GraphQL query tests for viewer/account lookups
 - [x] Step 3: Implement minimal resolver modules and schema wiring
-- [ ] Step 4: Replace or retire stubbed account GraphQL fields
+- [x] Step 4: Replace or retire stubbed account GraphQL fields
 - [ ] Step 5: Run focused GraphQL tests to verify green
 
 ### Task 1: Add GraphQL Mutation Coverage For The Current Accounts Surface
@@ -147,7 +147,7 @@ git commit -m "feat: add graphql account queries"
 - Modify: `test/live_canvas_gql/accounts/account_mutations_test.exs`
 - Modify: `test/live_canvas_gql/accounts/account_queries_test.exs`
 
-**Step 1: Write the failing regression tests**
+- [x] Step 1: Write the failing regression tests
 
 Add assertions that the current placeholders are gone or explicitly marked legacy:
 
@@ -158,25 +158,25 @@ test "appleAuthenticate is either deprecated or removed from the active account 
 end
 ```
 
-**Step 2: Run tests to verify they fail**
+- [x] Step 2: Run tests to verify they fail
 
 Run: `mix test test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/accounts/account_queries_test.exs --trace`
 
 Expected: FAIL while the placeholder field is still wired.
 
-**Step 3: Write minimal implementation**
+- [x] Step 3: Write minimal implementation
 
 - Remove the stub `apple_authenticate` mutation or mark it explicitly deprecated and isolate it from the new account flow
 - Remove the fake `auth_token_valid` implementation if a real boundary-backed equivalent is introduced
 - Keep only boundary-backed resolver paths in the active schema
 
-**Step 4: Run tests to verify they pass**
+- [x] Step 4: Run tests to verify they pass
 
 Run: `mix test test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/accounts/account_queries_test.exs --trace`
 
 Expected: PASS for the non-stubbed schema.
 
-**Step 5: Commit**
+- [x] Step 5: Commit
 
 ```bash
 git add lib/live_canvas_gql/schema.ex lib/live_canvas_gql/accounts/account_mutations.ex test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/accounts/account_queries_test.exs

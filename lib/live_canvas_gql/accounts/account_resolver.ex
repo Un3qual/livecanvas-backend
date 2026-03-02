@@ -28,10 +28,6 @@ defmodule LiveCanvasGQL.Accounts.Resolver do
     end
   end
 
-  def auth_token_valid(_parent, %{serialized_token: token}, _resolution) do
-    {:ok, token == "valid"}
-  end
-
   defp fetch_user(user_id) do
     with {:ok, id} <- parse_id(user_id) do
       try do

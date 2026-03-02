@@ -42,4 +42,12 @@ defmodule LiveCanvasGQL.Accounts.AccountMutationsTest do
       assert persisted_user.id == user.id
     end
   end
+
+  describe "schema cleanup" do
+    test "does not expose the legacy appleAuthenticate stub" do
+      schema_sdl = Absinthe.Schema.to_sdl(LiveCanvasGQL.Schema)
+
+      refute schema_sdl =~ "appleAuthenticate"
+    end
+  end
 end

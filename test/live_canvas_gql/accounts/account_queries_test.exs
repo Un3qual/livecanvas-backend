@@ -20,4 +20,12 @@ defmodule LiveCanvasGQL.Accounts.AccountQueriesTest do
                Absinthe.run(query, LiveCanvasGQL.Schema, variables: %{"userId" => user.id})
     end
   end
+
+  describe "schema cleanup" do
+    test "does not expose the legacy authTokenValid stub" do
+      schema_sdl = Absinthe.Schema.to_sdl(LiveCanvasGQL.Schema)
+
+      refute schema_sdl =~ "authTokenValid"
+    end
+  end
 end

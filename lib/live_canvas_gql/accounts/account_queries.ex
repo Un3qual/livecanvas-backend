@@ -9,11 +9,5 @@ defmodule LiveCanvasGQL.Accounts.Queries do
 
       resolve(&Resolver.viewer/3)
     end
-
-    field :auth_token_valid, non_null(:boolean) do
-      arg(:serialized_token, non_null(:string))
-
-      resolve(&Resolver.auth_token_valid/3)
-    end
   end
 end
