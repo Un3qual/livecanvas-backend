@@ -16,7 +16,7 @@
 - [x] Step 2: Add failing GraphQL query tests for viewer/account lookups
 - [x] Step 3: Implement minimal resolver modules and schema wiring
 - [x] Step 4: Replace or retire stubbed account GraphQL fields
-- [ ] Step 5: Run focused GraphQL tests to verify green
+- [x] Step 5: Run focused GraphQL tests to verify green
 
 ### Task 1: Add GraphQL Mutation Coverage For The Current Accounts Surface
 
@@ -194,13 +194,13 @@ git commit -m "refactor: remove graphql account stubs"
 - Verify: `test/live_canvas_gql/accounts/account_mutations_test.exs`
 - Verify: `test/live_canvas_gql/accounts/account_queries_test.exs`
 
-**Step 1: Run formatting**
+- [x] Step 1: Run formatting
 
 Run: `mix format lib/live_canvas_gql/schema.ex lib/live_canvas_gql/accounts/account_types.ex lib/live_canvas_gql/accounts/account_mutations.ex lib/live_canvas_gql/accounts/account_queries.ex lib/live_canvas_gql/accounts/account_resolver.ex test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/accounts/account_queries_test.exs`
 
 Expected: formatting completes cleanly.
 
-**Step 2: Run focused verification**
+- [x] Step 2: Run focused verification
 
 Run: `mix test test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/accounts/account_queries_test.exs --trace`
 
