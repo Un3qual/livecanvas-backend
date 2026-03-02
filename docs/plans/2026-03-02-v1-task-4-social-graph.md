@@ -14,7 +14,7 @@
 
 - [x] Task 1: Add the Accounts-owned privacy mode prerequisite
 - [x] Task 2: Add the `Social` persistence, policy, and boundary APIs
-- [ ] Task 3: Add the GraphQL `Social` query and mutation surface
+- [x] Task 3: Add the GraphQL `Social` query and mutation surface
 - [ ] Task 4: Run final verification and review
 
 ### Task 1: Add The Accounts-Owned Privacy Mode Prerequisite
@@ -223,10 +223,10 @@ git commit -m "feat: add social graph context"
 
 **Task 3 Step Progress**
 - [x] Step 1: Write the failing tests
-- [ ] Step 2: Run tests to verify they fail
-- [ ] Step 3: Write the minimal implementation
-- [ ] Step 4: Run tests to verify they pass
-- [ ] Step 5: Commit
+- [x] Step 2: Run tests to verify they fail
+- [x] Step 3: Write the minimal implementation
+- [x] Step 4: Run tests to verify they pass
+- [x] Step 5: Commit
 
 **Step 1: Write the failing tests**
 

@@ -8,10 +8,13 @@ defmodule LiveCanvasGQL.Schema do
   import_types(Absinthe.Plug.Types)
   import_types(LiveCanvasGQL.Accounts.Queries)
   import_types(LiveCanvasGQL.Accounts.Types)
+  import_types(LiveCanvasGQL.Social.Queries)
+  import_types(LiveCanvasGQL.Social.Types)
   # import_types LiveCanvasGQL.Chat.Types
 
   query do
     import_fields(:account_queries)
+    import_fields(:social_queries)
 
     # field :convo_lookup, non_null(:conversation) do
     #   arg :conversation_id, non_null(:string)
@@ -31,6 +34,8 @@ defmodule LiveCanvasGQL.Schema do
 
   mutation do
     import_types(LiveCanvasGQL.Accounts.Mutations)
+    import_types(LiveCanvasGQL.Social.Mutations)
     import_fields(:account_mutations)
+    import_fields(:social_mutations)
   end
 end
