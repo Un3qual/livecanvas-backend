@@ -44,7 +44,7 @@ batch.
 - [x] Task 3: Expose Multi-Identity Account Flows Through GraphQL
 - [x] Task 4: Add The `Social` Context For Follows, Requests, And Blocks
 - [x] Task 5: Add The `Content` Context For Posts And Media Metadata
-- [ ] Task 6: Add The `Live` Context, Session Supervisor, And Presence Contract
+- [x] Task 6: Add The `Live` Context, Session Supervisor, And Presence Contract
 - [ ] Task 7: Add The `Chat` Context And Live Channel Topics
 - [ ] Task 8: Add The `Feed` Context And GraphQL Read Models
 - [ ] Task 9: Wire End-To-End Auth, Realtime, And API Regression Coverage
@@ -660,6 +660,13 @@ git commit -m "feat: add content context"
 Use supervised processes only where runtime ownership is necessary (for
 example: active live session state, async fanout, or media-session lifecycle).
 Keep durable state transitions and validation logic in plain modules.
+
+**Task 6 Step Progress**
+- [x] Step 1: Write the failing live-session tests
+- [x] Step 2: Run tests to verify they fail
+- [x] Step 3: Write the minimal `Live` slice
+- [x] Step 4: Run tests to verify they pass
+- [x] Step 5: Commit
 
 **Files:**
 - Create: `priv/repo/migrations/TIMESTAMP_create_live_tables.exs`

@@ -15,6 +15,8 @@ defmodule LCApp do
       LC.repo_module(),
       {DNSCluster, query: Application.get_env(:live_canvas, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: LC.PubSub},
+      LCWeb.Presence,
+      {LC.Live.SessionSupervisor, []},
       {LC.Infra.SMS.FakeAdapter, []},
       LCWeb.Endpoint
     ]

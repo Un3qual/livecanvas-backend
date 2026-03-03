@@ -24,6 +24,9 @@ defmodule LCSchemas do
       Social.FollowState,
       Content,
       Content.Post,
-      Content.MediaAsset
+      Content.MediaAsset,
+      Live,
+      Live.LiveParticipant,
+      Live.LiveSession
     ]
 end
