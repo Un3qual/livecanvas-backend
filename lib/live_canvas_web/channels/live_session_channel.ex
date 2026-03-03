@@ -148,6 +148,12 @@ defmodule LCWeb.LiveSessionChannel do
   defp join_error_reason(:session_ended), do: "session_ended"
   defp join_error_reason(:not_authorized), do: "not_authorized"
   defp join_error_reason(:rate_limited), do: "rate_limited"
+  defp join_error_reason({:owned_by_remote, _owner_node}), do: "session_unavailable"
+
+  defp join_error_reason(reason)
+       when reason in [:remote_not_found, :remote_timeout, :remote_unreachable],
+       do: "session_unavailable"
+
   defp join_error_reason(_reason), do: "join_failed"
 
   defp message_error_reason(:session_ended), do: "session_ended"

@@ -7,9 +7,9 @@ defmodule LCWeb.LiveSessionChannelTest do
 
   alias LC.{Accounts, Live}
   alias LC.Infra.Repo
-  alias LC.Live.SessionServer
+  alias LC.Live.{SessionOwnership, SessionServer}
   alias LCSchemas.Chat.ChatMessage
-  alias LCSchemas.Live.LiveParticipant
+  alias LCSchemas.Live.{LiveParticipant, LiveSession}
   alias LCWeb.{LiveSessionChannel, UserSocket}
 
   @endpoint LCWeb.Endpoint
@@ -17,6 +17,23 @@ defmodule LCWeb.LiveSessionChannelTest do
     [:live_canvas, :live, :channel, :join],
     [:live_canvas, :live, :channel, :chat_send]
   ]
+
+  defmodule FakeRuntimeRPC do
+    @moduledoc false
+
+    def call(_owner_node, _module, function, _args, _opts \\ []) do
+      mode =
+        Application.get_env(:live_canvas, __MODULE__, [])
+        |> Keyword.get(:mode, :ok)
+
+      case {mode, function} do
+        {:remote_not_found, :remote_lookup_session_server} -> {:ok, :ok}
+        {:remote_not_found, :remote_join_session_server} -> {:ok, {:error, :not_found}}
+        {:remote_timeout, _} -> {:error, :remote_timeout}
+        _ -> {:ok, :ok}
+      end
+    end
+  end
 
   setup do
     attach_live_channel_telemetry_handler()
@@ -72,6 +89,76 @@ defmodule LCWeb.LiveSessionChannelTest do
                     %{
                       result: :error,
                       reason: :not_authorized,
+                      session_id: session_id,
+                      user_id: user_id
+                    }}
+
+    assert session_id == session.id
+    assert user_id == viewer.id
+  end
+
+  test "remote-owned session returns session_unavailable and emits remote_unreachable telemetry" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    session = live_session_fixture(host.id)
+    remote_owner = "remote-owner@127.0.0.1"
+
+    assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+
+    assert {:error, %{reason: "session_unavailable"}} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
+                    %{
+                      result: :error,
+                      reason: :remote_unreachable,
+                      session_id: session_id,
+                      user_id: user_id
+                    }}
+
+    assert session_id == session.id
+    assert user_id == viewer.id
+  end
+
+  test "remote runtime not found returns session_unavailable and preserves telemetry reason" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    session = live_session_fixture(host.id)
+    remote_owner = "remote-owner@127.0.0.1"
+
+    previous_live_config = Application.get_env(:live_canvas, Live, [])
+    previous_fake_rpc_config = Application.get_env(:live_canvas, FakeRuntimeRPC, [])
+
+    Application.put_env(
+      :live_canvas,
+      Live,
+      Keyword.put(previous_live_config, :runtime_rpc, FakeRuntimeRPC)
+    )
+
+    Application.put_env(:live_canvas, FakeRuntimeRPC, mode: :remote_not_found)
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, Live, previous_live_config)
+      Application.put_env(:live_canvas, FakeRuntimeRPC, previous_fake_rpc_config)
+    end)
+
+    assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+
+    assert {:error, %{reason: "session_unavailable"}} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
+                    %{
+                      result: :error,
+                      reason: :remote_not_found,
                       session_id: session_id,
                       user_id: user_id
                     }}
@@ -201,6 +288,14 @@ defmodule LCWeb.LiveSessionChannelTest do
     socket(UserSocket, "user_socket:#{user.id}", %{current_user: user})
   end
 
+  defp live_session_fixture(host_id) when is_integer(host_id) do
+    Repo.insert!(%LiveSession{
+      host_id: host_id,
+      status: :live,
+      visibility: :public
+    })
+  end
+
   defp wait_for_participant_left(session_id, user_id, attempts \\ 30)
 
   defp wait_for_participant_left(_session_id, _user_id, 0),
@@ -238,4 +333,6 @@ defmodule LCWeb.LiveSessionChannelTest do
     send(test_pid, {:telemetry_event, event, measurements, metadata})
     :ok
   end
+
+  defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
 end

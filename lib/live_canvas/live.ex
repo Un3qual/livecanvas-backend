@@ -381,7 +381,11 @@ defmodule LC.Live do
 
   @spec runtime_rpc_module(keyword()) :: runtime_rpc_module()
   defp runtime_rpc_module(opts) when is_list(opts) do
-    case Keyword.get(opts, :runtime_rpc, RuntimeRPC) do
+    configured_runtime_rpc =
+      Application.get_env(:live_canvas, __MODULE__, [])
+      |> Keyword.get(:runtime_rpc, RuntimeRPC)
+
+    case Keyword.get(opts, :runtime_rpc, configured_runtime_rpc) do
       runtime_rpc when is_atom(runtime_rpc) -> runtime_rpc
       _other -> RuntimeRPC
     end
