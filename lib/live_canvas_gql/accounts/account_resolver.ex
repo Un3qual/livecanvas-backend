@@ -11,6 +11,16 @@ defmodule LCGQL.Accounts.Resolver do
           errors: [mutation_error()]
         }
   @type mutation_result :: {:ok, mutation_payload()}
+  @type contact_upsert_payload :: %{
+          contact_match: LC.Accounts.contact_match() | nil,
+          errors: [mutation_error()]
+        }
+  @type contact_upsert_result :: {:ok, contact_upsert_payload()}
+  @type contact_upsert_error_reason ::
+          :invalid_contact_client_id
+          | :invalid_birthday
+          | :invalid_phone_number
+          | :invalid_email_list
   @type user_lookup_error :: :invalid_id | :invalid_type | :not_found
   @type user_lookup_result :: {:ok, User.t()} | {:error, user_lookup_error()}
   @type contact_match_node :: %{
@@ -74,6 +84,46 @@ defmodule LCGQL.Accounts.Resolver do
       {:error, %Ecto.Changeset{} = changeset} ->
         {:ok, %{user: nil, errors: format_changeset_errors(changeset)}}
     end
+  end
+
+  @spec upsert_viewer_contact_entry(
+          term(),
+          %{
+            optional(:input) => map(),
+            optional(:contact_client_id) => String.t(),
+            optional(:contact_name) => String.t(),
+            optional(:birthday) => String.t(),
+            optional(:emails) => [String.t()] | nil,
+            optional(:phone_numbers) => [String.t()] | nil
+          },
+          Absinthe.Resolution.t()
+        ) :: contact_upsert_result()
+  def upsert_viewer_contact_entry(parent, %{input: input}, resolution),
+    do: upsert_viewer_contact_entry(parent, input, resolution)
+
+  def upsert_viewer_contact_entry(_parent, args, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
+    contact_attrs = %{
+      contact_client_id: Map.get(args, :contact_client_id),
+      contact_name: Map.get(args, :contact_name),
+      birthday: Map.get(args, :birthday),
+      emails: normalize_string_list(Map.get(args, :emails)),
+      phone_numbers: normalize_string_list(Map.get(args, :phone_numbers))
+    }
+
+    case Accounts.upsert_user_contact_entry(user, contact_attrs) do
+      {:ok, contact_entry} ->
+        {:ok,
+         %{contact_match: Accounts.get_user_contact_match(user, contact_entry.id), errors: []}}
+
+      {:error, reason} ->
+        {:ok, %{contact_match: nil, errors: [contact_upsert_error(reason)]}}
+    end
+  end
+
+  def upsert_viewer_contact_entry(_parent, _args, _resolution) do
+    {:ok, %{contact_match: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
   end
 
   @spec viewer(term(), map(), Absinthe.Resolution.t()) :: {:ok, User.t() | nil}
@@ -144,6 +194,21 @@ defmodule LCGQL.Accounts.Resolver do
       end)
     end)
   end
+
+  @spec contact_upsert_error(contact_upsert_error_reason()) :: mutation_error()
+  defp contact_upsert_error(:invalid_contact_client_id),
+    do: %{field: "contactClientId", message: "is invalid"}
+
+  defp contact_upsert_error(:invalid_birthday), do: %{field: "birthday", message: "is invalid"}
+
+  defp contact_upsert_error(:invalid_phone_number),
+    do: %{field: "phoneNumbers", message: "is invalid"}
+
+  defp contact_upsert_error(:invalid_email_list), do: %{field: "emails", message: "is invalid"}
+
+  @spec normalize_string_list([String.t()] | nil) :: [String.t()]
+  defp normalize_string_list(nil), do: []
+  defp normalize_string_list(values), do: values
 
   @spec contact_match_node(LC.Accounts.contact_match()) :: contact_match_node()
   defp contact_match_node(%{contact_entry: %{id: id}} = contact_match) do

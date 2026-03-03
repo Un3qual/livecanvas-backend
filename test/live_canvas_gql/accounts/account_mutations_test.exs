@@ -143,4 +143,187 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                "AttachUserPhoneNumberPayload {\n  user: User\n  errors: [UserError!]!\n  successful: Boolean!"
     end
   end
+
+  describe "upsertViewerContactEntry" do
+    test "creates and then updates a viewer-owned contact entry with stable relay node identity" do
+      viewer = user_fixture()
+      matched_user = user_fixture()
+      second_matched_user = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation UpsertViewerContactEntry(
+        $contactClientId: String!
+        $contactName: String
+        $birthday: String
+        $emails: [String!]
+        $phoneNumbers: [String!]
+      ) {
+        upsertViewerContactEntry(
+          input: {
+            contactClientId: $contactClientId
+            contactName: $contactName
+            birthday: $birthday
+            emails: $emails
+            phoneNumbers: $phoneNumbers
+          }
+        ) {
+          contactMatch {
+            id
+            contactName
+            birthday
+            matchedUsers {
+              id
+              email
+            }
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      variables = %{
+        "contactClientId" => "ios-address-book-1",
+        "contactName" => "First Import",
+        "birthday" => "1990-02-15",
+        "emails" => [matched_user.email],
+        "phoneNumbers" => []
+      }
+
+      assert {:ok,
+              %{
+                data: %{
+                  "upsertViewerContactEntry" => %{
+                    "contactMatch" => %{
+                      "id" => first_contact_match_id,
+                      "contactName" => "First Import",
+                      "birthday" => "1990-02-15",
+                      "matchedUsers" => [%{"id" => matched_user_id, "email" => matched_email}]
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema, variables: variables, context: context)
+
+      assert matched_email == matched_user.email
+
+      assert {:ok, %{type: :contact_match}} =
+               Absinthe.Relay.Node.from_global_id(first_contact_match_id, LCGQL.Schema)
+
+      assert {:ok, %{type: :user}} =
+               Absinthe.Relay.Node.from_global_id(matched_user_id, LCGQL.Schema)
+
+      updated_variables = %{
+        "contactClientId" => "ios-address-book-1",
+        "contactName" => "Updated Import",
+        "birthday" => "1991-03-01",
+        "emails" => [second_matched_user.email],
+        "phoneNumbers" => []
+      }
+
+      expected_second_user_id =
+        Absinthe.Relay.Node.to_global_id(:user, second_matched_user.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "upsertViewerContactEntry" => %{
+                    "contactMatch" => %{
+                      "id" => ^first_contact_match_id,
+                      "contactName" => "Updated Import",
+                      "birthday" => "1991-03-01",
+                      "matchedUsers" => [
+                        %{
+                          "id" => ^expected_second_user_id,
+                          "email" => second_matched_user_email
+                        }
+                      ]
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: updated_variables,
+                 context: context
+               )
+
+      assert second_matched_user_email == second_matched_user.email
+    end
+
+    test "returns structured errors for invalid input payload values" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation {
+        upsertViewerContactEntry(
+          input: {
+            contactClientId: "ios-address-book-2"
+            birthday: "not-a-date"
+            emails: ["friend@example.com"]
+            phoneNumbers: []
+          }
+        ) {
+          contactMatch {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "upsertViewerContactEntry" => %{
+                    "contactMatch" => nil,
+                    "errors" => [%{"field" => "birthday", "message" => "is invalid"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+    end
+
+    test "returns an unauthenticated error without a viewer scope" do
+      mutation = """
+      mutation {
+        upsertViewerContactEntry(
+          input: {
+            contactClientId: "ios-address-book-3"
+            contactName: "No Viewer"
+            emails: []
+            phoneNumbers: []
+          }
+        ) {
+          contactMatch {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "upsertViewerContactEntry" => %{
+                    "contactMatch" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
 end
