@@ -33,8 +33,8 @@
 - [x] Task 2: Add real node resolution and Relay ID decoding.
 - [x] Task 3: Replace the first list field with a real Relay connection.
 - [x] Task 4: Convert mutations to Relay payloads without breaking clients immediately.
-- [ ] Task 5: Remove the legacy compatibility branches in one explicit breaking change.
-- [ ] Task 6: Final verification.
+- [x] Task 5: Remove the legacy compatibility branches in one explicit breaking change.
+- [x] Task 6: Final verification.
 
 ### Task 1: Add Authenticated GraphQL Context And A Non-Breaking `viewer` Transition
 

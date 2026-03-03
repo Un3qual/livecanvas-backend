@@ -18,7 +18,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
             field
             message
           }
-          successful
         }
       }
       """
@@ -28,8 +27,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                 data: %{
                   "registerWithEmail" => %{
                     "user" => %{"id" => user_id, "email" => "user@example.com"},
-                    "errors" => [],
-                    "successful" => true
+                    "errors" => []
                   }
                 }
               }} =
@@ -53,7 +51,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
             field
             message
           }
-          successful
         }
       }
       """
@@ -63,7 +60,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                 data: %{
                   "registerWithEmail" => %{
                     "user" => nil,
-                    "successful" => false,
                     "errors" => [%{"field" => "email", "message" => _message} | _]
                   }
                 }
@@ -86,7 +82,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
             field
             message
           }
-          successful
         }
       }
       """
@@ -96,14 +91,42 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                 data: %{
                   "attachUserPhoneNumber" => %{
                     "user" => %{"id" => ^user_id},
-                    "errors" => [],
-                    "successful" => true
+                    "errors" => []
                   }
                 }
               }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"userId" => user_id})
 
       assert persisted_user = Accounts.get_user_by_phone("+1 650-253-0000")
       assert persisted_user.id == user.id
+    end
+
+    test "rejects a raw numeric userId that is not a relay global id" do
+      user = user_fixture()
+
+      mutation = """
+      mutation($userId: ID!) {
+        attachUserPhoneNumber(input: {userId: $userId, phoneNumber: "(650) 253-0000"}) {
+          user {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "attachUserPhoneNumber" => %{
+                    "user" => nil,
+                    "errors" => [%{"field" => "userId", "message" => _message} | _]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema, variables: %{"userId" => "#{user.id}"})
     end
   end
 
@@ -112,6 +135,12 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
       schema_sdl = Absinthe.Schema.to_sdl(LCGQL.Schema)
 
       refute schema_sdl =~ "appleAuthenticate"
+
+      refute schema_sdl =~
+               "RegisterWithEmailPayload {\n  user: User\n  errors: [UserError!]!\n  successful: Boolean!"
+
+      refute schema_sdl =~
+               "AttachUserPhoneNumberPayload {\n  user: User\n  errors: [UserError!]!\n  successful: Boolean!"
     end
   end
 end

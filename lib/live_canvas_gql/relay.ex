@@ -9,7 +9,7 @@ defmodule LCGQL.Relay do
     case Absinthe.Relay.Node.from_global_id(value, schema) do
       {:ok, %{type: ^expected_type, id: id}} -> cast_local_id(id)
       {:ok, _decoded_node} -> {:error, :invalid_type}
-      {:error, _reason} -> cast_local_id(value)
+      {:error, _reason} -> {:error, :invalid_id}
     end
   end
 

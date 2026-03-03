@@ -5,14 +5,15 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
   alias LC.Accounts
 
   describe "viewer" do
-    test "returns the requested user by relay global id" do
+    test "returns the current scoped user without requiring a userId argument" do
       user = user_fixture()
       expected_email = user.email
       user_id = Absinthe.Relay.Node.to_global_id(:user, user.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(user)}
 
       query = """
-      query($userId: ID!) {
-        viewer(userId: $userId) {
+      query {
+        viewer {
           id
           email
         }
@@ -20,7 +21,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       """
 
       assert {:ok, %{data: %{"viewer" => %{"id" => ^user_id, "email" => ^expected_email}}}} =
-               Absinthe.run(query, LCGQL.Schema, variables: %{"userId" => user_id})
+               Absinthe.run(query, LCGQL.Schema, context: context)
     end
   end
 
@@ -81,6 +82,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       schema_sdl = Absinthe.Schema.to_sdl(LCGQL.Schema)
 
       refute schema_sdl =~ "authTokenValid"
+      refute schema_sdl =~ "viewer(userId:"
     end
   end
 end

@@ -24,5 +24,20 @@ defmodule LCGQL.Relay.NodeQueriesTest do
 
       assert user_email == user.email
     end
+
+    test "rejects a raw numeric id that is not a relay global id" do
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      assert {:ok, %{errors: [first_error | _rest]}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => "123"})
+
+      assert first_error.message =~ "Could not decode ID value"
+    end
   end
 end

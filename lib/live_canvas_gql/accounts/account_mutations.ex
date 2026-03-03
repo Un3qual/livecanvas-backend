@@ -13,7 +13,6 @@ defmodule LCGQL.Accounts.Mutations do
       output do
         field :user, :user
         field :errors, non_null(list_of(non_null(:user_error)))
-        field :successful, non_null(:boolean)
       end
 
       resolve(&Resolver.register_with_email/3)
@@ -28,7 +27,6 @@ defmodule LCGQL.Accounts.Mutations do
       output do
         field :user, :user
         field :errors, non_null(list_of(non_null(:user_error)))
-        field :successful, non_null(:boolean)
       end
 
       resolve(&Resolver.attach_user_phone_number/3)

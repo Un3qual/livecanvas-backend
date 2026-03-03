@@ -8,8 +8,7 @@ defmodule LCGQL.Accounts.Resolver do
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
   @type mutation_payload :: %{
           user: User.t() | nil,
-          errors: [mutation_error()],
-          successful: boolean()
+          errors: [mutation_error()]
         }
   @type mutation_result :: {:ok, mutation_payload()}
   @type user_lookup_error :: :invalid_id | :invalid_type | :not_found
@@ -27,10 +26,10 @@ defmodule LCGQL.Accounts.Resolver do
   def register_with_email(_parent, %{email: email}, _resolution) do
     case Accounts.register_user_with_email(%{email: email}) do
       {:ok, user} ->
-        {:ok, %{user: user, errors: [], successful: true}}
+        {:ok, %{user: user, errors: []}}
 
       {:error, changeset} ->
-        {:ok, %{user: nil, errors: format_changeset_errors(changeset), successful: false}}
+        {:ok, %{user: nil, errors: format_changeset_errors(changeset)}}
     end
   end
 
@@ -53,41 +52,26 @@ defmodule LCGQL.Accounts.Resolver do
       ) do
     with {:ok, user} <- fetch_user(user_id),
          {:ok, _user_phone_number} <- Accounts.attach_user_phone_number(user, phone_number) do
-      {:ok, %{user: Accounts.get_user!(user.id), errors: [], successful: true}}
+      {:ok, %{user: Accounts.get_user!(user.id), errors: []}}
     else
       {:error, :invalid_id} ->
-        {:ok,
-         %{user: nil, errors: [%{field: "userId", message: "is invalid"}], successful: false}}
+        {:ok, %{user: nil, errors: [%{field: "userId", message: "is invalid"}]}}
 
       {:error, :invalid_type} ->
-        {:ok,
-         %{
-           user: nil,
-           errors: [%{field: "userId", message: "has an invalid type"}],
-           successful: false
-         }}
+        {:ok, %{user: nil, errors: [%{field: "userId", message: "has an invalid type"}]}}
 
       {:error, :not_found} ->
-        {:ok,
-         %{user: nil, errors: [%{field: "userId", message: "does not exist"}], successful: false}}
+        {:ok, %{user: nil, errors: [%{field: "userId", message: "does not exist"}]}}
 
       {:error, :invalid_phone_number} ->
-        {:ok,
-         %{user: nil, errors: [%{field: "phoneNumber", message: "is invalid"}], successful: false}}
+        {:ok, %{user: nil, errors: [%{field: "phoneNumber", message: "is invalid"}]}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{user: nil, errors: format_changeset_errors(changeset), successful: false}}
+        {:ok, %{user: nil, errors: format_changeset_errors(changeset)}}
     end
   end
 
-  @spec viewer(term(), %{optional(:user_id) => term()}, Absinthe.Resolution.t()) ::
-          {:ok, User.t() | nil}
-  def viewer(_parent, %{user_id: user_id}, _resolution) do
-    case fetch_user(user_id) do
-      {:ok, user} -> {:ok, user}
-      {:error, _reason} -> {:ok, nil}
-    end
-  end
+  @spec viewer(term(), map(), Absinthe.Resolution.t()) :: {:ok, User.t() | nil}
 
   def viewer(_parent, _args, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
     {:ok, user}
