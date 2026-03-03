@@ -112,7 +112,7 @@ git commit -m "refactor: add schema id conventions"
 - [x] Step 2: Rebuild the test database and confirm the new assertions fail
 - [x] Step 3: Implement the additive migration
 - [x] Step 4: Rebuild the test database and rerun the focused test
-- [ ] Step 5: Commit
+- [x] Step 5: Commit
 
 **Step 1: Expand the failing tests around database-generated values**
 
