@@ -44,6 +44,8 @@ config :live_canvas, LiveCanvasWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :live_canvas, LiveCanvas.Infra.Mailer, adapter: Swoosh.Adapters.Local
 
+config :live_canvas, LiveCanvas.Infra.SMS, adapter: LiveCanvas.Infra.SMS.FakeAdapter
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

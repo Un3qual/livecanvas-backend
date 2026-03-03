@@ -14,8 +14,8 @@
 
 ## Progress
 
-- [ ] Step 1: Add failing tests for the fake SMS transport seam
-- [ ] Step 2: Implement the supervised fake SMS adapter and config wiring
+- [x] Step 1: Add failing tests for the fake SMS transport seam
+- [x] Step 2: Implement the supervised fake SMS adapter and config wiring
 - [ ] Step 3: Add failing tests for phone verification token issuance and delivery
 - [ ] Step 4: Implement the `Accounts` wrappers and phone SMS notifier
 - [ ] Step 5: Run focused verification and commit each slice

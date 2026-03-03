@@ -15,6 +15,7 @@ defmodule LiveCanvasApp do
       LiveCanvas.repo_module(),
       {DNSCluster, query: Application.get_env(:live_canvas, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: LiveCanvas.PubSub},
+      {LiveCanvas.Infra.SMS.FakeAdapter, []},
       LiveCanvasWeb.Endpoint
     ]
 
