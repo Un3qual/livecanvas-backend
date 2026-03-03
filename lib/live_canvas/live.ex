@@ -7,7 +7,7 @@ defmodule LC.Live do
   import Ecto.Query, warn: false
 
   alias LC.Infra.Repo
-  alias LC.Live.{SessionServer, SessionSupervisor}
+  alias LC.Live.{RuntimeRPC, SessionServer, SessionSupervisor}
   alias LC.Live.LiveParticipant, as: LiveParticipantChanges
   alias LC.Live.LiveSession, as: LiveSessionChanges
   alias LCSchemas.Accounts.User
@@ -19,6 +19,9 @@ defmodule LC.Live do
   @type live_participant_result :: {:ok, LiveParticipant.t()} | {:error, changeset() | term()}
   @type leave_live_session_result :: :ok
   @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
+  @type runtime_rpc_error :: :remote_not_found | :remote_timeout | :remote_unreachable
+  @type runtime_target :: {:local, pid()} | {:remote, String.t()}
+  @type runtime_rpc_module :: module()
   @type session_server_lookup_result ::
           {:ok, pid()} | {:error, :not_found | {:owned_by_remote, String.t()}}
 
@@ -87,13 +90,23 @@ defmodule LC.Live do
   """
   @spec join_live_session(LiveSession.t(), User.t(), LCSchemas.Live.live_participant_role()) ::
           live_participant_result()
+  def join_live_session(live_session, user, role),
+    do: join_live_session(live_session, user, role, [])
+
+  @spec join_live_session(
+          LiveSession.t(),
+          User.t(),
+          LCSchemas.Live.live_participant_role(),
+          keyword()
+        ) :: live_participant_result()
   def join_live_session(
         %LiveSession{id: session_id, host_id: host_id, status: :ended},
         %User{id: user_id},
-        role
+        role,
+        opts
       )
       when is_integer(session_id) and is_integer(user_id) and is_integer(host_id) and
-             is_atom(role) do
+             is_atom(role) and is_list(opts) do
     result = {:error, :ended}
 
     :ok =
@@ -106,20 +119,26 @@ defmodule LC.Live do
     result
   end
 
-  def join_live_session(%LiveSession{id: session_id, host_id: host_id}, %User{id: user_id}, role)
+  def join_live_session(
+        %LiveSession{id: session_id, host_id: host_id},
+        %User{id: user_id},
+        role,
+        opts
+      )
       when is_integer(session_id) and is_integer(user_id) and is_integer(host_id) and
-             is_atom(role) do
+             is_atom(role) and is_list(opts) do
     now = now_utc()
     telemetry_metadata = join_telemetry_metadata(session_id, user_id, host_id, role)
+    runtime_rpc = runtime_rpc_module(opts)
 
     # Channel callers can hold stale assigns, so moderation checks must be
     # re-evaluated from persisted suspension state at join time.
     result =
       with true <- active_user?(user_id) || {:error, :not_authorized},
            true <- active_user?(host_id) || {:error, :not_authorized},
-           {:ok, pid} <- ensure_session_server(session_id),
+           {:ok, runtime_target} <- ensure_session_server(session_id),
            {:ok, participant} <- upsert_live_participant(session_id, user_id, role, now),
-           :ok <- SessionServer.join(pid, user_id, role) do
+           :ok <- join_runtime(runtime_target, session_id, user_id, role, runtime_rpc) do
         {:ok, participant}
       end
 
@@ -170,6 +189,43 @@ defmodule LC.Live do
       %LiveSession{status: :ended} -> {:error, :ended}
       %LiveSession{} = live_session -> {:ok, live_session}
       nil -> {:error, :not_found}
+    end
+  end
+
+  @doc false
+  @spec remote_lookup_session_server(pos_integer()) :: :ok | {:error, :not_found}
+  def remote_lookup_session_server(session_id) when is_integer(session_id) do
+    case SessionSupervisor.lookup_session_server(session_id) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+
+      # Returning `:not_found` keeps the cross-node contract deterministic even
+      # if ownership changes between lookup and remote call execution.
+      {:error, {:owned_by_remote, _owner_node}} ->
+        {:error, :not_found}
+    end
+  end
+
+  @doc false
+  @spec remote_join_session_server(
+          pos_integer(),
+          pos_integer(),
+          LCSchemas.Live.live_participant_role()
+        ) :: :ok | {:error, :not_found}
+  def remote_join_session_server(session_id, user_id, role)
+      when is_integer(session_id) and is_integer(user_id) and is_atom(role) do
+    case SessionSupervisor.join_session_server(session_id, user_id, role) do
+      :ok ->
+        :ok
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+
+      {:error, {:owned_by_remote, _owner_node}} ->
+        {:error, :not_found}
     end
   end
 
@@ -231,20 +287,110 @@ defmodule LC.Live do
       :ok
   end
 
+  @spec ensure_session_server(pos_integer()) :: {:ok, runtime_target()} | {:error, term()}
   defp ensure_session_server(session_id) do
     case SessionSupervisor.lookup_session_server(session_id) do
       {:ok, pid} ->
-        {:ok, pid}
+        {:ok, {:local, pid}}
 
       {:error, {:owned_by_remote, owner_node}} ->
-        {:error, {:owned_by_remote, owner_node}}
+        {:ok, {:remote, owner_node}}
 
       {:error, :not_found} ->
         # Rehydrate runtime state from durable participants so a recreated
         # session process preserves active membership after crash/restart.
         runtime_participants = active_runtime_participants(session_id)
-        SessionSupervisor.start_session_server(session_id, runtime_participants)
+
+        case SessionSupervisor.start_session_server(session_id, runtime_participants) do
+          {:ok, pid} -> {:ok, {:local, pid}}
+          {:error, {:owned_by_remote, owner_node}} -> {:ok, {:remote, owner_node}}
+          other -> other
+        end
     end
+  end
+
+  @spec join_runtime(
+          runtime_target(),
+          pos_integer(),
+          pos_integer(),
+          LCSchemas.Live.live_participant_role(),
+          runtime_rpc_module()
+        ) :: :ok | {:error, runtime_rpc_error()}
+  defp join_runtime({:local, pid}, _session_id, user_id, role, _runtime_rpc)
+       when is_pid(pid) and is_integer(user_id) and is_atom(role) do
+    SessionServer.join(pid, user_id, role)
+  end
+
+  defp join_runtime({:remote, owner_node}, session_id, user_id, role, runtime_rpc)
+       when is_binary(owner_node) and is_integer(session_id) and is_integer(user_id) and
+              is_atom(role) and is_atom(runtime_rpc) do
+    with :ok <- remote_lookup(owner_node, session_id, runtime_rpc),
+         :ok <- remote_join(owner_node, session_id, user_id, role, runtime_rpc) do
+      :ok
+    end
+  end
+
+  @spec remote_lookup(String.t(), pos_integer(), runtime_rpc_module()) ::
+          :ok | {:error, runtime_rpc_error()}
+  defp remote_lookup(owner_node, session_id, runtime_rpc)
+       when is_binary(owner_node) and is_integer(session_id) and is_atom(runtime_rpc) do
+    owner_node
+    |> runtime_rpc.call(
+      __MODULE__,
+      :remote_lookup_session_server,
+      [session_id],
+      timeout: runtime_rpc_timeout_ms()
+    )
+    |> normalize_remote_response()
+  end
+
+  @spec remote_join(
+          String.t(),
+          pos_integer(),
+          pos_integer(),
+          LCSchemas.Live.live_participant_role(),
+          runtime_rpc_module()
+        ) :: :ok | {:error, runtime_rpc_error()}
+  defp remote_join(owner_node, session_id, user_id, role, runtime_rpc)
+       when is_binary(owner_node) and is_integer(session_id) and is_integer(user_id) and
+              is_atom(role) and is_atom(runtime_rpc) do
+    owner_node
+    |> runtime_rpc.call(
+      __MODULE__,
+      :remote_join_session_server,
+      [session_id, user_id, role],
+      timeout: runtime_rpc_timeout_ms()
+    )
+    |> normalize_remote_response()
+  end
+
+  @spec normalize_remote_response({:ok, term()} | {:error, RuntimeRPC.error_reason()}) ::
+          :ok | {:error, runtime_rpc_error()}
+  defp normalize_remote_response({:ok, :ok}), do: :ok
+  defp normalize_remote_response({:ok, {:error, :not_found}}), do: {:error, :remote_not_found}
+
+  defp normalize_remote_response({:ok, {:error, {:owned_by_remote, _owner_node}}}),
+    do: {:error, :remote_not_found}
+
+  defp normalize_remote_response({:error, reason})
+       when reason in [:remote_not_found, :remote_timeout, :remote_unreachable] do
+    {:error, reason}
+  end
+
+  defp normalize_remote_response(_response), do: {:error, :remote_not_found}
+
+  @spec runtime_rpc_module(keyword()) :: runtime_rpc_module()
+  defp runtime_rpc_module(opts) when is_list(opts) do
+    case Keyword.get(opts, :runtime_rpc, RuntimeRPC) do
+      runtime_rpc when is_atom(runtime_rpc) -> runtime_rpc
+      _other -> RuntimeRPC
+    end
+  end
+
+  @spec runtime_rpc_timeout_ms() :: pos_integer()
+  defp runtime_rpc_timeout_ms do
+    Application.get_env(:live_canvas, __MODULE__, [])
+    |> Keyword.get(:runtime_rpc_timeout_ms, 5_000)
   end
 
   @type live_session_event :: :end | :join | :start

@@ -10,6 +10,7 @@ defmodule LC.Live.SessionSupervisor do
 
   @type initial_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type remote_owner_error :: {:owned_by_remote, String.t()}
+  @type lookup_error :: :not_found | remote_owner_error()
 
   @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts \\ []) do
@@ -57,7 +58,7 @@ defmodule LC.Live.SessionSupervisor do
   end
 
   @spec lookup_session_server(pos_integer()) ::
-          {:ok, pid()} | {:error, :not_found | remote_owner_error()}
+          {:ok, pid()} | {:error, lookup_error()}
   def lookup_session_server(session_id) when is_integer(session_id) do
     local_node_name = local_node_name()
 
@@ -73,6 +74,18 @@ defmodule LC.Live.SessionSupervisor do
           {:ok, owner_node} -> {:error, {:owned_by_remote, owner_node}}
           {:error, :not_found} -> {:error, :not_found}
         end
+    end
+  end
+
+  @spec join_session_server(
+          pos_integer(),
+          pos_integer(),
+          LCSchemas.Live.live_participant_role()
+        ) :: :ok | {:error, lookup_error()}
+  def join_session_server(session_id, user_id, role)
+      when is_integer(session_id) and is_integer(user_id) and is_atom(role) do
+    with {:ok, pid} <- lookup_session_server(session_id) do
+      SessionServer.join(pid, user_id, role)
     end
   end
 

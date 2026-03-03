@@ -27,7 +27,7 @@ Verified directly in `lib/`, `test/`, and migrations before writing this plan:
 
 - [x] Task 1: Add durable runtime ownership lease primitives in `LC.Live`
 - [x] Task 2: Integrate lease-aware local ownership into `SessionSupervisor` and `LC.Live`
-- [ ] Task 3: Add remote-owner routing adapter and boundary-level join/lookup semantics
+- [x] Task 3: Add remote-owner routing adapter and boundary-level join/lookup semantics
 - [ ] Task 4: Expose deterministic channel behavior for remote-owned sessions
 - [ ] Task 5: Run full verification and update release roadmap notes
 
@@ -142,11 +142,11 @@ git commit -m "feat: add live runtime ownership lease primitives"
 - Modify: `docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing boundary tests for remote owner join/lookup behavior
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement RPC adapter + remote routing path for join/lookup when owner is another node
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run compile/typecheck and commit milestone
+- [x] Step 1: Add failing boundary tests for remote owner join/lookup behavior
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement RPC adapter + remote routing path for join/lookup when owner is another node
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run compile/typecheck and commit milestone
 
 **Step 3 implementation notes:**
 - `RuntimeRPC` default implementation wraps `:erpc.call/4`.
