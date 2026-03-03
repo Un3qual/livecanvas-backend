@@ -16,7 +16,7 @@ defmodule LiveCanvas do
     deps: [LiveCanvasSchemas],
     exports: [Accounts, Social] ++ @test_support_exports
 
-  @spec repo_module() :: module()
+  @spec repo_module() :: LiveCanvas.Infra.Repo
   def repo_module, do: LiveCanvas.Infra.Repo
 
   @spec local_mail_adapter?() :: boolean()

@@ -28,7 +28,7 @@
 
 - [x] Task 1: Build and test the `mix check.typespecs` gate
 - [x] Task 2: Seed the first enforceable slice
-- [ ] Task 3: Add Dialyzer and wire `mix precommit` to `mix typecheck`
+- [x] Task 3: Add Dialyzer and wire `mix precommit` to `mix typecheck`
 - [ ] Task 4: Add schema `t()` and shared enum union types
 - [ ] Task 5: Roll typespec enforcement across context/core modules
 - [ ] Task 6: Roll typespec enforcement across Phoenix web modules
@@ -165,6 +165,15 @@ git commit -m "chore: seed typespec enforcement baseline"
 **Files:**
 - Modify: `mix.exs`
 - Create: `.dialyzer_ignore.exs`
+
+**Task 3 Step Progress**
+- [x] Step 1: Add Dialyxir to the project dependencies (verified already present from prior slices)
+- [x] Step 2: Add strict-but-usable Dialyzer project configuration
+- [x] Step 3: Add a single typing command and make precommit call it
+- [x] Step 4: Add the initial Dialyzer baseline file
+- [x] Step 5: Fetch dependencies and build the first typing baseline
+- [x] Step 6: Prove the new precommit gate is enforcing typing
+- [x] Step 7: Commit
 
 **Step 1: Add Dialyxir to the project dependencies**
 

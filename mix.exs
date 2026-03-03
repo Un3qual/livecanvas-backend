@@ -11,7 +11,14 @@ defmodule LiveCanvas.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:boundary, :phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      dialyzer: [
+        plt_file: {:no_warn, "_build/#{Mix.env()}/dialyzer.plt"},
+        plt_add_apps: [:mix, :ex_unit],
+        ignore_warnings: ".dialyzer_ignore.exs",
+        list_unused_filters: true,
+        flags: [:unmatched_returns, :error_handling, :underspecs]
+      ]
     ]
   end
 
@@ -123,7 +130,10 @@ defmodule LiveCanvas.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      typecheck: ["dialyzer --format short"],
+      typecheck: [
+        "check.typespecs --strict --manifest priv/quality/typespec_targets.txt",
+        "dialyzer --format short"
+      ],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind live_canvas", "esbuild live_canvas"],
       "assets.deploy": [
@@ -135,7 +145,8 @@ defmodule LiveCanvas.MixProject do
         "compile --warnings-as-errors",
         "deps.unlock --unused",
         "format",
-        "test"
+        "test",
+        "typecheck"
       ]
     ]
   end

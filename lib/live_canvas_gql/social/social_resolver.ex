@@ -1,8 +1,11 @@
 defmodule LiveCanvasGQL.Social.Resolver do
   alias LiveCanvas.{Accounts, Social}
 
-  @spec follow_user(any(), map(), any()) ::
-          {:ok, %{id: integer(), state: atom()}} | {:error, term()}
+  @type resolver_error :: :blocked | :invalid_id | :not_allowed | :not_found | Ecto.Changeset.t()
+  @type follow_payload :: %{id: integer(), state: :accepted | :requested}
+
+  @spec follow_user(any(), %{input: %{follower_id: term(), followed_id: term()}}, any()) ::
+          {:ok, follow_payload()} | {:error, resolver_error()}
   def follow_user(
         _parent,
         %{input: %{follower_id: follower_id, followed_id: followed_id}},
@@ -15,8 +18,12 @@ defmodule LiveCanvasGQL.Social.Resolver do
     end
   end
 
-  @spec accept_follow_request(any(), map(), any()) ::
-          {:ok, %{id: integer(), state: atom()}} | {:error, term()}
+  @spec accept_follow_request(
+          any(),
+          %{input: %{follower_id: term(), followed_id: term(), acting_user_id: term()}},
+          any()
+        ) ::
+          {:ok, follow_payload()} | {:error, resolver_error()}
   def accept_follow_request(
         _parent,
         %{
@@ -37,7 +44,8 @@ defmodule LiveCanvasGQL.Social.Resolver do
     end
   end
 
-  @spec block_user(any(), map(), any()) :: {:ok, %{successful: boolean()}}
+  @spec block_user(any(), %{input: %{blocker_id: term(), blocked_id: term()}}, any()) ::
+          {:ok, %{successful: boolean()}}
   def block_user(
         _parent,
         %{input: %{blocker_id: blocker_id, blocked_id: blocked_id}},
@@ -52,7 +60,8 @@ defmodule LiveCanvasGQL.Social.Resolver do
     end
   end
 
-  @spec relationship_state(any(), map(), any()) :: {:ok, Social.relationship_state()}
+  @spec relationship_state(any(), %{viewer_id: term(), creator_id: term()}, any()) ::
+          {:ok, Social.relationship_state()}
   def relationship_state(_parent, %{viewer_id: viewer_id, creator_id: creator_id}, _resolution) do
     with {:ok, viewer} <- fetch_user(viewer_id),
          {:ok, creator} <- fetch_user(creator_id) do

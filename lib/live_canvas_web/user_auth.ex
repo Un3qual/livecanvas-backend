@@ -48,8 +48,13 @@ defmodule LiveCanvasWeb.UserAuth do
     user_token = get_session(conn, :user_token)
     user_token && Accounts.delete_user_session_token(user_token)
 
-    if live_socket_id = get_session(conn, :live_socket_id) do
-      LiveCanvasWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
+    case get_session(conn, :live_socket_id) do
+      nil ->
+        :ok
+
+      live_socket_id ->
+        _ = LiveCanvasWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
+        :ok
     end
 
     conn
