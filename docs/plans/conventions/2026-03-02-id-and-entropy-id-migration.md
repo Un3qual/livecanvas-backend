@@ -107,6 +107,13 @@ git commit -m "refactor: add schema id conventions"
 - Create: `priv/repo/migrations/20260302230000_add_entropy_ids_to_existing_relational_tables.exs`
 - Modify: `test/live_canvas_schemas/id_conventions_test.exs`
 
+**Task 2 Step Progress**
+- [x] Step 1: Expand the failing tests around database-generated values
+- [ ] Step 2: Rebuild the test database and confirm the new assertions fail
+- [ ] Step 3: Implement the additive migration
+- [ ] Step 4: Rebuild the test database and rerun the focused test
+- [ ] Step 5: Commit
+
 **Step 1: Expand the failing tests around database-generated values**
 
 - In `test/live_canvas_schemas/id_conventions_test.exs`, insert representative rows for:
