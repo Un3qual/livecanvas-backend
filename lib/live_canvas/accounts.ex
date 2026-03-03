@@ -199,11 +199,7 @@ defmodule LC.Accounts do
   def record_auth_event(event_type, opts \\ []) when is_atom(event_type) and is_list(opts) do
     event_type
     |> AuthEvent.attrs_for_insert(opts)
-    |> then(fn attrs ->
-      %AuthEventSchema{}
-      |> AuthEvent.changeset(attrs)
-      |> Repo.insert()
-    end)
+    |> persist_auth_event()
   end
 
   @doc """
@@ -1392,12 +1388,36 @@ defmodule LC.Accounts do
 
   @spec emit_auth_event(auth_event_type(), auth_event_opts()) :: :ok
   defp emit_auth_event(event_type, opts) do
+    attrs = AuthEvent.attrs_for_insert(event_type, opts)
+
     # Audit logging is best-effort only; auth control flow must remain deterministic
-    # even if event persistence fails for operational reasons.
-    case record_auth_event(event_type, opts) do
-      {:ok, _auth_event} -> :ok
-      {:error, _changeset} -> :ok
-    end
+    # even if event persistence or telemetry emission encounters an error.
+    audit_persisted =
+      case persist_auth_event(attrs) do
+        {:ok, _auth_event} -> :ok
+        {:error, _changeset} -> :error
+      end
+
+    :ok = emit_auth_telemetry(event_type, attrs, audit_persisted)
+    :ok
+  end
+
+  @spec emit_auth_telemetry(auth_event_type(), AuthEvent.attrs(), :ok | :error) :: :ok
+  defp emit_auth_telemetry(event_type, attrs, audit_persisted)
+       when is_atom(event_type) and is_map(attrs) and audit_persisted in [:ok, :error] do
+    # Keep metadata bounded to already-sanitized auth event attrs so runtime
+    # observability matches persisted audit semantics without leaking secrets.
+    :telemetry.execute(
+      [:live_canvas, :accounts, :auth, event_type],
+      %{count: 1},
+      %{
+        user_id: Map.get(attrs, :user_id),
+        metadata: Map.get(attrs, :metadata, %{}),
+        audit_persisted: audit_persisted
+      }
+    )
+
+    :ok
   end
 
   @spec emit_refresh_token_rotation_event(token_pair_result()) :: :ok
@@ -1423,6 +1443,13 @@ defmodule LC.Accounts do
   @spec normalize_query_limit(term()) :: pos_integer()
   defp normalize_query_limit(limit) when is_integer(limit) and limit > 0, do: limit
   defp normalize_query_limit(_limit), do: 50
+
+  @spec persist_auth_event(AuthEvent.attrs()) :: auth_event_result()
+  defp persist_auth_event(attrs) when is_map(attrs) do
+    %AuthEventSchema{}
+    |> AuthEvent.changeset(attrs)
+    |> Repo.insert()
+  end
 
   @spec now_utc() :: DateTime.t()
   defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)

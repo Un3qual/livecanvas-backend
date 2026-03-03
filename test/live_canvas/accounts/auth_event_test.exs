@@ -8,6 +8,21 @@ defmodule LC.Accounts.AuthEventTest do
   alias LC.Infra.Repo
   alias LCSchemas.Accounts.AuthEvent
 
+  @auth_telemetry_events [
+    [:live_canvas, :accounts, :auth, :password_login_succeeded],
+    [:live_canvas, :accounts, :auth, :password_login_failed],
+    [:live_canvas, :accounts, :auth, :magic_link_login_succeeded],
+    [:live_canvas, :accounts, :auth, :magic_link_login_failed],
+    [:live_canvas, :accounts, :auth, :refresh_token_revoked],
+    [:live_canvas, :accounts, :auth, :refresh_token_rotation_succeeded],
+    [:live_canvas, :accounts, :auth, :refresh_token_rotation_failed]
+  ]
+
+  setup do
+    attach_auth_telemetry_handler()
+    :ok
+  end
+
   describe "record_auth_event/2" do
     test "persists an event with user ownership and metadata" do
       user = unconfirmed_user_fixture()
@@ -94,11 +109,23 @@ defmodule LC.Accounts.AuthEventTest do
       assert %{} = Accounts.get_user_by_email_and_password(user.email, valid_user_password())
       assert :password_login_succeeded == latest_user_event_type(user)
 
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :password_login_succeeded], %{count: 1},
+                      %{metadata: %{"method" => "password"}, user_id: user_id}}
+
+      assert user_id == user.id
+
       assert is_nil(Accounts.get_user_by_email_and_password(user.email, "totally-wrong-password"))
+
+      assert_receive {:telemetry_event, [:live_canvas, :accounts, :auth, :password_login_failed],
+                      %{count: 1}, %{metadata: telemetry_metadata, user_id: user_id}}
 
       assert %AuthEvent{event_type: :password_login_failed, metadata: metadata} =
                latest_user_event(user)
 
+      assert user_id == user.id
+      assert telemetry_metadata["reason"] == "invalid_credentials"
+      refute Enum.any?(Map.values(telemetry_metadata), &(&1 == "totally-wrong-password"))
       assert metadata["reason"] == "invalid_credentials"
       refute Enum.any?(Map.values(metadata), &(&1 == "totally-wrong-password"))
     end
@@ -110,11 +137,22 @@ defmodule LC.Accounts.AuthEventTest do
       assert {:ok, {_logged_in_user, _expired_tokens}} = Accounts.login_user_by_magic_link(token)
       assert :magic_link_login_succeeded == latest_user_event_type(user)
 
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :magic_link_login_succeeded], %{count: 1},
+                      %{metadata: %{"method" => "magic_link"}, user_id: user_id}}
+
+      assert user_id == user.id
+
       assert {:error, :not_found} = Accounts.login_user_by_magic_link("invalid-token")
+
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :magic_link_login_failed], %{count: 1},
+                      %{metadata: telemetry_metadata, user_id: nil}}
 
       assert %AuthEvent{event_type: :magic_link_login_failed, user_id: nil, metadata: metadata} =
                latest_anonymous_event(:magic_link_login_failed)
 
+      assert telemetry_metadata["reason"] == "not_found"
       assert metadata["reason"] == "not_found"
     end
 
@@ -123,7 +161,15 @@ defmodule LC.Accounts.AuthEventTest do
       {:ok, %{token: refresh_token}} = Accounts.issue_refresh_token(user)
 
       assert :ok = Accounts.revoke_refresh_token(refresh_token)
+
+      assert_receive {:telemetry_event, [:live_canvas, :accounts, :auth, :refresh_token_revoked],
+                      %{count: 1}, %{metadata: %{"context" => "refresh_token"}, user_id: user_id}}
+
+      assert user_id == user.id
       assert :ok = Accounts.revoke_refresh_token(refresh_token)
+
+      refute_receive {:telemetry_event, [:live_canvas, :accounts, :auth, :refresh_token_revoked],
+                      %{count: 1}, _metadata}
 
       events =
         Accounts.list_user_auth_events(user, limit: 20)
@@ -139,6 +185,13 @@ defmodule LC.Accounts.AuthEventTest do
       assert {:ok, %{access_token: _access_token, refresh_token: _fresh_refresh_token}} =
                Accounts.rotate_refresh_token(refresh_token)
 
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :refresh_token_rotation_succeeded],
+                      %{count: 1}, %{metadata: telemetry_metadata, user_id: user_id}}
+
+      assert user_id == user.id
+      assert telemetry_metadata["outcome"] == "rotated"
+
       assert [:refresh_token_rotation_succeeded] =
                user
                |> Accounts.list_user_auth_events(limit: 10)
@@ -147,6 +200,10 @@ defmodule LC.Accounts.AuthEventTest do
 
       assert {:error, :invalid_token} = Accounts.rotate_refresh_token("bad-token")
 
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :refresh_token_rotation_failed],
+                      %{count: 1}, %{metadata: telemetry_metadata, user_id: nil}}
+
       assert %AuthEvent{
                event_type: :refresh_token_rotation_failed,
                user_id: nil,
@@ -154,6 +211,7 @@ defmodule LC.Accounts.AuthEventTest do
              } =
                latest_anonymous_event()
 
+      assert telemetry_metadata["reason"] == "invalid_token"
       assert metadata["reason"] == "invalid_token"
     end
 
@@ -239,5 +297,27 @@ defmodule LC.Accounts.AuthEventTest do
         limit: 1
       )
     )
+  end
+
+  defp attach_auth_telemetry_handler do
+    test_pid = self()
+    handler_id = "auth-event-test-#{System.unique_integer([:positive, :monotonic])}"
+
+    :ok =
+      :telemetry.attach_many(
+        handler_id,
+        @auth_telemetry_events,
+        &__MODULE__.handle_auth_telemetry_event/4,
+        test_pid
+      )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+  end
+
+  @spec handle_auth_telemetry_event([atom()], map(), map(), pid()) :: :ok
+  def handle_auth_telemetry_event(event, measurements, metadata, test_pid)
+      when is_list(event) and is_map(measurements) and is_map(metadata) and is_pid(test_pid) do
+    send(test_pid, {:telemetry_event, event, measurements, metadata})
+    :ok
   end
 end
