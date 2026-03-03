@@ -30,7 +30,7 @@
 - [x] Task 2: Seed the first enforceable slice
 - [x] Task 3: Add Dialyzer and wire `mix precommit` to `mix typecheck`
 - [x] Task 4: Add schema `t()` and shared enum union types
-- [ ] Task 5: Roll typespec enforcement across context/core modules
+- [x] Task 5: Roll typespec enforcement across context/core modules
 - [ ] Task 6: Roll typespec enforcement across Phoenix web modules
 - [ ] Task 7: Roll typespec enforcement across GraphQL modules
 - [ ] Task 8: Remove the temporary allowlist and enforce the full `lib/` tree
@@ -313,6 +313,14 @@ git commit -m "chore: add schema types for typing rollout"
 - Test: `test/live_canvas/accounts_test.exs`
 - Test: `test/live_canvas/accounts/phone_numbers_test.exs`
 - Test: `test/live_canvas/accounts/user_token_test.exs`
+
+**Task 5 Step Progress**
+- [x] Step 1: Widen the manifest to the full context/core slice
+- [x] Step 2: Run the gate first and verify RED
+- [x] Step 3: Add shared aliases, then annotate every public function in the slice
+- [x] Step 4: Run the context test suite
+- [x] Step 5: Run the full typing gate
+- [x] Step 6: Commit
 
 **Step 1: Widen the manifest to the full context/core slice**
 

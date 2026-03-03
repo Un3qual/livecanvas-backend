@@ -1,9 +1,12 @@
 defmodule LiveCanvas.Accounts.UserChanges do
   import Ecto.Changeset
 
+  alias LiveCanvasSchemas.Accounts.User
+
   @doc """
   A user changeset for registering or changing the email.
   """
+  @spec email_changeset(User.t(), map(), keyword()) :: Ecto.Changeset.t()
   def email_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:email])
@@ -32,6 +35,7 @@ defmodule LiveCanvas.Accounts.UserChanges do
   @doc """
   A user changeset for updating account-level privacy state.
   """
+  @spec privacy_changeset(User.t(), map()) :: Ecto.Changeset.t()
   def privacy_changeset(user, attrs) do
     user
     |> cast(attrs, [:privacy_mode])
@@ -41,6 +45,7 @@ defmodule LiveCanvas.Accounts.UserChanges do
   @doc """
   A user changeset for changing the password.
   """
+  @spec password_changeset(User.t(), map(), keyword()) :: Ecto.Changeset.t()
   def password_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:password])
@@ -71,6 +76,7 @@ defmodule LiveCanvas.Accounts.UserChanges do
   @doc """
   Confirms the account by setting `confirmed_at`.
   """
+  @spec confirm_changeset(User.t()) :: Ecto.Changeset.t()
   def confirm_changeset(user) do
     now = DateTime.utc_now()
     change(user, confirmed_at: now)

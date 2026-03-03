@@ -24,11 +24,27 @@ defmodule LiveCanvas.Accounts do
 
   alias LiveCanvas.Accounts.{Passwords, PhoneNumbers, Scope, Tokens, UserChanges, UserNotifier}
 
+  @type changeset :: Ecto.Changeset.t()
+  @type user_result :: {:ok, User.t()} | {:error, changeset()}
+  @type user_with_tokens_result :: {:ok, {User.t(), [UserToken.t()]}} | {:error, changeset()}
+  @type token_context :: LiveCanvasSchemas.Accounts.user_token_context()
+
+  @type email_token_context ::
+          :email_verification_token
+          | :email_mfa_token
+          | :email_magic_link_token
+          | :email_one_time_code_token
+
+  @type token_payload :: %{token: String.t(), user_token: UserToken.t()}
+  @type token_result :: {:ok, token_payload()} | {:error, changeset()}
+  @type user_session_result :: {User.t(), DateTime.t()} | nil
+
   ## Database getters
 
   @doc """
   Gets a user by email.
   """
+  @spec get_user_by_email(String.t()) :: User.t() | nil
   def get_user_by_email(email) when is_binary(email) do
     email
     |> user_by_email_query()
@@ -38,6 +54,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Gets a user by normalized E.164 phone number.
   """
+  @spec get_user_by_phone(String.t()) :: User.t() | nil
   def get_user_by_phone(phone_number) when is_binary(phone_number) do
     with {:ok, normalized_phone_number} <- PhoneNumbers.normalize(phone_number) do
       normalized_phone_number
@@ -52,6 +69,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Gets a user by active external identity.
   """
+  @spec get_user_by_identity(atom(), String.t()) :: User.t() | nil
   def get_user_by_identity(provider, provider_uid)
       when is_atom(provider) and is_binary(provider_uid) do
     provider
@@ -63,6 +81,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Gets a user by email and password.
   """
+  @spec get_user_by_email_and_password(String.t(), String.t()) :: User.t() | nil
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
     user = get_user_by_email(email)
@@ -72,6 +91,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Gets a single user.
   """
+  @spec get_user!(pos_integer()) :: User.t()
   def get_user!(id), do: Repo.get!(User, id) |> put_primary_email()
 
   ## User registration
@@ -79,6 +99,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Registers a user.
   """
+  @spec register_user(map()) :: user_result()
   def register_user(attrs) do
     register_user_with_email(attrs, [])
   end
@@ -86,6 +107,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Registers a user and marks the primary email as verified immediately.
   """
+  @spec register_user_with_email(map()) :: user_result()
   def register_user_with_email(attrs) do
     register_user_with_email(attrs, verified_at: DateTime.utc_now())
   end
@@ -114,6 +136,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Returns the registration changeset used by adapter layers.
   """
+  @spec registration_changeset(map(), keyword()) :: changeset()
   def registration_changeset(attrs \\ %{}, opts \\ []) do
     %User{}
     |> UserChanges.email_changeset(attrs, opts)
@@ -127,6 +150,7 @@ defmodule LiveCanvas.Accounts do
   The user is in sudo mode when the last authentication was done no further
   than 20 minutes ago. The limit can be given as second argument in minutes.
   """
+  @spec sudo_mode?(User.t() | term(), integer()) :: boolean()
   def sudo_mode?(user, minutes \\ -20)
 
   def sudo_mode?(%User{authenticated_at: ts}, minutes) when is_struct(ts, DateTime) do
@@ -138,6 +162,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Returns an `%Ecto.Changeset{}` for changing the user email.
   """
+  @spec change_user_email(User.t(), map(), keyword()) :: changeset()
   def change_user_email(user, attrs \\ %{}, opts \\ []) do
     UserChanges.email_changeset(user, attrs, opts)
   end
@@ -145,6 +170,8 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Updates the user's account-level privacy mode.
   """
+  @spec update_user_privacy_mode(User.t(), LiveCanvasSchemas.Accounts.user_privacy_mode()) ::
+          user_result()
   def update_user_privacy_mode(%User{} = user, privacy_mode) do
     case user
          |> UserChanges.privacy_changeset(%{privacy_mode: privacy_mode})
@@ -157,6 +184,8 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Updates the user's primary email using the given verification token.
   """
+  @spec update_user_email(User.t(), String.t()) ::
+          {:ok, User.t()} | {:error, :transaction_aborted}
   def update_user_email(user, serialized_value) do
     current_email = current_email_for_user(user.id)
 
@@ -186,6 +215,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Returns an `%Ecto.Changeset{}` for changing the user password.
   """
+  @spec change_user_password(User.t(), map(), keyword()) :: changeset()
   def change_user_password(user, attrs \\ %{}, opts \\ []) do
     UserChanges.password_changeset(user, attrs, opts)
   end
@@ -193,6 +223,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Updates the user password.
   """
+  @spec update_user_password(User.t(), map()) :: user_with_tokens_result()
   def update_user_password(user, attrs) do
     user
     |> UserChanges.password_changeset(attrs)
@@ -202,21 +233,25 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Creates a scope for the given user.
   """
+  @spec scope_for_user(User.t() | nil) :: Scope.t() | nil
   def scope_for_user(user), do: Scope.for_user(user)
 
   @doc """
   Returns the empty scope used by adapter layers.
   """
+  @spec empty_scope() :: nil
   def empty_scope, do: nil
 
   @doc """
   Builds an email token payload for the given user.
   """
+  @spec build_user_email_token(User.t(), email_token_context()) :: {String.t(), UserToken.t()}
   def build_user_email_token(user, context), do: Tokens.build_email_token(user, context)
 
   @doc """
   Persists and returns a token payload for the given user and context.
   """
+  @spec issue_user_token(User.t(), token_context(), keyword()) :: token_result()
   def issue_user_token(user, context, attrs \\ []) do
     {serialized_value, user_token} = Tokens.build_token(user, context, attrs)
 
@@ -229,6 +264,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Persists and returns an access token payload for the given user.
   """
+  @spec issue_access_token(User.t(), keyword()) :: token_result()
   def issue_access_token(%User{} = user, attrs \\ []) do
     issue_user_token(user, :access_token, attrs)
   end
@@ -236,6 +272,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Persists and returns a magic link token payload for the given user.
   """
+  @spec issue_magic_link_token(User.t()) :: token_result()
   def issue_magic_link_token(%User{} = user) do
     issue_user_token(user, :email_magic_link_token, sent_to: user.email)
   end
@@ -243,16 +280,20 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Persists and returns an email verification token payload for the given user.
   """
+  @spec issue_email_verification_token(User.t()) :: token_result()
   def issue_email_verification_token(%User{} = user) do
     issue_user_token(user, :email_verification_token, sent_to: user.email)
   end
 
   @doc false
+  @spec normalize_phone_number(term()) :: {:ok, String.t()} | {:error, :invalid_phone_number}
   def normalize_phone_number(raw_phone_number), do: PhoneNumbers.normalize(raw_phone_number)
 
   @doc """
   Normalizes and attaches a phone number to the given user.
   """
+  @spec attach_user_phone_number(User.t(), term(), keyword()) ::
+          {:ok, UserPhoneNumber.t()} | {:error, :invalid_phone_number | changeset()}
   def attach_user_phone_number(%User{} = user, raw_phone_number, opts \\ []) do
     with {:ok, normalized_e164} <- normalize_phone_number(raw_phone_number) do
       Repo.transact(fn ->
@@ -283,6 +324,8 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Normalizes and attaches an email address to the given user.
   """
+  @spec attach_user_email_address(User.t(), term(), keyword()) ::
+          {:ok, UserEmailAddress.t()} | {:error, :missing_email | changeset()}
   def attach_user_email_address(%User{} = user, email, opts \\ []) do
     normalized_email =
       if is_binary(email) do
@@ -299,6 +342,8 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Registers an external identity for the given user.
   """
+  @spec register_user_identity(User.t(), atom(), String.t(), keyword()) ::
+          {:ok, UserIdentity.t()} | {:error, changeset()}
   def register_user_identity(%User{} = user, provider, provider_uid, opts \\ [])
       when is_atom(provider) and is_binary(provider_uid) do
     Repo.insert(%UserIdentity{
@@ -317,6 +362,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Generates a session token.
   """
+  @spec generate_user_session_token(User.t()) :: String.t()
   def generate_user_session_token(user) do
     {serialized_value, user_token} = Tokens.build_session_token(user)
     Repo.insert!(user_token)
@@ -328,6 +374,7 @@ defmodule LiveCanvas.Accounts do
 
   If the token is valid `{user, token_inserted_at}` is returned, otherwise `nil` is returned.
   """
+  @spec get_user_by_session_token(String.t()) :: user_session_result()
   def get_user_by_session_token(serialized_value) do
     with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
          {user, user_token, current_email} <- Repo.one(query),
@@ -342,6 +389,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Gets the user with the given magic link token.
   """
+  @spec get_user_by_magic_link_token(String.t()) :: User.t() | nil
   def get_user_by_magic_link_token(serialized_value) do
     with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
          {user, user_token, current_email} <- Repo.one(query),
@@ -356,6 +404,8 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Logs the user in by magic link.
   """
+  @spec login_user_by_magic_link(String.t()) ::
+          {:ok, {User.t(), [UserToken.t()]}} | {:error, :not_found | changeset()}
   def login_user_by_magic_link(serialized_value) do
     with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
          {user, user_token, current_email} <- Repo.one(query),
@@ -388,6 +438,8 @@ defmodule LiveCanvas.Accounts do
   @doc ~S"""
   Delivers the update email instructions to the given user.
   """
+  @spec deliver_user_update_email_instructions(User.t(), String.t(), (String.t() -> String.t())) ::
+          {:ok, Swoosh.Email.t()} | {:error, changeset()}
   def deliver_user_update_email_instructions(%User{} = user, _current_email, update_email_url_fun)
       when is_function(update_email_url_fun, 1) do
     with {:ok, %{token: serialized_value}} <- issue_email_verification_token(user) do
@@ -401,6 +453,8 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Delivers the magic link login instructions to the given user.
   """
+  @spec deliver_login_instructions(User.t(), (String.t() -> String.t())) ::
+          {:ok, Swoosh.Email.t()} | {:error, changeset()}
   def deliver_login_instructions(%User{} = user, magic_link_url_fun)
       when is_function(magic_link_url_fun, 1) do
     with {:ok, %{token: serialized_value}} <- issue_magic_link_token(user) do
@@ -411,6 +465,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Deletes the signed access token.
   """
+  @spec delete_user_session_token(String.t()) :: :ok
   def delete_user_session_token(serialized_value) do
     with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
          {_user, user_token, _current_email} <- Repo.one(query),

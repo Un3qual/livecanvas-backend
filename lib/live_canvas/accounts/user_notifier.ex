@@ -4,6 +4,8 @@ defmodule LiveCanvas.Accounts.UserNotifier do
   alias LiveCanvas.Infra.Mailer
   alias LiveCanvasSchemas.Accounts.User
 
+  @type delivery_result :: {:ok, Swoosh.Email.t()} | {:error, term()}
+
   # Delivers the email using the application mailer.
   defp deliver(recipient, subject, body) do
     email =
@@ -21,6 +23,7 @@ defmodule LiveCanvas.Accounts.UserNotifier do
   @doc """
   Deliver instructions to update a user email.
   """
+  @spec deliver_update_email_instructions(User.t(), String.t()) :: delivery_result()
   def deliver_update_email_instructions(user, url) do
     deliver(user.email, "Update email instructions", """
 
@@ -41,6 +44,7 @@ defmodule LiveCanvas.Accounts.UserNotifier do
   @doc """
   Deliver instructions to log in with a magic link.
   """
+  @spec deliver_login_instructions(User.t(), String.t()) :: delivery_result()
   def deliver_login_instructions(user, url) do
     case user do
       %User{confirmed_at: nil} -> deliver_confirmation_instructions(user, url)
