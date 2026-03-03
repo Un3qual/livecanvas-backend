@@ -178,6 +178,13 @@ git commit -m "feat: backfill entropy ids"
 - Create: `priv/repo/migrations/20260302231000_finalize_entropy_id_indexes.exs`
 - Modify: `test/live_canvas_schemas/id_conventions_test.exs`
 
+**Task 3 Step Progress**
+- [x] Step 1: Add the failing uniqueness assertion
+- [x] Step 2: Run the focused test to verify it fails
+- [x] Step 3: Implement the index and constraint migration
+- [x] Step 4: Rebuild the test database, verify rollback, and rerun the focused test
+- [x] Step 5: Commit
+
 **Step 1: Add the failing uniqueness assertion**
 
 - In `test/live_canvas_schemas/id_conventions_test.exs`, insert one `EmailAddress`, then attempt a second insert with the same explicit `entropy_id`.
@@ -231,6 +238,13 @@ git commit -m "feat: enforce entropy id constraints"
 - Modify: `test/live_canvas/accounts_test.exs`
 - Modify: `test/support/fixtures/accounts_fixtures.ex`
 
+**Task 4 Step Progress**
+- [ ] Step 1: Write the failing token-path tests
+- [ ] Step 2: Run the focused token tests to verify they fail
+- [ ] Step 3: Implement the minimal token write-path change
+- [ ] Step 4: Run the focused token tests
+- [ ] Step 5: Commit
+
 **Step 1: Write the failing token-path tests**
 
 - In `test/live_canvas/accounts/user_token_test.exs`, assert that `Accounts.issue_access_token/1` returns:
@@ -283,6 +297,13 @@ git commit -m "refactor: use db generated token ids"
 - Verify: `test/live_canvas_schemas/id_conventions_test.exs`
 - Verify: `test/live_canvas/accounts_test.exs`
 - Verify: `test/live_canvas/accounts/user_token_test.exs`
+
+**Task 5 Step Progress**
+- [ ] Step 1: Update the convention document only after the code is green
+- [ ] Step 2: Run formatting
+- [ ] Step 3: Run compile, migration, and focused test verification
+- [ ] Step 4: Run the repository verification pass
+- [ ] Step 5: Commit
 
 **Step 1: Update the convention document only after the code is green**
 
