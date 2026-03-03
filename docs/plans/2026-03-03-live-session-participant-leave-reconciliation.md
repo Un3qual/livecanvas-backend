@@ -13,8 +13,8 @@
 ## Progress
 
 - [x] Task 1: Add `LC.Live` leave API for durable/runtime participant reconciliation
-- [ ] Task 2: Wire live channel disconnect handling through the new leave API
-- [ ] Task 3: Run verification, update checklist progress, and commit the milestone
+- [x] Task 2: Wire live channel disconnect handling through the new leave API
+- [x] Task 3: Run verification, update checklist progress, and commit the milestone
 
 ### Task 1: Add `LC.Live` Leave API For Durable/Runtime Participant Reconciliation
 
@@ -92,11 +92,11 @@ git commit -m "feat: reconcile live participant leaves in context"
 - Verify: `lib/live_canvas/live.ex`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Write failing channel disconnect test coverage
-- [ ] Step 2: Run focused channel tests to verify RED
-- [ ] Step 3: Implement minimal terminate callback wiring
-- [ ] Step 4: Run focused channel tests to verify GREEN
-- [ ] Step 5: Commit Task 2 milestone
+- [x] Step 1: Write failing channel disconnect test coverage
+- [x] Step 2: Run focused channel tests to verify RED
+- [x] Step 3: Implement minimal terminate callback wiring
+- [x] Step 4: Run focused channel tests to verify GREEN
+- [x] Step 5: Commit Task 2 milestone
 
 **Step 1: Write failing channel disconnect test coverage**
 
@@ -150,9 +150,9 @@ git commit -m "feat: reconcile live participant disconnects in channel"
 - Verify: `test/live_canvas_web/channels/live_session_channel_test.exs`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Mark completed checklist items in this plan file
-- [ ] Step 2: Run required verification suite
-- [ ] Step 3: Commit the final milestone state with related code/test changes
+- [x] Step 1: Mark completed checklist items in this plan file
+- [x] Step 2: Run required verification suite
+- [x] Step 3: Commit the final milestone state with related code/test changes
 
 **Step 2: Run required verification suite**
 

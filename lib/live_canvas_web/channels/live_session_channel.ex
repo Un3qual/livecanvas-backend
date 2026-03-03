@@ -57,6 +57,21 @@ defmodule LCWeb.LiveSessionChannel do
     {:reply, {:error, %{reason: message_error_reason(:invalid_body)}}, socket}
   end
 
+  @impl true
+  @spec terminate(term(), Phoenix.Socket.t()) :: :ok
+  def terminate(
+        _reason,
+        %Phoenix.Socket{assigns: %{current_user: current_user, live_session: live_session}}
+      )
+      when is_map(current_user) and is_map(live_session) do
+    # Disconnect cleanup is best-effort because channel termination can race
+    # against session shutdown; `LC.Live` handles idempotent reconciliation.
+    safe_leave_live_session(live_session, current_user)
+    :ok
+  end
+
+  def terminate(_reason, _socket), do: :ok
+
   defp parse_session_id(raw_session_id) do
     case Integer.parse(raw_session_id) do
       {session_id, ""} when session_id > 0 -> {:ok, session_id}
@@ -75,6 +90,13 @@ defmodule LCWeb.LiveSessionChannel do
   defp message_error_reason(:not_authorized), do: "not_authorized"
   defp message_error_reason(:invalid_body), do: "invalid_body"
   defp message_error_reason(%Ecto.Changeset{}), do: "invalid_message"
+
+  defp safe_leave_live_session(live_session, current_user) do
+    Live.leave_live_session(live_session, current_user)
+  catch
+    :exit, _reason ->
+      :ok
+  end
 
   defp chat_message_payload(chat_message) do
     %{
