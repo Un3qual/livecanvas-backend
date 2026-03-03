@@ -7,6 +7,7 @@ defmodule LiveCanvasApp do
     top_level?: true,
     deps: [LiveCanvas, LiveCanvasWeb, LiveCanvasGQL]
 
+  @spec start(Application.start_type(), [term()]) :: Supervisor.on_start()
   @impl true
   def start(_type, _args) do
     children = [
@@ -21,6 +22,7 @@ defmodule LiveCanvasApp do
     Supervisor.start_link(children, opts)
   end
 
+  @spec config_change(keyword(), keyword(), keyword()) :: :ok
   @impl true
   def config_change(changed, _new, removed) do
     LiveCanvasWeb.Endpoint.config_change(changed, removed)

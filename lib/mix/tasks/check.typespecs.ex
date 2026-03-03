@@ -12,6 +12,7 @@ defmodule Mix.Tasks.Check.Typespecs do
 
   @switches [manifest: :string, strict: :boolean]
 
+  @spec run([String.t()]) :: :ok | nil
   @impl Mix.Task
   def run(args) do
     {opts, paths, invalid} = OptionParser.parse(args, switches: @switches)
@@ -21,10 +22,6 @@ defmodule Mix.Tasks.Check.Typespecs do
     end
 
     files = collect_files(paths, Keyword.get(opts, :manifest))
-
-    if files == [] do
-      Mix.raise("expected at least one file path or --manifest")
-    end
 
     missing_specs =
       files
@@ -51,7 +48,16 @@ defmodule Mix.Tasks.Check.Typespecs do
         path -> read_manifest(path)
       end
 
-    (paths ++ manifest_paths)
+    resolved_paths = paths ++ manifest_paths
+
+    source_paths =
+      if resolved_paths == [] do
+        Path.wildcard("lib/**/*.ex")
+      else
+        resolved_paths
+      end
+
+    source_paths
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> Enum.uniq()

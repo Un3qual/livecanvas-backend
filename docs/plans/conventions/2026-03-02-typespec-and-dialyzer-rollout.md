@@ -33,7 +33,7 @@
 - [x] Task 5: Roll typespec enforcement across context/core modules
 - [x] Task 6: Roll typespec enforcement across Phoenix web modules
 - [x] Task 7: Roll typespec enforcement across GraphQL modules
-- [ ] Task 8: Remove the temporary allowlist and enforce the full `lib/` tree
+- [x] Task 8: Remove the temporary allowlist and enforce the full `lib/` tree
 
 ## Immediate Tooling Baseline
 

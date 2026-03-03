@@ -131,7 +131,7 @@ defmodule LiveCanvas.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       typecheck: [
-        "check.typespecs --strict --manifest priv/quality/typespec_targets.txt",
+        "check.typespecs --strict",
         "dialyzer --format short"
       ],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
