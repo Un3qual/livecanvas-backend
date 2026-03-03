@@ -11,7 +11,7 @@ defmodule LCGQL.Social.Resolver do
           follow: follow_payload() | nil,
           errors: [social_error_payload()]
         }
-  @type successful_result_payload :: %{successful: boolean(), errors: [social_error_payload()]}
+  @type error_only_result_payload :: %{errors: [social_error_payload()]}
 
   @spec follow_user(any(), %{follower_id: term(), followed_id: term()}, any()) ::
           {:ok, follow_result_payload()}
@@ -60,47 +60,47 @@ defmodule LCGQL.Social.Resolver do
   end
 
   @spec block_user(any(), %{blocker_id: term(), blocked_id: term()}, any()) ::
-          {:ok, successful_result_payload()}
+          {:ok, error_only_result_payload()}
   def block_user(_parent, %{blocker_id: blocker_id, blocked_id: blocked_id}, _resolution) do
     with {:ok, blocker} <- fetch_user(blocker_id, :blocker_id),
          {:ok, blocked} <- fetch_user(blocked_id, :blocked_id),
          {:ok, _block} <- Social.block_user(blocker, blocked) do
-      {:ok, %{successful: true, errors: []}}
+      {:ok, %{errors: []}}
     else
       {:error, {field, reason}} ->
-        {:ok, %{successful: false, errors: [social_error(field, reason)]}}
+        {:ok, %{errors: [social_error(field, reason)]}}
 
       {:error, reason} ->
-        {:ok, %{successful: false, errors: [social_error(nil, reason)]}}
+        {:ok, %{errors: [social_error(nil, reason)]}}
     end
   end
 
   @spec mute_user(any(), %{muter_id: term(), muted_id: term()}, any()) ::
-          {:ok, successful_result_payload()}
+          {:ok, error_only_result_payload()}
   def mute_user(_parent, %{muter_id: muter_id, muted_id: muted_id}, _resolution) do
     with {:ok, muter} <- fetch_user(muter_id, :muter_id),
          {:ok, muted} <- fetch_user(muted_id, :muted_id),
          {:ok, _mute} <- Social.mute_user(muter, muted) do
-      {:ok, %{successful: true, errors: []}}
+      {:ok, %{errors: []}}
     else
       {:error, {field, reason}} ->
-        {:ok, %{successful: false, errors: [social_error(field, reason)]}}
+        {:ok, %{errors: [social_error(field, reason)]}}
 
       {:error, reason} ->
-        {:ok, %{successful: false, errors: [social_error(nil, reason)]}}
+        {:ok, %{errors: [social_error(nil, reason)]}}
     end
   end
 
   @spec unmute_user(any(), %{muter_id: term(), muted_id: term()}, any()) ::
-          {:ok, successful_result_payload()}
+          {:ok, error_only_result_payload()}
   def unmute_user(_parent, %{muter_id: muter_id, muted_id: muted_id}, _resolution) do
     with {:ok, muter} <- fetch_user(muter_id, :muter_id),
          {:ok, muted} <- fetch_user(muted_id, :muted_id),
          :ok <- Social.unmute_user(muter, muted) do
-      {:ok, %{successful: true, errors: []}}
+      {:ok, %{errors: []}}
     else
       {:error, {field, reason}} ->
-        {:ok, %{successful: false, errors: [social_error(field, reason)]}}
+        {:ok, %{errors: [social_error(field, reason)]}}
     end
   end
 

@@ -16,7 +16,7 @@ defmodule LCGQL.Accounts.Resolver do
           errors: [mutation_error()]
         }
   @type contact_upsert_result :: {:ok, contact_upsert_payload()}
-  @type invite_delivery_payload :: %{successful: boolean(), errors: [mutation_error()]}
+  @type invite_delivery_payload :: %{errors: [mutation_error()]}
   @type invite_delivery_result :: {:ok, invite_delivery_payload()}
   @type contact_upsert_error_reason ::
           :invalid_contact_client_id
@@ -147,18 +147,18 @@ defmodule LCGQL.Accounts.Resolver do
              normalized_recipient,
              &contact_invite_url/1
            ) do
-      {:ok, %{successful: true, errors: []}}
+      {:ok, %{errors: []}}
     else
       {:error, :invalid_recipient} ->
-        {:ok, %{successful: false, errors: [invite_delivery_error(:invalid_recipient)]}}
+        {:ok, %{errors: [invite_delivery_error(:invalid_recipient)]}}
 
       {:error, _reason} ->
-        {:ok, %{successful: false, errors: [invite_delivery_error(:delivery_failed)]}}
+        {:ok, %{errors: [invite_delivery_error(:delivery_failed)]}}
     end
   end
 
   def deliver_viewer_contact_invite(_parent, _args, _resolution) do
-    {:ok, %{successful: false, errors: [invite_delivery_error(:unauthenticated)]}}
+    {:ok, %{errors: [invite_delivery_error(:unauthenticated)]}}
   end
 
   @spec viewer(term(), map(), Absinthe.Resolution.t()) :: {:ok, User.t() | nil}

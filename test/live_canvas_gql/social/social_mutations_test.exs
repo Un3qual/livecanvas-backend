@@ -79,8 +79,18 @@ defmodule LCGQL.Social.SocialMutationsTest do
     end
   end
 
+  describe "schema cleanup" do
+    test "does not expose legacy successful relay payload fields" do
+      schema_sdl = Absinthe.Schema.to_sdl(LCGQL.Schema)
+
+      refute schema_sdl =~ "BlockUserPayload {\n  successful: Boolean!"
+      refute schema_sdl =~ "MuteUserPayload {\n  successful: Boolean!"
+      refute schema_sdl =~ "UnmuteUserPayload {\n  successful: Boolean!"
+    end
+  end
+
   describe "blockUser" do
-    test "returns successful true with no errors when block is persisted" do
+    test "returns no errors when block is persisted" do
       blocker = user_fixture()
       blocked = user_fixture()
       blocker_id = Absinthe.Relay.Node.to_global_id(:user, blocker.id, LCGQL.Schema)
@@ -89,7 +99,6 @@ defmodule LCGQL.Social.SocialMutationsTest do
       mutation = """
       mutation($blockerId: ID!, $blockedId: ID!) {
         blockUser(input: {blockerId: $blockerId, blockedId: $blockedId}) {
-          successful
           errors {
             field
             message
@@ -102,7 +111,6 @@ defmodule LCGQL.Social.SocialMutationsTest do
               %{
                 data: %{
                   "blockUser" => %{
-                    "successful" => true,
                     "errors" => []
                   }
                 }
@@ -114,7 +122,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
   end
 
   describe "muteUser" do
-    test "returns successful true with no errors when mute is persisted" do
+    test "returns no errors when mute is persisted" do
       muter = user_fixture()
       muted = user_fixture()
       muter_id = Absinthe.Relay.Node.to_global_id(:user, muter.id, LCGQL.Schema)
@@ -123,7 +131,6 @@ defmodule LCGQL.Social.SocialMutationsTest do
       mutation = """
       mutation($muterId: ID!, $mutedId: ID!) {
         muteUser(input: {muterId: $muterId, mutedId: $mutedId}) {
-          successful
           errors {
             field
             message
@@ -136,7 +143,6 @@ defmodule LCGQL.Social.SocialMutationsTest do
               %{
                 data: %{
                   "muteUser" => %{
-                    "successful" => true,
                     "errors" => []
                   }
                 }
@@ -156,7 +162,6 @@ defmodule LCGQL.Social.SocialMutationsTest do
       mutation = """
       mutation($muterId: ID!, $mutedId: ID!) {
         muteUser(input: {muterId: $muterId, mutedId: $mutedId}) {
-          successful
           errors {
             field
             message
@@ -169,7 +174,6 @@ defmodule LCGQL.Social.SocialMutationsTest do
               %{
                 data: %{
                   "muteUser" => %{
-                    "successful" => false,
                     "errors" => [%{"field" => "muterId", "message" => message} | _rest]
                   }
                 }
@@ -183,7 +187,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
   end
 
   describe "unmuteUser" do
-    test "returns successful true and clears an existing mute relationship" do
+    test "returns no errors and clears an existing mute relationship" do
       muter = user_fixture()
       muted = user_fixture()
       muter_id = Absinthe.Relay.Node.to_global_id(:user, muter.id, LCGQL.Schema)
@@ -194,7 +198,6 @@ defmodule LCGQL.Social.SocialMutationsTest do
       mutation = """
       mutation($muterId: ID!, $mutedId: ID!) {
         unmuteUser(input: {muterId: $muterId, mutedId: $mutedId}) {
-          successful
           errors {
             field
             message
@@ -207,7 +210,6 @@ defmodule LCGQL.Social.SocialMutationsTest do
               %{
                 data: %{
                   "unmuteUser" => %{
-                    "successful" => true,
                     "errors" => []
                   }
                 }

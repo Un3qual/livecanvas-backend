@@ -78,10 +78,6 @@ defmodule LCGQL.Accounts.Types do
     field :client_launch_count, :integer
   end
 
-  object :successful_payload do
-    field :successful, non_null(:boolean)
-  end
-
   object :user_error do
     field :field, :string
     field :message, non_null(:string)

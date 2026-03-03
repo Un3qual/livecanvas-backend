@@ -55,7 +55,6 @@ defmodule LCGQL.Accounts.Mutations do
       end
 
       output do
-        field :successful, non_null(:boolean)
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 

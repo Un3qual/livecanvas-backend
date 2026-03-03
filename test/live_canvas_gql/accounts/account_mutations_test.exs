@@ -143,6 +143,9 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
 
       refute schema_sdl =~
                "AttachUserPhoneNumberPayload {\n  user: User\n  errors: [UserError!]!\n  successful: Boolean!"
+
+      refute schema_sdl =~
+               "DeliverViewerContactInvitePayload {\n  successful: Boolean!"
     end
   end
 
@@ -337,7 +340,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
       mutation = """
       mutation DeliverViewerContactInvite($recipient: String!) {
         deliverViewerContactInvite(input: {recipient: $recipient}) {
-          successful
           errors {
             field
             message
@@ -350,7 +352,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
               %{
                 data: %{
                   "deliverViewerContactInvite" => %{
-                    "successful" => true,
                     "errors" => []
                   }
                 }
@@ -376,7 +377,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
       mutation = """
       mutation {
         deliverViewerContactInvite(input: {recipient: "   "}) {
-          successful
           errors {
             field
             message
@@ -389,7 +389,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
               %{
                 data: %{
                   "deliverViewerContactInvite" => %{
-                    "successful" => false,
                     "errors" => [%{"field" => "recipient", "message" => "is invalid"}]
                   }
                 }
@@ -403,7 +402,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
       mutation = """
       mutation {
         deliverViewerContactInvite(input: {recipient: "invalid-recipient"}) {
-          successful
           errors {
             field
             message
@@ -416,7 +414,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
               %{
                 data: %{
                   "deliverViewerContactInvite" => %{
-                    "successful" => false,
                     "errors" => [%{"field" => "recipient", "message" => "is invalid"}]
                   }
                 }
@@ -429,7 +426,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
       mutation = """
       mutation {
         deliverViewerContactInvite(input: {recipient: "friend@example.com"}) {
-          successful
           errors {
             field
             message
@@ -442,7 +438,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
               %{
                 data: %{
                   "deliverViewerContactInvite" => %{
-                    "successful" => false,
                     "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
                   }
                 }
