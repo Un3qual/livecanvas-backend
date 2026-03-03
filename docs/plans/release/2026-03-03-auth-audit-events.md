@@ -26,7 +26,7 @@ Verified directly in `lib/`, `test/`, and `priv/repo/migrations` before selectin
 ## Progress
 
 - [x] Task 1: Add auth audit event persistence primitives (schema, migration, Accounts APIs)
-- [ ] Task 2: Emit audit events from sensitive login and token revocation paths
+- [x] Task 2: Emit audit events from sensitive login and token revocation paths
 - [ ] Task 3: Run verification, update release roadmap notes, and commit final milestone
 
 ### Task 1: Add Auth Audit Event Persistence Primitives
@@ -137,11 +137,11 @@ git commit -m "feat: add auth audit event persistence primitives"
 - Modify: `docs/plans/release/2026-03-03-auth-audit-events.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing tests for password/magic-link login and refresh revoke event emission
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Emit auth audit events in `LC.Accounts` login and revocation code paths
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run `mix compile` + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing tests for password/magic-link login and refresh revoke event emission
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Emit auth audit events in `LC.Accounts` login and revocation code paths
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run `mix compile` + `mix typecheck`, update checklist, and commit milestone
 
 **Step 1: Add failing event-emission tests**
 

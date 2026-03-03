@@ -148,7 +148,21 @@ defmodule LC.Accounts do
       when is_binary(email) and is_binary(password) do
     user = get_user_by_email(email)
 
-    if Passwords.valid_password?(user, password) and active_user?(user), do: user
+    if Passwords.valid_password?(user, password) and active_user?(user) do
+      emit_auth_event(:password_login_succeeded,
+        user: user,
+        metadata: %{"method" => "password"}
+      )
+
+      user
+    else
+      emit_auth_event(:password_login_failed,
+        user: user,
+        metadata: %{"method" => "password", "reason" => "invalid_credentials"}
+      )
+
+      nil
+    end
   end
 
   @doc """
@@ -661,33 +675,52 @@ defmodule LC.Accounts do
   @spec login_user_by_magic_link(String.t()) ::
           {:ok, {User.t(), [UserToken.t()]}} | {:error, :not_found | changeset()}
   def login_user_by_magic_link(serialized_value) do
-    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
-         {user, user_token, current_email} <- Repo.one(query),
-         hydrated_user = hydrate_user(user, user_token, current_email),
-         true <- Tokens.valid_magic_link_token?(user_token, raw_secret, hydrated_user.email),
-         true <- active_user?(hydrated_user) do
-      case hydrated_user do
-        %User{confirmed_at: nil, hashed_password: hash} when not is_nil(hash) ->
-          raise """
-          magic link log in is not allowed for unconfirmed users with a password set!
+    result =
+      with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+           {user, user_token, current_email} <- Repo.one(query),
+           hydrated_user = hydrate_user(user, user_token, current_email),
+           true <- Tokens.valid_magic_link_token?(user_token, raw_secret, hydrated_user.email),
+           true <- active_user?(hydrated_user) do
+        case hydrated_user do
+          %User{confirmed_at: nil, hashed_password: hash} when not is_nil(hash) ->
+            raise """
+            magic link log in is not allowed for unconfirmed users with a password set!
 
-          This cannot happen with the default implementation, which indicates that you
-          might have adapted the code to a different use case. Please make sure to read the
-          "Mixing magic link and password registration" section of `mix help phx.gen.auth`.
-          """
+            This cannot happen with the default implementation, which indicates that you
+            might have adapted the code to a different use case. Please make sure to read the
+            "Mixing magic link and password registration" section of `mix help phx.gen.auth`.
+            """
 
-        %User{confirmed_at: nil} = confirmed_user ->
-          confirmed_user
-          |> UserChanges.confirm_changeset()
-          |> update_user_and_delete_all_tokens()
+          %User{confirmed_at: nil} = confirmed_user ->
+            confirmed_user
+            |> UserChanges.confirm_changeset()
+            |> update_user_and_delete_all_tokens()
 
-        confirmed_user ->
-          Repo.delete!(user_token)
-          {:ok, {confirmed_user, []}}
+          confirmed_user ->
+            Repo.delete!(user_token)
+            {:ok, {confirmed_user, []}}
+        end
+      else
+        _ -> {:error, :not_found}
       end
-    else
-      _ -> {:error, :not_found}
+
+    case result do
+      {:ok, {logged_in_user, _expired_tokens}} ->
+        emit_auth_event(:magic_link_login_succeeded,
+          user: logged_in_user,
+          metadata: %{"method" => "magic_link"}
+        )
+
+      {:error, :not_found} ->
+        emit_auth_event(:magic_link_login_failed,
+          metadata: %{"method" => "magic_link", "reason" => "not_found"}
+        )
+
+      _ ->
+        :ok
     end
+
+    result
   end
 
   @doc ~S"""
@@ -772,8 +805,12 @@ defmodule LC.Accounts do
   def revoke_refresh_token(serialized_value) do
     with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
          {_user, user_token, _current_email} <- Repo.one(query),
-         true <- refresh_token_secret_matches?(user_token, raw_secret) do
-      _ = revoke_user_token(user_token)
+         true <- refresh_token_secret_matches?(user_token, raw_secret),
+         :ok <- revoke_user_token(user_token, strict: true) do
+      emit_auth_event(:refresh_token_revoked,
+        user_id: user_token.user_id,
+        metadata: %{"context" => "refresh_token"}
+      )
     end
 
     :ok
@@ -1293,7 +1330,7 @@ defmodule LC.Accounts do
   defp refresh_token_secret_matches?(_user_token, _raw_secret), do: false
 
   @spec revoke_user_token(UserToken.t(), keyword()) :: :ok | {:error, :revoked_token}
-  defp revoke_user_token(%UserToken{id: token_id}, opts \\ []) do
+  defp revoke_user_token(%UserToken{id: token_id}, opts) do
     {deleted_count, _rows} =
       Repo.delete_all(from(token in UserToken, where: token.id == ^token_id))
 
@@ -1301,6 +1338,16 @@ defmodule LC.Accounts do
       {:error, :revoked_token}
     else
       :ok
+    end
+  end
+
+  @spec emit_auth_event(auth_event_type(), auth_event_opts()) :: :ok
+  defp emit_auth_event(event_type, opts) do
+    # Audit logging is best-effort only; auth control flow must remain deterministic
+    # even if event persistence fails for operational reasons.
+    case record_auth_event(event_type, opts) do
+      {:ok, _auth_event} -> :ok
+      {:error, _changeset} -> :ok
     end
   end
 
