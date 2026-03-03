@@ -121,5 +121,19 @@ defmodule LC.ContentTest do
 
       assert %{processing_state: :failed} = Content.get_user_media_asset(owner, asset.id)
     end
+
+    test "processes already-uploaded media rows during finalize recovery" do
+      owner = user_fixture()
+
+      assert {:ok, uploaded_asset} =
+               Content.create_media_asset(owner, %{
+                 storage_key: "uploads/users/#{owner.id}/already-uploaded.jpg",
+                 mime_type: "image/jpeg",
+                 processing_state: :uploaded
+               })
+
+      assert {:ok, finalized_asset} = Content.finalize_media_upload(owner, uploaded_asset.id, %{})
+      assert finalized_asset.processing_state == :processed
+    end
   end
 end

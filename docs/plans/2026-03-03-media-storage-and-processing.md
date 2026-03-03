@@ -28,7 +28,7 @@ Verified directly in `lib/`, `priv/repo/migrations/`, `config/`, and tests befor
 - [x] Task 1: Add object-storage seam and `Content.request_media_upload/2`
 - [x] Task 2: Add Relay `requestMediaUpload` mutation and media node/query surface
 - [x] Task 3: Add `Content.finalize_media_upload/3` lifecycle transition and processing seam
-- [ ] Task 4: Run final verification and update roadmap links
+- [x] Task 4: Run final verification and update roadmap links
 
 ### Task 1: Add Object-Storage Seam And `Content.request_media_upload/2`
 
@@ -156,7 +156,13 @@ git commit -m "feat: add media upload intent and object storage seam"
 - Modify: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Mark completed checklist items in this plan file
-- [ ] Step 2: Update roadmap with delivered scope and remaining follow-ups
-- [ ] Step 3: Run verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 4: Commit final milestone with code/tests/plan updates together
+- [x] Step 1: Mark completed checklist items in this plan file
+- [x] Step 2: Update roadmap with delivered scope and remaining follow-ups
+- [x] Step 3: Run verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 4: Commit final milestone with code/tests/plan updates together
+
+**Step 3 verification run (2026-03-03):**
+- `mix compile` -> PASS
+- `mix test` -> PASS (`320 tests, 0 failures`)
+- `mix typecheck` -> PASS
+- `mix precommit` -> PASS

@@ -8,7 +8,7 @@
   - `mix test` -> PASS (`304 tests, 0 failures`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
-- Plan tracking state: release-track plans are complete through the distributed live runtime ownership baseline (`docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`).
+- Plan tracking state: release-track plans are complete through the distributed live runtime ownership baseline, with media upload intent + finalize baseline now in place (`docs/plans/2026-03-03-media-storage-and-processing.md`).
 
 ## What Has Been Delivered
 
@@ -32,7 +32,9 @@
 - Social:
   - follows, follow acceptance, blocks, mutes, relationship policy
 - Content:
-  - post + media metadata persistence surface (minimal, v1 slice)
+  - post + media metadata persistence surface
+  - signed upload intent issuance + Relay media node/query lookup
+  - viewer-scoped upload finalize lifecycle with processing seam (`pending_upload -> uploaded -> processed/failed`)
 - Live:
   - live session lifecycle, participant persistence, runtime session process
   - participant leave reconciliation and restart rehydration
@@ -51,7 +53,7 @@
 
 The backend is in a strong "foundation complete / internal alpha" state, not yet in a "public release ready" state.
 
-Main reason: the current API surface proves domain behavior, but runtime scaling, media/storage delivery, and production operations layers are not complete yet.
+Main reason: the current API surface proves domain behavior, but runtime scaling, webhook/async job delivery, and production operations layers are not complete yet.
 
 Auth/security baseline now includes viewer-scoped GraphQL writes, bearer token GraphQL auth precedence, GraphiQL environment gating, abuse-rate limiting, and persisted auth audit events for login outcomes, refresh-token revocation/rotation outcomes, and credential change outcomes.
 
@@ -175,7 +177,6 @@ The following are material gaps where no sufficiently detailed executable plan e
 
 - Additional auth audit expansion for provider unlink/account recovery events if included in v1 launch scope.
 - REST webhook + background-job design/implementation plan.
-- Media storage/processing delivery plan.
 - Release engineering plan (migrations at scale, rollback strategy, deployment gates).
 - Compliance/data-governance plan (retention/deletion/export policy).
 
@@ -186,5 +187,4 @@ The following are material gaps where no sufficiently detailed executable plan e
 
 ## Suggested Next Plan Files To Create
 
-- `docs/plans/2026-03-03-media-storage-and-processing.md`
 - `docs/plans/2026-03-03-webhooks-and-async-jobs.md`

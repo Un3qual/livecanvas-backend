@@ -70,7 +70,10 @@ defmodule LCGQL.Content.ContentQueriesTest do
                 }
               }
             }} =
-             Absinthe.run(query, LCGQL.Schema, variables: %{"id" => media_asset_id}, context: context)
+             Absinthe.run(query, LCGQL.Schema,
+               variables: %{"id" => media_asset_id},
+               context: context
+             )
 
     assert returned_media_asset_id == media_asset_id
   end
@@ -97,6 +100,9 @@ defmodule LCGQL.Content.ContentQueriesTest do
              Absinthe.run(query, LCGQL.Schema, variables: %{"id" => media_asset_id})
 
     assert {:ok, %{data: %{"mediaAsset" => nil}}} =
-             Absinthe.run(query, LCGQL.Schema, variables: %{"id" => media_asset_id}, context: context)
+             Absinthe.run(query, LCGQL.Schema,
+               variables: %{"id" => media_asset_id},
+               context: context
+             )
   end
 end

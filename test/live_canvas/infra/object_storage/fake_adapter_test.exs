@@ -17,6 +17,7 @@ defmodule LC.Infra.ObjectStorage.FakeAdapterTest do
   end
 
   test "rejects invalid upload requests" do
-    assert {:error, :invalid_upload_request} = ObjectStorage.sign_upload(%{mime_type: "image/jpeg"})
+    assert {:error, :invalid_upload_request} =
+             ObjectStorage.sign_upload(%{mime_type: "image/jpeg"})
   end
 end

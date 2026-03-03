@@ -133,7 +133,8 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       assert {:ok, %{media_asset: media_asset}} =
                Content.request_media_upload(viewer, %{mime_type: "image/jpeg"})
 
-      media_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
+      media_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
 
       query = """
       query($id: ID!) {
@@ -157,7 +158,10 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                   }
                 }
               }} =
-               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => media_asset_id}, context: context)
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => media_asset_id},
+                 context: context
+               )
     end
 
     test "returns null for media asset node lookups without owner scope" do
@@ -168,7 +172,8 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       assert {:ok, %{media_asset: media_asset}} =
                Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
 
-      media_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
+      media_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
 
       query = """
       query($id: ID!) {
@@ -182,7 +187,10 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                Absinthe.run(query, LCGQL.Schema, variables: %{"id" => media_asset_id})
 
       assert {:ok, %{data: %{"node" => nil}}} =
-               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => media_asset_id}, context: context)
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => media_asset_id},
+                 context: context
+               )
     end
   end
 end

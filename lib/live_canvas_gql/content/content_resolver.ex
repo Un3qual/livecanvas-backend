@@ -74,14 +74,19 @@ defmodule LCGQL.Content.Resolver do
 
       {:error, _reason} ->
         {:ok,
-         %{media_asset: nil, signed_upload: nil, errors: [%{field: nil, message: "upload_unavailable"}]}}
+         %{
+           media_asset: nil,
+           signed_upload: nil,
+           errors: [%{field: nil, message: "upload_unavailable"}]
+         }}
     end
   end
 
   # Upload intents are viewer-scoped so clients cannot mint signed uploads on
   # behalf of other users.
   def request_media_upload(_parent, _attrs, _resolution) do
-    {:ok, %{media_asset: nil, signed_upload: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+    {:ok,
+     %{media_asset: nil, signed_upload: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
   end
 
   @spec post(term(), %{id: term()}, term()) :: {:ok, Post.t() | nil}
@@ -142,7 +147,9 @@ defmodule LCGQL.Content.Resolver do
     }
   end
 
-  @spec upload_headers_view(%{optional(String.t()) => String.t()}) :: [signed_upload_header_view()]
+  @spec upload_headers_view(%{optional(String.t()) => String.t()}) :: [
+          signed_upload_header_view()
+        ]
   defp upload_headers_view(headers) do
     headers
     |> Enum.sort_by(fn {name, _value} -> name end)

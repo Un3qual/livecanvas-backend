@@ -95,8 +95,11 @@ defmodule LC.Content do
       nil ->
         {:error, :not_found}
 
-      %MediaAssetSchema{processing_state: state} = media_asset when state in [:uploaded, :processed] ->
+      %MediaAssetSchema{processing_state: :processed} = media_asset ->
         {:ok, media_asset}
+
+      %MediaAssetSchema{processing_state: :uploaded} = media_asset ->
+        process_uploaded_media(media_asset)
 
       %MediaAssetSchema{processing_state: :failed} ->
         {:error, :processing_failed}
@@ -110,18 +113,23 @@ defmodule LC.Content do
   defp finalize_pending_upload(media_asset, attrs) do
     with {:ok, uploaded_asset} <-
            update_media_asset(media_asset, Map.put(attrs, :processing_state, :uploaded)) do
-      # Upload completion and processor invocation are split so upload metadata
-      # is durably recorded even when downstream processing fails.
-      case MediaProcessing.process_upload(uploaded_asset) do
-        {:ok, processing_attrs} ->
-          processing_attrs
-          |> Map.put(:processing_state, :processed)
-          |> then(&update_media_asset(uploaded_asset, &1))
+      process_uploaded_media(uploaded_asset)
+    end
+  end
 
-        {:error, _reason} ->
-          _ = update_media_asset(uploaded_asset, %{processing_state: :failed})
-          {:error, :processing_failed}
-      end
+  @spec process_uploaded_media(MediaAssetSchema.t()) :: media_finalize_result()
+  defp process_uploaded_media(uploaded_asset) do
+    # Upload completion and processor invocation are split so upload metadata
+    # is durably recorded even when downstream processing fails.
+    case MediaProcessing.process_upload(uploaded_asset) do
+      {:ok, processing_attrs} ->
+        processing_attrs
+        |> Map.put(:processing_state, :processed)
+        |> then(&update_media_asset(uploaded_asset, &1))
+
+      {:error, _reason} ->
+        _ = update_media_asset(uploaded_asset, %{processing_state: :failed})
+        {:error, :processing_failed}
     end
   end
 
