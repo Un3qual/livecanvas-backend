@@ -2,9 +2,10 @@ defmodule LCGQL.Accounts.Types do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  # alias LC.Accounts.{User, UserIdentity}
+  alias LCGQL.Accounts.Resolver
 
   connection(node_type: :user)
+  connection(node_type: :user_identity)
 
   @desc "List of supported OAuth providers for logging in."
   enum :oauth_provider do
@@ -18,7 +19,10 @@ defmodule LCGQL.Accounts.Types do
   node object(:user) do
     field :email, :string
     field :inserted_at, non_null(:string)
-    # field :user_identities, list_of(non_null(:user_identity)), resolve: dataloader(UserIdentity)
+
+    connection field :user_identities, node_type: :user_identity, paginate: :forward do
+      resolve(&Resolver.user_identities/3)
+    end
 
     field :fresh_access_token, :token
     field :refresh_token, :token

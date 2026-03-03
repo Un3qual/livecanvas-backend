@@ -125,6 +125,21 @@ defmodule LC.Accounts do
   @spec get_user_identity!(pos_integer()) :: UserIdentity.t()
   def get_user_identity!(id), do: Repo.get!(UserIdentity, id)
 
+  @doc """
+  Returns a deterministic query for a user's linked identities.
+  """
+  @spec user_identities_query(User.t()) :: Ecto.Query.t()
+  def user_identities_query(%User{id: user_id}) do
+    from(user_identity in UserIdentity,
+      where: user_identity.user_id == ^user_id,
+      order_by: [asc: user_identity.inserted_at, asc: user_identity.id]
+    )
+  end
+
+  @doc false
+  @spec run_query(Ecto.Query.t()) :: [term()]
+  def run_query(query), do: Repo.all(query)
+
   ## User registration
 
   @doc """

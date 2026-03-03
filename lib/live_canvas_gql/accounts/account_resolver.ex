@@ -49,6 +49,13 @@ defmodule LCGQL.Accounts.Resolver do
 
   def viewer(_parent, _args, _resolution), do: {:ok, nil}
 
+  @spec user_identities(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, map()} | {:error, term()}
+  def user_identities(%{id: _id} = user, args, _resolution) do
+    query = Accounts.user_identities_query(user)
+    Absinthe.Relay.Connection.from_query(query, &Accounts.run_query/1, args)
+  end
+
   @spec fetch_user(term()) :: user_lookup_result()
   defp fetch_user(user_id) do
     with {:ok, id} <- Relay.decode_global_id(user_id, :user, LCGQL.Schema) do
