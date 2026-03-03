@@ -19,4 +19,24 @@ defmodule LC.Live.SessionServerTest do
     assert :ok = SessionServer.leave(pid, 101)
     assert %{participants: %{}} = SessionServer.snapshot(pid)
   end
+
+  test "boots with initial participants when provided" do
+    session_id = System.unique_integer([:positive])
+    registry = Module.concat(__MODULE__, "Registry#{session_id}")
+
+    {:ok, _registry_pid} = start_supervised({Registry, keys: :unique, name: registry})
+
+    initial_participants = %{
+      101 => %{user_id: 101, role: :viewer, joined_at: ~U[2026-03-03 00:00:00.000000Z]}
+    }
+
+    {:ok, pid} =
+      start_supervised(
+        {SessionServer,
+         session_id: session_id, registry: registry, initial_participants: initial_participants}
+      )
+
+    assert %{session_id: ^session_id, participants: participants} = SessionServer.snapshot(pid)
+    assert participants == initial_participants
+  end
 end

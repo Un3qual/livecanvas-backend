@@ -25,8 +25,15 @@ defmodule LC.Live.SessionServer do
     session_id = Keyword.fetch!(opts, :session_id)
     registry = Keyword.get(opts, :registry, LC.Live.SessionRegistry)
     media_bootstrap = Keyword.get(opts, :media_bootstrap, &MediaSession.start_for_session/1)
+    initial_participants = Keyword.get(opts, :initial_participants, %{})
 
-    GenServer.start_link(__MODULE__, %{session_id: session_id, media_bootstrap: media_bootstrap},
+    GenServer.start_link(
+      __MODULE__,
+      %{
+        session_id: session_id,
+        media_bootstrap: media_bootstrap,
+        initial_participants: initial_participants
+      },
       name: via_tuple(registry, session_id)
     )
   end
@@ -45,13 +52,21 @@ defmodule LC.Live.SessionServer do
   def snapshot(pid) when is_pid(pid), do: GenServer.call(pid, :snapshot)
 
   @impl true
-  @spec init(%{session_id: pos_integer(), media_bootstrap: media_bootstrap()}) ::
+  @spec init(%{
+          session_id: pos_integer(),
+          media_bootstrap: media_bootstrap(),
+          initial_participants: %{optional(pos_integer()) => participant()}
+        }) ::
           {:ok, state()} | {:stop, {:media_bootstrap_failed, term()}}
-  def init(%{session_id: session_id, media_bootstrap: media_bootstrap})
-      when is_integer(session_id) and is_function(media_bootstrap, 1) do
+  def init(%{
+        session_id: session_id,
+        media_bootstrap: media_bootstrap,
+        initial_participants: initial_participants
+      })
+      when is_integer(session_id) and is_function(media_bootstrap, 1) and is_map(initial_participants) do
     case media_bootstrap.(%LiveSession{id: session_id}) do
       :ok ->
-        {:ok, %{session_id: session_id, participants: %{}}}
+        {:ok, %{session_id: session_id, participants: initial_participants}}
 
       {:error, reason} ->
         # Startup should fail fast when media bootstrap cannot initialize.

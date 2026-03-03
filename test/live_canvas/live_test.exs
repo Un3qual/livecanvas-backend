@@ -4,6 +4,7 @@ defmodule LC.LiveTest do
   import LC.AccountsFixtures
 
   alias LC.Live
+  alias LC.Live.SessionServer
 
   describe "start_live_session/2" do
     test "creates a starting session and boots a session server" do
@@ -72,6 +73,48 @@ defmodule LC.LiveTest do
       assert ended_session.status == :ended
 
       assert {:error, :ended} = Live.join_live_session(ended_session, viewer, :viewer)
+    end
+
+    test "rehydrates participants when recreating a missing session server" do
+      host = user_fixture()
+      first_viewer = user_fixture()
+      second_viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, _participant} = Live.join_live_session(session, first_viewer, :viewer)
+      assert {:ok, stale_pid} = Live.lookup_session_server(session.id)
+
+      monitor_ref = Process.monitor(stale_pid)
+      Process.exit(stale_pid, :kill)
+      assert_receive {:DOWN, ^monitor_ref, :process, ^stale_pid, _reason}
+      assert :ok = wait_for_session_server_down(session.id)
+
+      assert {:ok, _participant} = Live.join_live_session(session, second_viewer, :viewer)
+      assert {:ok, restarted_pid} = Live.lookup_session_server(session.id)
+      refute restarted_pid == stale_pid
+
+      assert %{participants: participants} = SessionServer.snapshot(restarted_pid)
+      first_viewer_id = first_viewer.id
+      second_viewer_id = second_viewer.id
+
+      assert Map.keys(participants) |> Enum.sort() == [first_viewer_id, second_viewer_id]
+      assert %{user_id: ^first_viewer_id, role: :viewer} = Map.fetch!(participants, first_viewer_id)
+      assert %{user_id: ^second_viewer_id, role: :viewer} =
+               Map.fetch!(participants, second_viewer_id)
+    end
+  end
+
+  defp wait_for_session_server_down(session_id, attempts \\ 20)
+  defp wait_for_session_server_down(_session_id, 0), do: flunk("session server did not stop")
+
+  defp wait_for_session_server_down(session_id, attempts) do
+    case Live.lookup_session_server(session_id) do
+      {:error, :not_found} ->
+        :ok
+
+      {:ok, _pid} ->
+        Process.sleep(10)
+        wait_for_session_server_down(session_id, attempts - 1)
     end
   end
 end

@@ -4,6 +4,7 @@ defmodule LC.Live do
   """
 
   use Boundary, deps: [LC.Infra, LCSchemas]
+  import Ecto.Query, warn: false
 
   alias LC.Infra.Repo
   alias LC.Live.{SessionServer, SessionSupervisor}
@@ -16,6 +17,7 @@ defmodule LC.Live do
   @type fetch_joinable_session_result :: {:ok, LiveSession.t()} | {:error, :ended | :not_found}
   @type live_session_result :: {:ok, LiveSession.t()} | {:error, changeset() | term()}
   @type live_participant_result :: {:ok, LiveParticipant.t()} | {:error, changeset() | term()}
+  @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type session_server_lookup_result :: {:ok, pid()} | {:error, :not_found}
 
   @doc """
@@ -139,8 +141,26 @@ defmodule LC.Live do
   defp ensure_session_server(session_id) do
     case SessionSupervisor.lookup_session_server(session_id) do
       {:ok, pid} -> {:ok, pid}
-      {:error, :not_found} -> SessionSupervisor.start_session_server(session_id)
+
+      {:error, :not_found} ->
+        # Rehydrate runtime state from durable participants so a recreated
+        # session process preserves active membership after crash/restart.
+        runtime_participants = active_runtime_participants(session_id)
+        SessionSupervisor.start_session_server(session_id, runtime_participants)
     end
+  end
+
+  @spec active_runtime_participants(pos_integer()) :: runtime_participants()
+  defp active_runtime_participants(session_id) when is_integer(session_id) do
+    from(live_participant in LiveParticipant,
+      where: live_participant.live_session_id == ^session_id and is_nil(live_participant.left_at),
+      order_by: [asc: live_participant.joined_at, asc: live_participant.id],
+      select: {live_participant.user_id, live_participant.role, live_participant.joined_at}
+    )
+    |> Repo.all()
+    |> Map.new(fn {user_id, role, joined_at} ->
+      {user_id, %{user_id: user_id, role: role, joined_at: joined_at}}
+    end)
   end
 
   defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
