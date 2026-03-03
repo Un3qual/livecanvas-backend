@@ -17,3 +17,5 @@ lib/live_canvas_web/components/core_components.ex
 lib/live_canvas_web/components/layouts.ex
 lib/live_canvas_web/telemetry.ex
 lib/live_canvas_web/user_auth.ex
+lib/live_canvas_gql/accounts/account_resolver.ex
+lib/live_canvas_gql/live_canvas_gql.ex

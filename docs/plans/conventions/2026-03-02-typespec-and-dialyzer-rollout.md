@@ -32,7 +32,7 @@
 - [x] Task 4: Add schema `t()` and shared enum union types
 - [x] Task 5: Roll typespec enforcement across context/core modules
 - [x] Task 6: Roll typespec enforcement across Phoenix web modules
-- [ ] Task 7: Roll typespec enforcement across GraphQL modules
+- [x] Task 7: Roll typespec enforcement across GraphQL modules
 - [ ] Task 8: Remove the temporary allowlist and enforce the full `lib/` tree
 
 ## Immediate Tooling Baseline
