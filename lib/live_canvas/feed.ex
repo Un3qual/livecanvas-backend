@@ -11,7 +11,7 @@ defmodule LC.Feed do
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.Post
   alias LCSchemas.Live.LiveSession
-  alias LCSchemas.Social.{Block, Follow}
+  alias LCSchemas.Social.{Block, Follow, Mute}
 
   @default_limit 25
 
@@ -40,11 +40,16 @@ defmodule LC.Feed do
         follow.follower_id == ^viewer_id and
           follow.followed_id == post.author_id and
           follow.state == :accepted,
+      left_join: mute in Mute,
+      on: mute.muter_id == ^viewer_id and mute.muted_id == post.author_id,
       left_join: block in Block,
       on:
         (block.blocker_id == ^viewer_id and block.blocked_id == post.author_id) or
           (block.blocker_id == post.author_id and block.blocked_id == ^viewer_id),
       where: is_nil(block.id),
+      # Mute checks are directional: only the viewer muting the author
+      # suppresses feed visibility.
+      where: is_nil(mute.id),
       where: post.author_id == ^viewer_id or post.visibility == :public or not is_nil(follow.id),
       order_by: [desc: post.inserted_at, desc: post.id]
     )
@@ -72,12 +77,16 @@ defmodule LC.Feed do
         follow.follower_id == ^viewer_id and
           follow.followed_id == live_session.host_id and
           follow.state == :accepted,
+      left_join: mute in Mute,
+      on: mute.muter_id == ^viewer_id and mute.muted_id == live_session.host_id,
       left_join: block in Block,
       on:
         (block.blocker_id == ^viewer_id and block.blocked_id == live_session.host_id) or
           (block.blocker_id == live_session.host_id and block.blocked_id == ^viewer_id),
       where: live_session.status == :live,
       where: is_nil(block.id),
+      # Viewer-issued mutes hide matching hosts from live discovery surfaces.
+      where: is_nil(mute.id),
       where:
         live_session.host_id == ^viewer_id or
           live_session.visibility == :public or

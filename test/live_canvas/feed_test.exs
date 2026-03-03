@@ -19,6 +19,37 @@ defmodule LC.FeedTest do
       assert [] = Feed.home_feed(viewer, limit: 10)
     end
 
+    test "excludes creators muted by the viewer" do
+      viewer = user_fixture()
+      muted_creator = user_fixture(privacy_mode: :public)
+      _mute = mute_fixture(viewer, muted_creator)
+
+      {:ok, _post} =
+        Content.create_post(muted_creator, %{
+          kind: :standard,
+          body_text: "muted",
+          visibility: :public
+        })
+
+      assert [] = Feed.home_feed(viewer, limit: 10)
+    end
+
+    test "does not exclude creators who muted the viewer" do
+      viewer = user_fixture()
+      creator = user_fixture(privacy_mode: :public)
+      _mute = mute_fixture(creator, viewer)
+
+      {:ok, post} =
+        Content.create_post(creator, %{
+          kind: :standard,
+          body_text: "reverse-mute",
+          visibility: :public
+        })
+
+      assert [visible_post] = Feed.home_feed(viewer, limit: 10)
+      assert visible_post.id == post.id
+    end
+
     test "returns visible posts ordered newest-first" do
       viewer = user_fixture()
       followed_creator = user_fixture()
@@ -42,6 +73,17 @@ defmodule LC.FeedTest do
   end
 
   describe "live_now/2" do
+    test "excludes hosts muted by the viewer" do
+      viewer = user_fixture()
+      muted_host = user_fixture(privacy_mode: :public)
+      _mute = mute_fixture(viewer, muted_host)
+
+      {:ok, muted_session} = Live.start_live_session(muted_host, %{visibility: :public})
+      {:ok, _muted_live} = Live.mark_session_live(muted_session)
+
+      assert [] = Feed.live_now(viewer, limit: 10)
+    end
+
     test "returns only visible live sessions ordered newest-first" do
       viewer = user_fixture()
       followed_host = user_fixture()

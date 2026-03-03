@@ -7,6 +7,58 @@ defmodule LCGQL.Feed.FeedQueriesTest do
   alias LC.{Accounts, Content, Live, Social}
 
   describe "homeFeed" do
+    test "excludes posts from creators muted by the current viewer" do
+      viewer = user_fixture()
+      muted_creator = user_fixture(privacy_mode: :public)
+      reverse_muter = user_fixture(privacy_mode: :public)
+      _viewer_mute = mute_fixture(viewer, muted_creator)
+      _reverse_mute = mute_fixture(reverse_muter, viewer)
+
+      {:ok, _muted_post} =
+        Content.create_post(muted_creator, %{kind: :standard, body_text: "muted", visibility: :public})
+
+      {:ok, visible_post} =
+        Content.create_post(reverse_muter, %{
+          kind: :standard,
+          body_text: "reverse-mute-visible",
+          visibility: :public
+        })
+
+      query = """
+      query($first: Int!) {
+        homeFeed(first: $first) {
+          edges {
+            node {
+              id
+              bodyText
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      visible_post_id = Absinthe.Relay.Node.to_global_id(:post, visible_post.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "homeFeed" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^visible_post_id,
+                          "bodyText" => "reverse-mute-visible"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+    end
+
     test "returns only posts visible to the current viewer" do
       viewer = user_fixture()
       followed_creator = user_fixture()
@@ -76,6 +128,47 @@ defmodule LCGQL.Feed.FeedQueriesTest do
   end
 
   describe "liveNow" do
+    test "excludes live sessions from hosts muted by the current viewer" do
+      viewer = user_fixture()
+      muted_host = user_fixture(privacy_mode: :public)
+      visible_host = user_fixture(privacy_mode: :public)
+      _mute = mute_fixture(viewer, muted_host)
+
+      {:ok, muted_session} = Live.start_live_session(muted_host, %{visibility: :public})
+      {:ok, _muted_live} = Live.mark_session_live(muted_session)
+
+      {:ok, visible_session} = Live.start_live_session(visible_host, %{visibility: :public})
+      {:ok, _visible_live} = Live.mark_session_live(visible_session)
+
+      query = """
+      query($first: Int!) {
+        liveNow(first: $first) {
+          edges {
+            node {
+              id
+              status
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      visible_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, visible_session.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "liveNow" => %{
+                    "edges" => [%{"node" => %{"id" => ^visible_session_id, "status" => "LIVE"}}]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+    end
+
     test "returns only currently-live sessions visible to the current viewer" do
       viewer = user_fixture()
       followed_host = user_fixture()

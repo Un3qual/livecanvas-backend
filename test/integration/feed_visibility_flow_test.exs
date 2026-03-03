@@ -11,9 +11,11 @@ defmodule LC.Integration.FeedVisibilityFlowTest do
     followed_creator = user_fixture()
     public_creator = user_fixture(privacy_mode: :public)
     blocked_creator = user_fixture(privacy_mode: :public)
+    muted_creator = user_fixture(privacy_mode: :public)
 
     _accepted_follow = accepted_follow_fixture(viewer, followed_creator)
     _block = block_fixture(blocked_creator, viewer)
+    _mute = mute_fixture(viewer, muted_creator)
 
     {:ok, followed_post} =
       Content.create_post(followed_creator, %{kind: :standard, body_text: "followers-visible"})
@@ -29,6 +31,13 @@ defmodule LC.Integration.FeedVisibilityFlowTest do
       Content.create_post(blocked_creator, %{
         kind: :standard,
         body_text: "blocked-hidden",
+        visibility: :public
+      })
+
+    {:ok, _muted_post} =
+      Content.create_post(muted_creator, %{
+        kind: :standard,
+        body_text: "muted-hidden",
         visibility: :public
       })
 
