@@ -1,0 +1,42 @@
+defmodule LCSchemas.Content.MediaAsset do
+  use LCSchemas.Schema, :relational
+
+  alias LCSchemas.Accounts.User
+  alias LCSchemas.Content.Post
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          entropy_id: Ecto.UUID.t() | nil,
+          owner_id: pos_integer() | nil,
+          owner: User.t() | Ecto.Association.NotLoaded.t(),
+          post_id: pos_integer() | nil,
+          post: Post.t() | Ecto.Association.NotLoaded.t(),
+          storage_key: String.t() | nil,
+          mime_type: String.t() | nil,
+          processing_state: LCSchemas.Content.media_processing_state() | nil,
+          width: integer() | nil,
+          height: integer() | nil,
+          duration_ms: integer() | nil,
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
+
+  schema "media_assets" do
+    field :entropy_id, Ecto.UUID, read_after_writes: true
+    field :storage_key, :string
+    field :mime_type, :string
+
+    field :processing_state, Ecto.Enum,
+      values: [:uploaded, :processed, :failed],
+      default: :uploaded
+
+    field :width, :integer
+    field :height, :integer
+    field :duration_ms, :integer
+
+    belongs_to :owner, User
+    belongs_to :post, Post
+
+    timestamps()
+  end
+end

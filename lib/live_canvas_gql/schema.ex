@@ -4,12 +4,14 @@ defmodule LCGQL.Schema do
   use Absinthe.Relay.Schema,
     flavor: :modern
 
-  alias LC.Accounts
+  alias LC.{Accounts, Content}
 
   # global_id_translator: SmokespotsGraphQL.IDTranslator
   import_types(Absinthe.Plug.Types)
   import_types(LCGQL.Accounts.Queries)
   import_types(LCGQL.Accounts.Types)
+  import_types(LCGQL.Content.Queries)
+  import_types(LCGQL.Content.Types)
   import_types(LCGQL.Social.Queries)
   import_types(LCGQL.Social.Types)
   # import_types LCGQL.Chat.Types
@@ -19,11 +21,13 @@ defmodule LCGQL.Schema do
       resolve(fn
         %{type: :user, id: id}, _resolution -> fetch_user_node(id)
         %{type: :user_identity, id: id}, _resolution -> fetch_user_identity_node(id)
+        %{type: :post, id: id}, _resolution -> fetch_post_node(id)
         _arguments, _resolution -> {:ok, nil}
       end)
     end
 
     import_fields(:account_queries)
+    import_fields(:content_queries)
     import_fields(:social_queries)
 
     # field :convo_lookup, non_null(:conversation) do
@@ -41,6 +45,9 @@ defmodule LCGQL.Schema do
       %{privacy_mode: _privacy_mode, confirmed_at: _confirmed_at}, _resolution ->
         :user
 
+      %{kind: _kind, visibility: _visibility, author_id: _author_id}, _resolution ->
+        :post
+
       _, _ ->
         nil
     end)
@@ -48,8 +55,10 @@ defmodule LCGQL.Schema do
 
   mutation do
     import_types(LCGQL.Accounts.Mutations)
+    import_types(LCGQL.Content.Mutations)
     import_types(LCGQL.Social.Mutations)
     import_fields(:account_mutations)
+    import_fields(:content_mutations)
     import_fields(:social_mutations)
   end
 
@@ -63,6 +72,12 @@ defmodule LCGQL.Schema do
 
   defp fetch_user_identity_node(id) do
     {:ok, Accounts.get_user_identity!(id)}
+  rescue
+    Ecto.NoResultsError -> {:ok, nil}
+  end
+
+  defp fetch_post_node(id) do
+    {:ok, Content.get_post!(id)}
   rescue
     Ecto.NoResultsError -> {:ok, nil}
   end

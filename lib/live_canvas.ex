@@ -8,13 +8,13 @@ defmodule LC do
   """
 
   @test_support_exports if Mix.env() == :test,
-                          do: [AccountsFixtures, DataCase, SocialFixtures],
+                          do: [AccountsFixtures, ContentFixtures, DataCase, SocialFixtures],
                           else: []
 
   use Boundary,
     top_level?: true,
     deps: [LCSchemas],
-    exports: [Accounts, Social] ++ @test_support_exports
+    exports: [Accounts, Content, Social] ++ @test_support_exports
 
   @spec repo_module() :: LC.Infra.Repo
   def repo_module, do: LC.Infra.Repo
