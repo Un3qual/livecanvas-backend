@@ -13,6 +13,15 @@ defmodule LCWeb.LiveSessionChannelTest do
   alias LCWeb.{LiveSessionChannel, UserSocket}
 
   @endpoint LCWeb.Endpoint
+  @live_channel_telemetry_events [
+    [:live_canvas, :live, :channel, :join],
+    [:live_canvas, :live, :channel, :chat_send]
+  ]
+
+  setup do
+    attach_live_channel_telemetry_handler()
+    :ok
+  end
 
   test "authorized viewer can join a live session topic" do
     host = user_fixture(privacy_mode: :public)
@@ -58,6 +67,17 @@ defmodule LCWeb.LiveSessionChannelTest do
                LiveSessionChannel,
                "live_session:#{session.id}"
              )
+
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
+                    %{
+                      result: :error,
+                      reason: :not_authorized,
+                      session_id: session_id,
+                      user_id: user_id
+                    }}
+
+    assert session_id == session.id
+    assert user_id == viewer.id
   end
 
   test "suspended viewer cannot join a live session topic" do
@@ -109,6 +129,44 @@ defmodule LCWeb.LiveSessionChannelTest do
                LiveSessionChannel,
                "live_session:#{session.id}"
              )
+
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
+                    %{
+                      result: :error,
+                      reason: :rate_limited,
+                      session_id: session_id,
+                      user_id: user_id
+                    }}
+
+    assert session_id == session.id
+    assert user_id == viewer.id
+  end
+
+  test "invalid chat payload emits telemetry and returns invalid_body" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    ref = push(socket, "chat:send", %{"body" => 42})
+    assert_reply ref, :error, %{reason: "invalid_body"}
+
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
+                    %{
+                      result: :error,
+                      reason: :invalid_body,
+                      session_id: session_id,
+                      user_id: user_id
+                    }}
+
+    assert session_id == session.id
+    assert user_id == viewer.id
   end
 
   test "disconnect marks participant left and prunes runtime membership" do
@@ -157,5 +215,27 @@ defmodule LCWeb.LiveSessionChannelTest do
         Process.sleep(10)
         wait_for_participant_left(session_id, user_id, attempts - 1)
     end
+  end
+
+  defp attach_live_channel_telemetry_handler do
+    test_pid = self()
+    handler_id = "live-channel-test-#{System.unique_integer([:positive, :monotonic])}"
+
+    :ok =
+      :telemetry.attach_many(
+        handler_id,
+        @live_channel_telemetry_events,
+        &__MODULE__.handle_live_channel_telemetry_event/4,
+        test_pid
+      )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+  end
+
+  @spec handle_live_channel_telemetry_event([atom()], map(), map(), pid()) :: :ok
+  def handle_live_channel_telemetry_event(event, measurements, metadata, test_pid)
+      when is_list(event) and is_map(measurements) and is_map(metadata) and is_pid(test_pid) do
+    send(test_pid, {:telemetry_event, event, measurements, metadata})
+    :ok
   end
 end

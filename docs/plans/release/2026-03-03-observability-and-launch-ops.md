@@ -26,7 +26,7 @@ Verified directly in `lib/`, `test/`, and release roadmap docs before selecting 
 ## Progress
 
 - [x] Task 1: Instrument `LC.Live` lifecycle outcomes with structured Telemetry events
-- [ ] Task 2: Instrument live channel join/message failure paths with structured Telemetry events
+- [x] Task 2: Instrument live channel join/message failure paths with structured Telemetry events
 - [ ] Task 3: Instrument auth lifecycle outcomes with Telemetry parity to audit events
 - [ ] Task 4: Add launch-ops observability checklist + event contract notes and run final verification
 
@@ -96,11 +96,11 @@ git commit -m "feat: add live session lifecycle telemetry baseline"
 - Modify: `docs/plans/release/2026-03-03-observability-and-launch-ops.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing channel tests for join/message Telemetry events
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Emit Telemetry for join and chat send outcomes in channel handlers
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing channel tests for join/message Telemetry events
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Emit Telemetry for join and chat send outcomes in channel handlers
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run `mix typecheck`, update checklist progress, and commit milestone
 
 ### Task 3: Instrument Auth Lifecycle Outcome Telemetry
 
