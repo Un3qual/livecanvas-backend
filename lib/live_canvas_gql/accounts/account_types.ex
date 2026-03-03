@@ -7,6 +7,7 @@ defmodule LCGQL.Accounts.Types do
 
   connection(node_type: :user)
   connection(node_type: :user_identity)
+  connection(node_type: :contact_match)
 
   @desc "List of supported OAuth providers for logging in."
   enum :oauth_provider do
@@ -43,6 +44,18 @@ defmodule LCGQL.Accounts.Types do
     field :uid, non_null(:string)
     # field :user, non_null(:user), resolve: dataloader(User)
     field :inserted_at, non_null(:string)
+  end
+
+  node object(:contact_match) do
+    field :contact_name, :string do
+      resolve(&Resolver.contact_match_name/3)
+    end
+
+    field :birthday, :string do
+      resolve(&Resolver.contact_match_birthday/3)
+    end
+
+    field :matched_users, non_null(list_of(non_null(:user)))
   end
 
   object :token do

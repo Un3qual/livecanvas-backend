@@ -55,6 +55,10 @@ defmodule LCGQL.Schema do
       %{status: _status, visibility: _visibility, host_id: _host_id}, _resolution ->
         :live_session
 
+      %{contact_entry: %{contact_client_id: _contact_client_id}, matched_users: _matched_users},
+      _resolution ->
+        :contact_match
+
       _, _ ->
         nil
     end)

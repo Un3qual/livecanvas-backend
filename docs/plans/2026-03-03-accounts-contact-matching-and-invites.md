@@ -13,7 +13,7 @@
 ## Progress
 
 - [x] Task 1: Add `Accounts` contact import and matching APIs
-- [ ] Task 2: Expose contact matches through Relay-first GraphQL
+- [x] Task 2: Expose contact matches through Relay-first GraphQL
 - [ ] Task 3: Add invite issuance and notifier wrappers
 - [ ] Task 4: Run final verification and integration checks
 
@@ -96,6 +96,13 @@ git commit -m "feat: add accounts contact import and matching apis"
 - Modify: `lib/live_canvas_gql/accounts/account_resolver.ex`
 - Modify: `lib/live_canvas_gql/schema.ex`
 - Create: `test/live_canvas_gql/accounts/contact_queries_test.exs`
+
+**Task 2 Step Progress:**
+- [x] Step 1: Write failing GraphQL query tests
+- [x] Step 2: Run focused GraphQL tests to verify RED
+- [x] Step 3: Implement minimal Relay schema and resolver wiring
+- [x] Step 4: Run focused GraphQL tests to verify GREEN
+- [x] Step 5: Commit
 
 **Step 1: Write failing GraphQL query tests**
 

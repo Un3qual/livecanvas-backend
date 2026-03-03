@@ -13,6 +13,11 @@ defmodule LCGQL.Accounts.Resolver do
   @type mutation_result :: {:ok, mutation_payload()}
   @type user_lookup_error :: :invalid_id | :invalid_type | :not_found
   @type user_lookup_result :: {:ok, User.t()} | {:error, user_lookup_error()}
+  @type contact_match_node :: %{
+          id: pos_integer(),
+          contact_entry: map(),
+          matched_users: [User.t()]
+        }
 
   @spec register_with_email(
           term(),
@@ -86,6 +91,32 @@ defmodule LCGQL.Accounts.Resolver do
     Absinthe.Relay.Connection.from_query(query, &Accounts.run_query/1, args)
   end
 
+  @spec viewer_contact_matches(term(), map(), Absinthe.Resolution.t()) ::
+          {:ok, map()} | {:error, term()}
+  def viewer_contact_matches(_parent, args, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
+    user
+    |> Accounts.list_user_contact_matches()
+    |> Enum.map(&contact_match_node/1)
+    |> Absinthe.Relay.Connection.from_list(args)
+  end
+
+  def viewer_contact_matches(_parent, args, _resolution) do
+    Absinthe.Relay.Connection.from_list([], args)
+  end
+
+  @spec contact_match_name(contact_match_node(), map(), Absinthe.Resolution.t()) ::
+          {:ok, String.t() | nil}
+  def contact_match_name(%{contact_entry: %{contact_name: contact_name}}, _args, _res),
+    do: {:ok, contact_name}
+
+  @spec contact_match_birthday(contact_match_node(), map(), Absinthe.Resolution.t()) ::
+          {:ok, String.t() | nil}
+  def contact_match_birthday(%{contact_entry: %{birthday: nil}}, _args, _res),
+    do: {:ok, nil}
+
+  def contact_match_birthday(%{contact_entry: %{birthday: birthday}}, _args, _res),
+    do: {:ok, Date.to_iso8601(birthday)}
+
   @spec fetch_user(term()) :: user_lookup_result()
   defp fetch_user(user_id) do
     with {:ok, id} <- Relay.decode_global_id(user_id, :user, LCGQL.Schema) do
@@ -110,5 +141,10 @@ defmodule LCGQL.Accounts.Resolver do
         %{field: to_string(field), message: message}
       end)
     end)
+  end
+
+  @spec contact_match_node(LC.Accounts.contact_match()) :: contact_match_node()
+  defp contact_match_node(%{contact_entry: %{id: id}} = contact_match) do
+    Map.put(contact_match, :id, id)
   end
 end
