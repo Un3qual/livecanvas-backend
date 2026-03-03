@@ -11,6 +11,7 @@ defmodule LC.Accounts do
   import Ecto.Changeset, only: [add_error: 3, get_field: 2]
 
   alias LC.Infra.Repo
+  alias LCSchemas.Accounts.AuthEvent, as: AuthEventSchema
 
   alias LCSchemas.Accounts.{
     EmailAddress,
@@ -26,6 +27,7 @@ defmodule LC.Accounts do
   }
 
   alias LC.Accounts.{
+    AuthEvent,
     Passwords,
     PhoneNotifier,
     PhoneNumbers,
@@ -78,6 +80,14 @@ defmodule LC.Accounts do
   @type access_token_auth_result :: {:ok, Scope.t()} | {:error, access_token_auth_error()}
   @type refresh_token_auth_error :: :invalid_token | :expired_token | :revoked_token
   @type refresh_token_auth_result :: {:ok, Scope.t()} | {:error, refresh_token_auth_error()}
+  @type auth_event_type :: LCSchemas.Accounts.auth_event_type()
+  @type auth_event_opts ::
+          [
+            user: User.t() | nil,
+            user_id: pos_integer() | nil,
+            metadata: map()
+          ]
+  @type auth_event_result :: {:ok, AuthEventSchema.t()} | {:error, changeset()}
   @type token_pair_payload :: %{access_token: token_payload(), refresh_token: token_payload()}
   @type token_pair_result :: {:ok, token_pair_payload()} | {:error, refresh_token_auth_error()}
   @type registration_attrs :: %{
@@ -167,6 +177,35 @@ defmodule LC.Accounts do
   @doc false
   @spec run_query(Ecto.Query.t()) :: [term()]
   def run_query(query), do: Repo.all(query)
+
+  @doc """
+  Persists an append-only auth security event.
+  """
+  @spec record_auth_event(auth_event_type(), auth_event_opts()) :: auth_event_result()
+  def record_auth_event(event_type, opts \\ []) when is_atom(event_type) and is_list(opts) do
+    event_type
+    |> AuthEvent.attrs_for_insert(opts)
+    |> then(fn attrs ->
+      %AuthEventSchema{}
+      |> AuthEvent.changeset(attrs)
+      |> Repo.insert()
+    end)
+  end
+
+  @doc """
+  Lists auth security events for a user, newest first.
+  """
+  @spec list_user_auth_events(User.t(), keyword()) :: [AuthEventSchema.t()]
+  def list_user_auth_events(%User{id: user_id}, opts \\ []) when is_list(opts) do
+    limit = opts |> Keyword.get(:limit, 50) |> normalize_query_limit()
+
+    from(auth_event in AuthEventSchema,
+      where: auth_event.user_id == ^user_id,
+      order_by: [desc: auth_event.inserted_at, desc: auth_event.id],
+      limit: ^limit
+    )
+    |> Repo.all()
+  end
 
   ## User registration
 
@@ -1264,6 +1303,10 @@ defmodule LC.Accounts do
       :ok
     end
   end
+
+  @spec normalize_query_limit(term()) :: pos_integer()
+  defp normalize_query_limit(limit) when is_integer(limit) and limit > 0, do: limit
+  defp normalize_query_limit(_limit), do: 50
 
   @spec now_utc() :: DateTime.t()
   defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)

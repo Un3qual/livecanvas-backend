@@ -5,6 +5,8 @@ defmodule LCSchemas do
     top_level?: true,
     exports: [
       Accounts,
+      Accounts.AuthEvent,
+      Accounts.AuthEventType,
       Accounts.EmailAddress,
       Accounts.PhoneNumber,
       Accounts.User,

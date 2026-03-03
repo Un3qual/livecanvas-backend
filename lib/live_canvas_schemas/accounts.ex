@@ -22,4 +22,11 @@ defmodule LCSchemas.Accounts do
           | :phone_one_time_code_token
           | :access_token
           | :refresh_token
+
+  @type auth_event_type ::
+          :password_login_succeeded
+          | :password_login_failed
+          | :magic_link_login_succeeded
+          | :magic_link_login_failed
+          | :refresh_token_revoked
 end
