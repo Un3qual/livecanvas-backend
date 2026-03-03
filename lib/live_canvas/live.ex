@@ -66,6 +66,11 @@ defmodule LC.Live do
   """
   @spec join_live_session(LiveSession.t(), User.t(), LCSchemas.Live.live_participant_role()) ::
           live_participant_result()
+  def join_live_session(%LiveSession{id: session_id, status: :ended}, %User{id: user_id}, role)
+      when is_integer(session_id) and is_integer(user_id) and is_atom(role) do
+    {:error, :ended}
+  end
+
   def join_live_session(%LiveSession{id: session_id}, %User{id: user_id}, role)
       when is_integer(session_id) and is_integer(user_id) and is_atom(role) do
     now = now_utc()

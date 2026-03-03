@@ -29,6 +29,15 @@ defmodule LC.LiveTest do
       assert live_session.status == :live
       assert %DateTime{} = live_session.started_at
     end
+
+    test "does not transition an ended session back to live" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+      {:ok, ended_session} = Live.end_live_session(session, %{ended_reason: :host_ended})
+
+      assert {:error, changeset} = Live.mark_session_live(ended_session)
+      assert %{status: ["cannot transition ended session to live"]} = errors_on(changeset)
+    end
   end
 
   describe "join_live_session/3 and end_live_session/2" do
@@ -52,6 +61,17 @@ defmodule LC.LiveTest do
       assert %DateTime{} = ended_session.ended_at
 
       assert_receive {:DOWN, ^monitor_ref, :process, ^pid, _reason}
+    end
+
+    test "returns an error when joining an ended session" do
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, ended_session} = Live.end_live_session(session, %{ended_reason: :host_ended})
+      assert ended_session.status == :ended
+
+      assert {:error, :ended} = Live.join_live_session(ended_session, viewer, :viewer)
     end
   end
 end

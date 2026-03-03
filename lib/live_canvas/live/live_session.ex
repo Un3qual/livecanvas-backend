@@ -36,7 +36,14 @@ defmodule LC.Live.LiveSession do
 
   @spec mark_live_changeset(LiveSessionSchema.t(), DateTime.t()) :: Ecto.Changeset.t()
   def mark_live_changeset(%LiveSessionSchema{} = live_session, %DateTime{} = now) do
-    changeset(live_session, %{status: :live, started_at: live_session.started_at || now})
+    if live_session.status == :ended do
+      # `ended` is terminal and must not be revived by a subsequent mark-live call.
+      live_session
+      |> changeset(%{})
+      |> add_error(:status, "cannot transition ended session to live")
+    else
+      changeset(live_session, %{status: :live, started_at: live_session.started_at || now})
+    end
   end
 
   @spec end_changeset(LiveSessionSchema.t(), attrs(), DateTime.t()) :: Ecto.Changeset.t()
