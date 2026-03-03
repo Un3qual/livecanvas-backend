@@ -93,7 +93,9 @@ defmodule LCGQL.Accounts.Resolver do
 
   @spec viewer_contact_matches(term(), map(), Absinthe.Resolution.t()) ::
           {:ok, map()} | {:error, term()}
-  def viewer_contact_matches(_parent, args, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
+  def viewer_contact_matches(_parent, args, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
     user
     |> Accounts.list_user_contact_matches()
     |> Enum.map(&contact_match_node/1)

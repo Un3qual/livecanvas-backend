@@ -14,7 +14,7 @@
 
 - [x] Task 1: Add mute persistence and `LC.Social` boundary APIs
 - [x] Task 2: Expose mute status and mute/unmute mutations through GraphQL
-- [ ] Task 3: Run full verification and close the plan
+- [x] Task 3: Run full verification and close the plan
 
 ### Task 1: Add Mute Persistence And `LC.Social` Boundary APIs
 
@@ -182,9 +182,9 @@ git commit -m "feat: add graphql social mute controls"
 - Verify: `lib/live_canvas_gql/social/social_resolver.ex`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Mark all completed checklist items in this plan file
-- [ ] Step 2: Run required verification suite
-- [ ] Step 3: Commit final plan state with related code/test changes
+- [x] Step 1: Mark all completed checklist items in this plan file
+- [x] Step 2: Run required verification suite
+- [x] Step 3: Commit final plan state with related code/test changes
 
 **Step 2: Run required verification suite**
 

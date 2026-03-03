@@ -83,6 +83,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       assert first_node["contactName"] == "Email Match"
       assert [%{"id" => ^matched_email_user_id, "email" => email}] = first_node["matchedUsers"]
       assert email == matched_email_user.email
+
       assert {:ok, %{type: :contact_match}} =
                Absinthe.Relay.Node.from_global_id(first_node["id"], LCGQL.Schema)
 
@@ -106,11 +107,13 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       assert second_node["contactName"] == "Phone Match"
       assert [%{"id" => ^matched_phone_user_id, "email" => email}] = second_node["matchedUsers"]
       assert email == matched_phone_user.email
+
       assert {:ok, %{type: :contact_match}} =
                Absinthe.Relay.Node.from_global_id(second_node["id"], LCGQL.Schema)
 
       assert {:ok, %{type: :user}} =
                Absinthe.Relay.Node.from_global_id(matched_phone_user_id, LCGQL.Schema)
+
       assert second_page["pageInfo"]["hasNextPage"] == false
     end
 
@@ -131,7 +134,8 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       }
       """
 
-      assert {:ok, %{data: %{"viewerContactMatches" => %{"edges" => [], "pageInfo" => page_info}}}} =
+      assert {:ok,
+              %{data: %{"viewerContactMatches" => %{"edges" => [], "pageInfo" => page_info}}}} =
                Absinthe.run(query, LCGQL.Schema)
 
       assert page_info["hasNextPage"] == false

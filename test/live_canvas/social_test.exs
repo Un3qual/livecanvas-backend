@@ -34,6 +34,17 @@ defmodule LC.SocialTest do
       refute Social.muted?(muted, muter)
     end
 
+    test "mute_user/2 is idempotent for the same muter/muted pair" do
+      muter = user_fixture()
+      muted = user_fixture()
+
+      assert {:ok, first_mute} = Social.mute_user(muter, muted)
+      assert {:ok, second_mute} = Social.mute_user(muter, muted)
+
+      assert first_mute.id == second_mute.id
+      assert Social.muted?(muter, muted)
+    end
+
     test "unmute_user/2 removes a mute relationship and is idempotent" do
       muter = user_fixture()
       muted = user_fixture()
