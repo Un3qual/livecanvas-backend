@@ -27,7 +27,7 @@ Verified directly in `lib/`, `test/`, and `priv/repo/migrations` before selectin
 
 - [x] Task 1: Add auth audit event persistence primitives (schema, migration, Accounts APIs)
 - [x] Task 2: Emit audit events from sensitive login and token revocation paths
-- [ ] Task 3: Run verification, update release roadmap notes, and commit final milestone
+- [x] Task 3: Run verification, update release roadmap notes, and commit final milestone
 
 ### Task 1: Add Auth Audit Event Persistence Primitives
 
@@ -209,9 +209,9 @@ git commit -m "feat: emit auth audit events for login and token revocation"
 - Modify: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Run final verification (`mix test`, `mix compile`, `mix typecheck`, `mix precommit`)
-- [ ] Step 2: Update roadmap "planning holes/blockers" notes to reflect delivered auth audit baseline
-- [ ] Step 3: Mark tasks complete and commit final milestone
+- [x] Step 1: Run final verification (`mix test`, `mix compile`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Update roadmap "planning holes/blockers" notes to reflect delivered auth audit baseline
+- [x] Step 3: Mark tasks complete and commit final milestone
 
 **Step 1: Run final verification**
 
@@ -225,6 +225,12 @@ mix precommit
 ```
 
 Expected: all PASS.
+
+Verification run on 2026-03-03:
+- `mix test` -> PASS (`280 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS
+- `mix precommit` -> PASS
 
 **Step 2: Update roadmap notes**
 

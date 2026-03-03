@@ -10,7 +10,7 @@ defmodule LC.Accounts.AuthEventTest do
 
   describe "record_auth_event/2" do
     test "persists an event with user ownership and metadata" do
-      user = user_fixture()
+      user = unconfirmed_user_fixture()
 
       assert {:ok, %AuthEvent{} = event} =
                Accounts.record_auth_event(
@@ -40,7 +40,7 @@ defmodule LC.Accounts.AuthEventTest do
 
   describe "list_user_auth_events/2" do
     test "returns newest-first events for a user and respects the limit" do
-      user = user_fixture()
+      user = unconfirmed_user_fixture()
       other_user = user_fixture()
 
       assert {:ok, _first} = Accounts.record_auth_event(:password_login_succeeded, user: user)
@@ -61,6 +61,25 @@ defmodule LC.Accounts.AuthEventTest do
              ]
 
       assert Enum.all?(events, &(&1.user_id == user.id))
+    end
+
+    test "falls back to default limit when limit is non-positive" do
+      user = unconfirmed_user_fixture()
+
+      for event_type <- [:password_login_succeeded, :magic_link_login_succeeded, :password_login_failed] do
+        assert {:ok, _event} = Accounts.record_auth_event(event_type, user: user)
+        Process.sleep(1)
+      end
+
+      events = Accounts.list_user_auth_events(user, limit: 0)
+
+      assert length(events) == 3
+
+      assert Enum.map(events, & &1.event_type) == [
+               :password_login_failed,
+               :magic_link_login_succeeded,
+               :password_login_succeeded
+             ]
     end
   end
 

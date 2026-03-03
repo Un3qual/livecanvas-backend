@@ -5,8 +5,9 @@
 - Scope audited: `ARCHITECTURE.md`, `docs/architecture/conventions.md`, all files in `docs/plans/**`, core `lib/**`, migrations, and tests.
 - Verification run on this snapshot:
   - `mix compile` -> PASS
-  - `mix test` -> PASS (`240 tests, 0 failures`)
+  - `mix test` -> PASS (`280 tests, 0 failures`)
   - `mix typecheck` -> PASS
+  - `mix precommit` -> PASS
 - Plan tracking state: every checklist-bearing plan file in `docs/plans/**` is currently fully checked.
 
 ## What Has Been Delivered
@@ -50,7 +51,9 @@
 
 The backend is in a strong "foundation complete / internal alpha" state, not yet in a "public release ready" state.
 
-Main reason: the current API surface proves domain behavior, but production-grade authz hardening, runtime scaling, and operations layers are not complete yet.
+Main reason: the current API surface proves domain behavior, but runtime scaling, media/storage delivery, and production operations layers are not complete yet.
+
+Auth/security baseline now includes viewer-scoped GraphQL writes, bearer token GraphQL auth precedence, GraphiQL environment gating, abuse-rate limiting, and persisted auth audit events for password/magic-link login outcomes plus refresh-token revocation.
 
 ## Explicitly Deferred (Still Out Of Scope For V1)
 
@@ -116,7 +119,7 @@ Mobile parallel start now:
 - Finalize supported login methods for v1 launch (email/password + magic link vs additional providers).
 - Implement mobile-first auth endpoints/flows (not only web form/session flows).
 - Decide and implement provider rollout (Google/Apple/passkey either fully ship or explicitly defer behind flags with no client promise).
-- Add audit events for login/token lifecycle/security events.
+- Auth audit baseline is delivered for password/magic-link login outcomes plus refresh-token revocation; expand to additional high-risk identity lifecycle events if they enter v1 scope.
 
 Mobile parallel:
 - Start real login/signup/password-reset screens once auth contract is frozen.
@@ -167,9 +170,7 @@ Mobile parallel:
 
 The following are material gaps where no sufficiently detailed executable plan exists yet in `docs/plans/`:
 
-- Authz hardening plan for actor-scoped GraphQL writes.
-- Mobile-first auth/session contract plan (token transport, refresh, revocation, expiry policy).
-- Rate-limit/abuse defense plan.
+- Auth audit expansion plan for additional high-risk identity lifecycle events (for example provider unlink/account recovery) if included in v1 launch scope.
 - REST webhook + background-job design/implementation plan.
 - Distributed live runtime ownership plan for multi-pod deployments.
 - Media storage/processing delivery plan.
@@ -179,16 +180,12 @@ The following are material gaps where no sufficiently detailed executable plan e
 
 ## Evidence Notes On Key Blockers
 
-- Several GraphQL mutations currently accept client-supplied actor IDs instead of binding to authenticated scope (`lib/live_canvas_gql/social/social_resolver.ex`, `lib/live_canvas_gql/content/content_resolver.ex`, `lib/live_canvas_gql/accounts/account_resolver.ex`).
-- Current integration coverage also demonstrates client-selected actor IDs for writes (`test/integration/accounts_login_flow_test.exs` uses follower-selected `authorId` for `createPost`).
-- GraphQL request context currently reads session token from Plug session/cookie (`lib/live_canvas_gql/context.ex`), but release mobile flows need explicit token transport semantics.
-- GraphiQL route is currently always forwarded (`lib/live_canvas_gql/router.ex`).
+- Auth audit baseline is now implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, and login/revocation emissions in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`.
 - Live runtime session ownership is node-local (`lib/live_canvas/live/session_supervisor.ex`), which needs an explicit multi-node ownership strategy before high-scale release.
 
 ## Suggested Next Plan Files To Create
 
-- `docs/plans/2026-03-03-release-authn-authz-hardening.md`
-- `docs/plans/2026-03-03-mobile-auth-token-contract.md`
+- `docs/plans/release/2026-03-03-auth-audit-expansion.md`
 - `docs/plans/2026-03-03-live-runtime-distributed-ownership.md`
 - `docs/plans/2026-03-03-media-storage-and-processing.md`
 - `docs/plans/2026-03-03-observability-and-launch-ops.md`
