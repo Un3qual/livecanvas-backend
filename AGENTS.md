@@ -7,3 +7,26 @@
 - Use SHA3-based token hashing, not SHA-2, for persisted token secrets.
 - Keep the GraphQL API Relay-first: nodes, global IDs, connections, edges, and cursor pagination.
 - Add typespecs for public functions and run `mix typecheck` when you touch typed code.
+
+## Batching And Commit Policy
+
+- Verify implementation status before acting; do not assume an unchecked plan item is unimplemented.
+- Prefer the next meaningful batch over a single micro-step: execute one full task section or 3-5 related steps when safe.
+- If there is no unfinished plan item, review `ARCHITECTURE.md` and create the next implementation plan.
+- Keep progress checkboxes up to date as work proceeds.
+- Do not create standalone checkbox-only or docs-only progress commits; bundle progress updates with related code/test changes in the same commit.
+- Commit at milestone boundaries: completed task section, user-visible behavior change, or required verification checkpoint.
+- Dispatch subagents only when there are 2+ substantial independent tracks; avoid subagents for simple plan reading or tiny edits.
+- Run the minimum verification needed for each batch; avoid verbose command flags unless diagnosing failures.
+- Once the requested work is complete, merge into `main` and remove the worktree.
+
+## Planning And Documentation
+
+- When creating plans, use docs subfolders intelligently so related plans stay organized.
+- Plans must be detailed and specific while still allowing executors to make informed decisions based on their own research.
+- Split plans into multiple steps and/or multiple files when that improves clarity or execution safety.
+- If a plan or requirement is not specific enough to execute safely, ask clarifying questions before implementation.
+
+## Implementation Quality
+
+- Add comments to non-obvious code paths so intent and invariants are clear.
