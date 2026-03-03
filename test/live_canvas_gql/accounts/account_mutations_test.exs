@@ -70,13 +70,14 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   end
 
   describe "attachUserPhoneNumber" do
-    test "normalizes and persists a phone number through the accounts boundary" do
+    test "normalizes and persists a phone number for the authenticated viewer" do
       user = user_fixture()
       user_id = Absinthe.Relay.Node.to_global_id(:user, user.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(user)}
 
       mutation = """
-      mutation($userId: ID!) {
-        attachUserPhoneNumber(input: {userId: $userId, phoneNumber: "(650) 253-0000"}) {
+      mutation {
+        attachUserPhoneNumber(input: {phoneNumber: "(650) 253-0000"}) {
           user {
             id
           }
@@ -96,18 +97,16 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                     "errors" => []
                   }
                 }
-              }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"userId" => user_id})
+              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
 
       assert persisted_user = Accounts.get_user_by_phone("+1 650-253-0000")
       assert persisted_user.id == user.id
     end
 
-    test "rejects a raw numeric userId that is not a relay global id" do
-      user = user_fixture()
-
+    test "returns unauthenticated errors without a viewer scope" do
       mutation = """
-      mutation($userId: ID!) {
-        attachUserPhoneNumber(input: {userId: $userId, phoneNumber: "(650) 253-0000"}) {
+      mutation {
+        attachUserPhoneNumber(input: {phoneNumber: "(650) 253-0000"}) {
           user {
             id
           }
@@ -124,11 +123,10 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                 data: %{
                   "attachUserPhoneNumber" => %{
                     "user" => nil,
-                    "errors" => [%{"field" => "userId", "message" => _message} | _]
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
                   }
                 }
-              }} =
-               Absinthe.run(mutation, LCGQL.Schema, variables: %{"userId" => "#{user.id}"})
+              }} = Absinthe.run(mutation, LCGQL.Schema)
     end
   end
 

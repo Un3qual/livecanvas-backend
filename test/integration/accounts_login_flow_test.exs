@@ -31,12 +31,12 @@ defmodule LC.Integration.AccountsLoginFlowTest do
     assert %{user: %{id: viewer_id}} = scope = authenticated_scope_from_conn(conn)
     assert viewer_id == viewer.id
 
-    viewer_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
     creator_global_id = Absinthe.Relay.Node.to_global_id(:user, creator.id, LCGQL.Schema)
+    viewer_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
     follow_mutation = """
-    mutation($followerId: ID!, $followedId: ID!) {
-      followUser(input: {followerId: $followerId, followedId: $followedId}) {
+    mutation($followedId: ID!) {
+      followUser(input: {followedId: $followedId}) {
         follow {
           id
           state
@@ -59,15 +59,19 @@ defmodule LC.Integration.AccountsLoginFlowTest do
               }
             }} =
              Absinthe.run(follow_mutation, LCGQL.Schema,
-               variables: %{"followerId" => viewer_global_id, "followedId" => creator_global_id}
+               variables: %{"followedId" => creator_global_id},
+               context: %{current_scope: scope}
              )
 
     create_post_mutation = """
-    mutation($authorId: ID!, $bodyText: String!) {
-      createPost(input: {authorId: $authorId, kind: STANDARD, bodyText: $bodyText}) {
+    mutation($bodyText: String!) {
+      createPost(input: {kind: STANDARD, bodyText: $bodyText}) {
         post {
           id
           bodyText
+          author {
+            id
+          }
         }
         errors {
           field
@@ -81,13 +85,18 @@ defmodule LC.Integration.AccountsLoginFlowTest do
             %{
               data: %{
                 "createPost" => %{
-                  "post" => %{"id" => post_global_id, "bodyText" => "integration-post"},
+                  "post" => %{
+                    "id" => post_global_id,
+                    "bodyText" => "integration-post",
+                    "author" => %{"id" => ^viewer_global_id}
+                  },
                   "errors" => []
                 }
               }
             }} =
              Absinthe.run(create_post_mutation, LCGQL.Schema,
-               variables: %{"authorId" => creator_global_id, "bodyText" => "integration-post"}
+               variables: %{"bodyText" => "integration-post"},
+               context: %{current_scope: scope}
              )
 
     home_feed_query = """

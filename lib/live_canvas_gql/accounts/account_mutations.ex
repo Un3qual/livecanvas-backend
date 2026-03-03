@@ -20,7 +20,6 @@ defmodule LCGQL.Accounts.Mutations do
 
     payload field :attach_user_phone_number do
       input do
-        field :user_id, non_null(:id)
         field :phone_number, non_null(:string)
       end
 

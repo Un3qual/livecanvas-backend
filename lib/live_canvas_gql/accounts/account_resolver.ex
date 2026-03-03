@@ -2,7 +2,6 @@ defmodule LCGQL.Accounts.Resolver do
   import Ecto.Changeset, only: [traverse_errors: 2]
 
   alias LC.Accounts
-  alias LCGQL.Relay
   alias LCSchemas.Accounts.User
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
@@ -24,8 +23,6 @@ defmodule LCGQL.Accounts.Resolver do
           | :invalid_phone_number
           | :invalid_email_list
   @type invite_delivery_error_reason :: :invalid_recipient | :unauthenticated | :delivery_failed
-  @type user_lookup_error :: :invalid_id | :invalid_type | :not_found
-  @type user_lookup_result :: {:ok, User.t()} | {:error, user_lookup_error()}
   @type contact_match_node :: %{
           id: pos_integer(),
           contact_entry: map(),
@@ -55,38 +52,33 @@ defmodule LCGQL.Accounts.Resolver do
           term(),
           %{
             optional(:input) => map(),
-            optional(:user_id) => term(),
             optional(:phone_number) => String.t()
           },
-          term()
+          Absinthe.Resolution.t()
         ) :: mutation_result()
   def attach_user_phone_number(parent, %{input: input}, resolution),
     do: attach_user_phone_number(parent, input, resolution)
 
   def attach_user_phone_number(
         _parent,
-        %{user_id: user_id, phone_number: phone_number},
-        _resolution
+        %{phone_number: phone_number},
+        %{context: %{current_scope: %{user: %{id: _id} = user}}}
       ) do
-    with {:ok, user} <- fetch_user(user_id),
-         {:ok, _user_phone_number} <- Accounts.attach_user_phone_number(user, phone_number) do
+    with {:ok, _user_phone_number} <- Accounts.attach_user_phone_number(user, phone_number) do
       {:ok, %{user: Accounts.get_user!(user.id), errors: []}}
     else
-      {:error, :invalid_id} ->
-        {:ok, %{user: nil, errors: [%{field: "userId", message: "is invalid"}]}}
-
-      {:error, :invalid_type} ->
-        {:ok, %{user: nil, errors: [%{field: "userId", message: "has an invalid type"}]}}
-
-      {:error, :not_found} ->
-        {:ok, %{user: nil, errors: [%{field: "userId", message: "does not exist"}]}}
-
       {:error, :invalid_phone_number} ->
         {:ok, %{user: nil, errors: [%{field: "phoneNumber", message: "is invalid"}]}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:ok, %{user: nil, errors: format_changeset_errors(changeset)}}
     end
+  end
+
+  # Viewer-scoped phone attachment prevents clients from mutating other users'
+  # phone bindings by passing arbitrary user IDs into the GraphQL payload.
+  def attach_user_phone_number(_parent, _args, _resolution) do
+    {:ok, %{user: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
   end
 
   @spec upsert_viewer_contact_entry(
@@ -203,17 +195,6 @@ defmodule LCGQL.Accounts.Resolver do
 
   def contact_match_birthday(%{contact_entry: %{birthday: birthday}}, _args, _res),
     do: {:ok, Date.to_iso8601(birthday)}
-
-  @spec fetch_user(term()) :: user_lookup_result()
-  defp fetch_user(user_id) do
-    with {:ok, id} <- Relay.decode_global_id(user_id, :user, LCGQL.Schema) do
-      try do
-        {:ok, Accounts.get_user!(id)}
-      rescue
-        Ecto.NoResultsError -> {:error, :not_found}
-      end
-    end
-  end
 
   @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
   defp format_changeset_errors(changeset) do

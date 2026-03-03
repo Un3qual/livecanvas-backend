@@ -3,13 +3,16 @@ defmodule LCGQL.Content.ContentMutationsTest do
 
   import LC.AccountsFixtures
 
-  test "createPost persists a post for the Relay authorId" do
-    author = user_fixture()
-    author_id = Absinthe.Relay.Node.to_global_id(:user, author.id, LCGQL.Schema)
+  alias LC.Accounts
+
+  test "createPost persists a post for the authenticated viewer" do
+    viewer = user_fixture()
+    viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
 
     mutation = """
-    mutation($authorId: ID!, $bodyText: String!) {
-      createPost(input: {authorId: $authorId, kind: STANDARD, bodyText: $bodyText}) {
+    mutation($bodyText: String!) {
+      createPost(input: {kind: STANDARD, bodyText: $bodyText}) {
         post {
           id
           kind
@@ -41,10 +44,37 @@ defmodule LCGQL.Content.ContentMutationsTest do
               }
             }} =
              Absinthe.run(mutation, LCGQL.Schema,
-               variables: %{"authorId" => author_id, "bodyText" => "first post"}
+               variables: %{"bodyText" => "first post"},
+               context: context
              )
 
     assert is_binary(post_id)
-    assert returned_author_id == author_id
+    assert returned_author_id == viewer_id
+  end
+
+  test "createPost returns unauthenticated errors without a viewer scope" do
+    mutation = """
+    mutation($bodyText: String!) {
+      createPost(input: {kind: STANDARD, bodyText: $bodyText}) {
+        post {
+          id
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "createPost" => %{
+                  "post" => nil,
+                  "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                }
+              }
+            }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"bodyText" => "first post"})
   end
 end

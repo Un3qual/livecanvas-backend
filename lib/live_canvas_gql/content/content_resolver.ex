@@ -9,44 +9,36 @@ defmodule LCGQL.Content.Resolver do
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
   @type create_post_payload :: %{post: Post.t() | nil, errors: [mutation_error()]}
   @type create_post_result :: {:ok, create_post_payload()}
-  @type user_lookup_error :: :invalid_id | :invalid_type | :not_found
-  @type user_lookup_result :: {:ok, User.t()} | {:error, user_lookup_error()}
 
   @spec create_post(
           term(),
           %{
             optional(:input) => map(),
-            optional(:author_id) => term(),
             optional(:body_text) => String.t(),
             optional(:kind) => atom(),
             optional(:visibility) => atom()
           },
-          term()
+          Absinthe.Resolution.t()
         ) :: create_post_result()
   def create_post(parent, %{input: input}, resolution), do: create_post(parent, input, resolution)
 
-  def create_post(_parent, %{author_id: author_id} = attrs, _resolution) do
+  def create_post(_parent, attrs, %{context: %{current_scope: %{user: %{id: _id} = author}}}) do
     post_attrs =
       attrs
-      |> Map.drop([:author_id])
       |> Map.put_new(:visibility, :followers)
 
-    with {:ok, author} <- fetch_user(author_id),
-         {:ok, post} <- Content.create_post(author, post_attrs) do
+    with {:ok, post} <- Content.create_post(author, post_attrs) do
       {:ok, %{post: post, errors: []}}
     else
-      {:error, :invalid_id} ->
-        {:ok, %{post: nil, errors: [%{field: "authorId", message: "is invalid"}]}}
-
-      {:error, :invalid_type} ->
-        {:ok, %{post: nil, errors: [%{field: "authorId", message: "has an invalid type"}]}}
-
-      {:error, :not_found} ->
-        {:ok, %{post: nil, errors: [%{field: "authorId", message: "does not exist"}]}}
-
       {:error, %Ecto.Changeset{} = changeset} ->
         {:ok, %{post: nil, errors: format_changeset_errors(changeset)}}
     end
+  end
+
+  # Post creation is viewer-owned to prevent impersonation via client-supplied
+  # author IDs in mutation input payloads.
+  def create_post(_parent, _attrs, _resolution) do
+    {:ok, %{post: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
   end
 
   @spec post(term(), %{id: term()}, term()) :: {:ok, Post.t() | nil}
@@ -68,17 +60,6 @@ defmodule LCGQL.Content.Resolver do
   end
 
   def author(_post, _args, _resolution), do: {:ok, nil}
-
-  @spec fetch_user(term()) :: user_lookup_result()
-  defp fetch_user(author_id) do
-    with {:ok, id} <- Relay.decode_global_id(author_id, :user, LCGQL.Schema) do
-      try do
-        {:ok, Accounts.get_user!(id)}
-      rescue
-        Ecto.NoResultsError -> {:error, :not_found}
-      end
-    end
-  end
 
   @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
   defp format_changeset_errors(changeset) do

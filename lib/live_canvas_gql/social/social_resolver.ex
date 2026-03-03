@@ -4,7 +4,7 @@ defmodule LCGQL.Social.Resolver do
 
   @type fetch_user_error :: :invalid_id | :invalid_type | :not_found
   @type resolver_error ::
-          :blocked | :not_allowed | fetch_user_error() | Ecto.Changeset.t()
+          :blocked | :not_allowed | :unauthenticated | fetch_user_error() | Ecto.Changeset.t()
   @type follow_payload :: %{id: integer(), state: :accepted | :requested}
   @type social_error_payload :: %{field: String.t() | nil, message: String.t()}
   @type follow_result_payload :: %{
@@ -13,11 +13,12 @@ defmodule LCGQL.Social.Resolver do
         }
   @type error_only_result_payload :: %{errors: [social_error_payload()]}
 
-  @spec follow_user(any(), %{follower_id: term(), followed_id: term()}, any()) ::
+  @spec follow_user(any(), %{followed_id: term()}, any()) ::
           {:ok, follow_result_payload()}
-  def follow_user(_parent, %{follower_id: follower_id, followed_id: followed_id}, _resolution) do
-    with {:ok, follower} <- fetch_user(follower_id, :follower_id),
-         {:ok, followed} <- fetch_user(followed_id, :followed_id),
+  def follow_user(_parent, %{followed_id: followed_id}, %{
+        context: %{current_scope: %{user: %{id: _id} = follower}}
+      }) do
+    with {:ok, followed} <- fetch_user(followed_id, :followed_id),
          {:ok, follow} <- Social.follow_user(follower, followed) do
       {:ok, %{follow: follow_payload(follow), errors: []}}
     else
@@ -29,25 +30,25 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
+  def follow_user(_parent, _args, _resolution) do
+    {:ok, %{follow: nil, errors: [social_error(nil, :unauthenticated)]}}
+  end
+
   @spec accept_follow_request(
           any(),
-          %{follower_id: term(), followed_id: term(), acting_user_id: term()},
+          %{follower_id: term()},
           any()
         ) ::
           {:ok, follow_result_payload()}
   def accept_follow_request(
         _parent,
-        %{
-          follower_id: follower_id,
-          followed_id: followed_id,
-          acting_user_id: acting_user_id
-        },
-        _resolution
+        %{follower_id: follower_id},
+        %{context: %{current_scope: %{user: %{id: _id} = acting_user}}}
       ) do
     with {:ok, follower} <- fetch_user(follower_id, :follower_id),
-         {:ok, followed} <- fetch_user(followed_id, :followed_id),
-         {:ok, acting_user} <- fetch_user(acting_user_id, :acting_user_id),
-         {:ok, follow} <- Social.follow_user(follower, followed),
+         # Accept-follow is viewer-owned: the authenticated viewer is the
+         # recipient/acting user for the pending follower request.
+         {:ok, follow} <- Social.follow_user(follower, acting_user),
          {:ok, accepted_follow} <- Social.accept_follow_request(follow, acting_user) do
       {:ok, %{follow: follow_payload(accepted_follow), errors: []}}
     else
@@ -59,11 +60,16 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec block_user(any(), %{blocker_id: term(), blocked_id: term()}, any()) ::
+  def accept_follow_request(_parent, _args, _resolution) do
+    {:ok, %{follow: nil, errors: [social_error(nil, :unauthenticated)]}}
+  end
+
+  @spec block_user(any(), %{blocked_id: term()}, any()) ::
           {:ok, error_only_result_payload()}
-  def block_user(_parent, %{blocker_id: blocker_id, blocked_id: blocked_id}, _resolution) do
-    with {:ok, blocker} <- fetch_user(blocker_id, :blocker_id),
-         {:ok, blocked} <- fetch_user(blocked_id, :blocked_id),
+  def block_user(_parent, %{blocked_id: blocked_id}, %{
+        context: %{current_scope: %{user: %{id: _id} = blocker}}
+      }) do
+    with {:ok, blocked} <- fetch_user(blocked_id, :blocked_id),
          {:ok, _block} <- Social.block_user(blocker, blocked) do
       {:ok, %{errors: []}}
     else
@@ -75,11 +81,16 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec mute_user(any(), %{muter_id: term(), muted_id: term()}, any()) ::
+  def block_user(_parent, _args, _resolution) do
+    {:ok, %{errors: [social_error(nil, :unauthenticated)]}}
+  end
+
+  @spec mute_user(any(), %{muted_id: term()}, any()) ::
           {:ok, error_only_result_payload()}
-  def mute_user(_parent, %{muter_id: muter_id, muted_id: muted_id}, _resolution) do
-    with {:ok, muter} <- fetch_user(muter_id, :muter_id),
-         {:ok, muted} <- fetch_user(muted_id, :muted_id),
+  def mute_user(_parent, %{muted_id: muted_id}, %{
+        context: %{current_scope: %{user: %{id: _id} = muter}}
+      }) do
+    with {:ok, muted} <- fetch_user(muted_id, :muted_id),
          {:ok, _mute} <- Social.mute_user(muter, muted) do
       {:ok, %{errors: []}}
     else
@@ -91,17 +102,26 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec unmute_user(any(), %{muter_id: term(), muted_id: term()}, any()) ::
+  def mute_user(_parent, _args, _resolution) do
+    {:ok, %{errors: [social_error(nil, :unauthenticated)]}}
+  end
+
+  @spec unmute_user(any(), %{muted_id: term()}, any()) ::
           {:ok, error_only_result_payload()}
-  def unmute_user(_parent, %{muter_id: muter_id, muted_id: muted_id}, _resolution) do
-    with {:ok, muter} <- fetch_user(muter_id, :muter_id),
-         {:ok, muted} <- fetch_user(muted_id, :muted_id),
+  def unmute_user(_parent, %{muted_id: muted_id}, %{
+        context: %{current_scope: %{user: %{id: _id} = muter}}
+      }) do
+    with {:ok, muted} <- fetch_user(muted_id, :muted_id),
          :ok <- Social.unmute_user(muter, muted) do
       {:ok, %{errors: []}}
     else
       {:error, {field, reason}} ->
         {:ok, %{errors: [social_error(field, reason)]}}
     end
+  end
+
+  def unmute_user(_parent, _args, _resolution) do
+    {:ok, %{errors: [social_error(nil, :unauthenticated)]}}
   end
 
   @spec relationship_state(any(), %{viewer_id: term(), creator_id: term()}, any()) ::
@@ -166,14 +186,11 @@ defmodule LCGQL.Social.Resolver do
 
   @spec format_field(atom() | nil) :: String.t() | nil
   defp format_field(nil), do: nil
-  defp format_field(:acting_user_id), do: "actingUserId"
   defp format_field(:blocked_id), do: "blockedId"
-  defp format_field(:blocker_id), do: "blockerId"
   defp format_field(:creator_id), do: "creatorId"
   defp format_field(:followed_id), do: "followedId"
   defp format_field(:follower_id), do: "followerId"
   defp format_field(:muted_id), do: "mutedId"
-  defp format_field(:muter_id), do: "muterId"
   defp format_field(:viewer_id), do: "viewerId"
   defp format_field(field), do: Atom.to_string(field)
 

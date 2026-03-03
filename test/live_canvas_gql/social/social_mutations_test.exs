@@ -2,18 +2,19 @@ defmodule LCGQL.Social.SocialMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
-  alias LC.Social
+
+  alias LC.{Accounts, Social}
 
   describe "followUser" do
-    test "returns requested for a private account" do
-      follower = user_fixture()
+    test "uses the authenticated viewer as follower" do
+      viewer = user_fixture()
       followed = user_fixture(privacy_mode: :private)
-      follower_id = Absinthe.Relay.Node.to_global_id(:user, follower.id, LCGQL.Schema)
       followed_id = Absinthe.Relay.Node.to_global_id(:user, followed.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
 
       mutation = """
-      mutation($followerId: ID!, $followedId: ID!) {
-        followUser(input: {followerId: $followerId, followedId: $followedId}) {
+      mutation($followedId: ID!) {
+        followUser(input: {followedId: $followedId}) {
           follow {
             id
             state
@@ -36,20 +37,21 @@ defmodule LCGQL.Social.SocialMutationsTest do
                 }
               }} =
                Absinthe.run(mutation, LCGQL.Schema,
-                 variables: %{"followerId" => follower_id, "followedId" => followed_id}
+                 variables: %{"followedId" => followed_id},
+                 context: context
                )
 
       assert is_binary(follow_id)
+      assert :requested == Social.relationship_state(viewer, followed)
     end
 
-    test "rejects a raw numeric followerId that is not a relay global id" do
-      follower = user_fixture()
-      followed = user_fixture(privacy_mode: :private)
-      followed_id = Absinthe.Relay.Node.to_global_id(:user, followed.id, LCGQL.Schema)
+    test "returns structured errors for non-global followedId values" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
 
       mutation = """
-      mutation($followerId: ID!, $followedId: ID!) {
-        followUser(input: {followerId: $followerId, followedId: $followedId}) {
+      mutation($followedId: ID!) {
+        followUser(input: {followedId: $followedId}) {
           follow {
             id
             state
@@ -67,15 +69,119 @@ defmodule LCGQL.Social.SocialMutationsTest do
                 data: %{
                   "followUser" => %{
                     "follow" => nil,
-                    "errors" => [%{"field" => "followerId", "message" => message} | _rest]
+                    "errors" => [%{"field" => "followedId", "message" => message} | _rest]
                   }
                 }
               }} =
                Absinthe.run(mutation, LCGQL.Schema,
-                 variables: %{"followerId" => "#{follower.id}", "followedId" => followed_id}
+                 variables: %{"followedId" => "123"},
+                 context: context
                )
 
       assert message =~ "invalid_id"
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      followed = user_fixture(privacy_mode: :private)
+      followed_id = Absinthe.Relay.Node.to_global_id(:user, followed.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($followedId: ID!) {
+        followUser(input: {followedId: $followedId}) {
+          follow {
+            id
+            state
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "followUser" => %{
+                    "follow" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"followedId" => followed_id})
+    end
+  end
+
+  describe "acceptFollowRequest" do
+    test "uses the authenticated viewer as acting user" do
+      requester = user_fixture()
+      viewer = user_fixture(privacy_mode: :private)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      requester_id = Absinthe.Relay.Node.to_global_id(:user, requester.id, LCGQL.Schema)
+
+      assert {:ok, _follow} = Social.follow_user(requester, viewer)
+
+      mutation = """
+      mutation($followerId: ID!) {
+        acceptFollowRequest(input: {followerId: $followerId}) {
+          follow {
+            id
+            state
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "acceptFollowRequest" => %{
+                    "follow" => %{"id" => follow_id, "state" => "ACCEPTED"},
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"followerId" => requester_id},
+                 context: context
+               )
+
+      assert is_binary(follow_id)
+      assert :accepted == Social.relationship_state(requester, viewer)
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      requester = user_fixture()
+      requester_id = Absinthe.Relay.Node.to_global_id(:user, requester.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($followerId: ID!) {
+        acceptFollowRequest(input: {followerId: $followerId}) {
+          follow {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "acceptFollowRequest" => %{
+                    "follow" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema, variables: %{"followerId" => requester_id})
     end
   end
 
@@ -91,14 +197,14 @@ defmodule LCGQL.Social.SocialMutationsTest do
 
   describe "blockUser" do
     test "returns no errors when block is persisted" do
-      blocker = user_fixture()
+      viewer = user_fixture()
       blocked = user_fixture()
-      blocker_id = Absinthe.Relay.Node.to_global_id(:user, blocker.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
       blocked_id = Absinthe.Relay.Node.to_global_id(:user, blocked.id, LCGQL.Schema)
 
       mutation = """
-      mutation($blockerId: ID!, $blockedId: ID!) {
-        blockUser(input: {blockerId: $blockerId, blockedId: $blockedId}) {
+      mutation($blockedId: ID!) {
+        blockUser(input: {blockedId: $blockedId}) {
           errors {
             field
             message
@@ -116,21 +222,47 @@ defmodule LCGQL.Social.SocialMutationsTest do
                 }
               }} =
                Absinthe.run(mutation, LCGQL.Schema,
-                 variables: %{"blockerId" => blocker_id, "blockedId" => blocked_id}
+                 variables: %{"blockedId" => blocked_id},
+                 context: context
                )
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      blocked = user_fixture()
+      blocked_id = Absinthe.Relay.Node.to_global_id(:user, blocked.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($blockedId: ID!) {
+        blockUser(input: {blockedId: $blockedId}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "blockUser" => %{
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"blockedId" => blocked_id})
     end
   end
 
   describe "muteUser" do
     test "returns no errors when mute is persisted" do
-      muter = user_fixture()
+      viewer = user_fixture()
       muted = user_fixture()
-      muter_id = Absinthe.Relay.Node.to_global_id(:user, muter.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
       muted_id = Absinthe.Relay.Node.to_global_id(:user, muted.id, LCGQL.Schema)
 
       mutation = """
-      mutation($muterId: ID!, $mutedId: ID!) {
-        muteUser(input: {muterId: $muterId, mutedId: $mutedId}) {
+      mutation($mutedId: ID!) {
+        muteUser(input: {mutedId: $mutedId}) {
           errors {
             field
             message
@@ -148,20 +280,20 @@ defmodule LCGQL.Social.SocialMutationsTest do
                 }
               }} =
                Absinthe.run(mutation, LCGQL.Schema,
-                 variables: %{"muterId" => muter_id, "mutedId" => muted_id}
+                 variables: %{"mutedId" => muted_id},
+                 context: context
                )
 
-      assert Social.muted?(muter, muted)
+      assert Social.muted?(viewer, muted)
     end
 
     test "returns structured errors for non-global ids" do
-      muter = user_fixture()
-      muted = user_fixture()
-      muted_id = Absinthe.Relay.Node.to_global_id(:user, muted.id, LCGQL.Schema)
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
 
       mutation = """
-      mutation($muterId: ID!, $mutedId: ID!) {
-        muteUser(input: {muterId: $muterId, mutedId: $mutedId}) {
+      mutation($mutedId: ID!) {
+        muteUser(input: {mutedId: $mutedId}) {
           errors {
             field
             message
@@ -174,30 +306,56 @@ defmodule LCGQL.Social.SocialMutationsTest do
               %{
                 data: %{
                   "muteUser" => %{
-                    "errors" => [%{"field" => "muterId", "message" => message} | _rest]
+                    "errors" => [%{"field" => "mutedId", "message" => message} | _rest]
                   }
                 }
               }} =
                Absinthe.run(mutation, LCGQL.Schema,
-                 variables: %{"muterId" => "#{muter.id}", "mutedId" => muted_id}
+                 variables: %{"mutedId" => "123"},
+                 context: context
                )
 
       assert message =~ "invalid_id"
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      muted = user_fixture()
+      muted_id = Absinthe.Relay.Node.to_global_id(:user, muted.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($mutedId: ID!) {
+        muteUser(input: {mutedId: $mutedId}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "muteUser" => %{
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"mutedId" => muted_id})
     end
   end
 
   describe "unmuteUser" do
     test "returns no errors and clears an existing mute relationship" do
-      muter = user_fixture()
+      viewer = user_fixture()
       muted = user_fixture()
-      muter_id = Absinthe.Relay.Node.to_global_id(:user, muter.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
       muted_id = Absinthe.Relay.Node.to_global_id(:user, muted.id, LCGQL.Schema)
 
-      {:ok, _mute} = Social.mute_user(muter, muted)
+      {:ok, _mute} = Social.mute_user(viewer, muted)
 
       mutation = """
-      mutation($muterId: ID!, $mutedId: ID!) {
-        unmuteUser(input: {muterId: $muterId, mutedId: $mutedId}) {
+      mutation($mutedId: ID!) {
+        unmuteUser(input: {mutedId: $mutedId}) {
           errors {
             field
             message
@@ -215,10 +373,36 @@ defmodule LCGQL.Social.SocialMutationsTest do
                 }
               }} =
                Absinthe.run(mutation, LCGQL.Schema,
-                 variables: %{"muterId" => muter_id, "mutedId" => muted_id}
+                 variables: %{"mutedId" => muted_id},
+                 context: context
                )
 
-      refute Social.muted?(muter, muted)
+      refute Social.muted?(viewer, muted)
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      muted = user_fixture()
+      muted_id = Absinthe.Relay.Node.to_global_id(:user, muted.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($mutedId: ID!) {
+        unmuteUser(input: {mutedId: $mutedId}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "unmuteUser" => %{
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"mutedId" => muted_id})
     end
   end
 end

@@ -7,7 +7,6 @@ defmodule LCGQL.Social.Mutations do
   object :social_mutations do
     payload field :follow_user do
       input do
-        field :follower_id, non_null(:id)
         field :followed_id, non_null(:id)
       end
 
@@ -22,8 +21,6 @@ defmodule LCGQL.Social.Mutations do
     payload field :accept_follow_request do
       input do
         field :follower_id, non_null(:id)
-        field :followed_id, non_null(:id)
-        field :acting_user_id, non_null(:id)
       end
 
       output do
@@ -36,7 +33,6 @@ defmodule LCGQL.Social.Mutations do
 
     payload field :block_user do
       input do
-        field :blocker_id, non_null(:id)
         field :blocked_id, non_null(:id)
       end
 
@@ -49,7 +45,6 @@ defmodule LCGQL.Social.Mutations do
 
     payload field :mute_user do
       input do
-        field :muter_id, non_null(:id)
         field :muted_id, non_null(:id)
       end
 
@@ -62,7 +57,6 @@ defmodule LCGQL.Social.Mutations do
 
     payload field :unmute_user do
       input do
-        field :muter_id, non_null(:id)
         field :muted_id, non_null(:id)
       end
 
