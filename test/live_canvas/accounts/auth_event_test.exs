@@ -15,7 +15,11 @@ defmodule LC.Accounts.AuthEventTest do
     [:live_canvas, :accounts, :auth, :magic_link_login_failed],
     [:live_canvas, :accounts, :auth, :refresh_token_revoked],
     [:live_canvas, :accounts, :auth, :refresh_token_rotation_succeeded],
-    [:live_canvas, :accounts, :auth, :refresh_token_rotation_failed]
+    [:live_canvas, :accounts, :auth, :refresh_token_rotation_failed],
+    [:live_canvas, :accounts, :auth, :password_change_succeeded],
+    [:live_canvas, :accounts, :auth, :password_change_failed],
+    [:live_canvas, :accounts, :auth, :email_change_succeeded],
+    [:live_canvas, :accounts, :auth, :email_change_failed]
   ]
 
   setup do
@@ -221,6 +225,12 @@ defmodule LC.Accounts.AuthEventTest do
       assert {:ok, {_updated_user, _expired_tokens}} =
                Accounts.update_user_password(user, %{password: "new valid password"})
 
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :password_change_succeeded], %{count: 1},
+                      %{metadata: %{"method" => "password"}, user_id: user_id}}
+
+      assert user_id == user.id
+
       assert [:password_change_succeeded] =
                user
                |> Accounts.list_user_auth_events(limit: 10)
@@ -233,10 +243,14 @@ defmodule LC.Accounts.AuthEventTest do
                  password_confirmation: "mismatch"
                })
 
+      assert_receive {:telemetry_event, [:live_canvas, :accounts, :auth, :password_change_failed],
+                      %{count: 1}, %{metadata: telemetry_metadata, user_id: ^user_id}}
+
       assert %AuthEvent{event_type: :password_change_failed, user_id: user_id, metadata: metadata} =
                latest_user_event(user)
 
       assert user_id == user.id
+      assert telemetry_metadata["reason"] == "validation_failed"
       assert metadata["reason"] == "validation_failed"
       refute Enum.any?(Map.values(metadata), &(&1 == "too short"))
     end
@@ -256,6 +270,12 @@ defmodule LC.Accounts.AuthEventTest do
 
       assert {:ok, %{email: ^new_email}} = Accounts.update_user_email(user, token)
 
+      assert_receive {:telemetry_event, [:live_canvas, :accounts, :auth, :email_change_succeeded],
+                      %{count: 1},
+                      %{metadata: %{"method" => "email_verification_token"}, user_id: user_id}}
+
+      assert user_id == user.id
+
       assert [:email_change_succeeded] =
                user
                |> Accounts.list_user_auth_events(limit: 10)
@@ -264,10 +284,14 @@ defmodule LC.Accounts.AuthEventTest do
 
       assert {:error, :transaction_aborted} = Accounts.update_user_email(user, "bad-token")
 
+      assert_receive {:telemetry_event, [:live_canvas, :accounts, :auth, :email_change_failed],
+                      %{count: 1}, %{metadata: telemetry_metadata, user_id: ^user_id}}
+
       assert %AuthEvent{event_type: :email_change_failed, user_id: user_id, metadata: metadata} =
                latest_user_event(user)
 
       assert user_id == user.id
+      assert telemetry_metadata["reason"] == "transaction_aborted"
       assert metadata["reason"] == "transaction_aborted"
     end
   end

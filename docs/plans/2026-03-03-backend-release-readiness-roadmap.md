@@ -5,7 +5,7 @@
 - Scope audited: `ARCHITECTURE.md`, `docs/architecture/conventions.md`, all files in `docs/plans/**`, core `lib/**`, migrations, and tests.
 - Verification run on this snapshot:
   - `mix compile` -> PASS
-  - `mix test` -> PASS (`280 tests, 0 failures`)
+  - `mix test` -> PASS (`288 tests, 0 failures`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
 - Plan tracking state: every checklist-bearing plan file in `docs/plans/**` is currently fully checked.
@@ -54,6 +54,8 @@ The backend is in a strong "foundation complete / internal alpha" state, not yet
 Main reason: the current API surface proves domain behavior, but runtime scaling, media/storage delivery, and production operations layers are not complete yet.
 
 Auth/security baseline now includes viewer-scoped GraphQL writes, bearer token GraphQL auth precedence, GraphiQL environment gating, abuse-rate limiting, and persisted auth audit events for login outcomes, refresh-token revocation/rotation outcomes, and credential change outcomes.
+
+Observability baseline now includes Telemetry instrumentation for live session lifecycle outcomes, live channel join/chat outcomes, and auth lifecycle parity events (`[:live_canvas, :accounts, :auth, <event_type>]`) with a documented launch-ops checklist in `docs/plans/release/2026-03-03-observability-and-launch-ops.md`.
 
 ## Explicitly Deferred (Still Out Of Scope For V1)
 
@@ -174,7 +176,6 @@ The following are material gaps where no sufficiently detailed executable plan e
 - REST webhook + background-job design/implementation plan.
 - Distributed live runtime ownership plan for multi-pod deployments.
 - Media storage/processing delivery plan.
-- Observability/SLO/alert/runbook plan.
 - Release engineering plan (migrations at scale, rollback strategy, deployment gates).
 - Compliance/data-governance plan (retention/deletion/export policy).
 
@@ -187,5 +188,4 @@ The following are material gaps where no sufficiently detailed executable plan e
 
 - `docs/plans/2026-03-03-live-runtime-distributed-ownership.md`
 - `docs/plans/2026-03-03-media-storage-and-processing.md`
-- `docs/plans/2026-03-03-observability-and-launch-ops.md`
 - `docs/plans/2026-03-03-webhooks-and-async-jobs.md`
