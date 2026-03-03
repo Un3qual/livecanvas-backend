@@ -1,6 +1,8 @@
 defmodule LCGQL.Router do
   use Plug.Router
 
+  @type router_config :: [enable_graphiql: boolean()]
+
   @absinthe_configuration [
     document_providers: {LCGQL, :document_providers},
     # json_codec: Jason,
@@ -19,15 +21,22 @@ defmodule LCGQL.Router do
     # host: "api."
   )
 
-  # if Application.fetch_env!(:smokespots, :enable_graphiql) do
-  forward("/graphiql",
-    to: Absinthe.Plug.GraphiQL,
-    init_opts: [interface: :simple] ++ @absinthe_configuration
-    # host: "api."
-  )
-
-  # end
-  # end
+  match("/graphiql") do
+    if graphiql_enabled?() do
+      Absinthe.Plug.GraphiQL.call(
+        conn,
+        Absinthe.Plug.GraphiQL.init([interface: :simple] ++ @absinthe_configuration)
+      )
+    else
+      Plug.Conn.send_resp(conn, 404, "Not Found")
+    end
+  end
 
   match(_, do: conn)
+
+  @spec graphiql_enabled?() :: boolean()
+  defp graphiql_enabled? do
+    Application.get_env(:live_canvas, __MODULE__, [])
+    |> Keyword.get(:enable_graphiql, false)
+  end
 end

@@ -29,7 +29,7 @@ Verified directly in code before selecting next work:
 
 - [x] Task 1: Enforce viewer-scoped identity + authenticated writes for sensitive GraphQL mutations
 - [x] Task 2: Add GraphQL transport auth contract for mobile token usage
-- [ ] Task 3: Restrict GraphiQL to explicitly allowed non-production environments
+- [x] Task 3: Restrict GraphiQL to explicitly allowed non-production environments
 - [ ] Task 4: Add rate-limit baseline for auth, mutation, and channel-join abuse paths
 - [ ] Task 5: Final verification and rollout notes
 
@@ -128,6 +128,13 @@ Gate `/graphiql` forwarding by environment/config so production defaults to disa
 Planned outcomes:
 - Config switch with secure default.
 - Router behavior tests for enabled/disabled routing.
+
+**Task 3 Step Progress:**
+- [x] Step 1: Add failing route tests for enabled/disabled GraphiQL behavior
+- [x] Step 2: Add runtime router config gate with production-safe default (`disabled`)
+- [x] Step 3: Enable GraphiQL explicitly in development config
+- [x] Step 4: Run focused verification (`graphiql` + request-context tests) and typing checks
+- [x] Step 5: Update checklist progress and commit milestone
 
 ### Task 4: Add Rate-Limit Baseline For Abuse Paths
 

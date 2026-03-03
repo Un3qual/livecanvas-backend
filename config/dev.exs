@@ -69,6 +69,7 @@ config :live_canvas, LCWeb.Endpoint,
 
 # Enable dev routes for dashboard and mailbox
 config :live_canvas, dev_routes: true
+config :live_canvas, LCGQL.Router, enable_graphiql: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

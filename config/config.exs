@@ -9,6 +9,8 @@ import Config
 
 config :live_canvas, namespace: LC
 
+config :live_canvas, LCGQL.Router, enable_graphiql: false
+
 config :live_canvas, :scopes,
   user: [
     default: true,
