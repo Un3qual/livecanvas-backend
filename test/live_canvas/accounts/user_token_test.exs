@@ -65,6 +65,18 @@ defmodule LC.Accounts.UserTokenTest do
       assert persisted.user_id == user.id
     end
 
+    test "issue_contact_invite_token/2 uses the contact invite context and target recipient" do
+      user = user_fixture()
+
+      assert {:ok, %{token: token, user_token: %UserToken{} = persisted}} =
+               Accounts.issue_contact_invite_token(user, "friend@example.com")
+
+      assert is_binary(token)
+      assert persisted.context == :contact_invite_token
+      assert persisted.sent_to == "friend@example.com"
+      assert persisted.user_id == user.id
+    end
+
     test "issue_phone_verification_token/2 normalizes the phone and uses the phone verification context" do
       user = user_fixture()
       {:ok, _join} = Accounts.attach_user_phone_number(user, "(650) 253-0000")

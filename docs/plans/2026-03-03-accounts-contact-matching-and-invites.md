@@ -14,8 +14,8 @@
 
 - [x] Task 1: Add `Accounts` contact import and matching APIs
 - [x] Task 2: Expose contact matches through Relay-first GraphQL
-- [ ] Task 3: Add invite issuance and notifier wrappers
-- [ ] Task 4: Run final verification and integration checks
+- [x] Task 3: Add invite issuance and notifier wrappers
+- [x] Task 4: Run final verification and integration checks
 
 ### Task 1: Add `Accounts` Contact Import And Matching APIs
 
@@ -151,14 +151,19 @@ git commit -m "feat: add relay viewer contact match query"
 
 **Files:**
 - Modify: `lib/live_canvas/accounts.ex`
-- Modify: `lib/live_canvas/accounts/tokens.ex`
 - Modify: `lib/live_canvas/accounts/user_notifier.ex`
 - Modify: `lib/live_canvas_schemas/accounts/user_token_context.ex`
 - Modify: `lib/live_canvas_schemas/accounts.ex`
-- Modify: `priv/repo/migrations/20260215031653_create_users_auth_tables.exs` (enum extension migration only via additive new migration)
 - Create: `priv/repo/migrations/TIMESTAMP_add_contact_invite_token_context.exs`
 - Modify: `test/live_canvas/accounts/user_token_test.exs`
 - Modify: `test/live_canvas/accounts_test.exs`
+
+**Task 3 Step Progress:**
+- [x] Step 1: Write failing invite token and delivery tests
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Add token context and minimal wrapper implementation
+- [x] Step 4: Run focused verification
+- [x] Step 5: Commit
 
 **Step 1: Write failing invite token and delivery tests**
 
@@ -217,6 +222,11 @@ git commit -m "feat: add contact invite token and delivery wrapper"
 
 Update each task checkbox as it reaches fully green and committed status.
 
+**Task 4 Step Progress:**
+- [x] Step 1: Mark checklist progress in this plan file
+- [x] Step 2: Run required verification
+- [x] Step 3: Commit final plan state with related code/test changes (no docs-only commit)
+
 **Step 2: Run required verification**
 
 Run:
@@ -224,7 +234,7 @@ Run:
 ```bash
 mix compile
 mix test test/live_canvas/accounts_test.exs test/live_canvas/accounts/user_token_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/accounts/contact_queries_test.exs --trace
-mix check.typespecs --strict --manifest priv/quality/typespec_targets.txt
+mix check.typespecs --strict
 mix typecheck
 mix precommit
 ```
@@ -233,7 +243,4 @@ Expected: PASS.
 
 **Step 3: Commit final plan state**
 
-```bash
-git add docs/plans/2026-03-03-accounts-contact-matching-and-invites.md
-git commit -m "docs: mark contact matching and invites plan complete"
-```
+Commit together with the Task 3 implementation files so checklist updates are not a standalone docs-only change.

@@ -726,6 +726,35 @@ defmodule LC.AccountsTest do
     end
   end
 
+  describe "deliver_contact_invite_instructions/3" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "sends invite token through notifier via the public contact invite wrapper", %{
+      user: user
+    } do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_contact_invite_instructions(user, "friend@example.com", url)
+        end)
+
+      assert accounts_function_calls_local?(
+               :deliver_contact_invite_instructions,
+               3,
+               :issue_contact_invite_token,
+               2
+             )
+
+      assert {:ok, %{id: id, raw_secret: raw_secret}} = Tokens.decode_serialized_value(token)
+      assert user_token = Repo.get_by(UserToken, id: id)
+      assert user_token.secret_hash == Tokens.secret_hash(raw_secret)
+      assert user_token.user_id == user.id
+      assert user_token.sent_to == "friend@example.com"
+      assert user_token.context == :contact_invite_token
+    end
+  end
+
   describe "deliver_phone_verification_instructions/2" do
     setup do
       original_level = Logger.level()

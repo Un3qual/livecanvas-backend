@@ -52,6 +52,28 @@ defmodule LC.Accounts.UserNotifier do
     end
   end
 
+  @doc """
+  Deliver instructions to invite a contact to LiveCanvas.
+  """
+  @spec deliver_contact_invite_instructions(User.t(), String.t(), String.t()) :: delivery_result()
+  def deliver_contact_invite_instructions(inviter, recipient, url) do
+    deliver(recipient, "You're invited to LiveCanvas", """
+
+    ==============================
+
+    Hi,
+
+    #{inviter.email} invited you to join LiveCanvas.
+    You can accept the invite by visiting the URL below:
+
+    #{url}
+
+    If you weren't expecting this invite, please ignore this.
+
+    ==============================
+    """)
+  end
+
   defp deliver_magic_link_instructions(user, url) do
     deliver(user.email, "Log in instructions", """
 

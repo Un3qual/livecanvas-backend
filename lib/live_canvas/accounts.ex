@@ -356,6 +356,19 @@ defmodule LC.Accounts do
   end
 
   @doc """
+  Persists and returns a contact invite token payload for the given recipient.
+  """
+  @spec issue_contact_invite_token(User.t(), String.t()) :: token_result()
+  def issue_contact_invite_token(%User{} = user, recipient) when is_binary(recipient) do
+    # Invite recipients are persisted in normalized form so token lookups stay deterministic.
+    issue_user_token(
+      user,
+      :contact_invite_token,
+      sent_to: normalize_invite_recipient(recipient)
+    )
+  end
+
+  @doc """
   Persists and returns a phone verification token payload for the given user.
   """
   @spec issue_phone_verification_token(User.t(), term()) :: phone_token_result()
@@ -585,6 +598,25 @@ defmodule LC.Accounts do
       when is_function(magic_link_url_fun, 1) do
     with {:ok, %{token: serialized_value}} <- issue_magic_link_token(user) do
       UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(serialized_value))
+    end
+  end
+
+  @doc """
+  Delivers contact invite instructions to the provided recipient.
+  """
+  @spec deliver_contact_invite_instructions(User.t(), String.t(), (String.t() -> String.t())) ::
+          {:ok, Swoosh.Email.t()} | {:error, changeset() | term()}
+  def deliver_contact_invite_instructions(%User{} = user, recipient, invite_url_fun)
+      when is_binary(recipient) and is_function(invite_url_fun, 1) do
+    normalized_recipient = normalize_invite_recipient(recipient)
+
+    with {:ok, %{token: serialized_value}} <-
+           issue_contact_invite_token(user, normalized_recipient) do
+      UserNotifier.deliver_contact_invite_instructions(
+        user,
+        normalized_recipient,
+        invite_url_fun.(serialized_value)
+      )
     end
   end
 
@@ -870,6 +902,13 @@ defmodule LC.Accounts do
   end
 
   defp normalize_contact_emails(_values), do: {:error, :invalid_email_list}
+
+  @spec normalize_invite_recipient(String.t()) :: String.t()
+  defp normalize_invite_recipient(recipient) when is_binary(recipient) do
+    recipient
+    |> String.trim()
+    |> String.downcase()
+  end
 
   defp normalize_contact_phone_numbers(values) when is_list(values) do
     values
