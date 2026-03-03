@@ -56,6 +56,7 @@ defmodule LCWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
 
+  plug LCWeb.Plugs.GraphQLMutationRateLimit
   plug LCGQL.Router
   plug(:halt_if_sent)
   plug LCWeb.Router

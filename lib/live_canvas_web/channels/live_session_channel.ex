@@ -2,6 +2,7 @@ defmodule LCWeb.LiveSessionChannel do
   use LCWeb, :channel
 
   alias LC.{Chat, Live}
+  alias LCWeb.RateLimiter
 
   @impl true
   @spec join(String.t(), map(), Phoenix.Socket.t()) ::
@@ -13,6 +14,7 @@ defmodule LCWeb.LiveSessionChannel do
       ) do
     with {:ok, session_id} <- parse_session_id(raw_session_id),
          true <- is_integer(user_id) || {:error, :not_authorized},
+         :ok <- rate_limit_join(user_id),
          {:ok, live_session} <- Live.fetch_joinable_session(session_id),
          :ok <- Chat.authorize_join(current_user, live_session),
          {:ok, _participant} <- Live.join_live_session(live_session, current_user, :viewer) do
@@ -84,6 +86,7 @@ defmodule LCWeb.LiveSessionChannel do
   defp join_error_reason(:invalid_session_id), do: "invalid_session_id"
   defp join_error_reason(:session_ended), do: "session_ended"
   defp join_error_reason(:not_authorized), do: "not_authorized"
+  defp join_error_reason(:rate_limited), do: "rate_limited"
   defp join_error_reason(_reason), do: "join_failed"
 
   defp message_error_reason(:session_ended), do: "session_ended"
@@ -96,6 +99,11 @@ defmodule LCWeb.LiveSessionChannel do
   catch
     :exit, _reason ->
       :ok
+  end
+
+  @spec rate_limit_join(pos_integer()) :: :ok | {:error, :rate_limited}
+  defp rate_limit_join(user_id) when is_integer(user_id) do
+    RateLimiter.allow(:channel_join, "user:#{user_id}")
   end
 
   defp chat_message_payload(chat_message) do

@@ -30,8 +30,8 @@ Verified directly in code before selecting next work:
 - [x] Task 1: Enforce viewer-scoped identity + authenticated writes for sensitive GraphQL mutations
 - [x] Task 2: Add GraphQL transport auth contract for mobile token usage
 - [x] Task 3: Restrict GraphiQL to explicitly allowed non-production environments
-- [ ] Task 4: Add rate-limit baseline for auth, mutation, and channel-join abuse paths
-- [ ] Task 5: Final verification and rollout notes
+- [x] Task 4: Add rate-limit baseline for auth, mutation, and channel-join abuse paths
+- [x] Task 5: Final verification and rollout notes
 
 ### Task 1: Enforce Viewer-Scoped Identity + Authenticated Writes
 
@@ -145,6 +145,13 @@ Planned outcomes:
 - Structured rate-limit responses for clients.
 - Focused tests for allow/deny windows.
 
+**Task 4 Step Progress:**
+- [x] Step 1: Add failing tests for GraphQL mutation throttling, login throttling, and channel-join throttling
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement shared limiter and wire auth, GraphQL, and channel join paths
+- [x] Step 4: Run focused verification to verify GREEN
+- [x] Step 5: Update checklist progress with code + tests in the same milestone
+
 ### Task 5: Final Verification And Rollout Notes
 
 After Tasks 1-4 complete:
@@ -157,3 +164,14 @@ mix precommit
 ```
 
 Document rollout caveats (breaking GraphQL input changes and client migration order) before merge.
+
+**Task 5 Step Progress:**
+- [x] Step 1: Run full verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Capture rollout caveats for rate-limit defaults and client-facing 429 behavior
+- [x] Step 3: Mark Task 5 complete and commit the milestone
+
+**Rollout Notes (2026-03-03):**
+- Added default throttle baselines via `LCWeb.RateLimiter`: `auth_login` `20/60s` per remote IP, `graphql_mutation` `120/60s` per remote IP, and `channel_join` `60/60s` per authenticated user.
+- GraphQL mutation throttles now return HTTP `429` with `{"errors":[{"message":"rate_limited","extensions":{"code":"RATE_LIMITED"}}]}` so mobile/web clients can branch on a stable error code.
+- Browser login throttles now return HTTP `429` with body `rate_limited`; web clients should map that response to a retry UX instead of generic login failure messaging.
+- Live channel join throttles now return `%{reason: "rate_limited"}` in join errors; realtime clients should treat this as retryable backoff instead of authorization failure.

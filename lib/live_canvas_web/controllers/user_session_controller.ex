@@ -2,9 +2,12 @@ defmodule LCWeb.UserSessionController do
   use LCWeb, :controller
 
   alias LC.Accounts
+  alias LCWeb.RateLimiter
   alias LCWeb.UserAuth
 
   @type conn :: Plug.Conn.t()
+
+  plug :rate_limit_create when action in [:create]
 
   @spec new(conn(), map()) :: conn()
   def new(conn, _params) do
@@ -97,5 +100,19 @@ defmodule LCWeb.UserSessionController do
     conn
     |> put_flash(:info, "Logged out successfully.")
     |> UserAuth.log_out_user()
+  end
+
+  @spec rate_limit_create(conn(), term()) :: conn()
+  defp rate_limit_create(conn, _opts) do
+    case RateLimiter.allow(:auth_login, RateLimiter.conn_subject(conn)) do
+      :ok ->
+        conn
+
+      {:error, :rate_limited} ->
+        conn
+        |> put_resp_content_type("text/plain")
+        |> send_resp(:too_many_requests, "rate_limited")
+        |> halt()
+    end
   end
 end

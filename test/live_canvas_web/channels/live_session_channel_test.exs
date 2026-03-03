@@ -74,6 +74,43 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
   end
 
+  test "rate limits repeated join attempts for the same viewer" do
+    previous_rate_limit_config = Application.get_env(:live_canvas, LCWeb.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LCWeb.RateLimiter,
+      Keyword.put(previous_rate_limit_config, :limits,
+        channel_join: [limit: 1, window_ms: 60_000]
+      )
+    )
+
+    LCWeb.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LCWeb.RateLimiter, previous_rate_limit_config)
+      LCWeb.RateLimiter.reset!()
+    end)
+
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:ok, _join_payload, _socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    assert {:error, %{reason: "rate_limited"}} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+  end
+
   test "disconnect marks participant left and prunes runtime membership" do
     Process.flag(:trap_exit, true)
 

@@ -11,6 +11,13 @@ config :live_canvas, namespace: LC
 
 config :live_canvas, LCGQL.Router, enable_graphiql: false
 
+config :live_canvas, LCWeb.RateLimiter,
+  limits: [
+    auth_login: [limit: 20, window_ms: 60_000],
+    graphql_mutation: [limit: 120, window_ms: 60_000],
+    channel_join: [limit: 60, window_ms: 60_000]
+  ]
+
 config :live_canvas, :scopes,
   user: [
     default: true,
