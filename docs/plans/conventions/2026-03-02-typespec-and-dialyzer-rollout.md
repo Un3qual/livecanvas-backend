@@ -29,7 +29,7 @@
 - [x] Task 1: Build and test the `mix check.typespecs` gate
 - [x] Task 2: Seed the first enforceable slice
 - [x] Task 3: Add Dialyzer and wire `mix precommit` to `mix typecheck`
-- [ ] Task 4: Add schema `t()` and shared enum union types
+- [x] Task 4: Add schema `t()` and shared enum union types
 - [ ] Task 5: Roll typespec enforcement across context/core modules
 - [ ] Task 6: Roll typespec enforcement across Phoenix web modules
 - [ ] Task 7: Roll typespec enforcement across GraphQL modules
@@ -250,6 +250,13 @@ This is the end of the immediate tooling baseline.
 - Modify: `lib/live_canvas_schemas/accounts/user_phone_number.ex`
 - Modify: `lib/live_canvas_schemas/accounts/user_token.ex`
 - Test: `test/live_canvas/accounts_test.exs`
+
+**Task 4 Step Progress**
+- [x] Step 1: Run the schema-focused regression suite first
+- [x] Step 2: Add `@type t` to every Ecto schema module
+- [x] Step 3: Centralize enum unions in the namespace module
+- [x] Step 4: Re-run the schema suite plus Dialyzer
+- [x] Step 5: Commit
 
 **Step 1: Run the schema-focused regression suite first**
 

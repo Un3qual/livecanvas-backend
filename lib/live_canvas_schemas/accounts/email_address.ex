@@ -1,6 +1,26 @@
 defmodule LiveCanvasSchemas.Accounts.EmailAddress do
   use LiveCanvasSchemas.Schema, :relational
 
+  alias LiveCanvasSchemas.Accounts.{
+    User,
+    UserContactEntry,
+    UserContactEntryEmailAddress,
+    UserEmailAddress
+  }
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          entropy_id: Ecto.UUID.t() | nil,
+          normalized_email: String.t() | nil,
+          user_email_addresses: Ecto.Association.NotLoaded.t() | [UserEmailAddress.t()],
+          users: Ecto.Association.NotLoaded.t() | [User.t()],
+          user_contact_entry_email_addresses:
+            Ecto.Association.NotLoaded.t() | [UserContactEntryEmailAddress.t()],
+          user_contact_entries: Ecto.Association.NotLoaded.t() | [UserContactEntry.t()],
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
+
   schema "email_addresses" do
     field :entropy_id, Ecto.UUID, read_after_writes: true
     field :normalized_email, :string

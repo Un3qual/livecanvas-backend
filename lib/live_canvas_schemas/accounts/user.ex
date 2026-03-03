@@ -1,6 +1,15 @@
 defmodule LiveCanvasSchemas.Accounts.User do
   use LiveCanvasSchemas.Schema, :relational
 
+  alias LiveCanvasSchemas.Accounts.{
+    EmailAddress,
+    PhoneNumber,
+    UserContactEntry,
+    UserEmailAddress,
+    UserIdentity,
+    UserPhoneNumber
+  }
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,
@@ -8,14 +17,14 @@ defmodule LiveCanvasSchemas.Accounts.User do
           password: String.t() | nil,
           hashed_password: String.t() | nil,
           confirmed_at: DateTime.t() | nil,
-          privacy_mode: atom() | nil,
+          privacy_mode: LiveCanvasSchemas.Accounts.user_privacy_mode() | nil,
           authenticated_at: DateTime.t() | nil,
-          user_email_addresses: Ecto.Association.NotLoaded.t() | [struct()],
-          email_addresses: Ecto.Association.NotLoaded.t() | [struct()],
-          user_phone_numbers: Ecto.Association.NotLoaded.t() | [struct()],
-          phone_numbers: Ecto.Association.NotLoaded.t() | [struct()],
-          user_identities: Ecto.Association.NotLoaded.t() | [struct()],
-          user_contact_entries: Ecto.Association.NotLoaded.t() | [struct()],
+          user_email_addresses: Ecto.Association.NotLoaded.t() | [UserEmailAddress.t()],
+          email_addresses: Ecto.Association.NotLoaded.t() | [EmailAddress.t()],
+          user_phone_numbers: Ecto.Association.NotLoaded.t() | [UserPhoneNumber.t()],
+          phone_numbers: Ecto.Association.NotLoaded.t() | [PhoneNumber.t()],
+          user_identities: Ecto.Association.NotLoaded.t() | [UserIdentity.t()],
+          user_contact_entries: Ecto.Association.NotLoaded.t() | [UserContactEntry.t()],
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
         }

@@ -1,6 +1,23 @@
 defmodule LiveCanvasSchemas.Accounts.UserIdentity do
   use LiveCanvasSchemas.Schema, :relational
 
+  alias LiveCanvasSchemas.Accounts.User
+
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          entropy_id: Ecto.UUID.t() | nil,
+          provider: LiveCanvasSchemas.Accounts.user_identity_provider() | nil,
+          provider_uid: binary() | nil,
+          provider_data: map(),
+          encrypted_tokens: binary() | nil,
+          last_used_at: DateTime.t() | nil,
+          revoked_at: DateTime.t() | nil,
+          user_id: pos_integer() | nil,
+          user: User.t() | Ecto.Association.NotLoaded.t(),
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
+
   schema "user_identities" do
     field :entropy_id, Ecto.UUID, read_after_writes: true
     field :provider, LiveCanvasSchemas.Accounts.UserIdentityProvider
