@@ -20,12 +20,23 @@ defmodule LiveCanvas.AccountsTest do
       assert :phone_numbers in UserContactEntry.__schema__(:associations)
     end
 
-    test "user token stores secret_hash and UUID primary key" do
+    test "relational schemas expose entropy_id while user tokens keep UUID primary keys" do
+      assert :entropy_id in User.__schema__(:fields)
+      assert :entropy_id in UserContactEntry.__schema__(:fields)
+
       assert :secret_hash in UserToken.__schema__(:fields)
       assert "binary_id" == Atom.to_string(UserToken.__schema__(:type, :id))
       assert :raw_secret in UserToken.__schema__(:virtual_fields)
       assert :serialized_value in UserToken.__schema__(:virtual_fields)
+      refute :entropy_id in UserToken.__schema__(:fields)
       refute :token in UserToken.__schema__(:virtual_fields)
+    end
+
+    test "reloading a relational row returns a populated entropy_id" do
+      user = user_fixture()
+      reloaded_user = Accounts.get_user!(user.id)
+
+      assert is_binary(Map.get(reloaded_user, :entropy_id))
     end
 
     test "tokens expose dedicated serialization helpers" do

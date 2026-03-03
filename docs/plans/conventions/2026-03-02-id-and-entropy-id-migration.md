@@ -55,6 +55,13 @@
 - Create: `test/live_canvas_schemas/id_conventions_test.exs`
 - Modify: `test/live_canvas/accounts_test.exs`
 
+**Task 1 Step Progress**
+- [x] Step 1: Write the failing schema-shape tests
+- [ ] Step 2: Run the focused tests to verify they fail
+- [ ] Step 3: Implement the shared schema macros and convert the schemas
+- [ ] Step 4: Run compile and the focused tests
+- [ ] Step 5: Commit
+
 **Step 1: Write the failing schema-shape tests**
 
 - In `test/live_canvas_schemas/id_conventions_test.exs`, add direct schema assertions for one representative relational table (`User`) and one join table (`UserEmailAddress`):
