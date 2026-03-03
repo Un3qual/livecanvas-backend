@@ -473,6 +473,7 @@ defmodule LC.AccountsTest do
       token = Accounts.generate_user_session_token(user)
       assert {:ok, %{id: id, raw_secret: raw_secret}} = Tokens.decode_serialized_value(token)
       assert user_token = Repo.get_by(UserToken, id: id)
+      assert_uuid_v7!(id)
       assert user_token.secret_hash == Tokens.secret_hash(raw_secret)
       assert user_token.context == :access_token
       assert user_token.authenticated_at != nil
@@ -480,7 +481,6 @@ defmodule LC.AccountsTest do
       # Creating the same token for another user should fail
       assert_raise Ecto.ConstraintError, fn ->
         Repo.insert!(%UserToken{
-          id: Ecto.UUID.generate(),
           secret_hash: user_token.secret_hash,
           user_id: user_fixture().id,
           context: :access_token
@@ -653,6 +653,10 @@ defmodule LC.AccountsTest do
     test "does not include password" do
       refute inspect(%User{password: "123456"}) =~ "password: \"123456\""
     end
+  end
+
+  defp assert_uuid_v7!(uuid) when is_binary(uuid) do
+    assert String.at(uuid, 14) == "7"
   end
 
   defp accounts_function_calls_local?(caller_name, caller_arity, callee_name, callee_arity) do

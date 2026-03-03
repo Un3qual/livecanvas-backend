@@ -239,11 +239,11 @@ git commit -m "feat: enforce entropy id constraints"
 - Modify: `test/support/fixtures/accounts_fixtures.ex`
 
 **Task 4 Step Progress**
-- [ ] Step 1: Write the failing token-path tests
-- [ ] Step 2: Run the focused token tests to verify they fail
-- [ ] Step 3: Implement the minimal token write-path change
-- [ ] Step 4: Run the focused token tests
-- [ ] Step 5: Commit
+- [x] Step 1: Write the failing token-path tests
+- [x] Step 2: Run the focused token tests to verify they fail
+- [x] Step 3: Implement the minimal token write-path change
+- [x] Step 4: Run the focused token tests
+- [x] Step 5: Commit
 
 **Step 1: Write the failing token-path tests**
 

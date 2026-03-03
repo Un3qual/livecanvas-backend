@@ -35,6 +35,10 @@ defmodule LC.Accounts.UserTokenTest do
       assert is_binary(token)
       assert persisted.context == :access_token
       assert persisted.user_id == user.id
+
+      assert {:ok, %{id: decoded_id}} = Accounts.Tokens.decode_serialized_value(token)
+      assert decoded_id == persisted.id
+      assert_uuid_v7!(decoded_id)
     end
 
     test "issue_magic_link_token/1 uses the email magic link context" do
@@ -87,5 +91,9 @@ defmodule LC.Accounts.UserTokenTest do
       assert {:error, :phone_number_not_found} =
                Accounts.issue_phone_verification_token(user, "650-253-0000")
     end
+  end
+
+  defp assert_uuid_v7!(uuid) when is_binary(uuid) do
+    assert String.at(uuid, 14) == "7"
   end
 end
