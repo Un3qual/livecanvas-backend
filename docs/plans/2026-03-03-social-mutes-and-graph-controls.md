@@ -13,7 +13,7 @@
 ## Progress
 
 - [x] Task 1: Add mute persistence and `LC.Social` boundary APIs
-- [ ] Task 2: Expose mute status and mute/unmute mutations through GraphQL
+- [x] Task 2: Expose mute status and mute/unmute mutations through GraphQL
 - [ ] Task 3: Run full verification and close the plan
 
 ### Task 1: Add Mute Persistence And `LC.Social` Boundary APIs
@@ -119,11 +119,11 @@ git commit -m "feat: add social mute persistence and APIs"
 - Modify: `docs/plans/2026-03-03-social-mutes-and-graph-controls.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Write failing GraphQL tests for mute query and mutations
-- [ ] Step 2: Run focused GraphQL tests to verify RED
-- [ ] Step 3: Implement resolver and schema wiring with Relay ID decoding
-- [ ] Step 4: Run focused GraphQL tests to verify GREEN
-- [ ] Step 5: Commit
+- [x] Step 1: Write failing GraphQL tests for mute query and mutations
+- [x] Step 2: Run focused GraphQL tests to verify RED
+- [x] Step 3: Implement resolver and schema wiring with Relay ID decoding
+- [x] Step 4: Run focused GraphQL tests to verify GREEN
+- [x] Step 5: Commit
 
 **Step 1: Write failing GraphQL tests for mute query and mutations**
 

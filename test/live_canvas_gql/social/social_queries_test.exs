@@ -28,6 +28,28 @@ defmodule LCGQL.Social.SocialQueriesTest do
     end
   end
 
+  describe "isMuted" do
+    test "returns true when viewer has muted creator" do
+      viewer = user_fixture()
+      creator = user_fixture()
+      viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+      creator_id = Absinthe.Relay.Node.to_global_id(:user, creator.id, LCGQL.Schema)
+
+      {:ok, _mute} = Social.mute_user(viewer, creator)
+
+      query = """
+      query($viewerId: ID!, $creatorId: ID!) {
+        isMuted(viewerId: $viewerId, creatorId: $creatorId)
+      }
+      """
+
+      assert {:ok, %{data: %{"isMuted" => true}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"viewerId" => viewer_id, "creatorId" => creator_id}
+               )
+    end
+  end
+
   describe "user relationship connections" do
     test "node.user.followers returns relay edges and pageInfo" do
       creator = user_fixture(privacy_mode: :public)

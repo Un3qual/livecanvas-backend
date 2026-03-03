@@ -2,6 +2,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  alias LC.Social
 
   describe "followUser" do
     test "returns requested for a private account" do
@@ -109,6 +110,113 @@ defmodule LCGQL.Social.SocialMutationsTest do
                Absinthe.run(mutation, LCGQL.Schema,
                  variables: %{"blockerId" => blocker_id, "blockedId" => blocked_id}
                )
+    end
+  end
+
+  describe "muteUser" do
+    test "returns successful true with no errors when mute is persisted" do
+      muter = user_fixture()
+      muted = user_fixture()
+      muter_id = Absinthe.Relay.Node.to_global_id(:user, muter.id, LCGQL.Schema)
+      muted_id = Absinthe.Relay.Node.to_global_id(:user, muted.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($muterId: ID!, $mutedId: ID!) {
+        muteUser(input: {muterId: $muterId, mutedId: $mutedId}) {
+          successful
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "muteUser" => %{
+                    "successful" => true,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"muterId" => muter_id, "mutedId" => muted_id}
+               )
+
+      assert Social.muted?(muter, muted)
+    end
+
+    test "returns structured errors for non-global ids" do
+      muter = user_fixture()
+      muted = user_fixture()
+      muted_id = Absinthe.Relay.Node.to_global_id(:user, muted.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($muterId: ID!, $mutedId: ID!) {
+        muteUser(input: {muterId: $muterId, mutedId: $mutedId}) {
+          successful
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "muteUser" => %{
+                    "successful" => false,
+                    "errors" => [%{"field" => "muterId", "message" => message} | _rest]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"muterId" => "#{muter.id}", "mutedId" => muted_id}
+               )
+
+      assert message =~ "invalid_id"
+    end
+  end
+
+  describe "unmuteUser" do
+    test "returns successful true and clears an existing mute relationship" do
+      muter = user_fixture()
+      muted = user_fixture()
+      muter_id = Absinthe.Relay.Node.to_global_id(:user, muter.id, LCGQL.Schema)
+      muted_id = Absinthe.Relay.Node.to_global_id(:user, muted.id, LCGQL.Schema)
+
+      {:ok, _mute} = Social.mute_user(muter, muted)
+
+      mutation = """
+      mutation($muterId: ID!, $mutedId: ID!) {
+        unmuteUser(input: {muterId: $muterId, mutedId: $mutedId}) {
+          successful
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "unmuteUser" => %{
+                    "successful" => true,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"muterId" => muter_id, "mutedId" => muted_id}
+               )
+
+      refute Social.muted?(muter, muted)
     end
   end
 end

@@ -47,5 +47,33 @@ defmodule LCGQL.Social.Mutations do
 
       resolve(&Resolver.block_user/3)
     end
+
+    payload field :mute_user do
+      input do
+        field :muter_id, non_null(:id)
+        field :muted_id, non_null(:id)
+      end
+
+      output do
+        field :successful, non_null(:boolean)
+        field :errors, non_null(list_of(non_null(:social_error)))
+      end
+
+      resolve(&Resolver.mute_user/3)
+    end
+
+    payload field :unmute_user do
+      input do
+        field :muter_id, non_null(:id)
+        field :muted_id, non_null(:id)
+      end
+
+      output do
+        field :successful, non_null(:boolean)
+        field :errors, non_null(list_of(non_null(:social_error)))
+      end
+
+      resolve(&Resolver.unmute_user/3)
+    end
   end
 end

@@ -11,7 +11,7 @@ defmodule LCGQL.Social.Resolver do
           follow: follow_payload() | nil,
           errors: [social_error_payload()]
         }
-  @type block_result_payload :: %{successful: boolean(), errors: [social_error_payload()]}
+  @type successful_result_payload :: %{successful: boolean(), errors: [social_error_payload()]}
 
   @spec follow_user(any(), %{follower_id: term(), followed_id: term()}, any()) ::
           {:ok, follow_result_payload()}
@@ -60,7 +60,7 @@ defmodule LCGQL.Social.Resolver do
   end
 
   @spec block_user(any(), %{blocker_id: term(), blocked_id: term()}, any()) ::
-          {:ok, block_result_payload()}
+          {:ok, successful_result_payload()}
   def block_user(_parent, %{blocker_id: blocker_id, blocked_id: blocked_id}, _resolution) do
     with {:ok, blocker} <- fetch_user(blocker_id, :blocker_id),
          {:ok, blocked} <- fetch_user(blocked_id, :blocked_id),
@@ -75,6 +75,35 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
+  @spec mute_user(any(), %{muter_id: term(), muted_id: term()}, any()) ::
+          {:ok, successful_result_payload()}
+  def mute_user(_parent, %{muter_id: muter_id, muted_id: muted_id}, _resolution) do
+    with {:ok, muter} <- fetch_user(muter_id, :muter_id),
+         {:ok, muted} <- fetch_user(muted_id, :muted_id),
+         {:ok, _mute} <- Social.mute_user(muter, muted) do
+      {:ok, %{successful: true, errors: []}}
+    else
+      {:error, {field, reason}} ->
+        {:ok, %{successful: false, errors: [social_error(field, reason)]}}
+
+      {:error, reason} ->
+        {:ok, %{successful: false, errors: [social_error(nil, reason)]}}
+    end
+  end
+
+  @spec unmute_user(any(), %{muter_id: term(), muted_id: term()}, any()) ::
+          {:ok, successful_result_payload()}
+  def unmute_user(_parent, %{muter_id: muter_id, muted_id: muted_id}, _resolution) do
+    with {:ok, muter} <- fetch_user(muter_id, :muter_id),
+         {:ok, muted} <- fetch_user(muted_id, :muted_id),
+         :ok <- Social.unmute_user(muter, muted) do
+      {:ok, %{successful: true, errors: []}}
+    else
+      {:error, {field, reason}} ->
+        {:ok, %{successful: false, errors: [social_error(field, reason)]}}
+    end
+  end
+
   @spec relationship_state(any(), %{viewer_id: term(), creator_id: term()}, any()) ::
           {:ok, Social.relationship_state()}
   def relationship_state(_parent, %{viewer_id: viewer_id, creator_id: creator_id}, _resolution) do
@@ -83,6 +112,18 @@ defmodule LCGQL.Social.Resolver do
       {:ok, Social.relationship_state(viewer, creator)}
     else
       _ -> {:ok, :none}
+    end
+  end
+
+  @spec is_muted(any(), %{viewer_id: term(), creator_id: term()}, any()) :: {:ok, boolean()}
+  def is_muted(_parent, %{viewer_id: viewer_id, creator_id: creator_id}, _resolution) do
+    with {:ok, viewer} <- fetch_user(viewer_id, :viewer_id),
+         {:ok, creator} <- fetch_user(creator_id, :creator_id) do
+      {:ok, Social.muted?(viewer, creator)}
+    else
+      # Keep read queries stable by treating invalid or missing users as
+      # "not muted" instead of raising at the GraphQL boundary.
+      _ -> {:ok, false}
     end
   end
 
@@ -131,6 +172,8 @@ defmodule LCGQL.Social.Resolver do
   defp format_field(:creator_id), do: "creatorId"
   defp format_field(:followed_id), do: "followedId"
   defp format_field(:follower_id), do: "followerId"
+  defp format_field(:muted_id), do: "mutedId"
+  defp format_field(:muter_id), do: "muterId"
   defp format_field(:viewer_id), do: "viewerId"
   defp format_field(field), do: Atom.to_string(field)
 
