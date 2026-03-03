@@ -74,6 +74,8 @@ defmodule LC.Accounts do
           required(:matched_users) => [User.t()]
         }
   @type user_session_result :: {User.t(), DateTime.t()} | nil
+  @type access_token_auth_error :: :invalid_token | :expired_token | :revoked_token
+  @type access_token_auth_result :: {:ok, Scope.t()} | {:error, access_token_auth_error()}
   @type registration_attrs :: %{
           optional(:email | :password | String.t()) => String.t()
         }
@@ -712,6 +714,32 @@ defmodule LC.Accounts do
     :ok
   end
 
+  @doc """
+  Authenticates a serialized access token and returns a user scope.
+
+  Error semantics:
+  - `:invalid_token`: malformed transport value, wrong context, or secret mismatch.
+  - `:expired_token`: valid access token whose freshness window elapsed.
+  - `:revoked_token`: token id no longer exists (deleted/revoked) or user is inactive.
+  """
+  @spec authenticate_access_token(String.t()) :: access_token_auth_result()
+  def authenticate_access_token(serialized_value) when is_binary(serialized_value) do
+    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+         {:ok, {user, user_token, current_email}} <- fetch_token_lookup_row(query),
+         :ok <- validate_access_token(user_token, raw_secret),
+         true <- active_user?(user) || {:error, :revoked_token} do
+      {:ok, scope_for_user(hydrate_user(user, user_token, current_email))}
+    else
+      :error ->
+        {:error, :invalid_token}
+
+      {:error, reason} when reason in [:invalid_token, :expired_token, :revoked_token] ->
+        {:error, reason}
+    end
+  end
+
+  def authenticate_access_token(_serialized_value), do: {:error, :invalid_token}
+
   ## Token helper
 
   defp update_user_and_delete_all_tokens(changeset) do
@@ -1091,6 +1119,34 @@ defmodule LC.Accounts do
   defp active_user?(%User{suspended_at: nil}), do: true
   defp active_user?(%User{}), do: false
   defp active_user?(_), do: false
+
+  @spec fetch_token_lookup_row(Ecto.Query.t()) ::
+          {:ok, {User.t(), UserToken.t(), String.t() | nil}} | {:error, :revoked_token}
+  defp fetch_token_lookup_row(query) do
+    case Repo.one(query) do
+      {user, user_token, current_email} -> {:ok, {user, user_token, current_email}}
+      nil -> {:error, :revoked_token}
+    end
+  end
+
+  @spec validate_access_token(UserToken.t(), binary()) ::
+          :ok | {:error, :invalid_token | :expired_token}
+  defp validate_access_token(%UserToken{context: context}, _raw_secret)
+       when context != :access_token,
+       do: {:error, :invalid_token}
+
+  defp validate_access_token(%UserToken{} = user_token, raw_secret) when is_binary(raw_secret) do
+    cond do
+      not Tokens.valid_secret?(user_token, raw_secret) ->
+        {:error, :invalid_token}
+
+      not Tokens.valid_session_token?(user_token, raw_secret) ->
+        {:error, :expired_token}
+
+      true ->
+        :ok
+    end
+  end
 
   @spec now_utc() :: DateTime.t()
   defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)

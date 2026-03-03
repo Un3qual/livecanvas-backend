@@ -28,7 +28,7 @@ Verified directly in code before selecting next work:
 ## Progress
 
 - [x] Task 1: Enforce viewer-scoped identity + authenticated writes for sensitive GraphQL mutations
-- [ ] Task 2: Add GraphQL transport auth contract for mobile token usage
+- [x] Task 2: Add GraphQL transport auth contract for mobile token usage
 - [ ] Task 3: Restrict GraphiQL to explicitly allowed non-production environments
 - [ ] Task 4: Add rate-limit baseline for auth, mutation, and channel-join abuse paths
 - [ ] Task 5: Final verification and rollout notes
@@ -113,6 +113,13 @@ Planned outcomes:
 - Explicit bearer token extraction and validation strategy.
 - Contracted precedence/fallback semantics if both bearer and session token are present.
 - Error semantics for expired/revoked/invalid tokens documented and tested.
+
+**Task 2 Step Progress:**
+- [x] Step 1: Add failing tests for bearer-token GraphQL auth and precedence semantics
+- [x] Step 2: Add failing tests for access-token error semantics (`invalid`/`expired`/`revoked`)
+- [x] Step 3: Implement `Accounts.authenticate_access_token/1` with explicit auth error contract
+- [x] Step 4: Implement bearer-first GraphQL context auth with explicit precedence/fallback semantics
+- [x] Step 5: Run focused verification, update checklist progress, and commit milestone
 
 ### Task 3: Restrict GraphiQL Exposure
 
