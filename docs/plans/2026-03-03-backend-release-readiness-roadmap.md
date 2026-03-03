@@ -53,7 +53,7 @@ The backend is in a strong "foundation complete / internal alpha" state, not yet
 
 Main reason: the current API surface proves domain behavior, but runtime scaling, media/storage delivery, and production operations layers are not complete yet.
 
-Auth/security baseline now includes viewer-scoped GraphQL writes, bearer token GraphQL auth precedence, GraphiQL environment gating, abuse-rate limiting, and persisted auth audit events for password/magic-link login outcomes plus refresh-token revocation.
+Auth/security baseline now includes viewer-scoped GraphQL writes, bearer token GraphQL auth precedence, GraphiQL environment gating, abuse-rate limiting, and persisted auth audit events for login outcomes, refresh-token revocation/rotation outcomes, and credential change outcomes.
 
 ## Explicitly Deferred (Still Out Of Scope For V1)
 
@@ -119,7 +119,7 @@ Mobile parallel start now:
 - Finalize supported login methods for v1 launch (email/password + magic link vs additional providers).
 - Implement mobile-first auth endpoints/flows (not only web form/session flows).
 - Decide and implement provider rollout (Google/Apple/passkey either fully ship or explicitly defer behind flags with no client promise).
-- Auth audit baseline is delivered for password/magic-link login outcomes plus refresh-token revocation; expand to additional high-risk identity lifecycle events if they enter v1 scope.
+- Auth audit expansion is delivered for password/magic-link login outcomes, refresh-token revocation/rotation outcomes, and password/email credential change outcomes; expand further for additional identity lifecycle events (for example provider unlink/account recovery) if they enter v1 scope.
 
 Mobile parallel:
 - Start real login/signup/password-reset screens once auth contract is frozen.
@@ -170,7 +170,7 @@ Mobile parallel:
 
 The following are material gaps where no sufficiently detailed executable plan exists yet in `docs/plans/`:
 
-- Auth audit expansion plan for additional high-risk identity lifecycle events (for example provider unlink/account recovery) if included in v1 launch scope.
+- Additional auth audit expansion for provider unlink/account recovery events if included in v1 launch scope.
 - REST webhook + background-job design/implementation plan.
 - Distributed live runtime ownership plan for multi-pod deployments.
 - Media storage/processing delivery plan.
@@ -180,12 +180,11 @@ The following are material gaps where no sufficiently detailed executable plan e
 
 ## Evidence Notes On Key Blockers
 
-- Auth audit baseline is now implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, and login/revocation emissions in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`.
+- Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, and credential change emissions in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`.
 - Live runtime session ownership is node-local (`lib/live_canvas/live/session_supervisor.ex`), which needs an explicit multi-node ownership strategy before high-scale release.
 
 ## Suggested Next Plan Files To Create
 
-- `docs/plans/release/2026-03-03-auth-audit-expansion.md`
 - `docs/plans/2026-03-03-live-runtime-distributed-ownership.md`
 - `docs/plans/2026-03-03-media-storage-and-processing.md`
 - `docs/plans/2026-03-03-observability-and-launch-ops.md`

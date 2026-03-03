@@ -25,7 +25,7 @@ Verified directly in `lib/`, `test/`, and `priv/repo/migrations` before selectin
 
 - [x] Task 1: Add refresh-token rotation audit events and focused coverage
 - [x] Task 2: Add credential-change audit events for password/email lifecycle paths
-- [ ] Task 3: Run verification, update release roadmap notes, and commit final milestone
+- [x] Task 3: Run verification, update release roadmap notes, and commit final milestone
 
 ### Task 1: Add Refresh-Token Rotation Audit Events
 
@@ -134,6 +134,6 @@ git commit -m "feat: audit refresh token rotation outcomes"
 - Modify: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Run final verification (`mix test`, `mix compile`, `mix typecheck`)
-- [ ] Step 2: Update roadmap planning-holes/blocker notes for delivered expansion scope
-- [ ] Step 3: Mark plan tasks complete and commit final milestone
+- [x] Step 1: Run final verification (`mix test`, `mix compile`, `mix typecheck`)
+- [x] Step 2: Update roadmap planning-holes/blocker notes for delivered expansion scope
+- [x] Step 3: Mark plan tasks complete and commit final milestone

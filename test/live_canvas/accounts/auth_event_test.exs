@@ -175,9 +175,10 @@ defmodule LC.Accounts.AuthEventTest do
                  password_confirmation: "mismatch"
                })
 
-      assert %AuthEvent{event_type: :password_change_failed, metadata: metadata} =
+      assert %AuthEvent{event_type: :password_change_failed, user_id: user_id, metadata: metadata} =
                latest_user_event(user)
 
+      assert user_id == user.id
       assert metadata["reason"] == "validation_failed"
       refute Enum.any?(Map.values(metadata), &(&1 == "too short"))
     end
@@ -205,9 +206,10 @@ defmodule LC.Accounts.AuthEventTest do
 
       assert {:error, :transaction_aborted} = Accounts.update_user_email(user, "bad-token")
 
-      assert %AuthEvent{event_type: :email_change_failed, metadata: metadata} =
+      assert %AuthEvent{event_type: :email_change_failed, user_id: user_id, metadata: metadata} =
                latest_user_event(user)
 
+      assert user_id == user.id
       assert metadata["reason"] == "transaction_aborted"
     end
   end
