@@ -1,7 +1,7 @@
-defmodule LiveCanvasGQL.Social.Queries do
+defmodule LCGQL.Social.Queries do
   use Absinthe.Schema.Notation
 
-  alias LiveCanvasGQL.Social.Resolver
+  alias LCGQL.Social.Resolver
 
   object :social_queries do
     field :relationship_state, non_null(:relationship_state) do

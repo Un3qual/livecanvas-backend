@@ -1,4 +1,4 @@
-defmodule LiveCanvasGQL.Accounts.AccountQueriesTest do
+defmodule LCGQL.Accounts.AccountQueriesTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
@@ -17,13 +17,13 @@ defmodule LiveCanvasGQL.Accounts.AccountQueriesTest do
       """
 
       assert {:ok, %{data: %{"viewer" => %{"email" => ^expected_email}}}} =
-               Absinthe.run(query, LiveCanvasGQL.Schema, variables: %{"userId" => user.id})
+               Absinthe.run(query, LCGQL.Schema, variables: %{"userId" => user.id})
     end
   end
 
   describe "schema cleanup" do
     test "does not expose the legacy authTokenValid stub" do
-      schema_sdl = Absinthe.Schema.to_sdl(LiveCanvasGQL.Schema)
+      schema_sdl = Absinthe.Schema.to_sdl(LCGQL.Schema)
 
       refute schema_sdl =~ "authTokenValid"
     end

@@ -1,16 +1,16 @@
-defmodule LiveCanvasGQL.Router do
+defmodule LCGQL.Router do
   use Plug.Router
 
   @absinthe_configuration [
-    document_providers: {LiveCanvasGQL, :document_providers},
+    document_providers: {LCGQL, :document_providers},
     # json_codec: Jason,
-    schema: LiveCanvasGQL.Schema
+    schema: LCGQL.Schema
   ]
 
   plug(:match)
   plug(:dispatch)
 
-  Code.ensure_compiled(LiveCanvasGQL.Schema)
+  Code.ensure_compiled(LCGQL.Schema)
 
   forward("/graphql",
     to: Absinthe.Plug,

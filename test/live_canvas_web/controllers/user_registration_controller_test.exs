@@ -1,5 +1,5 @@
-defmodule LiveCanvasWeb.UserRegistrationControllerTest do
-  use LiveCanvasWeb.ConnCase, async: true
+defmodule LCWeb.UserRegistrationControllerTest do
+  use LCWeb.ConnCase, async: true
 
   import LC.AccountsFixtures
 

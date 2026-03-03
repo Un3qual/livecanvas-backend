@@ -1,7 +1,7 @@
-defmodule LiveCanvasGQL.Accounts.Mutations do
+defmodule LCGQL.Accounts.Mutations do
   use Absinthe.Schema.Notation
 
-  alias LiveCanvasGQL.Accounts.Resolver
+  alias LCGQL.Accounts.Resolver
 
   object :account_mutations do
     field :register_with_email, non_null(:successful_payload) do

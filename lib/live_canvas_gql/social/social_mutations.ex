@@ -1,7 +1,7 @@
-defmodule LiveCanvasGQL.Social.Mutations do
+defmodule LCGQL.Social.Mutations do
   use Absinthe.Schema.Notation
 
-  alias LiveCanvasGQL.Social.Resolver
+  alias LCGQL.Social.Resolver
 
   object :social_mutations do
     field :follow_user, non_null(:social_follow_payload) do

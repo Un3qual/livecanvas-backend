@@ -1,7 +1,7 @@
-defmodule LiveCanvasGQL.Accounts.Queries do
+defmodule LCGQL.Accounts.Queries do
   use Absinthe.Schema.Notation
 
-  alias LiveCanvasGQL.Accounts.Resolver
+  alias LCGQL.Accounts.Resolver
 
   object :account_queries do
     field :viewer, :user do

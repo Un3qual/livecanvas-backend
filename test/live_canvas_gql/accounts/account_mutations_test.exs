@@ -1,4 +1,4 @@
-defmodule LiveCanvasGQL.Accounts.AccountMutationsTest do
+defmodule LCGQL.Accounts.AccountMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
@@ -16,7 +16,7 @@ defmodule LiveCanvasGQL.Accounts.AccountMutationsTest do
       """
 
       assert {:ok, %{data: %{"registerWithEmail" => %{"successful" => true}}}} =
-               Absinthe.run(mutation, LiveCanvasGQL.Schema)
+               Absinthe.run(mutation, LCGQL.Schema)
 
       assert user = Accounts.get_user_by_email("user@example.com")
       assert user.email == "user@example.com"
@@ -36,7 +36,7 @@ defmodule LiveCanvasGQL.Accounts.AccountMutationsTest do
       """
 
       assert {:ok, %{data: %{"attachUserPhoneNumber" => %{"successful" => true}}}} =
-               Absinthe.run(mutation, LiveCanvasGQL.Schema, variables: %{"userId" => user.id})
+               Absinthe.run(mutation, LCGQL.Schema, variables: %{"userId" => user.id})
 
       assert persisted_user = Accounts.get_user_by_phone("+1 650-253-0000")
       assert persisted_user.id == user.id
@@ -45,7 +45,7 @@ defmodule LiveCanvasGQL.Accounts.AccountMutationsTest do
 
   describe "schema cleanup" do
     test "does not expose the legacy appleAuthenticate stub" do
-      schema_sdl = Absinthe.Schema.to_sdl(LiveCanvasGQL.Schema)
+      schema_sdl = Absinthe.Schema.to_sdl(LCGQL.Schema)
 
       refute schema_sdl =~ "appleAuthenticate"
     end

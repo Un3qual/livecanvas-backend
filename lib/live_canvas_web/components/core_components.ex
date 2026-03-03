@@ -1,4 +1,4 @@
-defmodule LiveCanvasWeb.CoreComponents do
+defmodule LCWeb.CoreComponents do
   @moduledoc """
   Provides core UI components.
 
@@ -27,7 +27,7 @@ defmodule LiveCanvasWeb.CoreComponents do
 
   """
   use Phoenix.Component
-  use Gettext, backend: LiveCanvasWeb.Gettext
+  use Gettext, backend: LCWeb.Gettext
 
   alias Phoenix.LiveView.JS
 
@@ -521,9 +521,9 @@ defmodule LiveCanvasWeb.CoreComponents do
     # with our gettext backend as first argument. Translations are
     # available in the errors.po file (as we use the "errors" domain).
     if count = opts[:count] do
-      Gettext.dngettext(LiveCanvasWeb.Gettext, "errors", msg, msg, count, opts)
+      Gettext.dngettext(LCWeb.Gettext, "errors", msg, msg, count, opts)
     else
-      Gettext.dgettext(LiveCanvasWeb.Gettext, "errors", msg, opts)
+      Gettext.dgettext(LCWeb.Gettext, "errors", msg, opts)
     end
   end
 

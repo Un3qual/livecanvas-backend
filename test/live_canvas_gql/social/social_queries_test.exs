@@ -1,4 +1,4 @@
-defmodule LiveCanvasGQL.Social.SocialQueriesTest do
+defmodule LCGQL.Social.SocialQueriesTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
@@ -20,7 +20,7 @@ defmodule LiveCanvasGQL.Social.SocialQueriesTest do
       """
 
       assert {:ok, %{data: %{"relationshipState" => "BLOCKED"}}} =
-               Absinthe.run(query, LiveCanvasGQL.Schema,
+               Absinthe.run(query, LCGQL.Schema,
                  variables: %{"viewerId" => viewer.id, "creatorId" => creator.id}
                )
     end

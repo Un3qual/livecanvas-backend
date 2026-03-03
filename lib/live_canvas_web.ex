@@ -1,12 +1,12 @@
-defmodule LiveCanvasWeb do
+defmodule LCWeb do
   @moduledoc """
   The entrypoint for defining your web interface, such
   as controllers, components, channels, and so on.
 
   This can be used in your application as:
 
-      use LiveCanvasWeb, :controller
-      use LiveCanvasWeb, :html
+      use LCWeb, :controller
+      use LCWeb, :html
 
   The definitions below will be executed for every controller,
   component, etc, so keep them short and clean, focused
@@ -19,7 +19,7 @@ defmodule LiveCanvasWeb do
 
   use Boundary,
     top_level?: true,
-    deps: [LC, LiveCanvasGQL],
+    deps: [LC, LCGQL],
     exports: [Endpoint, Router, Telemetry, UserAuth]
 
   @spec static_paths() :: [String.t()]
@@ -49,7 +49,7 @@ defmodule LiveCanvasWeb do
     quote do
       use Phoenix.Controller, formats: [:html, :json]
 
-      use Gettext, backend: LiveCanvasWeb.Gettext
+      use Gettext, backend: LCWeb.Gettext
 
       import Plug.Conn
 
@@ -92,16 +92,16 @@ defmodule LiveCanvasWeb do
   defp html_helpers do
     quote do
       # Translation
-      use Gettext, backend: LiveCanvasWeb.Gettext
+      use Gettext, backend: LCWeb.Gettext
 
       # HTML escaping functionality
       import Phoenix.HTML
       # Core UI components
-      import LiveCanvasWeb.CoreComponents
+      import LCWeb.CoreComponents
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
-      alias LiveCanvasWeb.Layouts
+      alias LCWeb.Layouts
 
       # Routes generation with the ~p sigil
       unquote(verified_routes())
@@ -112,9 +112,9 @@ defmodule LiveCanvasWeb do
   def verified_routes do
     quote do
       use Phoenix.VerifiedRoutes,
-        endpoint: LiveCanvasWeb.Endpoint,
-        router: LiveCanvasWeb.Router,
-        statics: LiveCanvasWeb.static_paths()
+        endpoint: LCWeb.Endpoint,
+        router: LCWeb.Router,
+        statics: LCWeb.static_paths()
     end
   end
 

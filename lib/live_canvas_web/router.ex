@@ -1,13 +1,13 @@
-defmodule LiveCanvasWeb.Router do
-  use LiveCanvasWeb, :router
+defmodule LCWeb.Router do
+  use LCWeb, :router
 
-  import LiveCanvasWeb.UserAuth
+  import LCWeb.UserAuth
 
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
-    plug :put_root_layout, html: {LiveCanvasWeb.Layouts, :root}
+    plug :put_root_layout, html: {LCWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :fetch_current_scope_for_user
@@ -17,14 +17,14 @@ defmodule LiveCanvasWeb.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/", LiveCanvasWeb do
+  scope "/", LCWeb do
     pipe_through :browser
 
     get "/", PageController, :home
   end
 
   # Other scopes may use custom stacks.
-  # scope "/api", LiveCanvasWeb do
+  # scope "/api", LCWeb do
   #   pipe_through :api
   # end
 
@@ -40,21 +40,21 @@ defmodule LiveCanvasWeb.Router do
     scope "/dev" do
       pipe_through :browser
 
-      live_dashboard "/dashboard", metrics: LiveCanvasWeb.Telemetry
+      live_dashboard "/dashboard", metrics: LCWeb.Telemetry
       forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
   end
 
   ## Authentication routes
 
-  scope "/", LiveCanvasWeb do
+  scope "/", LCWeb do
     pipe_through [:browser, :redirect_if_user_is_authenticated]
 
     get "/users/register", UserRegistrationController, :new
     post "/users/register", UserRegistrationController, :create
   end
 
-  scope "/", LiveCanvasWeb do
+  scope "/", LCWeb do
     pipe_through [:browser, :require_authenticated_user]
 
     get "/users/settings", UserSettingsController, :edit
@@ -62,7 +62,7 @@ defmodule LiveCanvasWeb.Router do
     get "/users/settings/confirm-email/:token", UserSettingsController, :confirm_email
   end
 
-  scope "/", LiveCanvasWeb do
+  scope "/", LCWeb do
     pipe_through [:browser]
 
     get "/users/log-in", UserSessionController, :new

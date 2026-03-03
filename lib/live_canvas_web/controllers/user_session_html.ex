@@ -1,5 +1,5 @@
-defmodule LiveCanvasWeb.UserSessionHTML do
-  use LiveCanvasWeb, :html
+defmodule LCWeb.UserSessionHTML do
+  use LCWeb, :html
 
   embed_templates "user_session_html/*"
 

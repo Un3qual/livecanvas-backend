@@ -1,22 +1,22 @@
-defmodule LiveCanvasApp do
+defmodule LCApp do
   @moduledoc false
 
   use Application
 
   use Boundary,
     top_level?: true,
-    deps: [LC, LiveCanvasWeb, LiveCanvasGQL]
+    deps: [LC, LCWeb, LCGQL]
 
   @spec start(Application.start_type(), [term()]) :: Supervisor.on_start()
   @impl true
   def start(_type, _args) do
     children = [
-      LiveCanvasWeb.Telemetry,
+      LCWeb.Telemetry,
       LC.repo_module(),
       {DNSCluster, query: Application.get_env(:live_canvas, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: LC.PubSub},
       {LC.Infra.SMS.FakeAdapter, []},
-      LiveCanvasWeb.Endpoint
+      LCWeb.Endpoint
     ]
 
     opts = [strategy: :one_for_one, name: LC.Supervisor]
@@ -26,7 +26,7 @@ defmodule LiveCanvasApp do
   @spec config_change(keyword(), keyword(), keyword()) :: :ok
   @impl true
   def config_change(changed, _new, removed) do
-    LiveCanvasWeb.Endpoint.config_change(changed, removed)
+    LCWeb.Endpoint.config_change(changed, removed)
     :ok
   end
 end

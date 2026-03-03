@@ -1,5 +1,5 @@
-defmodule LiveCanvasWeb.UserSettingsControllerTest do
-  use LiveCanvasWeb.ConnCase, async: true
+defmodule LCWeb.UserSettingsControllerTest do
+  use LCWeb.ConnCase, async: true
 
   alias LC.Accounts
   import LC.AccountsFixtures

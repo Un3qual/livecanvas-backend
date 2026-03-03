@@ -1,8 +1,8 @@
-defmodule LiveCanvasWeb.UserSessionController do
-  use LiveCanvasWeb, :controller
+defmodule LCWeb.UserSessionController do
+  use LCWeb, :controller
 
   alias LC.Accounts
-  alias LiveCanvasWeb.UserAuth
+  alias LCWeb.UserAuth
 
   @type conn :: Plug.Conn.t()
 

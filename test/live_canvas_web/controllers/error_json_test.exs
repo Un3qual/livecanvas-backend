@@ -1,12 +1,12 @@
-defmodule LiveCanvasWeb.ErrorJSONTest do
-  use LiveCanvasWeb.ConnCase, async: true
+defmodule LCWeb.ErrorJSONTest do
+  use LCWeb.ConnCase, async: true
 
   test "renders 404" do
-    assert LiveCanvasWeb.ErrorJSON.render("404.json", %{}) == %{errors: %{detail: "Not Found"}}
+    assert LCWeb.ErrorJSON.render("404.json", %{}) == %{errors: %{detail: "Not Found"}}
   end
 
   test "renders 500" do
-    assert LiveCanvasWeb.ErrorJSON.render("500.json", %{}) ==
+    assert LCWeb.ErrorJSON.render("500.json", %{}) ==
              %{errors: %{detail: "Internal Server Error"}}
   end
 end

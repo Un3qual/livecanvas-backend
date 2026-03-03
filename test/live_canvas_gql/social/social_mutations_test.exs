@@ -1,4 +1,4 @@
-defmodule LiveCanvasGQL.Social.SocialMutationsTest do
+defmodule LCGQL.Social.SocialMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
@@ -17,7 +17,7 @@ defmodule LiveCanvasGQL.Social.SocialMutationsTest do
       """
 
       assert {:ok, %{data: %{"followUser" => %{"state" => "REQUESTED"}}}} =
-               Absinthe.run(mutation, LiveCanvasGQL.Schema,
+               Absinthe.run(mutation, LCGQL.Schema,
                  variables: %{"followerId" => follower.id, "followedId" => followed.id}
                )
     end

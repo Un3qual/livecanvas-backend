@@ -1,5 +1,5 @@
-defmodule LiveCanvasWeb.PageControllerTest do
-  use LiveCanvasWeb.ConnCase
+defmodule LCWeb.PageControllerTest do
+  use LCWeb.ConnCase
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")

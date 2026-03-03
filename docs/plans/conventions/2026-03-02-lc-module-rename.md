@@ -30,7 +30,7 @@
 
 - [x] Step 1: Lock Phoenix's namespace override and capture the rename inventory
 - [x] Step 2: Rename `LC` and `LCSchemas` plus all in-repo core call sites
-- [ ] Step 3: Rename `LCWeb`, `LCGQL`, and `LCApp` plus all adapter/config call sites
+- [x] Step 3: Rename `LCWeb`, `LCGQL`, and `LCApp` plus all adapter/config call sites
 - [ ] Step 4: Add temporary root aliases only if an external caller still needs them
 - [ ] Step 5: Run full verification, decide on migration exceptions, and clean up docs
 
@@ -263,7 +263,7 @@ git commit -m "refactor: rename core namespaces to lc"
 - Modify: `test/live_canvas_web/controllers/user_settings_controller_test.exs`
 - Modify: `test/live_canvas_web/user_auth_test.exs`
 
-- [ ] Step 1: Use the existing adapter tests as the red harness
+- [x] Step 1: Use the existing adapter tests as the red harness
 
 Before touching implementation code, rename the adapter test modules and test support references first so the compile errors are constrained to the adapter surface:
 
@@ -273,7 +273,7 @@ Before touching implementation code, rename the adapter test modules and test su
 
 The tests should fail to compile until the adapter modules are renamed.
 
-- [ ] Step 2: Rename the adapter roots and all config references in the same change set
+- [x] Step 2: Rename the adapter roots and all config references in the same change set
 
 Make these changes together:
 
@@ -289,7 +289,7 @@ Make these changes together:
 
 The OTP application behavior must remain the same after this task: only the module names change.
 
-- [ ] Step 3: Run the adapter slice and verify GREEN
+- [x] Step 3: Run the adapter slice and verify GREEN
 
 Run:
 
@@ -299,7 +299,7 @@ mix test test/live_canvas_web test/live_canvas_gql --trace
 
 Expected: PASS. The web controllers, verified routes, endpoint config lookup, and GraphQL schema should all run under the new `LCWeb`/`LCGQL` names.
 
-- [ ] Step 4: Run compile and boundary verification
+- [x] Step 4: Run compile and boundary verification
 
 Run:
 
@@ -310,7 +310,7 @@ mix boundary.spec
 
 Expected: PASS. The top-level boundary roots should now be `LC`, `LCApp`, `LCWeb`, `LCGQL`, and `LCSchemas`.
 
-- [ ] Step 5: Commit
+- [x] Step 5: Commit
 
 ```bash
 git add mix.exs lib/live_canvas_app.ex lib/live_canvas_web.ex lib/live_canvas_web/components/core_components.ex lib/live_canvas_web/components/layouts.ex lib/live_canvas_web/controllers/error_html.ex lib/live_canvas_web/controllers/error_json.ex lib/live_canvas_web/controllers/page_controller.ex lib/live_canvas_web/controllers/page_html.ex lib/live_canvas_web/controllers/user_registration_controller.ex lib/live_canvas_web/controllers/user_registration_html.ex lib/live_canvas_web/controllers/user_session_controller.ex lib/live_canvas_web/controllers/user_session_html.ex lib/live_canvas_web/controllers/user_settings_controller.ex lib/live_canvas_web/controllers/user_settings_html.ex lib/live_canvas_web/endpoint.ex lib/live_canvas_web/gettext.ex lib/live_canvas_web/router.ex lib/live_canvas_web/telemetry.ex lib/live_canvas_web/user_auth.ex lib/live_canvas_gql/live_canvas_gql.ex lib/live_canvas_gql/router.ex lib/live_canvas_gql/schema.ex lib/live_canvas_gql/accounts/account_mutations.ex lib/live_canvas_gql/accounts/account_queries.ex lib/live_canvas_gql/accounts/account_resolver.ex lib/live_canvas_gql/accounts/account_types.ex config/config.exs config/dev.exs config/prod.exs config/test.exs config/runtime.exs test/support/conn_case.ex test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_web/controllers/error_html_test.exs test/live_canvas_web/controllers/error_json_test.exs test/live_canvas_web/controllers/page_controller_test.exs test/live_canvas_web/controllers/user_registration_controller_test.exs test/live_canvas_web/controllers/user_session_controller_test.exs test/live_canvas_web/controllers/user_settings_controller_test.exs test/live_canvas_web/user_auth_test.exs

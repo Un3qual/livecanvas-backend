@@ -1,4 +1,4 @@
-defmodule LiveCanvasGQL.Schema do
+defmodule LCGQL.Schema do
   use Absinthe.Schema
 
   use Absinthe.Relay.Schema,
@@ -6,11 +6,11 @@ defmodule LiveCanvasGQL.Schema do
 
   # global_id_translator: SmokespotsGraphQL.IDTranslator
   import_types(Absinthe.Plug.Types)
-  import_types(LiveCanvasGQL.Accounts.Queries)
-  import_types(LiveCanvasGQL.Accounts.Types)
-  import_types(LiveCanvasGQL.Social.Queries)
-  import_types(LiveCanvasGQL.Social.Types)
-  # import_types LiveCanvasGQL.Chat.Types
+  import_types(LCGQL.Accounts.Queries)
+  import_types(LCGQL.Accounts.Types)
+  import_types(LCGQL.Social.Queries)
+  import_types(LCGQL.Social.Types)
+  # import_types LCGQL.Chat.Types
 
   query do
     import_fields(:account_queries)
@@ -33,8 +33,8 @@ defmodule LiveCanvasGQL.Schema do
   end
 
   mutation do
-    import_types(LiveCanvasGQL.Accounts.Mutations)
-    import_types(LiveCanvasGQL.Social.Mutations)
+    import_types(LCGQL.Accounts.Mutations)
+    import_types(LCGQL.Social.Mutations)
     import_fields(:account_mutations)
     import_fields(:social_mutations)
   end

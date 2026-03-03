@@ -27,11 +27,11 @@ config :live_canvas,
   generators: [timestamp_type: :utc_datetime_usec]
 
 # Configure the endpoint
-config :live_canvas, LiveCanvasWeb.Endpoint,
+config :live_canvas, LCWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: LiveCanvasWeb.ErrorHTML, json: LiveCanvasWeb.ErrorJSON],
+    formats: [html: LCWeb.ErrorHTML, json: LCWeb.ErrorJSON],
     layout: false
   ],
   pubsub_server: LC.PubSub,

@@ -1,4 +1,4 @@
-defmodule LiveCanvas.MixProject do
+defmodule LC.MixProject do
   use Mix.Project
 
   def project do
@@ -27,7 +27,7 @@ defmodule LiveCanvas.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {LiveCanvasApp, []},
+      mod: {LCApp, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end

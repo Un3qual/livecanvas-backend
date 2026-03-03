@@ -1,4 +1,4 @@
-defmodule LiveCanvasGQL.Social.Types do
+defmodule LCGQL.Social.Types do
   use Absinthe.Schema.Notation
 
   enum :relationship_state do

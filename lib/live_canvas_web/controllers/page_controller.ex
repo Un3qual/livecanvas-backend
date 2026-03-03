@@ -1,5 +1,5 @@
-defmodule LiveCanvasWeb.PageController do
-  use LiveCanvasWeb, :controller
+defmodule LCWeb.PageController do
+  use LCWeb, :controller
 
   @spec home(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def home(conn, _params) do

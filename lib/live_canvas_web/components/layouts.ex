@@ -1,9 +1,9 @@
-defmodule LiveCanvasWeb.Layouts do
+defmodule LCWeb.Layouts do
   @moduledoc """
   This module holds layouts and related functionality
   used by your application.
   """
-  use LiveCanvasWeb, :html
+  use LCWeb, :html
 
   @type assigns :: map()
   @type rendered :: Phoenix.LiveView.Rendered.t()

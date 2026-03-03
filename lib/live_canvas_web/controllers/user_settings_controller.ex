@@ -1,10 +1,10 @@
-defmodule LiveCanvasWeb.UserSettingsController do
-  use LiveCanvasWeb, :controller
+defmodule LCWeb.UserSettingsController do
+  use LCWeb, :controller
 
   alias LC.Accounts
-  alias LiveCanvasWeb.UserAuth
+  alias LCWeb.UserAuth
 
-  import LiveCanvasWeb.UserAuth, only: [require_sudo_mode: 2]
+  import LCWeb.UserAuth, only: [require_sudo_mode: 2]
 
   plug :require_sudo_mode
   plug :assign_email_and_password_changesets

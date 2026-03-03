@@ -1,4 +1,4 @@
-defmodule LiveCanvasGQL.Accounts.Resolver do
+defmodule LCGQL.Accounts.Resolver do
   alias LC.Accounts
   alias LCSchemas.Accounts.User
 

@@ -16,7 +16,7 @@ config :live_canvas, LC.Infra.Repo,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :live_canvas, LiveCanvasWeb.Endpoint,
+config :live_canvas, LCWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}],
@@ -53,7 +53,7 @@ config :live_canvas, LiveCanvasWeb.Endpoint,
 # different ports.
 
 # Reload browser tabs when matching files change.
-config :live_canvas, LiveCanvasWeb.Endpoint,
+config :live_canvas, LCWeb.Endpoint,
   live_reload: [
     web_console_logger: true,
     patterns: [

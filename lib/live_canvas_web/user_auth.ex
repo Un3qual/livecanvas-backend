@@ -1,5 +1,5 @@
-defmodule LiveCanvasWeb.UserAuth do
-  use LiveCanvasWeb, :verified_routes
+defmodule LCWeb.UserAuth do
+  use LCWeb, :verified_routes
 
   import Plug.Conn
   import Phoenix.Controller
@@ -59,7 +59,7 @@ defmodule LiveCanvasWeb.UserAuth do
         :ok
 
       live_socket_id ->
-        _ = LiveCanvasWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
+        _ = LCWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
         :ok
     end
 

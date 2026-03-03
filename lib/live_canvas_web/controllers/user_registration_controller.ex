@@ -1,5 +1,5 @@
-defmodule LiveCanvasWeb.UserRegistrationController do
-  use LiveCanvasWeb, :controller
+defmodule LCWeb.UserRegistrationController do
+  use LCWeb, :controller
 
   alias LC.Accounts
 

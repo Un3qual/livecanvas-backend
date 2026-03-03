@@ -18,7 +18,7 @@ config :live_canvas, LC.Infra.Repo,
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
-config :live_canvas, LiveCanvasWeb.Endpoint,
+config :live_canvas, LCWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "dY7bs3jtluPV2OwwWQWe4hlzV5mIIcyhtxuQW4QyUp6iumSvTC9ujUG0/IYfKySy",
   server: false

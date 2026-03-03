@@ -1,4 +1,4 @@
-defmodule LiveCanvasWeb.Endpoint do
+defmodule LCWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :live_canvas
 
   # The session will be stored in the cookie and signed,
@@ -24,7 +24,7 @@ defmodule LiveCanvasWeb.Endpoint do
     at: "/",
     from: :live_canvas,
     gzip: not code_reloading?,
-    only: LiveCanvasWeb.static_paths(),
+    only: LCWeb.static_paths(),
     raise_on_missing_only: code_reloading?
 
   # Code reloading can be explicitly enabled under the
@@ -52,9 +52,9 @@ defmodule LiveCanvasWeb.Endpoint do
   plug Plug.Head
   plug Plug.Session, @session_options
 
-  plug LiveCanvasGQL.Router
+  plug LCGQL.Router
   plug(:halt_if_sent)
-  plug LiveCanvasWeb.Router
+  plug LCWeb.Router
 
   defp halt_if_sent(%{state: :sent, halted: false} = conn, _opts), do: halt(conn)
   defp halt_if_sent(conn, _opts), do: conn

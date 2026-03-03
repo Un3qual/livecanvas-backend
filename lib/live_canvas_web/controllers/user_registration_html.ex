@@ -1,5 +1,5 @@
-defmodule LiveCanvasWeb.UserRegistrationHTML do
-  use LiveCanvasWeb, :html
+defmodule LCWeb.UserRegistrationHTML do
+  use LCWeb, :html
 
   embed_templates "user_registration_html/*"
 end

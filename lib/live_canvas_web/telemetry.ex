@@ -1,4 +1,4 @@
-defmodule LiveCanvasWeb.Telemetry do
+defmodule LCWeb.Telemetry do
   use Supervisor
   import Telemetry.Metrics
 
@@ -90,7 +90,7 @@ defmodule LiveCanvasWeb.Telemetry do
     [
       # A module, function and arguments to be invoked periodically.
       # This function must call :telemetry.execute/3 and a metric must be added above.
-      # {LiveCanvasWeb, :count_users, []}
+      # {LCWeb, :count_users, []}
     ]
   end
 end

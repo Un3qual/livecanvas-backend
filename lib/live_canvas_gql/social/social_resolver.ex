@@ -1,4 +1,4 @@
-defmodule LiveCanvasGQL.Social.Resolver do
+defmodule LCGQL.Social.Resolver do
   alias LC.{Accounts, Social}
 
   @type resolver_error :: :blocked | :invalid_id | :not_allowed | :not_found | Ecto.Changeset.t()
