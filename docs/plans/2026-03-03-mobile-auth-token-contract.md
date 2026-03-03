@@ -29,7 +29,7 @@ Verified directly in code before selecting work (do not assume checklist state):
 
 - [x] Task 1: Add Accounts refresh-token lifecycle primitives (issue/authenticate/rotate/revoke)
 - [x] Task 2: Expose mobile auth token mutation contract in GraphQL
-- [ ] Task 3: Verify full auth contract behavior and rollout notes
+- [x] Task 3: Verify full auth contract behavior and rollout notes
 
 ### Task 1: Add Accounts Refresh-Token Lifecycle Primitives
 
@@ -131,6 +131,13 @@ git commit -m "feat: add refresh token lifecycle primitives"
 - Optional docs update: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Run final verification (`mix test`, `mix compile`, `mix typecheck`)
-- [ ] Step 2: Capture mobile contract notes (token precedence, rotation order, revoke semantics)
-- [ ] Step 3: Mark plan task completion and commit final milestone
+- [x] Step 1: Run final verification (`mix test`, `mix compile`, `mix typecheck`)
+- [x] Step 2: Capture mobile contract notes (token precedence, rotation order, revoke semantics)
+- [x] Step 3: Mark plan task completion and commit final milestone
+
+**Mobile Auth Contract Notes (2026-03-03):**
+- Added GraphQL mutations `issueViewerAuthTokens`, `refreshAuthTokens`, and `revokeRefreshToken` with Relay payloads that expose `accessToken`, `refreshToken`, and structured `errors`.
+- `issueViewerAuthTokens` is viewer-scoped and returns `unauthenticated` when no authenticated scope is present.
+- `refreshAuthTokens` maps Accounts lifecycle errors to stable payload messages: `invalid_token`, `expired_token`, and `revoked_token` (all keyed to `refreshToken`).
+- Refresh rotation is single-use: `refreshAuthTokens` revokes the submitted refresh token before issuing a fresh access/refresh pair.
+- `revokeRefreshToken` is idempotent and returns `revoked: true` for repeated requests to support safe client retry/logout behavior.

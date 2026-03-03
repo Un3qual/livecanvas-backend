@@ -144,6 +144,15 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
 
       refute schema_sdl =~
                "DeliverViewerContactInvitePayload {\n  successful: Boolean!"
+
+      refute schema_sdl =~
+               "IssueViewerAuthTokensPayload {\n  accessToken: Token\n  refreshToken: Token\n  errors: [UserError!]!\n  successful: Boolean!"
+
+      refute schema_sdl =~
+               "RefreshAuthTokensPayload {\n  accessToken: Token\n  refreshToken: Token\n  errors: [UserError!]!\n  successful: Boolean!"
+
+      refute schema_sdl =~
+               "RevokeRefreshTokenPayload {\n  revoked: Boolean!\n  errors: [UserError!]!\n  successful: Boolean!"
     end
   end
 
