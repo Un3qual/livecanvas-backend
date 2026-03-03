@@ -3,11 +3,13 @@ defmodule LiveCanvasWeb.UserRegistrationController do
 
   alias LiveCanvas.Accounts
 
+  @spec new(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def new(conn, _params) do
     changeset = Accounts.registration_changeset()
     render(conn, :new, changeset: changeset)
   end
 
+  @spec create(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def create(conn, %{"user" => user_params}) do
     case Accounts.register_user(user_params) do
       {:ok, user} ->

@@ -4,6 +4,9 @@ defmodule LiveCanvasWeb.UserSessionController do
   alias LiveCanvas.Accounts
   alias LiveCanvasWeb.UserAuth
 
+  @type conn :: Plug.Conn.t()
+
+  @spec new(conn(), map()) :: conn()
   def new(conn, _params) do
     email = get_in(conn.assigns, [:current_scope, Access.key(:user), Access.key(:email)])
     form = Phoenix.Component.to_form(%{"email" => email}, as: "user")
@@ -12,6 +15,7 @@ defmodule LiveCanvasWeb.UserSessionController do
   end
 
   # magic link login
+  @spec create(conn(), map()) :: conn()
   def create(conn, %{"user" => %{"token" => token} = user_params} = params) do
     info =
       case params do
@@ -72,6 +76,7 @@ defmodule LiveCanvasWeb.UserSessionController do
     |> redirect(to: ~p"/users/log-in")
   end
 
+  @spec confirm(conn(), map()) :: conn()
   def confirm(conn, %{"token" => token}) do
     if user = Accounts.get_user_by_magic_link_token(token) do
       form = Phoenix.Component.to_form(%{"token" => token}, as: "user")
@@ -87,6 +92,7 @@ defmodule LiveCanvasWeb.UserSessionController do
     end
   end
 
+  @spec delete(conn(), map()) :: conn()
   def delete(conn, _params) do
     conn
     |> put_flash(:info, "Logged out successfully.")

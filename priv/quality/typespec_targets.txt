@@ -6,3 +6,14 @@ lib/live_canvas/accounts/scope.ex
 lib/live_canvas/accounts/tokens.ex
 lib/live_canvas/accounts/user_changes.ex
 lib/live_canvas/accounts/user_notifier.ex
+lib/live_canvas_web.ex
+lib/live_canvas_web/controllers/error_html.ex
+lib/live_canvas_web/controllers/error_json.ex
+lib/live_canvas_web/controllers/page_controller.ex
+lib/live_canvas_web/controllers/user_registration_controller.ex
+lib/live_canvas_web/controllers/user_session_controller.ex
+lib/live_canvas_web/controllers/user_settings_controller.ex
+lib/live_canvas_web/components/core_components.ex
+lib/live_canvas_web/components/layouts.ex
+lib/live_canvas_web/telemetry.ex
+lib/live_canvas_web/user_auth.ex

@@ -6,6 +6,10 @@ defmodule LiveCanvasWeb.UserAuth do
 
   alias LiveCanvas.Accounts
 
+  @type conn :: Plug.Conn.t()
+  @type params :: %{optional(String.t() | atom()) => term()}
+  @type user_like :: %{required(:id) => term()} | term()
+
   # Make the remember me cookie valid for 14 days. This should match
   # the session validity setting in UserToken.
   @max_cookie_age_in_days 14
@@ -31,6 +35,7 @@ defmodule LiveCanvasWeb.UserAuth do
   Redirects to the session's `:user_return_to` path
   or falls back to the `signed_in_path/1`.
   """
+  @spec log_in_user(conn(), user_like(), params()) :: conn()
   def log_in_user(conn, user, params \\ %{}) do
     user_return_to = get_session(conn, :user_return_to)
 
@@ -44,6 +49,7 @@ defmodule LiveCanvasWeb.UserAuth do
 
   It clears all session data for safety. See renew_session.
   """
+  @spec log_out_user(conn()) :: conn()
   def log_out_user(conn) do
     user_token = get_session(conn, :user_token)
     user_token && Accounts.delete_user_session_token(user_token)
@@ -68,6 +74,7 @@ defmodule LiveCanvasWeb.UserAuth do
 
   Will reissue the session token if it is older than the configured age.
   """
+  @spec fetch_current_scope_for_user(conn(), term()) :: conn()
   def fetch_current_scope_for_user(conn, _opts) do
     with {token, conn} <- ensure_user_token(conn),
          {user, token_inserted_at} <- Accounts.get_user_by_session_token(token) do
@@ -190,6 +197,7 @@ defmodule LiveCanvasWeb.UserAuth do
   @doc """
   Plug for routes that require sudo mode.
   """
+  @spec require_sudo_mode(conn(), term()) :: conn()
   def require_sudo_mode(conn, _opts) do
     if Accounts.sudo_mode?(conn.assigns.current_scope.user, -10) do
       conn
@@ -205,6 +213,7 @@ defmodule LiveCanvasWeb.UserAuth do
   @doc """
   Plug for routes that require the user to not be authenticated.
   """
+  @spec redirect_if_user_is_authenticated(conn(), term()) :: conn()
   def redirect_if_user_is_authenticated(conn, _opts) do
     if conn.assigns.current_scope do
       conn
@@ -220,6 +229,7 @@ defmodule LiveCanvasWeb.UserAuth do
   @doc """
   Plug for routes that require the user to be authenticated.
   """
+  @spec require_authenticated_user(conn(), term()) :: conn()
   def require_authenticated_user(conn, _opts) do
     if conn.assigns.current_scope && conn.assigns.current_scope.user do
       conn

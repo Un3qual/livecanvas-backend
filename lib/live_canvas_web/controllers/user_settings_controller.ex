@@ -9,10 +9,12 @@ defmodule LiveCanvasWeb.UserSettingsController do
   plug :require_sudo_mode
   plug :assign_email_and_password_changesets
 
+  @spec edit(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def edit(conn, _params) do
     render(conn, :edit)
   end
 
+  @spec update(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def update(conn, %{"action" => "update_email"} = params) do
     %{"user" => user_params} = params
     user = conn.assigns.current_scope.user
@@ -54,6 +56,7 @@ defmodule LiveCanvasWeb.UserSettingsController do
     end
   end
 
+  @spec confirm_email(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def confirm_email(conn, %{"token" => token}) do
     case Accounts.update_user_email(conn.assigns.current_scope.user, token) do
       {:ok, _user} ->
