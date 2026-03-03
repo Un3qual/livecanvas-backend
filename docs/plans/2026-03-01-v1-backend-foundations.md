@@ -48,7 +48,7 @@ batch.
 - [x] Task 7: Add The `Chat` Context And Live Channel Topics
 - [x] Task 8: Add The `Feed` Context And GraphQL Read Models
 - [x] Task 9: Wire End-To-End Auth, Realtime, And API Regression Coverage
-- [ ] Task 10: Prepare The Membrane Integration Seam Without Full Media Complexity
+- [x] Task 10: Prepare The Membrane Integration Seam Without Full Media Complexity
 
 ### Task 0: Establish Shared Domain Conventions And Wire `boundary`
 
