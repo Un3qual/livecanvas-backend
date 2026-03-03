@@ -3,6 +3,7 @@ defmodule LCGQL.Accounts.Types do
   use Absinthe.Relay.Schema.Notation, :modern
 
   alias LCGQL.Accounts.Resolver
+  alias LCGQL.Social.Resolver, as: SocialResolver
 
   connection(node_type: :user)
   connection(node_type: :user_identity)
@@ -22,6 +23,14 @@ defmodule LCGQL.Accounts.Types do
 
     connection field :user_identities, node_type: :user_identity, paginate: :forward do
       resolve(&Resolver.user_identities/3)
+    end
+
+    connection field :followers, node_type: :user, paginate: :forward do
+      resolve(&SocialResolver.followers/3)
+    end
+
+    connection field :following, node_type: :user, paginate: :forward do
+      resolve(&SocialResolver.following/3)
     end
 
     field :fresh_access_token, :token

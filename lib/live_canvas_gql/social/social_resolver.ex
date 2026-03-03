@@ -1,7 +1,6 @@
 defmodule LCGQL.Social.Resolver do
   alias LC.{Accounts, Social}
   alias LCGQL.Relay
-  alias LCSchemas.Accounts.User
 
   @type fetch_user_error :: :invalid_id | :invalid_type | :not_found
   @type resolver_error ::
@@ -87,7 +86,18 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec fetch_user(term(), atom()) :: {:ok, User.t()} | {:error, {atom(), fetch_user_error()}}
+  @spec followers(map(), map(), Absinthe.Resolution.t()) :: {:ok, map()} | {:error, term()}
+  def followers(%{id: _id} = user, args, _resolution) do
+    query = Social.follower_users_query(user)
+    Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+  end
+
+  @spec following(map(), map(), Absinthe.Resolution.t()) :: {:ok, map()} | {:error, term()}
+  def following(%{id: _id} = user, args, _resolution) do
+    query = Social.following_users_query(user)
+    Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+  end
+
   defp fetch_user(user_id, field) do
     with {:ok, id} <- Relay.decode_global_id(user_id, :user, LCGQL.Schema) do
       try do

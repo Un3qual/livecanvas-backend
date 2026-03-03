@@ -100,6 +100,38 @@ defmodule LC.Social do
     relationship_state(viewer, creator) in [:accepted, :public]
   end
 
+  @doc """
+  Returns a deterministic query for users following the given creator.
+  """
+  @spec follower_users_query(User.t()) :: Ecto.Query.t()
+  def follower_users_query(%User{id: user_id}) do
+    from(follower in User,
+      join: follow in Follow,
+      on: follow.follower_id == follower.id,
+      where: follow.followed_id == ^user_id and follow.state == :accepted,
+      # Keep a stable cursor order for Relay pagination.
+      order_by: [asc: follow.inserted_at, asc: follow.id]
+    )
+  end
+
+  @doc """
+  Returns a deterministic query for users that the given follower follows.
+  """
+  @spec following_users_query(User.t()) :: Ecto.Query.t()
+  def following_users_query(%User{id: user_id}) do
+    from(followed in User,
+      join: follow in Follow,
+      on: follow.followed_id == followed.id,
+      where: follow.follower_id == ^user_id and follow.state == :accepted,
+      # Keep a stable cursor order for Relay pagination.
+      order_by: [asc: follow.inserted_at, asc: follow.id]
+    )
+  end
+
+  @doc false
+  @spec run_query(Ecto.Query.t()) :: [term()]
+  def run_query(query), do: Repo.all(query)
+
   defp persist_follow(_follower_id, _followed_id, {:error, reason}), do: {:error, reason}
 
   defp persist_follow(follower_id, followed_id, decision) do

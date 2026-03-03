@@ -14,8 +14,8 @@
 
 - [x] Task 1: Enforce Relay global ID decoding for Social query and mutation inputs.
 - [x] Task 2: Convert Social mutations to explicit Relay payload fields with structured errors.
-- [ ] Task 3: Add Relay-native Social node/connection surfaces where product requirements need list pagination.
-- [ ] Task 4: Run full GraphQL verification and close the conventions progress item.
+- [x] Task 3: Add Relay-native Social node/connection surfaces where product requirements need list pagination.
+- [x] Task 4: Run full GraphQL verification and close the conventions progress item.
 
 ### Task 1: Enforce Relay Global ID Decoding For Social Inputs
 
