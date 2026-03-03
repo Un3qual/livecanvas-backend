@@ -29,4 +29,6 @@ defmodule LCSchemas.Accounts do
           | :magic_link_login_succeeded
           | :magic_link_login_failed
           | :refresh_token_revoked
+          | :refresh_token_rotation_succeeded
+          | :refresh_token_rotation_failed
 end

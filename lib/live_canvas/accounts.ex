@@ -821,31 +821,39 @@ defmodule LC.Accounts do
   """
   @spec rotate_refresh_token(String.t()) :: token_pair_result()
   def rotate_refresh_token(serialized_value) when is_binary(serialized_value) do
-    Repo.transact(fn ->
-      with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
-           {:ok, {user, user_token, _current_email}} <- fetch_token_lookup_row(query),
-           :ok <- validate_refresh_token(user_token, raw_secret),
-           true <- active_user?(user) || {:error, :revoked_token},
-           # Rotation must consume exactly one refresh token row to enforce
-           # single-use refresh semantics even under concurrent requests.
-           :ok <- revoke_user_token(user_token, strict: true),
-           {:ok, access_token_payload} <- issue_access_token(user),
-           {:ok, refresh_token_payload} <- issue_refresh_token(user) do
-        {:ok, %{access_token: access_token_payload, refresh_token: refresh_token_payload}}
-      else
-        :error ->
-          {:error, :invalid_token}
+    result =
+      Repo.transact(fn ->
+        with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+             {:ok, {user, user_token, _current_email}} <- fetch_token_lookup_row(query),
+             :ok <- validate_refresh_token(user_token, raw_secret),
+             true <- active_user?(user) || {:error, :revoked_token},
+             # Rotation must consume exactly one refresh token row to enforce
+             # single-use refresh semantics even under concurrent requests.
+             :ok <- revoke_user_token(user_token, strict: true),
+             {:ok, access_token_payload} <- issue_access_token(user),
+             {:ok, refresh_token_payload} <- issue_refresh_token(user) do
+          {:ok, %{access_token: access_token_payload, refresh_token: refresh_token_payload}}
+        else
+          :error ->
+            {:error, :invalid_token}
 
-        {:error, reason} when reason in [:invalid_token, :expired_token, :revoked_token] ->
-          {:error, reason}
+          {:error, reason} when reason in [:invalid_token, :expired_token, :revoked_token] ->
+            {:error, reason}
 
-        {:error, %Ecto.Changeset{}} ->
-          {:error, :invalid_token}
-      end
-    end)
+          {:error, %Ecto.Changeset{}} ->
+            {:error, :invalid_token}
+        end
+      end)
+
+    emit_refresh_token_rotation_event(result)
+    result
   end
 
-  def rotate_refresh_token(_serialized_value), do: {:error, :invalid_token}
+  def rotate_refresh_token(_serialized_value) do
+    result = {:error, :invalid_token}
+    emit_refresh_token_rotation_event(result)
+    result
+  end
 
   @doc """
   Authenticates a serialized access token and returns a user scope.
@@ -1350,6 +1358,26 @@ defmodule LC.Accounts do
       {:error, _changeset} -> :ok
     end
   end
+
+  @spec emit_refresh_token_rotation_event(token_pair_result()) :: :ok
+  defp emit_refresh_token_rotation_event(
+         {:ok, %{refresh_token: %{user_token: %UserToken{user_id: user_id}}}}
+       )
+       when is_integer(user_id) do
+    emit_auth_event(:refresh_token_rotation_succeeded,
+      user_id: user_id,
+      metadata: %{"method" => "refresh_token", "outcome" => "rotated"}
+    )
+  end
+
+  defp emit_refresh_token_rotation_event({:error, reason})
+       when reason in [:invalid_token, :expired_token, :revoked_token] do
+    emit_auth_event(:refresh_token_rotation_failed,
+      metadata: %{"method" => "refresh_token", "reason" => Atom.to_string(reason)}
+    )
+  end
+
+  defp emit_refresh_token_rotation_event(_result), do: :ok
 
   @spec normalize_query_limit(term()) :: pos_integer()
   defp normalize_query_limit(limit) when is_integer(limit) and limit > 0, do: limit

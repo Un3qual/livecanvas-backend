@@ -66,7 +66,11 @@ defmodule LC.Accounts.AuthEventTest do
     test "falls back to default limit when limit is non-positive" do
       user = unconfirmed_user_fixture()
 
-      for event_type <- [:password_login_succeeded, :magic_link_login_succeeded, :password_login_failed] do
+      for event_type <- [
+            :password_login_succeeded,
+            :magic_link_login_succeeded,
+            :password_login_failed
+          ] do
         assert {:ok, _event} = Accounts.record_auth_event(event_type, user: user)
         Process.sleep(1)
       end
@@ -127,6 +131,31 @@ defmodule LC.Accounts.AuthEventTest do
 
       assert length(events) == 1
     end
+
+    test "emits refresh-token rotation success and failure events" do
+      user = user_fixture()
+      {:ok, %{token: refresh_token}} = Accounts.issue_refresh_token(user)
+
+      assert {:ok, %{access_token: _access_token, refresh_token: _fresh_refresh_token}} =
+               Accounts.rotate_refresh_token(refresh_token)
+
+      assert [:refresh_token_rotation_succeeded] =
+               user
+               |> Accounts.list_user_auth_events(limit: 10)
+               |> Enum.filter(&(&1.event_type == :refresh_token_rotation_succeeded))
+               |> Enum.map(& &1.event_type)
+
+      assert {:error, :invalid_token} = Accounts.rotate_refresh_token("bad-token")
+
+      assert %AuthEvent{
+               event_type: :refresh_token_rotation_failed,
+               user_id: nil,
+               metadata: metadata
+             } =
+               latest_anonymous_event()
+
+      assert metadata["reason"] == "invalid_token"
+    end
   end
 
   defp latest_user_event_type(user), do: latest_user_event(user).event_type
@@ -140,6 +169,16 @@ defmodule LC.Accounts.AuthEventTest do
     Repo.one!(
       from(event in AuthEvent,
         where: is_nil(event.user_id) and event.event_type == ^event_type,
+        order_by: [desc: event.inserted_at, desc: event.id],
+        limit: 1
+      )
+    )
+  end
+
+  defp latest_anonymous_event do
+    Repo.one!(
+      from(event in AuthEvent,
+        where: is_nil(event.user_id),
         order_by: [desc: event.inserted_at, desc: event.id],
         limit: 1
       )
