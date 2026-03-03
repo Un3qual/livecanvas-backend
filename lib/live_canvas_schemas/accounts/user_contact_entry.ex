@@ -1,7 +1,8 @@
 defmodule LiveCanvasSchemas.Accounts.UserContactEntry do
-  use Ecto.Schema
+  use LiveCanvasSchemas.Schema, :relational
 
   schema "user_contact_entries" do
+    field :entropy_id, Ecto.UUID, read_after_writes: true
     field :contact_name, :string
     field :birthday, :date
     field :contact_client_id, :binary
@@ -18,6 +19,6 @@ defmodule LiveCanvasSchemas.Accounts.UserContactEntry do
 
     has_many :phone_numbers, through: [:user_contact_entry_phone_numbers, :phone_number]
 
-    timestamps(type: :utc_datetime_usec)
+    timestamps()
   end
 end

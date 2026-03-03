@@ -1,7 +1,8 @@
 defmodule LiveCanvasSchemas.Accounts.User do
-  use Ecto.Schema
+  use LiveCanvasSchemas.Schema, :relational
 
   schema "users" do
+    field :entropy_id, Ecto.UUID, read_after_writes: true
     field :email, :string, virtual: true
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
@@ -16,6 +17,6 @@ defmodule LiveCanvasSchemas.Accounts.User do
     has_many :user_identities, LiveCanvasSchemas.Accounts.UserIdentity
     has_many :user_contact_entries, LiveCanvasSchemas.Accounts.UserContactEntry
 
-    timestamps(type: :utc_datetime_usec)
+    timestamps()
   end
 end

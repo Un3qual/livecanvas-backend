@@ -1,7 +1,5 @@
 defmodule LiveCanvasSchemas.Accounts.UserToken do
-  use Ecto.Schema
-
-  @primary_key {:id, :binary_id, autogenerate: false}
+  use LiveCanvasSchemas.Schema, :uuid_primary_key
 
   schema "users_tokens" do
     field :raw_secret, :binary, virtual: true, redact: true
@@ -12,6 +10,6 @@ defmodule LiveCanvasSchemas.Accounts.UserToken do
     field :authenticated_at, :utc_datetime_usec
     belongs_to :user, LiveCanvasSchemas.Accounts.User
 
-    timestamps(type: :utc_datetime_usec, updated_at: false)
+    timestamps(updated_at: false)
   end
 end

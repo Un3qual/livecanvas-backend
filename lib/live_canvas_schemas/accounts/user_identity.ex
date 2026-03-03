@@ -1,7 +1,8 @@
 defmodule LiveCanvasSchemas.Accounts.UserIdentity do
-  use Ecto.Schema
+  use LiveCanvasSchemas.Schema, :relational
 
   schema "user_identities" do
+    field :entropy_id, Ecto.UUID, read_after_writes: true
     field :provider, LiveCanvasSchemas.Accounts.UserIdentityProvider
     field :provider_uid, :binary
     field :provider_data, :map, default: %{}
@@ -11,6 +12,6 @@ defmodule LiveCanvasSchemas.Accounts.UserIdentity do
 
     belongs_to :user, LiveCanvasSchemas.Accounts.User
 
-    timestamps(type: :utc_datetime_usec)
+    timestamps()
   end
 end
