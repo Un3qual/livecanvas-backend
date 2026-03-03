@@ -34,13 +34,20 @@ defmodule LCGQL.Accounts.Resolver do
     end
   end
 
-  @spec viewer(term(), %{user_id: term()}, term()) :: {:ok, User.t() | nil}
+  @spec viewer(term(), %{optional(:user_id) => term()}, Absinthe.Resolution.t()) ::
+          {:ok, User.t() | nil}
   def viewer(_parent, %{user_id: user_id}, _resolution) do
     case fetch_user(user_id) do
       {:ok, user} -> {:ok, user}
       {:error, _reason} -> {:ok, nil}
     end
   end
+
+  def viewer(_parent, _args, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
+    {:ok, user}
+  end
+
+  def viewer(_parent, _args, _resolution), do: {:ok, nil}
 
   @spec fetch_user(term()) :: user_lookup_result()
   defp fetch_user(user_id) do

@@ -27,6 +27,15 @@
 3. Run Task 5 only after callers have moved to authenticated `viewer`, `node(id:)`, Relay global IDs, and typed mutation payload fields.
 4. Do not fold Task 5 into the earlier commits. The breaking cleanup should stay isolated so it can be reverted independently if a client was missed.
 
+## Progress Checklist
+
+- [x] Task 1: Add authenticated GraphQL context and a non-breaking `viewer` transition.
+- [ ] Task 2: Add real node resolution and Relay ID decoding.
+- [ ] Task 3: Replace the first list field with a real Relay connection.
+- [ ] Task 4: Convert mutations to Relay payloads without breaking clients immediately.
+- [ ] Task 5: Remove the legacy compatibility branches in one explicit breaking change.
+- [ ] Task 6: Final verification.
+
 ### Task 1: Add Authenticated GraphQL Context And A Non-Breaking `viewer` Transition
 
 **Files:**

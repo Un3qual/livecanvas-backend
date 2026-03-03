@@ -5,7 +5,7 @@ defmodule LCGQL.Accounts.Queries do
 
   object :account_queries do
     field :viewer, :user do
-      arg(:user_id, non_null(:id))
+      arg(:user_id, :id)
 
       resolve(&Resolver.viewer/3)
     end

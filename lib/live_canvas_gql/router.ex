@@ -8,6 +8,7 @@ defmodule LCGQL.Router do
   ]
 
   plug(:match)
+  plug(LCGQL.Context)
   plug(:dispatch)
 
   Code.ensure_compiled(LCGQL.Schema)
