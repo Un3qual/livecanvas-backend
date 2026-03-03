@@ -57,7 +57,7 @@
 
 **Task 1 Step Progress**
 - [x] Step 1: Write the failing schema-shape tests
-- [ ] Step 2: Run the focused tests to verify they fail
+- [x] Step 2: Run the focused tests to verify they fail
 - [ ] Step 3: Implement the shared schema macros and convert the schemas
 - [ ] Step 4: Run compile and the focused tests
 - [ ] Step 5: Commit
