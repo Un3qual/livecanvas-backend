@@ -17,6 +17,8 @@ defmodule LCWeb.ConnCase do
 
   use ExUnit.CaseTemplate
 
+  alias LC.Accounts
+
   using do
     quote do
       # The default endpoint for testing
@@ -69,6 +71,35 @@ defmodule LCWeb.ConnCase do
     conn
     |> Phoenix.ConnTest.init_test_session(%{})
     |> Plug.Conn.put_session(:user_token, token)
+  end
+
+  @doc """
+  Loads the authenticated scope for the current `conn` session token.
+  """
+  def authenticated_scope_from_conn(conn) do
+    with token when is_binary(token) <- Plug.Conn.get_session(conn, :user_token),
+         {%{id: user_id} = user, _inserted_at} when is_integer(user_id) <-
+           Accounts.get_user_by_session_token(token) do
+      Accounts.scope_for_user(user)
+    else
+      _ -> raise "expected conn with a valid :user_token session"
+    end
+  end
+
+  @doc """
+  Authenticates a channel socket with a session token for the given user.
+  """
+  def authenticated_socket(%Phoenix.Socket{} = socket, %{id: user_id} = user)
+      when is_integer(user_id) do
+    token = Accounts.generate_user_session_token(user)
+
+    case LCWeb.UserSocket.connect(%{"token" => token}, socket, %{}) do
+      {:ok, authenticated_socket} ->
+        authenticated_socket
+
+      :error ->
+        raise "expected socket authentication to succeed for user #{user_id}"
+    end
   end
 
   defp maybe_set_token_authenticated_at(_token, nil), do: nil

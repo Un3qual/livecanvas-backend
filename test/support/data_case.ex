@@ -16,6 +16,8 @@ defmodule LC.DataCase do
 
   use ExUnit.CaseTemplate
 
+  alias LC.Accounts
+
   using do
     quote do
       alias LC.Infra.Repo
@@ -56,5 +58,20 @@ defmodule LC.DataCase do
         opts |> Keyword.get(String.to_existing_atom(key), key) |> to_string()
       end)
     end)
+  end
+
+  @doc """
+  Builds an authenticated scope for the given user by round-tripping a session token.
+  """
+  def authenticated_scope(%{id: user_id} = user) when is_integer(user_id) do
+    token = Accounts.generate_user_session_token(user)
+
+    case Accounts.get_user_by_session_token(token) do
+      {%{id: loaded_user_id} = loaded_user, _inserted_at} when is_integer(loaded_user_id) ->
+        Accounts.scope_for_user(loaded_user)
+
+      nil ->
+        raise "expected a valid user session token for user #{user_id}"
+    end
   end
 end

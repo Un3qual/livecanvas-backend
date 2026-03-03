@@ -47,7 +47,7 @@ batch.
 - [x] Task 6: Add The `Live` Context, Session Supervisor, And Presence Contract
 - [x] Task 7: Add The `Chat` Context And Live Channel Topics
 - [x] Task 8: Add The `Feed` Context And GraphQL Read Models
-- [ ] Task 9: Wire End-To-End Auth, Realtime, And API Regression Coverage
+- [x] Task 9: Wire End-To-End Auth, Realtime, And API Regression Coverage
 - [ ] Task 10: Prepare The Membrane Integration Seam Without Full Media Complexity
 
 ### Task 0: Establish Shared Domain Conventions And Wire `boundary`
@@ -935,6 +935,13 @@ git commit -m "feat: add feed read layer"
 - Run a focused review before starting the next domain slice.
 
 ### Task 9: Wire End-To-End Auth, Realtime, And API Regression Coverage
+
+**Task 9 Step Progress**
+- [x] Step 1: Write the failing integration tests
+- [x] Step 2: Run tests to verify they fail
+- [x] Step 3: Fill the minimal gaps
+- [x] Step 4: Run the full focused suite
+- [x] Step 5: Commit
 
 **Files:**
 - Create: `test/integration/accounts_login_flow_test.exs`
