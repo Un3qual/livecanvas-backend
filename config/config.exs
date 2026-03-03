@@ -7,6 +7,8 @@
 # General application configuration
 import Config
 
+config :live_canvas, namespace: LC
+
 config :live_canvas, :scopes,
   user: [
     default: true,

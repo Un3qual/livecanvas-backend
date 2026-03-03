@@ -28,7 +28,7 @@
 
 ## Progress
 
-- [ ] Step 1: Lock Phoenix's namespace override and capture the rename inventory
+- [x] Step 1: Lock Phoenix's namespace override and capture the rename inventory
 - [ ] Step 2: Rename `LC` and `LCSchemas` plus all in-repo core call sites
 - [ ] Step 3: Rename `LCWeb`, `LCGQL`, and `LCApp` plus all adapter/config call sites
 - [ ] Step 4: Add temporary root aliases only if an external caller still needs them
@@ -39,7 +39,7 @@
 **Files:**
 - Modify: `config/config.exs`
 
-- [ ] Step 1: Add the namespace override
+- [x] Step 1: Add the namespace override
 
 Insert a compile-time namespace override near the existing general application config:
 
@@ -49,7 +49,7 @@ config :live_canvas, namespace: LC
 
 Keep the `:live_canvas` OTP app key and the existing `ecto_repos` entry exactly as-is in this task. The new `namespace: LC` is what makes Phoenix generators emit `LC`/`LCWeb` modules while still using the current `live_canvas` directory layout.
 
-- [ ] Step 2: Capture the full rename checklist before editing code
+- [x] Step 2: Capture the full rename checklist before editing code
 
 Run:
 
@@ -59,7 +59,7 @@ rg -l "\bLiveCanvas(Web|GQL|Schemas|App|\.|\b)" lib config test mix.exs priv/rep
 
 Expected: the command returns the current rename surface, including `mix.exs`, the `lib/live_canvas*.ex` roots, the `lib/live_canvas_web/**` adapter tree, the `lib/live_canvas_gql/**` tree, test support, and the migration files. Use that output as the authoritative checklist for the later tasks.
 
-- [ ] Step 3: Verify the Phoenix namespace behavior before the code rename
+- [x] Step 3: Verify the Phoenix namespace behavior before the code rename
 
 Run:
 
@@ -73,7 +73,7 @@ Expected:
 - `web: LCWeb`
 - `lib/live_canvas_web`
 
-- [ ] Step 4: Compile to prove the namespace override is behavior-preserving
+- [x] Step 4: Compile to prove the namespace override is behavior-preserving
 
 Run:
 
@@ -83,7 +83,7 @@ mix compile
 
 Expected: PASS. Adding `namespace: LC` alone should not change runtime behavior.
 
-- [ ] Step 5: Commit
+- [x] Step 5: Commit
 
 ```bash
 git add config/config.exs
