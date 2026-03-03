@@ -303,6 +303,7 @@ defmodule LC.Accounts do
 
     case Repo.insert(user_token) do
       {:ok, persisted} ->
+        # The token transport value must embed the persisted UUID, so encode only after insert.
         serialized_value = Tokens.encode_serialized_value(persisted.id, raw_secret)
         {:ok, %{token: serialized_value, user_token: persisted}}
 

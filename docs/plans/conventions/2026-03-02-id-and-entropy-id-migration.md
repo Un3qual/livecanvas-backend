@@ -299,11 +299,11 @@ git commit -m "refactor: use db generated token ids"
 - Verify: `test/live_canvas/accounts/user_token_test.exs`
 
 **Task 5 Step Progress**
-- [ ] Step 1: Update the convention document only after the code is green
-- [ ] Step 2: Run formatting
-- [ ] Step 3: Run compile, migration, and focused test verification
-- [ ] Step 4: Run the repository verification pass
-- [ ] Step 5: Commit
+- [x] Step 1: Update the convention document only after the code is green
+- [x] Step 2: Run formatting
+- [x] Step 3: Run compile, migration, and focused test verification
+- [x] Step 4: Run the repository verification pass
+- [x] Step 5: Commit
 
 **Step 1: Update the convention document only after the code is green**
 
