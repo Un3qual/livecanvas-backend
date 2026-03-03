@@ -26,16 +26,22 @@ defmodule LC.Live do
   """
   @spec start_live_session(User.t(), map()) :: live_session_result()
   def start_live_session(%User{id: host_id}, attrs) when is_integer(host_id) and is_map(attrs) do
-    live_session_changeset =
-      %LiveSession{}
-      |> LiveSessionChanges.changeset(LiveSessionChanges.attrs_for_insert(host_id, attrs))
+    # Always read suspension state from the database so stale in-memory user
+    # structs cannot start sessions after moderation changes.
+    if active_user?(host_id) do
+      live_session_changeset =
+        %LiveSession{}
+        |> LiveSessionChanges.changeset(LiveSessionChanges.attrs_for_insert(host_id, attrs))
 
-    Repo.transact(fn ->
-      with {:ok, live_session} <- Repo.insert(live_session_changeset),
-           {:ok, _pid} <- SessionSupervisor.start_session_server(live_session.id) do
-        {:ok, live_session}
-      end
-    end)
+      Repo.transact(fn ->
+        with {:ok, live_session} <- Repo.insert(live_session_changeset),
+             {:ok, _pid} <- SessionSupervisor.start_session_server(live_session.id) do
+          {:ok, live_session}
+        end
+      end)
+    else
+      {:error, :not_authorized}
+    end
   end
 
   @doc """
@@ -75,11 +81,16 @@ defmodule LC.Live do
     {:error, :ended}
   end
 
-  def join_live_session(%LiveSession{id: session_id}, %User{id: user_id}, role)
-      when is_integer(session_id) and is_integer(user_id) and is_atom(role) do
+  def join_live_session(%LiveSession{id: session_id, host_id: host_id}, %User{id: user_id}, role)
+      when is_integer(session_id) and is_integer(user_id) and is_integer(host_id) and
+             is_atom(role) do
     now = now_utc()
 
-    with {:ok, pid} <- ensure_session_server(session_id),
+    # Channel callers can hold stale assigns, so moderation checks must be
+    # re-evaluated from persisted suspension state at join time.
+    with true <- active_user?(user_id) || {:error, :not_authorized},
+         true <- active_user?(host_id) || {:error, :not_authorized},
+         {:ok, pid} <- ensure_session_server(session_id),
          {:ok, participant} <- upsert_live_participant(session_id, user_id, role, now),
          :ok <- SessionServer.join(pid, user_id, role) do
       {:ok, participant}
@@ -211,6 +222,12 @@ defmodule LC.Live do
     |> Map.new(fn {user_id, role, joined_at} ->
       {user_id, %{user_id: user_id, role: role, joined_at: joined_at}}
     end)
+  end
+
+  @spec active_user?(pos_integer()) :: boolean()
+  defp active_user?(user_id) when is_integer(user_id) do
+    from(user in User, where: user.id == ^user_id and is_nil(user.suspended_at), select: user.id)
+    |> Repo.exists?()
   end
 
   defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)

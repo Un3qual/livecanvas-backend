@@ -4,9 +4,24 @@ defmodule LC.FeedTest do
   import LC.AccountsFixtures
   import LC.SocialFixtures
 
-  alias LC.{Content, Feed, Live, Social}
+  alias LC.{Accounts, Content, Feed, Live, Social}
 
   describe "home_feed/2" do
+    test "excludes suspended creators" do
+      viewer = user_fixture()
+      suspended_creator = user_fixture(privacy_mode: :public)
+      assert {:ok, _suspended_creator} = Accounts.suspend_user(suspended_creator)
+
+      {:ok, _post} =
+        Content.create_post(suspended_creator, %{
+          kind: :standard,
+          body_text: "suspended",
+          visibility: :public
+        })
+
+      assert [] = Feed.home_feed(viewer, limit: 10)
+    end
+
     test "excludes blocked creators" do
       viewer = user_fixture()
       creator = user_fixture(privacy_mode: :public)
@@ -73,6 +88,17 @@ defmodule LC.FeedTest do
   end
 
   describe "live_now/2" do
+    test "excludes suspended hosts" do
+      viewer = user_fixture()
+      suspended_host = user_fixture(privacy_mode: :public)
+
+      {:ok, suspended_session} = Live.start_live_session(suspended_host, %{visibility: :public})
+      {:ok, _suspended_live} = Live.mark_session_live(suspended_session)
+      assert {:ok, _suspended_host} = Accounts.suspend_user(suspended_host)
+
+      assert [] = Feed.live_now(viewer, limit: 10)
+    end
+
     test "excludes hosts muted by the viewer" do
       viewer = user_fixture()
       muted_host = user_fixture(privacy_mode: :public)

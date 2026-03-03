@@ -35,6 +35,8 @@ defmodule LC.Feed do
   @spec home_feed_query(User.t()) :: Ecto.Query.t()
   def home_feed_query(%User{id: viewer_id}) when is_integer(viewer_id) do
     from(post in Post,
+      join: author in User,
+      on: author.id == post.author_id,
       left_join: follow in Follow,
       on:
         follow.follower_id == ^viewer_id and
@@ -46,6 +48,7 @@ defmodule LC.Feed do
       on:
         (block.blocker_id == ^viewer_id and block.blocked_id == post.author_id) or
           (block.blocker_id == post.author_id and block.blocked_id == ^viewer_id),
+      where: is_nil(author.suspended_at),
       where: is_nil(block.id),
       # Mute checks are directional: only the viewer muting the author
       # suppresses feed visibility.
@@ -72,6 +75,8 @@ defmodule LC.Feed do
   @spec live_now_query(User.t()) :: Ecto.Query.t()
   def live_now_query(%User{id: viewer_id}) when is_integer(viewer_id) do
     from(live_session in LiveSession,
+      join: host in User,
+      on: host.id == live_session.host_id,
       left_join: follow in Follow,
       on:
         follow.follower_id == ^viewer_id and
@@ -84,6 +89,7 @@ defmodule LC.Feed do
         (block.blocker_id == ^viewer_id and block.blocked_id == live_session.host_id) or
           (block.blocker_id == live_session.host_id and block.blocked_id == ^viewer_id),
       where: live_session.status == :live,
+      where: is_nil(host.suspended_at),
       where: is_nil(block.id),
       # Viewer-issued mutes hide matching hosts from live discovery surfaces.
       where: is_nil(mute.id),

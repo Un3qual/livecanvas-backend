@@ -3,11 +3,18 @@ defmodule LC.LiveTest do
 
   import LC.AccountsFixtures
 
-  alias LC.Live
+  alias LC.{Accounts, Live}
   alias LC.Live.SessionServer
   alias LCSchemas.Live.LiveParticipant
 
   describe "start_live_session/2" do
+    test "returns not_authorized for suspended hosts" do
+      host = user_fixture()
+      assert {:ok, _suspended_host} = Accounts.suspend_user(host)
+
+      assert {:error, :not_authorized} = Live.start_live_session(host, %{visibility: :followers})
+    end
+
     test "creates a starting session and boots a session server" do
       host = user_fixture()
 
@@ -43,6 +50,24 @@ defmodule LC.LiveTest do
   end
 
   describe "join_live_session/3 and end_live_session/2" do
+    test "returns not_authorized when the viewer is suspended" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      assert {:ok, _suspended_viewer} = Accounts.suspend_user(viewer)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:error, :not_authorized} = Live.join_live_session(session, viewer, :viewer)
+    end
+
+    test "returns not_authorized when the host is suspended" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      assert {:ok, _suspended_host} = Accounts.suspend_user(host)
+
+      assert {:error, :not_authorized} = Live.join_live_session(session, viewer, :viewer)
+    end
+
     test "persists participant joins and shuts down the runtime process when ended" do
       host = user_fixture()
       viewer = user_fixture()

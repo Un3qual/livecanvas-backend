@@ -4,10 +4,28 @@ defmodule LC.ChatTest do
   import LC.AccountsFixtures
   import LC.SocialFixtures
 
-  alias LC.{Chat, Live}
+  alias LC.{Accounts, Chat, Live}
   alias LCSchemas.Chat.ChatMessage
 
   describe "authorize_join/2" do
+    test "denies join when viewer is suspended" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      assert {:ok, _suspended_viewer} = Accounts.suspend_user(viewer)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:error, :not_authorized} = Chat.authorize_join(viewer, session)
+    end
+
+    test "denies join when host is suspended" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      assert {:ok, _suspended_host} = Accounts.suspend_user(host)
+
+      assert {:error, :not_authorized} = Chat.authorize_join(viewer, session)
+    end
+
     test "allows a followed viewer to join a followers-only session" do
       host = user_fixture()
       viewer = user_fixture()

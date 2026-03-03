@@ -5,8 +5,8 @@ defmodule LCWeb.LiveSessionChannelTest do
   import LC.AccountsFixtures
   import LC.SocialFixtures
 
+  alias LC.{Accounts, Live}
   alias LC.Infra.Repo
-  alias LC.Live
   alias LC.Live.SessionServer
   alias LCSchemas.Chat.ChatMessage
   alias LCSchemas.Live.LiveParticipant
@@ -60,6 +60,20 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
   end
 
+  test "suspended viewer cannot join a live session topic" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    assert {:ok, _suspended_viewer} = Accounts.suspend_user(viewer)
+
+    assert {:error, %{reason: "not_authorized"}} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+  end
+
   test "disconnect marks participant left and prunes runtime membership" do
     Process.flag(:trap_exit, true)
 
@@ -93,7 +107,9 @@ defmodule LCWeb.LiveSessionChannelTest do
   end
 
   defp wait_for_participant_left(session_id, user_id, attempts \\ 30)
-  defp wait_for_participant_left(_session_id, _user_id, 0), do: flunk("participant row not marked left")
+
+  defp wait_for_participant_left(_session_id, _user_id, 0),
+    do: flunk("participant row not marked left")
 
   defp wait_for_participant_left(session_id, user_id, attempts) do
     case Repo.get_by(LiveParticipant, live_session_id: session_id, user_id: user_id) do
