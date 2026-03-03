@@ -13,6 +13,7 @@ defmodule LC.Live do
   alias LCSchemas.Live.{LiveParticipant, LiveSession}
 
   @type changeset :: Ecto.Changeset.t()
+  @type fetch_joinable_session_result :: {:ok, LiveSession.t()} | {:error, :ended | :not_found}
   @type live_session_result :: {:ok, LiveSession.t()} | {:error, changeset() | term()}
   @type live_participant_result :: {:ok, LiveParticipant.t()} | {:error, changeset() | term()}
   @type session_server_lookup_result :: {:ok, pid()} | {:error, :not_found}
@@ -88,6 +89,18 @@ defmodule LC.Live do
   @spec lookup_session_server(pos_integer()) :: session_server_lookup_result()
   def lookup_session_server(session_id) when is_integer(session_id) do
     SessionSupervisor.lookup_session_server(session_id)
+  end
+
+  @doc """
+  Fetches a session that can still accept channel joins.
+  """
+  @spec fetch_joinable_session(pos_integer()) :: fetch_joinable_session_result()
+  def fetch_joinable_session(session_id) when is_integer(session_id) do
+    case Repo.get(LiveSession, session_id) do
+      %LiveSession{status: :ended} -> {:error, :ended}
+      %LiveSession{} = live_session -> {:ok, live_session}
+      nil -> {:error, :not_found}
+    end
   end
 
   defp upsert_live_participant(session_id, user_id, role, now) do

@@ -25,6 +25,8 @@ defmodule LCSchemas do
       Content,
       Content.Post,
       Content.MediaAsset,
+      Chat,
+      Chat.ChatMessage,
       Live,
       Live.LiveParticipant,
       Live.LiveSession
