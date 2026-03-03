@@ -7,7 +7,48 @@ defmodule LC.LiveTest do
   alias LC.Live.SessionServer
   alias LCSchemas.Live.LiveParticipant
 
+  @live_session_telemetry_events [
+    [:live_canvas, :live, :session, :start],
+    [:live_canvas, :live, :session, :join],
+    [:live_canvas, :live, :session, :end]
+  ]
+
+  setup do
+    attach_live_session_telemetry_handler()
+    :ok
+  end
+
   describe "start_live_session/2" do
+    test "emits telemetry for successful and rejected session starts" do
+      host = user_fixture()
+
+      assert {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert_receive {:telemetry_event, [:live_canvas, :live, :session, :start], %{count: 1},
+                      %{
+                        result: :ok,
+                        host_id: host_id,
+                        session_id: session_id,
+                        visibility: :followers
+                      }}
+
+      assert host_id == host.id
+      assert session_id == session.id
+
+      assert {:ok, _suspended_host} = Accounts.suspend_user(host)
+      assert {:error, :not_authorized} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert_receive {:telemetry_event, [:live_canvas, :live, :session, :start], %{count: 1},
+                      %{
+                        result: :error,
+                        host_id: host_id,
+                        reason: :not_authorized,
+                        visibility: :followers
+                      }}
+
+      assert host_id == host.id
+    end
+
     test "returns not_authorized for suspended hosts" do
       host = user_fixture()
       assert {:ok, _suspended_host} = Accounts.suspend_user(host)
@@ -50,6 +91,54 @@ defmodule LC.LiveTest do
   end
 
   describe "join_live_session/3 and end_live_session/2" do
+    test "emits telemetry for join success and authorization failure" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
+      assert_receive {:telemetry_event, [:live_canvas, :live, :session, :join], %{count: 1},
+                      %{
+                        result: :ok,
+                        host_id: host_id,
+                        role: :viewer,
+                        session_id: session_id,
+                        user_id: user_id
+                      }}
+
+      assert host_id == host.id
+      assert session_id == session.id
+      assert user_id == viewer.id
+
+      assert {:ok, _suspended_viewer} = Accounts.suspend_user(viewer)
+      assert {:error, :not_authorized} = Live.join_live_session(session, viewer, :viewer)
+
+      assert_receive {:telemetry_event, [:live_canvas, :live, :session, :join], %{count: 1},
+                      %{
+                        result: :error,
+                        reason: :not_authorized,
+                        role: :viewer,
+                        session_id: session_id,
+                        user_id: user_id
+                      }}
+
+      assert session_id == session.id
+      assert user_id == viewer.id
+    end
+
+    test "emits telemetry when ending a live session" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, ended_session} = Live.end_live_session(session, %{ended_reason: :host_ended})
+
+      assert_receive {:telemetry_event, [:live_canvas, :live, :session, :end], %{count: 1},
+                      %{result: :ok, session_id: session_id, status: :ended}}
+
+      assert session_id == ended_session.id
+    end
+
     test "returns not_authorized when the viewer is suspended" do
       host = user_fixture(privacy_mode: :public)
       viewer = user_fixture()
@@ -182,5 +271,27 @@ defmodule LC.LiveTest do
         Process.sleep(10)
         wait_for_session_server_down(session_id, attempts - 1)
     end
+  end
+
+  defp attach_live_session_telemetry_handler do
+    test_pid = self()
+    handler_id = "live-test-#{System.unique_integer([:positive, :monotonic])}"
+
+    :ok =
+      :telemetry.attach_many(
+        handler_id,
+        @live_session_telemetry_events,
+        &__MODULE__.handle_live_session_telemetry_event/4,
+        test_pid
+      )
+
+    on_exit(fn -> :telemetry.detach(handler_id) end)
+  end
+
+  @spec handle_live_session_telemetry_event([atom()], map(), map(), pid()) :: :ok
+  def handle_live_session_telemetry_event(event, measurements, metadata, test_pid)
+      when is_list(event) and is_map(measurements) and is_map(metadata) and is_pid(test_pid) do
+    send(test_pid, {:telemetry_event, event, measurements, metadata})
+    :ok
   end
 end

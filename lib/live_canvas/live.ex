@@ -26,22 +26,28 @@ defmodule LC.Live do
   """
   @spec start_live_session(User.t(), map()) :: live_session_result()
   def start_live_session(%User{id: host_id}, attrs) when is_integer(host_id) and is_map(attrs) do
+    visibility = Map.get(attrs, :visibility, Map.get(attrs, "visibility"))
+
     # Always read suspension state from the database so stale in-memory user
     # structs cannot start sessions after moderation changes.
-    if active_user?(host_id) do
-      live_session_changeset =
-        %LiveSession{}
-        |> LiveSessionChanges.changeset(LiveSessionChanges.attrs_for_insert(host_id, attrs))
+    result =
+      if active_user?(host_id) do
+        live_session_changeset =
+          %LiveSession{}
+          |> LiveSessionChanges.changeset(LiveSessionChanges.attrs_for_insert(host_id, attrs))
 
-      Repo.transact(fn ->
-        with {:ok, live_session} <- Repo.insert(live_session_changeset),
-             {:ok, _pid} <- SessionSupervisor.start_session_server(live_session.id) do
-          {:ok, live_session}
-        end
-      end)
-    else
-      {:error, :not_authorized}
-    end
+        Repo.transact(fn ->
+          with {:ok, live_session} <- Repo.insert(live_session_changeset),
+               {:ok, _pid} <- SessionSupervisor.start_session_server(live_session.id) do
+            {:ok, live_session}
+          end
+        end)
+      else
+        {:error, :not_authorized}
+      end
+
+    :ok = emit_live_session_telemetry(:start, %{host_id: host_id, visibility: visibility}, result)
+    result
   end
 
   @doc """
@@ -62,13 +68,17 @@ defmodule LC.Live do
 
   @spec end_live_session(LiveSession.t(), map()) :: live_session_result()
   def end_live_session(%LiveSession{} = live_session, attrs) when is_map(attrs) do
-    with {:ok, ended_session} <-
-           live_session
-           |> LiveSessionChanges.end_changeset(attrs, now_utc())
-           |> Repo.update(),
-         :ok <- SessionSupervisor.stop_session_server(live_session.id) do
-      {:ok, ended_session}
-    end
+    result =
+      with {:ok, ended_session} <-
+             live_session
+             |> LiveSessionChanges.end_changeset(attrs, now_utc())
+             |> Repo.update(),
+           :ok <- SessionSupervisor.stop_session_server(live_session.id) do
+        {:ok, ended_session}
+      end
+
+    :ok = emit_live_session_telemetry(:end, %{session_id: live_session.id}, result)
+    result
   end
 
   @doc """
@@ -76,25 +86,44 @@ defmodule LC.Live do
   """
   @spec join_live_session(LiveSession.t(), User.t(), LCSchemas.Live.live_participant_role()) ::
           live_participant_result()
-  def join_live_session(%LiveSession{id: session_id, status: :ended}, %User{id: user_id}, role)
-      when is_integer(session_id) and is_integer(user_id) and is_atom(role) do
-    {:error, :ended}
+  def join_live_session(
+        %LiveSession{id: session_id, host_id: host_id, status: :ended},
+        %User{id: user_id},
+        role
+      )
+      when is_integer(session_id) and is_integer(user_id) and is_integer(host_id) and
+             is_atom(role) do
+    result = {:error, :ended}
+
+    :ok =
+      emit_live_session_telemetry(
+        :join,
+        join_telemetry_metadata(session_id, user_id, host_id, role),
+        result
+      )
+
+    result
   end
 
   def join_live_session(%LiveSession{id: session_id, host_id: host_id}, %User{id: user_id}, role)
       when is_integer(session_id) and is_integer(user_id) and is_integer(host_id) and
              is_atom(role) do
     now = now_utc()
+    telemetry_metadata = join_telemetry_metadata(session_id, user_id, host_id, role)
 
     # Channel callers can hold stale assigns, so moderation checks must be
     # re-evaluated from persisted suspension state at join time.
-    with true <- active_user?(user_id) || {:error, :not_authorized},
-         true <- active_user?(host_id) || {:error, :not_authorized},
-         {:ok, pid} <- ensure_session_server(session_id),
-         {:ok, participant} <- upsert_live_participant(session_id, user_id, role, now),
-         :ok <- SessionServer.join(pid, user_id, role) do
-      {:ok, participant}
-    end
+    result =
+      with true <- active_user?(user_id) || {:error, :not_authorized},
+           true <- active_user?(host_id) || {:error, :not_authorized},
+           {:ok, pid} <- ensure_session_server(session_id),
+           {:ok, participant} <- upsert_live_participant(session_id, user_id, role, now),
+           :ok <- SessionServer.join(pid, user_id, role) do
+        {:ok, participant}
+      end
+
+    :ok = emit_live_session_telemetry(:join, telemetry_metadata, result)
+    result
   end
 
   @doc """
@@ -209,6 +238,51 @@ defmodule LC.Live do
         runtime_participants = active_runtime_participants(session_id)
         SessionSupervisor.start_session_server(session_id, runtime_participants)
     end
+  end
+
+  @type live_session_event :: :end | :join | :start
+  @type live_session_event_result ::
+          {:ok, LiveParticipant.t() | LiveSession.t()} | {:error, term()}
+
+  defp emit_live_session_telemetry(event, metadata, result)
+       when event in [:start, :join, :end] and is_map(metadata) do
+    # Observability is best-effort: event emission must not influence domain
+    # outcomes, so metadata is normalized and bounded to non-secret fields.
+    :telemetry.execute(
+      [:live_canvas, :live, :session, event],
+      %{count: 1},
+      Map.merge(metadata, telemetry_outcome_metadata(result))
+    )
+
+    :ok
+  end
+
+  @spec telemetry_outcome_metadata(live_session_event_result()) :: map()
+  defp telemetry_outcome_metadata({:ok, %LiveSession{id: session_id, status: status}}) do
+    %{result: :ok, session_id: session_id, status: status}
+  end
+
+  defp telemetry_outcome_metadata(
+         {:ok, %LiveParticipant{live_session_id: session_id, user_id: user_id}}
+       ) do
+    %{result: :ok, session_id: session_id, user_id: user_id}
+  end
+
+  defp telemetry_outcome_metadata({:error, reason}) do
+    %{result: :error, reason: telemetry_reason(reason)}
+  end
+
+  @spec telemetry_reason(term()) :: atom()
+  defp telemetry_reason(%Ecto.Changeset{}), do: :changeset
+  defp telemetry_reason({reason, _detail}) when is_atom(reason), do: reason
+  defp telemetry_reason(reason) when is_atom(reason), do: reason
+  defp telemetry_reason(_reason), do: :unknown
+
+  @spec join_telemetry_metadata(pos_integer(), pos_integer(), pos_integer(), atom()) :: map()
+  defp join_telemetry_metadata(session_id, user_id, host_id, role)
+       when is_integer(session_id) and is_integer(user_id) and is_integer(host_id) and
+              is_atom(role) do
+    %{session_id: session_id, user_id: user_id, host_id: host_id, role: role}
   end
 
   @spec active_runtime_participants(pos_integer()) :: runtime_participants()
