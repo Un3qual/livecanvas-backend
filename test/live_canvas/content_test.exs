@@ -68,4 +68,58 @@ defmodule LC.ContentTest do
       assert %{mime_type: ["can't be blank"]} = errors_on(changeset)
     end
   end
+
+  describe "finalize_media_upload/3" do
+    test "finalizes a viewer-owned pending upload and marks it processed" do
+      owner = user_fixture()
+
+      assert {:ok, %{media_asset: asset}} =
+               Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+      assert asset.processing_state == :pending_upload
+
+      assert {:ok, finalized_asset} =
+               Content.finalize_media_upload(owner, asset.id, %{width: 1080, height: 1920})
+
+      assert finalized_asset.id == asset.id
+      assert finalized_asset.processing_state == :processed
+      assert finalized_asset.width == 1080
+      assert finalized_asset.height == 1920
+    end
+
+    test "returns not found for non-owners" do
+      owner = user_fixture()
+      other_user = user_fixture()
+
+      assert {:ok, %{media_asset: asset}} =
+               Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+      assert {:error, :not_found} = Content.finalize_media_upload(other_user, asset.id, %{})
+    end
+
+    test "is idempotent when the upload is already processed" do
+      owner = user_fixture()
+
+      assert {:ok, %{media_asset: asset}} =
+               Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+      assert {:ok, processed_asset} = Content.finalize_media_upload(owner, asset.id, %{})
+      assert processed_asset.processing_state == :processed
+
+      assert {:ok, processed_asset_again} = Content.finalize_media_upload(owner, asset.id, %{})
+      assert processed_asset_again.id == processed_asset.id
+      assert processed_asset_again.processing_state == :processed
+    end
+
+    test "marks upload as failed when media processing rejects the MIME type" do
+      owner = user_fixture()
+
+      assert {:ok, %{media_asset: asset}} =
+               Content.request_media_upload(owner, %{mime_type: "application/octet-stream"})
+
+      assert {:error, :processing_failed} = Content.finalize_media_upload(owner, asset.id, %{})
+
+      assert %{processing_state: :failed} = Content.get_user_media_asset(owner, asset.id)
+    end
+  end
 end

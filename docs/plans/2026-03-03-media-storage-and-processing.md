@@ -27,7 +27,7 @@ Verified directly in `lib/`, `priv/repo/migrations/`, `config/`, and tests befor
 
 - [x] Task 1: Add object-storage seam and `Content.request_media_upload/2`
 - [x] Task 2: Add Relay `requestMediaUpload` mutation and media node/query surface
-- [ ] Task 3: Add `Content.finalize_media_upload/3` lifecycle transition and processing seam
+- [x] Task 3: Add `Content.finalize_media_upload/3` lifecycle transition and processing seam
 - [ ] Task 4: Run final verification and update roadmap links
 
 ### Task 1: Add Object-Storage Seam And `Content.request_media_upload/2`
@@ -134,11 +134,20 @@ git commit -m "feat: add media upload intent and object storage seam"
 - Modify: `docs/plans/2026-03-03-media-storage-and-processing.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing tests for finalize authorization, idempotency, and state transitions
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement minimal finalize + processing seam
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run `mix typecheck`, update checklist progress, and commit Task 3 milestone
+- [x] Step 1: Add failing tests for finalize authorization, idempotency, and state transitions
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement minimal finalize + processing seam
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run `mix typecheck`, update checklist progress, and commit Task 3 milestone
+
+**Step 2 verification run (2026-03-03):**
+- `mix test test/live_canvas/content_test.exs` -> FAIL (`LC.Content.finalize_media_upload/3` undefined)
+
+**Step 4 verification run (2026-03-03):**
+- `mix test test/live_canvas/content_test.exs` -> PASS (`8 tests, 0 failures`)
+
+**Step 5 verification run (2026-03-03):**
+- `mix typecheck` -> PASS
 
 ### Task 4: Final Verification And Roadmap Update
 

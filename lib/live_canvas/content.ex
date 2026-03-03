@@ -5,7 +5,7 @@ defmodule LC.Content do
 
   use Boundary, deps: [LC.Infra, LCSchemas]
 
-  alias LC.Content.{MediaAsset, Post}
+  alias LC.Content.{MediaAsset, MediaProcessing, Post}
   alias LC.Infra.{ObjectStorage, Repo}
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
@@ -17,6 +17,7 @@ defmodule LC.Content do
   @type media_upload_result ::
           {:ok, %{media_asset: MediaAssetSchema.t(), upload: ObjectStorage.signed_upload()}}
           | {:error, changeset() | :invalid_upload_request | term()}
+  @type media_finalize_result :: {:ok, MediaAssetSchema.t()} | {:error, changeset() | atom()}
 
   @doc """
   Persists a post owned by the given author.
@@ -82,6 +83,54 @@ defmodule LC.Content do
   def get_user_media_asset(%User{id: owner_id}, media_asset_id)
       when is_integer(media_asset_id) and media_asset_id > 0 do
     Repo.get_by(MediaAssetSchema, id: media_asset_id, owner_id: owner_id)
+  end
+
+  @doc """
+  Finalizes a pending upload for the owner and runs media processing.
+  """
+  @spec finalize_media_upload(User.t(), pos_integer(), map()) :: media_finalize_result()
+  def finalize_media_upload(%User{} = owner, media_asset_id, attrs)
+      when is_integer(media_asset_id) and media_asset_id > 0 and is_map(attrs) do
+    case get_user_media_asset(owner, media_asset_id) do
+      nil ->
+        {:error, :not_found}
+
+      %MediaAssetSchema{processing_state: state} = media_asset when state in [:uploaded, :processed] ->
+        {:ok, media_asset}
+
+      %MediaAssetSchema{processing_state: :failed} ->
+        {:error, :processing_failed}
+
+      %MediaAssetSchema{processing_state: :pending_upload} = media_asset ->
+        finalize_pending_upload(media_asset, attrs)
+    end
+  end
+
+  @spec finalize_pending_upload(MediaAssetSchema.t(), map()) :: media_finalize_result()
+  defp finalize_pending_upload(media_asset, attrs) do
+    with {:ok, uploaded_asset} <-
+           update_media_asset(media_asset, Map.put(attrs, :processing_state, :uploaded)) do
+      # Upload completion and processor invocation are split so upload metadata
+      # is durably recorded even when downstream processing fails.
+      case MediaProcessing.process_upload(uploaded_asset) do
+        {:ok, processing_attrs} ->
+          processing_attrs
+          |> Map.put(:processing_state, :processed)
+          |> then(&update_media_asset(uploaded_asset, &1))
+
+        {:error, _reason} ->
+          _ = update_media_asset(uploaded_asset, %{processing_state: :failed})
+          {:error, :processing_failed}
+      end
+    end
+  end
+
+  @spec update_media_asset(MediaAssetSchema.t(), map()) ::
+          {:ok, MediaAssetSchema.t()} | {:error, changeset()}
+  defp update_media_asset(%MediaAssetSchema{} = media_asset, attrs) when is_map(attrs) do
+    media_asset
+    |> MediaAsset.changeset(attrs)
+    |> Repo.update()
   end
 
   @spec generate_storage_key(pos_integer(), map()) :: String.t()
