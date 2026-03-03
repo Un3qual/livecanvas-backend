@@ -19,7 +19,8 @@ defmodule LC.Live do
   @type live_participant_result :: {:ok, LiveParticipant.t()} | {:error, changeset() | term()}
   @type leave_live_session_result :: :ok
   @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
-  @type session_server_lookup_result :: {:ok, pid()} | {:error, :not_found}
+  @type session_server_lookup_result ::
+          {:ok, pid()} | {:error, :not_found | {:owned_by_remote, String.t()}}
 
   @doc """
   Starts a persisted live session and boots its runtime process.
@@ -215,6 +216,9 @@ defmodule LC.Live do
 
       {:error, :not_found} ->
         :ok
+
+      {:error, {:owned_by_remote, _owner_node}} ->
+        :ok
     end
   end
 
@@ -231,6 +235,9 @@ defmodule LC.Live do
     case SessionSupervisor.lookup_session_server(session_id) do
       {:ok, pid} ->
         {:ok, pid}
+
+      {:error, {:owned_by_remote, owner_node}} ->
+        {:error, {:owned_by_remote, owner_node}}
 
       {:error, :not_found} ->
         # Rehydrate runtime state from durable participants so a recreated

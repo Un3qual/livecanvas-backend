@@ -26,7 +26,7 @@ Verified directly in `lib/`, `test/`, and migrations before writing this plan:
 ## Progress
 
 - [x] Task 1: Add durable runtime ownership lease primitives in `LC.Live`
-- [ ] Task 2: Integrate lease-aware local ownership into `SessionSupervisor` and `LC.Live`
+- [x] Task 2: Integrate lease-aware local ownership into `SessionSupervisor` and `LC.Live`
 - [ ] Task 3: Add remote-owner routing adapter and boundary-level join/lookup semantics
 - [ ] Task 4: Expose deterministic channel behavior for remote-owned sessions
 - [ ] Task 5: Run full verification and update release roadmap notes
@@ -117,11 +117,11 @@ git commit -m "feat: add live runtime ownership lease primitives"
 - Modify: `docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing tests for local ownership claim on start/lookup and takeover after expiry
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement ownership-aware `start_session_server/2`, `lookup_session_server/1`, and stop/release handling
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing tests for local ownership claim on start/lookup and takeover after expiry
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement ownership-aware `start_session_server/2`, `lookup_session_server/1`, and stop/release handling
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run `mix typecheck`, update checklist progress, and commit milestone
 
 **Step 3 implementation notes:**
 - `SessionSupervisor` must claim lease before starting a local session process.
