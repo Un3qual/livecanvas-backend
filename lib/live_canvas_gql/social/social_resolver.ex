@@ -1,7 +1,10 @@
 defmodule LCGQL.Social.Resolver do
   alias LC.{Accounts, Social}
+  alias LCGQL.Relay
+  alias LCSchemas.Accounts.User
 
-  @type resolver_error :: :blocked | :invalid_id | :not_allowed | :not_found | Ecto.Changeset.t()
+  @type resolver_error ::
+          :blocked | :invalid_id | :invalid_type | :not_allowed | :not_found | Ecto.Changeset.t()
   @type follow_payload :: %{id: integer(), state: :accepted | :requested}
 
   @spec follow_user(any(), %{input: %{follower_id: term(), followed_id: term()}}, any()) ::
@@ -71,9 +74,9 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec fetch_user(term()) :: {:ok, struct()} | {:error, :invalid_id | :not_found}
+  @spec fetch_user(term()) :: {:ok, User.t()} | {:error, :invalid_id | :invalid_type | :not_found}
   defp fetch_user(user_id) do
-    with {:ok, id} <- parse_id(user_id) do
+    with {:ok, id} <- Relay.decode_global_id(user_id, :user, LCGQL.Schema) do
       try do
         {:ok, Accounts.get_user!(id)}
       rescue
@@ -86,16 +89,4 @@ defmodule LCGQL.Social.Resolver do
   defp follow_payload(follow) do
     %{id: follow.id, state: follow.state}
   end
-
-  @spec parse_id(term()) :: {:ok, integer()} | {:error, :invalid_id}
-  defp parse_id(user_id) when is_integer(user_id), do: {:ok, user_id}
-
-  defp parse_id(user_id) when is_binary(user_id) do
-    case Integer.parse(user_id) do
-      {id, ""} -> {:ok, id}
-      _ -> {:error, :invalid_id}
-    end
-  end
-
-  defp parse_id(_user_id), do: {:error, :invalid_id}
 end

@@ -9,7 +9,7 @@
 - [x] Existing relational tables use `bigint` plus `entropy_id` (`uuidv7`) for relational tables.
 - [x] Existing modules have been refactored from `LiveCanvas*` to `LC*`.
 - [x] Phone OTP delivery has the fake SMS GenServer implementation.
-- [ ] The GraphQL schema still needs the Relay-first migration.
+- [ ] The Social GraphQL surface still needs Relay payload-shape cleanup.
 - [x] The broader typespec rollout is complete.
 
 ## Data And Security
@@ -28,7 +28,8 @@
 ## GraphQL And Relay
 
 - The target standard is Relay-first: `node` lookups, global IDs, connection fields, edges, cursors, and Relay-friendly mutations.
-- The current schema is only partially aligned. It enables `Absinthe.Relay`, but it still uses non-Relay entry points such as `viewer(userId: ID!)`, manual integer ID parsing, and lacks meaningful connection-based list fields.
+- The current schema is mostly Relay-aligned: authenticated `viewer`, `node(id:)`, global ID decoding, and at least one connection field are all live.
+- Remaining migration work is concentrated in the Social adapter layer, where mutations still use plain field declarations and legacy payload shapes instead of full Relay payload fields.
 - Preserve Relay semantics in all new GraphQL work, and use the dedicated migration plan before reshaping existing fields.
 
 ## Planned Refactors
