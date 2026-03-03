@@ -10,6 +10,9 @@ defmodule LC.Accounts.UserChanges do
           optional(:privacy_mode | String.t()) =>
             LCSchemas.Accounts.user_privacy_mode() | String.t()
         }
+  @type suspension_attrs :: %{
+          optional(:suspended_at | String.t()) => DateTime.t() | nil
+        }
   @type password_attrs :: %{
           optional(:password | :password_confirmation | String.t()) => String.t()
         }
@@ -51,6 +54,24 @@ defmodule LC.Accounts.UserChanges do
     user
     |> cast(attrs, [:privacy_mode])
     |> validate_required([:privacy_mode])
+  end
+
+  @doc """
+  A user changeset for applying a moderation suspension timestamp.
+  """
+  @spec suspend_changeset(User.t(), DateTime.t()) :: Ecto.Changeset.t()
+  def suspend_changeset(user, %DateTime{} = suspended_at) do
+    user
+    |> cast(%{suspended_at: suspended_at}, [:suspended_at])
+    |> validate_required([:suspended_at])
+  end
+
+  @doc """
+  A user changeset for clearing moderation suspension state.
+  """
+  @spec unsuspend_changeset(User.t()) :: Ecto.Changeset.t()
+  def unsuspend_changeset(user) do
+    cast(user, %{suspended_at: nil}, [:suspended_at])
   end
 
   @doc """

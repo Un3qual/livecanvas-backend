@@ -79,6 +79,13 @@ defmodule LC.AccountsTest do
       assert %User{id: ^id} =
                Accounts.get_user_by_email_and_password(user.email, valid_user_password())
     end
+
+    test "does not return suspended users even when credentials are valid" do
+      user = user_fixture() |> set_password()
+      assert {:ok, _suspended_user} = Accounts.suspend_user(user)
+
+      refute Accounts.get_user_by_email_and_password(user.email, valid_user_password())
+    end
   end
 
   describe "get_user_by_phone/1" do
@@ -314,6 +321,34 @@ defmodule LC.AccountsTest do
       user = user_fixture(privacy_mode: :public)
 
       assert user.privacy_mode == :public
+    end
+  end
+
+  describe "suspend_user/1, unsuspend_user/1, and suspended?/1" do
+    test "suspend_user/1 sets suspended_at with microsecond precision" do
+      user = user_fixture()
+      refute Accounts.suspended?(user)
+
+      assert {:ok, suspended_user} = Accounts.suspend_user(user)
+      assert %DateTime{} = suspended_user.suspended_at
+      assert suspended_user.suspended_at.microsecond != {0, 0}
+
+      assert Accounts.suspended?(user)
+      assert %DateTime{} = Accounts.get_user!(user.id).suspended_at
+    end
+
+    test "unsuspend_user/1 clears suspended_at and is idempotent" do
+      user = user_fixture()
+      assert {:ok, _suspended_user} = Accounts.suspend_user(user)
+      assert Accounts.suspended?(user)
+
+      assert {:ok, unsuspended_user} = Accounts.unsuspend_user(user)
+      assert is_nil(unsuspended_user.suspended_at)
+      refute Accounts.suspended?(user)
+
+      assert {:ok, unsuspended_again} = Accounts.unsuspend_user(user)
+      assert is_nil(unsuspended_again.suspended_at)
+      refute Accounts.suspended?(user)
     end
   end
 
@@ -632,6 +667,12 @@ defmodule LC.AccountsTest do
       {1, nil} = Repo.update_all(UserToken, set: [inserted_at: dt, authenticated_at: dt])
       refute Accounts.get_user_by_session_token(token)
     end
+
+    test "does not return suspended users", %{user: user, token: token} do
+      assert {:ok, _suspended_user} = Accounts.suspend_user(user)
+
+      refute Accounts.get_user_by_session_token(token)
+    end
   end
 
   describe "get_user_by_magic_link_token/1" do
@@ -653,6 +694,12 @@ defmodule LC.AccountsTest do
     test "does not return user for expired token", %{token: token} do
       {1, nil} =
         Repo.update_all(UserToken, set: [inserted_at: ~U[2020-01-01 00:00:00.000000Z]])
+
+      refute Accounts.get_user_by_magic_link_token(token)
+    end
+
+    test "does not return suspended users", %{user: user, token: token} do
+      assert {:ok, _suspended_user} = Accounts.suspend_user(user)
 
       refute Accounts.get_user_by_magic_link_token(token)
     end

@@ -83,6 +83,7 @@ defmodule LC.Accounts do
   @type password_change_attrs :: %{
           optional(:password | :password_confirmation | String.t()) => String.t()
         }
+  @type suspension_result :: user_result()
 
   ## Database getters
 
@@ -130,7 +131,8 @@ defmodule LC.Accounts do
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
     user = get_user_by_email(email)
-    if Passwords.valid_password?(user, password), do: user
+
+    if Passwords.valid_password?(user, password) and active_user?(user), do: user
   end
 
   @doc """
@@ -245,6 +247,48 @@ defmodule LC.Accounts do
       {:ok, updated_user} -> {:ok, hydrate_loaded_user(updated_user)}
       {:error, changeset} -> {:error, changeset}
     end
+  end
+
+  @doc """
+  Applies a moderation suspension timestamp to the user.
+  """
+  @spec suspend_user(User.t()) :: suspension_result()
+  def suspend_user(%User{} = user) do
+    case user
+         |> fresh_user!()
+         |> UserChanges.suspend_changeset(now_utc())
+         |> Repo.update() do
+      {:ok, suspended_user} -> {:ok, hydrate_loaded_user(suspended_user)}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  @doc """
+  Clears moderation suspension state from the user.
+  """
+  @spec unsuspend_user(User.t()) :: suspension_result()
+  def unsuspend_user(%User{} = user) do
+    case user
+         # Refresh first so clearing suspension works even when callers pass
+         # a stale pre-suspension struct from earlier in the request lifecycle.
+         |> fresh_user!()
+         |> UserChanges.unsuspend_changeset()
+         |> Repo.update() do
+      {:ok, unsuspended_user} -> {:ok, hydrate_loaded_user(unsuspended_user)}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  @doc """
+  Returns whether the user is currently suspended.
+  """
+  @spec suspended?(User.t()) :: boolean()
+  def suspended?(%User{id: user_id}) when is_integer(user_id) do
+    from(user in User,
+      where: user.id == ^user_id and not is_nil(user.suspended_at),
+      select: 1
+    )
+    |> Repo.exists?()
   end
 
   @doc """
@@ -533,7 +577,8 @@ defmodule LC.Accounts do
   def get_user_by_session_token(serialized_value) do
     with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
          {user, user_token, current_email} <- Repo.one(query),
-         true <- Tokens.valid_session_token?(user_token, raw_secret) do
+         true <- Tokens.valid_session_token?(user_token, raw_secret),
+         true <- active_user?(user) do
       user = hydrate_user(user, user_token, current_email)
       {user, user_token.inserted_at}
     else
@@ -549,7 +594,8 @@ defmodule LC.Accounts do
     with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
          {user, user_token, current_email} <- Repo.one(query),
          hydrated_user = hydrate_user(user, user_token, current_email),
-         true <- Tokens.valid_magic_link_token?(user_token, raw_secret, hydrated_user.email) do
+         true <- Tokens.valid_magic_link_token?(user_token, raw_secret, hydrated_user.email),
+         true <- active_user?(hydrated_user) do
       hydrated_user
     else
       _ -> nil
@@ -565,7 +611,8 @@ defmodule LC.Accounts do
     with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
          {user, user_token, current_email} <- Repo.one(query),
          hydrated_user = hydrate_user(user, user_token, current_email),
-         true <- Tokens.valid_magic_link_token?(user_token, raw_secret, hydrated_user.email) do
+         true <- Tokens.valid_magic_link_token?(user_token, raw_secret, hydrated_user.email),
+         true <- active_user?(hydrated_user) do
       case hydrated_user do
         %User{confirmed_at: nil, hashed_password: hash} when not is_nil(hash) ->
           raise """
@@ -1036,6 +1083,17 @@ defmodule LC.Accounts do
         email: current_email || user_token.sent_to
     }
   end
+
+  @spec fresh_user!(User.t()) :: User.t()
+  defp fresh_user!(%User{id: user_id}) when is_integer(user_id), do: Repo.get!(User, user_id)
+
+  @spec active_user?(User.t() | nil) :: boolean()
+  defp active_user?(%User{suspended_at: nil}), do: true
+  defp active_user?(%User{}), do: false
+  defp active_user?(_), do: false
+
+  @spec now_utc() :: DateTime.t()
+  defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
   defp email_taken?(nil), do: false
   defp email_taken?(email), do: not is_nil(get_user_by_email(email))

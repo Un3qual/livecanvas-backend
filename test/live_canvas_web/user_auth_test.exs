@@ -157,6 +157,22 @@ defmodule LCWeb.UserAuthTest do
       refute conn.assigns.current_scope
     end
 
+    test "does not authenticate suspended users from a valid session token", %{
+      conn: conn,
+      user: user
+    } do
+      user_token = Accounts.generate_user_session_token(user)
+      assert {:ok, _suspended_user} = Accounts.suspend_user(user)
+
+      conn =
+        conn
+        |> put_session(:user_token, user_token)
+        |> UserAuth.fetch_current_scope_for_user([])
+
+      refute conn.assigns.current_scope
+      assert get_session(conn, :user_token) == user_token
+    end
+
     test "reissues a new token after a few days and refreshes cookie", %{conn: conn, user: user} do
       logged_in_conn =
         conn |> fetch_cookies() |> UserAuth.log_in_user(user, %{"remember_me" => "true"})
