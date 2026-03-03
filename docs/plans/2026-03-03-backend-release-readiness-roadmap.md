@@ -8,7 +8,7 @@
   - `mix test` -> PASS (`288 tests, 0 failures`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
-- Plan tracking state: every checklist-bearing plan file in `docs/plans/**` is currently fully checked.
+- Plan tracking state: all previously active plans are complete; next open plan is `docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`.
 
 ## What Has Been Delivered
 
@@ -174,7 +174,6 @@ The following are material gaps where no sufficiently detailed executable plan e
 
 - Additional auth audit expansion for provider unlink/account recovery events if included in v1 launch scope.
 - REST webhook + background-job design/implementation plan.
-- Distributed live runtime ownership plan for multi-pod deployments.
 - Media storage/processing delivery plan.
 - Release engineering plan (migrations at scale, rollback strategy, deployment gates).
 - Compliance/data-governance plan (retention/deletion/export policy).
@@ -186,6 +185,5 @@ The following are material gaps where no sufficiently detailed executable plan e
 
 ## Suggested Next Plan Files To Create
 
-- `docs/plans/2026-03-03-live-runtime-distributed-ownership.md`
 - `docs/plans/2026-03-03-media-storage-and-processing.md`
 - `docs/plans/2026-03-03-webhooks-and-async-jobs.md`
