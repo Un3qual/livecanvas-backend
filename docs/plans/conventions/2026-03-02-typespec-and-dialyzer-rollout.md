@@ -100,6 +100,14 @@ git commit -m "test: add typespec enforcement mix task"
 - Test: `test/live_canvas/accounts_test.exs`
 - Test: `test/live_canvas/accounts/phone_numbers_test.exs`
 
+**Task 2 Step Progress**
+- [x] Step 1: Create the rollout manifest with a tiny real slice
+- [ ] Step 2: Run the new gate against the seed slice and verify RED
+- [ ] Step 3: Add the minimal real-world specs
+- [ ] Step 4: Run compile plus focused regression coverage
+- [ ] Step 5: Run the seed gate again to verify GREEN
+- [ ] Step 6: Commit
+
 **Step 1: Create the rollout manifest with a tiny real slice**
 
 Seed `priv/quality/typespec_targets.txt` with one path per line:
