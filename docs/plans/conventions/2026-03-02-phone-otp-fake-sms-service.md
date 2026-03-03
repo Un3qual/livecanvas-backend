@@ -16,9 +16,9 @@
 
 - [x] Step 1: Add failing tests for the fake SMS transport seam
 - [x] Step 2: Implement the supervised fake SMS adapter and config wiring
-- [ ] Step 3: Add failing tests for phone verification token issuance and delivery
-- [ ] Step 4: Implement the `Accounts` wrappers and phone SMS notifier
-- [ ] Step 5: Run focused verification and commit each slice
+- [x] Step 3: Add failing tests for phone verification token issuance and delivery
+- [x] Step 4: Implement the `Accounts` wrappers and phone SMS notifier
+- [x] Step 5: Run focused verification and commit each slice
 
 ### Task 1: Add The Fake SMS Infra Seam
 

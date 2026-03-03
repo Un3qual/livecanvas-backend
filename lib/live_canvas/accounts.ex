@@ -22,7 +22,15 @@ defmodule LiveCanvas.Accounts do
     UserToken
   }
 
-  alias LiveCanvas.Accounts.{Passwords, PhoneNumbers, Scope, Tokens, UserChanges, UserNotifier}
+  alias LiveCanvas.Accounts.{
+    Passwords,
+    PhoneNotifier,
+    PhoneNumbers,
+    Scope,
+    Tokens,
+    UserChanges,
+    UserNotifier
+  }
 
   @type changeset :: Ecto.Changeset.t()
   @type user_result :: {:ok, User.t()} | {:error, changeset()}
@@ -37,6 +45,14 @@ defmodule LiveCanvas.Accounts do
 
   @type token_payload :: %{token: String.t(), user_token: UserToken.t()}
   @type token_result :: {:ok, token_payload()} | {:error, changeset()}
+  @type phone_token_payload :: %{
+          token: String.t(),
+          user_token: UserToken.t(),
+          phone_number: String.t()
+        }
+  @type phone_token_result ::
+          {:ok, phone_token_payload()}
+          | {:error, :invalid_phone_number | :phone_number_not_found | changeset()}
   @type user_session_result :: {User.t(), DateTime.t()} | nil
   @type registration_attrs :: %{
           optional(:email | :password | String.t()) => String.t()
@@ -294,6 +310,21 @@ defmodule LiveCanvas.Accounts do
     issue_user_token(user, :email_verification_token, sent_to: user.email)
   end
 
+  @doc """
+  Persists and returns a phone verification token payload for the given user.
+  """
+  @spec issue_phone_verification_token(User.t(), term()) :: phone_token_result()
+  def issue_phone_verification_token(%User{} = user, raw_phone_number) do
+    with {:ok, normalized_phone_number} <- normalize_phone_number(raw_phone_number),
+         true <-
+           user_has_phone_number?(user.id, normalized_phone_number) ||
+             {:error, :phone_number_not_found},
+         {:ok, %{token: token, user_token: persisted}} <-
+           issue_user_token(user, :phone_verification_token, sent_to: normalized_phone_number) do
+      {:ok, %{token: token, user_token: persisted, phone_number: normalized_phone_number}}
+    end
+  end
+
   @doc false
   @spec normalize_phone_number(term()) :: {:ok, String.t()} | {:error, :invalid_phone_number}
   def normalize_phone_number(raw_phone_number), do: PhoneNumbers.normalize(raw_phone_number)
@@ -472,6 +503,21 @@ defmodule LiveCanvas.Accounts do
   end
 
   @doc """
+  Delivers phone verification instructions to the given user.
+  """
+  @spec deliver_phone_verification_instructions(User.t(), term()) ::
+          :ok | {:error, :invalid_phone_number | :phone_number_not_found | changeset() | term()}
+  def deliver_phone_verification_instructions(%User{} = user, raw_phone_number) do
+    with {:ok, %{token: serialized_value, phone_number: phone_number}} <-
+           issue_phone_verification_token(user, raw_phone_number) do
+      # This slice intentionally delivers the persisted serialized token over SMS.
+      PhoneNotifier.deliver_phone_verification_instructions(phone_number, serialized_value,
+        user_id: user.id
+      )
+    end
+  end
+
+  @doc """
   Deletes the signed access token.
   """
   @spec delete_user_session_token(String.t()) :: :ok
@@ -559,6 +605,18 @@ defmodule LiveCanvas.Accounts do
       join: phone_number_row in assoc(user_phone_number, :phone_number),
       where: phone_number_row.normalized_e164 == ^phone_number,
       limit: 1
+  end
+
+  @spec user_has_phone_number?(pos_integer(), String.t()) :: boolean()
+  defp user_has_phone_number?(user_id, normalized_phone_number) do
+    from(user_phone_number in UserPhoneNumber,
+      join: phone_number in assoc(user_phone_number, :phone_number),
+      where:
+        user_phone_number.user_id == ^user_id and
+          phone_number.normalized_e164 == ^normalized_phone_number,
+      select: 1
+    )
+    |> Repo.exists?()
   end
 
   defp user_by_identity_query(provider, provider_uid) do

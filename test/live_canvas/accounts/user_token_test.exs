@@ -60,5 +60,32 @@ defmodule LiveCanvas.Accounts.UserTokenTest do
       assert persisted.sent_to == user.email
       assert persisted.user_id == user.id
     end
+
+    test "issue_phone_verification_token/2 normalizes the phone and uses the phone verification context" do
+      user = user_fixture()
+      {:ok, _join} = Accounts.attach_user_phone_number(user, "(650) 253-0000")
+
+      assert {:ok, %{token: token, user_token: persisted, phone_number: "+16502530000"}} =
+               Accounts.issue_phone_verification_token(user, "650-253-0000")
+
+      assert is_binary(token)
+      assert persisted.context == :phone_verification_token
+      assert persisted.sent_to == "+16502530000"
+      assert persisted.user_id == user.id
+    end
+
+    test "issue_phone_verification_token/2 returns an error for invalid phone input" do
+      user = user_fixture()
+
+      assert {:error, :invalid_phone_number} =
+               Accounts.issue_phone_verification_token(user, "123")
+    end
+
+    test "issue_phone_verification_token/2 returns an error when the user does not own the phone number" do
+      user = user_fixture()
+
+      assert {:error, :phone_number_not_found} =
+               Accounts.issue_phone_verification_token(user, "650-253-0000")
+    end
   end
 end

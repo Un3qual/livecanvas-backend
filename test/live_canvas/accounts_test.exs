@@ -1,6 +1,10 @@
 defmodule LiveCanvas.AccountsTest do
   use LiveCanvas.DataCase
 
+  import ExUnit.CaptureLog
+
+  require Logger
+
   alias LiveCanvas.Accounts
 
   import LiveCanvas.AccountsFixtures
@@ -608,6 +612,40 @@ defmodule LiveCanvas.AccountsTest do
       assert user_token.user_id == user.id
       assert user_token.sent_to == user.email
       assert user_token.context == :email_magic_link_token
+    end
+  end
+
+  describe "deliver_phone_verification_instructions/2" do
+    setup do
+      original_level = Logger.level()
+      Logger.configure(level: :info)
+      on_exit(fn -> Logger.configure(level: original_level) end)
+
+      %{user: user_fixture()}
+    end
+
+    test "issues a phone verification token and logs SMS via the public wrapper", %{user: user} do
+      {:ok, _join} = Accounts.attach_user_phone_number(user, "(650) 253-0000")
+
+      log =
+        capture_log([level: :info], fn ->
+          assert :ok = Accounts.deliver_phone_verification_instructions(user, "650-253-0000")
+        end)
+
+      assert accounts_function_calls_local?(
+               :deliver_phone_verification_instructions,
+               2,
+               :issue_phone_verification_token,
+               2
+             )
+
+      assert log =~ "[fake_sms]"
+      assert log =~ "+16502530000"
+
+      assert user_token =
+               Repo.get_by(UserToken, user_id: user.id, context: :phone_verification_token)
+
+      assert user_token.sent_to == "+16502530000"
     end
   end
 
