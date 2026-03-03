@@ -70,6 +70,19 @@ defmodule LC.AccountsFixtures do
     user_identity
   end
 
+  def upsert_contact_entry(user, attrs \\ %{}) do
+    attrs =
+      Enum.into(attrs, %{
+        contact_client_id: :crypto.strong_rand_bytes(16),
+        contact_name: "Fixture Contact",
+        emails: [],
+        phone_numbers: []
+      })
+
+    {:ok, contact_entry} = Accounts.upsert_user_contact_entry(user, attrs)
+    contact_entry
+  end
+
   def extract_user_token(fun) do
     {:ok, captured_email} = fun.(&"[TOKEN]#{&1}[TOKEN]")
     [_, token | _] = String.split(captured_email.text_body, "[TOKEN]")

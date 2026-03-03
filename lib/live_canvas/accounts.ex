@@ -16,6 +16,9 @@ defmodule LC.Accounts do
     EmailAddress,
     PhoneNumber,
     User,
+    UserContactEntry,
+    UserContactEntryEmailAddress,
+    UserContactEntryPhoneNumber,
     UserEmailAddress,
     UserIdentity,
     UserPhoneNumber,
@@ -53,6 +56,22 @@ defmodule LC.Accounts do
   @type phone_token_result ::
           {:ok, phone_token_payload()}
           | {:error, :invalid_phone_number | :phone_number_not_found | changeset()}
+  @type contact_entry_attrs :: %{
+          optional(:contact_client_id | :contact_name | :birthday | :emails | :phone_numbers) =>
+            term(),
+          optional(String.t()) => term()
+        }
+  @type upsert_contact_entry_result ::
+          {:ok, UserContactEntry.t()}
+          | {:error,
+             :invalid_contact_client_id
+             | :invalid_birthday
+             | :invalid_phone_number
+             | :invalid_email_list}
+  @type contact_match :: %{
+          required(:contact_entry) => UserContactEntry.t(),
+          required(:matched_users) => [User.t()]
+        }
   @type user_session_result :: {User.t(), DateTime.t()} | nil
   @type registration_attrs :: %{
           optional(:email | :password | String.t()) => String.t()
@@ -423,6 +442,47 @@ defmodule LC.Accounts do
     })
   end
 
+  @doc """
+  Upserts a contact entry for a user and syncs its normalized identifier joins.
+  """
+  @spec upsert_user_contact_entry(User.t(), contact_entry_attrs()) ::
+          upsert_contact_entry_result()
+  def upsert_user_contact_entry(%User{} = user, attrs) when is_map(attrs) do
+    with {:ok, contact_client_id} <-
+           normalize_contact_client_id(fetch_attr(attrs, :contact_client_id)),
+         {:ok, contact_name} <- normalize_contact_name(fetch_attr(attrs, :contact_name)),
+         {:ok, birthday} <- normalize_contact_birthday(fetch_attr(attrs, :birthday)),
+         {:ok, emails} <- normalize_contact_emails(fetch_attr(attrs, :emails, [])),
+         {:ok, phone_numbers} <-
+           normalize_contact_phone_numbers(fetch_attr(attrs, :phone_numbers, [])) do
+      Repo.transact(fn ->
+        with {:ok, contact_entry} <-
+               upsert_contact_entry_row(user, contact_client_id, contact_name, birthday),
+             :ok <- sync_contact_entry_emails(contact_entry.id, emails),
+             :ok <- sync_contact_entry_phone_numbers(contact_entry.id, phone_numbers) do
+          {:ok, preload_contact_entry(contact_entry)}
+        end
+      end)
+    end
+  end
+
+  @doc """
+  Lists imported contact entries with the matched users for each entry.
+  """
+  @spec list_user_contact_matches(User.t()) :: [contact_match()]
+  def list_user_contact_matches(%User{} = user) do
+    user.id
+    |> user_contact_entries_query()
+    |> Repo.all()
+    |> Repo.preload([:email_addresses, :phone_numbers])
+    |> Enum.map(fn contact_entry ->
+      %{
+        contact_entry: contact_entry,
+        matched_users: matched_users_for_contact_entry(user.id, contact_entry)
+      }
+    end)
+  end
+
   ## Session
 
   @doc """
@@ -605,6 +665,232 @@ defmodule LC.Accounts do
         {:error, changeset}
     end
   end
+
+  defp upsert_contact_entry_row(user, contact_client_id, contact_name, birthday) do
+    now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+    Repo.insert(
+      %UserContactEntry{
+        user_id: user.id,
+        contact_client_id: contact_client_id,
+        contact_name: contact_name,
+        birthday: birthday
+      },
+      on_conflict: [set: [contact_name: contact_name, birthday: birthday, updated_at: now]],
+      conflict_target: [:user_id, :contact_client_id],
+      returning: true
+    )
+  end
+
+  defp sync_contact_entry_emails(contact_entry_id, normalized_emails) do
+    desired_email_ids =
+      normalized_emails
+      |> Enum.map(&find_or_create_email_address_id/1)
+      |> Enum.uniq()
+
+    if desired_email_ids == [] do
+      Repo.delete_all(
+        from(join in UserContactEntryEmailAddress,
+          where: join.user_contact_entry_id == ^contact_entry_id
+        )
+      )
+    else
+      Repo.delete_all(
+        from(join in UserContactEntryEmailAddress,
+          where:
+            join.user_contact_entry_id == ^contact_entry_id and
+              join.email_address_id not in ^desired_email_ids
+        )
+      )
+    end
+
+    Enum.each(desired_email_ids, fn email_address_id ->
+      Repo.insert(
+        %UserContactEntryEmailAddress{
+          user_contact_entry_id: contact_entry_id,
+          email_address_id: email_address_id
+        },
+        on_conflict: :nothing,
+        conflict_target: [:user_contact_entry_id, :email_address_id]
+      )
+    end)
+
+    :ok
+  end
+
+  defp sync_contact_entry_phone_numbers(contact_entry_id, normalized_phone_numbers) do
+    desired_phone_number_ids =
+      normalized_phone_numbers
+      |> Enum.map(&find_or_create_phone_number_id/1)
+      |> Enum.uniq()
+
+    if desired_phone_number_ids == [] do
+      Repo.delete_all(
+        from(join in UserContactEntryPhoneNumber,
+          where: join.user_contact_entry_id == ^contact_entry_id
+        )
+      )
+    else
+      Repo.delete_all(
+        from(join in UserContactEntryPhoneNumber,
+          where:
+            join.user_contact_entry_id == ^contact_entry_id and
+              join.phone_number_id not in ^desired_phone_number_ids
+        )
+      )
+    end
+
+    Enum.each(desired_phone_number_ids, fn phone_number_id ->
+      Repo.insert(
+        %UserContactEntryPhoneNumber{
+          user_contact_entry_id: contact_entry_id,
+          phone_number_id: phone_number_id
+        },
+        on_conflict: :nothing,
+        conflict_target: [:user_contact_entry_id, :phone_number_id]
+      )
+    end)
+
+    :ok
+  end
+
+  defp find_or_create_email_address_id(normalized_email) do
+    Repo.insert(
+      %EmailAddress{normalized_email: normalized_email},
+      on_conflict: :nothing,
+      conflict_target: :normalized_email
+    )
+
+    Repo.get_by!(EmailAddress, normalized_email: normalized_email).id
+  end
+
+  defp find_or_create_phone_number_id(normalized_phone_number) do
+    Repo.insert(
+      %PhoneNumber{normalized_e164: normalized_phone_number},
+      on_conflict: :nothing,
+      conflict_target: :normalized_e164
+    )
+
+    Repo.get_by!(PhoneNumber, normalized_e164: normalized_phone_number).id
+  end
+
+  defp preload_contact_entry(contact_entry),
+    do: Repo.preload(contact_entry, [:email_addresses, :phone_numbers])
+
+  defp user_contact_entries_query(user_id) do
+    from(contact_entry in UserContactEntry,
+      where: contact_entry.user_id == ^user_id,
+      order_by: [asc: contact_entry.inserted_at, asc: contact_entry.id]
+    )
+  end
+
+  defp matched_users_for_contact_entry(owner_id, contact_entry) do
+    email_address_ids = Enum.map(contact_entry.email_addresses, & &1.id)
+    phone_number_ids = Enum.map(contact_entry.phone_numbers, & &1.id)
+
+    # Contact matching can hit through either identifier family. Merge both result sets and
+    # de-duplicate by user id so one user only appears once even if multiple identifiers match.
+    (matched_users_by_email(owner_id, email_address_ids) ++
+       matched_users_by_phone(owner_id, phone_number_ids))
+    |> Enum.uniq_by(& &1.id)
+    |> Enum.sort_by(& &1.id)
+    |> Enum.map(&hydrate_loaded_user/1)
+  end
+
+  defp matched_users_by_email(_owner_id, []), do: []
+
+  defp matched_users_by_email(owner_id, email_address_ids) do
+    from(user in User,
+      join: user_email_address in UserEmailAddress,
+      on: user_email_address.user_id == user.id,
+      where: user.id != ^owner_id and user_email_address.email_address_id in ^email_address_ids,
+      distinct: user.id
+    )
+    |> Repo.all()
+  end
+
+  defp matched_users_by_phone(_owner_id, []), do: []
+
+  defp matched_users_by_phone(owner_id, phone_number_ids) do
+    from(user in User,
+      join: user_phone_number in UserPhoneNumber,
+      on: user_phone_number.user_id == user.id,
+      where: user.id != ^owner_id and user_phone_number.phone_number_id in ^phone_number_ids,
+      distinct: user.id
+    )
+    |> Repo.all()
+  end
+
+  defp fetch_attr(attrs, key, default \\ nil) do
+    Map.get(attrs, key, Map.get(attrs, Atom.to_string(key), default))
+  end
+
+  defp normalize_contact_client_id(value) when is_binary(value) and byte_size(value) > 0,
+    do: {:ok, value}
+
+  defp normalize_contact_client_id(_value), do: {:error, :invalid_contact_client_id}
+
+  defp normalize_contact_name(value) when is_binary(value), do: {:ok, String.trim(value)}
+  defp normalize_contact_name(nil), do: {:ok, nil}
+  defp normalize_contact_name(_value), do: {:ok, nil}
+
+  defp normalize_contact_birthday(%Date{} = birthday), do: {:ok, birthday}
+  defp normalize_contact_birthday(nil), do: {:ok, nil}
+
+  defp normalize_contact_birthday(value) when is_binary(value) do
+    case Date.from_iso8601(value) do
+      {:ok, birthday} -> {:ok, birthday}
+      {:error, _reason} -> {:error, :invalid_birthday}
+    end
+  end
+
+  defp normalize_contact_birthday(_value), do: {:error, :invalid_birthday}
+
+  defp normalize_contact_emails(values) when is_list(values) do
+    values
+    |> Enum.reduce_while({:ok, []}, fn value, {:ok, acc} ->
+      case value do
+        raw when is_binary(raw) ->
+          normalized_email = raw |> String.trim() |> String.downcase()
+
+          if normalized_email == "" do
+            {:cont, {:ok, acc}}
+          else
+            {:cont, {:ok, [normalized_email | acc]}}
+          end
+
+        _ ->
+          {:halt, {:error, :invalid_email_list}}
+      end
+    end)
+    |> case do
+      {:ok, normalized_emails} -> {:ok, normalized_emails |> Enum.reverse() |> Enum.uniq()}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp normalize_contact_emails(_values), do: {:error, :invalid_email_list}
+
+  defp normalize_contact_phone_numbers(values) when is_list(values) do
+    values
+    |> Enum.reduce_while({:ok, []}, fn value, {:ok, acc} ->
+      with true <- is_binary(value),
+           {:ok, normalized_phone_number} <- normalize_phone_number(value) do
+        {:cont, {:ok, [normalized_phone_number | acc]}}
+      else
+        _ -> {:halt, {:error, :invalid_phone_number}}
+      end
+    end)
+    |> case do
+      {:ok, normalized_phone_numbers} ->
+        {:ok, normalized_phone_numbers |> Enum.reverse() |> Enum.uniq()}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp normalize_contact_phone_numbers(_values), do: {:error, :invalid_phone_number}
 
   defp replace_primary_email(user, email) do
     Repo.delete_all(from(join in UserEmailAddress, where: join.user_id == ^user.id))

@@ -190,6 +190,117 @@ defmodule LC.AccountsTest do
     end
   end
 
+  describe "upsert_user_contact_entry/2" do
+    test "creates a contact entry and normalizes linked identifiers" do
+      user = user_fixture()
+
+      assert {:ok, contact_entry} =
+               Accounts.upsert_user_contact_entry(user, %{
+                 contact_client_id: :crypto.strong_rand_bytes(16),
+                 contact_name: "Friend One",
+                 birthday: ~D[1991-04-05],
+                 emails: ["Friend@One.Example", "friend@one.example"],
+                 phone_numbers: ["(650) 253-0000", "+1 650 253 0000"]
+               })
+
+      assert contact_entry.user_id == user.id
+      assert contact_entry.contact_name == "Friend One"
+      assert contact_entry.birthday == ~D[1991-04-05]
+
+      assert ["friend@one.example"] ==
+               contact_entry.email_addresses
+               |> Enum.map(& &1.normalized_email)
+               |> Enum.sort()
+
+      assert ["+16502530000"] ==
+               contact_entry.phone_numbers
+               |> Enum.map(& &1.normalized_e164)
+               |> Enum.sort()
+    end
+
+    test "upserts by contact client id instead of duplicating entries" do
+      user = user_fixture()
+      contact_client_id = :crypto.strong_rand_bytes(16)
+
+      assert {:ok, first_entry} =
+               Accounts.upsert_user_contact_entry(user, %{
+                 contact_client_id: contact_client_id,
+                 contact_name: "Original Name",
+                 emails: ["original@example.com"],
+                 phone_numbers: ["+16502530000"]
+               })
+
+      assert {:ok, second_entry} =
+               Accounts.upsert_user_contact_entry(user, %{
+                 contact_client_id: contact_client_id,
+                 contact_name: "Updated Name",
+                 emails: ["updated@example.com"],
+                 phone_numbers: []
+               })
+
+      assert second_entry.id == first_entry.id
+
+      assert 1 ==
+               Repo.aggregate(
+                 from(contact_entry in UserContactEntry,
+                   where: contact_entry.user_id == ^user.id
+                 ),
+                 :count,
+                 :id
+               )
+
+      assert second_entry.contact_name == "Updated Name"
+
+      assert ["updated@example.com"] ==
+               Enum.map(second_entry.email_addresses, & &1.normalized_email)
+
+      assert [] == second_entry.phone_numbers
+    end
+
+    test "returns an error for invalid phone input" do
+      user = user_fixture()
+
+      assert {:error, :invalid_phone_number} =
+               Accounts.upsert_user_contact_entry(user, %{
+                 contact_client_id: :crypto.strong_rand_bytes(16),
+                 phone_numbers: ["123"]
+               })
+    end
+  end
+
+  describe "list_user_contact_matches/1" do
+    test "returns deterministic match records and excludes self matches" do
+      owner = user_fixture()
+      email_match = user_fixture()
+      phone_match = user_fixture()
+
+      attach_phone_number(phone_match, "(650) 253-0001")
+
+      assert {:ok, _contact_entry} =
+               Accounts.upsert_user_contact_entry(owner, %{
+                 contact_client_id: :crypto.strong_rand_bytes(16),
+                 contact_name: "Known Friend",
+                 emails: [email_match.email, owner.email],
+                 phone_numbers: ["+1 650-253-0001"]
+               })
+
+      assert [
+               %{
+                 contact_entry: %{contact_name: "Known Friend"},
+                 matched_users: matched_users
+               }
+             ] = Accounts.list_user_contact_matches(owner)
+
+      assert Enum.map(matched_users, & &1.id) == Enum.sort([email_match.id, phone_match.id])
+      refute Enum.any?(matched_users, &(&1.id == owner.id))
+      assert Enum.all?(matched_users, &(is_binary(&1.email) and String.contains?(&1.email, "@")))
+    end
+
+    test "returns an empty list when no contacts are imported" do
+      assert [] = Accounts.list_user_contact_matches(user_fixture())
+    end
+  end
+
   describe "update_user_privacy_mode/2" do
     test "persists private visibility" do
       user = user_fixture()
