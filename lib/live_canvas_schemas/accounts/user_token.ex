@@ -18,6 +18,7 @@ defmodule LCSchemas.Accounts.UserToken do
 
   schema "users_tokens" do
     field :raw_secret, :binary, virtual: true, redact: true
+    # Transport tokens are serialized after insert once Postgres has generated the UUIDv7 id.
     field :serialized_value, :string, virtual: true, redact: true
     field :secret_hash, :binary, redact: true
     field :context, LCSchemas.Accounts.UserTokenContext

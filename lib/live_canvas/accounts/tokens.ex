@@ -25,7 +25,7 @@ defmodule LC.Accounts.Tokens do
           | :email_magic_link_token
           | :email_one_time_code_token
 
-  @type token_pair :: {String.t(), UserToken.t()}
+  @type token_pair :: {binary(), UserToken.t()}
 
   @doc false
   @spec secret_hash(binary()) :: binary()
@@ -61,7 +61,7 @@ defmodule LC.Accounts.Tokens do
   end
 
   @doc """
-  Generates an access token payload and its persisted schema struct.
+  Builds an insertable access token payload.
   """
   @spec build_session_token(User.t()) :: token_pair()
   def build_session_token(user) do
@@ -70,7 +70,7 @@ defmodule LC.Accounts.Tokens do
   end
 
   @doc """
-  Builds an email token to be delivered to the user.
+  Builds an insertable email token payload.
   """
   @spec build_email_token(User.t(), email_token_context()) :: token_pair()
   def build_email_token(user, context) when context in @email_token_contexts do
@@ -137,15 +137,11 @@ defmodule LC.Accounts.Tokens do
   def build_token(user, context, attrs \\ [])
 
   def build_token(user, context, attrs) do
-    id = Ecto.UUID.generate()
     raw_secret = :crypto.strong_rand_bytes(@rand_size)
-    serialized_value = encode_serialized_value(id, raw_secret)
 
-    {serialized_value,
+    {raw_secret,
      %UserToken{
-       id: id,
        raw_secret: raw_secret,
-       serialized_value: serialized_value,
        secret_hash: secret_hash(raw_secret),
        context: context,
        sent_to: Keyword.get(attrs, :sent_to),

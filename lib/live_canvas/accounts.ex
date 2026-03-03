@@ -291,7 +291,7 @@ defmodule LC.Accounts do
   @doc """
   Builds an email token payload for the given user.
   """
-  @spec build_user_email_token(User.t(), email_token_context()) :: {String.t(), UserToken.t()}
+  @spec build_user_email_token(User.t(), email_token_context()) :: {binary(), UserToken.t()}
   def build_user_email_token(user, context), do: Tokens.build_email_token(user, context)
 
   @doc """
@@ -299,11 +299,16 @@ defmodule LC.Accounts do
   """
   @spec issue_user_token(User.t(), token_context(), keyword()) :: token_result()
   def issue_user_token(user, context, attrs \\ []) do
-    {serialized_value, user_token} = Tokens.build_token(user, context, attrs)
+    {raw_secret, user_token} = Tokens.build_token(user, context, attrs)
 
     case Repo.insert(user_token) do
-      {:ok, persisted} -> {:ok, %{token: serialized_value, user_token: persisted}}
-      {:error, changeset} -> {:error, changeset}
+      {:ok, persisted} ->
+        # The token transport value must embed the persisted UUID, so encode only after insert.
+        serialized_value = Tokens.encode_serialized_value(persisted.id, raw_secret)
+        {:ok, %{token: serialized_value, user_token: persisted}}
+
+      {:error, changeset} ->
+        {:error, changeset}
     end
   end
 
@@ -425,9 +430,9 @@ defmodule LC.Accounts do
   """
   @spec generate_user_session_token(User.t()) :: String.t()
   def generate_user_session_token(user) do
-    {serialized_value, user_token} = Tokens.build_session_token(user)
-    Repo.insert!(user_token)
-    serialized_value
+    {raw_secret, user_token} = Tokens.build_session_token(user)
+    persisted = Repo.insert!(user_token)
+    Tokens.encode_serialized_value(persisted.id, raw_secret)
   end
 
   @doc """

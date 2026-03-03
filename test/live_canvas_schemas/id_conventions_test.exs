@@ -68,6 +68,22 @@ defmodule LCSchemas.IDConventionsTest do
 
       assert is_binary(user_token.id)
     end
+
+    test "entropy_id rejects duplicates once the uniqueness constraint exists" do
+      duplicate_entropy_id = Ecto.UUID.generate()
+
+      Repo.insert!(%EmailAddress{
+        normalized_email: "entropy-#{System.unique_integer([:positive])}@example.com",
+        entropy_id: duplicate_entropy_id
+      })
+
+      assert_raise Ecto.ConstraintError, fn ->
+        Repo.insert!(%EmailAddress{
+          normalized_email: "entropy-#{System.unique_integer([:positive])}@example.com",
+          entropy_id: duplicate_entropy_id
+        })
+      end
+    end
   end
 
   defp insert_user_row! do
