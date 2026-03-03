@@ -5,6 +5,7 @@ defmodule LC.LiveTest do
 
   alias LC.Live
   alias LC.Live.SessionServer
+  alias LCSchemas.Live.LiveParticipant
 
   describe "start_live_session/2" do
     test "creates a starting session and boots a session server" do
@@ -104,6 +105,43 @@ defmodule LC.LiveTest do
 
       assert %{user_id: ^second_viewer_id, role: :viewer} =
                Map.fetch!(participants, second_viewer_id)
+    end
+
+    test "marks participant left_at and removes runtime membership on leave" do
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+      assert {:ok, pid} = Live.lookup_session_server(session.id)
+      assert %{participants: participants_before_leave} = SessionServer.snapshot(pid)
+      assert Map.has_key?(participants_before_leave, viewer.id)
+
+      assert :ok = Live.leave_live_session(session, viewer)
+
+      assert %LiveParticipant{left_at: %DateTime{} = left_at} =
+               Repo.get_by!(LiveParticipant, live_session_id: session.id, user_id: viewer.id)
+
+      assert DateTime.compare(left_at, DateTime.utc_now()) in [:lt, :eq]
+      assert %{participants: participants_after_leave} = SessionServer.snapshot(pid)
+      refute Map.has_key?(participants_after_leave, viewer.id)
+    end
+
+    test "leaving a session is idempotent for already-left participants" do
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+      assert :ok = Live.leave_live_session(session, viewer)
+
+      assert %LiveParticipant{left_at: %DateTime{} = first_left_at} =
+               Repo.get_by!(LiveParticipant, live_session_id: session.id, user_id: viewer.id)
+
+      assert :ok = Live.leave_live_session(session, viewer)
+
+      assert %LiveParticipant{left_at: ^first_left_at} =
+               Repo.get_by!(LiveParticipant, live_session_id: session.id, user_id: viewer.id)
     end
   end
 

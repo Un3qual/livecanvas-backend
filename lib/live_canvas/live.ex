@@ -17,6 +17,7 @@ defmodule LC.Live do
   @type fetch_joinable_session_result :: {:ok, LiveSession.t()} | {:error, :ended | :not_found}
   @type live_session_result :: {:ok, LiveSession.t()} | {:error, changeset() | term()}
   @type live_participant_result :: {:ok, LiveParticipant.t()} | {:error, changeset() | term()}
+  @type leave_live_session_result :: :ok
   @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type session_server_lookup_result :: {:ok, pid()} | {:error, :not_found}
 
@@ -86,6 +87,18 @@ defmodule LC.Live do
   end
 
   @doc """
+  Marks a participant as left and prunes their runtime membership.
+  """
+  @spec leave_live_session(LiveSession.t(), User.t()) :: leave_live_session_result()
+  def leave_live_session(%LiveSession{id: session_id}, %User{id: user_id})
+      when is_integer(session_id) and is_integer(user_id) do
+    now = now_utc()
+    :ok = mark_live_participant_left(session_id, user_id, now)
+    :ok = remove_runtime_participant(session_id, user_id)
+    :ok
+  end
+
+  @doc """
   Locates the runtime server process for a persisted live session.
   """
   @spec lookup_session_server(pos_integer()) :: session_server_lookup_result()
@@ -136,6 +149,42 @@ defmodule LC.Live do
       conflict_target: [:live_session_id, :user_id],
       returning: true
     )
+  end
+
+  @spec mark_live_participant_left(pos_integer(), pos_integer(), DateTime.t()) :: :ok
+  defp mark_live_participant_left(session_id, user_id, now)
+       when is_integer(session_id) and is_integer(user_id) do
+    from(live_participant in LiveParticipant,
+      where:
+        live_participant.live_session_id == ^session_id and live_participant.user_id == ^user_id and
+          is_nil(live_participant.left_at)
+    )
+    |> Repo.update_all(set: [left_at: now, updated_at: now])
+
+    :ok
+  end
+
+  @spec remove_runtime_participant(pos_integer(), pos_integer()) :: :ok
+  defp remove_runtime_participant(session_id, user_id)
+       when is_integer(session_id) and is_integer(user_id) do
+    case SessionSupervisor.lookup_session_server(session_id) do
+      {:ok, pid} ->
+        # Disconnect cleanup is best-effort because runtime processes may race
+        # with channel termination; durable `left_at` is the source of truth.
+        safe_runtime_leave(pid, user_id)
+
+      {:error, :not_found} ->
+        :ok
+    end
+  end
+
+  @spec safe_runtime_leave(pid(), pos_integer()) :: :ok
+  defp safe_runtime_leave(pid, user_id) when is_pid(pid) and is_integer(user_id) do
+    SessionServer.leave(pid, user_id)
+    :ok
+  catch
+    :exit, _reason ->
+      :ok
   end
 
   defp ensure_session_server(session_id) do
