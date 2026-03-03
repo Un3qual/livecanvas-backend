@@ -1,7 +1,7 @@
-defmodule LiveCanvasSchemas.Accounts.PhoneNumber do
-  use LiveCanvasSchemas.Schema, :relational
+defmodule LCSchemas.Accounts.PhoneNumber do
+  use LCSchemas.Schema, :relational
 
-  alias LiveCanvasSchemas.Accounts.{
+  alias LCSchemas.Accounts.{
     User,
     UserContactEntry,
     UserContactEntryPhoneNumber,
@@ -25,11 +25,11 @@ defmodule LiveCanvasSchemas.Accounts.PhoneNumber do
     field :entropy_id, Ecto.UUID, read_after_writes: true
     field :normalized_e164, :string
 
-    has_many :user_phone_numbers, LiveCanvasSchemas.Accounts.UserPhoneNumber
+    has_many :user_phone_numbers, LCSchemas.Accounts.UserPhoneNumber
     has_many :users, through: [:user_phone_numbers, :user]
 
     has_many :user_contact_entry_phone_numbers,
-             LiveCanvasSchemas.Accounts.UserContactEntryPhoneNumber
+             LCSchemas.Accounts.UserContactEntryPhoneNumber
 
     has_many :user_contact_entries,
       through: [:user_contact_entry_phone_numbers, :user_contact_entry]

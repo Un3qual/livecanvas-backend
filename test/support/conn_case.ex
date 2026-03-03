@@ -32,7 +32,7 @@ defmodule LiveCanvasWeb.ConnCase do
   end
 
   setup tags do
-    LiveCanvas.DataCase.setup_sandbox(tags)
+    LC.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 
@@ -45,8 +45,8 @@ defmodule LiveCanvasWeb.ConnCase do
   test context.
   """
   def register_and_log_in_user(%{conn: conn} = context) do
-    user = LiveCanvas.AccountsFixtures.user_fixture()
-    scope = LiveCanvas.Accounts.scope_for_user(user)
+    user = LC.AccountsFixtures.user_fixture()
+    scope = LC.Accounts.scope_for_user(user)
 
     opts =
       context
@@ -62,7 +62,7 @@ defmodule LiveCanvasWeb.ConnCase do
   It returns an updated `conn`.
   """
   def log_in_user(conn, user, opts \\ []) do
-    token = LiveCanvas.Accounts.generate_user_session_token(user)
+    token = LC.Accounts.generate_user_session_token(user)
 
     maybe_set_token_authenticated_at(token, opts[:token_authenticated_at])
 
@@ -74,6 +74,6 @@ defmodule LiveCanvasWeb.ConnCase do
   defp maybe_set_token_authenticated_at(_token, nil), do: nil
 
   defp maybe_set_token_authenticated_at(token, authenticated_at) do
-    LiveCanvas.AccountsFixtures.override_token_authenticated_at(token, authenticated_at)
+    LC.AccountsFixtures.override_token_authenticated_at(token, authenticated_at)
   end
 end

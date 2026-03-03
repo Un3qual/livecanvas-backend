@@ -1,3 +1,3 @@
-defmodule LiveCanvas.TypespecFixtures.MissingSpec do
+defmodule LC.TypespecFixtures.MissingSpec do
   def ping(value), do: value
 end

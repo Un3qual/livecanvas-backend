@@ -1,8 +1,8 @@
-defmodule LiveCanvas.SocialFixtures do
+defmodule LC.SocialFixtures do
   @moduledoc false
 
-  alias LiveCanvas.Social
-  alias LiveCanvasSchemas.Social.{Block, Follow}
+  alias LC.Social
+  alias LCSchemas.Social.{Block, Follow}
 
   @spec follow_fixture(struct(), struct()) :: Follow.t()
   def follow_fixture(follower, followed) do

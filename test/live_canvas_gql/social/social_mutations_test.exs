@@ -1,7 +1,7 @@
 defmodule LiveCanvasGQL.Social.SocialMutationsTest do
-  use LiveCanvas.DataCase
+  use LC.DataCase
 
-  import LiveCanvas.AccountsFixtures
+  import LC.AccountsFixtures
 
   describe "followUser" do
     test "returns requested for a private account" do

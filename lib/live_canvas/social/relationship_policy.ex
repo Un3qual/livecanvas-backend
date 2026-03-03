@@ -1,10 +1,10 @@
-defmodule LiveCanvas.Social.RelationshipPolicy do
+defmodule LC.Social.RelationshipPolicy do
   @moduledoc false
 
   @type follow_decision_input :: %{
           required(:follower_id) => pos_integer(),
           required(:followed_id) => pos_integer(),
-          required(:followed_privacy_mode) => LiveCanvasSchemas.Accounts.user_privacy_mode(),
+          required(:followed_privacy_mode) => LCSchemas.Accounts.user_privacy_mode(),
           required(:blocked?) => boolean(),
           required(:now) => DateTime.t()
         }

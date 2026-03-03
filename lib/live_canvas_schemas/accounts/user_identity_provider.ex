@@ -1,7 +1,7 @@
 import EctoEnum
 
 defenum(
-  LiveCanvasSchemas.Accounts.UserIdentityProvider,
+  LCSchemas.Accounts.UserIdentityProvider,
   :user_identity_provider,
   [
     :apple_provider,

@@ -8,7 +8,7 @@ config :argon2_elixir, t_cost: 1, m_cost: 8
 # The MIX_TEST_PARTITION environment variable can be used
 # to provide built-in test partitioning in CI environment.
 # Run `mix help test` for more information.
-config :live_canvas, LiveCanvas.Infra.Repo,
+config :live_canvas, LC.Infra.Repo,
   username: "postgres",
   password: "development",
   hostname: "localhost",
@@ -24,7 +24,7 @@ config :live_canvas, LiveCanvasWeb.Endpoint,
   server: false
 
 # In test we don't send emails
-config :live_canvas, LiveCanvas.Infra.Mailer, adapter: Swoosh.Adapters.Test
+config :live_canvas, LC.Infra.Mailer, adapter: Swoosh.Adapters.Test
 
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false

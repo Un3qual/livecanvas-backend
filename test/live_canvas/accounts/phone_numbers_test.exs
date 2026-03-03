@@ -1,7 +1,7 @@
-defmodule LiveCanvas.Accounts.PhoneNumbersTest do
+defmodule LC.Accounts.PhoneNumbersTest do
   use ExUnit.Case, async: true
 
-  alias LiveCanvas.Accounts.PhoneNumbers
+  alias LC.Accounts.PhoneNumbers
 
   describe "normalize/1" do
     test "normalizes a valid US number to E.164" do

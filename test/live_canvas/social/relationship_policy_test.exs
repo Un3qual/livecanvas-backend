@@ -1,7 +1,7 @@
-defmodule LiveCanvas.Social.RelationshipPolicyTest do
+defmodule LC.Social.RelationshipPolicyTest do
   use ExUnit.Case, async: true
 
-  alias LiveCanvas.Social.RelationshipPolicy
+  alias LC.Social.RelationshipPolicy
 
   test "public accounts auto-accept follows" do
     assert %{state: :accepted, accepted_at: %DateTime{}} =

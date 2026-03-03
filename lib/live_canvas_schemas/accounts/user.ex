@@ -1,7 +1,7 @@
-defmodule LiveCanvasSchemas.Accounts.User do
-  use LiveCanvasSchemas.Schema, :relational
+defmodule LCSchemas.Accounts.User do
+  use LCSchemas.Schema, :relational
 
-  alias LiveCanvasSchemas.Accounts.{
+  alias LCSchemas.Accounts.{
     EmailAddress,
     PhoneNumber,
     UserContactEntry,
@@ -17,7 +17,7 @@ defmodule LiveCanvasSchemas.Accounts.User do
           password: String.t() | nil,
           hashed_password: String.t() | nil,
           confirmed_at: DateTime.t() | nil,
-          privacy_mode: LiveCanvasSchemas.Accounts.user_privacy_mode() | nil,
+          privacy_mode: LCSchemas.Accounts.user_privacy_mode() | nil,
           authenticated_at: DateTime.t() | nil,
           user_email_addresses: Ecto.Association.NotLoaded.t() | [UserEmailAddress.t()],
           email_addresses: Ecto.Association.NotLoaded.t() | [EmailAddress.t()],
@@ -35,15 +35,15 @@ defmodule LiveCanvasSchemas.Accounts.User do
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime_usec
-    field :privacy_mode, LiveCanvasSchemas.Accounts.UserPrivacyMode, default: :private
+    field :privacy_mode, LCSchemas.Accounts.UserPrivacyMode, default: :private
     field :authenticated_at, :utc_datetime_usec, virtual: true
 
-    has_many :user_email_addresses, LiveCanvasSchemas.Accounts.UserEmailAddress
+    has_many :user_email_addresses, LCSchemas.Accounts.UserEmailAddress
     has_many :email_addresses, through: [:user_email_addresses, :email_address]
-    has_many :user_phone_numbers, LiveCanvasSchemas.Accounts.UserPhoneNumber
+    has_many :user_phone_numbers, LCSchemas.Accounts.UserPhoneNumber
     has_many :phone_numbers, through: [:user_phone_numbers, :phone_number]
-    has_many :user_identities, LiveCanvasSchemas.Accounts.UserIdentity
-    has_many :user_contact_entries, LiveCanvasSchemas.Accounts.UserContactEntry
+    has_many :user_identities, LCSchemas.Accounts.UserIdentity
+    has_many :user_contact_entries, LCSchemas.Accounts.UserContactEntry
 
     timestamps()
   end

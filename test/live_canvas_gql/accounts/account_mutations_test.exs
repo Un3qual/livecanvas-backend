@@ -1,9 +1,9 @@
 defmodule LiveCanvasGQL.Accounts.AccountMutationsTest do
-  use LiveCanvas.DataCase
+  use LC.DataCase
 
-  import LiveCanvas.AccountsFixtures
+  import LC.AccountsFixtures
 
-  alias LiveCanvas.Accounts
+  alias LC.Accounts
 
   describe "registerWithEmail" do
     test "creates a user through the accounts boundary" do

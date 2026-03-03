@@ -1,18 +1,18 @@
-defmodule LiveCanvas.Accounts do
+defmodule LC.Accounts do
   @moduledoc """
   The Accounts context.
   """
 
   use Boundary,
-    deps: [LiveCanvas.Infra, LiveCanvasSchemas],
+    deps: [LC.Infra, LCSchemas],
     exports: [Tokens]
 
   import Ecto.Query, warn: false
   import Ecto.Changeset, only: [add_error: 3, get_field: 2]
 
-  alias LiveCanvas.Infra.Repo
+  alias LC.Infra.Repo
 
-  alias LiveCanvasSchemas.Accounts.{
+  alias LCSchemas.Accounts.{
     EmailAddress,
     PhoneNumber,
     User,
@@ -22,7 +22,7 @@ defmodule LiveCanvas.Accounts do
     UserToken
   }
 
-  alias LiveCanvas.Accounts.{
+  alias LC.Accounts.{
     Passwords,
     PhoneNotifier,
     PhoneNumbers,
@@ -35,7 +35,7 @@ defmodule LiveCanvas.Accounts do
   @type changeset :: Ecto.Changeset.t()
   @type user_result :: {:ok, User.t()} | {:error, changeset()}
   @type user_with_tokens_result :: {:ok, {User.t(), [UserToken.t()]}} | {:error, changeset()}
-  @type token_context :: LiveCanvasSchemas.Accounts.user_token_context()
+  @type token_context :: LCSchemas.Accounts.user_token_context()
 
   @type email_token_context ::
           :email_verification_token
@@ -195,7 +195,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Updates the user's account-level privacy mode.
   """
-  @spec update_user_privacy_mode(User.t(), LiveCanvasSchemas.Accounts.user_privacy_mode()) ::
+  @spec update_user_privacy_mode(User.t(), LCSchemas.Accounts.user_privacy_mode()) ::
           user_result()
   def update_user_privacy_mode(%User{} = user, privacy_mode) do
     case user

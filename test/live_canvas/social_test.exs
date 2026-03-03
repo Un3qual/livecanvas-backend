@@ -1,9 +1,9 @@
-defmodule LiveCanvas.SocialTest do
-  use LiveCanvas.DataCase, async: true
+defmodule LC.SocialTest do
+  use LC.DataCase, async: true
 
-  import LiveCanvas.AccountsFixtures
+  import LC.AccountsFixtures
 
-  alias LiveCanvas.Social
+  alias LC.Social
 
   test "private accounts start as requested" do
     follower = user_fixture()

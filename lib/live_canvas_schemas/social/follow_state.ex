@@ -1,7 +1,7 @@
 import EctoEnum
 
 defenum(
-  LiveCanvasSchemas.Social.FollowState,
+  LCSchemas.Social.FollowState,
   :follow_state,
   [:requested, :accepted]
 )

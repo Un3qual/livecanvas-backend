@@ -1,4 +1,4 @@
-defmodule LiveCanvasSchemas.Accounts do
+defmodule LCSchemas.Accounts do
   @moduledoc false
 
   @type user_privacy_mode :: :private | :public

@@ -1,7 +1,7 @@
-defmodule LiveCanvasSchemas.Accounts.UserContactEntry do
-  use LiveCanvasSchemas.Schema, :relational
+defmodule LCSchemas.Accounts.UserContactEntry do
+  use LCSchemas.Schema, :relational
 
-  alias LiveCanvasSchemas.Accounts.{
+  alias LCSchemas.Accounts.{
     EmailAddress,
     PhoneNumber,
     User,
@@ -33,15 +33,15 @@ defmodule LiveCanvasSchemas.Accounts.UserContactEntry do
     field :birthday, :date
     field :contact_client_id, :binary
 
-    belongs_to :user, LiveCanvasSchemas.Accounts.User
+    belongs_to :user, LCSchemas.Accounts.User
 
     has_many :user_contact_entry_email_addresses,
-             LiveCanvasSchemas.Accounts.UserContactEntryEmailAddress
+             LCSchemas.Accounts.UserContactEntryEmailAddress
 
     has_many :email_addresses, through: [:user_contact_entry_email_addresses, :email_address]
 
     has_many :user_contact_entry_phone_numbers,
-             LiveCanvasSchemas.Accounts.UserContactEntryPhoneNumber
+             LCSchemas.Accounts.UserContactEntryPhoneNumber
 
     has_many :phone_numbers, through: [:user_contact_entry_phone_numbers, :phone_number]
 

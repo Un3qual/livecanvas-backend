@@ -1,3 +1,3 @@
-defmodule LiveCanvas.Infra.Mailer do
+defmodule LC.Infra.Mailer do
   use Swoosh.Mailer, otp_app: :live_canvas
 end

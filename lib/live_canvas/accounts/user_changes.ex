@@ -1,14 +1,14 @@
-defmodule LiveCanvas.Accounts.UserChanges do
+defmodule LC.Accounts.UserChanges do
   import Ecto.Changeset
 
-  alias LiveCanvasSchemas.Accounts.User
+  alias LCSchemas.Accounts.User
 
   @type email_attrs :: %{
           optional(:email | String.t()) => String.t()
         }
   @type privacy_attrs :: %{
           optional(:privacy_mode | String.t()) =>
-            LiveCanvasSchemas.Accounts.user_privacy_mode() | String.t()
+            LCSchemas.Accounts.user_privacy_mode() | String.t()
         }
   @type password_attrs :: %{
           optional(:password | :password_confirmation | String.t()) => String.t()

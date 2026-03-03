@@ -1,7 +1,7 @@
 defmodule LiveCanvas.Repo.Migrations.AddUserPrivacyModeToUsers do
   use Ecto.Migration
 
-  alias LiveCanvasSchemas.Accounts.UserPrivacyMode
+  alias LCSchemas.Accounts.UserPrivacyMode
 
   def up do
     UserPrivacyMode.create_type()

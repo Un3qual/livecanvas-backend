@@ -1,4 +1,4 @@
-defmodule LiveCanvas.TypespecFixtures.IgnoredDefs do
+defmodule LC.TypespecFixtures.IgnoredDefs do
   defmacro sample(value) do
     private(value)
   end

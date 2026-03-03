@@ -1,7 +1,7 @@
 defmodule LiveCanvasGQL.Accounts.AccountQueriesTest do
-  use LiveCanvas.DataCase
+  use LC.DataCase
 
-  import LiveCanvas.AccountsFixtures
+  import LC.AccountsFixtures
 
   describe "viewer" do
     test "returns the requested user by id" do

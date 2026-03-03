@@ -1,7 +1,7 @@
 import Config
 
 # Configure your database
-config :live_canvas, LiveCanvas.Infra.Repo,
+config :live_canvas, LC.Infra.Repo,
   username: "postgres",
   password: "development",
   hostname: "localhost",

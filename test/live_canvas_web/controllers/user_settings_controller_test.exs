@@ -1,8 +1,8 @@
 defmodule LiveCanvasWeb.UserSettingsControllerTest do
   use LiveCanvasWeb.ConnCase, async: true
 
-  alias LiveCanvas.Accounts
-  import LiveCanvas.AccountsFixtures
+  alias LC.Accounts
+  import LC.AccountsFixtures
 
   setup :register_and_log_in_user
 

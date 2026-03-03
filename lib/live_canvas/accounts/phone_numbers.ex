@@ -1,4 +1,4 @@
-defmodule LiveCanvas.Accounts.PhoneNumbers do
+defmodule LC.Accounts.PhoneNumbers do
   @moduledoc false
 
   @default_region "US"

@@ -2,7 +2,7 @@ defmodule LiveCanvasGQL.Accounts.Types do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  # alias LiveCanvas.Accounts.{User, UserIdentity}
+  # alias LC.Accounts.{User, UserIdentity}
 
   connection(node_type: :user)
 

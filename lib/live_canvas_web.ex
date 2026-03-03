@@ -19,7 +19,7 @@ defmodule LiveCanvasWeb do
 
   use Boundary,
     top_level?: true,
-    deps: [LiveCanvas, LiveCanvasGQL],
+    deps: [LC, LiveCanvasGQL],
     exports: [Endpoint, Router, Telemetry, UserAuth]
 
   @spec static_paths() :: [String.t()]

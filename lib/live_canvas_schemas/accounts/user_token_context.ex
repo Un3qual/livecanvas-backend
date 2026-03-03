@@ -1,7 +1,7 @@
 import EctoEnum
 
 defenum(
-  LiveCanvasSchemas.Accounts.UserTokenContext,
+  LCSchemas.Accounts.UserTokenContext,
   :user_token_context,
   [
     :email_verification_token,

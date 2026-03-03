@@ -1,5 +1,5 @@
 defmodule LiveCanvasGQL do
-  use Boundary, top_level?: true, deps: [LiveCanvas], exports: [Schema, Router]
+  use Boundary, top_level?: true, deps: [LC], exports: [Schema, Router]
 
   @spec document_providers(term()) :: nonempty_list(Absinthe.Plug.DocumentProvider.Default)
   def document_providers(_) do

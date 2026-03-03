@@ -1,8 +1,8 @@
-defmodule LiveCanvas.Accounts.UserNotifier do
+defmodule LC.Accounts.UserNotifier do
   import Swoosh.Email
 
-  alias LiveCanvas.Infra.Mailer
-  alias LiveCanvasSchemas.Accounts.User
+  alias LC.Infra.Mailer
+  alias LCSchemas.Accounts.User
 
   @type delivery_result :: {:ok, Swoosh.Email.t()} | {:error, term()}
 

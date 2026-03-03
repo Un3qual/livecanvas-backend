@@ -1,4 +1,4 @@
-defmodule LiveCanvasSchemas do
+defmodule LCSchemas do
   @moduledoc false
 
   use Boundary,

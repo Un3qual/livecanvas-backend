@@ -1,7 +1,7 @@
 defmodule LiveCanvasWeb.UserRegistrationControllerTest do
   use LiveCanvasWeb.ConnCase, async: true
 
-  import LiveCanvas.AccountsFixtures
+  import LC.AccountsFixtures
 
   describe "GET /users/register" do
     test "renders registration page", %{conn: conn} do

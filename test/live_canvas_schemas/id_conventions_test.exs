@@ -1,7 +1,7 @@
-defmodule LiveCanvasSchemas.IDConventionsTest do
-  use LiveCanvas.DataCase, async: true
+defmodule LCSchemas.IDConventionsTest do
+  use LC.DataCase, async: true
 
-  alias LiveCanvasSchemas.Accounts.{
+  alias LCSchemas.Accounts.{
     EmailAddress,
     User,
     UserContactEntry,

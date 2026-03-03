@@ -1,8 +1,8 @@
-defmodule LiveCanvas.Accounts.Scope do
+defmodule LC.Accounts.Scope do
   @moduledoc """
   Defines the scope of the caller to be used throughout the app.
 
-  The `LiveCanvas.Accounts.Scope` allows public interfaces to receive
+  The `LC.Accounts.Scope` allows public interfaces to receive
   information about the caller, such as if the call is initiated from an
   end-user, and if so, which user. Additionally, such a scope can carry fields
   such as "super user" or other privileges for use as authorization, or to
@@ -16,7 +16,7 @@ defmodule LiveCanvas.Accounts.Scope do
   growing application requirements.
   """
 
-  alias LiveCanvasSchemas.Accounts.User
+  alias LCSchemas.Accounts.User
 
   defstruct user: nil
 

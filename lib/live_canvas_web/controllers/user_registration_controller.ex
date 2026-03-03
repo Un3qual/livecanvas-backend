@@ -1,7 +1,7 @@
 defmodule LiveCanvasWeb.UserRegistrationController do
   use LiveCanvasWeb, :controller
 
-  alias LiveCanvas.Accounts
+  alias LC.Accounts
 
   @spec new(Plug.Conn.t(), map()) :: Plug.Conn.t()
   def new(conn, _params) do

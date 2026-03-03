@@ -1,7 +1,7 @@
 defmodule LiveCanvas.Repo.Migrations.CreateSocialGraphTables do
   use Ecto.Migration
 
-  alias LiveCanvasSchemas.Social.FollowState
+  alias LCSchemas.Social.FollowState
 
   def up do
     FollowState.create_type()

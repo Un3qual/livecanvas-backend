@@ -4,7 +4,7 @@ defmodule LiveCanvasWeb.UserAuth do
   import Plug.Conn
   import Phoenix.Controller
 
-  alias LiveCanvas.Accounts
+  alias LC.Accounts
 
   @type conn :: Plug.Conn.t()
   @type params :: %{optional(String.t() | atom()) => term()}

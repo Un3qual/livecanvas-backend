@@ -1,14 +1,14 @@
-defmodule LiveCanvas.AccountsFixtures do
+defmodule LC.AccountsFixtures do
   @moduledoc """
   This module defines test helpers for creating
-  entities via the `LiveCanvas.Accounts` context.
+  entities via the `LC.Accounts` context.
   """
 
   import Ecto.Query
 
-  alias LiveCanvas.Accounts
-  alias LiveCanvas.Accounts.Tokens
-  alias LiveCanvas.Infra.Repo
+  alias LC.Accounts
+  alias LC.Accounts.Tokens
+  alias LC.Infra.Repo
 
   def unique_user_email, do: "user#{System.unique_integer()}@example.com"
   def valid_user_password, do: "hello world!"

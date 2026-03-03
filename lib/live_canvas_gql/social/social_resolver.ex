@@ -1,5 +1,5 @@
 defmodule LiveCanvasGQL.Social.Resolver do
-  alias LiveCanvas.{Accounts, Social}
+  alias LC.{Accounts, Social}
 
   @type resolver_error :: :blocked | :invalid_id | :not_allowed | :not_found | Ecto.Changeset.t()
   @type follow_payload :: %{id: integer(), state: :accepted | :requested}

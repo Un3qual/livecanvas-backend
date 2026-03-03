@@ -1,15 +1,15 @@
-defmodule LiveCanvas.AccountsTest do
-  use LiveCanvas.DataCase
+defmodule LC.AccountsTest do
+  use LC.DataCase
 
   import ExUnit.CaptureLog
 
   require Logger
 
-  alias LiveCanvas.Accounts
+  alias LC.Accounts
 
-  import LiveCanvas.AccountsFixtures
-  alias LiveCanvas.Accounts.Tokens
-  alias LiveCanvasSchemas.Accounts.{User, UserContactEntry, UserToken}
+  import LC.AccountsFixtures
+  alias LC.Accounts.Tokens
+  alias LCSchemas.Accounts.{User, UserContactEntry, UserToken}
 
   describe "schema shape" do
     test "user exposes join and through email relationships" do

@@ -1,9 +1,9 @@
 defmodule LiveCanvasGQL.Social.SocialQueriesTest do
-  use LiveCanvas.DataCase
+  use LC.DataCase
 
-  import LiveCanvas.AccountsFixtures
+  import LC.AccountsFixtures
 
-  alias LiveCanvas.Social
+  alias LC.Social
 
   describe "relationshipState" do
     test "reports blocked when creator blocks viewer" do

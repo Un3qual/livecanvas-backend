@@ -1,7 +1,7 @@
 defmodule LiveCanvas.Repo.Migrations.RebuildAccountsIdentityTables do
   use Ecto.Migration
 
-  alias LiveCanvasSchemas.Accounts.{UserIdentityProvider, UserTokenContext}
+  alias LCSchemas.Accounts.{UserIdentityProvider, UserTokenContext}
 
   def up do
     execute "CREATE EXTENSION IF NOT EXISTS citext", ""

@@ -1,8 +1,8 @@
 defmodule LiveCanvasWeb.UserSessionControllerTest do
   use LiveCanvasWeb.ConnCase, async: true
 
-  import LiveCanvas.AccountsFixtures
-  alias LiveCanvas.Accounts
+  import LC.AccountsFixtures
+  alias LC.Accounts
 
   setup do
     %{unconfirmed_user: unconfirmed_user_fixture(), user: user_fixture()}

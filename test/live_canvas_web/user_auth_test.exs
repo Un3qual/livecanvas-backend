@@ -1,10 +1,10 @@
 defmodule LiveCanvasWeb.UserAuthTest do
   use LiveCanvasWeb.ConnCase, async: true
 
-  alias LiveCanvas.Accounts
+  alias LC.Accounts
   alias LiveCanvasWeb.UserAuth
 
-  import LiveCanvas.AccountsFixtures
+  import LC.AccountsFixtures
 
   @remember_me_cookie "_live_canvas_web_user_remember_me"
   @remember_me_cookie_max_age 60 * 60 * 24 * 14

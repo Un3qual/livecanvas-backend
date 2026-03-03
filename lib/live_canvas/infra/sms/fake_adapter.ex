@@ -1,11 +1,11 @@
-defmodule LiveCanvas.Infra.SMS.FakeAdapter do
+defmodule LC.Infra.SMS.FakeAdapter do
   @moduledoc false
 
   use GenServer
 
   require Logger
 
-  @behaviour LiveCanvas.Infra.SMS
+  @behaviour LC.Infra.SMS
 
   @type state :: %{}
 
@@ -14,8 +14,8 @@ defmodule LiveCanvas.Infra.SMS.FakeAdapter do
     GenServer.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
   end
 
-  @impl LiveCanvas.Infra.SMS
-  @spec deliver(LiveCanvas.Infra.SMS.delivery()) :: :ok | {:error, term()}
+  @impl LC.Infra.SMS
+  @spec deliver(LC.Infra.SMS.delivery()) :: :ok | {:error, term()}
   def deliver(delivery), do: GenServer.call(__MODULE__, {:deliver, delivery})
 
   @impl true
@@ -23,7 +23,7 @@ defmodule LiveCanvas.Infra.SMS.FakeAdapter do
   def init(:ok), do: {:ok, %{}}
 
   @impl true
-  @spec handle_call({:deliver, LiveCanvas.Infra.SMS.delivery()}, GenServer.from(), state()) ::
+  @spec handle_call({:deliver, LC.Infra.SMS.delivery()}, GenServer.from(), state()) ::
           {:reply, :ok, state()}
   def handle_call({:deliver, delivery}, _from, state) do
     # Keep this adapter stateless; it exists to provide a supervised seam and deterministic logs.

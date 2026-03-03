@@ -1,6 +1,6 @@
-defmodule LiveCanvas do
+defmodule LC do
   @moduledoc """
-  LiveCanvas keeps the contexts that define your domain
+  LC keeps the contexts that define your domain
   and business logic.
 
   Contexts are also responsible for managing your data, regardless
@@ -13,14 +13,14 @@ defmodule LiveCanvas do
 
   use Boundary,
     top_level?: true,
-    deps: [LiveCanvasSchemas],
+    deps: [LCSchemas],
     exports: [Accounts, Social] ++ @test_support_exports
 
-  @spec repo_module() :: LiveCanvas.Infra.Repo
-  def repo_module, do: LiveCanvas.Infra.Repo
+  @spec repo_module() :: LC.Infra.Repo
+  def repo_module, do: LC.Infra.Repo
 
   @spec local_mail_adapter?() :: boolean()
   def local_mail_adapter? do
-    Application.get_env(:live_canvas, LiveCanvas.Infra.Mailer)[:adapter] == Swoosh.Adapters.Local
+    Application.get_env(:live_canvas, LC.Infra.Mailer)[:adapter] == Swoosh.Adapters.Local
   end
 end

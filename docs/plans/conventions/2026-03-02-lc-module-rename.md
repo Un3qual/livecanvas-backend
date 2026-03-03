@@ -29,7 +29,7 @@
 ## Progress
 
 - [x] Step 1: Lock Phoenix's namespace override and capture the rename inventory
-- [ ] Step 2: Rename `LC` and `LCSchemas` plus all in-repo core call sites
+- [x] Step 2: Rename `LC` and `LCSchemas` plus all in-repo core call sites
 - [ ] Step 3: Rename `LCWeb`, `LCGQL`, and `LCApp` plus all adapter/config call sites
 - [ ] Step 4: Add temporary root aliases only if an external caller still needs them
 - [ ] Step 5: Run full verification, decide on migration exceptions, and clean up docs
@@ -143,7 +143,7 @@ git commit -m "chore: set phoenix namespace to lc"
 - Modify: `test/live_canvas_web/user_auth_test.exs`
 - Create: `test/live_canvas/accounts/namespace_smoke_test.exs`
 
-- [ ] Step 1: Add a focused red/green smoke test for the new core namespace
+- [x] Step 1: Add a focused red/green smoke test for the new core namespace
 
 Create a small test that exercises the renamed public boundary and the renamed schema boundary together:
 
@@ -153,14 +153,15 @@ defmodule LC.Accounts.NamespaceSmokeTest do
 
   test "LC accounts writes and reads through LCSchemas" do
     assert {:ok, user} = LC.Accounts.register_user_with_email(%{email: "lc@example.com"})
-    assert %LCSchemas.Accounts.User{id: ^user.id} = LC.Accounts.get_user!(user.id)
+    assert %LCSchemas.Accounts.User{id: user_id} = LC.Accounts.get_user!(user.id)
+    assert user_id == user.id
   end
 end
 ```
 
 This should fail immediately because none of the `LC*`/`LCSchemas*` modules exist yet.
 
-- [ ] Step 2: Rename the core modules and all of their consumers in one sweep
+- [x] Step 2: Rename the core modules and all of their consumers in one sweep
 
 Make these changes together:
 
@@ -189,7 +190,7 @@ end
 
 Do not rename `LiveCanvasWeb`, `LiveCanvasGQL`, or `LiveCanvasApp` yet. In this phase, only update their references to point at `LC` and `LCSchemas`.
 
-- [ ] Step 3: Run the focused core tests and verify GREEN
+- [x] Step 3: Run the focused core tests and verify GREEN
 
 Run:
 
@@ -199,7 +200,7 @@ mix test test/live_canvas/accounts_test.exs test/live_canvas/accounts/phone_numb
 
 Expected: PASS. The new `LC` root, renamed core modules, and renamed test helpers should all compile and behave like the old namespace.
 
-- [ ] Step 4: Verify the boundary graph after the core cutover
+- [x] Step 4: Verify the boundary graph after the core cutover
 
 Run:
 
@@ -209,7 +210,7 @@ mix boundary.spec
 
 Expected: PASS. The graph should now include `LC` and `LCSchemas`, while `LiveCanvasWeb`, `LiveCanvasGQL`, and `LiveCanvasApp` still exist temporarily and depend on the renamed core boundary.
 
-- [ ] Step 5: Commit
+- [x] Step 5: Commit
 
 ```bash
 git add lib/live_canvas.ex lib/live_canvas/accounts.ex lib/live_canvas/accounts/passwords.ex lib/live_canvas/accounts/phone_numbers.ex lib/live_canvas/accounts/scope.ex lib/live_canvas/accounts/tokens.ex lib/live_canvas/accounts/user_changes.ex lib/live_canvas/accounts/user_notifier.ex lib/live_canvas/infra.ex lib/live_canvas/infra/mailer.ex lib/live_canvas/infra/repo.ex lib/live_canvas_schemas.ex lib/live_canvas_schemas/accounts.ex lib/live_canvas_schemas/accounts/email_address.ex lib/live_canvas_schemas/accounts/phone_number.ex lib/live_canvas_schemas/accounts/user.ex lib/live_canvas_schemas/accounts/user_contact_entry.ex lib/live_canvas_schemas/accounts/user_contact_entry_email_address.ex lib/live_canvas_schemas/accounts/user_contact_entry_phone_number.ex lib/live_canvas_schemas/accounts/user_email_address.ex lib/live_canvas_schemas/accounts/user_identity.ex lib/live_canvas_schemas/accounts/user_identity_provider.ex lib/live_canvas_schemas/accounts/user_phone_number.ex lib/live_canvas_schemas/accounts/user_privacy_mode.ex lib/live_canvas_schemas/accounts/user_token.ex lib/live_canvas_schemas/accounts/user_token_context.ex lib/live_canvas_web/controllers/user_registration_controller.ex lib/live_canvas_web/controllers/user_session_controller.ex lib/live_canvas_web/controllers/user_settings_controller.ex lib/live_canvas_web/user_auth.ex lib/live_canvas_gql/accounts/account_resolver.ex config/config.exs config/dev.exs config/test.exs config/runtime.exs test/test_helper.exs test/support/data_case.ex test/support/conn_case.ex test/support/fixtures/accounts_fixtures.ex test/live_canvas/accounts_test.exs test/live_canvas/accounts/phone_numbers_test.exs test/live_canvas/accounts/user_token_test.exs test/live_canvas/accounts/namespace_smoke_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_web/controllers/user_registration_controller_test.exs test/live_canvas_web/controllers/user_session_controller_test.exs test/live_canvas_web/controllers/user_settings_controller_test.exs test/live_canvas_web/user_auth_test.exs

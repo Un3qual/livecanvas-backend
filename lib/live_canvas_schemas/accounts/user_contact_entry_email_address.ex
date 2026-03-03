@@ -1,7 +1,7 @@
-defmodule LiveCanvasSchemas.Accounts.UserContactEntryEmailAddress do
-  use LiveCanvasSchemas.Schema, :relational
+defmodule LCSchemas.Accounts.UserContactEntryEmailAddress do
+  use LCSchemas.Schema, :relational
 
-  alias LiveCanvasSchemas.Accounts.{EmailAddress, UserContactEntry}
+  alias LCSchemas.Accounts.{EmailAddress, UserContactEntry}
 
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
@@ -16,8 +16,8 @@ defmodule LiveCanvasSchemas.Accounts.UserContactEntryEmailAddress do
 
   schema "user_contact_entry_email_addresses" do
     field :entropy_id, Ecto.UUID, read_after_writes: true
-    belongs_to :user_contact_entry, LiveCanvasSchemas.Accounts.UserContactEntry
-    belongs_to :email_address, LiveCanvasSchemas.Accounts.EmailAddress
+    belongs_to :user_contact_entry, LCSchemas.Accounts.UserContactEntry
+    belongs_to :email_address, LCSchemas.Accounts.EmailAddress
 
     timestamps()
   end

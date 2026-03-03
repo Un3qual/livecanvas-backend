@@ -12,18 +12,18 @@ config :live_canvas, namespace: LC
 config :live_canvas, :scopes,
   user: [
     default: true,
-    module: LiveCanvas.Accounts.Scope,
+    module: LC.Accounts.Scope,
     assign_key: :current_scope,
     access_path: [:user, :id],
     schema_key: :user_id,
     schema_type: :id,
     schema_table: :users,
-    test_data_fixture: LiveCanvas.AccountsFixtures,
+    test_data_fixture: LC.AccountsFixtures,
     test_setup_helper: :register_and_log_in_user
   ]
 
 config :live_canvas,
-  ecto_repos: [LiveCanvas.Infra.Repo],
+  ecto_repos: [LC.Infra.Repo],
   generators: [timestamp_type: :utc_datetime_usec]
 
 # Configure the endpoint
@@ -34,7 +34,7 @@ config :live_canvas, LiveCanvasWeb.Endpoint,
     formats: [html: LiveCanvasWeb.ErrorHTML, json: LiveCanvasWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: LiveCanvas.PubSub,
+  pubsub_server: LC.PubSub,
   live_view: [signing_salt: "Fvq4bPHD"]
 
 # Configure the mailer
@@ -44,9 +44,9 @@ config :live_canvas, LiveCanvasWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :live_canvas, LiveCanvas.Infra.Mailer, adapter: Swoosh.Adapters.Local
+config :live_canvas, LC.Infra.Mailer, adapter: Swoosh.Adapters.Local
 
-config :live_canvas, LiveCanvas.Infra.SMS, adapter: LiveCanvas.Infra.SMS.FakeAdapter
+config :live_canvas, LC.Infra.SMS, adapter: LC.Infra.SMS.FakeAdapter
 
 # Configure esbuild (the version is required)
 config :esbuild,

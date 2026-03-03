@@ -1,4 +1,4 @@
-defmodule LiveCanvas.Infra.SMS do
+defmodule LC.Infra.SMS do
   @moduledoc false
 
   @type delivery :: %{

@@ -1,4 +1,4 @@
-defmodule LiveCanvasSchemas.Schema do
+defmodule LCSchemas.Schema do
   @moduledoc false
 
   defmacro __using__(:relational) do

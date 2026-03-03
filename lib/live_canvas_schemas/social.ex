@@ -1,3 +1,3 @@
-defmodule LiveCanvasSchemas.Social do
+defmodule LCSchemas.Social do
   @moduledoc false
 end

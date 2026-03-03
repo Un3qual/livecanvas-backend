@@ -1,7 +1,7 @@
-defmodule LiveCanvasSchemas.Accounts.UserPhoneNumber do
-  use LiveCanvasSchemas.Schema, :relational
+defmodule LCSchemas.Accounts.UserPhoneNumber do
+  use LCSchemas.Schema, :relational
 
-  alias LiveCanvasSchemas.Accounts.{PhoneNumber, User}
+  alias LCSchemas.Accounts.{PhoneNumber, User}
 
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
@@ -19,8 +19,8 @@ defmodule LiveCanvasSchemas.Accounts.UserPhoneNumber do
     field :entropy_id, Ecto.UUID, read_after_writes: true
     field :verified_at, :utc_datetime_usec
 
-    belongs_to :user, LiveCanvasSchemas.Accounts.User
-    belongs_to :phone_number, LiveCanvasSchemas.Accounts.PhoneNumber
+    belongs_to :user, LCSchemas.Accounts.User
+    belongs_to :phone_number, LCSchemas.Accounts.PhoneNumber
 
     timestamps()
   end

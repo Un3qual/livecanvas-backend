@@ -1,9 +1,9 @@
-defmodule LiveCanvas.Accounts.Tokens do
+defmodule LC.Accounts.Tokens do
   @moduledoc false
 
   import Ecto.Query
 
-  alias LiveCanvasSchemas.Accounts.{User, UserToken}
+  alias LCSchemas.Accounts.{User, UserToken}
 
   @hash_algorithm :sha3_256
   @rand_size 32
@@ -17,7 +17,7 @@ defmodule LiveCanvas.Accounts.Tokens do
     :email_one_time_code_token
   ]
 
-  @type token_context :: LiveCanvasSchemas.Accounts.user_token_context()
+  @type token_context :: LCSchemas.Accounts.user_token_context()
 
   @type email_token_context ::
           :email_verification_token

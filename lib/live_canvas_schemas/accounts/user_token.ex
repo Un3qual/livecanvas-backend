@@ -1,14 +1,14 @@
-defmodule LiveCanvasSchemas.Accounts.UserToken do
-  use LiveCanvasSchemas.Schema, :uuid_primary_key
+defmodule LCSchemas.Accounts.UserToken do
+  use LCSchemas.Schema, :uuid_primary_key
 
-  alias LiveCanvasSchemas.Accounts.User
+  alias LCSchemas.Accounts.User
 
   @type t :: %__MODULE__{
           id: Ecto.UUID.t() | nil,
           raw_secret: binary() | nil,
           serialized_value: String.t() | nil,
           secret_hash: binary() | nil,
-          context: LiveCanvasSchemas.Accounts.user_token_context() | nil,
+          context: LCSchemas.Accounts.user_token_context() | nil,
           sent_to: String.t() | nil,
           authenticated_at: DateTime.t() | nil,
           user_id: pos_integer() | nil,
@@ -20,10 +20,10 @@ defmodule LiveCanvasSchemas.Accounts.UserToken do
     field :raw_secret, :binary, virtual: true, redact: true
     field :serialized_value, :string, virtual: true, redact: true
     field :secret_hash, :binary, redact: true
-    field :context, LiveCanvasSchemas.Accounts.UserTokenContext
+    field :context, LCSchemas.Accounts.UserTokenContext
     field :sent_to, :string
     field :authenticated_at, :utc_datetime_usec
-    belongs_to :user, LiveCanvasSchemas.Accounts.User
+    belongs_to :user, LCSchemas.Accounts.User
 
     timestamps(updated_at: false)
   end

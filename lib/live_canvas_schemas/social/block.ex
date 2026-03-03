@@ -1,4 +1,4 @@
-defmodule LiveCanvasSchemas.Social.Block do
+defmodule LCSchemas.Social.Block do
   use Ecto.Schema
 
   @type t :: %__MODULE__{
@@ -15,8 +15,8 @@ defmodule LiveCanvasSchemas.Social.Block do
   schema "blocks" do
     field :entropy_id, Ecto.UUID, read_after_writes: true
 
-    belongs_to :blocker, LiveCanvasSchemas.Accounts.User
-    belongs_to :blocked, LiveCanvasSchemas.Accounts.User
+    belongs_to :blocker, LCSchemas.Accounts.User
+    belongs_to :blocked, LCSchemas.Accounts.User
 
     timestamps(type: :utc_datetime_usec)
   end

@@ -1,11 +1,11 @@
-defmodule LiveCanvas.Infra.SMS.FakeAdapterTest do
+defmodule LC.Infra.SMS.FakeAdapterTest do
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
   require Logger
 
-  alias LiveCanvas.Infra.SMS
+  alias LC.Infra.SMS
 
   setup do
     original_level = Logger.level()

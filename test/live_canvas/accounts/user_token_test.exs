@@ -1,10 +1,10 @@
-defmodule LiveCanvas.Accounts.UserTokenTest do
-  use LiveCanvas.DataCase
+defmodule LC.Accounts.UserTokenTest do
+  use LC.DataCase
 
-  alias LiveCanvas.Accounts
-  alias LiveCanvasSchemas.Accounts.UserToken
+  alias LC.Accounts
+  alias LCSchemas.Accounts.UserToken
 
-  import LiveCanvas.AccountsFixtures
+  import LC.AccountsFixtures
 
   describe "issue_user_token/3" do
     test "stores only the secret hash" do

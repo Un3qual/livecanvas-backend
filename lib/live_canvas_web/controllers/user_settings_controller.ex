@@ -1,7 +1,7 @@
 defmodule LiveCanvasWeb.UserSettingsController do
   use LiveCanvasWeb, :controller
 
-  alias LiveCanvas.Accounts
+  alias LC.Accounts
   alias LiveCanvasWeb.UserAuth
 
   import LiveCanvasWeb.UserAuth, only: [require_sudo_mode: 2]

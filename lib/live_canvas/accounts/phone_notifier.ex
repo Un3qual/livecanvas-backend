@@ -1,7 +1,7 @@
-defmodule LiveCanvas.Accounts.PhoneNotifier do
+defmodule LC.Accounts.PhoneNotifier do
   @moduledoc false
 
-  alias LiveCanvas.Infra.SMS
+  alias LC.Infra.SMS
 
   @type delivery_result :: :ok | {:error, term()}
 

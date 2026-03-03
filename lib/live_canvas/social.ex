@@ -1,17 +1,17 @@
-defmodule LiveCanvas.Social do
+defmodule LC.Social do
   @moduledoc """
   The Social context.
   """
 
-  use Boundary, deps: [LiveCanvas.Infra, LiveCanvasSchemas]
+  use Boundary, deps: [LC.Infra, LCSchemas]
 
   import Ecto.Query, warn: false
   import Ecto.Changeset, only: [change: 2]
 
-  alias LiveCanvas.Infra.Repo
-  alias LiveCanvas.Social.RelationshipPolicy
-  alias LiveCanvasSchemas.Accounts.User
-  alias LiveCanvasSchemas.Social.{Block, Follow}
+  alias LC.Infra.Repo
+  alias LC.Social.RelationshipPolicy
+  alias LCSchemas.Accounts.User
+  alias LCSchemas.Social.{Block, Follow}
 
   @type relationship_state :: :accepted | :blocked | :none | :public | :requested
   @type follow_result :: {:ok, Follow.t()} | {:error, term()}

@@ -5,21 +5,21 @@ defmodule LiveCanvasApp do
 
   use Boundary,
     top_level?: true,
-    deps: [LiveCanvas, LiveCanvasWeb, LiveCanvasGQL]
+    deps: [LC, LiveCanvasWeb, LiveCanvasGQL]
 
   @spec start(Application.start_type(), [term()]) :: Supervisor.on_start()
   @impl true
   def start(_type, _args) do
     children = [
       LiveCanvasWeb.Telemetry,
-      LiveCanvas.repo_module(),
+      LC.repo_module(),
       {DNSCluster, query: Application.get_env(:live_canvas, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: LiveCanvas.PubSub},
-      {LiveCanvas.Infra.SMS.FakeAdapter, []},
+      {Phoenix.PubSub, name: LC.PubSub},
+      {LC.Infra.SMS.FakeAdapter, []},
       LiveCanvasWeb.Endpoint
     ]
 
-    opts = [strategy: :one_for_one, name: LiveCanvas.Supervisor]
+    opts = [strategy: :one_for_one, name: LC.Supervisor]
     Supervisor.start_link(children, opts)
   end
 

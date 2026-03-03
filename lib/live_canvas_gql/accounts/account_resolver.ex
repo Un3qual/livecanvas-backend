@@ -1,6 +1,6 @@
 defmodule LiveCanvasGQL.Accounts.Resolver do
-  alias LiveCanvas.Accounts
-  alias LiveCanvasSchemas.Accounts.User
+  alias LC.Accounts
+  alias LCSchemas.Accounts.User
 
   @type mutation_payload :: %{successful: boolean()}
   @type mutation_result :: {:ok, mutation_payload()}

@@ -1,6 +1,6 @@
 defmodule Mix.Tasks.Check.Typespecs do
   use Mix.Task
-  use Boundary, classify_to: LiveCanvas
+  use Boundary, classify_to: LC
 
   @shortdoc "Checks that public functions have @spec declarations"
 
