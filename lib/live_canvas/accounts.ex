@@ -76,6 +76,10 @@ defmodule LC.Accounts do
   @type user_session_result :: {User.t(), DateTime.t()} | nil
   @type access_token_auth_error :: :invalid_token | :expired_token | :revoked_token
   @type access_token_auth_result :: {:ok, Scope.t()} | {:error, access_token_auth_error()}
+  @type refresh_token_auth_error :: :invalid_token | :expired_token | :revoked_token
+  @type refresh_token_auth_result :: {:ok, Scope.t()} | {:error, refresh_token_auth_error()}
+  @type token_pair_payload :: %{access_token: token_payload(), refresh_token: token_payload()}
+  @type token_pair_result :: {:ok, token_pair_payload()} | {:error, refresh_token_auth_error()}
   @type registration_attrs :: %{
           optional(:email | :password | String.t()) => String.t()
         }
@@ -384,6 +388,14 @@ defmodule LC.Accounts do
   @spec issue_access_token(User.t(), keyword()) :: token_result()
   def issue_access_token(%User{} = user, attrs \\ []) do
     issue_user_token(user, :access_token, attrs)
+  end
+
+  @doc """
+  Persists and returns a refresh token payload for the given user.
+  """
+  @spec issue_refresh_token(User.t(), keyword()) :: token_result()
+  def issue_refresh_token(%User{} = user, attrs \\ []) do
+    issue_user_token(user, :refresh_token, attrs)
   end
 
   @doc """
@@ -715,6 +727,51 @@ defmodule LC.Accounts do
   end
 
   @doc """
+  Deletes the signed refresh token.
+  """
+  @spec revoke_refresh_token(String.t()) :: :ok
+  def revoke_refresh_token(serialized_value) do
+    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+         {_user, user_token, _current_email} <- Repo.one(query),
+         true <- refresh_token_secret_matches?(user_token, raw_secret) do
+      _ = revoke_user_token(user_token)
+    end
+
+    :ok
+  end
+
+  @doc """
+  Rotates a valid refresh token into a fresh access/refresh pair.
+  """
+  @spec rotate_refresh_token(String.t()) :: token_pair_result()
+  def rotate_refresh_token(serialized_value) when is_binary(serialized_value) do
+    Repo.transact(fn ->
+      with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+           {:ok, {user, user_token, _current_email}} <- fetch_token_lookup_row(query),
+           :ok <- validate_refresh_token(user_token, raw_secret),
+           true <- active_user?(user) || {:error, :revoked_token},
+           # Rotation must consume exactly one refresh token row to enforce
+           # single-use refresh semantics even under concurrent requests.
+           :ok <- revoke_user_token(user_token, strict: true),
+           {:ok, access_token_payload} <- issue_access_token(user),
+           {:ok, refresh_token_payload} <- issue_refresh_token(user) do
+        {:ok, %{access_token: access_token_payload, refresh_token: refresh_token_payload}}
+      else
+        :error ->
+          {:error, :invalid_token}
+
+        {:error, reason} when reason in [:invalid_token, :expired_token, :revoked_token] ->
+          {:error, reason}
+
+        {:error, %Ecto.Changeset{}} ->
+          {:error, :invalid_token}
+      end
+    end)
+  end
+
+  def rotate_refresh_token(_serialized_value), do: {:error, :invalid_token}
+
+  @doc """
   Authenticates a serialized access token and returns a user scope.
 
   Error semantics:
@@ -739,6 +796,27 @@ defmodule LC.Accounts do
   end
 
   def authenticate_access_token(_serialized_value), do: {:error, :invalid_token}
+
+  @doc """
+  Authenticates a serialized refresh token and returns a user scope.
+  """
+  @spec authenticate_refresh_token(String.t()) :: refresh_token_auth_result()
+  def authenticate_refresh_token(serialized_value) when is_binary(serialized_value) do
+    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+         {:ok, {user, user_token, current_email}} <- fetch_token_lookup_row(query),
+         :ok <- validate_refresh_token(user_token, raw_secret),
+         true <- active_user?(user) || {:error, :revoked_token} do
+      {:ok, scope_for_user(hydrate_user(user, user_token, current_email))}
+    else
+      :error ->
+        {:error, :invalid_token}
+
+      {:error, reason} when reason in [:invalid_token, :expired_token, :revoked_token] ->
+        {:error, reason}
+    end
+  end
+
+  def authenticate_refresh_token(_serialized_value), do: {:error, :invalid_token}
 
   ## Token helper
 
@@ -1145,6 +1223,45 @@ defmodule LC.Accounts do
 
       true ->
         :ok
+    end
+  end
+
+  @spec validate_refresh_token(UserToken.t(), binary()) ::
+          :ok | {:error, :invalid_token | :expired_token}
+  defp validate_refresh_token(%UserToken{context: context}, _raw_secret)
+       when context != :refresh_token,
+       do: {:error, :invalid_token}
+
+  defp validate_refresh_token(%UserToken{} = user_token, raw_secret) when is_binary(raw_secret) do
+    cond do
+      not Tokens.valid_secret?(user_token, raw_secret) ->
+        {:error, :invalid_token}
+
+      not Tokens.valid_refresh_token?(user_token, raw_secret) ->
+        {:error, :expired_token}
+
+      true ->
+        :ok
+    end
+  end
+
+  @spec refresh_token_secret_matches?(UserToken.t(), binary()) :: boolean()
+  defp refresh_token_secret_matches?(%UserToken{context: :refresh_token} = user_token, raw_secret)
+       when is_binary(raw_secret) do
+    Tokens.valid_secret?(user_token, raw_secret)
+  end
+
+  defp refresh_token_secret_matches?(_user_token, _raw_secret), do: false
+
+  @spec revoke_user_token(UserToken.t(), keyword()) :: :ok | {:error, :revoked_token}
+  defp revoke_user_token(%UserToken{id: token_id}, opts \\ []) do
+    {deleted_count, _rows} =
+      Repo.delete_all(from(token in UserToken, where: token.id == ^token_id))
+
+    if deleted_count == 0 and Keyword.get(opts, :strict, false) do
+      {:error, :revoked_token}
+    else
+      :ok
     end
   end
 

@@ -10,6 +10,7 @@ defmodule LC.Accounts.Tokens do
   @magic_link_validity_in_minutes 15
   @change_email_validity_in_days 7
   @session_validity_in_days 14
+  @refresh_validity_in_days 30
   @email_token_contexts [
     :email_verification_token,
     :email_mfa_token,
@@ -104,6 +105,14 @@ defmodule LC.Accounts.Tokens do
     valid_secret?(token, raw_secret) and
       token.context == :access_token and
       token_fresh?(token.inserted_at, days: @session_validity_in_days)
+  end
+
+  @doc false
+  @spec valid_refresh_token?(UserToken.t(), binary()) :: boolean()
+  def valid_refresh_token?(%UserToken{} = token, raw_secret) do
+    valid_secret?(token, raw_secret) and
+      token.context == :refresh_token and
+      token_fresh?(token.inserted_at, days: @refresh_validity_in_days)
   end
 
   @doc false
