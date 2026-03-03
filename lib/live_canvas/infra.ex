@@ -1,5 +1,5 @@
 defmodule LC.Infra do
   @moduledoc false
 
-  use Boundary, exports: [Repo, Mailer, ObjectStorage, SMS]
+  use Boundary, exports: [AsyncJobs, Mailer, ObjectStorage, Repo, SMS, WebhookEvent]
 end

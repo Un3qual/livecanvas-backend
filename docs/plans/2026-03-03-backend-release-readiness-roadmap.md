@@ -103,6 +103,15 @@ Per architecture decisions, these remain intentionally deferred and should not b
 - `docs/plans/conventions/2026-03-03-relay-mutation-payload-cleanup.md`
 - `docs/plans/conventions/2026-03-03-social-relay-global-id-alignment.md`
 
+### Release Track Plans
+
+- `docs/plans/2026-03-03-release-authn-authz-hardening.md`
+- `docs/plans/release/2026-03-03-auth-audit-events.md`
+- `docs/plans/release/2026-03-03-auth-audit-expansion.md`
+- `docs/plans/release/2026-03-03-observability-and-launch-ops.md`
+- `docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`
+- `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`
+
 ## Release Roadmap (From Current State To Releasable Backend)
 
 ### Phase 0: Release Blocker Hardening (Must Do First)
@@ -176,7 +185,6 @@ Mobile parallel:
 The following are material gaps where no sufficiently detailed executable plan exists yet in `docs/plans/`:
 
 - Additional auth audit expansion for provider unlink/account recovery events if included in v1 launch scope.
-- REST webhook + background-job design/implementation plan.
 - Release engineering plan (migrations at scale, rollback strategy, deployment gates).
 - Compliance/data-governance plan (retention/deletion/export policy).
 
@@ -187,4 +195,5 @@ The following are material gaps where no sufficiently detailed executable plan e
 
 ## Suggested Next Plan Files To Create
 
-- `docs/plans/2026-03-03-webhooks-and-async-jobs.md`
+- `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`
+- `docs/plans/release/2026-03-03-compliance-data-governance.md`

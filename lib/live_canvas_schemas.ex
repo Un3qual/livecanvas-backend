@@ -33,6 +33,9 @@ defmodule LCSchemas do
       Live,
       Live.LiveParticipant,
       Live.LiveSession,
-      Live.LiveSessionRuntimeOwner
+      Live.LiveSessionRuntimeOwner,
+      Infra,
+      Infra.AsyncJob,
+      Infra.WebhookEvent
     ]
 end
