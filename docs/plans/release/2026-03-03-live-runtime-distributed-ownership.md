@@ -25,7 +25,7 @@ Verified directly in `lib/`, `test/`, and migrations before writing this plan:
 
 ## Progress
 
-- [ ] Task 1: Add durable runtime ownership lease primitives in `LC.Live`
+- [x] Task 1: Add durable runtime ownership lease primitives in `LC.Live`
 - [ ] Task 2: Integrate lease-aware local ownership into `SessionSupervisor` and `LC.Live`
 - [ ] Task 3: Add remote-owner routing adapter and boundary-level join/lookup semantics
 - [ ] Task 4: Expose deterministic channel behavior for remote-owned sessions
@@ -42,11 +42,11 @@ Verified directly in `lib/`, `test/`, and migrations before writing this plan:
 - Modify: `docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing tests for lease claim/refresh/release/expiry takeover behavior
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement migration + schema + ownership API with lease semantics
-- [ ] Step 4: Run test DB migration and focused tests to verify GREEN
-- [ ] Step 5: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing tests for lease claim/refresh/release/expiry takeover behavior
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement migration + schema + ownership API with lease semantics
+- [x] Step 4: Run test DB migration and focused tests to verify GREEN
+- [x] Step 5: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Step 1 details:**
 Add tests that prove:
@@ -196,4 +196,3 @@ mix precommit
 ```
 
 Expected: PASS.
-

@@ -32,6 +32,7 @@ defmodule LCSchemas do
       Chat.ChatMessage,
       Live,
       Live.LiveParticipant,
-      Live.LiveSession
+      Live.LiveSession,
+      Live.LiveSessionRuntimeOwner
     ]
 end
