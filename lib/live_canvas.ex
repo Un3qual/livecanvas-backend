@@ -16,8 +16,10 @@ defmodule LiveCanvas do
     deps: [LiveCanvasSchemas],
     exports: [Accounts, Social] ++ @test_support_exports
 
+  @spec repo_module() :: module()
   def repo_module, do: LiveCanvas.Infra.Repo
 
+  @spec local_mail_adapter?() :: boolean()
   def local_mail_adapter? do
     Application.get_env(:live_canvas, LiveCanvas.Infra.Mailer)[:adapter] == Swoosh.Adapters.Local
   end

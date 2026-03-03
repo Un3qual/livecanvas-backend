@@ -27,7 +27,7 @@
 ## Progress
 
 - [x] Task 1: Build and test the `mix check.typespecs` gate
-- [ ] Task 2: Seed the first enforceable slice
+- [x] Task 2: Seed the first enforceable slice
 - [ ] Task 3: Add Dialyzer and wire `mix precommit` to `mix typecheck`
 - [ ] Task 4: Add schema `t()` and shared enum union types
 - [ ] Task 5: Roll typespec enforcement across context/core modules
@@ -103,10 +103,10 @@ git commit -m "test: add typespec enforcement mix task"
 **Task 2 Step Progress**
 - [x] Step 1: Create the rollout manifest with a tiny real slice
 - [x] Step 2: Run the new gate against the seed slice and verify RED
-- [ ] Step 3: Add the minimal real-world specs
-- [ ] Step 4: Run compile plus focused regression coverage
-- [ ] Step 5: Run the seed gate again to verify GREEN
-- [ ] Step 6: Commit
+- [x] Step 3: Add the minimal real-world specs
+- [x] Step 4: Run compile plus focused regression coverage
+- [x] Step 5: Run the seed gate again to verify GREEN
+- [x] Step 6: Commit
 
 **Step 1: Create the rollout manifest with a tiny real slice**
 

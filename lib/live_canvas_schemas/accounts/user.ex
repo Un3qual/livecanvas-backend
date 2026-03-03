@@ -1,6 +1,25 @@
 defmodule LiveCanvasSchemas.Accounts.User do
   use LiveCanvasSchemas.Schema, :relational
 
+  @type t :: %__MODULE__{
+          id: pos_integer() | nil,
+          entropy_id: Ecto.UUID.t() | nil,
+          email: String.t() | nil,
+          password: String.t() | nil,
+          hashed_password: String.t() | nil,
+          confirmed_at: DateTime.t() | nil,
+          privacy_mode: atom() | nil,
+          authenticated_at: DateTime.t() | nil,
+          user_email_addresses: Ecto.Association.NotLoaded.t() | [struct()],
+          email_addresses: Ecto.Association.NotLoaded.t() | [struct()],
+          user_phone_numbers: Ecto.Association.NotLoaded.t() | [struct()],
+          phone_numbers: Ecto.Association.NotLoaded.t() | [struct()],
+          user_identities: Ecto.Association.NotLoaded.t() | [struct()],
+          user_contact_entries: Ecto.Association.NotLoaded.t() | [struct()],
+          inserted_at: DateTime.t() | nil,
+          updated_at: DateTime.t() | nil
+        }
+
   schema "users" do
     field :entropy_id, Ecto.UUID, read_after_writes: true
     field :email, :string, virtual: true

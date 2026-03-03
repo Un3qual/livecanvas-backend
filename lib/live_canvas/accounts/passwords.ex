@@ -6,6 +6,7 @@ defmodule LiveCanvas.Accounts.Passwords do
   @doc """
   Verifies the password.
   """
+  @spec valid_password?(User.t() | term(), String.t() | term()) :: boolean()
   def valid_password?(%User{hashed_password: hashed_password}, password)
       when is_binary(hashed_password) and byte_size(password) > 0 do
     Argon2.verify_pass(password, hashed_password)
