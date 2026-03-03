@@ -2,7 +2,7 @@ defmodule LC.SocialFixtures do
   @moduledoc false
 
   alias LC.Social
-  alias LCSchemas.Social.{Block, Follow}
+  alias LCSchemas.Social.{Block, Follow, Mute}
 
   @spec follow_fixture(struct(), struct()) :: Follow.t()
   def follow_fixture(follower, followed) do
@@ -21,6 +21,12 @@ defmodule LC.SocialFixtures do
   def block_fixture(blocker, blocked) do
     {:ok, block} = Social.block_user(blocker, blocked)
     block
+  end
+
+  @spec mute_fixture(struct(), struct()) :: Mute.t()
+  def mute_fixture(muter, muted) do
+    {:ok, mute} = Social.mute_user(muter, muted)
+    mute
   end
 
   defp maybe_accept_follow(%Follow{state: :accepted} = follow, _followed), do: follow

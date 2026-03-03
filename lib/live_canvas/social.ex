@@ -11,11 +11,13 @@ defmodule LC.Social do
   alias LC.Infra.Repo
   alias LC.Social.RelationshipPolicy
   alias LCSchemas.Accounts.User
-  alias LCSchemas.Social.{Block, Follow}
+  alias LCSchemas.Social.{Block, Follow, Mute}
 
   @type relationship_state :: :accepted | :blocked | :none | :public | :requested
   @type follow_result :: {:ok, Follow.t()} | {:error, term()}
   @type block_result :: {:ok, Block.t()} | {:error, term()}
+  @type mute_result :: {:ok, Mute.t()} | {:error, term()}
+  @type unmute_result :: :ok
 
   @doc """
   Creates or updates a follow relationship between two users.
@@ -63,6 +65,46 @@ defmodule LC.Social do
   def block_user(%User{id: blocker_id}, %User{id: blocked_id}) do
     %Block{blocker_id: blocker_id, blocked_id: blocked_id}
     |> Repo.insert()
+  end
+
+  @doc """
+  Records a mute relationship from one user to another.
+  """
+  @spec mute_user(struct(), struct()) :: mute_result()
+  def mute_user(%User{id: muter_id}, %User{id: muted_id}) do
+    %Mute{muter_id: muter_id, muted_id: muted_id}
+    |> Repo.insert(
+      on_conflict: :nothing,
+      conflict_target: [:muter_id, :muted_id],
+      returning: true
+    )
+    |> normalize_mute_insert(muter_id, muted_id)
+  end
+
+  @doc """
+  Removes a mute relationship from one user to another.
+  """
+  @spec unmute_user(struct(), struct()) :: unmute_result()
+  def unmute_user(%User{id: muter_id}, %User{id: muted_id}) do
+    # Delete is intentionally idempotent: removing an already-missing mute is
+    # still a successful unmute request from the boundary's perspective.
+    from(mute in Mute,
+      where: mute.muter_id == ^muter_id and mute.muted_id == ^muted_id
+    )
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  @doc """
+  Returns whether a directional mute relationship exists.
+  """
+  @spec muted?(struct(), struct()) :: boolean()
+  def muted?(%User{id: muter_id}, %User{id: muted_id}) do
+    Repo.exists?(
+      from mute in Mute,
+        where: mute.muter_id == ^muter_id and mute.muted_id == ^muted_id
+    )
   end
 
   @doc """
@@ -171,5 +213,26 @@ defmodule LC.Social do
       limit: 1
     )
     |> Repo.one()
+  end
+
+  @spec normalize_mute_insert({:ok, Mute.t()} | {:error, term()}, pos_integer(), pos_integer()) ::
+          mute_result()
+  defp normalize_mute_insert({:ok, %Mute{id: nil}}, muter_id, muted_id) do
+    # `on_conflict: :nothing` is used for idempotency; fetch the existing row
+    # when a duplicate mute is requested so callers always receive the canonical
+    # persisted mute record.
+    {:ok, fetch_mute!(muter_id, muted_id)}
+  end
+
+  defp normalize_mute_insert({:ok, %Mute{} = mute}, _muter_id, _muted_id), do: {:ok, mute}
+  defp normalize_mute_insert({:error, reason}, _muter_id, _muted_id), do: {:error, reason}
+
+  @spec fetch_mute!(pos_integer(), pos_integer()) :: Mute.t()
+  defp fetch_mute!(muter_id, muted_id) do
+    from(mute in Mute,
+      where: mute.muter_id == ^muter_id and mute.muted_id == ^muted_id,
+      limit: 1
+    )
+    |> Repo.one!()
   end
 end

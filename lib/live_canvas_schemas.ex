@@ -22,6 +22,7 @@ defmodule LCSchemas do
       Social.Block,
       Social.Follow,
       Social.FollowState,
+      Social.Mute,
       Content,
       Content.Post,
       Content.MediaAsset,
