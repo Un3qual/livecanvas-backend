@@ -56,16 +56,12 @@ defmodule LCGQL.Accounts.Types do
     field :client_launch_count, :integer
   end
 
-  input_object :register_with_email_input do
-    field :email, non_null(:string)
-  end
-
-  input_object :attach_user_phone_number_input do
-    field :user_id, non_null(:id)
-    field :phone_number, non_null(:string)
-  end
-
   object :successful_payload do
     field :successful, non_null(:boolean)
+  end
+
+  object :user_error do
+    field :field, :string
+    field :message, non_null(:string)
   end
 end
