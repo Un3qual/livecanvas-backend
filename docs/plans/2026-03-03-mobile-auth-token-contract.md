@@ -28,7 +28,7 @@ Verified directly in code before selecting work (do not assume checklist state):
 ## Progress
 
 - [x] Task 1: Add Accounts refresh-token lifecycle primitives (issue/authenticate/rotate/revoke)
-- [ ] Task 2: Expose mobile auth token mutation contract in GraphQL
+- [x] Task 2: Expose mobile auth token mutation contract in GraphQL
 - [ ] Task 3: Verify full auth contract behavior and rollout notes
 
 ### Task 1: Add Accounts Refresh-Token Lifecycle Primitives
@@ -118,11 +118,11 @@ git commit -m "feat: add refresh token lifecycle primitives"
 - Modify: `docs/plans/2026-03-03-mobile-auth-token-contract.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for token issue/refresh/revoke mutations
-- [ ] Step 2: Run focused GraphQL tests to verify RED
-- [ ] Step 3: Implement mutation schema + resolver adapters for Task 1 APIs
-- [ ] Step 4: Run focused GraphQL tests to verify GREEN
-- [ ] Step 5: Run compile/typecheck, update checklist, and commit milestone
+- [x] Step 1: Add failing GraphQL tests for token issue/refresh/revoke mutations
+- [x] Step 2: Run focused GraphQL tests to verify RED
+- [x] Step 3: Implement mutation schema + resolver adapters for Task 1 APIs
+- [x] Step 4: Run focused GraphQL tests to verify GREEN
+- [x] Step 5: Run compile/typecheck, update checklist, and commit milestone
 
 ### Task 3: Verify Full Auth Contract Behavior And Rollout Notes
 

@@ -59,5 +59,46 @@ defmodule LCGQL.Accounts.Mutations do
 
       resolve(&Resolver.deliver_viewer_contact_invite/3)
     end
+
+    payload field :issue_viewer_auth_tokens do
+      input do
+        field :device_info, :device_info_input
+      end
+
+      output do
+        field :access_token, :token
+        field :refresh_token, :token
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.issue_viewer_auth_tokens/3)
+    end
+
+    payload field :refresh_auth_tokens do
+      input do
+        field :refresh_token, non_null(:string)
+      end
+
+      output do
+        field :access_token, :token
+        field :refresh_token, :token
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.refresh_auth_tokens/3)
+    end
+
+    payload field :revoke_refresh_token do
+      input do
+        field :refresh_token, non_null(:string)
+      end
+
+      output do
+        field :revoked, non_null(:boolean)
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.revoke_refresh_token/3)
+    end
   end
 end

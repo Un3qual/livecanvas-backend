@@ -442,4 +442,303 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
               }} = Absinthe.run(mutation, LCGQL.Schema)
     end
   end
+
+  describe "issueViewerAuthTokens" do
+    test "issues access and refresh tokens for the authenticated viewer" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation {
+        issueViewerAuthTokens(input: {}) {
+          accessToken {
+            serializedValue
+            tokenVersion
+          }
+          refreshToken {
+            serializedValue
+            tokenVersion
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "issueViewerAuthTokens" => %{
+                    "accessToken" => %{
+                      "serializedValue" => access_token,
+                      "tokenVersion" => 1
+                    },
+                    "refreshToken" => %{
+                      "serializedValue" => refresh_token,
+                      "tokenVersion" => 1
+                    },
+                    "errors" => []
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+
+      assert {:ok, %{id: access_token_id}} = Accounts.Tokens.decode_serialized_value(access_token)
+
+      assert {:ok, %{id: refresh_token_id}} =
+               Accounts.Tokens.decode_serialized_value(refresh_token)
+
+      assert %UserToken{context: :access_token} = Repo.get(UserToken, access_token_id)
+      assert %UserToken{context: :refresh_token} = Repo.get(UserToken, refresh_token_id)
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      mutation = """
+      mutation {
+        issueViewerAuthTokens(input: {}) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "issueViewerAuthTokens" => %{
+                    "accessToken" => nil,
+                    "refreshToken" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
+  describe "refreshAuthTokens" do
+    test "rotates a refresh token into a fresh access and refresh pair" do
+      viewer = user_fixture()
+      {:ok, %{token: previous_refresh_token}} = Accounts.issue_refresh_token(viewer)
+
+      mutation = """
+      mutation RefreshAuthTokens($refreshToken: String!) {
+        refreshAuthTokens(input: {refreshToken: $refreshToken}) {
+          accessToken {
+            serializedValue
+            tokenVersion
+          }
+          refreshToken {
+            serializedValue
+            tokenVersion
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "refreshAuthTokens" => %{
+                    "accessToken" => %{
+                      "serializedValue" => new_access_token,
+                      "tokenVersion" => 1
+                    },
+                    "refreshToken" => %{
+                      "serializedValue" => new_refresh_token,
+                      "tokenVersion" => 1
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"refreshToken" => previous_refresh_token}
+               )
+
+      assert {:error, :revoked_token} =
+               Accounts.authenticate_refresh_token(previous_refresh_token)
+
+      assert {:ok, %{user: %{id: viewer_id}}} =
+               Accounts.authenticate_access_token(new_access_token)
+
+      assert {:ok, %{user: %{id: ^viewer_id}}} =
+               Accounts.authenticate_refresh_token(new_refresh_token)
+
+      assert viewer_id == viewer.id
+    end
+
+    test "returns invalid_token errors for malformed token values" do
+      mutation = """
+      mutation {
+        refreshAuthTokens(input: {refreshToken: "not-a-token"}) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "refreshAuthTokens" => %{
+                    "accessToken" => nil,
+                    "refreshToken" => nil,
+                    "errors" => [%{"field" => "refreshToken", "message" => "invalid_token"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+
+    test "returns expired_token errors for expired refresh tokens" do
+      viewer = user_fixture()
+      {:ok, %{token: refresh_token}} = Accounts.issue_refresh_token(viewer)
+      offset_user_token(refresh_token, -31, :day)
+
+      mutation = """
+      mutation RefreshAuthTokens($refreshToken: String!) {
+        refreshAuthTokens(input: {refreshToken: $refreshToken}) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "refreshAuthTokens" => %{
+                    "accessToken" => nil,
+                    "refreshToken" => nil,
+                    "errors" => [%{"field" => "refreshToken", "message" => "expired_token"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"refreshToken" => refresh_token}
+               )
+    end
+
+    test "returns revoked_token errors for revoked refresh tokens" do
+      viewer = user_fixture()
+      {:ok, %{token: refresh_token}} = Accounts.issue_refresh_token(viewer)
+      :ok = Accounts.revoke_refresh_token(refresh_token)
+
+      mutation = """
+      mutation RefreshAuthTokens($refreshToken: String!) {
+        refreshAuthTokens(input: {refreshToken: $refreshToken}) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "refreshAuthTokens" => %{
+                    "accessToken" => nil,
+                    "refreshToken" => nil,
+                    "errors" => [%{"field" => "refreshToken", "message" => "revoked_token"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"refreshToken" => refresh_token}
+               )
+    end
+  end
+
+  describe "revokeRefreshToken" do
+    test "revokes refresh tokens idempotently" do
+      viewer = user_fixture()
+      {:ok, %{token: refresh_token}} = Accounts.issue_refresh_token(viewer)
+
+      mutation = """
+      mutation RevokeRefreshToken($refreshToken: String!) {
+        revokeRefreshToken(input: {refreshToken: $refreshToken}) {
+          revoked
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "revokeRefreshToken" => %{
+                    "revoked" => true,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"refreshToken" => refresh_token}
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "revokeRefreshToken" => %{
+                    "revoked" => true,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"refreshToken" => refresh_token}
+               )
+
+      assert {:error, :revoked_token} = Accounts.authenticate_refresh_token(refresh_token)
+    end
+  end
 end

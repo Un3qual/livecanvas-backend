@@ -17,12 +17,28 @@ defmodule LCGQL.Accounts.Resolver do
   @type contact_upsert_result :: {:ok, contact_upsert_payload()}
   @type invite_delivery_payload :: %{errors: [mutation_error()]}
   @type invite_delivery_result :: {:ok, invite_delivery_payload()}
+  @type auth_token_payload :: %{
+          access_token: map() | nil,
+          refresh_token: map() | nil,
+          errors: [mutation_error()]
+        }
+  @type auth_token_result :: {:ok, auth_token_payload()}
+  @type revoke_refresh_payload :: %{revoked: boolean(), errors: [mutation_error()]}
+  @type revoke_refresh_result :: {:ok, revoke_refresh_payload()}
   @type contact_upsert_error_reason ::
           :invalid_contact_client_id
           | :invalid_birthday
           | :invalid_phone_number
           | :invalid_email_list
   @type invite_delivery_error_reason :: :invalid_recipient | :unauthenticated | :delivery_failed
+  @type refresh_auth_error_reason :: :invalid_token | :expired_token | :revoked_token
+  @type token_view :: %{
+          serialized_value: String.t(),
+          token_version: integer(),
+          expires_at: String.t() | nil,
+          inserted_at: String.t() | nil,
+          updated_at: String.t() | nil
+        }
   @type contact_match_node :: %{
           id: pos_integer(),
           contact_entry: map(),
@@ -153,6 +169,81 @@ defmodule LCGQL.Accounts.Resolver do
     {:ok, %{errors: [invite_delivery_error(:unauthenticated)]}}
   end
 
+  @spec issue_viewer_auth_tokens(term(), %{optional(:input) => map()}, Absinthe.Resolution.t()) ::
+          auth_token_result()
+  def issue_viewer_auth_tokens(parent, %{input: input}, resolution),
+    do: issue_viewer_auth_tokens(parent, input, resolution)
+
+  def issue_viewer_auth_tokens(_parent, _args, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
+    with {:ok, access_token_payload} <- Accounts.issue_access_token(user),
+         {:ok, refresh_token_payload} <- Accounts.issue_refresh_token(user) do
+      {:ok,
+       %{
+         access_token: token_view(access_token_payload),
+         refresh_token: token_view(refresh_token_payload),
+         errors: []
+       }}
+    else
+      {:error, _changeset} ->
+        {:ok,
+         %{
+           access_token: nil,
+           refresh_token: nil,
+           errors: [%{field: nil, message: "invalid_token"}]
+         }}
+    end
+  end
+
+  def issue_viewer_auth_tokens(_parent, _args, _resolution) do
+    {:ok,
+     %{access_token: nil, refresh_token: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+  end
+
+  @spec refresh_auth_tokens(
+          term(),
+          %{optional(:input) => map(), optional(:refresh_token) => String.t()},
+          Absinthe.Resolution.t()
+        ) :: auth_token_result()
+  def refresh_auth_tokens(parent, %{input: input}, resolution),
+    do: refresh_auth_tokens(parent, input, resolution)
+
+  def refresh_auth_tokens(_parent, %{refresh_token: refresh_token}, _resolution) do
+    # The refresh lifecycle is owned by Accounts; the GraphQL adapter just maps
+    # the stable domain error contract into client-facing payload errors.
+    case Accounts.rotate_refresh_token(refresh_token) do
+      {:ok, %{access_token: access_token_payload, refresh_token: refresh_token_payload}} ->
+        {:ok,
+         %{
+           access_token: token_view(access_token_payload),
+           refresh_token: token_view(refresh_token_payload),
+           errors: []
+         }}
+
+      {:error, reason} when reason in [:invalid_token, :expired_token, :revoked_token] ->
+        {:ok,
+         %{
+           access_token: nil,
+           refresh_token: nil,
+           errors: [refresh_auth_error(reason)]
+         }}
+    end
+  end
+
+  @spec revoke_refresh_token(
+          term(),
+          %{optional(:input) => map(), optional(:refresh_token) => String.t()},
+          Absinthe.Resolution.t()
+        ) :: revoke_refresh_result()
+  def revoke_refresh_token(parent, %{input: input}, resolution),
+    do: revoke_refresh_token(parent, input, resolution)
+
+  def revoke_refresh_token(_parent, %{refresh_token: refresh_token}, _resolution) do
+    :ok = Accounts.revoke_refresh_token(refresh_token)
+    {:ok, %{revoked: true, errors: []}}
+  end
+
   @spec viewer(term(), map(), Absinthe.Resolution.t()) :: {:ok, User.t() | nil}
 
   def viewer(_parent, _args, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
@@ -253,6 +344,25 @@ defmodule LCGQL.Accounts.Resolver do
 
   defp invite_delivery_error(:delivery_failed),
     do: %{field: nil, message: "delivery_failed"}
+
+  @spec refresh_auth_error(refresh_auth_error_reason()) :: mutation_error()
+  defp refresh_auth_error(reason),
+    do: %{field: "refreshToken", message: Atom.to_string(reason)}
+
+  @spec token_view(LC.Accounts.token_payload()) :: token_view()
+  defp token_view(%{token: serialized_value, user_token: user_token}) do
+    %{
+      serialized_value: serialized_value,
+      token_version: 1,
+      expires_at: nil,
+      inserted_at: iso8601_datetime(user_token.inserted_at),
+      updated_at: nil
+    }
+  end
+
+  @spec iso8601_datetime(DateTime.t() | nil) :: String.t() | nil
+  defp iso8601_datetime(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+  defp iso8601_datetime(_dt), do: nil
 
   @spec contact_match_node(LC.Accounts.contact_match()) :: contact_match_node()
   defp contact_match_node(%{contact_entry: %{id: id}} = contact_match) do
