@@ -63,7 +63,8 @@ defmodule LC.Live.SessionServer do
         media_bootstrap: media_bootstrap,
         initial_participants: initial_participants
       })
-      when is_integer(session_id) and is_function(media_bootstrap, 1) and is_map(initial_participants) do
+      when is_integer(session_id) and is_function(media_bootstrap, 1) and
+             is_map(initial_participants) do
     case media_bootstrap.(%LiveSession{id: session_id}) do
       :ok ->
         {:ok, %{session_id: session_id, participants: initial_participants}}

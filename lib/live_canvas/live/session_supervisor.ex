@@ -54,7 +54,8 @@ defmodule LC.Live.SessionSupervisor do
       [{pid, _value}] when is_pid(pid) ->
         if Process.alive?(pid), do: {:ok, pid}, else: {:error, :not_found}
 
-      _ -> {:error, :not_found}
+      _ ->
+        {:error, :not_found}
     end
   end
 

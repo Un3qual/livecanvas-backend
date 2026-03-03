@@ -140,7 +140,8 @@ defmodule LC.Live do
 
   defp ensure_session_server(session_id) do
     case SessionSupervisor.lookup_session_server(session_id) do
-      {:ok, pid} -> {:ok, pid}
+      {:ok, pid} ->
+        {:ok, pid}
 
       {:error, :not_found} ->
         # Rehydrate runtime state from durable participants so a recreated

@@ -98,7 +98,10 @@ defmodule LC.LiveTest do
       second_viewer_id = second_viewer.id
 
       assert Map.keys(participants) |> Enum.sort() == [first_viewer_id, second_viewer_id]
-      assert %{user_id: ^first_viewer_id, role: :viewer} = Map.fetch!(participants, first_viewer_id)
+
+      assert %{user_id: ^first_viewer_id, role: :viewer} =
+               Map.fetch!(participants, first_viewer_id)
+
       assert %{user_id: ^second_viewer_id, role: :viewer} =
                Map.fetch!(participants, second_viewer_id)
     end

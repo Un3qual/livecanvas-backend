@@ -396,6 +396,35 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
               }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
     end
 
+    test "does not persist invite tokens when the recipient is invalid" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation {
+        deliverViewerContactInvite(input: {recipient: "invalid-recipient"}) {
+          successful
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "deliverViewerContactInvite" => %{
+                    "successful" => false,
+                    "errors" => [%{"field" => "recipient", "message" => "is invalid"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+
+      refute Repo.get_by(UserToken, user_id: viewer.id, context: :contact_invite_token)
+    end
+
     test "returns an unauthenticated error without a viewer scope" do
       mutation = """
       mutation {
