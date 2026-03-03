@@ -28,6 +28,19 @@ defmodule LC.Content.MediaAsset do
   end
 
   @doc """
+  Builds insert attrs for upload-intent flows while enforcing server-owned
+  storage keys and initial lifecycle state.
+  """
+  @spec attrs_for_upload_request(pos_integer(), map(), String.t()) :: attrs()
+  def attrs_for_upload_request(owner_id, attrs, storage_key)
+      when is_integer(owner_id) and is_map(attrs) and is_binary(storage_key) do
+    attrs
+    |> Map.put(:storage_key, storage_key)
+    |> Map.put(:processing_state, :pending_upload)
+    |> then(&attrs_for_insert(owner_id, &1))
+  end
+
+  @doc """
   Builds the media-asset changeset used by the `LC.Content` boundary.
   """
   @spec changeset(MediaAssetSchema.t(), attrs()) :: Ecto.Changeset.t()

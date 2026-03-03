@@ -55,6 +55,8 @@ config :live_canvas, LCWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :live_canvas, LC.Infra.Mailer, adapter: Swoosh.Adapters.Local
 
+config :live_canvas, LC.Infra.ObjectStorage, adapter: LC.Infra.ObjectStorage.FakeAdapter
+
 config :live_canvas, LC.Infra.SMS, adapter: LC.Infra.SMS.FakeAdapter
 
 # Configure esbuild (the version is required)

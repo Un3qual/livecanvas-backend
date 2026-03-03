@@ -27,7 +27,7 @@ defmodule LCSchemas.Content.MediaAsset do
     field :mime_type, :string
 
     field :processing_state, Ecto.Enum,
-      values: [:uploaded, :processed, :failed],
+      values: [:pending_upload, :uploaded, :processed, :failed],
       default: :uploaded
 
     field :width, :integer
