@@ -77,4 +77,93 @@ defmodule LCGQL.Content.ContentMutationsTest do
               }
             }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"bodyText" => "first post"})
   end
+
+  test "requestMediaUpload returns upload instructions for the authenticated viewer" do
+    viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    mutation = """
+    mutation($mimeType: String!) {
+      requestMediaUpload(input: {mimeType: $mimeType}) {
+        mediaAsset {
+          id
+          mimeType
+          processingState
+        }
+        signedUpload {
+          method
+          url
+          expiresAt
+          headers {
+            name
+            value
+          }
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "requestMediaUpload" => %{
+                  "mediaAsset" => %{
+                    "id" => media_asset_id,
+                    "mimeType" => "image/jpeg",
+                    "processingState" => "PENDING_UPLOAD"
+                  },
+                  "signedUpload" => %{
+                    "method" => "PUT",
+                    "url" => upload_url,
+                    "expiresAt" => expires_at,
+                    "headers" => [%{"name" => "content-type", "value" => "image/jpeg"}]
+                  },
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"mimeType" => "image/jpeg"},
+               context: context
+             )
+
+    assert is_binary(media_asset_id)
+    assert is_binary(upload_url)
+    assert upload_url =~ "object-storage.invalid/uploads/users/"
+    assert is_binary(expires_at)
+  end
+
+  test "requestMediaUpload returns unauthenticated errors without a viewer scope" do
+    mutation = """
+    mutation($mimeType: String!) {
+      requestMediaUpload(input: {mimeType: $mimeType}) {
+        mediaAsset {
+          id
+        }
+        signedUpload {
+          method
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "requestMediaUpload" => %{
+                  "mediaAsset" => nil,
+                  "signedUpload" => nil,
+                  "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                }
+              }
+            }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"mimeType" => "image/jpeg"})
+  end
 end

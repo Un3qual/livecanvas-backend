@@ -26,7 +26,7 @@ Verified directly in `lib/`, `priv/repo/migrations/`, `config/`, and tests befor
 ## Progress
 
 - [x] Task 1: Add object-storage seam and `Content.request_media_upload/2`
-- [ ] Task 2: Add Relay `requestMediaUpload` mutation and media node/query surface
+- [x] Task 2: Add Relay `requestMediaUpload` mutation and media node/query surface
 - [ ] Task 3: Add `Content.finalize_media_upload/3` lifecycle transition and processing seam
 - [ ] Task 4: Run final verification and update roadmap links
 
@@ -109,11 +109,20 @@ git commit -m "feat: add media upload intent and object storage seam"
 - Modify: `docs/plans/2026-03-03-media-storage-and-processing.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for `requestMediaUpload` and media node/query lookups
-- [ ] Step 2: Run focused GraphQL tests to verify RED
-- [ ] Step 3: Implement minimal Relay schema and resolver wiring
-- [ ] Step 4: Run focused GraphQL tests to verify GREEN
-- [ ] Step 5: Run `mix typecheck`, update checklist progress, and commit Task 2 milestone
+- [x] Step 1: Add failing GraphQL tests for `requestMediaUpload` and media node/query lookups
+- [x] Step 2: Run focused GraphQL tests to verify RED
+- [x] Step 3: Implement minimal Relay schema and resolver wiring
+- [x] Step 4: Run focused GraphQL tests to verify GREEN
+- [x] Step 5: Run `mix typecheck`, update checklist progress, and commit Task 2 milestone
+
+**Step 2 verification run (2026-03-03):**
+- `mix test test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs` -> FAIL (missing `requestMediaUpload`, `mediaAsset`, and `MediaAsset` Relay node type)
+
+**Step 4 verification run (2026-03-03):**
+- `mix test test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs` -> PASS (`13 tests, 0 failures`)
+
+**Step 5 verification run (2026-03-03):**
+- `mix typecheck` -> PASS
 
 ### Task 3: Add `Content.finalize_media_upload/3` Lifecycle Transition And Processing Seam
 

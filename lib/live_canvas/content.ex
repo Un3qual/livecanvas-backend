@@ -75,6 +75,15 @@ defmodule LC.Content do
   @spec get_post!(pos_integer()) :: PostSchema.t()
   def get_post!(id) when is_integer(id), do: Repo.get!(PostSchema, id)
 
+  @doc """
+  Gets a media asset by ID when owned by the provided viewer.
+  """
+  @spec get_user_media_asset(User.t(), pos_integer()) :: MediaAssetSchema.t() | nil
+  def get_user_media_asset(%User{id: owner_id}, media_asset_id)
+      when is_integer(media_asset_id) and media_asset_id > 0 do
+    Repo.get_by(MediaAssetSchema, id: media_asset_id, owner_id: owner_id)
+  end
+
   @spec generate_storage_key(pos_integer(), map()) :: String.t()
   defp generate_storage_key(owner_id, attrs) do
     random_suffix = :crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)

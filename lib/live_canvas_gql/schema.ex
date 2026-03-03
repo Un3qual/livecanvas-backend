@@ -24,6 +24,7 @@ defmodule LCGQL.Schema do
         %{type: :user, id: id}, _resolution -> fetch_user_node(id)
         %{type: :user_identity, id: id}, _resolution -> fetch_user_identity_node(id)
         %{type: :post, id: id}, _resolution -> fetch_post_node(id)
+        %{type: :media_asset, id: id}, resolution -> fetch_media_asset_node(id, resolution)
         %{type: :live_session, id: id}, _resolution -> fetch_live_session_node(id)
         %{type: :contact_match, id: id}, resolution -> fetch_contact_match_node(id, resolution)
         _arguments, _resolution -> {:ok, nil}
@@ -52,6 +53,10 @@ defmodule LCGQL.Schema do
 
       %{kind: _kind, visibility: _visibility, author_id: _author_id}, _resolution ->
         :post
+
+      %{mime_type: _mime_type, processing_state: _processing_state, owner_id: _owner_id},
+      _resolution ->
+        :media_asset
 
       %{status: _status, visibility: _visibility, host_id: _host_id}, _resolution ->
         :live_session
@@ -93,6 +98,20 @@ defmodule LCGQL.Schema do
   rescue
     Ecto.NoResultsError -> {:ok, nil}
   end
+
+  # Media-asset nodes are viewer-scoped to avoid exposing object keys across
+  # accounts through globally refetchable IDs.
+  defp fetch_media_asset_node(id, %{context: %{current_scope: %{user: %{id: _id} = viewer}}}) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
+        {:ok, Content.get_user_media_asset(viewer, local_id)}
+
+      _ ->
+        {:ok, nil}
+    end
+  end
+
+  defp fetch_media_asset_node(_id, _resolution), do: {:ok, nil}
 
   defp fetch_live_session_node(id) do
     {:ok, Live.get_live_session!(id)}

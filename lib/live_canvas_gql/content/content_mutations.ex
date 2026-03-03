@@ -19,5 +19,19 @@ defmodule LCGQL.Content.Mutations do
 
       resolve(&Resolver.create_post/3)
     end
+
+    payload field :request_media_upload do
+      input do
+        field :mime_type, non_null(:string)
+      end
+
+      output do
+        field :media_asset, :media_asset
+        field :signed_upload, :signed_upload
+        field :errors, non_null(list_of(non_null(:content_error)))
+      end
+
+      resolve(&Resolver.request_media_upload/3)
+    end
   end
 end

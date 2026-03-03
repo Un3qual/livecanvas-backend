@@ -9,5 +9,11 @@ defmodule LCGQL.Content.Queries do
 
       resolve(&Resolver.post/3)
     end
+
+    field :media_asset, :media_asset do
+      arg(:id, non_null(:id))
+
+      resolve(&Resolver.media_asset/3)
+    end
   end
 end

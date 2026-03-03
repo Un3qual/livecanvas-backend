@@ -2,7 +2,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
   use LC.DataCase, async: true
 
   import LC.AccountsFixtures
-  alias LC.Accounts
+  alias LC.{Accounts, Content}
 
   describe "node" do
     test "refetches a user from a relay global id" do
@@ -124,6 +124,65 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                  variables: %{"id" => contact_match_id},
                  context: context
                )
+    end
+
+    test "refetches a viewer-owned media asset from a relay global id" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, %{media_asset: media_asset}} =
+               Content.request_media_upload(viewer, %{mime_type: "image/jpeg"})
+
+      media_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on MediaAsset {
+            mimeType
+            processingState
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^media_asset_id,
+                    "mimeType" => "image/jpeg",
+                    "processingState" => "PENDING_UPLOAD"
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => media_asset_id}, context: context)
+    end
+
+    test "returns null for media asset node lookups without owner scope" do
+      owner = user_fixture()
+      other_viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(other_viewer)}
+
+      assert {:ok, %{media_asset: media_asset}} =
+               Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+      media_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => media_asset_id})
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => media_asset_id}, context: context)
     end
   end
 end
