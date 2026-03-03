@@ -1,0 +1,195 @@
+# LiveCanvas Backend Release Readiness Roadmap (2026-03-03)
+
+## Snapshot
+
+- Scope audited: `ARCHITECTURE.md`, `docs/architecture/conventions.md`, all files in `docs/plans/**`, core `lib/**`, migrations, and tests.
+- Verification run on this snapshot:
+  - `mix compile` -> PASS
+  - `mix test` -> PASS (`240 tests, 0 failures`)
+  - `mix typecheck` -> PASS
+- Plan tracking state: every checklist-bearing plan file in `docs/plans/**` is currently fully checked.
+
+## What Has Been Delivered
+
+### Architecture And Conventions Baseline
+
+- Modular-monolith boundaries are in place (`LC`, `LCWeb`, `LCGQL`, `LCSchemas`, nested boundaries).
+- Core conventions are implemented and documented:
+  - SHA3 token hashing
+  - `:utc_datetime_usec` timestamps
+  - `bigint + entropy_id (uuidv7)` for relational tables
+  - UUIDv7 exception path for `users_tokens`
+  - Relay-first GraphQL shape for current surface
+  - typespec + Dialyzer rollout (`mix typecheck` in workflow)
+
+### Domain Slices Implemented
+
+- Accounts:
+  - normalized email/phone identity model
+  - token issuance/validation + contact matching/import + invite token context
+  - suspension moderation flag with cross-context enforcement
+- Social:
+  - follows, follow acceptance, blocks, mutes, relationship policy
+- Content:
+  - post + media metadata persistence surface (minimal, v1 slice)
+- Live:
+  - live session lifecycle, participant persistence, runtime session process
+  - participant leave reconciliation and restart rehydration
+- Chat:
+  - live-session chat authorization + persisted messages + channel broadcast
+- Feed:
+  - home feed and live-now read models with social/moderation filtering
+
+### GraphQL + Realtime
+
+- Relay node/global ID + connection pagination is in place for current nodes.
+- GraphQL accounts/social/content/feed slices are implemented.
+- WebSocket auth exists for channels via session token.
+
+## Where We Are Now
+
+The backend is in a strong "foundation complete / internal alpha" state, not yet in a "public release ready" state.
+
+Main reason: the current API surface proves domain behavior, but production-grade authz hardening, runtime scaling, and operations layers are not complete yet.
+
+## Explicitly Deferred (Still Out Of Scope For V1)
+
+Per architecture decisions, these remain intentionally deferred and should not block a v1 social/live release unless product scope changes:
+
+- billing/monetization
+- geo/location features
+- advanced profile customization/layout editing
+- 2FA (beyond current preparatory data model seams)
+
+## Detailed Plans Already Written
+
+### Architecture/Design Decision Records
+
+- `docs/plans/2026-03-01-backend-architecture-design.md`
+- `docs/plans/conventions/2026-03-02-conventions-alignment-design.md`
+- `docs/plans/2026-03-01-sasa-juric-alignment.md`
+
+### Implemented Foundations And Domain Slices
+
+- `docs/plans/2026-03-01-v1-backend-foundations.md`
+- `docs/plans/2026-03-02-v1-task-2-remaining-accounts-apis.md`
+- `docs/plans/2026-03-02-v1-task-3-graphql-accounts-apis.md`
+- `docs/plans/2026-03-02-v1-task-4-social-graph.md`
+- `docs/plans/2026-03-03-social-mutes-and-graph-controls.md`
+- `docs/plans/2026-03-03-feed-mute-visibility-alignment.md`
+- `docs/plans/2026-03-03-chat-mute-join-authorization.md`
+- `docs/plans/2026-03-03-live-session-participant-leave-reconciliation.md`
+- `docs/plans/2026-03-03-live-session-runtime-recovery.md`
+- `docs/plans/2026-03-03-cross-context-suspension-enforcement.md`
+- `docs/plans/2026-03-03-accounts-contact-matching-and-invites.md`
+- `docs/plans/2026-03-03-accounts-contact-graphql-write-slice.md`
+- plus supporting accounts slices from 2026-03-02.
+
+### Convention Migration Plans
+
+- `docs/plans/conventions/2026-03-02-id-and-entropy-id-migration.md`
+- `docs/plans/conventions/2026-03-02-lc-module-rename.md`
+- `docs/plans/conventions/2026-03-02-phone-otp-fake-sms-service.md`
+- `docs/plans/conventions/2026-03-02-relay-first-graphql-migration.md`
+- `docs/plans/conventions/2026-03-02-typespec-and-dialyzer-rollout.md`
+- `docs/plans/conventions/2026-03-03-context-map-typing-rollout.md`
+- `docs/plans/conventions/2026-03-03-relay-mutation-payload-cleanup.md`
+- `docs/plans/conventions/2026-03-03-social-relay-global-id-alignment.md`
+
+## Release Roadmap (From Current State To Releasable Backend)
+
+### Phase 0: Release Blocker Hardening (Must Do First)
+
+- Lock mutation actor identity to authenticated viewer scope (remove client-controlled actor IDs for sensitive writes).
+- Add strict authz checks for content/social/accounts writes.
+- Define API auth contract for mobile (`access + refresh` lifecycle, token rotation/revocation, failure semantics).
+- Restrict non-production GraphiQL exposure.
+- Add rate limiting and abuse throttles for auth + mutation + channel joins.
+
+Mobile parallel start now:
+- Can build app shell, navigation, design system, GraphQL client infrastructure, local persistence, and offline cache strategy.
+- Can build read-only screens against existing query contracts (`viewer`, `homeFeed`, `liveNow`, `post`) with mock/fallback mode.
+- Should not ship production auth or write flows until this phase lands.
+
+### Phase 1: Authentication And Identity Production Slice
+
+- Finalize supported login methods for v1 launch (email/password + magic link vs additional providers).
+- Implement mobile-first auth endpoints/flows (not only web form/session flows).
+- Decide and implement provider rollout (Google/Apple/passkey either fully ship or explicitly defer behind flags with no client promise).
+- Add audit events for login/token lifecycle/security events.
+
+Mobile parallel:
+- Start real login/signup/password-reset screens once auth contract is frozen.
+- Implement token refresh/expiry UX immediately after backend token semantics are finalized.
+
+### Phase 2: API Contract Stabilization For Social/Content/Feed
+
+- Freeze external API contract (fields, enums, error codes, pagination guarantees).
+- Move write APIs to viewer-scoped behavior by default.
+- Add missing content lifecycle operations needed for launch UX (for example edit/delete/report paths if required by product).
+- Publish a backend-client contract doc for mobile consumption.
+
+Mobile parallel:
+- Full feed and social feature integration can run in parallel once this contract is locked.
+- QA automation for GraphQL regression can begin at this phase.
+
+### Phase 3: Live/Chat Runtime Productionization
+
+- Define distributed live session runtime ownership strategy across pods (current runtime uses local registry/dynamic supervisor only).
+- Add reconnect/rejoin consistency guarantees and conflict resolution rules.
+- Add operational limits for chat throughput and moderation actions.
+- Decide retention policy for chat/live participation records.
+
+Mobile parallel:
+- Start full live room and chat UX integration after runtime ownership and reconnect semantics are defined.
+- Load/latency tuning for mobile live UX starts here.
+
+### Phase 4: Media, Storage, And External Integration
+
+- Implement object storage upload/serving pipeline and media processing states end-to-end.
+- Add webhook and callback surfaces that architecture marks as REST use cases.
+- Add background job strategy for retries/idempotent async work.
+
+Mobile parallel:
+- Media upload flow (capture -> upload -> processing -> publish) can be integrated once signed-upload and processing APIs are stable.
+
+### Phase 5: Operations And Launch Readiness
+
+- Production observability: metrics, tracing/log correlation, actionable dashboards/alerts.
+- Reliability runbooks: incident handling, rollback, migration safety, backup/restore drills.
+- Performance and capacity verification (feed query load, channel fanout, live-session concurrency).
+- Release checklist and staged rollout plan (internal dogfood -> beta -> GA).
+
+Mobile parallel:
+- Beta hardening, crash/error analytics, release-candidate testing, and app-store launch prep.
+
+## Planning Holes (Missing Or Underspecified Right Now)
+
+The following are material gaps where no sufficiently detailed executable plan exists yet in `docs/plans/`:
+
+- Authz hardening plan for actor-scoped GraphQL writes.
+- Mobile-first auth/session contract plan (token transport, refresh, revocation, expiry policy).
+- Rate-limit/abuse defense plan.
+- REST webhook + background-job design/implementation plan.
+- Distributed live runtime ownership plan for multi-pod deployments.
+- Media storage/processing delivery plan.
+- Observability/SLO/alert/runbook plan.
+- Release engineering plan (migrations at scale, rollback strategy, deployment gates).
+- Compliance/data-governance plan (retention/deletion/export policy).
+
+## Evidence Notes On Key Blockers
+
+- Several GraphQL mutations currently accept client-supplied actor IDs instead of binding to authenticated scope (`lib/live_canvas_gql/social/social_resolver.ex`, `lib/live_canvas_gql/content/content_resolver.ex`, `lib/live_canvas_gql/accounts/account_resolver.ex`).
+- Current integration coverage also demonstrates client-selected actor IDs for writes (`test/integration/accounts_login_flow_test.exs` uses follower-selected `authorId` for `createPost`).
+- GraphQL request context currently reads session token from Plug session/cookie (`lib/live_canvas_gql/context.ex`), but release mobile flows need explicit token transport semantics.
+- GraphiQL route is currently always forwarded (`lib/live_canvas_gql/router.ex`).
+- Live runtime session ownership is node-local (`lib/live_canvas/live/session_supervisor.ex`), which needs an explicit multi-node ownership strategy before high-scale release.
+
+## Suggested Next Plan Files To Create
+
+- `docs/plans/2026-03-03-release-authn-authz-hardening.md`
+- `docs/plans/2026-03-03-mobile-auth-token-contract.md`
+- `docs/plans/2026-03-03-live-runtime-distributed-ownership.md`
+- `docs/plans/2026-03-03-media-storage-and-processing.md`
+- `docs/plans/2026-03-03-observability-and-launch-ops.md`
+- `docs/plans/2026-03-03-webhooks-and-async-jobs.md`
