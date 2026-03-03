@@ -5,10 +5,10 @@
 - Scope audited: `ARCHITECTURE.md`, `docs/architecture/conventions.md`, all files in `docs/plans/**`, core `lib/**`, migrations, and tests.
 - Verification run on this snapshot:
   - `mix compile` -> PASS
-  - `mix test` -> PASS (`288 tests, 0 failures`)
+  - `mix test` -> PASS (`304 tests, 0 failures`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
-- Plan tracking state: all previously active plans are complete; next open plan is `docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`.
+- Plan tracking state: release-track plans are complete through the distributed live runtime ownership baseline (`docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`).
 
 ## What Has Been Delivered
 
@@ -140,7 +140,8 @@ Mobile parallel:
 
 ### Phase 3: Live/Chat Runtime Productionization
 
-- Define distributed live session runtime ownership strategy across pods (current runtime uses local registry/dynamic supervisor only).
+- Distributed live runtime ownership baseline is now delivered (lease table + remote-owner join routing + channel-safe client error mapping).
+- Extend the baseline with heartbeat/lease-refresh strategy, multi-node failover drills, and reconnect consistency under partition/rejoin scenarios.
 - Add reconnect/rejoin consistency guarantees and conflict resolution rules.
 - Add operational limits for chat throughput and moderation actions.
 - Decide retention policy for chat/live participation records.
@@ -181,7 +182,7 @@ The following are material gaps where no sufficiently detailed executable plan e
 ## Evidence Notes On Key Blockers
 
 - Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, and credential change emissions in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`.
-- Live runtime session ownership is node-local (`lib/live_canvas/live/session_supervisor.ex`), which needs an explicit multi-node ownership strategy before high-scale release.
+- Live runtime ownership now uses durable leases plus remote-owner routing (`lib/live_canvas/live/session_ownership.ex`, `lib/live_canvas/live/runtime_rpc.ex`, `lib/live_canvas/live/session_supervisor.ex`) with channel-facing `session_unavailable` normalization for remote runtime failures.
 
 ## Suggested Next Plan Files To Create
 

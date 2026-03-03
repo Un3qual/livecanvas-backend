@@ -130,21 +130,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     session = live_session_fixture(host.id)
     remote_owner = "remote-owner@127.0.0.1"
 
-    previous_live_config = Application.get_env(:live_canvas, Live, [])
-    previous_fake_rpc_config = Application.get_env(:live_canvas, FakeRuntimeRPC, [])
-
-    Application.put_env(
-      :live_canvas,
-      Live,
-      Keyword.put(previous_live_config, :runtime_rpc, FakeRuntimeRPC)
-    )
-
-    Application.put_env(:live_canvas, FakeRuntimeRPC, mode: :remote_not_found)
-
-    on_exit(fn ->
-      Application.put_env(:live_canvas, Live, previous_live_config)
-      Application.put_env(:live_canvas, FakeRuntimeRPC, previous_fake_rpc_config)
-    end)
+    :ok = configure_live_runtime_rpc(:remote_not_found)
 
     assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
 
@@ -159,6 +145,34 @@ defmodule LCWeb.LiveSessionChannelTest do
                     %{
                       result: :error,
                       reason: :remote_not_found,
+                      session_id: session_id,
+                      user_id: user_id
+                    }}
+
+    assert session_id == session.id
+    assert user_id == viewer.id
+  end
+
+  test "remote runtime timeout returns session_unavailable and preserves telemetry reason" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    session = live_session_fixture(host.id)
+    remote_owner = "remote-owner@127.0.0.1"
+
+    :ok = configure_live_runtime_rpc(:remote_timeout)
+    assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+
+    assert {:error, %{reason: "session_unavailable"}} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
+                    %{
+                      result: :error,
+                      reason: :remote_timeout,
                       session_id: session_id,
                       user_id: user_id
                     }}
@@ -286,6 +300,26 @@ defmodule LCWeb.LiveSessionChannelTest do
 
   defp socket_for(user) do
     socket(UserSocket, "user_socket:#{user.id}", %{current_user: user})
+  end
+
+  defp configure_live_runtime_rpc(mode) when is_atom(mode) do
+    previous_live_config = Application.get_env(:live_canvas, Live, [])
+    previous_fake_rpc_config = Application.get_env(:live_canvas, FakeRuntimeRPC, [])
+
+    Application.put_env(
+      :live_canvas,
+      Live,
+      Keyword.put(previous_live_config, :runtime_rpc, FakeRuntimeRPC)
+    )
+
+    Application.put_env(:live_canvas, FakeRuntimeRPC, mode: mode)
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, Live, previous_live_config)
+      Application.put_env(:live_canvas, FakeRuntimeRPC, previous_fake_rpc_config)
+    end)
+
+    :ok
   end
 
   defp live_session_fixture(host_id) when is_integer(host_id) do

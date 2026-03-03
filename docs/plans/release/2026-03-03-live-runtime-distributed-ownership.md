@@ -29,7 +29,7 @@ Verified directly in `lib/`, `test/`, and migrations before writing this plan:
 - [x] Task 2: Integrate lease-aware local ownership into `SessionSupervisor` and `LC.Live`
 - [x] Task 3: Add remote-owner routing adapter and boundary-level join/lookup semantics
 - [x] Task 4: Expose deterministic channel behavior for remote-owned sessions
-- [ ] Task 5: Run full verification and update release roadmap notes
+- [x] Task 5: Run full verification and update release roadmap notes
 
 ### Task 1: Add Durable Runtime Ownership Lease Primitives
 
@@ -182,9 +182,9 @@ git commit -m "feat: add live runtime ownership lease primitives"
 - Modify: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 
 **Task 5 Step Progress:**
-- [ ] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 2: Update roadmap notes for delivered distributed runtime ownership baseline
-- [ ] Step 3: Mark tasks complete and commit final milestone
+- [x] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Update roadmap notes for delivered distributed runtime ownership baseline
+- [x] Step 3: Mark tasks complete and commit final milestone
 
 **Step 1 command set:**
 
