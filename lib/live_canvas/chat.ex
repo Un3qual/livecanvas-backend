@@ -28,15 +28,21 @@ defmodule LC.Chat do
   def authorize_join(%User{} = viewer, %LiveSession{host_id: host_id, visibility: visibility})
       when visibility in [:followers, :public] do
     with %User{} = host <- Repo.get(User, host_id) do
-      relationship_state = Social.relationship_state(viewer, host)
+      # Mute checks are directional: a viewer muting the host prevents joining
+      # that host's chat even when the session is otherwise visible.
+      if Social.muted?(viewer, host) do
+        {:error, :not_authorized}
+      else
+        relationship_state = Social.relationship_state(viewer, host)
 
-      # Session visibility is evaluated after block policy so public sessions
-      # cannot bypass an explicit block.
-      case {visibility, relationship_state} do
-        {_visibility, :blocked} -> {:error, :not_authorized}
-        {:public, _state} -> :ok
-        {:followers, :accepted} -> :ok
-        _other -> {:error, :not_authorized}
+        # Session visibility is evaluated after block policy so public sessions
+        # cannot bypass an explicit block.
+        case {visibility, relationship_state} do
+          {_visibility, :blocked} -> {:error, :not_authorized}
+          {:public, _state} -> :ok
+          {:followers, :accepted} -> :ok
+          _other -> {:error, :not_authorized}
+        end
       end
     else
       nil -> {:error, :not_authorized}

@@ -3,6 +3,7 @@ defmodule LCWeb.LiveSessionChannelTest do
   import Phoenix.ChannelTest
 
   import LC.AccountsFixtures
+  import LC.SocialFixtures
 
   alias LC.Infra.Repo
   alias LC.Live
@@ -41,6 +42,20 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert_reply ref, :ok, %{message: %{body: "hello", id: message_id}}
     assert_broadcast "chat:message", %{message: %{body: "hello", id: ^message_id}}
     assert %ChatMessage{id: ^message_id, body: "hello"} = Repo.get!(ChatMessage, message_id)
+  end
+
+  test "viewer who muted host cannot join a live session topic" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    _mute = mute_fixture(viewer, host)
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:error, %{reason: "not_authorized"}} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
   end
 
   defp socket_for(user) do

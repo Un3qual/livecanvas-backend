@@ -16,6 +16,24 @@ defmodule LC.ChatTest do
 
       assert :ok = Chat.authorize_join(viewer, session)
     end
+
+    test "denies join when viewer has muted the host" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      _mute = mute_fixture(viewer, host)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:error, :not_authorized} = Chat.authorize_join(viewer, session)
+    end
+
+    test "allows join when host has muted the viewer" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      _mute = mute_fixture(host, viewer)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert :ok = Chat.authorize_join(viewer, session)
+    end
   end
 
   describe "create_message/3" do
