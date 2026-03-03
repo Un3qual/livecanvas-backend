@@ -31,4 +31,8 @@ defmodule LCSchemas.Accounts do
           | :refresh_token_revoked
           | :refresh_token_rotation_succeeded
           | :refresh_token_rotation_failed
+          | :password_change_succeeded
+          | :password_change_failed
+          | :email_change_succeeded
+          | :email_change_failed
 end

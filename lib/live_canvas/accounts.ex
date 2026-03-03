@@ -358,27 +358,48 @@ defmodule LC.Accounts do
   def update_user_email(user, serialized_value) do
     current_email = current_email_for_user(user.id)
 
-    Repo.transact(fn ->
-      with true <- current_email == user.email || {:error, :transaction_aborted},
-           {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
-           {persisted_user, user_token, persisted_email} <- Repo.one(query),
-           true <- persisted_user.id == user.id || {:error, :transaction_aborted},
-           true <- persisted_email == current_email || {:error, :transaction_aborted},
-           true <-
-             Tokens.valid_change_email_token?(user_token, raw_secret) ||
-               {:error, :transaction_aborted},
-           {:ok, updated_user} <- replace_primary_email(persisted_user, user_token.sent_to),
-           {_count, _result} <-
-             Repo.delete_all(
-               from(token in UserToken,
-                 where: token.user_id == ^user.id and token.context == ^:email_verification_token
-               )
-             ) do
-        {:ok, updated_user}
-      else
-        _ -> {:error, :transaction_aborted}
-      end
-    end)
+    result =
+      Repo.transact(fn ->
+        with true <- current_email == user.email || {:error, :transaction_aborted},
+             {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+             {persisted_user, user_token, persisted_email} <- Repo.one(query),
+             true <- persisted_user.id == user.id || {:error, :transaction_aborted},
+             true <- persisted_email == current_email || {:error, :transaction_aborted},
+             true <-
+               Tokens.valid_change_email_token?(user_token, raw_secret) ||
+                 {:error, :transaction_aborted},
+             {:ok, updated_user} <- replace_primary_email(persisted_user, user_token.sent_to),
+             {_count, _result} <-
+               Repo.delete_all(
+                 from(token in UserToken,
+                   where:
+                     token.user_id == ^user.id and token.context == ^:email_verification_token
+                 )
+               ) do
+          {:ok, updated_user}
+        else
+          _ -> {:error, :transaction_aborted}
+        end
+      end)
+
+    case result do
+      {:ok, %User{id: user_id}} ->
+        emit_auth_event(:email_change_succeeded,
+          user_id: user_id,
+          metadata: %{"method" => "email_verification_token"}
+        )
+
+      {:error, :transaction_aborted} ->
+        emit_auth_event(:email_change_failed,
+          user_id: user.id,
+          metadata: %{"reason" => "transaction_aborted"}
+        )
+
+      _ ->
+        :ok
+    end
+
+    result
   end
 
   @doc """
@@ -394,9 +415,29 @@ defmodule LC.Accounts do
   """
   @spec update_user_password(User.t(), password_change_attrs()) :: user_with_tokens_result()
   def update_user_password(user, attrs) do
-    user
-    |> UserChanges.password_changeset(attrs)
-    |> update_user_and_delete_all_tokens()
+    result =
+      user
+      |> UserChanges.password_changeset(attrs)
+      |> update_user_and_delete_all_tokens()
+
+    case result do
+      {:ok, {%User{id: user_id}, _expired_tokens}} ->
+        emit_auth_event(:password_change_succeeded,
+          user_id: user_id,
+          metadata: %{"method" => "password"}
+        )
+
+      {:error, %Ecto.Changeset{}} ->
+        emit_auth_event(:password_change_failed,
+          user_id: user.id,
+          metadata: %{"reason" => "validation_failed"}
+        )
+
+      _ ->
+        :ok
+    end
+
+    result
   end
 
   @doc """

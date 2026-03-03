@@ -24,7 +24,7 @@ Verified directly in `lib/`, `test/`, and `priv/repo/migrations` before selectin
 ## Progress
 
 - [x] Task 1: Add refresh-token rotation audit events and focused coverage
-- [ ] Task 2: Add credential-change audit events for password/email lifecycle paths
+- [x] Task 2: Add credential-change audit events for password/email lifecycle paths
 - [ ] Task 3: Run verification, update release roadmap notes, and commit final milestone
 
 ### Task 1: Add Refresh-Token Rotation Audit Events
@@ -112,6 +112,7 @@ git commit -m "feat: audit refresh token rotation outcomes"
 ### Task 2: Add Credential-Change Auth Audit Events
 
 **Files:**
+- Create: `priv/repo/migrations/20260303220000_expand_auth_event_type_for_credential_events.exs`
 - Modify: `lib/live_canvas_schemas/accounts/auth_event_type.ex`
 - Modify: `lib/live_canvas_schemas/accounts.ex`
 - Modify: `lib/live_canvas/accounts.ex`
@@ -120,11 +121,11 @@ git commit -m "feat: audit refresh token rotation outcomes"
 - Modify: `docs/plans/release/2026-03-03-auth-audit-expansion.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing tests for password-change and email-change audit emissions
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement audit emissions in credential lifecycle paths
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run compile/typecheck, update checklist, and commit milestone
+- [x] Step 1: Add failing tests for password-change and email-change audit emissions
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement audit emissions in credential lifecycle paths
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run compile/typecheck, update checklist, and commit milestone
 
 ### Task 3: Final Verification And Release Tracking
 

@@ -156,6 +156,60 @@ defmodule LC.Accounts.AuthEventTest do
 
       assert metadata["reason"] == "invalid_token"
     end
+
+    test "emits password-change success and failure events" do
+      user = user_fixture()
+
+      assert {:ok, {_updated_user, _expired_tokens}} =
+               Accounts.update_user_password(user, %{password: "new valid password"})
+
+      assert [:password_change_succeeded] =
+               user
+               |> Accounts.list_user_auth_events(limit: 10)
+               |> Enum.filter(&(&1.event_type == :password_change_succeeded))
+               |> Enum.map(& &1.event_type)
+
+      assert {:error, _changeset} =
+               Accounts.update_user_password(user, %{
+                 password: "too short",
+                 password_confirmation: "mismatch"
+               })
+
+      assert %AuthEvent{event_type: :password_change_failed, metadata: metadata} =
+               latest_user_event(user)
+
+      assert metadata["reason"] == "validation_failed"
+      refute Enum.any?(Map.values(metadata), &(&1 == "too short"))
+    end
+
+    test "emits email-change success and failure events" do
+      user = unconfirmed_user_fixture()
+      new_email = unique_user_email()
+
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_update_email_instructions(
+            %{user | email: new_email},
+            user.email,
+            url
+          )
+        end)
+
+      assert {:ok, %{email: ^new_email}} = Accounts.update_user_email(user, token)
+
+      assert [:email_change_succeeded] =
+               user
+               |> Accounts.list_user_auth_events(limit: 10)
+               |> Enum.filter(&(&1.event_type == :email_change_succeeded))
+               |> Enum.map(& &1.event_type)
+
+      assert {:error, :transaction_aborted} = Accounts.update_user_email(user, "bad-token")
+
+      assert %AuthEvent{event_type: :email_change_failed, metadata: metadata} =
+               latest_user_event(user)
+
+      assert metadata["reason"] == "transaction_aborted"
+    end
   end
 
   defp latest_user_event_type(user), do: latest_user_event(user).event_type
