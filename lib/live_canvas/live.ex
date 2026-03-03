@@ -92,6 +92,20 @@ defmodule LC.Live do
   end
 
   @doc """
+  Gets a live session by ID.
+  """
+  @spec get_live_session(pos_integer()) :: LiveSession.t() | nil
+  def get_live_session(session_id) when is_integer(session_id),
+    do: Repo.get(LiveSession, session_id)
+
+  @doc """
+  Gets a live session by ID and raises when it does not exist.
+  """
+  @spec get_live_session!(pos_integer()) :: LiveSession.t()
+  def get_live_session!(session_id) when is_integer(session_id),
+    do: Repo.get!(LiveSession, session_id)
+
+  @doc """
   Fetches a session that can still accept channel joins.
   """
   @spec fetch_joinable_session(pos_integer()) :: fetch_joinable_session_result()

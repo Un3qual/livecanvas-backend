@@ -4,7 +4,7 @@ defmodule LCGQL.Schema do
   use Absinthe.Relay.Schema,
     flavor: :modern
 
-  alias LC.{Accounts, Content}
+  alias LC.{Accounts, Content, Live}
 
   # global_id_translator: SmokespotsGraphQL.IDTranslator
   import_types(Absinthe.Plug.Types)
@@ -12,6 +12,8 @@ defmodule LCGQL.Schema do
   import_types(LCGQL.Accounts.Types)
   import_types(LCGQL.Content.Queries)
   import_types(LCGQL.Content.Types)
+  import_types(LCGQL.Feed.Queries)
+  import_types(LCGQL.Feed.Types)
   import_types(LCGQL.Social.Queries)
   import_types(LCGQL.Social.Types)
   # import_types LCGQL.Chat.Types
@@ -22,12 +24,14 @@ defmodule LCGQL.Schema do
         %{type: :user, id: id}, _resolution -> fetch_user_node(id)
         %{type: :user_identity, id: id}, _resolution -> fetch_user_identity_node(id)
         %{type: :post, id: id}, _resolution -> fetch_post_node(id)
+        %{type: :live_session, id: id}, _resolution -> fetch_live_session_node(id)
         _arguments, _resolution -> {:ok, nil}
       end)
     end
 
     import_fields(:account_queries)
     import_fields(:content_queries)
+    import_fields(:feed_queries)
     import_fields(:social_queries)
 
     # field :convo_lookup, non_null(:conversation) do
@@ -47,6 +51,9 @@ defmodule LCGQL.Schema do
 
       %{kind: _kind, visibility: _visibility, author_id: _author_id}, _resolution ->
         :post
+
+      %{status: _status, visibility: _visibility, host_id: _host_id}, _resolution ->
+        :live_session
 
       _, _ ->
         nil
@@ -78,6 +85,12 @@ defmodule LCGQL.Schema do
 
   defp fetch_post_node(id) do
     {:ok, Content.get_post!(id)}
+  rescue
+    Ecto.NoResultsError -> {:ok, nil}
+  end
+
+  defp fetch_live_session_node(id) do
+    {:ok, Live.get_live_session!(id)}
   rescue
     Ecto.NoResultsError -> {:ok, nil}
   end

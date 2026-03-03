@@ -46,7 +46,7 @@ batch.
 - [x] Task 5: Add The `Content` Context For Posts And Media Metadata
 - [x] Task 6: Add The `Live` Context, Session Supervisor, And Presence Contract
 - [x] Task 7: Add The `Chat` Context And Live Channel Topics
-- [ ] Task 8: Add The `Feed` Context And GraphQL Read Models
+- [x] Task 8: Add The `Feed` Context And GraphQL Read Models
 - [ ] Task 9: Wire End-To-End Auth, Realtime, And API Regression Coverage
 - [ ] Task 10: Prepare The Membrane Integration Seam Without Full Media Complexity
 
@@ -846,6 +846,13 @@ git commit -m "feat: add live chat channels"
 Before writing the effectful implementation, add or update a pure internal rule module for the decision-making part of this behavior, then have the boundary module coordinate persistence and external side effects.
 
 Declare or update the root context module as a `boundary` boundary with explicit `deps` and `exports` before adding new internal modules.
+
+**Task 8 Step Progress**
+- [x] Step 1: Write the failing feed tests
+- [x] Step 2: Run tests to verify they fail
+- [x] Step 3: Write the minimal `Feed` slice
+- [x] Step 4: Run tests to verify they pass
+- [x] Step 5: Commit
 
 **Files:**
 - Create: `lib/live_canvas/feed.ex`
