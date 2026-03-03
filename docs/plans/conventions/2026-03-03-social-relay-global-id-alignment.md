@@ -13,7 +13,7 @@
 ## Progress Checklist
 
 - [x] Task 1: Enforce Relay global ID decoding for Social query and mutation inputs.
-- [ ] Task 2: Convert Social mutations to explicit Relay payload fields with structured errors.
+- [x] Task 2: Convert Social mutations to explicit Relay payload fields with structured errors.
 - [ ] Task 3: Add Relay-native Social node/connection surfaces where product requirements need list pagination.
 - [ ] Task 4: Run full GraphQL verification and close the conventions progress item.
 

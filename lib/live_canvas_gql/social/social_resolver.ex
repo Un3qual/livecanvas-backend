@@ -3,90 +3,128 @@ defmodule LCGQL.Social.Resolver do
   alias LCGQL.Relay
   alias LCSchemas.Accounts.User
 
+  @type fetch_user_error :: :invalid_id | :invalid_type | :not_found
   @type resolver_error ::
-          :blocked | :invalid_id | :invalid_type | :not_allowed | :not_found | Ecto.Changeset.t()
+          :blocked | :not_allowed | fetch_user_error() | Ecto.Changeset.t()
   @type follow_payload :: %{id: integer(), state: :accepted | :requested}
+  @type social_error_payload :: %{field: String.t() | nil, message: String.t()}
+  @type follow_result_payload :: %{
+          follow: follow_payload() | nil,
+          errors: [social_error_payload()]
+        }
+  @type block_result_payload :: %{successful: boolean(), errors: [social_error_payload()]}
 
-  @spec follow_user(any(), %{input: %{follower_id: term(), followed_id: term()}}, any()) ::
-          {:ok, follow_payload()} | {:error, resolver_error()}
-  def follow_user(
-        _parent,
-        %{input: %{follower_id: follower_id, followed_id: followed_id}},
-        _resolution
-      ) do
-    with {:ok, follower} <- fetch_user(follower_id),
-         {:ok, followed} <- fetch_user(followed_id),
+  @spec follow_user(any(), %{follower_id: term(), followed_id: term()}, any()) ::
+          {:ok, follow_result_payload()}
+  def follow_user(_parent, %{follower_id: follower_id, followed_id: followed_id}, _resolution) do
+    with {:ok, follower} <- fetch_user(follower_id, :follower_id),
+         {:ok, followed} <- fetch_user(followed_id, :followed_id),
          {:ok, follow} <- Social.follow_user(follower, followed) do
-      {:ok, follow_payload(follow)}
+      {:ok, %{follow: follow_payload(follow), errors: []}}
+    else
+      {:error, {field, reason}} ->
+        {:ok, %{follow: nil, errors: [social_error(field, reason)]}}
+
+      {:error, reason} ->
+        {:ok, %{follow: nil, errors: [social_error(nil, reason)]}}
     end
   end
 
   @spec accept_follow_request(
           any(),
-          %{input: %{follower_id: term(), followed_id: term(), acting_user_id: term()}},
+          %{follower_id: term(), followed_id: term(), acting_user_id: term()},
           any()
         ) ::
-          {:ok, follow_payload()} | {:error, resolver_error()}
+          {:ok, follow_result_payload()}
   def accept_follow_request(
         _parent,
         %{
-          input: %{
-            follower_id: follower_id,
-            followed_id: followed_id,
-            acting_user_id: acting_user_id
-          }
+          follower_id: follower_id,
+          followed_id: followed_id,
+          acting_user_id: acting_user_id
         },
         _resolution
       ) do
-    with {:ok, follower} <- fetch_user(follower_id),
-         {:ok, followed} <- fetch_user(followed_id),
-         {:ok, acting_user} <- fetch_user(acting_user_id),
+    with {:ok, follower} <- fetch_user(follower_id, :follower_id),
+         {:ok, followed} <- fetch_user(followed_id, :followed_id),
+         {:ok, acting_user} <- fetch_user(acting_user_id, :acting_user_id),
          {:ok, follow} <- Social.follow_user(follower, followed),
          {:ok, accepted_follow} <- Social.accept_follow_request(follow, acting_user) do
-      {:ok, follow_payload(accepted_follow)}
+      {:ok, %{follow: follow_payload(accepted_follow), errors: []}}
+    else
+      {:error, {field, reason}} ->
+        {:ok, %{follow: nil, errors: [social_error(field, reason)]}}
+
+      {:error, reason} ->
+        {:ok, %{follow: nil, errors: [social_error(nil, reason)]}}
     end
   end
 
-  @spec block_user(any(), %{input: %{blocker_id: term(), blocked_id: term()}}, any()) ::
-          {:ok, %{successful: boolean()}}
-  def block_user(
-        _parent,
-        %{input: %{blocker_id: blocker_id, blocked_id: blocked_id}},
-        _resolution
-      ) do
-    with {:ok, blocker} <- fetch_user(blocker_id),
-         {:ok, blocked} <- fetch_user(blocked_id),
+  @spec block_user(any(), %{blocker_id: term(), blocked_id: term()}, any()) ::
+          {:ok, block_result_payload()}
+  def block_user(_parent, %{blocker_id: blocker_id, blocked_id: blocked_id}, _resolution) do
+    with {:ok, blocker} <- fetch_user(blocker_id, :blocker_id),
+         {:ok, blocked} <- fetch_user(blocked_id, :blocked_id),
          {:ok, _block} <- Social.block_user(blocker, blocked) do
-      {:ok, %{successful: true}}
+      {:ok, %{successful: true, errors: []}}
     else
-      _ -> {:ok, %{successful: false}}
+      {:error, {field, reason}} ->
+        {:ok, %{successful: false, errors: [social_error(field, reason)]}}
+
+      {:error, reason} ->
+        {:ok, %{successful: false, errors: [social_error(nil, reason)]}}
     end
   end
 
   @spec relationship_state(any(), %{viewer_id: term(), creator_id: term()}, any()) ::
           {:ok, Social.relationship_state()}
   def relationship_state(_parent, %{viewer_id: viewer_id, creator_id: creator_id}, _resolution) do
-    with {:ok, viewer} <- fetch_user(viewer_id),
-         {:ok, creator} <- fetch_user(creator_id) do
+    with {:ok, viewer} <- fetch_user(viewer_id, :viewer_id),
+         {:ok, creator} <- fetch_user(creator_id, :creator_id) do
       {:ok, Social.relationship_state(viewer, creator)}
     else
       _ -> {:ok, :none}
     end
   end
 
-  @spec fetch_user(term()) :: {:ok, User.t()} | {:error, :invalid_id | :invalid_type | :not_found}
-  defp fetch_user(user_id) do
+  @spec fetch_user(term(), atom()) :: {:ok, User.t()} | {:error, {atom(), fetch_user_error()}}
+  defp fetch_user(user_id, field) do
     with {:ok, id} <- Relay.decode_global_id(user_id, :user, LCGQL.Schema) do
       try do
         {:ok, Accounts.get_user!(id)}
       rescue
-        Ecto.NoResultsError -> {:error, :not_found}
+        Ecto.NoResultsError -> {:error, {field, :not_found}}
       end
+    else
+      {:error, reason} -> {:error, {field, reason}}
     end
   end
 
-  @spec follow_payload(struct()) :: %{id: integer(), state: atom()}
+  @spec follow_payload(struct()) :: follow_payload()
   defp follow_payload(follow) do
     %{id: follow.id, state: follow.state}
   end
+
+  @spec social_error(atom() | nil, resolver_error()) :: social_error_payload()
+  defp social_error(field, reason) do
+    %{
+      field: format_field(field),
+      message: format_error_message(reason)
+    }
+  end
+
+  @spec format_field(atom() | nil) :: String.t() | nil
+  defp format_field(nil), do: nil
+  defp format_field(:acting_user_id), do: "actingUserId"
+  defp format_field(:blocked_id), do: "blockedId"
+  defp format_field(:blocker_id), do: "blockerId"
+  defp format_field(:creator_id), do: "creatorId"
+  defp format_field(:followed_id), do: "followedId"
+  defp format_field(:follower_id), do: "followerId"
+  defp format_field(:viewer_id), do: "viewerId"
+  defp format_field(field), do: Atom.to_string(field)
+
+  @spec format_error_message(resolver_error()) :: String.t()
+  defp format_error_message(%Ecto.Changeset{}), do: "validation_failed"
+  defp format_error_message(reason) when is_atom(reason), do: Atom.to_string(reason)
 end

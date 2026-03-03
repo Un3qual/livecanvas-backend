@@ -19,19 +19,8 @@ defmodule LCGQL.Social.Types do
     field :state, non_null(:follow_state)
   end
 
-  input_object :follow_user_input do
-    field :follower_id, non_null(:id)
-    field :followed_id, non_null(:id)
-  end
-
-  input_object :accept_follow_request_input do
-    field :follower_id, non_null(:id)
-    field :followed_id, non_null(:id)
-    field :acting_user_id, non_null(:id)
-  end
-
-  input_object :block_user_input do
-    field :blocker_id, non_null(:id)
-    field :blocked_id, non_null(:id)
+  object :social_error do
+    field :field, :string
+    field :message, non_null(:string)
   end
 end
