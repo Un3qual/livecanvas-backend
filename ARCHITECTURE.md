@@ -8,6 +8,14 @@ application as of 2026-03-01.
 It describes the v1 backend boundaries and the intended extension points for
 later phases. It is intentionally scoped to the backend only.
 
+### Current Execution Note (2026-03-02)
+
+- Keep the existing `Content` implementation as-is.
+- Defer any new `Content` scope until it is required to unblock forward progress
+  in active work.
+- Unless a task is explicitly blocked without `Content`, prioritize `Accounts`,
+  `Social`, `Live`, `Chat`, and `Feed` work first.
+
 ## V1 Scope
 
 V1 focuses on:
