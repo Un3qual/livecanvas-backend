@@ -1,12 +1,12 @@
 defmodule LCGQL.Accounts.Resolver do
   alias LC.Accounts
+  alias LCGQL.Relay
   alias LCSchemas.Accounts.User
 
   @type mutation_payload :: %{successful: boolean()}
   @type mutation_result :: {:ok, mutation_payload()}
-  @type user_lookup_error :: :invalid_id | :not_found
+  @type user_lookup_error :: :invalid_id | :invalid_type | :not_found
   @type user_lookup_result :: {:ok, User.t()} | {:error, user_lookup_error()}
-  @type id_result :: {:ok, pos_integer()} | {:error, :invalid_id}
 
   @spec register_with_email(term(), %{input: %{email: String.t()}}, term()) :: mutation_result()
   def register_with_email(_parent, %{input: %{email: email}}, _resolution) do
@@ -51,7 +51,7 @@ defmodule LCGQL.Accounts.Resolver do
 
   @spec fetch_user(term()) :: user_lookup_result()
   defp fetch_user(user_id) do
-    with {:ok, id} <- parse_id(user_id) do
+    with {:ok, id} <- Relay.decode_global_id(user_id, :user, LCGQL.Schema) do
       try do
         {:ok, Accounts.get_user!(id)}
       rescue
@@ -59,16 +59,4 @@ defmodule LCGQL.Accounts.Resolver do
       end
     end
   end
-
-  @spec parse_id(term()) :: id_result()
-  defp parse_id(user_id) when is_integer(user_id) and user_id > 0, do: {:ok, user_id}
-
-  defp parse_id(user_id) when is_binary(user_id) do
-    case Integer.parse(user_id) do
-      {id, ""} when id > 0 -> {:ok, id}
-      _ -> {:error, :invalid_id}
-    end
-  end
-
-  defp parse_id(_user_id), do: {:error, :invalid_id}
 end

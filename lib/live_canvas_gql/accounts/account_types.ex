@@ -32,7 +32,7 @@ defmodule LCGQL.Accounts.Types do
     field :inserted_at, non_null(:string)
   end
 
-  node object(:token) do
+  object :token do
     field :serialized_value, non_null(:string)
     field :token_version, non_null(:integer)
     field :expires_at, :string

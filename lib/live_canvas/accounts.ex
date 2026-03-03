@@ -119,6 +119,12 @@ defmodule LC.Accounts do
   @spec get_user!(pos_integer()) :: User.t()
   def get_user!(id), do: Repo.get!(User, id) |> put_primary_email()
 
+  @doc """
+  Gets a single user identity.
+  """
+  @spec get_user_identity!(pos_integer()) :: UserIdentity.t()
+  def get_user_identity!(id), do: Repo.get!(UserIdentity, id)
+
   ## User registration
 
   @doc """

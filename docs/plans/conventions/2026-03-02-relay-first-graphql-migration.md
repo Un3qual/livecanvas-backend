@@ -30,7 +30,7 @@
 ## Progress Checklist
 
 - [x] Task 1: Add authenticated GraphQL context and a non-breaking `viewer` transition.
-- [ ] Task 2: Add real node resolution and Relay ID decoding.
+- [x] Task 2: Add real node resolution and Relay ID decoding.
 - [ ] Task 3: Replace the first list field with a real Relay connection.
 - [ ] Task 4: Convert mutations to Relay payloads without breaking clients immediately.
 - [ ] Task 5: Remove the legacy compatibility branches in one explicit breaking change.
