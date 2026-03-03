@@ -25,6 +25,7 @@ defmodule LCGQL.Schema do
         %{type: :user_identity, id: id}, _resolution -> fetch_user_identity_node(id)
         %{type: :post, id: id}, _resolution -> fetch_post_node(id)
         %{type: :live_session, id: id}, _resolution -> fetch_live_session_node(id)
+        %{type: :contact_match, id: id}, resolution -> fetch_contact_match_node(id, resolution)
         _arguments, _resolution -> {:ok, nil}
       end)
     end
@@ -98,4 +99,18 @@ defmodule LCGQL.Schema do
   rescue
     Ecto.NoResultsError -> {:ok, nil}
   end
+
+  # Contact-match nodes are viewer-scoped, so node refetch must enforce
+  # ownership via the authenticated scope instead of exposing raw ids globally.
+  defp fetch_contact_match_node(id, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
+        {:ok, Accounts.get_user_contact_match(user, local_id)}
+
+      _ ->
+        {:ok, nil}
+    end
+  end
+
+  defp fetch_contact_match_node(_id, _resolution), do: {:ok, nil}
 end

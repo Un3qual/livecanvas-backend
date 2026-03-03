@@ -69,6 +69,7 @@ defmodule LC.Accounts do
              | :invalid_phone_number
              | :invalid_email_list}
   @type contact_match :: %{
+          required(:id) => pos_integer(),
           required(:contact_entry) => UserContactEntry.t(),
           required(:matched_users) => [User.t()]
         }
@@ -488,13 +489,28 @@ defmodule LC.Accounts do
     |> user_contact_entries_query()
     |> Repo.all()
     |> Repo.preload([:email_addresses, :phone_numbers])
-    |> Enum.map(fn contact_entry ->
-      %{
-        contact_entry: contact_entry,
-        matched_users: matched_users_for_contact_entry(user.id, contact_entry)
-      }
-    end)
+    |> Enum.map(&build_contact_match(user.id, &1))
   end
+
+  @doc """
+  Returns one viewer-owned contact match by contact entry id.
+  """
+  @spec get_user_contact_match(User.t(), pos_integer()) :: contact_match() | nil
+  def get_user_contact_match(%User{} = user, contact_entry_id)
+      when is_integer(contact_entry_id) and contact_entry_id > 0 do
+    user.id
+    |> user_contact_entry_by_id_query(contact_entry_id)
+    |> Repo.one()
+    |> case do
+      nil ->
+        nil
+
+      contact_entry ->
+        build_contact_match(user.id, preload_contact_entry(contact_entry))
+    end
+  end
+
+  def get_user_contact_match(%User{}, _contact_entry_id), do: nil
 
   ## Session
 
@@ -814,6 +830,20 @@ defmodule LC.Accounts do
       where: contact_entry.user_id == ^user_id,
       order_by: [asc: contact_entry.inserted_at, asc: contact_entry.id]
     )
+  end
+
+  defp user_contact_entry_by_id_query(user_id, contact_entry_id) do
+    from(contact_entry in UserContactEntry,
+      where: contact_entry.user_id == ^user_id and contact_entry.id == ^contact_entry_id
+    )
+  end
+
+  defp build_contact_match(owner_id, contact_entry) do
+    %{
+      id: contact_entry.id,
+      contact_entry: contact_entry,
+      matched_users: matched_users_for_contact_entry(owner_id, contact_entry)
+    }
   end
 
   defp matched_users_for_contact_entry(owner_id, contact_entry) do

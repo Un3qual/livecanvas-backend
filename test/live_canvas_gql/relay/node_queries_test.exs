@@ -2,6 +2,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
   use LC.DataCase, async: true
 
   import LC.AccountsFixtures
+  alias LC.Accounts
 
   describe "node" do
     test "refetches a user from a relay global id" do
@@ -38,6 +39,91 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                Absinthe.run(query, LCGQL.Schema, variables: %{"id" => "123"})
 
       assert first_error.message =~ "Could not decode ID value"
+    end
+
+    test "refetches a viewer-owned contact match from a relay global id" do
+      viewer = user_fixture()
+      matched_user = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      {:ok, contact_entry} =
+        Accounts.upsert_user_contact_entry(viewer, %{
+          contact_client_id: :crypto.strong_rand_bytes(16),
+          contact_name: "Friend Match",
+          emails: [matched_user.email]
+        })
+
+      contact_match_id =
+        Absinthe.Relay.Node.to_global_id(:contact_match, contact_entry.id, LCGQL.Schema)
+
+      matched_user_id = Absinthe.Relay.Node.to_global_id(:user, matched_user.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on ContactMatch {
+            contactName
+            matchedUsers {
+              id
+              email
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^contact_match_id,
+                    "contactName" => "Friend Match",
+                    "matchedUsers" => [%{"id" => ^matched_user_id, "email" => matched_email}]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => contact_match_id},
+                 context: context
+               )
+
+      assert matched_email == matched_user.email
+    end
+
+    test "returns null for contact match node lookups without the owning viewer context" do
+      owner = user_fixture()
+      other_viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(other_viewer)}
+
+      {:ok, contact_entry} =
+        Accounts.upsert_user_contact_entry(owner, %{
+          contact_client_id: :crypto.strong_rand_bytes(16),
+          contact_name: "Private Match",
+          emails: [other_viewer.email]
+        })
+
+      contact_match_id =
+        Absinthe.Relay.Node.to_global_id(:contact_match, contact_entry.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => contact_match_id})
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(
+                 query,
+                 LCGQL.Schema,
+                 variables: %{"id" => contact_match_id},
+                 context: context
+               )
     end
   end
 end
