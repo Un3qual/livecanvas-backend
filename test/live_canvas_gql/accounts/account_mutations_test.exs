@@ -4,6 +4,8 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   import LC.AccountsFixtures
 
   alias LC.Accounts
+  alias LC.Infra.Repo
+  alias LCSchemas.Accounts.UserToken
 
   describe "registerWithEmail" do
     test "creates a user through the accounts boundary" do
@@ -320,6 +322,98 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                 data: %{
                   "upsertViewerContactEntry" => %{
                     "contactMatch" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
+  describe "deliverViewerContactInvite" do
+    test "delivers an invite for the authenticated viewer and persists a contact invite token" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation DeliverViewerContactInvite($recipient: String!) {
+        deliverViewerContactInvite(input: {recipient: $recipient}) {
+          successful
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "deliverViewerContactInvite" => %{
+                    "successful" => true,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"recipient" => "Friend@Example.com"},
+                 context: context
+               )
+
+      assert %UserToken{} =
+               user_token =
+               Repo.get_by(UserToken, user_id: viewer.id, context: :contact_invite_token)
+
+      assert user_token.sent_to == "friend@example.com"
+    end
+
+    test "returns structured errors for invalid recipient values" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation {
+        deliverViewerContactInvite(input: {recipient: "   "}) {
+          successful
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "deliverViewerContactInvite" => %{
+                    "successful" => false,
+                    "errors" => [%{"field" => "recipient", "message" => "is invalid"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+    end
+
+    test "returns an unauthenticated error without a viewer scope" do
+      mutation = """
+      mutation {
+        deliverViewerContactInvite(input: {recipient: "friend@example.com"}) {
+          successful
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "deliverViewerContactInvite" => %{
+                    "successful" => false,
                     "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
                   }
                 }

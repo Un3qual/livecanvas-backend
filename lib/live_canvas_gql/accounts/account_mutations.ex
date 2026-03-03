@@ -48,5 +48,18 @@ defmodule LCGQL.Accounts.Mutations do
 
       resolve(&Resolver.upsert_viewer_contact_entry/3)
     end
+
+    payload field :deliver_viewer_contact_invite do
+      input do
+        field :recipient, non_null(:string)
+      end
+
+      output do
+        field :successful, non_null(:boolean)
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.deliver_viewer_contact_invite/3)
+    end
   end
 end

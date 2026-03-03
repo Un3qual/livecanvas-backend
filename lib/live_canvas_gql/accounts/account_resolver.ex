@@ -16,11 +16,14 @@ defmodule LCGQL.Accounts.Resolver do
           errors: [mutation_error()]
         }
   @type contact_upsert_result :: {:ok, contact_upsert_payload()}
+  @type invite_delivery_payload :: %{successful: boolean(), errors: [mutation_error()]}
+  @type invite_delivery_result :: {:ok, invite_delivery_payload()}
   @type contact_upsert_error_reason ::
           :invalid_contact_client_id
           | :invalid_birthday
           | :invalid_phone_number
           | :invalid_email_list
+  @type invite_delivery_error_reason :: :invalid_recipient | :unauthenticated | :delivery_failed
   @type user_lookup_error :: :invalid_id | :invalid_type | :not_found
   @type user_lookup_result :: {:ok, User.t()} | {:error, user_lookup_error()}
   @type contact_match_node :: %{
@@ -126,6 +129,38 @@ defmodule LCGQL.Accounts.Resolver do
     {:ok, %{contact_match: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
   end
 
+  @spec deliver_viewer_contact_invite(
+          term(),
+          %{optional(:input) => map(), optional(:recipient) => String.t()},
+          Absinthe.Resolution.t()
+        ) :: invite_delivery_result()
+  def deliver_viewer_contact_invite(parent, %{input: input}, resolution),
+    do: deliver_viewer_contact_invite(parent, input, resolution)
+
+  def deliver_viewer_contact_invite(_parent, %{recipient: recipient}, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
+    with {:ok, normalized_recipient} <- normalize_invite_recipient(recipient),
+         {:ok, _email} <-
+           Accounts.deliver_contact_invite_instructions(
+             user,
+             normalized_recipient,
+             &contact_invite_url/1
+           ) do
+      {:ok, %{successful: true, errors: []}}
+    else
+      {:error, :invalid_recipient} ->
+        {:ok, %{successful: false, errors: [invite_delivery_error(:invalid_recipient)]}}
+
+      {:error, _reason} ->
+        {:ok, %{successful: false, errors: [invite_delivery_error(:delivery_failed)]}}
+    end
+  end
+
+  def deliver_viewer_contact_invite(_parent, _args, _resolution) do
+    {:ok, %{successful: false, errors: [invite_delivery_error(:unauthenticated)]}}
+  end
+
   @spec viewer(term(), map(), Absinthe.Resolution.t()) :: {:ok, User.t() | nil}
 
   def viewer(_parent, _args, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
@@ -209,6 +244,34 @@ defmodule LCGQL.Accounts.Resolver do
   @spec normalize_string_list([String.t()] | nil) :: [String.t()]
   defp normalize_string_list(nil), do: []
   defp normalize_string_list(values), do: values
+
+  @spec normalize_invite_recipient(term()) :: {:ok, String.t()} | {:error, :invalid_recipient}
+  defp normalize_invite_recipient(recipient) when is_binary(recipient) do
+    normalized_recipient = recipient |> String.trim() |> String.downcase()
+
+    if Regex.match?(~r/^[^@\s]+@[^@\s]+$/, normalized_recipient) do
+      {:ok, normalized_recipient}
+    else
+      {:error, :invalid_recipient}
+    end
+  end
+
+  defp normalize_invite_recipient(_recipient), do: {:error, :invalid_recipient}
+
+  # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
+  # transport-agnostic while tests can assert invite delivery side effects.
+  @spec contact_invite_url(String.t()) :: String.t()
+  defp contact_invite_url(token), do: "https://livecanvas.invalid/invites/#{token}"
+
+  @spec invite_delivery_error(invite_delivery_error_reason()) :: mutation_error()
+  defp invite_delivery_error(:invalid_recipient),
+    do: %{field: "recipient", message: "is invalid"}
+
+  defp invite_delivery_error(:unauthenticated),
+    do: %{field: nil, message: "unauthenticated"}
+
+  defp invite_delivery_error(:delivery_failed),
+    do: %{field: nil, message: "delivery_failed"}
 
   @spec contact_match_node(LC.Accounts.contact_match()) :: contact_match_node()
   defp contact_match_node(%{contact_entry: %{id: id}} = contact_match) do

@@ -14,7 +14,7 @@
 
 - [x] Task 1: Add Relay `node(id:)` support for `contact_match`
 - [x] Task 2: Add `upsertViewerContactEntry` Relay mutation
-- [ ] Task 3: Add `deliverViewerContactInvite` Relay mutation
+- [x] Task 3: Add `deliverViewerContactInvite` Relay mutation
 - [ ] Task 4: Run final verification and close the plan
 
 ### Task 1: Add Relay `node(id:)` Support For `contact_match`
@@ -152,11 +152,11 @@ git commit -m "feat: add viewer contact upsert mutation"
 - Modify: `docs/plans/2026-03-03-accounts-contact-graphql-write-slice.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Write failing mutation tests for invite delivery
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement minimal mutation wrapper using existing Accounts notifier path
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Commit Task 3 milestone
+- [x] Step 1: Write failing mutation tests for invite delivery
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement minimal mutation wrapper using existing Accounts notifier path
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Commit Task 3 milestone
 
 **Step 1: Write failing mutation tests for invite delivery**
 
