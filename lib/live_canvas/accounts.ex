@@ -38,6 +38,15 @@ defmodule LiveCanvas.Accounts do
   @type token_payload :: %{token: String.t(), user_token: UserToken.t()}
   @type token_result :: {:ok, token_payload()} | {:error, changeset()}
   @type user_session_result :: {User.t(), DateTime.t()} | nil
+  @type registration_attrs :: %{
+          optional(:email | :password | String.t()) => String.t()
+        }
+  @type email_change_attrs :: %{
+          optional(:email | String.t()) => String.t()
+        }
+  @type password_change_attrs :: %{
+          optional(:password | :password_confirmation | String.t()) => String.t()
+        }
 
   ## Database getters
 
@@ -99,7 +108,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Registers a user.
   """
-  @spec register_user(map()) :: user_result()
+  @spec register_user(registration_attrs()) :: user_result()
   def register_user(attrs) do
     register_user_with_email(attrs, [])
   end
@@ -107,7 +116,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Registers a user and marks the primary email as verified immediately.
   """
-  @spec register_user_with_email(map()) :: user_result()
+  @spec register_user_with_email(registration_attrs()) :: user_result()
   def register_user_with_email(attrs) do
     register_user_with_email(attrs, verified_at: DateTime.utc_now())
   end
@@ -136,7 +145,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Returns the registration changeset used by adapter layers.
   """
-  @spec registration_changeset(map(), keyword()) :: changeset()
+  @spec registration_changeset(registration_attrs(), keyword()) :: changeset()
   def registration_changeset(attrs \\ %{}, opts \\ []) do
     %User{}
     |> UserChanges.email_changeset(attrs, opts)
@@ -162,7 +171,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Returns an `%Ecto.Changeset{}` for changing the user email.
   """
-  @spec change_user_email(User.t(), map(), keyword()) :: changeset()
+  @spec change_user_email(User.t(), email_change_attrs(), keyword()) :: changeset()
   def change_user_email(user, attrs \\ %{}, opts \\ []) do
     UserChanges.email_changeset(user, attrs, opts)
   end
@@ -215,7 +224,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Returns an `%Ecto.Changeset{}` for changing the user password.
   """
-  @spec change_user_password(User.t(), map(), keyword()) :: changeset()
+  @spec change_user_password(User.t(), password_change_attrs(), keyword()) :: changeset()
   def change_user_password(user, attrs \\ %{}, opts \\ []) do
     UserChanges.password_changeset(user, attrs, opts)
   end
@@ -223,7 +232,7 @@ defmodule LiveCanvas.Accounts do
   @doc """
   Updates the user password.
   """
-  @spec update_user_password(User.t(), map()) :: user_with_tokens_result()
+  @spec update_user_password(User.t(), password_change_attrs()) :: user_with_tokens_result()
   def update_user_password(user, attrs) do
     user
     |> UserChanges.password_changeset(attrs)

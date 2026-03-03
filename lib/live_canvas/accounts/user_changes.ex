@@ -3,10 +3,21 @@ defmodule LiveCanvas.Accounts.UserChanges do
 
   alias LiveCanvasSchemas.Accounts.User
 
+  @type email_attrs :: %{
+          optional(:email | String.t()) => String.t()
+        }
+  @type privacy_attrs :: %{
+          optional(:privacy_mode | String.t()) =>
+            LiveCanvasSchemas.Accounts.user_privacy_mode() | String.t()
+        }
+  @type password_attrs :: %{
+          optional(:password | :password_confirmation | String.t()) => String.t()
+        }
+
   @doc """
   A user changeset for registering or changing the email.
   """
-  @spec email_changeset(User.t(), map(), keyword()) :: Ecto.Changeset.t()
+  @spec email_changeset(User.t(), email_attrs(), keyword()) :: Ecto.Changeset.t()
   def email_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:email])
@@ -35,7 +46,7 @@ defmodule LiveCanvas.Accounts.UserChanges do
   @doc """
   A user changeset for updating account-level privacy state.
   """
-  @spec privacy_changeset(User.t(), map()) :: Ecto.Changeset.t()
+  @spec privacy_changeset(User.t(), privacy_attrs()) :: Ecto.Changeset.t()
   def privacy_changeset(user, attrs) do
     user
     |> cast(attrs, [:privacy_mode])
@@ -45,7 +56,7 @@ defmodule LiveCanvas.Accounts.UserChanges do
   @doc """
   A user changeset for changing the password.
   """
-  @spec password_changeset(User.t(), map(), keyword()) :: Ecto.Changeset.t()
+  @spec password_changeset(User.t(), password_attrs(), keyword()) :: Ecto.Changeset.t()
   def password_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:password])

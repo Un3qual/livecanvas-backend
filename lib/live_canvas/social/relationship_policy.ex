@@ -1,6 +1,14 @@
 defmodule LiveCanvas.Social.RelationshipPolicy do
   @moduledoc false
 
+  @type follow_decision_input :: %{
+          required(:follower_id) => pos_integer(),
+          required(:followed_id) => pos_integer(),
+          required(:followed_privacy_mode) => LiveCanvasSchemas.Accounts.user_privacy_mode(),
+          required(:blocked?) => boolean(),
+          required(:now) => DateTime.t()
+        }
+
   @type follow_decision_result :: %{
           required(:accepted_at) => DateTime.t() | nil,
           required(:requested_at) => DateTime.t(),
@@ -10,7 +18,7 @@ defmodule LiveCanvas.Social.RelationshipPolicy do
   @doc """
   Decides whether a new follow should be requested or accepted immediately.
   """
-  @spec follow_decision(map()) :: follow_decision_result() | {:error, :blocked}
+  @spec follow_decision(follow_decision_input()) :: follow_decision_result() | {:error, :blocked}
   def follow_decision(%{blocked?: true}), do: {:error, :blocked}
 
   def follow_decision(%{followed_privacy_mode: :public, now: now}) do
