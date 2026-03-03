@@ -60,7 +60,7 @@
 - [x] Step 2: Run the focused tests to verify they fail
 - [x] Step 3: Implement the shared schema macros and convert the schemas
 - [x] Step 4: Run compile and the focused tests
-- [ ] Step 5: Commit
+- [x] Step 5: Commit
 
 **Step 1: Write the failing schema-shape tests**
 
