@@ -6,11 +6,11 @@
 - [x] Timestamps use `:utc_datetime_usec`.
 - [x] Future agents have a local `AGENTS.md` with the high-signal rules.
 - [x] The repo includes a dedicated `mix typecheck` alias for Dialyzer.
-- [ ] Existing relational tables still need the `bigint` plus `entropy_id` migration.
-- [ ] Existing modules still need the `LiveCanvas*` to `LC*` namespace refactor.
-- [ ] Phone OTP delivery still needs the fake SMS GenServer implementation.
+- [x] Existing relational tables use `bigint` plus `entropy_id` (`uuidv7`) for relational tables.
+- [x] Existing modules have been refactored from `LiveCanvas*` to `LC*`.
+- [x] Phone OTP delivery has the fake SMS GenServer implementation.
 - [ ] The GraphQL schema still needs the Relay-first migration.
-- [ ] The broader typespec rollout is still pending.
+- [x] The broader typespec rollout is complete.
 
 ## Data And Security
 
@@ -23,7 +23,7 @@
 
 - Public functions should have typespecs.
 - Run `mix precommit` and `mix typecheck` before merging typed work.
-- `mix typecheck` is available now, but the broader rollout to make Dialyzer fully clean and precommit-blocking is still in progress.
+- `mix precommit` includes `mix typecheck`, and `mix typecheck` is clean.
 
 ## GraphQL And Relay
 
@@ -33,4 +33,4 @@
 
 ## Planned Refactors
 
-- See the plans in `/Users/admin/Desktop/Programming/projects/LiveCanvas/backend/docs/plans/conventions/` for the schema ID migration, module rename, phone OTP delivery, typespec rollout, and Relay migration.
+- See the plans in `/Users/admin/Desktop/Programming/projects/LiveCanvas/backend/docs/plans/conventions/` for remaining convention migrations such as Relay-first GraphQL cleanup.

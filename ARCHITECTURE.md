@@ -45,13 +45,13 @@ Explicitly deferred from v1:
 - Treat each top-level context module as an interface boundary.
 - Enforce internal module boundaries with the `boundary` library instead of
   relying on convention alone.
-- Use top-level boundary declarations for `LiveCanvasApp`, `LiveCanvas`,
-  `LiveCanvasWeb`, `LiveCanvasGQL`, and `LiveCanvasSchemas`.
-- Use nested core boundaries such as `LiveCanvas.Accounts` and
-  `LiveCanvas.Infra` instead of promoting every subsystem to top-level.
-- Keep Ecto schemas under `LiveCanvasSchemas` so schema-heavy code does not
+- Use top-level boundary declarations for `LCApp`, `LC`, `LCWeb`, `LCGQL`, and
+  `LCSchemas`.
+- Use nested core boundaries such as `LC.Accounts` and `LC.Infra` instead of
+  promoting every subsystem to top-level.
+- Keep Ecto schemas under `LCSchemas` so schema-heavy code does not
   overwhelm the core context folders.
-- Keep `LiveCanvasSchemas` modules schema-only: no changeset building, no repo
+- Keep `LCSchemas` modules schema-only: no changeset building, no repo
   operations, and no workflow logic.
 - Export only stable entrypoints from each boundary. Temporary exports needed by
   the Phoenix auth scaffold or compiled test support should be treated as

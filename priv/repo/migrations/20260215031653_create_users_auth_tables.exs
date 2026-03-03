@@ -1,5 +1,6 @@
 defmodule LiveCanvas.Repo.Migrations.CreateUsersAuthTables do
   use Ecto.Migration
+  # Keep the legacy migration module namespace for historical migration identity.
 
   def change do
     execute "CREATE EXTENSION IF NOT EXISTS citext", ""

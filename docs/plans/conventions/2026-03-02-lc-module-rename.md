@@ -31,8 +31,8 @@
 - [x] Step 1: Lock Phoenix's namespace override and capture the rename inventory
 - [x] Step 2: Rename `LC` and `LCSchemas` plus all in-repo core call sites
 - [x] Step 3: Rename `LCWeb`, `LCGQL`, and `LCApp` plus all adapter/config call sites
-- [ ] Step 4: Add temporary root aliases only if an external caller still needs them
-- [ ] Step 5: Run full verification, decide on migration exceptions, and clean up docs
+- [x] Step 4: Add temporary root aliases only if an external caller still needs them
+- [x] Step 5: Run full verification, decide on migration exceptions, and clean up docs
 
 ### Task 1: Lock Phoenix Generator Conventions Before The Rename
 
@@ -326,11 +326,13 @@ git commit -m "refactor: rename adapter namespaces to lc"
 - Create: `lib/live_canvas_schemas_compat.ex`
 - Create: `test/live_canvas/legacy_root_aliases_test.exs`
 
-- [ ] Step 1: Confirm an external caller actually needs a compatibility layer
+- [x] Step 1: Confirm an external caller actually needs a compatibility layer
 
 Check deployment scripts, other apps in the mono-repo, or release tooling for imports of the old root names. If nothing outside this app still imports `LiveCanvas*`, skip this task entirely.
 
-- [ ] Step 2: If needed, add only thin root-level shims
+Result: no external callers were found, so this task was skipped.
+
+- [x] Step 2: If needed, add only thin root-level shims (skipped: no external caller needed compatibility)
 
 If compatibility is required, add only the smallest possible wrappers. For example:
 
@@ -345,7 +347,7 @@ end
 
 For `LiveCanvasWeb`, only forward root helpers such as `__using__/1` and `static_paths/0` if an external caller truly needs them. Do not attempt to recreate nested modules such as `LiveCanvasWeb.Router` or `LiveCanvasWeb.Endpoint`. Do not add `use Boundary` to any compat shim.
 
-- [ ] Step 3: Add a narrow compatibility test if shims are introduced
+- [x] Step 3: Add a narrow compatibility test if shims are introduced (skipped: no shims added)
 
 Use a minimal test that proves only the supported root aliases work:
 
@@ -361,7 +363,7 @@ end
 
 If you skip the shims, skip this test too.
 
-- [ ] Step 4: Run the focused compatibility test
+- [x] Step 4: Run the focused compatibility test (skipped: no shims added)
 
 Run:
 
@@ -371,7 +373,7 @@ mix test test/live_canvas/legacy_root_aliases_test.exs --trace
 
 Expected: PASS if the compat files exist. If this task is skipped, do not create the file and do not run this command.
 
-- [ ] Step 5: Commit
+- [x] Step 5: Commit (skipped: no compatibility changes were required)
 
 ```bash
 git add lib/live_canvas_compat.ex lib/live_canvas_web_compat.ex lib/live_canvas_gql_compat.ex lib/live_canvas_schemas_compat.ex test/live_canvas/legacy_root_aliases_test.exs
@@ -400,15 +402,15 @@ git commit -m "chore: add temporary livecanvas root aliases"
 - Optional Modify: `priv/repo/migrations/20260302000000_rebuild_accounts_identity_tables.exs`
 - Optional Modify: `priv/repo/migrations/20260302204500_add_user_privacy_mode_to_users.exs`
 
-- [ ] Step 1: Decide explicitly whether migration module names stay legacy
+- [x] Step 1: Decide explicitly whether migration module names stay legacy
 
 Recommended default: leave the migration module names alone and document them as a legacy exception. If strict namespace purity is required, rename the `defmodule LiveCanvas.Repo.Migrations.*` declarations only after the application code is already green, and do it in a tiny isolated commit.
 
-- [ ] Step 2: Update docs that describe the boundary names
+- [x] Step 2: Update docs that describe the boundary names
 
 Once the code is green, update architecture and convention docs that refer to the old boundary roots so the written guidance matches the code. Keep user-facing branding strings unchanged unless branding is also changing.
 
-- [ ] Step 3: Run the full verification suite
+- [x] Step 3: Run the full verification suite
 
 Run:
 
@@ -421,7 +423,7 @@ mix test
 
 Expected: PASS across the full suite with the renamed namespaces.
 
-- [ ] Step 4: Run a final grep to confirm only intentional legacy hits remain
+- [x] Step 4: Run a final grep to confirm only intentional legacy hits remain
 
 Run:
 
@@ -431,11 +433,12 @@ rg -n "\bLiveCanvas(Web|GQL|Schemas|App|\.|\b)" lib config test mix.exs priv/rep
 
 Expected:
 
-- No hits in active app code.
+- No hits from active module references in app code.
 - Optional hits only in compat shim files if Task 4 was required.
 - Optional hits only in migration files if you kept the recommended migration exception.
+- Optional product-branding string hits (for example `"LiveCanvas"` copy) if branding is unchanged.
 
-- [ ] Step 5: Commit
+- [x] Step 5: Commit
 
 Stage only the rename scope. If Task 4 or the optional docs/migration cleanup was skipped, omit those paths from the final `git add`.
 

@@ -1,5 +1,6 @@
 defmodule LiveCanvas.Repo.Migrations.RebuildAccountsIdentityTables do
   use Ecto.Migration
+  # Keep the legacy migration module namespace for historical migration identity.
 
   alias LCSchemas.Accounts.{UserIdentityProvider, UserTokenContext}
 

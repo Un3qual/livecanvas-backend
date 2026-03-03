@@ -1,5 +1,6 @@
 defmodule LiveCanvas.Repo.Migrations.CreateSocialGraphTables do
   use Ecto.Migration
+  # Keep the legacy migration module namespace for historical migration identity.
 
   alias LCSchemas.Social.FollowState
 

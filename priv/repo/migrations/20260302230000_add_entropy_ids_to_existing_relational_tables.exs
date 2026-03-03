@@ -1,5 +1,6 @@
 defmodule LiveCanvas.Repo.Migrations.AddEntropyIdsToExistingRelationalTables do
   use Ecto.Migration
+  # Keep the legacy migration module namespace for historical migration identity.
 
   @relational_tables [
     :users,
