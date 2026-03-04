@@ -197,6 +197,41 @@ defmodule LC.AccountsTest do
     end
   end
 
+  describe "unlink_user_identity/2" do
+    test "revokes an owned identity and makes it undiscoverable" do
+      user = user_fixture()
+
+      identity =
+        attach_user_identity(user, :google_provider, "google-user-unlink-success",
+          provider_data: %{"email" => user.email}
+        )
+
+      assert {:ok, revoked_identity} = Accounts.unlink_user_identity(user, identity.id)
+      assert revoked_identity.id == identity.id
+      assert %DateTime{} = revoked_identity.revoked_at
+
+      refute Accounts.get_user_by_identity(:google_provider, "google-user-unlink-success")
+    end
+
+    test "returns not_found for unowned identity ids" do
+      user = user_fixture()
+      other_user = user_fixture()
+
+      identity =
+        attach_user_identity(other_user, :apple_provider, "apple-user-unlink-unowned")
+
+      assert {:error, :not_found} = Accounts.unlink_user_identity(user, identity.id)
+    end
+
+    test "returns already_revoked when unlink is repeated" do
+      user = user_fixture()
+      identity = attach_user_identity(user, :google_provider, "google-user-unlink-repeat")
+
+      assert {:ok, _revoked_identity} = Accounts.unlink_user_identity(user, identity.id)
+      assert {:error, :already_revoked} = Accounts.unlink_user_identity(user, identity.id)
+    end
+  end
+
   describe "upsert_user_contact_entry/2" do
     test "creates a contact entry and normalizes linked identifiers" do
       user = user_fixture()

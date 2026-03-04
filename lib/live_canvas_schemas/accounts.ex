@@ -35,6 +35,8 @@ defmodule LCSchemas.Accounts do
           | :password_change_failed
           | :email_change_succeeded
           | :email_change_failed
+          | :provider_identity_unlink_succeeded
+          | :provider_identity_unlink_failed
           | :account_deletion_requested
           | :account_deletion_canceled
           | :account_deletion_completed

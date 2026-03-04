@@ -19,7 +19,9 @@ defmodule LC.Accounts.AuthEventTest do
     [:live_canvas, :accounts, :auth, :password_change_succeeded],
     [:live_canvas, :accounts, :auth, :password_change_failed],
     [:live_canvas, :accounts, :auth, :email_change_succeeded],
-    [:live_canvas, :accounts, :auth, :email_change_failed]
+    [:live_canvas, :accounts, :auth, :email_change_failed],
+    [:live_canvas, :accounts, :auth, :provider_identity_unlink_succeeded],
+    [:live_canvas, :accounts, :auth, :provider_identity_unlink_failed]
   ]
 
   setup do
@@ -293,6 +295,52 @@ defmodule LC.Accounts.AuthEventTest do
       assert user_id == user.id
       assert telemetry_metadata["reason"] == "transaction_aborted"
       assert metadata["reason"] == "transaction_aborted"
+    end
+
+    test "emits provider identity unlink success and failure events" do
+      user = user_fixture()
+      identity = attach_user_identity(user, :google_provider, "google-auth-event-unlink")
+
+      assert {:ok, _revoked_identity} = Accounts.unlink_user_identity(user, identity.id)
+
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :provider_identity_unlink_succeeded],
+                      %{count: 1},
+                      %{metadata: %{"provider" => "google_provider"}, user_id: user_id}}
+
+      assert user_id == user.id
+
+      assert [:provider_identity_unlink_succeeded] =
+               user
+               |> Accounts.list_user_auth_events(limit: 10)
+               |> Enum.filter(&(&1.event_type == :provider_identity_unlink_succeeded))
+               |> Enum.map(& &1.event_type)
+
+      assert {:error, :already_revoked} = Accounts.unlink_user_identity(user, identity.id)
+
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :provider_identity_unlink_failed],
+                      %{count: 1}, %{metadata: telemetry_metadata, user_id: ^user_id}}
+
+      assert telemetry_metadata["reason"] == "already_revoked"
+      refute Enum.any?(Map.values(telemetry_metadata), &(&1 == "google-auth-event-unlink"))
+
+      assert %AuthEvent{
+               event_type: :provider_identity_unlink_failed,
+               user_id: ^user_id,
+               metadata: metadata
+             } = latest_user_event(user)
+
+      assert metadata["reason"] == "already_revoked"
+      refute Enum.any?(Map.values(metadata), &(&1 == "google-auth-event-unlink"))
+
+      assert {:error, :not_found} = Accounts.unlink_user_identity(user, 9_999_991)
+
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :provider_identity_unlink_failed],
+                      %{count: 1}, %{metadata: not_found_metadata, user_id: ^user_id}}
+
+      assert not_found_metadata["reason"] == "not_found"
     end
   end
 

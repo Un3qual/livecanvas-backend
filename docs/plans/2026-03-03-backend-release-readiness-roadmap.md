@@ -186,10 +186,12 @@ Mobile parallel:
 
 ## Planning Holes (Missing Or Underspecified Right Now)
 
-The previous webhook/async-job planning hole is now closed by `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, the release-engineering deployment-gates hole is now closed by `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`, and the compliance/data-governance planning hole is now closed by `docs/plans/release/2026-03-04-compliance-data-governance.md`. Remaining material gaps without sufficiently detailed executable plans in `docs/plans/` are:
+The previous webhook/async-job planning hole is now closed by `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, the release-engineering deployment-gates hole is now closed by `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`, and the compliance/data-governance planning hole is now closed by `docs/plans/release/2026-03-04-compliance-data-governance.md`.
 
-- Additional auth audit expansion for provider unlink/account recovery events if included in v1 launch scope.
-- Compliance hard-delete enablement follow-up: replace stubbed account-deletion/retention apply flows with legal-hold-aware destructive execution.
+Remaining tracked gaps:
+
+- Additional auth audit expansion for provider unlink/account recovery events is now being executed via `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md`.
+- Compliance hard-delete enablement follow-up remains intentionally paused by operator direction; do not resume until that pause is explicitly lifted.
 
 ## Evidence Notes On Key Blockers
 
@@ -200,5 +202,4 @@ The previous webhook/async-job planning hole is now closed by `docs/plans/releas
 
 ## Suggested Next Plan Files To Create
 
-- `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md`
-- `docs/plans/release/2026-03-04-compliance-hard-delete-enablement.md`
+- `docs/plans/release/2026-03-04-compliance-hard-delete-enablement.md` (paused; keep as deferred candidate only)

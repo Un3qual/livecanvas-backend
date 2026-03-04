@@ -8,7 +8,7 @@ defmodule LC.Accounts do
     exports: [Tokens]
 
   import Ecto.Query, warn: false
-  import Ecto.Changeset, only: [add_error: 3, get_field: 2]
+  import Ecto.Changeset, only: [add_error: 3, change: 2, get_field: 2]
 
   alias LC.Infra.{DataGovernance, Repo}
   alias LCSchemas.Accounts.AuthEvent, as: AuthEventSchema
@@ -114,6 +114,9 @@ defmodule LC.Accounts do
           optional(:password | :password_confirmation | String.t()) => String.t()
         }
   @type suspension_result :: user_result()
+  @type unlink_user_identity_error :: :not_found | :already_revoked
+  @type unlink_user_identity_result ::
+          {:ok, UserIdentity.t()} | {:error, unlink_user_identity_error()}
 
   ## Database getters
 
@@ -679,6 +682,28 @@ defmodule LC.Accounts do
       last_used_at: Keyword.get(opts, :last_used_at),
       revoked_at: Keyword.get(opts, :revoked_at)
     })
+  end
+
+  @doc """
+  Revokes a viewer-owned identity by local ID.
+  """
+  @spec unlink_user_identity(User.t(), pos_integer()) :: unlink_user_identity_result()
+  def unlink_user_identity(%User{id: user_id} = user, identity_id)
+      when is_integer(identity_id) and identity_id > 0 do
+    result =
+      user_id
+      |> user_identity_by_id_query(identity_id)
+      |> Repo.one()
+      |> revoke_identity_if_active()
+
+    emit_unlink_identity_auth_event(result, user)
+    result
+  end
+
+  def unlink_user_identity(%User{} = user, _identity_id) do
+    result = {:error, :not_found}
+    emit_unlink_identity_auth_event(result, user)
+    result
   end
 
   @doc """
@@ -1361,6 +1386,13 @@ defmodule LC.Accounts do
       limit: 1
   end
 
+  defp user_identity_by_id_query(user_id, identity_id) do
+    from(user_identity in UserIdentity,
+      where: user_identity.user_id == ^user_id and user_identity.id == ^identity_id,
+      limit: 1
+    )
+  end
+
   defp current_email_for_user(user_id) do
     from(email_address in EmailAddress,
       join: user_email_address in UserEmailAddress,
@@ -1516,6 +1548,43 @@ defmodule LC.Accounts do
   end
 
   defp emit_refresh_token_rotation_event(_result), do: :ok
+
+  @spec emit_unlink_identity_auth_event(unlink_user_identity_result(), User.t()) :: :ok
+  defp emit_unlink_identity_auth_event(
+         {:ok, %UserIdentity{provider: provider}},
+         %User{} = user
+       )
+       when is_atom(provider) do
+    emit_auth_event(:provider_identity_unlink_succeeded,
+      user: user,
+      metadata: %{"provider" => provider_label(provider)}
+    )
+  end
+
+  defp emit_unlink_identity_auth_event({:error, reason}, %User{} = user)
+       when reason in [:not_found, :already_revoked] do
+    emit_auth_event(:provider_identity_unlink_failed,
+      user: user,
+      metadata: %{"reason" => Atom.to_string(reason)}
+    )
+  end
+
+  defp emit_unlink_identity_auth_event(_result, _user), do: :ok
+
+  @spec provider_label(LCSchemas.Accounts.user_identity_provider()) :: String.t()
+  defp provider_label(provider) when is_atom(provider), do: Atom.to_string(provider)
+
+  @spec revoke_identity_if_active(UserIdentity.t() | nil) :: unlink_user_identity_result()
+  defp revoke_identity_if_active(nil), do: {:error, :not_found}
+
+  defp revoke_identity_if_active(%UserIdentity{revoked_at: %DateTime{}}),
+    do: {:error, :already_revoked}
+
+  defp revoke_identity_if_active(%UserIdentity{} = user_identity) do
+    user_identity
+    |> change(revoked_at: now_utc())
+    |> Repo.update()
+  end
 
   @spec normalize_query_limit(term()) :: pos_integer()
   defp normalize_query_limit(limit) when is_integer(limit) and limit > 0, do: limit
