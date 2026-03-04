@@ -22,6 +22,12 @@ config :live_canvas, LCWeb.Plugs.WebhookSignature,
   providers: [media_processing: "dev-webhook-secret"],
   max_skew_seconds: 300
 
+config :live_canvas, LC.Infra.AsyncJobs.Worker,
+  enabled: true,
+  poll_interval_ms: 1_000,
+  claim_limit: 20,
+  handlers: %{}
+
 config :live_canvas, :scopes,
   user: [
     default: true,

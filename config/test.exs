@@ -27,6 +27,8 @@ config :live_canvas, LCWeb.Plugs.WebhookSignature,
   providers: [media_processing: "test-webhook-secret"],
   max_skew_seconds: 300
 
+config :live_canvas, LC.Infra.AsyncJobs.Worker, enabled: false
+
 # In test we don't send emails
 config :live_canvas, LC.Infra.Mailer, adapter: Swoosh.Adapters.Test
 

@@ -44,7 +44,7 @@ The webhook + async job gap is the most direct blocker to Phase 4 architecture g
 
 - [x] Task 1: Add durable webhook-event and async-job persistence primitives
 - [x] Task 2: Add signed REST webhook ingress with idempotent event recording
-- [ ] Task 3: Add supervised async-job worker baseline with retry/backoff handling
+- [x] Task 3: Add supervised async-job worker baseline with retry/backoff handling
 - [ ] Task 4: Move media finalize processing to async jobs (durable + idempotent)
 - [ ] Task 5: Run full verification, update roadmap notes, and finalize milestones
 
@@ -168,18 +168,18 @@ git commit -m "feat: add signed media webhook ingress"
 **Files:**
 - Create: `lib/live_canvas/infra/async_jobs/worker.ex`
 - Create: `lib/live_canvas/infra/async_jobs/handler.ex`
-- Modify: `lib/live_canvas/infra/async_jobs.ex`
 - Modify: `lib/live_canvas_app.ex`
 - Modify: `config/config.exs`
+- Modify: `config/test.exs`
 - Create: `test/live_canvas/infra/async_jobs_worker_test.exs`
 - Modify: `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing worker tests for claim loop, success ack, retry backoff, and terminal failure behavior
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement worker polling loop + handler dispatch + retry scheduling
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run `mix compile` + `mix typecheck`, update checklist, and commit Task 3 milestone
+- [x] Step 1: Add failing worker tests for claim loop, success ack, retry backoff, and terminal failure behavior
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement worker polling loop + handler dispatch + retry scheduling
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run `mix compile` + `mix typecheck`, update checklist, and commit Task 3 milestone
 
 **Task 3 implementation notes:**
 - Keep worker single-responsibility: claim due jobs, dispatch to handler, record result.
@@ -200,9 +200,9 @@ Expected: FAIL due to missing worker/dispatch pipeline.
 ```bash
 git add lib/live_canvas/infra/async_jobs/worker.ex \
   lib/live_canvas/infra/async_jobs/handler.ex \
-  lib/live_canvas/infra/async_jobs.ex \
   lib/live_canvas_app.ex \
   config/config.exs \
+  config/test.exs \
   test/live_canvas/infra/async_jobs_worker_test.exs \
   docs/plans/release/2026-03-03-webhooks-and-async-jobs.md
 git commit -m "feat: add async job worker retry baseline"
