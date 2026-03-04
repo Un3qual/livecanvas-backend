@@ -34,7 +34,12 @@ defmodule LC.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test, typecheck: :dev, dialyzer: :dev]
+      preferred_envs: [
+        precommit: :test,
+        typecheck: :dev,
+        dialyzer: :dev,
+        "release.gates": :test
+      ]
     ]
   end
 

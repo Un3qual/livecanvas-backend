@@ -36,7 +36,7 @@ Verified before selecting this plan so we do not assume missing implementation f
 
 ## Progress
 
-- [ ] Task 1: Add deterministic preflight gate orchestration (`mix release.gates`)
+- [x] Task 1: Add deterministic preflight gate orchestration (`mix release.gates`)
 - [ ] Task 2: Add migration rehearsal + rollback drill command (`mix release.migration_drill`)
 - [ ] Task 3: Add release runbooks (deployment gates, staged rollout, rollback/restore)
 - [ ] Task 4: Run full verification, update roadmap hole tracking, and finalize milestone
@@ -51,11 +51,11 @@ Verified before selecting this plan so we do not assume missing implementation f
 - Modify: `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing tests for gate pipeline ordering, fail-fast behavior, and `--dry-run` output
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement `LC.Release.Gates` + `mix release.gates` wrapper and alias wiring
-- [ ] Step 4: Run focused tests and the task itself to verify GREEN
-- [ ] Step 5: Run `mix compile` + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing tests for gate pipeline ordering, fail-fast behavior, and `--dry-run` output
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement `LC.Release.Gates` + `mix release.gates` wrapper and alias wiring
+- [x] Step 4: Run focused tests and the task itself to verify GREEN
+- [x] Step 5: Run `mix compile` + `mix typecheck`, update checklist, and commit milestone
 
 **Step 1 behavior targets:**
 - Default pipeline runs: `compile --warnings-as-errors`, `test`, `typecheck`, `boundary.spec`.
