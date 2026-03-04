@@ -70,19 +70,31 @@ defmodule LC.Live.SessionSupervisor do
           {:ok, pid()} | {:error, lookup_error()}
   def lookup_session_server(session_id) when is_integer(session_id) do
     local_node_name = local_node_name()
+    local_runtime = lookup_local_session_server(session_id)
+    owner_lookup = SessionOwnership.get_owner(session_id, now_utc())
 
-    # Local runtime ownership takes precedence: if a pid is present and alive,
-    # this node is the authoritative owner for session operations.
-    case lookup_local_session_server(session_id) do
-      {:ok, _pid} = result ->
-        result
+    case {local_runtime, owner_lookup} do
+      {{:ok, pid}, {:ok, ^local_node_name}} ->
+        {:ok, pid}
 
-      {:error, :not_found} ->
-        case SessionOwnership.get_owner(session_id, now_utc()) do
-          {:ok, ^local_node_name} -> {:error, :not_found}
-          {:ok, owner_node} -> {:error, {:owned_by_remote, owner_node}}
-          {:error, :not_found} -> {:error, :not_found}
-        end
+      {{:ok, pid}, {:ok, owner_node}} ->
+        :ok = terminate_stale_local_runtime(session_id, pid)
+        {:error, {:owned_by_remote, owner_node}}
+
+      {{:ok, pid}, {:error, :not_found}} ->
+        # A runtime process without an active lease can leak stale ownership.
+        # Kill it so callers re-enter the claim/start path deterministically.
+        :ok = terminate_stale_local_runtime(session_id, pid)
+        {:error, :not_found}
+
+      {{:error, :not_found}, {:ok, ^local_node_name}} ->
+        {:error, :not_found}
+
+      {{:error, :not_found}, {:ok, owner_node}} ->
+        {:error, {:owned_by_remote, owner_node}}
+
+      {{:error, :not_found}, {:error, :not_found}} ->
+        {:error, :not_found}
     end
   end
 
@@ -147,6 +159,18 @@ defmodule LC.Live.SessionSupervisor do
       _ ->
         {:error, :not_found}
     end
+  end
+
+  @spec terminate_stale_local_runtime(pos_integer(), pid()) :: :ok
+  defp terminate_stale_local_runtime(session_id, pid)
+       when is_integer(session_id) and is_pid(pid) do
+    case DynamicSupervisor.terminate_child(@dynamic_supervisor, pid) do
+      :ok -> :ok
+      {:error, :not_found} -> :ok
+    end
+
+    :ok = release_local_ownership(session_id)
+    :ok
   end
 
   @spec local_node_name() :: String.t()

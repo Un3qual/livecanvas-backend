@@ -52,6 +52,38 @@ defmodule LC.Live.SessionSupervisorTest do
       assert {:error, {:owned_by_remote, ^remote_owner}} =
                SessionSupervisor.lookup_session_server(session_id)
     end
+
+    test "prefers active remote lease owner over a stale local runtime process" do
+      session_id = live_session_id_fixture()
+      remote_owner = "remote-c@127.0.0.1"
+
+      assert {:ok, pid} =
+               SessionSupervisor.start_session_server(
+                 session_id,
+                 %{},
+                 lease_heartbeat_interval_ms: 60_000
+               )
+
+      :ok = allow_runtime_db(pid)
+
+      lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session_id)
+      takeover_at = DateTime.add(now_utc(), 60, :second)
+
+      lease
+      |> Ecto.Changeset.change(
+        owner_node: remote_owner,
+        heartbeat_at: takeover_at,
+        lease_expires_at: DateTime.add(takeover_at, 30, :second)
+      )
+      |> Repo.update!()
+
+      monitor_ref = Process.monitor(pid)
+
+      assert {:error, {:owned_by_remote, ^remote_owner}} =
+               SessionSupervisor.lookup_session_server(session_id)
+
+      assert_receive {:DOWN, ^monitor_ref, :process, ^pid, :shutdown}
+    end
   end
 
   describe "stop_session_server/1" do
