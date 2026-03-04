@@ -3,7 +3,7 @@ defmodule LCGQL.Accounts.Resolver do
 
   alias LC.Accounts
   alias LCGQL.Relay
-  alias LCSchemas.Accounts.User
+  alias LCSchemas.Accounts.{User, UserIdentity}
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
   @type mutation_payload :: %{
@@ -21,6 +21,11 @@ defmodule LCGQL.Accounts.Resolver do
           errors: [mutation_error()]
         }
   @type account_deletion_request_result :: {:ok, account_deletion_request_payload()}
+  @type unlink_identity_payload :: %{
+          user_identity: UserIdentity.t() | nil,
+          errors: [mutation_error()]
+        }
+  @type unlink_identity_result :: {:ok, unlink_identity_payload()}
   @type contact_upsert_payload :: %{
           contact_match: LC.Accounts.contact_match() | nil,
           errors: [mutation_error()]
@@ -49,6 +54,8 @@ defmodule LCGQL.Accounts.Resolver do
           | :already_processing
           | :cannot_cancel
           | :invalid_request_id
+  @type unlink_identity_error_reason ::
+          :invalid_identity_id | :not_found | :already_revoked | :unauthenticated
   @type invite_delivery_error_reason :: :invalid_recipient | :unauthenticated | :delivery_failed
   @type refresh_auth_error_reason :: :invalid_token | :expired_token | :revoked_token
   @type token_view :: %{
@@ -114,6 +121,39 @@ defmodule LCGQL.Accounts.Resolver do
   # phone bindings by passing arbitrary user IDs into the GraphQL payload.
   def attach_user_phone_number(_parent, _args, _resolution) do
     {:ok, %{user: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+  end
+
+  @spec unlink_viewer_identity(
+          term(),
+          %{optional(:input) => map(), optional(:user_identity_id) => String.t()},
+          Absinthe.Resolution.t()
+        ) :: unlink_identity_result()
+  def unlink_viewer_identity(parent, %{input: input}, resolution),
+    do: unlink_viewer_identity(parent, input, resolution)
+
+  def unlink_viewer_identity(_parent, args, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
+    with {:ok, identity_id} <- decode_user_identity_id(args),
+         {:ok, user_identity} <- Accounts.unlink_user_identity(user, identity_id) do
+      {:ok, %{user_identity: user_identity, errors: []}}
+    else
+      {:error, :invalid_id} ->
+        {:ok, %{user_identity: nil, errors: [unlink_identity_error(:invalid_identity_id)]}}
+
+      {:error, :invalid_type} ->
+        {:ok, %{user_identity: nil, errors: [unlink_identity_error(:invalid_identity_id)]}}
+
+      {:error, :not_found} ->
+        {:ok, %{user_identity: nil, errors: [unlink_identity_error(:not_found)]}}
+
+      {:error, :already_revoked} ->
+        {:ok, %{user_identity: nil, errors: [unlink_identity_error(:already_revoked)]}}
+    end
+  end
+
+  def unlink_viewer_identity(_parent, _args, _resolution) do
+    {:ok, %{user_identity: nil, errors: [unlink_identity_error(:unauthenticated)]}}
   end
 
   @spec request_viewer_data_export(
@@ -525,12 +565,32 @@ defmodule LCGQL.Accounts.Resolver do
   defp account_deletion_error(:invalid_request_id),
     do: %{field: "accountDeletionRequestId", message: "is invalid"}
 
+  @spec unlink_identity_error(unlink_identity_error_reason()) :: mutation_error()
+  defp unlink_identity_error(:invalid_identity_id),
+    do: %{field: "userIdentityId", message: "is invalid"}
+
+  defp unlink_identity_error(:not_found),
+    do: %{field: nil, message: "not_found"}
+
+  defp unlink_identity_error(:already_revoked),
+    do: %{field: nil, message: "already_revoked"}
+
+  defp unlink_identity_error(:unauthenticated),
+    do: %{field: nil, message: "unauthenticated"}
+
   @spec decode_account_deletion_request_id(map()) ::
           {:ok, pos_integer()} | {:error, Relay.decode_error()}
   defp decode_account_deletion_request_id(args) when is_map(args) do
     args
     |> Map.get(:account_deletion_request_id)
     |> Relay.decode_global_id(:account_deletion_request, LCGQL.Schema)
+  end
+
+  @spec decode_user_identity_id(map()) :: {:ok, pos_integer()} | {:error, Relay.decode_error()}
+  defp decode_user_identity_id(args) when is_map(args) do
+    args
+    |> Map.get(:user_identity_id)
+    |> Relay.decode_global_id(:user_identity, LCGQL.Schema)
   end
 
   @spec account_deletion_request_opts(map()) ::

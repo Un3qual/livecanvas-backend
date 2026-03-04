@@ -26,7 +26,7 @@ Verified directly in `lib/`, `test/`, `priv/repo/migrations`, `ARCHITECTURE.md`,
 ## Progress
 
 - [x] Task 1: Add provider identity unlink audit primitives in Accounts
-- [ ] Task 2: Expose viewer-scoped Relay unlink mutation and active-identity query semantics
+- [x] Task 2: Expose viewer-scoped Relay unlink mutation and active-identity query semantics
 - [ ] Task 3: Run verification, refresh roadmap/plan index, and record compliance pause state
 
 ### Task 1: Add Provider Identity Unlink Audit Primitives In Accounts
@@ -59,11 +59,11 @@ Verified directly in `lib/`, `test/`, `priv/repo/migrations`, `ARCHITECTURE.md`,
 - Modify: `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for viewer-owned unlink success, invalid node IDs, and unauthorized/unowned identity behavior
-- [ ] Step 2: Run focused GraphQL tests to verify RED
-- [ ] Step 3: Implement mutation schema + resolver decode/ownership checks + Accounts handoff
-- [ ] Step 4: Ensure identity listings and lookups expose only active identities after unlink; run focused tests for GREEN
-- [ ] Step 5: Run `mix test` on Accounts/GraphQL slices + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing GraphQL tests for viewer-owned unlink success, invalid node IDs, and unauthorized/unowned identity behavior
+- [x] Step 2: Run focused GraphQL tests to verify RED
+- [x] Step 3: Implement mutation schema + resolver decode/ownership checks + Accounts handoff
+- [x] Step 4: Ensure identity listings and lookups expose only active identities after unlink; run focused tests for GREEN
+- [x] Step 5: Run `mix test` on Accounts/GraphQL slices + `mix typecheck`, update checklist progress, and commit milestone
 
 ### Task 3: Final Verification, Roadmap Tracking, And Pause Documentation
 

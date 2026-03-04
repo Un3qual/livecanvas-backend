@@ -24,8 +24,8 @@ defmodule LCGQL.Schema do
         %{type: :user, id: id}, _resolution ->
           fetch_user_node(id)
 
-        %{type: :user_identity, id: id}, _resolution ->
-          fetch_user_identity_node(id)
+        %{type: :user_identity, id: id}, resolution ->
+          fetch_user_identity_node(id, resolution)
 
         %{type: :post, id: id}, _resolution ->
           fetch_post_node(id)
@@ -119,11 +119,19 @@ defmodule LCGQL.Schema do
     Ecto.NoResultsError -> {:ok, nil}
   end
 
-  defp fetch_user_identity_node(id) do
-    {:ok, Accounts.get_user_identity!(id)}
-  rescue
-    Ecto.NoResultsError -> {:ok, nil}
+  # User-identity nodes are viewer-scoped and active-only to prevent global ID
+  # refetch from exposing revoked or cross-account identity metadata.
+  defp fetch_user_identity_node(id, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
+        {:ok, Accounts.get_active_user_identity(user, local_id)}
+
+      _ ->
+        {:ok, nil}
+    end
   end
+
+  defp fetch_user_identity_node(_id, _resolution), do: {:ok, nil}
 
   defp fetch_post_node(id) do
     {:ok, Content.get_post!(id)}

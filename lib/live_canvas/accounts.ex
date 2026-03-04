@@ -195,12 +195,25 @@ defmodule LC.Accounts do
   def get_user_identity!(id), do: Repo.get!(UserIdentity, id)
 
   @doc """
+  Returns one active identity row owned by the given user.
+  """
+  @spec get_active_user_identity(User.t(), pos_integer()) :: UserIdentity.t() | nil
+  def get_active_user_identity(%User{id: user_id}, identity_id)
+      when is_integer(identity_id) and identity_id > 0 do
+    user_id
+    |> active_user_identity_by_id_query(identity_id)
+    |> Repo.one()
+  end
+
+  def get_active_user_identity(%User{}, _identity_id), do: nil
+
+  @doc """
   Returns a deterministic query for a user's linked identities.
   """
   @spec user_identities_query(User.t()) :: Ecto.Query.t()
   def user_identities_query(%User{id: user_id}) do
     from(user_identity in UserIdentity,
-      where: user_identity.user_id == ^user_id,
+      where: user_identity.user_id == ^user_id and is_nil(user_identity.revoked_at),
       order_by: [asc: user_identity.inserted_at, asc: user_identity.id]
     )
   end
@@ -1389,6 +1402,16 @@ defmodule LC.Accounts do
   defp user_identity_by_id_query(user_id, identity_id) do
     from(user_identity in UserIdentity,
       where: user_identity.user_id == ^user_id and user_identity.id == ^identity_id,
+      limit: 1
+    )
+  end
+
+  defp active_user_identity_by_id_query(user_id, identity_id) do
+    from(user_identity in UserIdentity,
+      where:
+        user_identity.user_id == ^user_id and
+          user_identity.id == ^identity_id and
+          is_nil(user_identity.revoked_at),
       limit: 1
     )
   end

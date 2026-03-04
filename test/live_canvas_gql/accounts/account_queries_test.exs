@@ -75,6 +75,87 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       assert first_id != second_id
       assert second_page["pageInfo"]["hasNextPage"] == false
     end
+
+    test "returns only active identities after revocation" do
+      user = user_fixture()
+      _active_identity = attach_user_identity(user, :google_provider, "google-active-identity")
+
+      revoked_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+      revoked_identity =
+        attach_user_identity(user, :apple_provider, "apple-revoked-identity",
+          revoked_at: revoked_at
+        )
+
+      query = """
+      query($first: Int!) {
+        viewer {
+          userIdentities(first: $first) {
+            edges {
+              node {
+                id
+              }
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(user)}
+
+      assert {:ok, %{data: %{"viewer" => %{"userIdentities" => identities}}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+
+      assert [%{"node" => %{"id" => active_identity_id}}] = identities["edges"]
+
+      revoked_identity_id =
+        Absinthe.Relay.Node.to_global_id(:user_identity, revoked_identity.id, LCGQL.Schema)
+
+      refute active_identity_id == revoked_identity_id
+    end
+  end
+
+  describe "node(userIdentity)" do
+    test "returns nil for revoked or unowned identity nodes" do
+      viewer = user_fixture()
+      outsider = user_fixture()
+
+      revoked_identity =
+        attach_user_identity(viewer, :google_provider, "google-node-revoked",
+          revoked_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        )
+
+      outsider_identity =
+        attach_user_identity(outsider, :apple_provider, "apple-node-outsider")
+
+      revoked_identity_id =
+        Absinthe.Relay.Node.to_global_id(:user_identity, revoked_identity.id, LCGQL.Schema)
+
+      outsider_identity_id =
+        Absinthe.Relay.Node.to_global_id(:user_identity, outsider_identity.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => revoked_identity_id},
+                 context: context
+               )
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => outsider_identity_id},
+                 context: context
+               )
+    end
   end
 
   describe "schema cleanup" do

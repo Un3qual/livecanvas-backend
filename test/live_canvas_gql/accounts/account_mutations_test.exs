@@ -442,6 +442,145 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
   end
 
+  describe "unlinkViewerIdentity" do
+    test "revokes a viewer-owned identity and returns the unlinked node" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      identity =
+        attach_user_identity(viewer, :google_provider, "google-mutation-unlink-success")
+
+      identity_id = Absinthe.Relay.Node.to_global_id(:user_identity, identity.id, LCGQL.Schema)
+
+      mutation = """
+      mutation UnlinkViewerIdentity($identityId: ID!) {
+        unlinkViewerIdentity(input: {userIdentityId: $identityId}) {
+          userIdentity {
+            id
+            provider
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "unlinkViewerIdentity" => %{
+                    "userIdentity" => %{"id" => ^identity_id, "provider" => "google_provider"},
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"identityId" => identity_id},
+                 context: context
+               )
+
+      refute Accounts.get_user_by_identity(:google_provider, "google-mutation-unlink-success")
+    end
+
+    test "returns structured errors for invalid or unowned identity IDs" do
+      viewer = user_fixture()
+      outsider = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      outsider_identity =
+        attach_user_identity(outsider, :apple_provider, "apple-mutation-unlink-outsider")
+
+      outsider_identity_id =
+        Absinthe.Relay.Node.to_global_id(:user_identity, outsider_identity.id, LCGQL.Schema)
+
+      wrong_type_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+
+      mutation = """
+      mutation UnlinkViewerIdentity($identityId: ID!) {
+        unlinkViewerIdentity(input: {userIdentityId: $identityId}) {
+          userIdentity {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "unlinkViewerIdentity" => %{
+                    "userIdentity" => nil,
+                    "errors" => [%{"field" => "userIdentityId", "message" => "is invalid"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"identityId" => wrong_type_id},
+                 context: context
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "unlinkViewerIdentity" => %{
+                    "userIdentity" => nil,
+                    "errors" => [%{"field" => nil, "message" => "not_found"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"identityId" => outsider_identity_id},
+                 context: context
+               )
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      viewer = user_fixture()
+
+      identity =
+        attach_user_identity(viewer, :google_provider, "google-mutation-unlink-anon")
+
+      identity_id = Absinthe.Relay.Node.to_global_id(:user_identity, identity.id, LCGQL.Schema)
+
+      mutation = """
+      mutation UnlinkViewerIdentity($identityId: ID!) {
+        unlinkViewerIdentity(input: {userIdentityId: $identityId}) {
+          userIdentity {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "unlinkViewerIdentity" => %{
+                    "userIdentity" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema, variables: %{"identityId" => identity_id})
+    end
+  end
+
   describe "schema cleanup" do
     test "does not expose the legacy appleAuthenticate stub" do
       schema_sdl = Absinthe.Schema.to_sdl(LCGQL.Schema)
