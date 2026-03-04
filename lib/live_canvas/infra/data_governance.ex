@@ -3,6 +3,7 @@ defmodule LC.Infra.DataGovernance do
 
   alias LC.Infra.DataGovernance.Deletion
   alias LC.Infra.DataGovernance.Export
+  alias LC.Infra.DataGovernance.Retention
   alias LCSchemas.Accounts.User
   alias LCSchemas.Infra.{AccountDeletionRequest, DataExportRequest}
 
@@ -17,6 +18,9 @@ defmodule LC.Infra.DataGovernance do
   @type account_deletion_cancel_result ::
           {:ok, AccountDeletionRequest.t()}
           | {:error, account_deletion_cancel_error() | changeset()}
+  @type retention_opts ::
+          [{:cutoff_days, pos_integer()} | {:dry_run, boolean()} | {:apply, boolean()}]
+  @type retention_result :: {:ok, Retention.report()} | {:error, Retention.run_error()}
 
   @doc """
   Creates or reuses an active export request for the given viewer.
@@ -73,5 +77,13 @@ defmodule LC.Infra.DataGovernance do
   def cancel_account_deletion_request(%User{} = user, request_id)
       when is_integer(request_id) and request_id > 0 do
     Deletion.cancel(user, request_id)
+  end
+
+  @doc """
+  Runs the operational retention sweep report for governance-owned tables.
+  """
+  @spec run_retention_sweep(retention_opts()) :: retention_result()
+  def run_retention_sweep(opts \\ []) when is_list(opts) do
+    Retention.run(opts)
   end
 end

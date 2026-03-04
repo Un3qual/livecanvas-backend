@@ -8,6 +8,7 @@ defmodule LC.Infra do
       DataGovernance,
       DataGovernance.Deletion,
       DataGovernance.Export,
+      DataGovernance.Retention,
       Mailer,
       ObjectStorage,
       Repo,

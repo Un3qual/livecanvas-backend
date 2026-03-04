@@ -39,7 +39,8 @@ defmodule LC.MixProject do
         typecheck: :dev,
         dialyzer: :dev,
         "release.gates": :test,
-        "release.migration_drill": :test
+        "release.migration_drill": :test,
+        "release.retention_sweep": :test
       ]
     ]
   end

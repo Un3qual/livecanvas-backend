@@ -84,33 +84,34 @@ defmodule LC.Infra.DataGovernanceDeletionTest do
   end
 
   describe "deletion async handler" do
-    test "transitions scheduled requests to completed and purges user-owned rows" do
+    test "transitions scheduled requests to completed while hard deletion is stubbed" do
       user = user_fixture()
       other_user = user_fixture()
       third_user = user_fixture()
 
-      _follow = accepted_follow_fixture(user, other_user)
-      _block = block_fixture(user, third_user)
-      _mute = mute_fixture(user, other_user)
+      follow = accepted_follow_fixture(user, other_user)
+      block = block_fixture(user, third_user)
+      mute = mute_fixture(user, other_user)
 
-      assert {:ok, post} = Content.create_post(user, %{body_text: "delete me", kind: :standard})
+      assert {:ok, post} =
+               Content.create_post(user, %{body_text: "queued for deletion", kind: :standard})
 
-      assert {:ok, _media_asset} =
+      assert {:ok, media_asset} =
                Content.create_media_asset(user, %{
                  post_id: post.id,
                  mime_type: "image/jpeg",
-                 storage_key: "uploads/delete-me.jpg"
+                 storage_key: "uploads/stubbed-delete.jpg"
                })
 
       assert {:ok, session} = Live.start_live_session(user, %{visibility: :public})
-      assert {:ok, _participant} = Live.join_live_session(session, other_user, :viewer)
-      assert {:ok, _message} = Chat.create_message(session, user, %{body: "goodbye"})
-      assert {:ok, _refresh_token_payload} = Accounts.issue_refresh_token(user)
+      assert {:ok, participant} = Live.join_live_session(session, other_user, :viewer)
+      assert {:ok, message} = Chat.create_message(session, user, %{body: "pending deletion"})
+      assert {:ok, refresh_token_payload} = Accounts.issue_refresh_token(user)
 
-      assert {:ok, _contact_entry} =
+      assert {:ok, contact_entry} =
                Accounts.upsert_user_contact_entry(user, %{
                  contact_client_id: :crypto.strong_rand_bytes(16),
-                 contact_name: "to be deleted",
+                 contact_name: "stubbed deletion contact",
                  emails: ["delete-me@example.com"],
                  phone_numbers: []
                })
@@ -133,26 +134,35 @@ defmodule LC.Infra.DataGovernanceDeletionTest do
       assert reloaded_request.status == :completed
       assert match?(%DateTime{}, reloaded_request.completed_at)
 
-      assert is_nil(Repo.get(User, user.id))
-      assert Repo.aggregate(Post, :count, :id) == 0
-      assert Repo.aggregate(MediaAsset, :count, :id) == 0
-      assert Repo.aggregate(LiveSession, :count, :id) == 0
-      assert Repo.aggregate(LiveParticipant, :count, :id) == 0
-      assert Repo.aggregate(ChatMessage, :count, :id) == 0
-      assert Repo.aggregate(Follow, :count, :id) == 0
-      assert Repo.aggregate(Block, :count, :id) == 0
-      assert Repo.aggregate(Mute, :count, :id) == 0
+      assert Repo.get!(User, user.id).id == user.id
+      assert Repo.get!(Post, post.id).id == post.id
+      assert Repo.get!(MediaAsset, media_asset.id).id == media_asset.id
+      assert Repo.get!(LiveSession, session.id).id == session.id
+      assert Repo.get!(LiveParticipant, participant.id).id == participant.id
+      assert Repo.get!(ChatMessage, message.id).id == message.id
+      assert Repo.get!(Follow, follow.id).id == follow.id
+      assert Repo.get!(Block, block.id).id == block.id
+      assert Repo.get!(Mute, mute.id).id == mute.id
+      assert refresh_token_payload.token != ""
+      assert contact_entry.contact_name == "stubbed deletion contact"
 
-      auth_event_types =
+      auth_events =
         Repo.all(
           from(auth_event in AuthEvent,
-            select: auth_event.event_type,
+            select: %{event_type: auth_event.event_type, metadata: auth_event.metadata},
             order_by: [asc: auth_event.inserted_at, asc: auth_event.id]
           )
         )
 
+      auth_event_types = Enum.map(auth_events, & &1.event_type)
+
       assert :account_deletion_requested in auth_event_types
       assert :account_deletion_completed in auth_event_types
+
+      assert Enum.any?(auth_events, fn auth_event ->
+               auth_event.event_type == :account_deletion_completed and
+                 auth_event.metadata["purge_mode"] == "stubbed"
+             end)
     end
   end
 

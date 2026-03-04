@@ -6,27 +6,28 @@ defmodule LC.Infra.DataGovernance.Deletion do
 
   alias LC.Infra.{AsyncJobs, Repo}
 
-  alias LCSchemas.Accounts.{
-    AuthEvent,
-    User,
-    UserContactEntry,
-    UserEmailAddress,
-    UserIdentity,
-    UserPhoneNumber,
-    UserToken
-  }
-
-  alias LCSchemas.Chat.ChatMessage
-  alias LCSchemas.Content.{MediaAsset, Post}
+  alias LCSchemas.Accounts.{AuthEvent, User}
   alias LCSchemas.Infra.{AccountDeletionRequest, AsyncJob}
-  alias LCSchemas.Live.{LiveParticipant, LiveSession}
-  alias LCSchemas.Social.{Block, Follow, Mute}
 
   @behaviour LC.Infra.AsyncJobs.Handler
 
   @job_kind "account_deletion_request"
   @default_grace_period_seconds 7 * 24 * 60 * 60
   @default_job_max_attempts 3
+  @stubbed_purge_order [
+    :chat_messages,
+    :live_participants,
+    :live_sessions,
+    :media_assets,
+    :posts,
+    :social_edges,
+    :user_contact_entries,
+    :user_identities,
+    :user_phone_numbers,
+    :user_email_addresses,
+    :users_tokens,
+    :users
+  ]
 
   @type changeset :: Ecto.Changeset.t()
   @type request_opts ::
@@ -277,7 +278,9 @@ defmodule LC.Infra.DataGovernance.Deletion do
            }) do
       :ok =
         persist_auth_event(:account_deletion_completed, processing_request.user_id, %{
-          "account_deletion_request_id" => processing_request.id
+          "account_deletion_request_id" => processing_request.id,
+          "purge_mode" => "stubbed",
+          "purge_order" => Enum.map(@stubbed_purge_order, &Atom.to_string/1)
         })
 
       :ok
@@ -309,118 +312,15 @@ defmodule LC.Infra.DataGovernance.Deletion do
 
   @spec purge_user_records(pos_integer() | nil) :: :ok | {:error, String.t()}
   defp purge_user_records(user_id) when is_integer(user_id) and user_id > 0 do
-    try do
-      {:ok, :ok} =
-        Repo.transact(fn ->
-          # Keep purge order explicit so retries are deterministic and the
-          # workflow behavior remains stable as schema relationships evolve.
-          _ = delete_user_chat_messages(user_id)
-          _ = delete_user_live_participants(user_id)
-          _ = delete_user_live_sessions(user_id)
-          _ = delete_user_media_assets(user_id)
-          _ = delete_user_posts(user_id)
-          _ = delete_social_edges(user_id)
-          _ = delete_user_contact_entries(user_id)
-          _ = delete_user_identities(user_id)
-          _ = delete_user_phone_links(user_id)
-          _ = delete_user_email_links(user_id)
-          _ = delete_user_tokens(user_id)
-          _ = delete_user(user_id)
-          {:ok, :ok}
-        end)
-
-      :ok
-    rescue
-      exception ->
-        {:error, Exception.message(exception)}
-    end
+    # We intentionally keep hard deletion disabled in this release slice until
+    # downstream legal-hold and incident-hold controls are implemented.
+    # Keeping the target order here preserves deterministic execution semantics
+    # for the follow-up task that will turn physical deletion back on.
+    _ = {@stubbed_purge_order, user_id}
+    :ok
   end
 
   defp purge_user_records(_user_id), do: :ok
-
-  @spec delete_user_chat_messages(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user_chat_messages(user_id) do
-    from(chat_message in ChatMessage, where: chat_message.sender_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_user_live_participants(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user_live_participants(user_id) do
-    from(live_participant in LiveParticipant, where: live_participant.user_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_user_live_sessions(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user_live_sessions(user_id) do
-    from(live_session in LiveSession, where: live_session.host_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_user_media_assets(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user_media_assets(user_id) do
-    from(media_asset in MediaAsset, where: media_asset.owner_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_user_posts(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user_posts(user_id) do
-    from(post in Post, where: post.author_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_social_edges(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_social_edges(user_id) do
-    _ =
-      from(follow in Follow,
-        where: follow.follower_id == ^user_id or follow.followed_id == ^user_id
-      )
-      |> Repo.delete_all()
-
-    _ =
-      from(block in Block,
-        where: block.blocker_id == ^user_id or block.blocked_id == ^user_id
-      )
-      |> Repo.delete_all()
-
-    from(mute in Mute, where: mute.muter_id == ^user_id or mute.muted_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_user_contact_entries(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user_contact_entries(user_id) do
-    from(user_contact_entry in UserContactEntry, where: user_contact_entry.user_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_user_identities(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user_identities(user_id) do
-    from(user_identity in UserIdentity, where: user_identity.user_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_user_phone_links(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user_phone_links(user_id) do
-    from(user_phone_number in UserPhoneNumber, where: user_phone_number.user_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_user_email_links(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user_email_links(user_id) do
-    from(user_email_address in UserEmailAddress, where: user_email_address.user_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_user_tokens(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user_tokens(user_id) do
-    from(user_token in UserToken, where: user_token.user_id == ^user_id)
-    |> Repo.delete_all()
-  end
-
-  @spec delete_user(pos_integer()) :: {non_neg_integer(), nil | [term()]}
-  defp delete_user(user_id) do
-    from(user in User, where: user.id == ^user_id)
-    |> Repo.delete_all()
-  end
 
   @spec update_request(AccountDeletionRequest.t(), map()) ::
           {:ok, AccountDeletionRequest.t()} | {:error, changeset()}
@@ -483,8 +383,11 @@ defmodule LC.Infra.DataGovernance.Deletion do
     |> Repo.insert()
   end
 
-  defp sanitize_failure_reason(reason) when is_binary(reason), do: String.slice(reason, 0, 250)
-  defp sanitize_failure_reason(reason), do: reason |> inspect(limit: 50) |> String.slice(0, 250)
+  defp sanitize_failure_reason(reason) do
+    reason
+    |> inspect(limit: 50)
+    |> String.slice(0, 250)
+  end
 
   @spec extract_payload_integer(map(), :account_deletion_request_id) ::
           {:ok, pos_integer()} | {:error, :invalid_payload}

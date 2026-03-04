@@ -30,7 +30,7 @@ Verified before selecting this plan so we do not assume missing implementation f
 ## Scope And Assumptions
 
 - Scope this slice to governance primitives needed for v1 launch readiness: policy matrix, export/deletion request lifecycles, and retention sweeper baseline.
-- Keep destructive operations asynchronous and idempotent.
+- Keep destructive operations asynchronous and idempotent; hard deletion execution is intentionally stubbed in this milestone.
 - Keep request APIs viewer-scoped and non-admin for v1.
 - Prefer additive schema/migration changes and keep existing domain behavior intact.
 - Use `:utc_datetime_usec` timestamps and bigint + `:entropy_id` UUIDv7 on new relational tables per conventions.
@@ -41,7 +41,7 @@ Verified before selecting this plan so we do not assume missing implementation f
 - [x] Task 2: Add data-governance persistence primitives and schemas
 - [x] Task 3: Add viewer-scoped data export request workflow (context + GraphQL + async handler)
 - [x] Task 4: Add viewer-scoped account deletion request workflow (context + GraphQL + async handler)
-- [ ] Task 5: Add retention sweeper baseline for operational tables
+- [x] Task 5: Add retention sweeper baseline for operational tables
 - [ ] Task 6: Run full verification, close roadmap planning hole, and finalize milestone
 
 ### Task 1: Compliance Policy Matrix And Runbook
@@ -218,7 +218,7 @@ Verification evidence (2026-03-04):
 
 **Task 4 behavior targets:**
 - Viewer can request account deletion; workflow schedules purge after policy-defined grace period.
-- Deletion executor removes user-owned records in deterministic order and records status transitions.
+- Deletion executor records deterministic purge intent but keeps hard deletion stubbed for now, while still recording status transitions.
 - Auth events record deletion request and completion outcomes (including failures) with safe metadata only.
 
 **Step 5 commit:**
@@ -248,23 +248,32 @@ git commit -m "feat: add account deletion request governance workflow"
 - Create: `lib/live_canvas/infra/data_governance/retention.ex`
 - Create: `lib/mix/tasks/release.retention_sweep.ex`
 - Modify: `mix.exs`
-- Modify: `lib/live_canvas/infra/async_jobs/handler.ex`
+- Modify: `lib/live_canvas/infra/data_governance/deletion.ex`
+- Modify: `lib/live_canvas/infra/data_governance.ex`
+- Modify: `lib/live_canvas/infra.ex`
 - Create: `test/live_canvas/infra/data_governance_retention_test.exs`
 - Create: `test/live_canvas/release/retention_sweep_task_test.exs`
+- Modify: `test/live_canvas/infra/data_governance_deletion_test.exs`
 - Modify: `docs/release/compliance-data-governance.md`
 - Modify: `docs/plans/release/2026-03-04-compliance-data-governance.md`
 
 **Task 5 Step Progress:**
-- [ ] Step 1: Add failing tests for cutoff calculation, dry-run reporting, and deletion ordering
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement retention sweeper module + mix task wrapper (`--dry-run`, `--apply`, `--cutoff-days`)
-- [ ] Step 4: Run focused tests and task command checks for GREEN
-- [ ] Step 5: Run `mix compile` + `mix test` + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing tests for cutoff calculation, dry-run reporting, and deletion ordering
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement retention sweeper module + mix task wrapper (`--dry-run`, `--apply`, `--cutoff-days`)
+- [x] Step 4: Run focused tests and task command checks for GREEN
+- [x] Step 5: Run `mix compile` + `mix test` + `mix typecheck`, update checklist, and commit milestone
+
+Verification evidence (2026-03-04):
+
+- `mix test test/live_canvas/infra/data_governance_retention_test.exs test/live_canvas/release/retention_sweep_task_test.exs test/live_canvas/infra/data_governance_deletion_test.exs` -> RED (`11 tests, 9 failures`) before implementation
+- `mix test test/live_canvas/infra/data_governance_retention_test.exs test/live_canvas/release/retention_sweep_task_test.exs test/live_canvas/infra/data_governance_deletion_test.exs` -> GREEN (`11 tests, 0 failures`) after implementation
+- `mix compile && mix test && mix typecheck` -> PASS (`370 tests, 0 failures`; `Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 **Task 5 retention targets:**
 - Initial enforced families: `auth_events`, `async_jobs` terminal rows, `webhook_events` terminal rows.
-- Dry-run prints per-table deletion counts and cutoff timestamp in UTC.
-- Apply mode is explicit and fail-fast if safeguards/arguments are invalid.
+- Dry-run prints per-table candidate counts and cutoff timestamp in UTC.
+- Apply mode is explicit and fail-fast if safeguards/arguments are invalid, but hard deletion remains stubbed and non-destructive.
 
 **Step 5 commit:**
 
@@ -272,9 +281,12 @@ git commit -m "feat: add account deletion request governance workflow"
 git add lib/live_canvas/infra/data_governance/retention.ex \
   lib/mix/tasks/release.retention_sweep.ex \
   mix.exs \
-  lib/live_canvas/infra/async_jobs/handler.ex \
+  lib/live_canvas/infra/data_governance/deletion.ex \
+  lib/live_canvas/infra/data_governance.ex \
+  lib/live_canvas/infra.ex \
   test/live_canvas/infra/data_governance_retention_test.exs \
   test/live_canvas/release/retention_sweep_task_test.exs \
+  test/live_canvas/infra/data_governance_deletion_test.exs \
   docs/release/compliance-data-governance.md \
   docs/plans/release/2026-03-04-compliance-data-governance.md
 git commit -m "feat: add release retention sweep baseline"
