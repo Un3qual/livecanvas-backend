@@ -39,7 +39,7 @@ Verified before selecting this plan so we do not assume missing implementation f
 
 - [x] Task 1: Author compliance policy matrix and operator runbook
 - [x] Task 2: Add data-governance persistence primitives and schemas
-- [ ] Task 3: Add viewer-scoped data export request workflow (context + GraphQL + async handler)
+- [x] Task 3: Add viewer-scoped data export request workflow (context + GraphQL + async handler)
 - [ ] Task 4: Add viewer-scoped account deletion request workflow (context + GraphQL + async handler)
 - [ ] Task 5: Add retention sweeper baseline for operational tables
 - [ ] Task 6: Run full verification, close roadmap planning hole, and finalize milestone
@@ -129,23 +129,33 @@ git commit -m "feat: add data governance request persistence primitives"
 **Files:**
 - Create: `lib/live_canvas/infra/data_governance.ex`
 - Create: `lib/live_canvas/infra/data_governance/export.ex`
+- Create: `priv/repo/migrations/20260304020000_add_artifact_metadata_to_data_export_requests.exs`
 - Modify: `lib/live_canvas/infra.ex`
 - Modify: `lib/live_canvas/accounts.ex`
-- Modify: `lib/live_canvas/infra/async_jobs/handler.ex`
+- Modify: `lib/live_canvas_schemas/infra/data_export_request.ex`
+- Modify: `config/config.exs`
 - Modify: `lib/live_canvas_gql/accounts/account_mutations.ex`
 - Modify: `lib/live_canvas_gql/accounts/account_queries.ex`
 - Modify: `lib/live_canvas_gql/accounts/account_resolver.ex`
 - Modify: `lib/live_canvas_gql/accounts/account_types.ex`
+- Modify: `lib/live_canvas_gql/schema.ex`
 - Create: `test/live_canvas/infra/data_governance_export_test.exs`
 - Modify: `test/live_canvas_gql/accounts/account_mutations_test.exs`
 - Modify: `docs/plans/release/2026-03-04-compliance-data-governance.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing context/GraphQL tests for export request creation, deduping, and request listing
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement viewer-scoped request API + async-job enqueue path + relay node exposure
-- [ ] Step 4: Run focused tests and integration smoke checks to verify GREEN
-- [ ] Step 5: Run `mix test` + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing context/GraphQL tests for export request creation, deduping, and request listing
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement viewer-scoped request API + async-job enqueue path + relay node exposure
+- [x] Step 4: Run focused tests and integration smoke checks to verify GREEN
+- [x] Step 5: Run `mix test` + `mix typecheck`, update checklist, and commit milestone
+
+Verification evidence (2026-03-04):
+
+- `mix test test/live_canvas/infra/data_governance_export_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs` -> RED (`25 tests, 6 failures`) before implementation
+- `mix test test/live_canvas/infra/data_governance_export_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs` -> GREEN (`25 tests, 0 failures`) after implementation
+- `mix test` -> PASS (`356 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 **Task 3 behavior targets:**
 - Authenticated viewer can submit an export request; request is persisted and queued exactly once per active pending request.
@@ -157,13 +167,16 @@ git commit -m "feat: add data governance request persistence primitives"
 ```bash
 git add lib/live_canvas/infra/data_governance.ex \
   lib/live_canvas/infra/data_governance/export.ex \
+  priv/repo/migrations/20260304020000_add_artifact_metadata_to_data_export_requests.exs \
   lib/live_canvas/infra.ex \
   lib/live_canvas/accounts.ex \
-  lib/live_canvas/infra/async_jobs/handler.ex \
+  lib/live_canvas_schemas/infra/data_export_request.ex \
+  config/config.exs \
   lib/live_canvas_gql/accounts/account_mutations.ex \
   lib/live_canvas_gql/accounts/account_queries.ex \
   lib/live_canvas_gql/accounts/account_resolver.ex \
   lib/live_canvas_gql/accounts/account_types.ex \
+  lib/live_canvas_gql/schema.ex \
   test/live_canvas/infra/data_governance_export_test.exs \
   test/live_canvas_gql/accounts/account_mutations_test.exs \
   docs/plans/release/2026-03-04-compliance-data-governance.md

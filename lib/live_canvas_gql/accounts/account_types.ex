@@ -8,6 +8,7 @@ defmodule LCGQL.Accounts.Types do
   connection(node_type: :user)
   connection(node_type: :user_identity)
   connection(node_type: :contact_match)
+  connection(node_type: :data_export_request)
 
   @desc "List of supported OAuth providers for logging in."
   enum :oauth_provider do
@@ -16,6 +17,17 @@ defmodule LCGQL.Accounts.Types do
     value(:instagram, description: "Log in with Instagram (not currently supported)")
     value(:facebook, description: "Log in with Facebook (not currently supported)")
     value(:twitter, description: "Log in with Twitter (not currently supported)")
+  end
+
+  enum :data_export_request_status do
+    value(:pending)
+    value(:processing)
+    value(:completed)
+    value(:failed)
+  end
+
+  enum :data_export_request_format do
+    value(:json)
   end
 
   node object(:user) do
@@ -56,6 +68,21 @@ defmodule LCGQL.Accounts.Types do
     end
 
     field :matched_users, non_null(list_of(non_null(:user)))
+  end
+
+  node object(:data_export_request) do
+    field :status, non_null(:data_export_request_status)
+    field :format, non_null(:data_export_request_format)
+
+    field :requested_at, non_null(:string) do
+      resolve(&Resolver.data_export_requested_at/3)
+    end
+
+    field :completed_at, :string do
+      resolve(&Resolver.data_export_completed_at/3)
+    end
+
+    field :failure_reason, :string
   end
 
   object :token do

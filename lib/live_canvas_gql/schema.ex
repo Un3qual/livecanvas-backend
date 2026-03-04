@@ -21,13 +21,29 @@ defmodule LCGQL.Schema do
   query do
     node field do
       resolve(fn
-        %{type: :user, id: id}, _resolution -> fetch_user_node(id)
-        %{type: :user_identity, id: id}, _resolution -> fetch_user_identity_node(id)
-        %{type: :post, id: id}, _resolution -> fetch_post_node(id)
-        %{type: :media_asset, id: id}, resolution -> fetch_media_asset_node(id, resolution)
-        %{type: :live_session, id: id}, _resolution -> fetch_live_session_node(id)
-        %{type: :contact_match, id: id}, resolution -> fetch_contact_match_node(id, resolution)
-        _arguments, _resolution -> {:ok, nil}
+        %{type: :user, id: id}, _resolution ->
+          fetch_user_node(id)
+
+        %{type: :user_identity, id: id}, _resolution ->
+          fetch_user_identity_node(id)
+
+        %{type: :post, id: id}, _resolution ->
+          fetch_post_node(id)
+
+        %{type: :media_asset, id: id}, resolution ->
+          fetch_media_asset_node(id, resolution)
+
+        %{type: :live_session, id: id}, _resolution ->
+          fetch_live_session_node(id)
+
+        %{type: :data_export_request, id: id}, resolution ->
+          fetch_data_export_request_node(id, resolution)
+
+        %{type: :contact_match, id: id}, resolution ->
+          fetch_contact_match_node(id, resolution)
+
+        _arguments, _resolution ->
+          {:ok, nil}
       end)
     end
 
@@ -57,6 +73,10 @@ defmodule LCGQL.Schema do
       %{mime_type: _mime_type, processing_state: _processing_state, owner_id: _owner_id},
       _resolution ->
         :media_asset
+
+      %{status: _status, format: _format, requested_at: _requested_at, user_id: _user_id},
+      _resolution ->
+        :data_export_request
 
       %{status: _status, visibility: _visibility, host_id: _host_id}, _resolution ->
         :live_session
@@ -118,6 +138,22 @@ defmodule LCGQL.Schema do
   rescue
     Ecto.NoResultsError -> {:ok, nil}
   end
+
+  # Export-request nodes are viewer-scoped because they carry private governance
+  # workflow metadata; node refetch enforces ownership through the auth scope.
+  defp fetch_data_export_request_node(id, %{
+         context: %{current_scope: %{user: %{id: _id} = user}}
+       }) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
+        {:ok, Accounts.get_user_data_export_request(user, local_id)}
+
+      _ ->
+        {:ok, nil}
+    end
+  end
+
+  defp fetch_data_export_request_node(_id, _resolution), do: {:ok, nil}
 
   # Contact-match nodes are viewer-scoped, so node refetch must enforce
   # ownership via the authenticated scope instead of exposing raw ids globally.

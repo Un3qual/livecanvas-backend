@@ -31,6 +31,19 @@ defmodule LCGQL.Accounts.Mutations do
       resolve(&Resolver.attach_user_phone_number/3)
     end
 
+    payload field :request_viewer_data_export do
+      input do
+        field :format, :data_export_request_format
+      end
+
+      output do
+        field :data_export_request, :data_export_request
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.request_viewer_data_export/3)
+    end
+
     payload field :upsert_viewer_contact_entry do
       input do
         field :contact_client_id, non_null(:string)

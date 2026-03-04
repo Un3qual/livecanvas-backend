@@ -10,6 +10,11 @@ defmodule LCGQL.Accounts.Resolver do
           errors: [mutation_error()]
         }
   @type mutation_result :: {:ok, mutation_payload()}
+  @type data_export_request_payload :: %{
+          data_export_request: map() | nil,
+          errors: [mutation_error()]
+        }
+  @type data_export_request_result :: {:ok, data_export_request_payload()}
   @type contact_upsert_payload :: %{
           contact_match: LC.Accounts.contact_match() | nil,
           errors: [mutation_error()]
@@ -30,6 +35,7 @@ defmodule LCGQL.Accounts.Resolver do
           | :invalid_birthday
           | :invalid_phone_number
           | :invalid_email_list
+  @type data_export_error_reason :: :enqueue_failed | :unauthenticated
   @type invite_delivery_error_reason :: :invalid_recipient | :unauthenticated | :delivery_failed
   @type refresh_auth_error_reason :: :invalid_token | :expired_token | :revoked_token
   @type token_view :: %{
@@ -95,6 +101,35 @@ defmodule LCGQL.Accounts.Resolver do
   # phone bindings by passing arbitrary user IDs into the GraphQL payload.
   def attach_user_phone_number(_parent, _args, _resolution) do
     {:ok, %{user: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+  end
+
+  @spec request_viewer_data_export(
+          term(),
+          %{optional(:input) => map(), optional(:format) => atom()},
+          Absinthe.Resolution.t()
+        ) :: data_export_request_result()
+  def request_viewer_data_export(parent, %{input: input}, resolution),
+    do: request_viewer_data_export(parent, input, resolution)
+
+  def request_viewer_data_export(_parent, args, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
+    format = Map.get(args, :format, :json)
+
+    case Accounts.request_user_data_export(user, format: format) do
+      {:ok, request} ->
+        {:ok, %{data_export_request: request, errors: []}}
+
+      {:error, :enqueue_failed} ->
+        {:ok, %{data_export_request: nil, errors: [data_export_error(:enqueue_failed)]}}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok, %{data_export_request: nil, errors: format_changeset_errors(changeset)}}
+    end
+  end
+
+  def request_viewer_data_export(_parent, _args, _resolution) do
+    {:ok, %{data_export_request: nil, errors: [data_export_error(:unauthenticated)]}}
   end
 
   @spec upsert_viewer_contact_entry(
@@ -274,6 +309,20 @@ defmodule LCGQL.Accounts.Resolver do
     Absinthe.Relay.Connection.from_list([], args)
   end
 
+  @spec viewer_data_export_requests(term(), map(), Absinthe.Resolution.t()) ::
+          {:ok, map()} | {:error, term()}
+  def viewer_data_export_requests(_parent, args, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
+    user
+    |> Accounts.list_user_data_export_requests()
+    |> Absinthe.Relay.Connection.from_list(args)
+  end
+
+  def viewer_data_export_requests(_parent, args, _resolution) do
+    Absinthe.Relay.Connection.from_list([], args)
+  end
+
   @spec contact_match_name(contact_match_node(), map(), Absinthe.Resolution.t()) ::
           {:ok, String.t() | nil}
   def contact_match_name(%{contact_entry: %{contact_name: contact_name}}, _args, _res),
@@ -286,6 +335,24 @@ defmodule LCGQL.Accounts.Resolver do
 
   def contact_match_birthday(%{contact_entry: %{birthday: birthday}}, _args, _res),
     do: {:ok, Date.to_iso8601(birthday)}
+
+  @spec data_export_requested_at(
+          %{requested_at: DateTime.t() | nil},
+          map(),
+          Absinthe.Resolution.t()
+        ) ::
+          {:ok, String.t()}
+  def data_export_requested_at(%{requested_at: requested_at}, _args, _resolution),
+    do: {:ok, iso8601_datetime(requested_at) || ""}
+
+  @spec data_export_completed_at(
+          %{completed_at: DateTime.t() | nil},
+          map(),
+          Absinthe.Resolution.t()
+        ) ::
+          {:ok, String.t() | nil}
+  def data_export_completed_at(%{completed_at: completed_at}, _args, _resolution),
+    do: {:ok, iso8601_datetime(completed_at)}
 
   @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
   defp format_changeset_errors(changeset) do
@@ -312,6 +379,13 @@ defmodule LCGQL.Accounts.Resolver do
     do: %{field: "phoneNumbers", message: "is invalid"}
 
   defp contact_upsert_error(:invalid_email_list), do: %{field: "emails", message: "is invalid"}
+
+  @spec data_export_error(data_export_error_reason()) :: mutation_error()
+  defp data_export_error(:enqueue_failed),
+    do: %{field: nil, message: "export_unavailable"}
+
+  defp data_export_error(:unauthenticated),
+    do: %{field: nil, message: "unauthenticated"}
 
   @spec normalize_string_list([String.t()] | nil) :: [String.t()]
   defp normalize_string_list(nil), do: []

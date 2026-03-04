@@ -28,7 +28,8 @@ config :live_canvas, LC.Infra.AsyncJobs.Worker,
   claim_limit: 20,
   handlers: %{
     "media_asset_processing" => LC.Content.MediaProcessingJob,
-    "media_processing_webhook" => LC.Content.MediaProcessingJob
+    "media_processing_webhook" => LC.Content.MediaProcessingJob,
+    "data_export_request" => LC.Infra.DataGovernance.Export
   }
 
 config :live_canvas, :scopes,

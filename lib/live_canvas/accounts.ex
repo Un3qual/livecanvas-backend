@@ -10,8 +10,9 @@ defmodule LC.Accounts do
   import Ecto.Query, warn: false
   import Ecto.Changeset, only: [add_error: 3, get_field: 2]
 
-  alias LC.Infra.Repo
+  alias LC.Infra.{DataGovernance, Repo}
   alias LCSchemas.Accounts.AuthEvent, as: AuthEventSchema
+  alias LCSchemas.Infra.DataExportRequest, as: DataExportRequestSchema
 
   alias LCSchemas.Accounts.{
     EmailAddress,
@@ -88,6 +89,10 @@ defmodule LC.Accounts do
             metadata: map()
           ]
   @type auth_event_result :: {:ok, AuthEventSchema.t()} | {:error, changeset()}
+  @type data_export_request_result ::
+          {:ok, DataExportRequestSchema.t()} | {:error, changeset() | :enqueue_failed}
+  @type data_export_request_opts ::
+          [{:format, LCSchemas.Infra.data_export_request_format()}]
   @type token_pair_payload :: %{access_token: token_payload(), refresh_token: token_payload()}
   @type token_pair_result :: {:ok, token_pair_payload()} | {:error, refresh_token_auth_error()}
   @type registration_attrs :: %{
@@ -215,6 +220,32 @@ defmodule LC.Accounts do
       limit: ^limit
     )
     |> Repo.all()
+  end
+
+  @doc """
+  Creates or reuses an active data export request for the viewer.
+  """
+  @spec request_user_data_export(User.t(), data_export_request_opts()) ::
+          data_export_request_result()
+  def request_user_data_export(%User{} = user, opts \\ []) when is_list(opts) do
+    DataGovernance.request_data_export(user, opts)
+  end
+
+  @doc """
+  Lists viewer-owned data export requests, newest first.
+  """
+  @spec list_user_data_export_requests(User.t()) :: [DataExportRequestSchema.t()]
+  def list_user_data_export_requests(%User{} = user) do
+    DataGovernance.list_data_export_requests(user)
+  end
+
+  @doc """
+  Gets a viewer-owned data export request by local ID.
+  """
+  @spec get_user_data_export_request(User.t(), pos_integer()) :: DataExportRequestSchema.t() | nil
+  def get_user_data_export_request(%User{} = user, request_id)
+      when is_integer(request_id) and request_id > 0 do
+    DataGovernance.get_data_export_request(user, request_id)
   end
 
   ## User registration

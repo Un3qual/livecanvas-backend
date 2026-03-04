@@ -12,6 +12,7 @@ defmodule LCSchemas.Infra.DataExportRequest do
           format: LCSchemas.Infra.data_export_request_format() | nil,
           requested_at: DateTime.t() | nil,
           completed_at: DateTime.t() | nil,
+          artifact_metadata: map() | nil,
           failure_reason: String.t() | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
@@ -23,6 +24,7 @@ defmodule LCSchemas.Infra.DataExportRequest do
     field :format, Ecto.Enum, values: [:json], default: :json
     field :requested_at, :utc_datetime_usec
     field :completed_at, :utc_datetime_usec
+    field :artifact_metadata, :map
     field :failure_reason, :string
 
     belongs_to :user, User

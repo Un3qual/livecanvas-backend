@@ -6,6 +6,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   alias LC.Accounts
   alias LC.Infra.Repo
   alias LCSchemas.Accounts.UserToken
+  alias LCSchemas.Infra.{AsyncJob, DataExportRequest}
 
   describe "registerWithEmail" do
     test "creates a user through the accounts boundary" do
@@ -123,6 +124,165 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                 data: %{
                   "attachUserPhoneNumber" => %{
                     "user" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
+  describe "requestViewerDataExport" do
+    test "creates and dedupes a viewer-scoped export request" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation {
+        requestViewerDataExport(input: {}) {
+          dataExportRequest {
+            id
+            status
+            format
+            requestedAt
+            completedAt
+            failureReason
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "requestViewerDataExport" => %{
+                    "dataExportRequest" => %{
+                      "id" => request_id,
+                      "status" => "PENDING",
+                      "format" => "JSON",
+                      "requestedAt" => requested_at,
+                      "completedAt" => nil,
+                      "failureReason" => nil
+                    },
+                    "errors" => []
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+
+      assert is_binary(request_id)
+      assert is_binary(requested_at)
+
+      assert {:ok, %{type: :data_export_request}} =
+               Absinthe.Relay.Node.from_global_id(request_id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "requestViewerDataExport" => %{
+                    "dataExportRequest" => %{"id" => ^request_id},
+                    "errors" => []
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+
+      assert Repo.aggregate(DataExportRequest, :count, :id) == 1
+      assert Repo.aggregate(AsyncJob, :count, :id) == 1
+    end
+
+    test "returns a relay connection scoped to the viewer" do
+      viewer = user_fixture()
+      outsider = user_fixture()
+      viewer_context = %{current_scope: Accounts.scope_for_user(viewer)}
+      outsider_context = %{current_scope: Accounts.scope_for_user(outsider)}
+
+      mutation = """
+      mutation {
+        requestViewerDataExport(input: {}) {
+          dataExportRequest {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{data: %{"requestViewerDataExport" => %{"dataExportRequest" => %{"id" => id}}}}} =
+               Absinthe.run(mutation, LCGQL.Schema, context: viewer_context)
+
+      assert {:ok,
+              %{data: %{"requestViewerDataExport" => %{"dataExportRequest" => %{"id" => _id}}}}} =
+               Absinthe.run(mutation, LCGQL.Schema, context: outsider_context)
+
+      query = """
+      query($first: Int!) {
+        viewerDataExportRequests(first: $first) {
+          edges {
+            node {
+              id
+              status
+              format
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "viewerDataExportRequests" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^id,
+                          "status" => "PENDING",
+                          "format" => "JSON"
+                        }
+                      }
+                    ],
+                    "pageInfo" => %{"hasNextPage" => false, "endCursor" => _end_cursor}
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 query,
+                 LCGQL.Schema,
+                 variables: %{"first" => 10},
+                 context: viewer_context
+               )
+    end
+
+    test "returns an unauthenticated error without a viewer scope" do
+      mutation = """
+      mutation {
+        requestViewerDataExport(input: {}) {
+          dataExportRequest {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "requestViewerDataExport" => %{
+                    "dataExportRequest" => nil,
                     "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
                   }
                 }
