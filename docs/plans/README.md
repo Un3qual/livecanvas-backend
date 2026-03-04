@@ -5,7 +5,7 @@ Use this directory for active and in-progress planning artifacts.
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- No active implementation plan is currently in progress.
+- Live runtime heartbeat/failover hardening plan: `docs/plans/release/2026-03-04-live-runtime-heartbeat-and-failover-hardening.md`
 
 ## Recently Completed
 

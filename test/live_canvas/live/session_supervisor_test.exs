@@ -4,7 +4,7 @@ defmodule LC.Live.SessionSupervisorTest do
   import LC.AccountsFixtures, only: [user_fixture: 0]
 
   alias LC.Live.{SessionOwnership, SessionSupervisor}
-  alias LCSchemas.Live.LiveSession
+  alias LCSchemas.Live.{LiveSession, LiveSessionRuntimeOwner}
 
   describe "start_session_server/2" do
     test "claims local ownership when starting a session runtime" do
@@ -66,6 +66,54 @@ defmodule LC.Live.SessionSupervisorTest do
     end
   end
 
+  describe "lease heartbeats" do
+    test "refreshes lease heartbeat while runtime is active" do
+      session_id = live_session_id_fixture()
+      heartbeat_interval_ms = 20
+
+      assert {:ok, pid} =
+               SessionSupervisor.start_session_server(
+                 session_id,
+                 %{},
+                 lease_heartbeat_interval_ms: heartbeat_interval_ms
+               )
+
+      :ok = allow_runtime_db(pid)
+      first_lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session_id)
+
+      Process.sleep(heartbeat_interval_ms * 4)
+
+      refreshed_lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session_id)
+
+      assert DateTime.compare(refreshed_lease.heartbeat_at, first_lease.heartbeat_at) == :gt
+
+      assert DateTime.compare(refreshed_lease.lease_expires_at, first_lease.lease_expires_at) ==
+               :gt
+
+      assert :ok = SessionSupervisor.stop_session_server(session_id)
+    end
+
+    test "stops runtime when lease refresh can no longer confirm ownership" do
+      session_id = live_session_id_fixture()
+      heartbeat_interval_ms = 20
+
+      assert {:ok, pid} =
+               SessionSupervisor.start_session_server(
+                 session_id,
+                 %{},
+                 lease_heartbeat_interval_ms: heartbeat_interval_ms
+               )
+
+      :ok = allow_runtime_db(pid)
+      lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session_id)
+      _deleted_lease = Repo.delete!(lease)
+      monitor_ref = Process.monitor(pid)
+
+      assert_receive {:DOWN, ^monitor_ref, :process, ^pid, :lost_ownership}
+      assert {:error, :not_found} = SessionSupervisor.lookup_session_server(session_id)
+    end
+  end
+
   defp live_session_id_fixture do
     host = user_fixture()
     live_session = Repo.insert!(%LiveSession{host_id: host.id})
@@ -75,4 +123,8 @@ defmodule LC.Live.SessionSupervisorTest do
   defp local_node_name, do: Node.self() |> Atom.to_string()
 
   defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+  defp allow_runtime_db(pid) when is_pid(pid) do
+    Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
+  end
 end

@@ -37,6 +37,8 @@ config :live_canvas, LC.Infra.DataGovernance.Deletion,
   grace_period_seconds: 604_800,
   job_max_attempts: 3
 
+config :live_canvas, LC.Live.SessionSupervisor, lease_heartbeat_interval_ms: 10_000
+
 config :live_canvas, :scopes,
   user: [
     default: true,

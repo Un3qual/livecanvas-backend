@@ -7,24 +7,33 @@ defmodule LC.Live.SessionSupervisor do
 
   @registry LC.Live.SessionRegistry
   @dynamic_supervisor LC.Live.SessionDynamicSupervisor
+  @default_lease_heartbeat_interval_ms 10_000
 
   @type initial_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type remote_owner_error :: {:owned_by_remote, String.t()}
   @type lookup_error :: :not_found | remote_owner_error()
+  @type start_option :: {:lease_heartbeat_interval_ms, pos_integer()}
 
   @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts \\ []) do
     Supervisor.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
   end
 
+  @spec start_session_server(pos_integer()) ::
+          {:ok, pid()} | {:error, term() | remote_owner_error()}
+  def start_session_server(session_id), do: start_session_server(session_id, %{}, [])
+
   @spec start_session_server(pos_integer(), initial_participants()) ::
           {:ok, pid()} | {:error, term() | remote_owner_error()}
-  def start_session_server(session_id, initial_participants \\ %{})
+  def start_session_server(session_id, initial_participants),
+    do: start_session_server(session_id, initial_participants, [])
 
-  def start_session_server(session_id, initial_participants)
-      when is_integer(session_id) and is_map(initial_participants) do
+  @spec start_session_server(pos_integer(), initial_participants(), [start_option()]) ::
+          {:ok, pid()} | {:error, term() | remote_owner_error()}
+  def start_session_server(session_id, initial_participants, opts)
+      when is_integer(session_id) and is_map(initial_participants) and is_list(opts) do
     with :ok <- claim_local_ownership(session_id),
-         {:ok, pid} <- start_runtime_child(session_id, initial_participants) do
+         {:ok, pid} <- start_runtime_child(session_id, initial_participants, opts) do
       {:ok, pid}
     else
       {:error, {:owned_by_remote, _owner_node}} = ownership_error ->
@@ -101,14 +110,20 @@ defmodule LC.Live.SessionSupervisor do
     SessionOwnership.release(session_id, local_node_name())
   end
 
-  @spec start_runtime_child(pos_integer(), initial_participants()) ::
+  @spec start_runtime_child(pos_integer(), initial_participants(), [start_option()]) ::
           {:ok, pid()} | {:error, term()}
-  defp start_runtime_child(session_id, initial_participants)
-       when is_integer(session_id) and is_map(initial_participants) do
+  defp start_runtime_child(session_id, initial_participants, opts)
+       when is_integer(session_id) and is_map(initial_participants) and is_list(opts) do
+    heartbeat_interval_ms = lease_heartbeat_interval_ms(opts)
+
     # Runtime session state is ephemeral; do not auto-restart ended sessions.
     child_spec =
       {SessionServer,
-       session_id: session_id, registry: @registry, initial_participants: initial_participants}
+       session_id: session_id,
+       registry: @registry,
+       initial_participants: initial_participants,
+       lease_heartbeat: &refresh_local_ownership/1,
+       lease_heartbeat_interval_ms: heartbeat_interval_ms}
       |> Supervisor.child_spec(restart: :temporary, id: {SessionServer, session_id})
 
     case DynamicSupervisor.start_child(@dynamic_supervisor, child_spec) do
@@ -139,6 +154,27 @@ defmodule LC.Live.SessionSupervisor do
 
   @spec now_utc() :: DateTime.t()
   defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+  @spec refresh_local_ownership(pos_integer()) :: SessionServer.lease_heartbeat_result()
+  defp refresh_local_ownership(session_id) when is_integer(session_id) do
+    case SessionOwnership.refresh(session_id, local_node_name(), now_utc()) do
+      {:ok, _lease} -> :ok
+      {:error, :not_found} -> {:error, :lost_ownership}
+      {:error, {:owned_by_remote, _owner_node}} -> {:error, :lost_ownership}
+    end
+  end
+
+  @spec lease_heartbeat_interval_ms([start_option()]) :: pos_integer()
+  defp lease_heartbeat_interval_ms(opts) when is_list(opts) do
+    configured_interval =
+      Application.get_env(:live_canvas, __MODULE__, [])
+      |> Keyword.get(:lease_heartbeat_interval_ms, @default_lease_heartbeat_interval_ms)
+
+    case Keyword.get(opts, :lease_heartbeat_interval_ms, configured_interval) do
+      interval when is_integer(interval) and interval > 0 -> interval
+      _ -> configured_interval
+    end
+  end
 
   @impl true
   @spec init(:ok) :: {:ok, {Supervisor.sup_flags(), [Supervisor.child_spec()]}}
