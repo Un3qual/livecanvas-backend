@@ -4,6 +4,7 @@ defmodule LC.ContentTest do
   import LC.AccountsFixtures
 
   alias LC.Content
+  alias LCSchemas.Infra.AsyncJob
 
   describe "create_post/2" do
     test "persists author-owned content" do
@@ -70,7 +71,7 @@ defmodule LC.ContentTest do
   end
 
   describe "finalize_media_upload/3" do
-    test "finalizes a viewer-owned pending upload and marks it processed" do
+    test "finalizes a viewer-owned pending upload and enqueues async processing" do
       owner = user_fixture()
 
       assert {:ok, %{media_asset: asset}} =
@@ -82,9 +83,17 @@ defmodule LC.ContentTest do
                Content.finalize_media_upload(owner, asset.id, %{width: 1080, height: 1920})
 
       assert finalized_asset.id == asset.id
-      assert finalized_asset.processing_state == :processed
+      assert finalized_asset.processing_state == :uploaded
       assert finalized_asset.width == 1080
       assert finalized_asset.height == 1920
+
+      assert Repo.aggregate(AsyncJob, :count, :id) == 1
+
+      async_job = Repo.one!(AsyncJob)
+      assert async_job.kind == "media_asset_processing"
+      assert async_job.payload == %{"media_asset_id" => asset.id}
+      assert async_job.dedupe_key == "media_asset_processing:#{asset.id}"
+      assert async_job.max_attempts == 2
     end
 
     test "returns not found for non-owners" do
@@ -97,32 +106,23 @@ defmodule LC.ContentTest do
       assert {:error, :not_found} = Content.finalize_media_upload(other_user, asset.id, %{})
     end
 
-    test "is idempotent when the upload is already processed" do
+    test "is idempotent when finalize is called repeatedly for the same upload" do
       owner = user_fixture()
 
       assert {:ok, %{media_asset: asset}} =
                Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
 
-      assert {:ok, processed_asset} = Content.finalize_media_upload(owner, asset.id, %{})
-      assert processed_asset.processing_state == :processed
+      assert {:ok, uploaded_asset} = Content.finalize_media_upload(owner, asset.id, %{})
+      assert uploaded_asset.processing_state == :uploaded
 
-      assert {:ok, processed_asset_again} = Content.finalize_media_upload(owner, asset.id, %{})
-      assert processed_asset_again.id == processed_asset.id
-      assert processed_asset_again.processing_state == :processed
+      assert {:ok, uploaded_asset_again} = Content.finalize_media_upload(owner, asset.id, %{})
+      assert uploaded_asset_again.id == uploaded_asset.id
+      assert uploaded_asset_again.processing_state == :uploaded
+
+      assert Repo.aggregate(AsyncJob, :count, :id) == 1
     end
 
-    test "marks upload as failed when media processing rejects the MIME type" do
-      owner = user_fixture()
-
-      assert {:ok, %{media_asset: asset}} =
-               Content.request_media_upload(owner, %{mime_type: "application/octet-stream"})
-
-      assert {:error, :processing_failed} = Content.finalize_media_upload(owner, asset.id, %{})
-
-      assert %{processing_state: :failed} = Content.get_user_media_asset(owner, asset.id)
-    end
-
-    test "processes already-uploaded media rows during finalize recovery" do
+    test "enqueues async processing for already-uploaded rows during finalize recovery" do
       owner = user_fixture()
 
       assert {:ok, uploaded_asset} =
@@ -133,7 +133,8 @@ defmodule LC.ContentTest do
                })
 
       assert {:ok, finalized_asset} = Content.finalize_media_upload(owner, uploaded_asset.id, %{})
-      assert finalized_asset.processing_state == :processed
+      assert finalized_asset.processing_state == :uploaded
+      assert Repo.aggregate(AsyncJob, :count, :id) == 1
     end
   end
 end

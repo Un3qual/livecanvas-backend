@@ -26,7 +26,10 @@ config :live_canvas, LC.Infra.AsyncJobs.Worker,
   enabled: true,
   poll_interval_ms: 1_000,
   claim_limit: 20,
-  handlers: %{}
+  handlers: %{
+    "media_asset_processing" => LC.Content.MediaProcessingJob,
+    "media_processing_webhook" => LC.Content.MediaProcessingJob
+  }
 
 config :live_canvas, :scopes,
   user: [

@@ -5,7 +5,7 @@ defmodule LC.Content do
 
   use Boundary, deps: [LC.Infra, LCSchemas]
 
-  alias LC.Content.{MediaAsset, MediaProcessing, Post}
+  alias LC.Content.{MediaAsset, Post}
   alias LC.Infra.{AsyncJobs, ObjectStorage, Repo, WebhookEvent}
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
@@ -22,6 +22,8 @@ defmodule LC.Content do
   @type webhook_ingest_result ::
           {:ok, :accepted | :duplicate}
           | {:error, :enqueue_failed | :invalid_payload | Ecto.Changeset.t()}
+  @media_processing_job_kind "media_asset_processing"
+  @media_processing_job_max_attempts 2
 
   @doc """
   Persists a post owned by the given author.
@@ -107,7 +109,7 @@ defmodule LC.Content do
   end
 
   @doc """
-  Finalizes a pending upload for the owner and runs media processing.
+  Finalizes a pending upload for the owner and enqueues async media processing.
   """
   @spec finalize_media_upload(User.t(), pos_integer(), map()) :: media_finalize_result()
   def finalize_media_upload(%User{} = owner, media_asset_id, attrs)
@@ -120,7 +122,7 @@ defmodule LC.Content do
         {:ok, media_asset}
 
       %MediaAssetSchema{processing_state: :uploaded} = media_asset ->
-        process_uploaded_media(media_asset)
+        enqueue_media_processing(media_asset)
 
       %MediaAssetSchema{processing_state: :failed} ->
         {:error, :processing_failed}
@@ -133,24 +135,25 @@ defmodule LC.Content do
   @spec finalize_pending_upload(MediaAssetSchema.t(), map()) :: media_finalize_result()
   defp finalize_pending_upload(media_asset, attrs) do
     with {:ok, uploaded_asset} <-
-           update_media_asset(media_asset, Map.put(attrs, :processing_state, :uploaded)) do
-      process_uploaded_media(uploaded_asset)
+           update_media_asset(media_asset, Map.put(attrs, :processing_state, :uploaded)),
+         {:ok, _queued_asset} <- enqueue_media_processing(uploaded_asset) do
+      {:ok, uploaded_asset}
     end
   end
 
-  @spec process_uploaded_media(MediaAssetSchema.t()) :: media_finalize_result()
-  defp process_uploaded_media(uploaded_asset) do
-    # Upload completion and processor invocation are split so upload metadata
-    # is durably recorded even when downstream processing fails.
-    case MediaProcessing.process_upload(uploaded_asset) do
-      {:ok, processing_attrs} ->
-        processing_attrs
-        |> Map.put(:processing_state, :processed)
-        |> then(&update_media_asset(uploaded_asset, &1))
-
-      {:error, _reason} ->
-        _ = update_media_asset(uploaded_asset, %{processing_state: :failed})
-        {:error, :processing_failed}
+  @spec enqueue_media_processing(MediaAssetSchema.t()) :: media_finalize_result()
+  defp enqueue_media_processing(%MediaAssetSchema{id: media_asset_id} = uploaded_asset)
+       when is_integer(media_asset_id) and media_asset_id > 0 do
+    # Enqueue uses a stable dedupe key so repeated finalize calls remain
+    # idempotent while still guaranteeing processing is durably scheduled.
+    case AsyncJobs.enqueue(
+           @media_processing_job_kind,
+           %{media_asset_id: media_asset_id},
+           dedupe_key: "media_asset_processing:#{media_asset_id}",
+           max_attempts: @media_processing_job_max_attempts
+         ) do
+      {:ok, _job} -> {:ok, uploaded_asset}
+      {:error, _reason} -> {:error, :enqueue_failed}
     end
   end
 

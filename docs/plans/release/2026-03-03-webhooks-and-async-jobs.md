@@ -45,7 +45,7 @@ The webhook + async job gap is the most direct blocker to Phase 4 architecture g
 - [x] Task 1: Add durable webhook-event and async-job persistence primitives
 - [x] Task 2: Add signed REST webhook ingress with idempotent event recording
 - [x] Task 3: Add supervised async-job worker baseline with retry/backoff handling
-- [ ] Task 4: Move media finalize processing to async jobs (durable + idempotent)
+- [x] Task 4: Move media finalize processing to async jobs (durable + idempotent)
 - [ ] Task 5: Run full verification, update roadmap notes, and finalize milestones
 
 ### Task 1: Durable Persistence Primitives (`webhook_events`, `async_jobs`)
@@ -213,17 +213,18 @@ git commit -m "feat: add async job worker retry baseline"
 **Files:**
 - Create: `lib/live_canvas/content/media_processing_job.ex`
 - Modify: `lib/live_canvas/content.ex`
-- Modify: `lib/live_canvas/content/media_processing.ex`
+- Modify: `lib/live_canvas/infra.ex`
+- Modify: `config/config.exs`
 - Modify: `test/live_canvas/content_test.exs`
 - Create: `test/integration/media_webhook_async_flow_test.exs`
 - Modify: `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Add failing tests showing `finalize_media_upload/3` enqueues async work and preserves idempotent state transitions
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement async enqueue path and worker handler integration for media processing outcomes
-- [ ] Step 4: Run focused and integration tests to verify GREEN
-- [ ] Step 5: Run `mix typecheck`, update checklist, and commit Task 4 milestone
+- [x] Step 1: Add failing tests showing `finalize_media_upload/3` enqueues async work and preserves idempotent state transitions
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement async enqueue path and worker handler integration for media processing outcomes
+- [x] Step 4: Run focused and integration tests to verify GREEN
+- [x] Step 5: Run `mix typecheck`, update checklist, and commit Task 4 milestone
 
 **Task 4 behavior target:**
 - `finalize_media_upload/3` durably records upload completion and enqueues processing job.
@@ -244,7 +245,8 @@ Expected: FAIL before async pipeline exists.
 ```bash
 git add lib/live_canvas/content/media_processing_job.ex \
   lib/live_canvas/content.ex \
-  lib/live_canvas/content/media_processing.ex \
+  lib/live_canvas/infra.ex \
+  config/config.exs \
   test/live_canvas/content_test.exs \
   test/integration/media_webhook_async_flow_test.exs \
   docs/plans/release/2026-03-03-webhooks-and-async-jobs.md
