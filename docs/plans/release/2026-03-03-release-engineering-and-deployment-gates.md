@@ -39,7 +39,7 @@ Verified before selecting this plan so we do not assume missing implementation f
 - [x] Task 1: Add deterministic preflight gate orchestration (`mix release.gates`)
 - [x] Task 2: Add migration rehearsal + rollback drill command (`mix release.migration_drill`)
 - [x] Task 3: Add release runbooks (deployment gates, staged rollout, rollback/restore)
-- [ ] Task 4: Run full verification, update roadmap hole tracking, and finalize milestone
+- [x] Task 4: Run full verification, update roadmap hole tracking, and finalize milestone
 
 ### Task 1: Deterministic Preflight Gate (`mix release.gates`)
 
@@ -182,9 +182,16 @@ git commit -m "docs: add release deployment and rollback runbooks"
 - Modify: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Run full verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 2: Update roadmap planning-hole notes to mark release-engineering planning gap resolved and list remaining gaps
-- [ ] Step 3: Mark all completed checklist items and commit final milestone
+- [x] Step 1: Run full verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Update roadmap planning-hole notes to mark release-engineering planning gap resolved and list remaining gaps
+- [x] Step 3: Mark all completed checklist items and commit final milestone
+
+Verification evidence (2026-03-04):
+
+- `mix compile` -> PASS
+- `mix test` -> PASS (`345 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
+- `mix precommit` -> PASS
 
 **Step 1 command set:**
 

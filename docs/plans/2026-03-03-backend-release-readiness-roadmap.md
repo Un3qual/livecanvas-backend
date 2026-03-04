@@ -5,10 +5,10 @@
 - Scope audited: `ARCHITECTURE.md`, `docs/architecture/conventions.md`, all files in `docs/plans/**`, core `lib/**`, migrations, and tests.
 - Verification run on this snapshot:
   - `mix compile` -> PASS
-  - `mix test` -> PASS (`338 tests, 0 failures`)
+  - `mix test` -> PASS (`345 tests, 0 failures`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
-- Plan tracking state: release-track plans are complete through the webhook + async-jobs delivery slice, with media upload intent/finalize baseline and callback-driven async processing now in place (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`).
+- Plan tracking state: release-track plans are complete through release-engineering deployment gates, with media upload callback-driven async processing and deployment/rollback runbooks now in place (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`).
 
 ## What Has Been Delivered
 
@@ -112,6 +112,7 @@ Per architecture decisions, these remain intentionally deferred and should not b
 - `docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`
 - `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`
 - `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`
+- `docs/plans/release/2026-03-04-compliance-data-governance.md`
 
 ## Release Roadmap (From Current State To Releasable Backend)
 
@@ -183,10 +184,9 @@ Mobile parallel:
 
 ## Planning Holes (Missing Or Underspecified Right Now)
 
-The previous webhook/async-job planning hole is now closed by `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`. Remaining material gaps without sufficiently detailed executable plans in `docs/plans/` are:
+The previous webhook/async-job planning hole is now closed by `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, the release-engineering deployment-gates hole is now closed by `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`, and the compliance/data-governance planning hole is now closed by `docs/plans/release/2026-03-04-compliance-data-governance.md`. Remaining material gaps without sufficiently detailed executable plans in `docs/plans/` are:
 
 - Additional auth audit expansion for provider unlink/account recovery events if included in v1 launch scope.
-- Compliance/data-governance plan (retention/deletion/export policy).
 
 ## Evidence Notes On Key Blockers
 
@@ -196,5 +196,4 @@ The previous webhook/async-job planning hole is now closed by `docs/plans/releas
 
 ## Suggested Next Plan Files To Create
 
-- `docs/plans/release/2026-03-03-compliance-data-governance.md`
-- `docs/plans/release/2026-03-03-auth-audit-provider-recovery-expansion.md`
+- `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md`
