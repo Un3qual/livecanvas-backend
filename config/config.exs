@@ -18,6 +18,10 @@ config :live_canvas, LCWeb.RateLimiter,
     channel_join: [limit: 60, window_ms: 60_000]
   ]
 
+config :live_canvas, LCWeb.Plugs.WebhookSignature,
+  providers: [media_processing: "dev-webhook-secret"],
+  max_skew_seconds: 300
+
 config :live_canvas, :scopes,
   user: [
     default: true,

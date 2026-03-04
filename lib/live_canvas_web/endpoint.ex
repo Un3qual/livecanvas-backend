@@ -50,7 +50,8 @@ defmodule LCWeb.Endpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
-    json_decoder: Phoenix.json_library()
+    json_decoder: Phoenix.json_library(),
+    body_reader: {__MODULE__, :read_body, []}
 
   plug Plug.MethodOverride
   plug Plug.Head
@@ -61,6 +62,22 @@ defmodule LCWeb.Endpoint do
   plug(:halt_if_sent)
   plug LCWeb.Router
 
+  @spec read_body(Plug.Conn.t(), keyword()) ::
+          {:ok, binary(), Plug.Conn.t()} | {:more, binary(), Plug.Conn.t()}
+  def read_body(conn, opts) do
+    case Plug.Conn.read_body(conn, opts) do
+      # Webhook signature validation needs the exact request bytes; we retain
+      # the parser stream so downstream plugs can verify HMAC deterministically.
+      {:ok, body, conn} -> {:ok, body, append_raw_body(conn, body)}
+      {:more, body, conn} -> {:more, body, append_raw_body(conn, body)}
+    end
+  end
+
   defp halt_if_sent(%{state: :sent, halted: false} = conn, _opts), do: halt(conn)
   defp halt_if_sent(conn, _opts), do: conn
+
+  @spec append_raw_body(Plug.Conn.t(), binary()) :: Plug.Conn.t()
+  defp append_raw_body(conn, body) do
+    Plug.Conn.assign(conn, :raw_body, (conn.assigns[:raw_body] || "") <> body)
+  end
 end

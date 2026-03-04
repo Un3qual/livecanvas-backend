@@ -23,10 +23,11 @@ defmodule LCWeb.Router do
     get "/", PageController, :home
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", LCWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", LCWeb do
+    pipe_through :api
+
+    post "/webhooks/media-processing", WebhookController, :media_processing
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:live_canvas, :dev_routes) do

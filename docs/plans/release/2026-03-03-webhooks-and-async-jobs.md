@@ -43,7 +43,7 @@ The webhook + async job gap is the most direct blocker to Phase 4 architecture g
 ## Progress
 
 - [x] Task 1: Add durable webhook-event and async-job persistence primitives
-- [ ] Task 2: Add signed REST webhook ingress with idempotent event recording
+- [x] Task 2: Add signed REST webhook ingress with idempotent event recording
 - [ ] Task 3: Add supervised async-job worker baseline with retry/backoff handling
 - [ ] Task 4: Move media finalize processing to async jobs (durable + idempotent)
 - [ ] Task 5: Run full verification, update roadmap notes, and finalize milestones
@@ -114,6 +114,8 @@ git commit -m "feat: add webhook event and async job persistence primitives"
 **Files:**
 - Create: `lib/live_canvas_web/controllers/webhook_controller.ex`
 - Create: `lib/live_canvas_web/plugs/webhook_signature.ex`
+- Modify: `lib/live_canvas/content.ex`
+- Modify: `lib/live_canvas_web/endpoint.ex`
 - Modify: `lib/live_canvas_web/router.ex`
 - Modify: `config/config.exs`
 - Modify: `config/test.exs`
@@ -121,11 +123,11 @@ git commit -m "feat: add webhook event and async job persistence primitives"
 - Modify: `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing controller tests for valid signature, invalid signature, stale timestamp, and duplicate event handling
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement route + controller + signature plug and enqueue handoff to `LC.Infra.AsyncJobs`
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run `mix compile` + `mix typecheck`, update checklist, and commit Task 2 milestone
+- [x] Step 1: Add failing controller tests for valid signature, invalid signature, stale timestamp, and duplicate event handling
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement route + controller + signature plug and `LC.Content` callback-ingest handoff
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run `mix compile` + `mix typecheck`, update checklist, and commit Task 2 milestone
 
 **Webhook contract for this slice:**
 - Route: `POST /api/webhooks/media-processing`
@@ -151,6 +153,8 @@ Expected: FAIL due to missing route/controller/plug.
 ```bash
 git add lib/live_canvas_web/controllers/webhook_controller.ex \
   lib/live_canvas_web/plugs/webhook_signature.ex \
+  lib/live_canvas/content.ex \
+  lib/live_canvas_web/endpoint.ex \
   lib/live_canvas_web/router.ex \
   config/config.exs \
   config/test.exs \

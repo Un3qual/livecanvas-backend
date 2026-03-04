@@ -6,10 +6,11 @@ defmodule LC.Content do
   use Boundary, deps: [LC.Infra, LCSchemas]
 
   alias LC.Content.{MediaAsset, MediaProcessing, Post}
-  alias LC.Infra.{ObjectStorage, Repo}
+  alias LC.Infra.{AsyncJobs, ObjectStorage, Repo, WebhookEvent}
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema
+  alias LCSchemas.Infra.WebhookEvent, as: WebhookEventSchema
 
   @type changeset :: Ecto.Changeset.t()
   @type post_result :: {:ok, PostSchema.t()} | {:error, changeset()}
@@ -18,6 +19,9 @@ defmodule LC.Content do
           {:ok, %{media_asset: MediaAssetSchema.t(), upload: ObjectStorage.signed_upload()}}
           | {:error, changeset() | :invalid_upload_request | term()}
   @type media_finalize_result :: {:ok, MediaAssetSchema.t()} | {:error, changeset() | atom()}
+  @type webhook_ingest_result ::
+          {:ok, :accepted | :duplicate}
+          | {:error, :enqueue_failed | :invalid_payload | Ecto.Changeset.t()}
 
   @doc """
   Persists a post owned by the given author.
@@ -61,6 +65,23 @@ defmodule LC.Content do
       end
     else
       {:error, changeset}
+    end
+  end
+
+  @doc """
+  Records a signed media-processing callback and enqueues async handling.
+  """
+  @spec ingest_media_processing_webhook(String.t(), map()) :: webhook_ingest_result()
+  def ingest_media_processing_webhook(event_id, payload)
+      when is_binary(event_id) and is_map(payload) do
+    with {:ok, normalized_payload} <- validate_media_processing_webhook_payload(payload),
+         {:ok, webhook_event, result} <-
+           WebhookEvent.record_event("media_processing", event_id, %{
+             event_type: normalized_payload["event_type"],
+             payload: normalized_payload
+           }),
+         :ok <- enqueue_media_processing_webhook(webhook_event, result) do
+      {:ok, normalize_webhook_result(result)}
     end
   end
 
@@ -160,4 +181,41 @@ defmodule LC.Content do
   defp mime_extension("image/webp"), do: ".webp"
   defp mime_extension("video/mp4"), do: ".mp4"
   defp mime_extension(_mime_type), do: ".bin"
+
+  @spec validate_media_processing_webhook_payload(map()) ::
+          {:ok, map()} | {:error, :invalid_payload}
+  defp validate_media_processing_webhook_payload(payload) when is_map(payload) do
+    with event_type when is_binary(event_type) <- Map.get(payload, "event_type"),
+         media_asset_id when is_integer(media_asset_id) and media_asset_id > 0 <-
+           Map.get(payload, "media_asset_id") do
+      {:ok, payload}
+    else
+      _ -> {:error, :invalid_payload}
+    end
+  end
+
+  @spec enqueue_media_processing_webhook(WebhookEventSchema.t(), :duplicate | :inserted) ::
+          :ok | {:error, :enqueue_failed}
+  defp enqueue_media_processing_webhook(_webhook_event, :duplicate), do: :ok
+
+  defp enqueue_media_processing_webhook(
+         %{external_event_id: external_event_id, id: webhook_event_id},
+         :inserted
+       )
+       when is_binary(external_event_id) and is_integer(webhook_event_id) do
+    # Callback providers retry aggressively; this dedupe key ensures the same
+    # external event cannot enqueue duplicate work across retries.
+    case AsyncJobs.enqueue(
+           "media_processing_webhook",
+           %{webhook_event_id: webhook_event_id},
+           dedupe_key: "webhook_event:media_processing:#{external_event_id}"
+         ) do
+      {:ok, _job} -> :ok
+      {:error, _reason} -> {:error, :enqueue_failed}
+    end
+  end
+
+  @spec normalize_webhook_result(:duplicate | :inserted) :: :accepted | :duplicate
+  defp normalize_webhook_result(:inserted), do: :accepted
+  defp normalize_webhook_result(:duplicate), do: :duplicate
 end

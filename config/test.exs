@@ -23,6 +23,10 @@ config :live_canvas, LCWeb.Endpoint,
   secret_key_base: "dY7bs3jtluPV2OwwWQWe4hlzV5mIIcyhtxuQW4QyUp6iumSvTC9ujUG0/IYfKySy",
   server: false
 
+config :live_canvas, LCWeb.Plugs.WebhookSignature,
+  providers: [media_processing: "test-webhook-secret"],
+  max_skew_seconds: 300
+
 # In test we don't send emails
 config :live_canvas, LC.Infra.Mailer, adapter: Swoosh.Adapters.Test
 
