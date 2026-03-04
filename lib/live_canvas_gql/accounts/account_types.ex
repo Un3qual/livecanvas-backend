@@ -9,6 +9,7 @@ defmodule LCGQL.Accounts.Types do
   connection(node_type: :user_identity)
   connection(node_type: :contact_match)
   connection(node_type: :data_export_request)
+  connection(node_type: :account_deletion_request)
 
   @desc "List of supported OAuth providers for logging in."
   enum :oauth_provider do
@@ -28,6 +29,15 @@ defmodule LCGQL.Accounts.Types do
 
   enum :data_export_request_format do
     value(:json)
+  end
+
+  enum :account_deletion_request_status do
+    value(:pending)
+    value(:scheduled)
+    value(:processing)
+    value(:completed)
+    value(:failed)
+    value(:canceled)
   end
 
   node object(:user) do
@@ -80,6 +90,24 @@ defmodule LCGQL.Accounts.Types do
 
     field :completed_at, :string do
       resolve(&Resolver.data_export_completed_at/3)
+    end
+
+    field :failure_reason, :string
+  end
+
+  node object(:account_deletion_request) do
+    field :status, non_null(:account_deletion_request_status)
+
+    field :requested_at, non_null(:string) do
+      resolve(&Resolver.account_deletion_requested_at/3)
+    end
+
+    field :scheduled_purge_at, non_null(:string) do
+      resolve(&Resolver.account_deletion_scheduled_purge_at/3)
+    end
+
+    field :completed_at, :string do
+      resolve(&Resolver.account_deletion_completed_at/3)
     end
 
     field :failure_reason, :string

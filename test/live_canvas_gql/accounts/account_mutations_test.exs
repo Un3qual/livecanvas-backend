@@ -6,7 +6,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   alias LC.Accounts
   alias LC.Infra.Repo
   alias LCSchemas.Accounts.UserToken
-  alias LCSchemas.Infra.{AsyncJob, DataExportRequest}
+  alias LCSchemas.Infra.{AccountDeletionRequest, AsyncJob, DataExportRequest}
 
   describe "registerWithEmail" do
     test "creates a user through the accounts boundary" do
@@ -283,6 +283,158 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                 data: %{
                   "requestViewerDataExport" => %{
                     "dataExportRequest" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
+  describe "requestViewerAccountDeletion and cancelViewerAccountDeletionRequest" do
+    test "creates and dedupes a viewer-scoped account deletion request" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation {
+        requestViewerAccountDeletion(input: {}) {
+          accountDeletionRequest {
+            id
+            status
+            requestedAt
+            scheduledPurgeAt
+            completedAt
+            failureReason
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "requestViewerAccountDeletion" => %{
+                    "accountDeletionRequest" => %{
+                      "id" => request_id,
+                      "status" => "SCHEDULED",
+                      "requestedAt" => requested_at,
+                      "scheduledPurgeAt" => scheduled_purge_at,
+                      "completedAt" => nil,
+                      "failureReason" => nil
+                    },
+                    "errors" => []
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+
+      assert is_binary(request_id)
+      assert is_binary(requested_at)
+      assert is_binary(scheduled_purge_at)
+
+      assert {:ok, %{type: :account_deletion_request}} =
+               Absinthe.Relay.Node.from_global_id(request_id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "requestViewerAccountDeletion" => %{
+                    "accountDeletionRequest" => %{"id" => ^request_id},
+                    "errors" => []
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+
+      assert Repo.aggregate(AccountDeletionRequest, :count, :id) == 1
+      assert Repo.aggregate(AsyncJob, :count, :id) == 1
+    end
+
+    test "cancels a viewer-scoped account deletion request once" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, request} =
+               Accounts.request_user_account_deletion(viewer, grace_period_seconds: 3_600)
+
+      request_id =
+        Absinthe.Relay.Node.to_global_id(:account_deletion_request, request.id, LCGQL.Schema)
+
+      cancel_mutation = """
+      mutation CancelViewerAccountDeletionRequest($requestId: ID!) {
+        cancelViewerAccountDeletionRequest(
+          input: {accountDeletionRequestId: $requestId}
+        ) {
+          accountDeletionRequest {
+            id
+            status
+            completedAt
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "cancelViewerAccountDeletionRequest" => %{
+                    "accountDeletionRequest" => %{
+                      "id" => ^request_id,
+                      "status" => "CANCELED",
+                      "completedAt" => completed_at
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(cancel_mutation, LCGQL.Schema,
+                 variables: %{"requestId" => request_id},
+                 context: context
+               )
+
+      assert is_binary(completed_at)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "cancelViewerAccountDeletionRequest" => %{
+                    "accountDeletionRequest" => nil,
+                    "errors" => [%{"field" => nil, "message" => "cannot_cancel"}]
+                  }
+                }
+              }} =
+               Absinthe.run(cancel_mutation, LCGQL.Schema,
+                 variables: %{"requestId" => request_id},
+                 context: context
+               )
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      mutation = """
+      mutation {
+        requestViewerAccountDeletion(input: {}) {
+          accountDeletionRequest {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "requestViewerAccountDeletion" => %{
+                    "accountDeletionRequest" => nil,
                     "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
                   }
                 }

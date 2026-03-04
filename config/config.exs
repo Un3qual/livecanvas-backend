@@ -29,8 +29,13 @@ config :live_canvas, LC.Infra.AsyncJobs.Worker,
   handlers: %{
     "media_asset_processing" => LC.Content.MediaProcessingJob,
     "media_processing_webhook" => LC.Content.MediaProcessingJob,
-    "data_export_request" => LC.Infra.DataGovernance.Export
+    "data_export_request" => LC.Infra.DataGovernance.Export,
+    "account_deletion_request" => LC.Infra.DataGovernance.Deletion
   }
+
+config :live_canvas, LC.Infra.DataGovernance.Deletion,
+  grace_period_seconds: 604_800,
+  job_max_attempts: 3
 
 config :live_canvas, :scopes,
   user: [

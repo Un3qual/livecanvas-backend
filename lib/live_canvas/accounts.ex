@@ -12,6 +12,7 @@ defmodule LC.Accounts do
 
   alias LC.Infra.{DataGovernance, Repo}
   alias LCSchemas.Accounts.AuthEvent, as: AuthEventSchema
+  alias LCSchemas.Infra.AccountDeletionRequest, as: AccountDeletionRequestSchema
   alias LCSchemas.Infra.DataExportRequest, as: DataExportRequestSchema
 
   alias LCSchemas.Accounts.{
@@ -93,6 +94,14 @@ defmodule LC.Accounts do
           {:ok, DataExportRequestSchema.t()} | {:error, changeset() | :enqueue_failed}
   @type data_export_request_opts ::
           [{:format, LCSchemas.Infra.data_export_request_format()}]
+  @type account_deletion_request_result ::
+          {:ok, AccountDeletionRequestSchema.t()} | {:error, changeset() | :enqueue_failed}
+  @type account_deletion_request_opts ::
+          [{:grace_period_seconds, non_neg_integer()} | {:job_max_attempts, pos_integer()}]
+  @type account_deletion_cancel_error :: :not_found | :already_processing | :cannot_cancel
+  @type account_deletion_cancel_result ::
+          {:ok, AccountDeletionRequestSchema.t()}
+          | {:error, account_deletion_cancel_error() | changeset()}
   @type token_pair_payload :: %{access_token: token_payload(), refresh_token: token_payload()}
   @type token_pair_result :: {:ok, token_pair_payload()} | {:error, refresh_token_auth_error()}
   @type registration_attrs :: %{
@@ -246,6 +255,43 @@ defmodule LC.Accounts do
   def get_user_data_export_request(%User{} = user, request_id)
       when is_integer(request_id) and request_id > 0 do
     DataGovernance.get_data_export_request(user, request_id)
+  end
+
+  @doc """
+  Creates or reuses an active account deletion request for the viewer.
+  """
+  @spec request_user_account_deletion(User.t(), account_deletion_request_opts()) ::
+          account_deletion_request_result()
+  def request_user_account_deletion(%User{} = user, opts \\ []) when is_list(opts) do
+    DataGovernance.request_account_deletion(user, opts)
+  end
+
+  @doc """
+  Lists viewer-owned account deletion requests, newest first.
+  """
+  @spec list_user_account_deletion_requests(User.t()) :: [AccountDeletionRequestSchema.t()]
+  def list_user_account_deletion_requests(%User{} = user) do
+    DataGovernance.list_account_deletion_requests(user)
+  end
+
+  @doc """
+  Gets a viewer-owned account deletion request by local ID.
+  """
+  @spec get_user_account_deletion_request(User.t(), pos_integer()) ::
+          AccountDeletionRequestSchema.t() | nil
+  def get_user_account_deletion_request(%User{} = user, request_id)
+      when is_integer(request_id) and request_id > 0 do
+    DataGovernance.get_account_deletion_request(user, request_id)
+  end
+
+  @doc """
+  Cancels a viewer-owned account deletion request when still cancelable.
+  """
+  @spec cancel_user_account_deletion_request(User.t(), pos_integer()) ::
+          account_deletion_cancel_result()
+  def cancel_user_account_deletion_request(%User{} = user, request_id)
+      when is_integer(request_id) and request_id > 0 do
+    DataGovernance.cancel_account_deletion_request(user, request_id)
   end
 
   ## User registration

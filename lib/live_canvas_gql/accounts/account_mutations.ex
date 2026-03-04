@@ -44,6 +44,32 @@ defmodule LCGQL.Accounts.Mutations do
       resolve(&Resolver.request_viewer_data_export/3)
     end
 
+    payload field :request_viewer_account_deletion do
+      input do
+        field :grace_period_seconds, :integer
+      end
+
+      output do
+        field :account_deletion_request, :account_deletion_request
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.request_viewer_account_deletion/3)
+    end
+
+    payload field :cancel_viewer_account_deletion_request do
+      input do
+        field :account_deletion_request_id, non_null(:id)
+      end
+
+      output do
+        field :account_deletion_request, :account_deletion_request
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.cancel_viewer_account_deletion_request/3)
+    end
+
     payload field :upsert_viewer_contact_entry do
       input do
         field :contact_client_id, non_null(:string)

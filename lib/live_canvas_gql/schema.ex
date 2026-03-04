@@ -39,6 +39,9 @@ defmodule LCGQL.Schema do
         %{type: :data_export_request, id: id}, resolution ->
           fetch_data_export_request_node(id, resolution)
 
+        %{type: :account_deletion_request, id: id}, resolution ->
+          fetch_account_deletion_request_node(id, resolution)
+
         %{type: :contact_match, id: id}, resolution ->
           fetch_contact_match_node(id, resolution)
 
@@ -77,6 +80,15 @@ defmodule LCGQL.Schema do
       %{status: _status, format: _format, requested_at: _requested_at, user_id: _user_id},
       _resolution ->
         :data_export_request
+
+      %{
+        status: _status,
+        requested_at: _requested_at,
+        scheduled_purge_at: _scheduled_purge_at,
+        user_id: _user_id
+      },
+      _resolution ->
+        :account_deletion_request
 
       %{status: _status, visibility: _visibility, host_id: _host_id}, _resolution ->
         :live_session
@@ -154,6 +166,22 @@ defmodule LCGQL.Schema do
   end
 
   defp fetch_data_export_request_node(_id, _resolution), do: {:ok, nil}
+
+  # Deletion-request nodes are viewer-scoped because they contain private
+  # governance workflow state and must not be globally enumerable.
+  defp fetch_account_deletion_request_node(id, %{
+         context: %{current_scope: %{user: %{id: _id} = user}}
+       }) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
+        {:ok, Accounts.get_user_account_deletion_request(user, local_id)}
+
+      _ ->
+        {:ok, nil}
+    end
+  end
+
+  defp fetch_account_deletion_request_node(_id, _resolution), do: {:ok, nil}
 
   # Contact-match nodes are viewer-scoped, so node refetch must enforce
   # ownership via the authenticated scope instead of exposing raw ids globally.

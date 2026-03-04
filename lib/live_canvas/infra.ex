@@ -6,6 +6,7 @@ defmodule LC.Infra do
       AsyncJobs,
       AsyncJobs.Handler,
       DataGovernance,
+      DataGovernance.Deletion,
       DataGovernance.Export,
       Mailer,
       ObjectStorage,

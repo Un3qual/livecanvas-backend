@@ -40,7 +40,7 @@ Verified before selecting this plan so we do not assume missing implementation f
 - [x] Task 1: Author compliance policy matrix and operator runbook
 - [x] Task 2: Add data-governance persistence primitives and schemas
 - [x] Task 3: Add viewer-scoped data export request workflow (context + GraphQL + async handler)
-- [ ] Task 4: Add viewer-scoped account deletion request workflow (context + GraphQL + async handler)
+- [x] Task 4: Add viewer-scoped account deletion request workflow (context + GraphQL + async handler)
 - [ ] Task 5: Add retention sweeper baseline for operational tables
 - [ ] Task 6: Run full verification, close roadmap planning hole, and finalize milestone
 
@@ -187,22 +187,34 @@ git commit -m "feat: add viewer-scoped data export request workflow"
 
 **Files:**
 - Create: `lib/live_canvas/infra/data_governance/deletion.ex`
+- Create: `priv/repo/migrations/20260304030000_expand_auth_event_type_for_account_deletion_events.exs`
 - Modify: `lib/live_canvas/infra/data_governance.ex`
+- Modify: `lib/live_canvas/infra.ex`
+- Modify: `config/config.exs`
 - Modify: `lib/live_canvas/accounts.ex`
-- Modify: `lib/live_canvas/infra/async_jobs/handler.ex`
+- Modify: `lib/live_canvas_schemas/accounts.ex`
+- Modify: `lib/live_canvas_schemas/accounts/auth_event_type.ex`
 - Modify: `lib/live_canvas_gql/accounts/account_mutations.ex`
 - Modify: `lib/live_canvas_gql/accounts/account_resolver.ex`
 - Modify: `lib/live_canvas_gql/accounts/account_types.ex`
+- Modify: `lib/live_canvas_gql/schema.ex`
 - Create: `test/live_canvas/infra/data_governance_deletion_test.exs`
 - Modify: `test/live_canvas_gql/accounts/account_mutations_test.exs`
 - Modify: `docs/plans/release/2026-03-04-compliance-data-governance.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Add failing tests for deletion request creation, cancellation guardrails, and completion state transitions
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement deletion request lifecycle + async executor with idempotent table purge ordering
-- [ ] Step 4: Run focused tests and integration smoke checks for GREEN
-- [ ] Step 5: Run `mix test` + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing tests for deletion request creation, cancellation guardrails, and completion state transitions
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement deletion request lifecycle + async executor with idempotent table purge ordering
+- [x] Step 4: Run focused tests and integration smoke checks for GREEN
+- [x] Step 5: Run `mix test` + `mix typecheck`, update checklist, and commit milestone
+
+Verification evidence (2026-03-04):
+
+- `mix test test/live_canvas/infra/data_governance_deletion_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs` -> RED (`28 tests, 6 failures`) before implementation
+- `mix test test/live_canvas/infra/data_governance_deletion_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs` -> GREEN (`28 tests, 0 failures`) after implementation
+- `mix test` -> PASS (`362 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 **Task 4 behavior targets:**
 - Viewer can request account deletion; workflow schedules purge after policy-defined grace period.
@@ -213,12 +225,17 @@ git commit -m "feat: add viewer-scoped data export request workflow"
 
 ```bash
 git add lib/live_canvas/infra/data_governance/deletion.ex \
+  priv/repo/migrations/20260304030000_expand_auth_event_type_for_account_deletion_events.exs \
   lib/live_canvas/infra/data_governance.ex \
+  lib/live_canvas/infra.ex \
+  config/config.exs \
   lib/live_canvas/accounts.ex \
-  lib/live_canvas/infra/async_jobs/handler.ex \
+  lib/live_canvas_schemas/accounts.ex \
+  lib/live_canvas_schemas/accounts/auth_event_type.ex \
   lib/live_canvas_gql/accounts/account_mutations.ex \
   lib/live_canvas_gql/accounts/account_resolver.ex \
   lib/live_canvas_gql/accounts/account_types.ex \
+  lib/live_canvas_gql/schema.ex \
   test/live_canvas/infra/data_governance_deletion_test.exs \
   test/live_canvas_gql/accounts/account_mutations_test.exs \
   docs/plans/release/2026-03-04-compliance-data-governance.md
