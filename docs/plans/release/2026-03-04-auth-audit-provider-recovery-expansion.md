@@ -27,7 +27,7 @@ Verified directly in `lib/`, `test/`, `priv/repo/migrations`, `ARCHITECTURE.md`,
 
 - [x] Task 1: Add provider identity unlink audit primitives in Accounts
 - [x] Task 2: Expose viewer-scoped Relay unlink mutation and active-identity query semantics
-- [ ] Task 3: Run verification, refresh roadmap/plan index, and record compliance pause state
+- [x] Task 3: Run verification, refresh roadmap/plan index, and record compliance pause state
 
 ### Task 1: Add Provider Identity Unlink Audit Primitives In Accounts
 
@@ -73,7 +73,7 @@ Verified directly in `lib/`, `test/`, `priv/repo/migrations`, `ARCHITECTURE.md`,
 - Modify: `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 2: Update roadmap and plan index with delivered provider unlink audit scope and explicit compliance-hard-delete pause note
-- [ ] Step 3: Keep account-recovery audit expansion tracked as deferred until a concrete recovery workflow enters scope
-- [ ] Step 4: Mark completed checklist items and commit final milestone
+- [x] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Update roadmap and plan index with delivered provider unlink audit scope and explicit compliance-hard-delete pause note
+- [x] Step 3: Keep account-recovery audit expansion tracked as deferred until a concrete recovery workflow enters scope
+- [x] Step 4: Mark completed checklist items and commit final milestone

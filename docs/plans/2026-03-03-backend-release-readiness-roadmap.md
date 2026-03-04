@@ -190,12 +190,13 @@ The previous webhook/async-job planning hole is now closed by `docs/plans/releas
 
 Remaining tracked gaps:
 
-- Additional auth audit expansion for provider unlink/account recovery events is now being executed via `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md`.
+- Provider identity unlink auth audit expansion is now delivered via `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md`.
+- Account-recovery auth audit expansion remains deferred until a concrete recovery workflow enters v1 scope.
 - Compliance hard-delete enablement follow-up remains intentionally paused by operator direction; do not resume until that pause is explicitly lifted.
 
 ## Evidence Notes On Key Blockers
 
-- Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, and credential change emissions in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`.
+- Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, credential change emissions, and provider identity unlink outcomes in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`, `test/live_canvas/accounts_test.exs`, `test/live_canvas_gql/accounts/account_mutations_test.exs`, and `test/live_canvas_gql/accounts/account_queries_test.exs`.
 - Live runtime ownership now uses durable leases plus remote-owner routing (`lib/live_canvas/live/session_ownership.ex`, `lib/live_canvas/live/runtime_rpc.ex`, `lib/live_canvas/live/session_supervisor.ex`) with channel-facing `session_unavailable` normalization for remote runtime failures.
 - Webhook + async-job delivery is implemented via signed webhook ingress (`lib/live_canvas_web/controllers/webhook_controller.ex`), durable async-job persistence (`lib/live_canvas/infra/async_jobs.ex`), supervised worker processing (`lib/live_canvas/infra/async_jobs/worker.ex`), and integration coverage (`test/integration/media_webhook_async_flow_test.exs`).
 - Compliance data governance baseline is now implemented via `LC.Infra.DataGovernance` export/deletion flows and `LC.Infra.DataGovernance.Retention` (`mix release.retention_sweep`) with coverage in `test/live_canvas/infra/data_governance_export_test.exs`, `test/live_canvas/infra/data_governance_deletion_test.exs`, and `test/live_canvas/infra/data_governance_retention_test.exs`; hard deletion is intentionally stubbed pending follow-up controls.
@@ -203,3 +204,4 @@ Remaining tracked gaps:
 ## Suggested Next Plan Files To Create
 
 - `docs/plans/release/2026-03-04-compliance-hard-delete-enablement.md` (paused; keep as deferred candidate only)
+- `docs/plans/release/<date>-auth-account-recovery-audit-events.md` (deferred until recovery workflow is concretely scoped)

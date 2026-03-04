@@ -546,6 +546,62 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                )
     end
 
+    test "returns already_revoked when unlink is repeated for the same identity" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      identity =
+        attach_user_identity(viewer, :google_provider, "google-mutation-unlink-repeat")
+
+      identity_id = Absinthe.Relay.Node.to_global_id(:user_identity, identity.id, LCGQL.Schema)
+
+      mutation = """
+      mutation UnlinkViewerIdentity($identityId: ID!) {
+        unlinkViewerIdentity(input: {userIdentityId: $identityId}) {
+          userIdentity {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "unlinkViewerIdentity" => %{
+                    "userIdentity" => %{"id" => ^identity_id},
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"identityId" => identity_id},
+                 context: context
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "unlinkViewerIdentity" => %{
+                    "userIdentity" => nil,
+                    "errors" => [%{"field" => nil, "message" => "already_revoked"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"identityId" => identity_id},
+                 context: context
+               )
+    end
+
     test "returns unauthenticated errors without a viewer scope" do
       viewer = user_fixture()
 
