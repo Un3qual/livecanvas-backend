@@ -38,7 +38,8 @@ defmodule LC.MixProject do
         precommit: :test,
         typecheck: :dev,
         dialyzer: :dev,
-        "release.gates": :test
+        "release.gates": :test,
+        "release.migration_drill": :test
       ]
     ]
   end

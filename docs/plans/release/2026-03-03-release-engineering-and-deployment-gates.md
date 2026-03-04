@@ -37,7 +37,7 @@ Verified before selecting this plan so we do not assume missing implementation f
 ## Progress
 
 - [x] Task 1: Add deterministic preflight gate orchestration (`mix release.gates`)
-- [ ] Task 2: Add migration rehearsal + rollback drill command (`mix release.migration_drill`)
+- [x] Task 2: Add migration rehearsal + rollback drill command (`mix release.migration_drill`)
 - [ ] Task 3: Add release runbooks (deployment gates, staged rollout, rollback/restore)
 - [ ] Task 4: Run full verification, update roadmap hole tracking, and finalize milestone
 
@@ -100,11 +100,11 @@ git commit -m "feat: add deterministic release preflight gate task"
 - Modify: `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing tests for migration drill command-plan generation and rollback safety checks
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement rehearsal pipeline + Mix task wrapper
-- [ ] Step 4: Run focused tests and rehearsal command to verify GREEN
-- [ ] Step 5: Run `mix test` + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing tests for migration drill command-plan generation and rollback safety checks
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement rehearsal pipeline + Mix task wrapper
+- [x] Step 4: Run focused tests and rehearsal command to verify GREEN
+- [x] Step 5: Run `mix test` + `mix typecheck`, update checklist, and commit milestone
 
 **Task 2 behavior targets:**
 - Rehearsal pipeline (default `MIX_ENV=test`) runs:

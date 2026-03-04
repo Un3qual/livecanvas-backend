@@ -1,0 +1,76 @@
+defmodule LC.Release.MigrationDrill do
+  @moduledoc """
+  Runs migration rehearsal steps in a deterministic, fail-fast order.
+  """
+
+  @type drill_step :: %{task: String.t(), args: [String.t()]}
+  @type drill_failure :: %{step: drill_step(), reason: term()}
+  @type runner_fun :: (String.t(), [String.t()] -> :ok | {:error, term()})
+
+  @spec command_plan(pos_integer()) :: [drill_step()]
+  def command_plan(step \\ 1) when is_integer(step) and step > 0 do
+    [
+      %{task: "ecto.create", args: ["--quiet"]},
+      %{task: "ecto.migrate", args: ["--quiet"]},
+      %{task: "ecto.rollback", args: ["--step", Integer.to_string(step), "--quiet"]},
+      %{task: "ecto.migrate", args: ["--quiet"]}
+    ]
+  end
+
+  @spec run(keyword()) ::
+          :ok | {:dry_run, [drill_step()]} | {:error, :confirmation_required | drill_failure()}
+  def run(opts \\ []) do
+    env = Keyword.get(opts, :env, Mix.env())
+    confirm? = Keyword.get(opts, :confirm, false)
+    dry_run? = Keyword.get(opts, :dry_run, false)
+    step = Keyword.get(opts, :step, 1)
+    runner = Keyword.get(opts, :runner, &default_runner/2)
+
+    with :ok <- validate_step(step),
+         :ok <- validate_confirmation(env, confirm?) do
+      steps = command_plan(step)
+
+      if dry_run? do
+        {:dry_run, steps}
+      else
+        run_steps(steps, runner)
+      end
+    end
+  end
+
+  @spec format_step(drill_step()) :: String.t()
+  def format_step(%{task: task, args: []}), do: "mix #{task}"
+  def format_step(%{task: task, args: args}), do: "mix #{task} #{Enum.join(args, " ")}"
+
+  @spec run_steps([drill_step()], runner_fun()) :: :ok | {:error, drill_failure()}
+  defp run_steps([], _runner), do: :ok
+
+  defp run_steps([step | remaining], runner) do
+    # Keep drill output trustworthy: stop at first failed migration command.
+    case runner.(step.task, step.args) do
+      :ok -> run_steps(remaining, runner)
+      {:error, reason} -> {:error, %{step: step, reason: reason}}
+    end
+  end
+
+  defp validate_step(step) when is_integer(step) and step > 0, do: :ok
+  defp validate_step(_step), do: Mix.raise("--step must be a positive integer")
+
+  @spec validate_confirmation(atom(), boolean()) :: :ok | {:error, :confirmation_required}
+  defp validate_confirmation(:test, _confirm?), do: :ok
+  defp validate_confirmation(_env, true), do: :ok
+  defp validate_confirmation(_env, false), do: {:error, :confirmation_required}
+
+  @spec default_runner(String.t(), [String.t()]) :: :ok | {:error, term()}
+  defp default_runner(task, args) do
+    Mix.Task.reenable(task)
+    Mix.Task.run(task, args)
+    :ok
+  rescue
+    error in [Mix.Error, Mix.NoTaskError] ->
+      {:error, Exception.message(error)}
+  catch
+    kind, reason ->
+      {:error, {kind, reason}}
+  end
+end
