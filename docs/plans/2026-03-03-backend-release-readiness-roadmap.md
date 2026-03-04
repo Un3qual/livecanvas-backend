@@ -59,6 +59,8 @@ Auth/security baseline now includes viewer-scoped GraphQL writes, bearer token G
 
 Observability baseline now includes Telemetry instrumentation for live session lifecycle outcomes, live channel join/chat outcomes, and auth lifecycle parity events (`[:live_canvas, :accounts, :auth, <event_type>]`) with a documented launch-ops checklist in `docs/plans/release/2026-03-03-observability-and-launch-ops.md`.
 
+Compliance baseline policy is now documented in `docs/release/compliance-data-governance.md` and serves as the retention/export/deletion source of truth for the implementation track.
+
 ## Explicitly Deferred (Still Out Of Scope For V1)
 
 Per architecture decisions, these remain intentionally deferred and should not block a v1 social/live release unless product scope changes:
@@ -193,6 +195,7 @@ The previous webhook/async-job planning hole is now closed by `docs/plans/releas
 - Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, and credential change emissions in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`.
 - Live runtime ownership now uses durable leases plus remote-owner routing (`lib/live_canvas/live/session_ownership.ex`, `lib/live_canvas/live/runtime_rpc.ex`, `lib/live_canvas/live/session_supervisor.ex`) with channel-facing `session_unavailable` normalization for remote runtime failures.
 - Webhook + async-job delivery is implemented via signed webhook ingress (`lib/live_canvas_web/controllers/webhook_controller.ex`), durable async-job persistence (`lib/live_canvas/infra/async_jobs.ex`), supervised worker processing (`lib/live_canvas/infra/async_jobs/worker.ex`), and integration coverage (`test/integration/media_webhook_async_flow_test.exs`).
+- Compliance data governance policy baseline is documented in `docs/release/compliance-data-governance.md`, including retention windows for auth/webhook/async rows and operator workflows for export/deletion fulfillment.
 
 ## Suggested Next Plan Files To Create
 

@@ -37,8 +37,8 @@ Verified before selecting this plan so we do not assume missing implementation f
 
 ## Progress
 
-- [ ] Task 1: Author compliance policy matrix and operator runbook
-- [ ] Task 2: Add data-governance persistence primitives and schemas
+- [x] Task 1: Author compliance policy matrix and operator runbook
+- [x] Task 2: Add data-governance persistence primitives and schemas
 - [ ] Task 3: Add viewer-scoped data export request workflow (context + GraphQL + async handler)
 - [ ] Task 4: Add viewer-scoped account deletion request workflow (context + GraphQL + async handler)
 - [ ] Task 5: Add retention sweeper baseline for operational tables
@@ -53,11 +53,11 @@ Verified before selecting this plan so we do not assume missing implementation f
 - Modify: `README.md`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Draft policy matrix covering each durable table family (accounts, social, content, live, chat, infra)
-- [ ] Step 2: Define retention/deletion/export rules per data family, including legal-hold placeholder semantics
-- [ ] Step 3: Add operator workflow for export/deletion fulfillment and retention sweeper execution
-- [ ] Step 4: Link the runbook from `README.md` and roadmap evidence notes
-- [ ] Step 5: Run markdown checks (if available), update checklist, and commit milestone
+- [x] Step 1: Draft policy matrix covering each durable table family (accounts, social, content, live, chat, infra)
+- [x] Step 2: Define retention/deletion/export rules per data family, including legal-hold placeholder semantics
+- [x] Step 3: Add operator workflow for export/deletion fulfillment and retention sweeper execution
+- [x] Step 4: Link the runbook from `README.md` and roadmap evidence notes
+- [x] Step 5: Run markdown checks (if available), update checklist, and commit milestone
 
 **Task 1 policy targets:**
 - Explicit retention windows for `auth_events`, `webhook_events`, `async_jobs`, and chat/live participation records.
@@ -88,11 +88,21 @@ git commit -m "docs: define compliance data governance policy baseline"
 - Modify: `docs/plans/release/2026-03-04-compliance-data-governance.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing schema tests for constraints, defaults, and UUIDv7 entropy IDs
-- [ ] Step 2: Run focused schema tests to verify RED
-- [ ] Step 3: Implement migration + schema modules (including status enum evolution migration-safe pattern)
-- [ ] Step 4: Run focused tests and `mix ecto.migrate`/`mix ecto.rollback` rehearsal for GREEN
-- [ ] Step 5: Run `mix compile` + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing schema tests for constraints, defaults, and UUIDv7 entropy IDs
+- [x] Step 2: Run focused schema tests to verify RED
+- [x] Step 3: Implement migration + schema modules (including status enum evolution migration-safe pattern)
+- [x] Step 4: Run focused tests and `mix ecto.migrate`/`mix ecto.rollback` rehearsal for GREEN
+- [x] Step 5: Run `mix compile` + `mix typecheck`, update checklist, and commit milestone
+
+Verification evidence (2026-03-04):
+
+- `mix test test/live_canvas_schemas/infra/data_governance_request_schema_test.exs` -> RED (`5 tests, 5 failures`) before implementation
+- `MIX_ENV=test mix ecto.migrate --quiet` -> PASS
+- `MIX_ENV=test mix ecto.rollback --step 1 --quiet` -> PASS
+- `MIX_ENV=test mix ecto.migrate --quiet` -> PASS
+- `mix test test/live_canvas_schemas/infra/data_governance_request_schema_test.exs` -> PASS (`5 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 **Task 2 schema targets:**
 - `data_export_requests`: `id`, `entropy_id`, `user_id`, `status`, `format`, `requested_at`, `completed_at`, `failure_reason`, timestamps.

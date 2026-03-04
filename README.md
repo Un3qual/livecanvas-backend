@@ -14,6 +14,7 @@ Ready to run in production? Please [check our deployment guides](https://hexdocs
 - [Deployment gates runbook](docs/release/deployment-gates.md)
 - [Staged rollout runbook](docs/release/staged-rollout.md)
 - [Rollback and restore runbook](docs/release/rollback-and-restore.md)
+- [Compliance data governance runbook](docs/release/compliance-data-governance.md)
 
 ## Learn more
 

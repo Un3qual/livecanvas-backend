@@ -35,7 +35,11 @@ defmodule LCSchemas do
       Live.LiveSession,
       Live.LiveSessionRuntimeOwner,
       Infra,
+      Infra.AccountDeletionRequest,
+      Infra.AccountDeletionRequestStatus,
       Infra.AsyncJob,
+      Infra.DataExportRequest,
+      Infra.DataExportRequestStatus,
       Infra.WebhookEvent
     ]
 end
