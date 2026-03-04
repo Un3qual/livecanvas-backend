@@ -38,7 +38,7 @@ Verified before selecting this plan so we do not assume missing implementation f
 
 - [x] Task 1: Add deterministic preflight gate orchestration (`mix release.gates`)
 - [x] Task 2: Add migration rehearsal + rollback drill command (`mix release.migration_drill`)
-- [ ] Task 3: Add release runbooks (deployment gates, staged rollout, rollback/restore)
+- [x] Task 3: Add release runbooks (deployment gates, staged rollout, rollback/restore)
 - [ ] Task 4: Run full verification, update roadmap hole tracking, and finalize milestone
 
 ### Task 1: Deterministic Preflight Gate (`mix release.gates`)
@@ -153,11 +153,11 @@ git commit -m "feat: add migration rehearsal and rollback drill task"
 - Modify: `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Draft deployment gate checklist mapped to `mix release.gates` and `mix release.migration_drill`
-- [ ] Step 2: Draft staged rollout procedure (dogfood -> beta -> GA) with explicit rollback triggers
-- [ ] Step 3: Draft rollback/restore runbook with DB-safe sequencing and ownership handoff notes
-- [ ] Step 4: Link new runbooks from `README.md` and run markdown quality checks (`mix format` for code blocks in Elixir files only if touched)
-- [ ] Step 5: Run `mix precommit`, update checklist, and commit milestone
+- [x] Step 1: Draft deployment gate checklist mapped to `mix release.gates` and `mix release.migration_drill`
+- [x] Step 2: Draft staged rollout procedure (dogfood -> beta -> GA) with explicit rollback triggers
+- [x] Step 3: Draft rollback/restore runbook with DB-safe sequencing and ownership handoff notes
+- [x] Step 4: Link new runbooks from `README.md` and run markdown quality checks (`mix format` for code blocks in Elixir files only if touched)
+- [x] Step 5: Run `mix precommit`, update checklist, and commit milestone
 
 **Task 3 documentation targets:**
 - Every gate has owner, command, success criterion, and blocker severity.
