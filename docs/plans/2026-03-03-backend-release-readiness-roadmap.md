@@ -59,7 +59,7 @@ Auth/security baseline now includes viewer-scoped GraphQL writes, bearer token G
 
 Observability baseline now includes Telemetry instrumentation for live session lifecycle outcomes, live channel join/chat outcomes, and auth lifecycle parity events (`[:live_canvas, :accounts, :auth, <event_type>]`) with a documented launch-ops checklist in `docs/plans/release/2026-03-03-observability-and-launch-ops.md`.
 
-Compliance baseline policy is now documented in `docs/release/compliance-data-governance.md` and serves as the retention/export/deletion source of truth for the implementation track.
+Compliance baseline implementation is now in place: policy/runbook docs plus viewer-scoped export and account-deletion request workflows are delivered, and retention baseline execution is exposed via `mix release.retention_sweep` (with apply-mode deletion intentionally stubbed for now).
 
 ## Explicitly Deferred (Still Out Of Scope For V1)
 
@@ -189,14 +189,16 @@ Mobile parallel:
 The previous webhook/async-job planning hole is now closed by `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, the release-engineering deployment-gates hole is now closed by `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`, and the compliance/data-governance planning hole is now closed by `docs/plans/release/2026-03-04-compliance-data-governance.md`. Remaining material gaps without sufficiently detailed executable plans in `docs/plans/` are:
 
 - Additional auth audit expansion for provider unlink/account recovery events if included in v1 launch scope.
+- Compliance hard-delete enablement follow-up: replace stubbed account-deletion/retention apply flows with legal-hold-aware destructive execution.
 
 ## Evidence Notes On Key Blockers
 
 - Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, and credential change emissions in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`.
 - Live runtime ownership now uses durable leases plus remote-owner routing (`lib/live_canvas/live/session_ownership.ex`, `lib/live_canvas/live/runtime_rpc.ex`, `lib/live_canvas/live/session_supervisor.ex`) with channel-facing `session_unavailable` normalization for remote runtime failures.
 - Webhook + async-job delivery is implemented via signed webhook ingress (`lib/live_canvas_web/controllers/webhook_controller.ex`), durable async-job persistence (`lib/live_canvas/infra/async_jobs.ex`), supervised worker processing (`lib/live_canvas/infra/async_jobs/worker.ex`), and integration coverage (`test/integration/media_webhook_async_flow_test.exs`).
-- Compliance data governance policy baseline is documented in `docs/release/compliance-data-governance.md`, including retention windows for auth/webhook/async rows and operator workflows for export/deletion fulfillment.
+- Compliance data governance baseline is now implemented via `LC.Infra.DataGovernance` export/deletion flows and `LC.Infra.DataGovernance.Retention` (`mix release.retention_sweep`) with coverage in `test/live_canvas/infra/data_governance_export_test.exs`, `test/live_canvas/infra/data_governance_deletion_test.exs`, and `test/live_canvas/infra/data_governance_retention_test.exs`; hard deletion is intentionally stubbed pending follow-up controls.
 
 ## Suggested Next Plan Files To Create
 
 - `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md`
+- `docs/plans/release/2026-03-04-compliance-hard-delete-enablement.md`

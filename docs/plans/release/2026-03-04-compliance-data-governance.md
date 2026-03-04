@@ -42,7 +42,7 @@ Verified before selecting this plan so we do not assume missing implementation f
 - [x] Task 3: Add viewer-scoped data export request workflow (context + GraphQL + async handler)
 - [x] Task 4: Add viewer-scoped account deletion request workflow (context + GraphQL + async handler)
 - [x] Task 5: Add retention sweeper baseline for operational tables
-- [ ] Task 6: Run full verification, close roadmap planning hole, and finalize milestone
+- [x] Task 6: Run full verification, close roadmap planning hole, and finalize milestone
 
 ### Task 1: Compliance Policy Matrix And Runbook
 
@@ -300,9 +300,14 @@ git commit -m "feat: add release retention sweep baseline"
 - Modify: `docs/plans/README.md`
 
 **Task 6 Step Progress:**
-- [ ] Step 1: Run full verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 2: Update roadmap planning-hole notes and active-plan index to reflect compliance gap closure and remaining gaps
-- [ ] Step 3: Mark all completed checklist items and commit final milestone
+- [x] Step 1: Run full verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Update roadmap planning-hole notes and active-plan index to reflect compliance gap closure and remaining gaps
+- [x] Step 3: Mark all completed checklist items and commit final milestone
+
+Verification evidence (2026-03-04):
+
+- `mix compile && mix test && mix typecheck && mix precommit` -> PASS (`370 tests, 0 failures`; `Total errors: 0`)
+- `mix test test/live_canvas/live_test.exs` -> PASS (`14 tests, 0 failures`) after hardening telemetry assertions to match expected IDs directly.
 
 **Step 1 command set:**
 

@@ -21,19 +21,18 @@ defmodule LC.LiveTest do
   describe "start_live_session/2" do
     test "emits telemetry for successful and rejected session starts" do
       host = user_fixture()
+      expected_host_id = host.id
 
       assert {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+      expected_session_id = session.id
 
       assert_receive {:telemetry_event, [:live_canvas, :live, :session, :start], %{count: 1},
                       %{
                         result: :ok,
-                        host_id: host_id,
-                        session_id: session_id,
+                        host_id: ^expected_host_id,
+                        session_id: ^expected_session_id,
                         visibility: :followers
                       }}
-
-      assert host_id == host.id
-      assert session_id == session.id
 
       assert {:ok, _suspended_host} = Accounts.suspend_user(host)
       assert {:error, :not_authorized} = Live.start_live_session(host, %{visibility: :followers})
@@ -41,12 +40,10 @@ defmodule LC.LiveTest do
       assert_receive {:telemetry_event, [:live_canvas, :live, :session, :start], %{count: 1},
                       %{
                         result: :error,
-                        host_id: host_id,
+                        host_id: ^expected_host_id,
                         reason: :not_authorized,
                         visibility: :followers
                       }}
-
-      assert host_id == host.id
     end
 
     test "returns not_authorized for suspended hosts" do
@@ -94,22 +91,21 @@ defmodule LC.LiveTest do
     test "emits telemetry for join success and authorization failure" do
       host = user_fixture(privacy_mode: :public)
       viewer = user_fixture()
+      expected_host_id = host.id
+      expected_viewer_id = viewer.id
       {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      expected_session_id = session.id
 
       assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
 
       assert_receive {:telemetry_event, [:live_canvas, :live, :session, :join], %{count: 1},
                       %{
                         result: :ok,
-                        host_id: host_id,
+                        host_id: ^expected_host_id,
                         role: :viewer,
-                        session_id: session_id,
-                        user_id: user_id
+                        session_id: ^expected_session_id,
+                        user_id: ^expected_viewer_id
                       }}
-
-      assert host_id == host.id
-      assert session_id == session.id
-      assert user_id == viewer.id
 
       assert {:ok, _suspended_viewer} = Accounts.suspend_user(viewer)
       assert {:error, :not_authorized} = Live.join_live_session(session, viewer, :viewer)
@@ -119,12 +115,9 @@ defmodule LC.LiveTest do
                         result: :error,
                         reason: :not_authorized,
                         role: :viewer,
-                        session_id: session_id,
-                        user_id: user_id
+                        session_id: ^expected_session_id,
+                        user_id: ^expected_viewer_id
                       }}
-
-      assert session_id == session.id
-      assert user_id == viewer.id
     end
 
     test "emits telemetry when ending a live session" do
@@ -132,11 +125,10 @@ defmodule LC.LiveTest do
       {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
 
       assert {:ok, ended_session} = Live.end_live_session(session, %{ended_reason: :host_ended})
+      expected_session_id = ended_session.id
 
       assert_receive {:telemetry_event, [:live_canvas, :live, :session, :end], %{count: 1},
-                      %{result: :ok, session_id: session_id, status: :ended}}
-
-      assert session_id == ended_session.id
+                      %{result: :ok, session_id: ^expected_session_id, status: :ended}}
     end
 
     test "returns not_authorized when the viewer is suspended" do

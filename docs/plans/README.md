@@ -4,9 +4,9 @@ Use this directory for active and in-progress planning artifacts.
 
 ## Active Work
 
-- Current release-execution plan: `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`
-- Current compliance/data-governance plan: `docs/plans/release/2026-03-04-compliance-data-governance.md`
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
+- Next plan candidate (auth audit expansion): `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md`
+- Next plan candidate (compliance hard-delete enablement): `docs/plans/release/2026-03-04-compliance-hard-delete-enablement.md`
 
 ## Archived Completed Plans
 
