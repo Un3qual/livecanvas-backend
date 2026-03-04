@@ -5,10 +5,10 @@
 - Scope audited: `ARCHITECTURE.md`, `docs/architecture/conventions.md`, all files in `docs/plans/**`, core `lib/**`, migrations, and tests.
 - Verification run on this snapshot:
   - `mix compile` -> PASS
-  - `mix test` -> PASS (`304 tests, 0 failures`)
+  - `mix test` -> PASS (`338 tests, 0 failures`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
-- Plan tracking state: release-track plans are complete through the distributed live runtime ownership baseline, with media upload intent + finalize baseline now in place (`docs/plans/2026-03-03-media-storage-and-processing.md`).
+- Plan tracking state: release-track plans are complete through the webhook + async-jobs delivery slice, with media upload intent/finalize baseline and callback-driven async processing now in place (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`).
 
 ## What Has Been Delivered
 
@@ -53,7 +53,7 @@
 
 The backend is in a strong "foundation complete / internal alpha" state, not yet in a "public release ready" state.
 
-Main reason: the current API surface proves domain behavior, but runtime scaling, webhook/async job delivery, and production operations layers are not complete yet.
+Main reason: the current API surface proves domain behavior, but live-runtime scaling hardening and production operations layers are not complete yet.
 
 Auth/security baseline now includes viewer-scoped GraphQL writes, bearer token GraphQL auth precedence, GraphiQL environment gating, abuse-rate limiting, and persisted auth audit events for login outcomes, refresh-token revocation/rotation outcomes, and credential change outcomes.
 
@@ -111,6 +111,7 @@ Per architecture decisions, these remain intentionally deferred and should not b
 - `docs/plans/release/2026-03-03-observability-and-launch-ops.md`
 - `docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`
 - `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`
+- `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`
 
 ## Release Roadmap (From Current State To Releasable Backend)
 
@@ -163,9 +164,9 @@ Mobile parallel:
 
 ### Phase 4: Media, Storage, And External Integration
 
-- Implement object storage upload/serving pipeline and media processing states end-to-end.
-- Add webhook and callback surfaces that architecture marks as REST use cases.
-- Add background job strategy for retries/idempotent async work.
+- Object-storage serving strategy and provider hardening remain before GA.
+- Webhook callback ingress for media processing is now delivered (`POST /api/webhooks/media-processing`).
+- Background job retries/idempotent async work is now delivered (`async_jobs` + `LC.Infra.AsyncJobs.Worker`).
 
 Mobile parallel:
 - Media upload flow (capture -> upload -> processing -> publish) can be integrated once signed-upload and processing APIs are stable.
@@ -182,18 +183,18 @@ Mobile parallel:
 
 ## Planning Holes (Missing Or Underspecified Right Now)
 
-The following are material gaps where no sufficiently detailed executable plan exists yet in `docs/plans/`:
+The previous webhook/async-job planning hole is now closed by `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`. Remaining material gaps without sufficiently detailed executable plans in `docs/plans/` are:
 
 - Additional auth audit expansion for provider unlink/account recovery events if included in v1 launch scope.
-- Release engineering plan (migrations at scale, rollback strategy, deployment gates).
 - Compliance/data-governance plan (retention/deletion/export policy).
 
 ## Evidence Notes On Key Blockers
 
 - Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, and credential change emissions in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`.
 - Live runtime ownership now uses durable leases plus remote-owner routing (`lib/live_canvas/live/session_ownership.ex`, `lib/live_canvas/live/runtime_rpc.ex`, `lib/live_canvas/live/session_supervisor.ex`) with channel-facing `session_unavailable` normalization for remote runtime failures.
+- Webhook + async-job delivery is implemented via signed webhook ingress (`lib/live_canvas_web/controllers/webhook_controller.ex`), durable async-job persistence (`lib/live_canvas/infra/async_jobs.ex`), supervised worker processing (`lib/live_canvas/infra/async_jobs/worker.ex`), and integration coverage (`test/integration/media_webhook_async_flow_test.exs`).
 
 ## Suggested Next Plan Files To Create
 
-- `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`
 - `docs/plans/release/2026-03-03-compliance-data-governance.md`
+- `docs/plans/release/2026-03-03-auth-audit-provider-recovery-expansion.md`

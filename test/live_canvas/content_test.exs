@@ -4,7 +4,7 @@ defmodule LC.ContentTest do
   import LC.AccountsFixtures
 
   alias LC.Content
-  alias LCSchemas.Infra.AsyncJob
+  alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
 
   describe "create_post/2" do
     test "persists author-owned content" do
@@ -135,6 +135,39 @@ defmodule LC.ContentTest do
       assert {:ok, finalized_asset} = Content.finalize_media_upload(owner, uploaded_asset.id, %{})
       assert finalized_asset.processing_state == :uploaded
       assert Repo.aggregate(AsyncJob, :count, :id) == 1
+    end
+  end
+
+  describe "ingest_media_processing_webhook/2" do
+    test "is idempotent for repeated provider event ids" do
+      owner = user_fixture()
+
+      assert {:ok, media_asset} =
+               Content.create_media_asset(owner, %{
+                 storage_key: "uploads/users/#{owner.id}/duplicate-webhook.jpg",
+                 mime_type: "image/jpeg",
+                 processing_state: :uploaded
+               })
+
+      payload = %{
+        "event_type" => "media.processed",
+        "media_asset_id" => media_asset.id,
+        "processing_state" => "processed",
+        "metadata" => %{"width" => 640, "height" => 480}
+      }
+
+      assert {:ok, :accepted} =
+               Content.ingest_media_processing_webhook("evt_content_duplicate", payload)
+
+      assert {:ok, :duplicate} =
+               Content.ingest_media_processing_webhook("evt_content_duplicate", payload)
+
+      assert Repo.aggregate(WebhookEvent, :count, :id) == 1
+      assert Repo.aggregate(AsyncJob, :count, :id) == 1
+
+      async_job = Repo.one!(AsyncJob)
+      assert async_job.kind == "media_processing_webhook"
+      assert async_job.dedupe_key == "webhook_event:media_processing:evt_content_duplicate"
     end
   end
 end

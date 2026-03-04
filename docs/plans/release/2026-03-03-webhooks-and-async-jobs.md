@@ -46,7 +46,7 @@ The webhook + async job gap is the most direct blocker to Phase 4 architecture g
 - [x] Task 2: Add signed REST webhook ingress with idempotent event recording
 - [x] Task 3: Add supervised async-job worker baseline with retry/backoff handling
 - [x] Task 4: Move media finalize processing to async jobs (durable + idempotent)
-- [ ] Task 5: Run full verification, update roadmap notes, and finalize milestones
+- [x] Task 5: Run full verification, update roadmap notes, and finalize milestones
 
 ### Task 1: Durable Persistence Primitives (`webhook_events`, `async_jobs`)
 
@@ -260,9 +260,9 @@ git commit -m "feat: process media uploads through async job pipeline"
 - Modify: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 
 **Task 5 Step Progress:**
-- [ ] Step 1: Run full verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 2: Update roadmap planning-hole notes for delivered webhook/async-job scope and remaining follow-ups
-- [ ] Step 3: Mark all completed checklist items and commit final milestone
+- [x] Step 1: Run full verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Update roadmap planning-hole notes for delivered webhook/async-job scope and remaining follow-ups
+- [x] Step 3: Mark all completed checklist items and commit final milestone
 
 **Step 1 command:**
 
