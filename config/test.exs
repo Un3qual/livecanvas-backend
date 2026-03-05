@@ -34,6 +34,13 @@ config :live_canvas, LC.Infra.AsyncJobs.Worker, enabled: false
 config :live_canvas, LC.Live.SessionOwnership, lease_ttl_seconds: 30
 config :live_canvas, LC.Live.SessionSupervisor, lease_heartbeat_interval_ms: 60_000
 
+config :live_canvas, LC.TestSupport.Live.PeerRuntimeHelper,
+  rpc_timeout_ms: 5_000,
+  peer_startup_timeout_ms: 15_000,
+  peer_connect_attempts: 80,
+  peer_poll_interval_ms: 25,
+  cookie: :live_canvas_peer_runtime
+
 # In test we don't send emails
 config :live_canvas, LC.Infra.Mailer, adapter: Swoosh.Adapters.Test
 

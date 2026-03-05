@@ -37,7 +37,7 @@ This is the highest-impact remaining runtime reliability gap after distributed o
 ## Progress
 
 - [x] Task 1: Harden reconnect join consistency for transient remote handoff failures
-- [ ] Task 2: Add deterministic partition/rejoin drill integration coverage with real peer-node orchestration
+- [x] Task 2: Add deterministic partition/rejoin drill integration coverage with real peer-node orchestration
 - [ ] Task 3: Add operator drill command + runbook for runtime ownership failover rehearsal
 - [ ] Task 4: Run final verification and update roadmap/plan index tracking
 
@@ -99,11 +99,17 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing integration test that starts two peer nodes, forces ownership handoff, disconnects/reconnects owner node links, and asserts reconnect-safe join outcomes
-- [ ] Step 2: Run focused integration test to verify RED
-- [ ] Step 3: Implement peer-node helper + deterministic test seams (sandbox allowances/config) needed for partition/rejoin drill orchestration
-- [ ] Step 4: Run focused integration test to verify GREEN
-- [ ] Step 5: Run touched live/channel integration slices + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing integration test that starts a real peer node, exercises partition-driven remote unreachability, forces ownership handoff, and asserts reconnect-safe join outcomes via local takeover
+- [x] Step 2: Run focused integration test to verify RED
+- [x] Step 3: Implement peer-node helper + deterministic test seams (sandbox allowances/config) needed for partition/rejoin drill orchestration
+- [x] Step 4: Run focused integration test to verify GREEN
+- [x] Step 5: Run touched live/channel integration slices + `mix typecheck`, update checklist progress, and commit milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test --include peer_runtime test/integration/live/runtime_partition_rejoin_test.exs` -> RED first (`1 test, 1 failure`) and GREEN after implementation (`1 test, 0 failures`)
+- `mix test --include peer_runtime test/live_canvas/live/distributed_runtime_test.exs test/integration/live/runtime_partition_rejoin_test.exs` -> PASS (`8 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 3: Operator Drill Command And Runbook
 
