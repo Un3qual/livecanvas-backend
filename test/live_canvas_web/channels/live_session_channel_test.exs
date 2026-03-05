@@ -243,6 +243,64 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert user_id == viewer.id
   end
 
+  test "rate limits repeated chat sends for the same viewer" do
+    previous_rate_limit_config = Application.get_env(:live_canvas, LCWeb.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LCWeb.RateLimiter,
+      Keyword.put(previous_rate_limit_config, :limits,
+        channel_join: [limit: 10, window_ms: 60_000],
+        chat_send: [limit: 1, window_ms: 60_000]
+      )
+    )
+
+    LCWeb.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LCWeb.RateLimiter, previous_rate_limit_config)
+      LCWeb.RateLimiter.reset!()
+    end)
+
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    first_ref = push(socket, "chat:send", %{"body" => "first"})
+    assert_reply first_ref, :ok, %{message: %{body: "first"}}
+
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
+                    %{
+                      result: :ok,
+                      session_id: session_id,
+                      user_id: user_id
+                    }}
+
+    assert session_id == session.id
+    assert user_id == viewer.id
+
+    second_ref = push(socket, "chat:send", %{"body" => "second"})
+    assert_reply second_ref, :error, %{reason: "rate_limited"}
+
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
+                    %{
+                      result: :error,
+                      reason: :rate_limited,
+                      session_id: session_id,
+                      user_id: user_id
+                    }}
+
+    assert session_id == session.id
+    assert user_id == viewer.id
+  end
+
   test "invalid chat payload emits telemetry and returns invalid_body" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()

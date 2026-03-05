@@ -77,6 +77,7 @@ defmodule LCWeb.LiveSessionChannel do
     result =
       with true <-
              (is_integer(user_id) && is_integer(live_session_id)) || {:error, :not_authorized},
+           :ok <- rate_limit_chat_send(user_id, live_session_id),
            {:ok, chat_message} <-
              Chat.create_message(live_session, current_user, %{body: body}) do
         {:ok, %{message: chat_message_payload(chat_message)}}
@@ -159,6 +160,7 @@ defmodule LCWeb.LiveSessionChannel do
   defp message_error_reason(:session_ended), do: "session_ended"
   defp message_error_reason(:not_authorized), do: "not_authorized"
   defp message_error_reason(:invalid_body), do: "invalid_body"
+  defp message_error_reason(:rate_limited), do: "rate_limited"
   defp message_error_reason(%Ecto.Changeset{}), do: "invalid_message"
 
   defp safe_leave_live_session(live_session, current_user) do
@@ -212,6 +214,14 @@ defmodule LCWeb.LiveSessionChannel do
   @spec rate_limit_join(pos_integer()) :: :ok | {:error, :rate_limited}
   defp rate_limit_join(user_id) when is_integer(user_id) do
     RateLimiter.allow(:channel_join, "user:#{user_id}")
+  end
+
+  @spec rate_limit_chat_send(pos_integer(), pos_integer()) :: :ok | {:error, :rate_limited}
+  defp rate_limit_chat_send(user_id, live_session_id)
+       when is_integer(user_id) and is_integer(live_session_id) do
+    # Scope to a viewer within a specific live session so one chatty room does
+    # not globally throttle the same user in other rooms.
+    RateLimiter.allow(:chat_send, "session:#{live_session_id}:user:#{user_id}")
   end
 
   defp chat_message_payload(chat_message) do

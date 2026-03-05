@@ -1,7 +1,7 @@
 defmodule LCWeb.RateLimiter do
   @moduledoc false
 
-  @type limit_key :: :auth_login | :graphql_mutation | :channel_join
+  @type limit_key :: :auth_login | :graphql_mutation | :channel_join | :chat_send
   @type allow_result :: :ok | {:error, :rate_limited}
   @type rate_limit_config :: [limit: pos_integer(), window_ms: pos_integer()]
 
@@ -9,7 +9,8 @@ defmodule LCWeb.RateLimiter do
   @default_limits [
     auth_login: [limit: 20, window_ms: 60_000],
     graphql_mutation: [limit: 120, window_ms: 60_000],
-    channel_join: [limit: 60, window_ms: 60_000]
+    channel_join: [limit: 60, window_ms: 60_000],
+    chat_send: [limit: 120, window_ms: 60_000]
   ]
 
   @spec allow(limit_key(), String.t()) :: allow_result()
