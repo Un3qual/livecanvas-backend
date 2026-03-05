@@ -94,8 +94,7 @@ if config_env() == :prod do
         """
     end
 
-  config :live_canvas, LC.Infra.ObjectStorage,
-    adapter: LC.Infra.ObjectStorage.ConfigurableAdapter
+  config :live_canvas, LC.Infra.ObjectStorage, adapter: LC.Infra.ObjectStorage.ConfigurableAdapter
 
   config :live_canvas, LC.Infra.ObjectStorage.ConfigurableAdapter,
     upload_base_url: object_storage_upload_base_url,

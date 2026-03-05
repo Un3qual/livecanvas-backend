@@ -8,7 +8,7 @@
   - `mix test` -> PASS (`426 tests, 0 failures, 1 excluded`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
-- Plan tracking state: release-track plans now include delivered account-recovery password reset coverage, live chat/moderation rate-limit hardening, live runtime partition/rejoin drill coverage, viewer-scoped post lifecycle mutations, and Phase 5 capacity verification + launch-gate wiring (`docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`, `docs/plans/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`, `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md`, `docs/plans/release/2026-03-05-content-post-lifecycle-mutations.md`, `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`) alongside media upload callback-driven async processing and deployment/rollback runbooks (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`).
+- Plan tracking state: release-track plans now include delivered account-recovery password reset coverage, live chat/moderation rate-limit hardening, live runtime partition/rejoin drill coverage, viewer-scoped post lifecycle mutations, object-storage serving/provider hardening, and Phase 5 capacity verification + launch-gate wiring (`docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`, `docs/plans/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`, `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md`, `docs/plans/release/2026-03-05-content-post-lifecycle-mutations.md`, `docs/plans/release/2026-03-05-object-storage-serving-provider-hardening.md`, `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`) alongside media upload callback-driven async processing and deployment/rollback runbooks (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`).
 
 ## What Has Been Delivered
 
@@ -118,6 +118,7 @@ Per architecture decisions, these remain intentionally deferred and should not b
 - `docs/plans/release/2026-03-04-compliance-data-governance.md`
 - `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`
 - `docs/plans/release/2026-03-05-content-post-lifecycle-mutations.md`
+- `docs/plans/release/2026-03-05-object-storage-serving-provider-hardening.md`
 - `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`
 
 ## Release Roadmap (From Current State To Releasable Backend)
@@ -172,7 +173,7 @@ Mobile parallel:
 
 ### Phase 4: Media, Storage, And External Integration
 
-- Object-storage serving strategy and provider hardening remain before GA.
+- Object-storage serving strategy and provider hardening are now delivered via `docs/plans/release/2026-03-05-object-storage-serving-provider-hardening.md` (`LC.Infra.ObjectStorage.ConfigurableAdapter`, runtime config validation, and GraphQL `mediaAsset.publicUrl` contract).
 - Webhook callback ingress for media processing is now delivered (`POST /api/webhooks/media-processing`).
 - Background job retries/idempotent async work is now delivered (`async_jobs` + `LC.Infra.AsyncJobs.Worker`).
 
@@ -191,7 +192,7 @@ Mobile parallel:
 
 ## Planning Holes (Missing Or Underspecified Right Now)
 
-The previous webhook/async-job planning hole is now closed by `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, the release-engineering deployment-gates hole is now closed by `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`, and the compliance/data-governance planning hole is now closed by `docs/plans/release/2026-03-04-compliance-data-governance.md`.
+The previous webhook/async-job planning hole is now closed by `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, the release-engineering deployment-gates hole is now closed by `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`, the compliance/data-governance planning hole is now closed by `docs/plans/release/2026-03-04-compliance-data-governance.md`, and the object-storage serving/provider hardening hole is now closed by `docs/plans/release/2026-03-05-object-storage-serving-provider-hardening.md`.
 
 Remaining tracked gaps:
 
@@ -207,6 +208,7 @@ Remaining tracked gaps:
 - Webhook + async-job delivery is implemented via signed webhook ingress (`lib/live_canvas_web/controllers/webhook_controller.ex`), durable async-job persistence (`lib/live_canvas/infra/async_jobs.ex`), supervised worker processing (`lib/live_canvas/infra/async_jobs/worker.ex`), and integration coverage (`test/integration/media_webhook_async_flow_test.exs`).
 - Operational abuse limits are implemented for channel chat sends (`:chat_send`) and moderation mutations (`:moderation_action`) through `LCWeb.RateLimiter` + transport enforcement in `lib/live_canvas_web/channels/live_session_channel.ex` and `lib/live_canvas_web/plugs/graphql_mutation_rate_limit.ex`, with coverage in `test/live_canvas_web/channels/live_session_channel_test.exs` and `test/live_canvas_gql/relay/graphql_rate_limit_test.exs`.
 - Content lifecycle writes now include viewer-scoped post update/delete APIs in `LC.Content` plus Relay mutations in `LCGQL.Content` (`lib/live_canvas/content.ex`, `lib/live_canvas_gql/content/content_mutations.ex`, `lib/live_canvas_gql/content/content_resolver.ex`) with regression coverage in `test/live_canvas/content_test.exs` and `test/live_canvas_gql/content/content_mutations_test.exs`.
+- Object-storage provider hardening is implemented via configurable adapter/runtime validation and canonical serving URL generation (`lib/live_canvas/infra/object_storage/configurable_adapter.ex`, `config/runtime.exs`, `lib/live_canvas/infra/object_storage.ex`), with GraphQL delivery through `mediaAsset.publicUrl` in `lib/live_canvas_gql/content/content_types.ex` + `lib/live_canvas_gql/content/content_resolver.ex` and coverage in `test/live_canvas/infra/object_storage/configurable_adapter_test.exs`, `test/live_canvas_gql/content/content_queries_test.exs`, and `test/live_canvas_gql/relay/node_queries_test.exs`.
 - Compliance data governance baseline is now implemented via `LC.Infra.DataGovernance` export/deletion flows and `LC.Infra.DataGovernance.Retention` (`mix release.retention_sweep`) with coverage in `test/live_canvas/infra/data_governance_export_test.exs`, `test/live_canvas/infra/data_governance_deletion_test.exs`, and `test/live_canvas/infra/data_governance_retention_test.exs`; hard deletion is intentionally stubbed pending follow-up controls.
 
 ## Suggested Next Plan Files To Create

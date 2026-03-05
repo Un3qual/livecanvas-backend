@@ -4,6 +4,7 @@ defmodule LC.ContentTest do
   import LC.AccountsFixtures
 
   alias LC.Content
+  alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
 
@@ -140,6 +141,23 @@ defmodule LC.ContentTest do
 
       assert {:error, %Ecto.Changeset{} = changeset} = Content.request_media_upload(author, %{})
       assert %{mime_type: ["can't be blank"]} = errors_on(changeset)
+    end
+  end
+
+  describe "media_asset_public_url/1" do
+    test "returns canonical public URL for a persisted media asset" do
+      owner = user_fixture()
+
+      assert {:ok, %{media_asset: media_asset}} =
+               Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+      assert {:ok, public_url} = Content.media_asset_public_url(media_asset)
+      assert public_url == "https://object-storage.invalid/#{media_asset.storage_key}"
+    end
+
+    test "returns invalid_storage_key when storage key is missing" do
+      assert {:error, :invalid_storage_key} =
+               Content.media_asset_public_url(%MediaAssetSchema{storage_key: nil})
     end
   end
 

@@ -25,7 +25,7 @@ Verified directly in active code/config/docs before selecting this batch:
 
 - [x] Task 1: Add hardened object-storage contract and production adapter/runtime config
 - [x] Task 2: Expose canonical media asset public URL in GraphQL and add contract tests
-- [ ] Task 3: Final verification and roadmap/index tracking updates
+- [x] Task 3: Final verification and roadmap/index tracking updates
 
 ### Task 1: Add Hardened Object-Storage Contract And Production Adapter/Runtime Config
 
@@ -83,7 +83,17 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-object-storage-serving-provider-hardening.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Mark checklist progress and capture verification evidence
-- [ ] Step 2: Update roadmap/index with delivered scope and remaining follow-ups
-- [ ] Step 3: Run final verification (`mix compile`, focused `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 4: Commit final milestone
+- [x] Step 1: Mark checklist progress and capture verification evidence
+- [x] Step 2: Update roadmap/index with delivered scope and remaining follow-ups
+- [x] Step 3: Run final verification (`mix compile`, focused `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 4: Commit final milestone
+
+Verification evidence (2026-03-05):
+
+- `mix compile` -> PASS
+- `mix test test/live_canvas/content_test.exs test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs` -> PASS (`39 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
+- `mix precommit` -> FAIL (`471 tests, 4 failures`) in pre-existing release/accounts coverage:
+  - `test/integration/release/capacity_drill_live_concurrency_test.exs` (3 failures due duplicate `capacity-live-viewer-*` fixture emails)
+  - `test/live_canvas/accounts_test.exs:794` (`Repo.update_all/2` expectation mismatch: `{1, nil}` expected, `{36, nil}` observed)
+- Reproduction check: `mix test test/integration/release/capacity_drill_live_concurrency_test.exs test/live_canvas/accounts_test.exs` -> FAIL (`85 tests, 4 failures`) with the same failures, confirming the precommit red state is not introduced by Task 2/3 changes.
