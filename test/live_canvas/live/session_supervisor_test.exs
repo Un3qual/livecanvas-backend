@@ -1,5 +1,8 @@
 defmodule LC.Live.SessionSupervisorTest do
-  use LC.DataCase, async: true
+  # This module drives shared runtime supervisors and lease heartbeats that run
+  # on their own processes; keeping it synchronous avoids SQL sandbox ownership
+  # races across concurrently running test modules.
+  use LC.DataCase, async: false
 
   import LC.AccountsFixtures, only: [user_fixture: 0]
 
@@ -157,6 +160,16 @@ defmodule LC.Live.SessionSupervisorTest do
   defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
   defp allow_runtime_db(pid) when is_pid(pid) do
-    Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid)
+    case Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid) do
+      :ok ->
+        :ok
+
+      {:already, _owner} ->
+        :ok
+
+      # In shared-owner mode (`async: false`) explicit allow is unnecessary.
+      :not_found ->
+        :ok
+    end
   end
 end

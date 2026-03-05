@@ -138,11 +138,8 @@ defmodule LC.TestSupport.Live.PeerRuntimeHelper do
 
   @spec stop_peer(peer_pid()) :: :ok
   defp stop_peer(peer_pid) when is_pid(peer_pid) do
-    case :peer.stop(peer_pid) do
-      :ok -> :ok
-      {:error, :noproc} -> :ok
-      {:error, _reason} -> :ok
-    end
+    _ = :peer.stop(peer_pid)
+    :ok
   catch
     :exit, _reason ->
       :ok
@@ -182,7 +179,7 @@ defmodule LC.TestSupport.Live.PeerRuntimeHelper do
     :ok = :erpc.call(node_name, Ecto.Adapters.SQL.Sandbox, :mode, [Repo, :auto], rpc_timeout_ms())
   end
 
-  @spec copy_application_env(peer_node(), atom()) :: :ok
+  @spec copy_application_env(peer_node(), :live_canvas) :: :ok
   defp copy_application_env(node_name, app) when is_atom(node_name) and is_atom(app) do
     app
     |> Application.get_all_env()
@@ -200,7 +197,7 @@ defmodule LC.TestSupport.Live.PeerRuntimeHelper do
     :ok
   end
 
-  @spec await_peer_state(peer_node(), :connected | :disconnected, non_neg_integer()) :: :ok
+  @spec await_peer_state(peer_node(), :connected | :disconnected, pos_integer()) :: :ok
   defp await_peer_state(node_name, _target_state, 0) when is_atom(node_name) do
     raise "timed out waiting for peer node state transition: #{inspect(node_name)}"
   end

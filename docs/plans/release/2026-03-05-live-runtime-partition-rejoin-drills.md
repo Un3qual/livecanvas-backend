@@ -39,7 +39,7 @@ This is the highest-impact remaining runtime reliability gap after distributed o
 - [x] Task 1: Harden reconnect join consistency for transient remote handoff failures
 - [x] Task 2: Add deterministic partition/rejoin drill integration coverage with real peer-node orchestration
 - [x] Task 3: Add operator drill command + runbook for runtime ownership failover rehearsal
-- [ ] Task 4: Run final verification and update roadmap/plan index tracking
+- [x] Task 4: Run final verification and update roadmap/plan index tracking
 
 ### Task 1: Reconnect Consistency Hardening
 
@@ -144,6 +144,13 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 2: Update roadmap/plans index to record delivered partition/rejoin drill scope and remaining release follow-ups
-- [ ] Step 3: Mark all completed checklist items and commit final milestone
+- [x] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Update roadmap/plans index to record delivered partition/rejoin drill scope and remaining release follow-ups
+- [x] Step 3: Mark all completed checklist items and commit final milestone
+
+Verification evidence (2026-03-05):
+
+- `mix compile` -> PASS
+- `mix test` -> PASS (`426 tests, 0 failures, 1 excluded`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
+- `mix precommit` -> PASS

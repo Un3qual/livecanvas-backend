@@ -5,10 +5,10 @@ Use this directory for active and in-progress planning artifacts.
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Live runtime partition/rejoin drills: `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md` (Tasks 1-2 delivered: reconnect-consistency hardening plus peer-node partition/takeover integration coverage; operator drill command/runbook tasks remain open)
 
 ## Recently Completed
 
+- Live runtime partition/rejoin drills: `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md` (reconnect consistency hardening, peer-node partition/takeover integration coverage, and `mix release.live_runtime_drill` operator runbook/command delivered)
 - Chat/live retention enforcement: `docs/plans/release/2026-03-05-chat-live-retention-enforcement.md` (retention candidate coverage, policy-window alignment, and apply-mode rollout guardrails delivered; hard deletion remains deferred)
 - Live chat + moderation operational limits: `docs/plans/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md` (channel `chat:send` throughput limits and moderation-mutation-specific GraphQL limits delivered)
 - Account-recovery password reset foundation: `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md` (Accounts recovery primitives, web reset-password flow, and GraphQL recovery mutations delivered)

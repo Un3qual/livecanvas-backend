@@ -78,6 +78,6 @@ defmodule LC.Live.SessionServerTest do
       )
 
     monitor_ref = Process.monitor(pid)
-    assert_receive {:DOWN, ^monitor_ref, :process, ^pid, :lost_ownership}
+    assert_receive {:DOWN, ^monitor_ref, :process, ^pid, :lost_ownership}, 1_000
   end
 end
