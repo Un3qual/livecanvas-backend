@@ -12,11 +12,13 @@ This runbook defines the release go/no-go checks that must pass before any produ
 
 | Gate | Owner | Command | Success Criterion | Blocker Severity |
 | --- | --- | --- | --- | --- |
-| Preflight quality gate | Release Engineer | `mix release.gates` | Command exits `0`; compile/test/typecheck/boundary checks all pass in order. | P0 |
+| Preflight quality gate | Release Engineer | `mix release.gates` | Command exits `0`; compile/test/typecheck/boundary checks and `mix release.capacity_drill --confirm` all pass in order. | P0 |
 | Migration rehearsal gate | Database Owner | `MIX_ENV=test mix release.migration_drill --step 1` | Command exits `0`; create/migrate/rollback/migrate sequence completes without intervention. | P0 |
 | Runtime failover rehearsal gate | Release Engineer + Live Runtime Owner | `MIX_ENV=test mix release.live_runtime_drill --session-id <id> --takeover-node <node> --confirm` | Command exits `0`; all five drill steps complete and reconnect probe succeeds without ghost participants. | P1 |
-| Gate order audit (dry run) | Release Engineer | `mix release.gates --dry-run`, `MIX_ENV=test mix release.migration_drill --dry-run --step 1`, and `MIX_ENV=test mix release.live_runtime_drill --session-id <id> --takeover-node <node> --dry-run` | Output lists deterministic ordered command plan that matches this runbook. | P1 |
+| Gate order audit (dry run) | Release Engineer | `mix release.gates --dry-run`, `MIX_ENV=test mix release.capacity_drill --dry-run`, `MIX_ENV=test mix release.migration_drill --dry-run --step 1`, and `MIX_ENV=test mix release.live_runtime_drill --session-id <id> --takeover-node <node> --dry-run` | Output lists deterministic ordered command plan that matches this runbook. | P1 |
 | Working tree integrity | Release Engineer | `git status --short` | Output is empty before tagging/publishing a release candidate from the branch tip. | P1 |
+
+Capacity thresholds, override policy, and evidence capture details are maintained in `docs/release/performance-capacity-verification.md`.
 
 ## Gate Execution Order
 
@@ -41,7 +43,9 @@ Record this in the release ticket for every run:
 - Database Owner:
 - IC:
 - `mix release.gates` result:
+- `mix release.capacity_drill --confirm` result:
 - `mix release.migration_drill --step 1` result:
 - `mix release.live_runtime_drill --session-id <id> --takeover-node <node> --confirm` result:
+- Capacity override arguments (if any):
 - Dry-run output attached:
 - Final decision (`GO` or `NO-GO`):

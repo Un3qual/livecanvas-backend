@@ -68,6 +68,40 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
+  object_storage_upload_base_url =
+    System.get_env("OBJECT_STORAGE_UPLOAD_BASE_URL") ||
+      raise """
+      environment variable OBJECT_STORAGE_UPLOAD_BASE_URL is missing.
+      For example: https://uploads.example.com/direct
+      """
+
+  object_storage_public_base_url =
+    System.get_env("OBJECT_STORAGE_PUBLIC_BASE_URL") ||
+      raise """
+      environment variable OBJECT_STORAGE_PUBLIC_BASE_URL is missing.
+      For example: https://cdn.example.com/media
+      """
+
+  object_storage_upload_ttl_seconds =
+    case Integer.parse(System.get_env("OBJECT_STORAGE_UPLOAD_TTL_SECONDS", "900")) do
+      {value, ""} when value > 0 ->
+        value
+
+      _ ->
+        raise """
+        environment variable OBJECT_STORAGE_UPLOAD_TTL_SECONDS must be a positive integer.
+        For example: 900
+        """
+    end
+
+  config :live_canvas, LC.Infra.ObjectStorage,
+    adapter: LC.Infra.ObjectStorage.ConfigurableAdapter
+
+  config :live_canvas, LC.Infra.ObjectStorage.ConfigurableAdapter,
+    upload_base_url: object_storage_upload_base_url,
+    public_base_url: object_storage_public_base_url,
+    upload_ttl_seconds: object_storage_upload_ttl_seconds
+
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key

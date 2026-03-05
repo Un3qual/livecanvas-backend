@@ -25,4 +25,13 @@ defmodule LC.Infra.ObjectStorage.FakeAdapter do
   end
 
   def sign_upload(_request), do: {:error, :invalid_upload_request}
+
+  @impl LC.Infra.ObjectStorage
+  @spec public_asset_url(LC.Infra.ObjectStorage.storage_key()) ::
+          {:ok, String.t()} | {:error, term()}
+  def public_asset_url(key) when is_binary(key) do
+    {:ok, "https://object-storage.invalid/#{key}"}
+  end
+
+  def public_asset_url(_key), do: {:error, :invalid_storage_key}
 end

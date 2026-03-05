@@ -20,4 +20,9 @@ defmodule LC.Infra.ObjectStorage.FakeAdapterTest do
     assert {:error, :invalid_upload_request} =
              ObjectStorage.sign_upload(%{mime_type: "image/jpeg"})
   end
+
+  test "builds a deterministic public asset URL from storage key" do
+    assert {:ok, public_url} = ObjectStorage.public_asset_url("uploads/users/7/media.jpg")
+    assert public_url == "https://object-storage.invalid/uploads/users/7/media.jpg"
+  end
 end

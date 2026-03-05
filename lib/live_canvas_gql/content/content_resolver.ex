@@ -141,8 +141,7 @@ defmodule LCGQL.Content.Resolver do
          {:ok, deleted_post} <- Content.delete_user_post(viewer, id) do
       {:ok,
        %{
-         deleted_post_id:
-           Absinthe.Relay.Node.to_global_id(:post, deleted_post.id, LCGQL.Schema),
+         deleted_post_id: Absinthe.Relay.Node.to_global_id(:post, deleted_post.id, LCGQL.Schema),
          errors: []
        }}
     else
