@@ -31,6 +31,33 @@ defmodule LCGQL.Accounts.Mutations do
       resolve(&Resolver.attach_user_phone_number/3)
     end
 
+    payload field :request_password_reset do
+      input do
+        field :email, non_null(:string)
+      end
+
+      output do
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.request_password_reset/3)
+    end
+
+    payload field :reset_password do
+      input do
+        field :token, non_null(:string)
+        field :password, non_null(:string)
+        field :password_confirmation, non_null(:string)
+      end
+
+      output do
+        field :reset, non_null(:boolean)
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.reset_password/3)
+    end
+
     payload field :unlink_viewer_identity do
       input do
         field :user_identity_id, non_null(:id)

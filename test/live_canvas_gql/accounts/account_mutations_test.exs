@@ -131,6 +131,189 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
   end
 
+  describe "requestPasswordReset" do
+    test "issues a password reset token when the email exists" do
+      user = user_fixture()
+
+      mutation = """
+      mutation RequestPasswordReset($email: String!) {
+        requestPasswordReset(input: {email: $email}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"requestPasswordReset" => %{"errors" => []}}}} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"email" => user.email}
+               )
+
+      assert %UserToken{context: :password_reset_token, user_id: user_id} =
+               Repo.one(
+                 from(t in UserToken,
+                   where: t.context == :password_reset_token,
+                   order_by: [desc: t.inserted_at],
+                   limit: 1
+                 )
+               )
+
+      assert user_id == user.id
+    end
+
+    test "returns an empty error list when the email does not exist" do
+      mutation = """
+      mutation RequestPasswordReset($email: String!) {
+        requestPasswordReset(input: {email: $email}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"requestPasswordReset" => %{"errors" => []}}}} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"email" => "missing@example.com"}
+               )
+
+      assert Repo.aggregate(
+               from(t in UserToken, where: t.context == :password_reset_token),
+               :count,
+               :id
+             ) == 0
+    end
+  end
+
+  describe "resetPassword" do
+    test "resets password with a valid token" do
+      user = user_fixture()
+      {:ok, %{token: token}} = Accounts.issue_password_reset_token(user)
+
+      mutation = """
+      mutation ResetPassword($token: String!, $password: String!, $passwordConfirmation: String!) {
+        resetPassword(
+          input: {
+            token: $token
+            password: $password
+            passwordConfirmation: $passwordConfirmation
+          }
+        ) {
+          reset
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"resetPassword" => %{"reset" => true, "errors" => []}}}} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{
+                   "token" => token,
+                   "password" => "a valid new password",
+                   "passwordConfirmation" => "a valid new password"
+                 }
+               )
+
+      assert Accounts.get_user_by_email_and_password(user.email, "a valid new password")
+    end
+
+    test "returns an invalid_or_expired error when the token is invalid" do
+      mutation = """
+      mutation ResetPassword($token: String!, $password: String!, $passwordConfirmation: String!) {
+        resetPassword(
+          input: {
+            token: $token
+            password: $password
+            passwordConfirmation: $passwordConfirmation
+          }
+        ) {
+          reset
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "resetPassword" => %{
+                    "reset" => false,
+                    "errors" => [%{"field" => nil, "message" => "invalid_or_expired"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{
+                   "token" => "invalid-token",
+                   "password" => "a valid new password",
+                   "passwordConfirmation" => "a valid new password"
+                 }
+               )
+    end
+
+    test "returns changeset errors when the new password is invalid" do
+      user = user_fixture()
+      {:ok, %{token: token}} = Accounts.issue_password_reset_token(user)
+
+      mutation = """
+      mutation ResetPassword($token: String!, $password: String!, $passwordConfirmation: String!) {
+        resetPassword(
+          input: {
+            token: $token
+            password: $password
+            passwordConfirmation: $passwordConfirmation
+          }
+        ) {
+          reset
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "resetPassword" => %{
+                    "reset" => false,
+                    "errors" => errors
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{
+                   "token" => token,
+                   "password" => "short",
+                   "passwordConfirmation" => "mismatch"
+                 }
+               )
+
+      assert Enum.any?(errors, &(&1["field"] == "password"))
+      assert Enum.any?(errors, &(&1["field"] == "password_confirmation"))
+    end
+  end
+
   describe "requestViewerDataExport" do
     test "creates and dedupes a viewer-scoped export request" do
       viewer = user_fixture()
@@ -648,6 +831,12 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
 
       refute schema_sdl =~
                "AttachUserPhoneNumberPayload {\n  user: User\n  errors: [UserError!]!\n  successful: Boolean!"
+
+      refute schema_sdl =~
+               "RequestPasswordResetPayload {\n  errors: [UserError!]!\n  successful: Boolean!"
+
+      refute schema_sdl =~
+               "ResetPasswordPayload {\n  reset: Boolean!\n  errors: [UserError!]!\n  successful: Boolean!"
 
       refute schema_sdl =~
                "DeliverViewerContactInvitePayload {\n  successful: Boolean!"

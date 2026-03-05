@@ -38,7 +38,7 @@ The release roadmap still tracks account-recovery auth-audit expansion as deferr
 
 - [x] Task 1: Add password-reset token context, Accounts recovery APIs, and recovery audit events
 - [x] Task 2: Add web reset-password transport flow (request + token consume forms/controllers)
-- [ ] Task 3: Add GraphQL recovery mutations and relay-compatible error contracts
+- [x] Task 3: Add GraphQL recovery mutations and relay-compatible error contracts
 - [ ] Task 4: Run full verification, update roadmap/index tracking, and finalize milestone
 
 ### Task 1: Recovery Primitives In Accounts (Current Batch)
@@ -120,11 +120,16 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing GraphQL mutation tests for request/reset recovery behavior and errors
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement relay payloads and resolver wiring to Accounts recovery APIs
-- [ ] Step 4: Run focused GraphQL tests for GREEN
-- [ ] Step 5: Run `mix test test/live_canvas_gql/accounts/account_mutations_test.exs` + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing GraphQL mutation tests for request/reset recovery behavior and errors
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement relay payloads and resolver wiring to Accounts recovery APIs
+- [x] Step 4: Run focused GraphQL tests for GREEN
+- [x] Step 5: Run `mix test test/live_canvas_gql/accounts/account_mutations_test.exs` + `mix typecheck`, update checklist, and commit milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas_gql/accounts/account_mutations_test.exs` -> RED first (`34 tests, 5 failures`) and GREEN after implementation (`34 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 4: Final Verification And Tracking Updates
 

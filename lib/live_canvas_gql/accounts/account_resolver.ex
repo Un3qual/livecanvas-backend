@@ -11,6 +11,10 @@ defmodule LCGQL.Accounts.Resolver do
           errors: [mutation_error()]
         }
   @type mutation_result :: {:ok, mutation_payload()}
+  @type password_reset_request_payload :: %{errors: [mutation_error()]}
+  @type password_reset_request_result :: {:ok, password_reset_request_payload()}
+  @type password_reset_payload :: %{reset: boolean(), errors: [mutation_error()]}
+  @type password_reset_mutation_result :: {:ok, password_reset_payload()}
   @type data_export_request_payload :: %{
           data_export_request: map() | nil,
           errors: [mutation_error()]
@@ -57,6 +61,7 @@ defmodule LCGQL.Accounts.Resolver do
   @type unlink_identity_error_reason ::
           :invalid_identity_id | :not_found | :already_revoked | :unauthenticated
   @type invite_delivery_error_reason :: :invalid_recipient | :unauthenticated | :delivery_failed
+  @type reset_password_error_reason :: :invalid_or_expired
   @type refresh_auth_error_reason :: :invalid_token | :expired_token | :revoked_token
   @type token_view :: %{
           serialized_value: String.t(),
@@ -121,6 +126,65 @@ defmodule LCGQL.Accounts.Resolver do
   # phone bindings by passing arbitrary user IDs into the GraphQL payload.
   def attach_user_phone_number(_parent, _args, _resolution) do
     {:ok, %{user: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+  end
+
+  @spec request_password_reset(
+          term(),
+          %{optional(:input) => map(), optional(:email) => String.t()},
+          Absinthe.Resolution.t()
+        ) :: password_reset_request_result()
+  def request_password_reset(parent, %{input: input}, resolution),
+    do: request_password_reset(parent, input, resolution)
+
+  def request_password_reset(_parent, %{email: email}, _resolution) do
+    case Accounts.get_user_by_email(email) do
+      nil ->
+        {:ok, %{errors: []}}
+
+      user ->
+        # Keep recovery delivery response uniform to avoid account enumeration
+        # while still exercising the same notifier pipeline for real users.
+        case Accounts.deliver_user_reset_password_instructions(
+               user,
+               &password_reset_url/1
+             ) do
+          {:ok, _email} -> :ok
+          _ -> :ok
+        end
+
+        {:ok, %{errors: []}}
+    end
+  end
+
+  @spec reset_password(
+          term(),
+          %{
+            optional(:input) => map(),
+            optional(:token) => String.t(),
+            optional(:password) => String.t(),
+            optional(:password_confirmation) => String.t()
+          },
+          Absinthe.Resolution.t()
+        ) :: password_reset_mutation_result()
+  def reset_password(parent, %{input: input}, resolution),
+    do: reset_password(parent, input, resolution)
+
+  def reset_password(_parent, args, _resolution) do
+    attrs = %{
+      password: Map.get(args, :password),
+      password_confirmation: Map.get(args, :password_confirmation)
+    }
+
+    case Accounts.reset_user_password(Map.get(args, :token), attrs) do
+      {:ok, {_user, _expired_tokens}} ->
+        {:ok, %{reset: true, errors: []}}
+
+      {:error, :not_found} ->
+        {:ok, %{reset: false, errors: [reset_password_error(:invalid_or_expired)]}}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok, %{reset: false, errors: format_changeset_errors(changeset)}}
+    end
   end
 
   @spec unlink_viewer_identity(
@@ -625,6 +689,11 @@ defmodule LCGQL.Accounts.Resolver do
 
   # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
   # transport-agnostic while tests can assert invite delivery side effects.
+  @spec password_reset_url(String.t()) :: String.t()
+  defp password_reset_url(token), do: "https://livecanvas.invalid/users/reset-password/#{token}"
+
+  # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
+  # transport-agnostic while tests can assert invite delivery side effects.
   @spec contact_invite_url(String.t()) :: String.t()
   defp contact_invite_url(token), do: "https://livecanvas.invalid/invites/#{token}"
 
@@ -637,6 +706,10 @@ defmodule LCGQL.Accounts.Resolver do
 
   defp invite_delivery_error(:delivery_failed),
     do: %{field: nil, message: "delivery_failed"}
+
+  @spec reset_password_error(reset_password_error_reason()) :: mutation_error()
+  defp reset_password_error(:invalid_or_expired),
+    do: %{field: nil, message: "invalid_or_expired"}
 
   @spec refresh_auth_error(refresh_auth_error_reason()) :: mutation_error()
   defp refresh_auth_error(reason),
