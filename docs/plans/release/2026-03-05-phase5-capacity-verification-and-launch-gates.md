@@ -149,3 +149,14 @@ Verification evidence (2026-03-05):
 - `mix test test/live_canvas/release/gates_test.exs` -> RED first (`3 tests, 2 failures`) after asserting the new capacity gate step, then GREEN after gate wiring (`3 tests, 0 failures`)
 - `mix release.gates --dry-run` -> PASS; dry-run order now includes `mix release.capacity_drill --confirm` after `mix boundary.spec`
 - `MIX_ENV=test mix release.capacity_drill --dry-run` -> PASS with deterministic feed/channel/live probe step ordering
+
+### Post-Review Follow-Up (2026-03-05)
+
+- [x] Step 1: Defer `Mix.Task.run("app.start")` until the non-dry-run execution path after option/confirmation prevalidation.
+- [x] Step 2: Add isolated-process regression coverage for dry-run and invalid-option paths in `MIX_ENV=prod`.
+- [x] Step 3: Re-run focused capacity drill tests and `mix typecheck`.
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas/release/capacity_drill_test.exs test/live_canvas/release/capacity_drill_task_test.exs` -> PASS (`11 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)

@@ -3,6 +3,8 @@ defmodule Mix.Tasks.Release.CapacityDrillTest do
 
   import ExUnit.CaptureIO
 
+  @mix_executable System.find_executable("mix")
+
   describe "mix release.capacity_drill --dry-run" do
     test "prints ordered operator drill steps without executing probes" do
       output =
@@ -61,6 +63,36 @@ defmodule Mix.Tasks.Release.CapacityDrillTest do
                        ])
                      end)
                    end
+    end
+
+    test "does not require app startup in an isolated process" do
+      assert is_binary(@mix_executable)
+
+      {output, status} =
+        System.cmd(
+          @mix_executable,
+          ["release.capacity_drill", "--dry-run", "--confirm"],
+          env: [{"MIX_ENV", "prod"}],
+          stderr_to_stdout: true
+        )
+
+      assert status == 0
+      assert output =~ "Release capacity drill dry run (execution order):"
+    end
+
+    test "invalid options fail fast in an isolated process before app startup" do
+      assert is_binary(@mix_executable)
+
+      {output, status} =
+        System.cmd(
+          @mix_executable,
+          ["release.capacity_drill", "--feed-iterations", "0", "--confirm"],
+          env: [{"MIX_ENV", "prod"}],
+          stderr_to_stdout: true
+        )
+
+      assert status != 0
+      assert output =~ "--feed-iterations must be a positive integer"
     end
   end
 end

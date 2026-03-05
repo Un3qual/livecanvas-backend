@@ -40,10 +40,6 @@ defmodule Mix.Tasks.Release.CapacityDrill do
   @impl Mix.Task
   @spec run([String.t()]) :: :ok
   def run(args) do
-    # Capacity probes hit Repo/PubSub directly, so this task must bootstrap the
-    # application when invoked outside `mix test` aliases.
-    Mix.Task.run("app.start")
-
     {opts, positional, invalid} = OptionParser.parse(args, switches: @switches)
 
     if positional != [] do
@@ -66,19 +62,21 @@ defmodule Mix.Tasks.Release.CapacityDrill do
     confirm? = Keyword.get(opts, :confirm, false)
     dry_run? = Keyword.get(opts, :dry_run, false)
 
-    case CapacityDrill.run(
-           feed_iterations: feed_iterations,
-           fanout_viewers: fanout_viewers,
-           concurrency_viewers: concurrency_viewers,
-           feed_mean_latency_ms: feed_mean_ms,
-           feed_p95_latency_ms: feed_p95_ms,
-           channel_min_delivery_rate: channel_min_delivery_rate,
-           channel_p95_latency_ms: channel_p95_ms,
-           live_min_success_rate: live_min_success_rate,
-           live_p95_latency_ms: live_p95_ms,
-           confirm: confirm?,
-           dry_run: dry_run?
-         ) do
+    drill_opts = [
+      feed_iterations: feed_iterations,
+      fanout_viewers: fanout_viewers,
+      concurrency_viewers: concurrency_viewers,
+      feed_mean_latency_ms: feed_mean_ms,
+      feed_p95_latency_ms: feed_p95_ms,
+      channel_min_delivery_rate: channel_min_delivery_rate,
+      channel_p95_latency_ms: channel_p95_ms,
+      live_min_success_rate: live_min_success_rate,
+      live_p95_latency_ms: live_p95_ms,
+      confirm: confirm?,
+      dry_run: dry_run?
+    ]
+
+    case run_drill(drill_opts) do
       {:ok, report} ->
         print_report(report)
         :ok
@@ -130,6 +128,27 @@ defmodule Mix.Tasks.Release.CapacityDrill do
         Mix.raise(
           "release capacity drill failed at #{CapacityDrill.format_step(failed_step)}: #{format_reason(reason)}"
         )
+    end
+  end
+
+  @spec run_drill(keyword()) ::
+          {:ok, CapacityDrill.report()}
+          | {:dry_run, [CapacityDrill.drill_step()]}
+          | {:error, CapacityDrill.run_error()}
+  defp run_drill(drill_opts) when is_list(drill_opts) do
+    if Keyword.get(drill_opts, :dry_run, false) do
+      CapacityDrill.run(drill_opts)
+    else
+      case CapacityDrill.run(Keyword.put(drill_opts, :dry_run, true)) do
+        {:dry_run, _steps} ->
+          # Capacity probes hit Repo/PubSub directly, so only bootstrap the app
+          # once we know this invocation will execute probes.
+          Mix.Task.run("app.start")
+          CapacityDrill.run(drill_opts)
+
+        other ->
+          other
+      end
     end
   end
 
