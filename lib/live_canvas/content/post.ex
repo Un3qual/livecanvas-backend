@@ -9,6 +9,9 @@ defmodule LC.Content.Post do
           optional(:author_id | :kind | :body_text | :visibility | :expires_at | String.t()) =>
             term()
         }
+  @type update_attrs :: %{
+          optional(:body_text | :visibility | String.t()) => term()
+        }
 
   @doc """
   Injects required ownership metadata while keeping caller-provided fields intact.
@@ -26,6 +29,16 @@ defmodule LC.Content.Post do
     post
     |> cast(attrs, [:author_id, :kind, :body_text, :visibility, :expires_at])
     |> validate_required([:author_id, :kind])
+    |> validate_length(:body_text, max: 5000)
+  end
+
+  @doc """
+  Builds the post update changeset for viewer-scoped lifecycle writes.
+  """
+  @spec update_changeset(PostSchema.t(), update_attrs()) :: Ecto.Changeset.t()
+  def update_changeset(%PostSchema{} = post, attrs) when is_map(attrs) do
+    post
+    |> cast(attrs, [:body_text, :visibility])
     |> validate_length(:body_text, max: 5000)
   end
 end

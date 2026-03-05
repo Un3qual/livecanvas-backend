@@ -4,6 +4,7 @@ defmodule LC.ContentTest do
   import LC.AccountsFixtures
 
   alias LC.Content
+  alias LCSchemas.Content.Post, as: PostSchema
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
 
   describe "create_post/2" do
@@ -36,6 +37,64 @@ defmodule LC.ContentTest do
       assert asset.processing_state == :uploaded
       assert is_binary(asset.entropy_id)
       refute :binary_payload in Map.keys(asset)
+    end
+  end
+
+  describe "update_user_post/3" do
+    test "updates body_text and visibility for viewer-owned posts" do
+      owner = user_fixture()
+      {:ok, post} = Content.create_post(owner, %{kind: :standard, body_text: "before"})
+
+      assert {:ok, updated_post} =
+               Content.update_user_post(owner, post.id, %{
+                 body_text: "after",
+                 visibility: :public
+               })
+
+      assert updated_post.id == post.id
+      assert updated_post.body_text == "after"
+      assert updated_post.visibility == :public
+      assert updated_post.kind == :standard
+    end
+
+    test "returns not_found when post does not belong to the viewer" do
+      owner = user_fixture()
+      other_user = user_fixture()
+      {:ok, post} = Content.create_post(owner, %{kind: :standard, body_text: "before"})
+
+      assert {:error, :not_found} =
+               Content.update_user_post(other_user, post.id, %{body_text: "after"})
+    end
+
+    test "returns changeset errors for invalid update attrs" do
+      owner = user_fixture()
+      {:ok, post} = Content.create_post(owner, %{kind: :standard, body_text: "before"})
+      oversized_body = String.duplicate("a", 5001)
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Content.update_user_post(owner, post.id, %{body_text: oversized_body})
+
+      assert %{body_text: ["should be at most 5000 character(s)"]} = errors_on(changeset)
+    end
+  end
+
+  describe "delete_user_post/2" do
+    test "deletes viewer-owned posts" do
+      owner = user_fixture()
+      {:ok, post} = Content.create_post(owner, %{kind: :standard, body_text: "to delete"})
+
+      assert {:ok, deleted_post} = Content.delete_user_post(owner, post.id)
+      assert deleted_post.id == post.id
+      refute Repo.get(PostSchema, post.id)
+    end
+
+    test "returns not_found when post is not viewer-owned" do
+      owner = user_fixture()
+      other_user = user_fixture()
+      {:ok, post} = Content.create_post(owner, %{kind: :standard, body_text: "to keep"})
+
+      assert {:error, :not_found} = Content.delete_user_post(other_user, post.id)
+      assert Repo.get(PostSchema, post.id)
     end
   end
 

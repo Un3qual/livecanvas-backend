@@ -14,6 +14,8 @@ defmodule LC.Content do
 
   @type changeset :: Ecto.Changeset.t()
   @type post_result :: {:ok, PostSchema.t()} | {:error, changeset()}
+  @type post_update_result :: {:ok, PostSchema.t()} | {:error, changeset() | :not_found}
+  @type post_delete_result :: {:ok, PostSchema.t()} | {:error, changeset() | :not_found}
   @type media_asset_result :: {:ok, MediaAssetSchema.t()} | {:error, changeset()}
   @type media_upload_result ::
           {:ok, %{media_asset: MediaAssetSchema.t(), upload: ObjectStorage.signed_upload()}}
@@ -33,6 +35,35 @@ defmodule LC.Content do
     %PostSchema{}
     |> Post.changeset(Post.attrs_for_insert(author_id, attrs))
     |> Repo.insert()
+  end
+
+  @doc """
+  Updates a viewer-owned post by local post ID.
+  """
+  @spec update_user_post(User.t(), pos_integer(), map()) :: post_update_result()
+  def update_user_post(%User{id: author_id}, post_id, attrs)
+      when is_integer(post_id) and post_id > 0 and is_map(attrs) do
+    case get_user_post(author_id, post_id) do
+      nil ->
+        {:error, :not_found}
+
+      %PostSchema{} = post ->
+        post
+        |> Post.update_changeset(attrs)
+        |> Repo.update()
+    end
+  end
+
+  @doc """
+  Deletes a viewer-owned post by local post ID.
+  """
+  @spec delete_user_post(User.t(), pos_integer()) :: post_delete_result()
+  def delete_user_post(%User{id: author_id}, post_id)
+      when is_integer(post_id) and post_id > 0 do
+    case get_user_post(author_id, post_id) do
+      nil -> {:error, :not_found}
+      %PostSchema{} = post -> Repo.delete(post)
+    end
   end
 
   @doc """
@@ -98,6 +129,14 @@ defmodule LC.Content do
   """
   @spec get_post!(pos_integer()) :: PostSchema.t()
   def get_post!(id) when is_integer(id), do: Repo.get!(PostSchema, id)
+
+  @spec get_user_post(pos_integer(), pos_integer()) :: PostSchema.t() | nil
+  defp get_user_post(author_id, post_id)
+       when is_integer(author_id) and is_integer(post_id) and post_id > 0 do
+    # Ownership is enforced in the lookup query so update/delete calls cannot
+    # mutate posts across account boundaries.
+    Repo.get_by(PostSchema, id: post_id, author_id: author_id)
+  end
 
   @doc """
   Gets a media asset by ID when owned by the provided viewer.
