@@ -3,7 +3,7 @@ defmodule LC.Release.CapacityDrill do
   Builds and executes deterministic operator steps for capacity verification drills.
   """
 
-  alias LC.{Accounts, Content, Feed, Live}
+  alias LC.{Accounts, Content, Feed, Live, Social}
   alias Phoenix.PubSub
 
   @default_probes [:feed, :channel, :live]
@@ -73,6 +73,7 @@ defmodule LC.Release.CapacityDrill do
           | :invalid_live_min_success_rate
           | :invalid_live_p95_latency_ms
           | :invalid_probe_timeout_ms
+          | :invalid_channel_pre_broadcast_delay_ms
           | :invalid_probes
           | :confirmation_required
           | drill_failure()
@@ -94,6 +95,7 @@ defmodule LC.Release.CapacityDrill do
     fanout_viewers = Keyword.get(opts, :fanout_viewers, @default_fanout_viewers)
     concurrency_viewers = Keyword.get(opts, :concurrency_viewers, @default_concurrency_viewers)
     probe_timeout_ms = Keyword.get(opts, :probe_timeout_ms, @default_probe_timeout_ms)
+    channel_pre_broadcast_delay_ms = Keyword.get(opts, :channel_pre_broadcast_delay_ms, 0)
 
     thresholds = %{
       feed_mean_latency_ms:
@@ -112,6 +114,11 @@ defmodule LC.Release.CapacityDrill do
          :ok <- validate_positive_integer(fanout_viewers, :invalid_fanout_viewers),
          :ok <- validate_positive_integer(concurrency_viewers, :invalid_concurrency_viewers),
          :ok <- validate_positive_integer(probe_timeout_ms, :invalid_probe_timeout_ms),
+         :ok <-
+           validate_non_negative_integer(
+             channel_pre_broadcast_delay_ms,
+             :invalid_channel_pre_broadcast_delay_ms
+           ),
          {:ok, probes} <- normalize_probes(Keyword.get(opts, :probes, @default_probes)),
          :ok <- validate_thresholds(thresholds),
          :ok <- validate_confirmation(env, confirm?) do
@@ -127,6 +134,7 @@ defmodule LC.Release.CapacityDrill do
             fanout_viewers: fanout_viewers,
             concurrency_viewers: concurrency_viewers,
             probe_timeout_ms: probe_timeout_ms,
+            channel_pre_broadcast_delay_ms: channel_pre_broadcast_delay_ms,
             thresholds: thresholds,
             evaluated_at: normalize_now(Keyword.get(opts, :now))
           },
@@ -244,18 +252,36 @@ defmodule LC.Release.CapacityDrill do
     kind, reason -> {:error, {kind, reason}}
   end
 
-  defp run_channel_probe(%{fanout_viewers: fanout_viewers, probe_timeout_ms: timeout_ms})
-       when is_integer(fanout_viewers) and is_integer(timeout_ms) do
+  defp run_channel_probe(%{
+         fanout_viewers: fanout_viewers,
+         probe_timeout_ms: timeout_ms,
+         channel_pre_broadcast_delay_ms: pre_broadcast_delay_ms
+       })
+       when is_integer(fanout_viewers) and is_integer(timeout_ms) and
+              is_integer(pre_broadcast_delay_ms) do
     probe_ref = make_ref()
     topic = "release-capacity-channel-#{System.unique_integer([:positive, :monotonic])}"
     parent = self()
 
     Enum.each(1..fanout_viewers, fn _index ->
-      spawn_link(fn -> channel_probe_subscriber(parent, probe_ref, topic, timeout_ms) end)
+      spawn_link(fn ->
+        channel_probe_subscriber(parent, probe_ref, topic, timeout_ms, pre_broadcast_delay_ms)
+      end)
     end)
 
-    with :ok <- await_channel_subscriptions(probe_ref, fanout_viewers, timeout_ms) do
+    with {:ok, subscriber_pids} <-
+           await_channel_subscriptions(probe_ref, fanout_viewers, timeout_ms) do
+      if pre_broadcast_delay_ms > 0 do
+        Process.sleep(pre_broadcast_delay_ms)
+      end
+
       sent_at_us = System.monotonic_time(:microsecond)
+
+      Enum.each(
+        subscriber_pids,
+        &send(&1, {:capacity_probe_start, probe_ref, sent_at_us, timeout_ms})
+      )
+
       :ok = PubSub.broadcast(LC.PubSub, topic, {:capacity_channel_probe, probe_ref, sent_at_us})
 
       {delivery_latencies, timeout_count} =
@@ -270,18 +296,25 @@ defmodule LC.Release.CapacityDrill do
     end
   end
 
-  @spec channel_probe_subscriber(pid(), reference(), String.t(), pos_integer()) :: :ok
-  defp channel_probe_subscriber(parent, probe_ref, topic, timeout_ms)
+  @spec channel_probe_subscriber(pid(), reference(), String.t(), pos_integer(), non_neg_integer()) ::
+          :ok
+  defp channel_probe_subscriber(parent, probe_ref, topic, timeout_ms, pre_broadcast_delay_ms)
        when is_pid(parent) and is_reference(probe_ref) and is_binary(topic) and
-              is_integer(timeout_ms) do
+              is_integer(timeout_ms) and is_integer(pre_broadcast_delay_ms) do
     :ok = PubSub.subscribe(LC.PubSub, topic)
-    send(parent, {:capacity_probe_subscribed, probe_ref})
+    send(parent, {:capacity_probe_subscribed, probe_ref, self()})
 
     receive do
-      {:capacity_channel_probe, ^probe_ref, sent_at_us} ->
-        send(parent, {:capacity_probe_result, probe_ref, monotonic_elapsed_ms(sent_at_us)})
+      {:capacity_probe_start, ^probe_ref, sent_at_us, start_timeout_ms} ->
+        receive do
+          {:capacity_channel_probe, ^probe_ref, ^sent_at_us} ->
+            send(parent, {:capacity_probe_result, probe_ref, monotonic_elapsed_ms(sent_at_us)})
+        after
+          start_timeout_ms ->
+            send(parent, {:capacity_probe_timeout, probe_ref})
+        end
     after
-      timeout_ms ->
+      timeout_ms + pre_broadcast_delay_ms + 100 ->
         send(parent, {:capacity_probe_timeout, probe_ref})
     end
 
@@ -289,13 +322,36 @@ defmodule LC.Release.CapacityDrill do
   end
 
   @spec await_channel_subscriptions(reference(), pos_integer(), pos_integer()) ::
-          :ok | {:error, :channel_subscribe_timeout}
+          {:ok, [pid()]} | {:error, :channel_subscribe_timeout}
   defp await_channel_subscriptions(probe_ref, expected_count, timeout_ms)
        when is_reference(probe_ref) and is_integer(expected_count) and is_integer(timeout_ms) do
-    wait_for_messages(expected_count, timeout_ms, fn
-      {:capacity_probe_subscribed, ^probe_ref} -> true
-      _other -> false
-    end)
+    collect_channel_subscribers(probe_ref, expected_count, timeout_ms, %{})
+  end
+
+  @spec collect_channel_subscribers(reference(), pos_integer(), pos_integer(), %{
+          optional(pid()) => true
+        }) ::
+          {:ok, [pid()]} | {:error, :channel_subscribe_timeout}
+  defp collect_channel_subscribers(probe_ref, expected_count, timeout_ms, subscriber_pids) do
+    if map_size(subscriber_pids) >= expected_count do
+      {:ok, Map.keys(subscriber_pids)}
+    else
+      receive do
+        {:capacity_probe_subscribed, ^probe_ref, subscriber_pid} when is_pid(subscriber_pid) ->
+          collect_channel_subscribers(
+            probe_ref,
+            expected_count,
+            timeout_ms,
+            Map.put(subscriber_pids, subscriber_pid, true)
+          )
+
+        _other ->
+          collect_channel_subscribers(probe_ref, expected_count, timeout_ms, subscriber_pids)
+      after
+        timeout_ms ->
+          {:error, :channel_subscribe_timeout}
+      end
+    end
   end
 
   @spec collect_channel_probe_results(
@@ -414,29 +470,61 @@ defmodule LC.Release.CapacityDrill do
     # Seed deterministic probe data so feed checks stay repeatable regardless of
     # whichever user-generated content currently exists.
     with {:ok, viewer} <- create_probe_user("capacity-feed-viewer"),
-         {:ok, authors} <- create_probe_users("capacity-feed-author", @feed_seed_authors),
-         :ok <- seed_public_posts(authors, @feed_seed_posts_per_author) do
+         {:ok, authors} <- create_followed_probe_authors(viewer, @feed_seed_authors),
+         :ok <- seed_followers_posts(authors, @feed_seed_posts_per_author) do
       {:ok, viewer}
     end
   end
 
-  @spec seed_public_posts([struct()], pos_integer()) :: :ok | {:error, term()}
-  defp seed_public_posts(authors, posts_per_author)
+  @spec create_followed_probe_authors(struct(), pos_integer()) ::
+          {:ok, [struct()]} | {:error, term()}
+  defp create_followed_probe_authors(viewer, count)
+       when is_struct(viewer) and is_integer(count) and count > 0 do
+    Enum.reduce_while(1..count, {:ok, []}, fn _index, {:ok, authors} ->
+      with {:ok, author} <- create_probe_user("capacity-feed-author"),
+           :ok <- ensure_viewer_following(viewer, author) do
+        {:cont, {:ok, [author | authors]}}
+      else
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, authors} -> {:ok, Enum.reverse(authors)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @spec ensure_viewer_following(struct(), struct()) :: :ok | {:error, term()}
+  defp ensure_viewer_following(viewer, author) when is_struct(viewer) and is_struct(author) do
+    with {:ok, follow} <- Social.follow_user(viewer, author),
+         {:ok, _accepted_follow} <- ensure_follow_accepted(follow, author) do
+      :ok
+    end
+  end
+
+  @spec ensure_follow_accepted(struct(), struct()) :: {:ok, struct()} | {:error, term()}
+  defp ensure_follow_accepted(%{state: :accepted} = follow, _author), do: {:ok, follow}
+  defp ensure_follow_accepted(follow, author), do: Social.accept_follow_request(follow, author)
+
+  @spec seed_followers_posts([struct()], pos_integer()) :: :ok | {:error, term()}
+  defp seed_followers_posts(authors, posts_per_author)
        when is_list(authors) and is_integer(posts_per_author) do
     Enum.reduce_while(authors, :ok, fn author, :ok ->
-      case create_public_posts(author, posts_per_author) do
+      case create_followers_posts(author, posts_per_author) do
         :ok -> {:cont, :ok}
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
   end
 
-  @spec create_public_posts(struct(), pos_integer()) :: :ok | {:error, term()}
-  defp create_public_posts(author, count) when is_integer(count) do
+  @spec create_followers_posts(struct(), pos_integer()) :: :ok | {:error, term()}
+  defp create_followers_posts(author, count) when is_integer(count) do
     Enum.reduce_while(1..count, :ok, fn index, :ok ->
       case Content.create_post(author, %{
              kind: :standard,
-             visibility: :public,
+             # Probe posts must stay non-public so drill data cannot leak into
+             # global feed surfaces for unrelated viewers.
+             visibility: :followers,
              body_text: "capacity probe feed post #{index}"
            }) do
         {:ok, _post} -> {:cont, :ok}
@@ -613,28 +701,11 @@ defmodule LC.Release.CapacityDrill do
 
   defp normalize_probes(_probes), do: {:error, :invalid_probes}
 
-  @spec wait_for_messages(pos_integer(), pos_integer(), (term() -> boolean())) ::
-          :ok | {:error, :channel_subscribe_timeout}
-  defp wait_for_messages(0, _timeout_ms, _matcher), do: :ok
-
-  defp wait_for_messages(expected_count, timeout_ms, matcher)
-       when is_integer(expected_count) and expected_count > 0 and is_integer(timeout_ms) and
-              is_function(matcher, 1) do
-    receive do
-      message ->
-        if matcher.(message) do
-          wait_for_messages(expected_count - 1, timeout_ms, matcher)
-        else
-          wait_for_messages(expected_count, timeout_ms, matcher)
-        end
-    after
-      timeout_ms ->
-        {:error, :channel_subscribe_timeout}
-    end
-  end
-
   defp validate_positive_integer(value, _error) when is_integer(value) and value > 0, do: :ok
   defp validate_positive_integer(_value, error), do: {:error, error}
+
+  defp validate_non_negative_integer(value, _error) when is_integer(value) and value >= 0, do: :ok
+  defp validate_non_negative_integer(_value, error), do: {:error, error}
 
   defp validate_positive_number(value, _error)
        when is_number(value) and value > 0 and not is_boolean(value),
