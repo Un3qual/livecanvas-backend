@@ -14,6 +14,7 @@ defmodule LCSchemas.Accounts do
           :email_verification_token
           | :email_mfa_token
           | :email_magic_link_token
+          | :password_reset_token
           | :email_one_time_code_token
           | :contact_invite_token
           | :phone_verification_token
@@ -35,6 +36,9 @@ defmodule LCSchemas.Accounts do
           | :password_change_failed
           | :email_change_succeeded
           | :email_change_failed
+          | :account_recovery_requested
+          | :account_recovery_succeeded
+          | :account_recovery_failed
           | :provider_identity_unlink_succeeded
           | :provider_identity_unlink_failed
           | :account_deletion_requested

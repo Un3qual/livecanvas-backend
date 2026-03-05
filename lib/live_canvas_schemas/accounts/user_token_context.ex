@@ -7,6 +7,7 @@ defenum(
     :email_verification_token,
     :email_mfa_token,
     :email_magic_link_token,
+    :password_reset_token,
     :email_one_time_code_token,
     :contact_invite_token,
     :phone_verification_token,

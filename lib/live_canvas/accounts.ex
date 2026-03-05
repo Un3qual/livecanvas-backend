@@ -48,6 +48,7 @@ defmodule LC.Accounts do
           :email_verification_token
           | :email_mfa_token
           | :email_magic_link_token
+          | :password_reset_token
           | :email_one_time_code_token
 
   @type token_payload :: %{token: String.t(), user_token: UserToken.t()}
@@ -104,6 +105,8 @@ defmodule LC.Accounts do
           | {:error, account_deletion_cancel_error() | changeset()}
   @type token_pair_payload :: %{access_token: token_payload(), refresh_token: token_payload()}
   @type token_pair_result :: {:ok, token_pair_payload()} | {:error, refresh_token_auth_error()}
+  @type password_reset_result ::
+          {:ok, {User.t(), [UserToken.t()]}} | {:error, :not_found | changeset()}
   @type registration_attrs :: %{
           optional(:email | :password | String.t()) => String.t()
         }
@@ -590,6 +593,14 @@ defmodule LC.Accounts do
   end
 
   @doc """
+  Persists and returns a password reset token payload for the given user.
+  """
+  @spec issue_password_reset_token(User.t()) :: token_result()
+  def issue_password_reset_token(%User{} = user) do
+    issue_user_token(user, :password_reset_token, sent_to: user.email)
+  end
+
+  @doc """
   Persists and returns an email verification token payload for the given user.
   """
   @spec issue_email_verification_token(User.t()) :: token_result()
@@ -822,6 +833,24 @@ defmodule LC.Accounts do
   end
 
   @doc """
+  Gets the user with the given password reset token.
+  """
+  @spec get_user_by_password_reset_token(String.t()) :: User.t() | nil
+  def get_user_by_password_reset_token(serialized_value) when is_binary(serialized_value) do
+    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+         {user, user_token, current_email} <- Repo.one(query),
+         hydrated_user = hydrate_user(user, user_token, current_email),
+         true <- Tokens.valid_password_reset_token?(user_token, raw_secret, hydrated_user.email),
+         true <- active_user?(hydrated_user) do
+      hydrated_user
+    else
+      _ -> nil
+    end
+  end
+
+  def get_user_by_password_reset_token(_serialized_value), do: nil
+
+  @doc """
   Logs the user in by magic link.
   """
   @spec login_user_by_magic_link(String.t()) ::
@@ -875,6 +904,45 @@ defmodule LC.Accounts do
     result
   end
 
+  @doc """
+  Resets a user password from a password reset token.
+  """
+  @spec reset_user_password(String.t(), password_change_attrs()) :: password_reset_result()
+  def reset_user_password(serialized_value, attrs)
+      when is_binary(serialized_value) and is_map(attrs) do
+    result =
+      Repo.transact(fn ->
+        with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+             {:ok, {user, user_token, current_email}} <- fetch_token_lookup_row(query),
+             hydrated_user = hydrate_user(user, user_token, current_email),
+             true <-
+               Tokens.valid_password_reset_token?(user_token, raw_secret, hydrated_user.email) ||
+                 {:error, :not_found},
+             true <- active_user?(hydrated_user) || {:error, :not_found},
+             {:ok, {updated_user, expired_tokens}} <-
+               hydrated_user
+               |> UserChanges.password_changeset(attrs)
+               |> update_user_and_delete_all_tokens() do
+          {:ok, {updated_user, expired_tokens}}
+        else
+          # Keep token lookup and freshness failures indistinguishable so callers
+          # cannot infer whether a specific reset token ever existed.
+          {:error, :revoked_token} -> {:error, :not_found}
+          {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset}
+          _ -> {:error, :not_found}
+        end
+      end)
+
+    emit_password_reset_auth_event(result)
+    result
+  end
+
+  def reset_user_password(_serialized_value, _attrs) do
+    result = {:error, :not_found}
+    emit_password_reset_auth_event(result)
+    result
+  end
+
   @doc ~S"""
   Delivers the update email instructions to the given user.
   """
@@ -899,6 +967,28 @@ defmodule LC.Accounts do
       when is_function(magic_link_url_fun, 1) do
     with {:ok, %{token: serialized_value}} <- issue_magic_link_token(user) do
       UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(serialized_value))
+    end
+  end
+
+  @doc """
+  Delivers password reset instructions to the given user.
+  """
+  @spec deliver_user_reset_password_instructions(User.t(), (String.t() -> String.t())) ::
+          {:ok, Swoosh.Email.t()} | {:error, changeset() | term()}
+  def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
+      when is_function(reset_password_url_fun, 1) do
+    with {:ok, %{token: serialized_value}} <- issue_password_reset_token(user),
+         {:ok, _email} = delivery <-
+           UserNotifier.deliver_reset_password_instructions(
+             user,
+             reset_password_url_fun.(serialized_value)
+           ) do
+      emit_auth_event(:account_recovery_requested,
+        user: user,
+        metadata: %{"method" => "password_reset_token"}
+      )
+
+      delivery
     end
   end
 
@@ -1572,6 +1662,29 @@ defmodule LC.Accounts do
 
   defp emit_refresh_token_rotation_event(_result), do: :ok
 
+  @spec emit_password_reset_auth_event(password_reset_result()) :: :ok
+  defp emit_password_reset_auth_event({:ok, {%User{} = user, _expired_tokens}}) do
+    emit_auth_event(:account_recovery_succeeded,
+      user: user,
+      metadata: %{"method" => "password_reset_token"}
+    )
+  end
+
+  defp emit_password_reset_auth_event({:error, :not_found}) do
+    emit_auth_event(:account_recovery_failed,
+      metadata: %{"method" => "password_reset_token", "reason" => "not_found"}
+    )
+  end
+
+  defp emit_password_reset_auth_event({:error, %Ecto.Changeset{} = changeset}) do
+    emit_auth_event(:account_recovery_failed,
+      user_id: changeset_user_id(changeset),
+      metadata: %{"method" => "password_reset_token", "reason" => "validation_failed"}
+    )
+  end
+
+  defp emit_password_reset_auth_event(_result), do: :ok
+
   @spec emit_unlink_identity_auth_event(unlink_user_identity_result(), User.t()) :: :ok
   defp emit_unlink_identity_auth_event(
          {:ok, %UserIdentity{provider: provider}},
@@ -1596,6 +1709,13 @@ defmodule LC.Accounts do
 
   @spec provider_label(LCSchemas.Accounts.user_identity_provider()) :: String.t()
   defp provider_label(provider) when is_atom(provider), do: Atom.to_string(provider)
+
+  @spec changeset_user_id(Ecto.Changeset.t()) :: pos_integer() | nil
+  defp changeset_user_id(%Ecto.Changeset{data: %User{id: user_id}})
+       when is_integer(user_id) and user_id > 0,
+       do: user_id
+
+  defp changeset_user_id(_changeset), do: nil
 
   @spec revoke_identity_if_active(UserIdentity.t() | nil) :: unlink_user_identity_result()
   defp revoke_identity_if_active(nil), do: {:error, :not_found}

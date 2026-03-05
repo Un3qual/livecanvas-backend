@@ -65,6 +65,18 @@ defmodule LC.Accounts.UserTokenTest do
       assert persisted.user_id == user.id
     end
 
+    test "issue_password_reset_token/1 uses the password reset context" do
+      user = user_fixture()
+
+      assert {:ok, %{token: token, user_token: %UserToken{} = persisted}} =
+               Accounts.issue_password_reset_token(user)
+
+      assert is_binary(token)
+      assert persisted.context == :password_reset_token
+      assert persisted.sent_to == user.email
+      assert persisted.user_id == user.id
+    end
+
     test "issue_contact_invite_token/2 uses the contact invite context and target recipient" do
       user = user_fixture()
 

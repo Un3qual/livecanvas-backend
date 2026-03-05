@@ -5,7 +5,7 @@ Use this directory for active and in-progress planning artifacts.
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- No active implementation plan is currently in progress.
+- Account-recovery password reset foundation: `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`
 
 ## Recently Completed
 
@@ -19,7 +19,7 @@ Use this directory for active and in-progress planning artifacts.
 
 ## Deferred Candidates
 
-- Account-recovery auth audit expansion: create a dedicated plan only after a concrete recovery workflow is added to v1 scope.
+- Account-recovery auth audit expansion remains coupled to the concrete password-reset workflow rollout in `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`.
 
 ## Archived Completed Plans
 

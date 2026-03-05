@@ -8,6 +8,7 @@ defmodule LC.Accounts.Tokens do
   @hash_algorithm :sha3_256
   @rand_size 32
   @magic_link_validity_in_minutes 15
+  @password_reset_validity_in_minutes 60
   @change_email_validity_in_days 7
   @session_validity_in_days 14
   @refresh_validity_in_days 30
@@ -15,6 +16,7 @@ defmodule LC.Accounts.Tokens do
     :email_verification_token,
     :email_mfa_token,
     :email_magic_link_token,
+    :password_reset_token,
     :email_one_time_code_token
   ]
 
@@ -24,6 +26,7 @@ defmodule LC.Accounts.Tokens do
           :email_verification_token
           | :email_mfa_token
           | :email_magic_link_token
+          | :password_reset_token
           | :email_one_time_code_token
 
   @type token_pair :: {binary(), UserToken.t()}
@@ -122,6 +125,15 @@ defmodule LC.Accounts.Tokens do
       token.context == :email_magic_link_token and
       token.sent_to == current_email and
       token_fresh?(token.inserted_at, minutes: @magic_link_validity_in_minutes)
+  end
+
+  @doc false
+  @spec valid_password_reset_token?(UserToken.t(), binary(), String.t() | nil) :: boolean()
+  def valid_password_reset_token?(%UserToken{} = token, raw_secret, current_email) do
+    valid_secret?(token, raw_secret) and
+      token.context == :password_reset_token and
+      token.sent_to == current_email and
+      token_fresh?(token.inserted_at, minutes: @password_reset_validity_in_minutes)
   end
 
   @doc false

@@ -740,6 +740,36 @@ defmodule LC.AccountsTest do
     end
   end
 
+  describe "get_user_by_password_reset_token/1" do
+    setup do
+      user = user_fixture()
+      {:ok, %{token: token}} = Accounts.issue_password_reset_token(user)
+      %{user: user, token: token}
+    end
+
+    test "returns user by token", %{user: user, token: token} do
+      assert reset_user = Accounts.get_user_by_password_reset_token(token)
+      assert reset_user.id == user.id
+    end
+
+    test "does not return user for invalid token" do
+      refute Accounts.get_user_by_password_reset_token("oops")
+    end
+
+    test "does not return user for expired token", %{token: token} do
+      {1, nil} =
+        Repo.update_all(UserToken, set: [inserted_at: ~U[2020-01-01 00:00:00.000000Z]])
+
+      refute Accounts.get_user_by_password_reset_token(token)
+    end
+
+    test "does not return suspended users", %{user: user, token: token} do
+      assert {:ok, _suspended_user} = Accounts.suspend_user(user)
+
+      refute Accounts.get_user_by_password_reset_token(token)
+    end
+  end
+
   describe "login_user_by_magic_link/1" do
     test "confirms user and expires tokens" do
       user = unconfirmed_user_fixture()
@@ -772,12 +802,76 @@ defmodule LC.AccountsTest do
     end
   end
 
+  describe "reset_user_password/2" do
+    test "resets the password from a valid reset token and consumes all tokens" do
+      user = user_fixture()
+      {:ok, %{token: token}} = Accounts.issue_password_reset_token(user)
+
+      assert {:ok, {updated_user, expired_tokens}} =
+               Accounts.reset_user_password(token, %{password: "a brand new password"})
+
+      assert updated_user.id == user.id
+      assert Enum.any?(expired_tokens, &(&1.context == :password_reset_token))
+
+      assert Accounts.get_user_by_email_and_password(user.email, "a brand new password")
+
+      assert {:error, :not_found} =
+               Accounts.reset_user_password(token, %{password: "another password"})
+    end
+
+    test "returns not_found for invalid tokens" do
+      assert {:error, :not_found} =
+               Accounts.reset_user_password("invalid-token", %{password: "a brand new password"})
+    end
+
+    test "returns changeset errors for invalid password attrs" do
+      user = user_fixture()
+      {:ok, %{token: token}} = Accounts.issue_password_reset_token(user)
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Accounts.reset_user_password(token, %{
+                 password: "too short",
+                 password_confirmation: "mismatch"
+               })
+
+      assert "should be at least 12 character(s)" in errors_on(changeset).password
+      assert "does not match password" in errors_on(changeset).password_confirmation
+    end
+  end
+
   describe "delete_user_session_token/1" do
     test "deletes the token" do
       user = user_fixture()
       token = Accounts.generate_user_session_token(user)
       assert Accounts.delete_user_session_token(token) == :ok
       refute Accounts.get_user_by_session_token(token)
+    end
+  end
+
+  describe "deliver_user_reset_password_instructions/2" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "sends reset token through notification via the public reset wrapper", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_reset_password_instructions(user, url)
+        end)
+
+      assert accounts_function_calls_local?(
+               :deliver_user_reset_password_instructions,
+               2,
+               :issue_password_reset_token,
+               1
+             )
+
+      assert {:ok, %{id: id, raw_secret: raw_secret}} = Tokens.decode_serialized_value(token)
+      assert user_token = Repo.get_by(UserToken, id: id)
+      assert user_token.secret_hash == Tokens.secret_hash(raw_secret)
+      assert user_token.user_id == user.id
+      assert user_token.sent_to == user.email
+      assert user_token.context == :password_reset_token
     end
   end
 

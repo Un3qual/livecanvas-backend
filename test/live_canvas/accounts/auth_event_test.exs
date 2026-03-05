@@ -20,6 +20,9 @@ defmodule LC.Accounts.AuthEventTest do
     [:live_canvas, :accounts, :auth, :password_change_failed],
     [:live_canvas, :accounts, :auth, :email_change_succeeded],
     [:live_canvas, :accounts, :auth, :email_change_failed],
+    [:live_canvas, :accounts, :auth, :account_recovery_requested],
+    [:live_canvas, :accounts, :auth, :account_recovery_succeeded],
+    [:live_canvas, :accounts, :auth, :account_recovery_failed],
     [:live_canvas, :accounts, :auth, :provider_identity_unlink_succeeded],
     [:live_canvas, :accounts, :auth, :provider_identity_unlink_failed]
   ]
@@ -295,6 +298,56 @@ defmodule LC.Accounts.AuthEventTest do
       assert user_id == user.id
       assert telemetry_metadata["reason"] == "transaction_aborted"
       assert metadata["reason"] == "transaction_aborted"
+    end
+
+    test "emits account recovery request, success, and failure events" do
+      user = user_fixture()
+
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_reset_password_instructions(user, url)
+        end)
+
+      assert is_binary(token)
+
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :account_recovery_requested], %{count: 1},
+                      %{metadata: %{"method" => "password_reset_token"}, user_id: user_id}}
+
+      assert user_id == user.id
+      assert :account_recovery_requested == latest_user_event_type(user)
+
+      assert {:ok, {_updated_user, _expired_tokens}} =
+               Accounts.reset_user_password(token, %{password: "an even newer password"})
+
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :account_recovery_succeeded], %{count: 1},
+                      %{metadata: %{"method" => "password_reset_token"}, user_id: ^user_id}}
+
+      assert [:account_recovery_succeeded] =
+               user
+               |> Accounts.list_user_auth_events(limit: 10)
+               |> Enum.filter(&(&1.event_type == :account_recovery_succeeded))
+               |> Enum.map(& &1.event_type)
+
+      assert {:error, :not_found} =
+               Accounts.reset_user_password("invalid-password-reset-token", %{
+                 password: "another new password"
+               })
+
+      assert_receive {:telemetry_event,
+                      [:live_canvas, :accounts, :auth, :account_recovery_failed], %{count: 1},
+                      %{metadata: telemetry_metadata, user_id: nil}}
+
+      assert %AuthEvent{
+               event_type: :account_recovery_failed,
+               user_id: nil,
+               metadata: metadata
+             } = latest_anonymous_event(:account_recovery_failed)
+
+      assert telemetry_metadata["reason"] == "not_found"
+      assert metadata["reason"] == "not_found"
+      refute Enum.any?(Map.values(metadata), &(&1 == "invalid-password-reset-token"))
     end
 
     test "emits provider identity unlink success and failure events" do

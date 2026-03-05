@@ -74,6 +74,27 @@ defmodule LC.Accounts.UserNotifier do
     """)
   end
 
+  @doc """
+  Deliver instructions to reset a user password.
+  """
+  @spec deliver_reset_password_instructions(User.t(), String.t()) :: delivery_result()
+  def deliver_reset_password_instructions(user, url) do
+    deliver(user.email, "Reset password instructions", """
+
+    ==============================
+
+    Hi #{user.email},
+
+    You can reset your password by visiting the URL below:
+
+    #{url}
+
+    If you didn't request this, please ignore this.
+
+    ==============================
+    """)
+  end
+
   defp deliver_magic_link_instructions(user, url) do
     deliver(user.email, "Log in instructions", """
 
