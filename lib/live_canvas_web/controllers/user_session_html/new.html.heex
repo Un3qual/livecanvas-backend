@@ -59,6 +59,9 @@
         label="Password"
         autocomplete="current-password"
       />
+      <.link href={~p"/users/reset-password"} class="font-semibold text-brand hover:underline">
+        Forgot your password?
+      </.link>
       <.button class="btn btn-primary w-full" name={@form[:remember_me].name} value="true">
         Log in and stay logged in <span aria-hidden="true">→</span>
       </.button>

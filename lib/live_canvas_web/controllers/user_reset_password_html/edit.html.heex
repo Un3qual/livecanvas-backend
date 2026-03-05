@@ -1,0 +1,38 @@
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  <div class="mx-auto max-w-sm space-y-4">
+    <div class="text-center">
+      <.header>
+        Reset password
+        <:subtitle>
+          Enter a new password for your account.
+        </:subtitle>
+      </.header>
+    </div>
+
+    <.form
+      :let={f}
+      for={@form}
+      id="reset_password_token_form"
+      as={:user}
+      method="put"
+      action={~p"/users/reset-password/#{@token}"}
+    >
+      <.input field={f[:password]} type="password" label="New password" required />
+      <.input
+        field={f[:password_confirmation]}
+        type="password"
+        label="Confirm new password"
+        required
+      />
+      <.button class="btn btn-primary w-full">
+        Reset password
+      </.button>
+    </.form>
+
+    <p class="text-center text-sm">
+      <.link href={~p"/users/log-in"} class="font-semibold text-brand hover:underline">
+        Back to log in
+      </.link>
+    </p>
+  </div>
+</Layouts.app>

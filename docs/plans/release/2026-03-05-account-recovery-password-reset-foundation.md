@@ -37,7 +37,7 @@ The release roadmap still tracks account-recovery auth-audit expansion as deferr
 ## Progress
 
 - [x] Task 1: Add password-reset token context, Accounts recovery APIs, and recovery audit events
-- [ ] Task 2: Add web reset-password transport flow (request + token consume forms/controllers)
+- [x] Task 2: Add web reset-password transport flow (request + token consume forms/controllers)
 - [ ] Task 3: Add GraphQL recovery mutations and relay-compatible error contracts
 - [ ] Task 4: Run full verification, update roadmap/index tracking, and finalize milestone
 
@@ -100,11 +100,15 @@ Expected: PASS after implementation.
 - Modify: `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing web-controller tests for request and token-consume flows
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement reset-password request + submit flow through Accounts APIs
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run `mix test test/live_canvas_web/controllers/user_reset_password_controller_test.exs`, update checklist, and commit milestone
+- [x] Step 1: Add failing web-controller tests for request and token-consume flows
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement reset-password request + submit flow through Accounts APIs
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run `mix test test/live_canvas_web/controllers/user_reset_password_controller_test.exs`, update checklist, and commit milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas_web/controllers/user_reset_password_controller_test.exs` -> RED first (`9 tests, 9 failures`) and GREEN after implementation (`9 tests, 0 failures`)
 
 ### Task 3: GraphQL Recovery Mutations
 
