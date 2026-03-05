@@ -14,7 +14,8 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
   @impl LC.Infra.ObjectStorage
   @spec sign_upload(LC.Infra.ObjectStorage.upload_request()) ::
           {:ok, LC.Infra.ObjectStorage.signed_upload()} | {:error, term()}
-  def sign_upload(%{key: key, mime_type: mime_type}) when is_binary(key) and is_binary(mime_type) do
+  def sign_upload(%{key: key, mime_type: mime_type})
+      when is_binary(key) and is_binary(mime_type) do
     with :ok <- validate_storage_key(key),
          {:ok, config} <- fetch_config(),
          {:ok, upload_url} <- build_object_url(config.upload_base_url, key),
@@ -32,7 +33,8 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
   def sign_upload(_request), do: {:error, :invalid_upload_request}
 
   @impl LC.Infra.ObjectStorage
-  @spec public_asset_url(LC.Infra.ObjectStorage.storage_key()) :: {:ok, String.t()} | {:error, term()}
+  @spec public_asset_url(LC.Infra.ObjectStorage.storage_key()) ::
+          {:ok, String.t()} | {:error, term()}
   def public_asset_url(key) when is_binary(key) do
     with :ok <- validate_storage_key(key),
          {:ok, config} <- fetch_config(),
@@ -67,7 +69,8 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
     end
   end
 
-  @spec fetch_base_url(:upload_base_url | :public_base_url) :: {:ok, String.t()} | {:error, :invalid_config}
+  @spec fetch_base_url(:upload_base_url | :public_base_url) ::
+          {:ok, String.t()} | {:error, :invalid_config}
   defp fetch_base_url(key) do
     config = Application.get_env(:live_canvas, __MODULE__, [])
 
@@ -93,7 +96,8 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
   defp normalize_base_url(url) do
     uri = URI.parse(url)
 
-    if uri.scheme == "https" and is_binary(uri.host) and uri.host != "" do
+    if uri.scheme == "https" and is_binary(uri.host) and uri.host != "" and is_nil(uri.query) and
+         is_nil(uri.fragment) do
       {:ok, String.trim_trailing(url, "/")}
     else
       {:error, :invalid_config}
@@ -109,7 +113,8 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
     end
   end
 
-  @spec validate_storage_key(LC.Infra.ObjectStorage.storage_key()) :: :ok | {:error, :invalid_storage_key}
+  @spec validate_storage_key(LC.Infra.ObjectStorage.storage_key()) ::
+          :ok | {:error, :invalid_storage_key}
   defp validate_storage_key(key) when is_binary(key) do
     if String.starts_with?(key, "uploads/") and not String.contains?(key, "..") do
       :ok

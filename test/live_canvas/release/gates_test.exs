@@ -45,6 +45,44 @@ defmodule LC.Release.GatesTest do
       refute_receive {:gate_step, "boundary.spec", []}
       refute_receive {:gate_step, "release.capacity_drill", ["--confirm"]}
     end
+
+    test "runs capacity drill in an isolated mix command runner" do
+      caller = self()
+
+      mix_command_runner = fn command, args, opts ->
+        send(caller, {:mix_command, command, args, opts})
+        {"", 0}
+      end
+
+      assert :ok =
+               Gates.run(
+                 steps: [%{task: "release.capacity_drill", args: ["--dry-run", "--confirm"]}],
+                 mix_command_runner: mix_command_runner
+               )
+
+      assert_receive {:mix_command, command, ["release.capacity_drill", "--dry-run", "--confirm"],
+                      opts}
+
+      assert is_binary(command)
+      assert {"MIX_ENV", Atom.to_string(Mix.env())} in Keyword.get(opts, :env, [])
+      assert Keyword.get(opts, :stderr_to_stdout) == true
+    end
+
+    test "returns a gate failure when isolated capacity command exits non-zero" do
+      mix_command_runner = fn _command, _args, _opts -> {"capacity failed", 1} end
+
+      assert {:error,
+              %{
+                step: %{task: "release.capacity_drill", args: ["--dry-run", "--confirm"]},
+                reason: reason
+              }} =
+               Gates.run(
+                 steps: [%{task: "release.capacity_drill", args: ["--dry-run", "--confirm"]}],
+                 mix_command_runner: mix_command_runner
+               )
+
+      assert reason =~ "capacity failed"
+    end
   end
 
   describe "mix release.gates --dry-run" do

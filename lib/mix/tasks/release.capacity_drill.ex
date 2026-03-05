@@ -40,6 +40,10 @@ defmodule Mix.Tasks.Release.CapacityDrill do
   @impl Mix.Task
   @spec run([String.t()]) :: :ok
   def run(args) do
+    # Capacity probes hit Repo/PubSub directly, so this task must bootstrap the
+    # application when invoked outside `mix test` aliases.
+    Mix.Task.run("app.start")
+
     {opts, positional, invalid} = OptionParser.parse(args, switches: @switches)
 
     if positional != [] do

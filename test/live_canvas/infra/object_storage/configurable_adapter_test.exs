@@ -45,4 +45,29 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapterTest do
   test "rejects invalid storage keys" do
     assert {:error, :invalid_storage_key} = ConfigurableAdapter.public_asset_url("../secret")
   end
+
+  test "rejects upload base URLs with query components" do
+    Application.put_env(:live_canvas, ConfigurableAdapter,
+      upload_base_url: "https://uploads.example.test/direct?token=abc",
+      public_base_url: "https://cdn.example.test/assets",
+      upload_ttl_seconds: 600
+    )
+
+    assert {:error, :invalid_config} =
+             ConfigurableAdapter.sign_upload(%{
+               key: "uploads/users/7/media.jpg",
+               mime_type: "image/jpeg"
+             })
+  end
+
+  test "rejects public base URLs with fragment components" do
+    Application.put_env(:live_canvas, ConfigurableAdapter,
+      upload_base_url: "https://uploads.example.test/direct",
+      public_base_url: "https://cdn.example.test/assets#v2",
+      upload_ttl_seconds: 600
+    )
+
+    assert {:error, :invalid_config} =
+             ConfigurableAdapter.public_asset_url("uploads/users/7/media.jpg")
+  end
 end
