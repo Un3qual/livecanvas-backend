@@ -38,7 +38,7 @@ Verified directly in `lib/`, `test/`, and runtime config before selecting this b
 
 - [x] Task 1: Add runtime lease heartbeat loop and ownership-loss shutdown behavior
 - [x] Task 2: Harden supervisor/live routing semantics for heartbeat-driven failover
-- [ ] Task 3: Expand distributed/channel regression coverage for takeover and reconnect safety
+- [x] Task 3: Expand distributed/channel regression coverage for takeover and reconnect safety
 - [ ] Task 4: Run full verification, update roadmap/index tracking, and finalize milestone
 
 ### Task 1: Runtime Lease Heartbeat Loop
@@ -113,11 +113,11 @@ git commit -m "feat: add live runtime lease heartbeat loop"
 - Modify: `docs/plans/release/2026-03-04-live-runtime-heartbeat-and-failover-hardening.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing regression tests for short-TTL takeover and reconnect-safe channel join behavior after ownership transitions
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement test-only configuration seams needed for deterministic timing (no production debug paths)
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run `mix test` on touched slices + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing regression tests for short-TTL takeover and reconnect-safe channel join behavior after ownership transitions
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement test-only configuration seams needed for deterministic timing (no production debug paths)
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run `mix test` on touched slices + `mix typecheck`, update checklist, and commit milestone
 
 **Task 3 test targets:**
 - Local owner keeps lease alive while runtime is healthy.

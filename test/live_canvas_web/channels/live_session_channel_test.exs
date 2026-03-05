@@ -7,9 +7,9 @@ defmodule LCWeb.LiveSessionChannelTest do
 
   alias LC.{Accounts, Live}
   alias LC.Infra.Repo
-  alias LC.Live.{SessionOwnership, SessionServer}
+  alias LC.Live.{SessionOwnership, SessionServer, SessionSupervisor}
   alias LCSchemas.Chat.ChatMessage
-  alias LCSchemas.Live.{LiveParticipant, LiveSession}
+  alias LCSchemas.Live.{LiveParticipant, LiveSession, LiveSessionRuntimeOwner}
   alias LCWeb.{LiveSessionChannel, UserSocket}
 
   @endpoint LCWeb.Endpoint
@@ -298,6 +298,44 @@ defmodule LCWeb.LiveSessionChannelTest do
     refute Map.has_key?(participants_after_leave, viewer.id)
   end
 
+  test "ownership-loss handoff keeps join client-safe during reconnect windows" do
+    with_runtime_timing([lease_ttl_seconds: 1, lease_heartbeat_interval_ms: 20], fn ->
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, runtime_pid} = Live.lookup_session_server(session.id)
+      assert Process.alive?(runtime_pid)
+
+      lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session.id)
+      _deleted_lease = Repo.delete!(lease)
+      monitor_ref = Process.monitor(runtime_pid)
+
+      assert_receive {:DOWN, ^monitor_ref, :process, ^runtime_pid, :lost_ownership}
+
+      remote_owner = "remote-handoff@127.0.0.1"
+      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+
+      assert {:error, %{reason: "session_unavailable"}} =
+               subscribe_and_join(
+                 socket_for(viewer),
+                 LiveSessionChannel,
+                 "live_session:#{session.id}"
+               )
+
+      assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
+                      %{
+                        result: :error,
+                        reason: :remote_unreachable,
+                        session_id: session_id,
+                        user_id: user_id
+                      }}
+
+      assert session_id == session.id
+      assert user_id == viewer.id
+    end)
+  end
+
   defp socket_for(user) do
     socket(UserSocket, "user_socket:#{user.id}", %{current_user: user})
   end
@@ -369,4 +407,37 @@ defmodule LCWeb.LiveSessionChannelTest do
   end
 
   defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+  defp with_runtime_timing(opts, fun) when is_list(opts) and is_function(fun, 0) do
+    lease_ttl_seconds = Keyword.fetch!(opts, :lease_ttl_seconds)
+    heartbeat_interval_ms = Keyword.fetch!(opts, :lease_heartbeat_interval_ms)
+
+    previous_ownership_config = Application.get_env(:live_canvas, SessionOwnership, [])
+
+    previous_supervisor_config =
+      Application.get_env(:live_canvas, SessionSupervisor, [])
+
+    Application.put_env(
+      :live_canvas,
+      SessionOwnership,
+      Keyword.put(previous_ownership_config, :lease_ttl_seconds, lease_ttl_seconds)
+    )
+
+    Application.put_env(
+      :live_canvas,
+      SessionSupervisor,
+      Keyword.put(
+        previous_supervisor_config,
+        :lease_heartbeat_interval_ms,
+        heartbeat_interval_ms
+      )
+    )
+
+    try do
+      fun.()
+    after
+      Application.put_env(:live_canvas, SessionOwnership, previous_ownership_config)
+      Application.put_env(:live_canvas, SessionSupervisor, previous_supervisor_config)
+    end
+  end
 end
