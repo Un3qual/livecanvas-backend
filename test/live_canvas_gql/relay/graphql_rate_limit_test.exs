@@ -3,8 +3,10 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
 
   @rate_limits [
     graphql_mutation: [limit: 1, window_ms: 60_000],
+    moderation_action: [limit: 5, window_ms: 60_000],
     auth_login: [limit: 10, window_ms: 60_000],
-    channel_join: [limit: 10, window_ms: 60_000]
+    channel_join: [limit: 10, window_ms: 60_000],
+    chat_send: [limit: 10, window_ms: 60_000]
   ]
 
   setup do
@@ -30,6 +32,52 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
 
     second_conn = post(conn, "/graphql", %{"query" => mutation})
 
+    assert second_conn.status == 429
+
+    assert %{
+             "errors" => [
+               %{"message" => "rate_limited", "extensions" => %{"code" => "RATE_LIMITED"}}
+             ]
+           } = Jason.decode!(second_conn.resp_body)
+  end
+
+  test "uses moderation-action limits for moderation mutations", %{conn: conn} do
+    previous_config = Application.get_env(:live_canvas, LCWeb.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LCWeb.RateLimiter,
+      limits: [
+        graphql_mutation: [limit: 10, window_ms: 60_000],
+        moderation_action: [limit: 1, window_ms: 60_000],
+        auth_login: [limit: 10, window_ms: 60_000],
+        channel_join: [limit: 10, window_ms: 60_000],
+        chat_send: [limit: 10, window_ms: 60_000]
+      ]
+    )
+
+    LCWeb.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LCWeb.RateLimiter, previous_config)
+      LCWeb.RateLimiter.reset!()
+    end)
+
+    moderation_mutation = """
+    mutation {
+      muteUser(input: { mutedId: \"123\" }) {
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    conn = %{conn | remote_ip: {127, 0, 0, 1}}
+    first_conn = post(conn, "/graphql", %{"query" => moderation_mutation})
+    assert first_conn.status == 200
+
+    second_conn = post(conn, "/graphql", %{"query" => moderation_mutation})
     assert second_conn.status == 429
 
     assert %{

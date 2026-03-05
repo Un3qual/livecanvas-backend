@@ -37,7 +37,7 @@ This slice directly addresses an active roadmap item with a bounded, low-risk tr
 ## Progress
 
 - [x] Task 1: Add explicit `chat:send` throughput rate limiting in `LiveSessionChannel`
-- [ ] Task 2: Add moderation-action-specific GraphQL mutation rate limiting
+- [x] Task 2: Add moderation-action-specific GraphQL mutation rate limiting
 - [ ] Task 3: Run focused verification, update roadmap/index tracking, and finalize milestone
 
 ### Task 1: Chat Send Throughput Limits (Current Batch)
@@ -71,11 +71,16 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL rate-limit tests for moderation mutation buckets
-- [ ] Step 2: Run focused GraphQL limiter tests to verify RED
-- [ ] Step 3: Implement `:moderation_action` bucket routing with fallback to generic mutation limits
-- [ ] Step 4: Run focused GraphQL limiter tests to verify GREEN
-- [ ] Step 5: Run `mix test test/live_canvas_gql/relay/graphql_rate_limit_test.exs` + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing GraphQL rate-limit tests for moderation mutation buckets
+- [x] Step 2: Run focused GraphQL limiter tests to verify RED
+- [x] Step 3: Implement `:moderation_action` bucket routing with fallback to generic mutation limits
+- [x] Step 4: Run focused GraphQL limiter tests to verify GREEN
+- [x] Step 5: Run `mix test test/live_canvas_gql/relay/graphql_rate_limit_test.exs` + `mix typecheck`, update checklist, and commit milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas_gql/relay/graphql_rate_limit_test.exs` -> RED first (`2 tests, 1 failure`) and GREEN after implementation (`2 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 3: Verification And Tracking Updates
 

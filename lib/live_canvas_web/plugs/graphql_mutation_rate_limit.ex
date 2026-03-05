@@ -23,24 +23,26 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
   @impl Plug
   @spec call(Plug.Conn.t(), term()) :: Plug.Conn.t()
   def call(conn, _opts) do
-    if graphql_mutation_request?(conn) do
-      case RateLimiter.allow(:graphql_mutation, RateLimiter.conn_subject(conn)) do
-        :ok ->
-          conn
+    case mutation_query(conn) do
+      {:ok, query} ->
+        case RateLimiter.allow(rate_limit_key(query), RateLimiter.conn_subject(conn)) do
+          :ok ->
+            conn
 
-        {:error, :rate_limited} ->
-          conn
-          |> put_resp_content_type("application/json")
-          |> send_resp(:too_many_requests, Jason.encode!(@rate_limit_error_payload))
-          |> halt()
-      end
-    else
-      conn
+          {:error, :rate_limited} ->
+            conn
+            |> put_resp_content_type("application/json")
+            |> send_resp(:too_many_requests, Jason.encode!(@rate_limit_error_payload))
+            |> halt()
+        end
+
+      :error ->
+        conn
     end
   end
 
-  @spec graphql_mutation_request?(Plug.Conn.t()) :: boolean()
-  defp graphql_mutation_request?(%Plug.Conn{
+  @spec mutation_query(Plug.Conn.t()) :: {:ok, String.t()} | :error
+  defp mutation_query(%Plug.Conn{
          method: "POST",
          request_path: "/graphql",
          params: params
@@ -49,12 +51,24 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
       query when is_binary(query) ->
         # We only need a lightweight write-path heuristic here; full GraphQL
         # parsing belongs to Absinthe and would be too expensive at this edge.
-        Regex.match?(~r/\bmutation\b/u, query)
+        if Regex.match?(~r/\bmutation\b/u, query), do: {:ok, query}, else: :error
 
       _other ->
-        false
+        :error
     end
   end
 
-  defp graphql_mutation_request?(_conn), do: false
+  defp mutation_query(_conn), do: :error
+
+  @spec rate_limit_key(String.t()) :: :graphql_mutation | :moderation_action
+  defp rate_limit_key(query) when is_binary(query) do
+    if moderation_mutation?(query), do: :moderation_action, else: :graphql_mutation
+  end
+
+  @spec moderation_mutation?(String.t()) :: boolean()
+  defp moderation_mutation?(query) when is_binary(query) do
+    # Moderation writes can be high-impact/abusive and need tighter controls
+    # than generic mutation traffic.
+    Regex.match?(~r/\b(blockUser|unblockUser|muteUser|unmuteUser)\b/u, query)
+  end
 end
