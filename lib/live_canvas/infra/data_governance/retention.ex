@@ -17,6 +17,8 @@ defmodule LC.Infra.DataGovernance.Retention do
     chat_messages: 180,
     live_participants: 180
   ]
+  @default_apply_mode_enabled false
+  @default_incident_hold_active false
 
   @type family ::
           :auth_events
@@ -44,7 +46,11 @@ defmodule LC.Infra.DataGovernance.Retention do
           deletion_stubbed?: true,
           families: [family_report()]
         }
-  @type run_error :: :invalid_cutoff_days | :invalid_mode_combination
+  @type run_error ::
+          :invalid_cutoff_days
+          | :invalid_mode_combination
+          | :apply_mode_disabled
+          | :incident_hold_active
 
   @doc """
   Evaluates retention candidates for operational tables.
@@ -56,7 +62,8 @@ defmodule LC.Infra.DataGovernance.Retention do
   @spec run(keyword()) :: {:ok, report()} | {:error, run_error()}
   def run(opts \\ []) when is_list(opts) do
     with {:ok, mode} <- normalize_mode(opts),
-         {:ok, cutoff_days_override} <- normalize_cutoff_days_override(opts) do
+         {:ok, cutoff_days_override} <- normalize_cutoff_days_override(opts),
+         :ok <- ensure_apply_guardrails(mode) do
       evaluated_at = normalize_now(Keyword.get(opts, :now))
 
       {cutoff_strategy, cutoff_days, cutoff_at} =
@@ -125,6 +132,23 @@ defmodule LC.Infra.DataGovernance.Retention do
   @spec action_for_mode(mode()) :: action()
   defp action_for_mode(:dry_run), do: :count_only
   defp action_for_mode(:apply), do: :stubbed_delete
+
+  @spec ensure_apply_guardrails(mode()) ::
+          :ok | {:error, :apply_mode_disabled | :incident_hold_active}
+  defp ensure_apply_guardrails(:dry_run), do: :ok
+
+  defp ensure_apply_guardrails(:apply) do
+    cond do
+      incident_hold_active?() ->
+        {:error, :incident_hold_active}
+
+      not apply_mode_enabled?() ->
+        {:error, :apply_mode_disabled}
+
+      true ->
+        :ok
+    end
+  end
 
   @spec build_family_reports(DateTime.t(), pos_integer() | nil, action()) :: [family_report()]
   defp build_family_reports(evaluated_at, cutoff_days_override, action)
@@ -224,9 +248,25 @@ defmodule LC.Infra.DataGovernance.Retention do
     end)
   end
 
+  @spec apply_mode_enabled?() :: boolean()
+  defp apply_mode_enabled?,
+    do: config_boolean(:apply_mode_enabled, @default_apply_mode_enabled)
+
+  @spec incident_hold_active?() :: boolean()
+  defp incident_hold_active?,
+    do: config_boolean(:incident_hold_active, @default_incident_hold_active)
+
+  defp config_boolean(key, default) when is_atom(key) and is_boolean(default) do
+    case config_value(key, default) do
+      true -> true
+      false -> false
+      _ -> default
+    end
+  end
+
   defp config_value(key, default) when is_atom(key) do
-    __MODULE__
-    |> Application.get_env(:live_canvas, [])
+    :live_canvas
+    |> Application.get_env(__MODULE__, [])
     |> Keyword.get(key, default)
   end
 

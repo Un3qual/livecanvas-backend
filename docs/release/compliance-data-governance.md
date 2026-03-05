@@ -52,7 +52,7 @@ This runbook defines the v1 baseline for data export, account deletion, and rete
 1. Dry run first (`mix release.retention_sweep --dry-run`); this uses policy defaults per family (`auth_events` 365d, `webhook_events` 90d, `async_jobs` 30d, `chat_messages` 180d, `live_participants` 180d).
 2. Use `--cutoff-days <n>` only for explicit uniform-window override drills across all families.
 3. Review per-table candidate counts and family cutoff metadata.
-4. Apply mode is explicit but currently non-destructive (`mix release.retention_sweep --apply [--cutoff-days <n>]`).
+4. Apply mode is explicit but currently non-destructive (`mix release.retention_sweep --apply [--cutoff-days <n>]`) and is gated by both `LC.Infra.DataGovernance.Retention.apply_mode_enabled=true` and `incident_hold_active=false`.
 5. Record candidate counts, cutoff windows, and legal-hold/incident-hold exceptions; note `deletion_stubbed=true`.
 
 ## Baseline Control Requirements
@@ -61,4 +61,5 @@ This runbook defines the v1 baseline for data export, account deletion, and rete
 - Governance workflows must be idempotent (safe re-run after partial failure).
 - Mutations and queries are viewer-scoped; no cross-user governance access in v1.
 - Hard deletion remains deferred in this milestone; apply commands must be treated as control-plane rehearsals.
+- Retention apply mode must remain disabled by default and only be enabled for controlled operator drills.
 - Every run must attach evidence to an operator ticket (request IDs, timestamps, outcomes).

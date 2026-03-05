@@ -39,6 +39,17 @@ config :live_canvas, LC.Infra.DataGovernance.Deletion,
   grace_period_seconds: 604_800,
   job_max_attempts: 3
 
+config :live_canvas, LC.Infra.DataGovernance.Retention,
+  family_cutoff_days: [
+    auth_events: 365,
+    async_jobs: 30,
+    webhook_events: 90,
+    chat_messages: 180,
+    live_participants: 180
+  ],
+  apply_mode_enabled: false,
+  incident_hold_active: false
+
 config :live_canvas, LC.Live.SessionSupervisor, lease_heartbeat_interval_ms: 10_000
 
 config :live_canvas, :scopes,

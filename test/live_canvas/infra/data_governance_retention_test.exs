@@ -381,12 +381,38 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
 
       before_count = Repo.aggregate(AuthEvent, :count, :id)
 
-      assert {:ok, report} = Retention.run(apply: true, cutoff_days: 30, now: now)
+      assert {:ok, report} =
+               with_retention_config(
+                 [apply_mode_enabled: true, incident_hold_active: false],
+                 fn ->
+                   Retention.run(apply: true, cutoff_days: 30, now: now)
+                 end
+               )
 
       assert report.mode == :apply
       assert report.deletion_stubbed?
       assert Enum.all?(report.families, &(&1.action == :stubbed_delete))
       assert Repo.aggregate(AuthEvent, :count, :id) == before_count
+    end
+
+    test "returns an error when apply mode is disabled by config" do
+      assert {:error, :apply_mode_disabled} =
+               with_retention_config(
+                 [apply_mode_enabled: false, incident_hold_active: false],
+                 fn ->
+                   Retention.run(apply: true, cutoff_days: 30)
+                 end
+               )
+    end
+
+    test "returns an error when incident hold is active for apply mode" do
+      assert {:error, :incident_hold_active} =
+               with_retention_config(
+                 [apply_mode_enabled: true, incident_hold_active: true],
+                 fn ->
+                   Retention.run(apply: true, cutoff_days: 30)
+                 end
+               )
     end
 
     test "returns an error when cutoff-days is invalid" do
@@ -467,5 +493,18 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
       )
 
     :ok
+  end
+
+  @spec with_retention_config(keyword(), (-> term())) :: term()
+  defp with_retention_config(overrides, fun) when is_list(overrides) and is_function(fun, 0) do
+    previous_config = Application.get_env(:live_canvas, Retention, [])
+    merged_config = Keyword.merge(previous_config, overrides)
+    Application.put_env(:live_canvas, Retention, merged_config)
+
+    try do
+      fun.()
+    after
+      Application.put_env(:live_canvas, Retention, previous_config)
+    end
   end
 end

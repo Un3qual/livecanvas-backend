@@ -36,7 +36,7 @@ This batch addresses an active roadmap gap with bounded risk and no schema churn
 
 - [x] Task 1: Add `chat_messages` and `live_participants` retention candidate coverage
 - [x] Task 2: Encode policy-aligned per-family retention windows and report output
-- [ ] Task 3: Evaluate safe apply-mode enforcement rollout path (feature gates + hold semantics) and track follow-up
+- [x] Task 3: Evaluate safe apply-mode enforcement rollout path (feature gates + hold semantics) and track follow-up
 
 ### Task 1: Add Chat/Live Retention Candidate Coverage (Current Batch)
 
@@ -82,14 +82,26 @@ Verification evidence (2026-03-05):
 - `mix compile` -> PASS
 - `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
-### Task 3: Apply-Mode Enforcement Follow-Up (Planned)
+### Task 3: Apply-Mode Enforcement Follow-Up
 
 **Files:**
+- Modify: `config/config.exs`
+- Modify: `lib/live_canvas/infra/data_governance/retention.ex`
+- Modify: `lib/mix/tasks/release.retention_sweep.ex`
+- Modify: `test/live_canvas/infra/data_governance_retention_test.exs`
+- Modify: `test/live_canvas/release/retention_sweep_task_test.exs`
+- Modify: `docs/release/compliance-data-governance.md`
 - Modify: `docs/plans/release/2026-03-05-chat-live-retention-enforcement.md`
 - Modify: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 - Modify: `docs/plans/README.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Validate operator constraints for destructive retention execution and hold gates
-- [ ] Step 2: Document rollout guardrails and split implementation/deferred items in roadmap tracking
-- [ ] Step 3: Mark checklist updates and commit milestone with any associated code/test changes
+- [x] Step 1: Validate operator constraints for destructive retention execution and hold gates
+- [x] Step 2: Document rollout guardrails and split implementation/deferred items in roadmap tracking
+- [x] Step 3: Mark checklist updates and commit milestone with any associated code/test changes
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas/infra/data_governance_retention_test.exs test/live_canvas/release/retention_sweep_task_test.exs` -> guardrail RED/GREEN iteration (`14 tests, 4 failures` -> `14 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)

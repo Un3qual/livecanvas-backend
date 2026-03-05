@@ -11,7 +11,7 @@ defmodule Mix.Tasks.Release.RetentionSweep do
   Supported options:
 
     * `--dry-run` - print candidate counts only (default mode)
-    * `--apply` - explicit apply mode (currently stubbed and non-destructive)
+    * `--apply` - explicit apply mode (currently stubbed and non-destructive, but gated)
     * `--cutoff-days` - positive integer override cutoff window in days for all families
   """
 
@@ -44,6 +44,14 @@ defmodule Mix.Tasks.Release.RetentionSweep do
 
       {:error, :invalid_cutoff_days} ->
         Mix.raise("--cutoff-days must be a positive integer")
+
+      {:error, :apply_mode_disabled} ->
+        Mix.raise(
+          "--apply is disabled by configuration (set LC.Infra.DataGovernance.Retention apply_mode_enabled=true for controlled drills)"
+        )
+
+      {:error, :incident_hold_active} ->
+        Mix.raise("--apply is blocked because incident hold is active")
     end
   end
 
