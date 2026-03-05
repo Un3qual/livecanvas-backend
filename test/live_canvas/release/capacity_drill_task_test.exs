@@ -46,5 +46,21 @@ defmodule Mix.Tasks.Release.CapacityDrillTest do
         end)
       end
     end
+
+    test "fails fast when threshold options are invalid" do
+      assert_raise Mix.Error,
+                   ~r/--channel-min-delivery-rate must be a number between 0 and 1/,
+                   fn ->
+                     capture_io(fn ->
+                       Mix.Task.reenable("release.capacity_drill")
+
+                       Mix.Task.run("release.capacity_drill", [
+                         "--dry-run",
+                         "--channel-min-delivery-rate",
+                         "1.5"
+                       ])
+                     end)
+                   end
+    end
   end
 end

@@ -57,5 +57,28 @@ defmodule LC.Release.CapacityDrillTest do
                  concurrency_viewers: 0
                )
     end
+
+    test "rejects invalid threshold and probe-selection options" do
+      assert {:error, :invalid_feed_mean_latency_ms} =
+               CapacityDrill.run(
+                 env: :test,
+                 dry_run: true,
+                 feed_mean_latency_ms: 0
+               )
+
+      assert {:error, :invalid_channel_min_delivery_rate} =
+               CapacityDrill.run(
+                 env: :test,
+                 dry_run: true,
+                 channel_min_delivery_rate: 1.1
+               )
+
+      assert {:error, :invalid_probes} =
+               CapacityDrill.run(
+                 env: :test,
+                 dry_run: true,
+                 probes: [:unknown]
+               )
+    end
   end
 end

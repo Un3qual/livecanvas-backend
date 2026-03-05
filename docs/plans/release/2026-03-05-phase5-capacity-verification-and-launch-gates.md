@@ -36,7 +36,7 @@ This slice closes the highest-priority remaining non-`Content` launch-readiness 
 ## Progress
 
 - [x] Task 1: Add deterministic `release.capacity_drill` planner and Mix task wrapper
-- [ ] Task 2: Implement feed/channel/live capacity probes with focused verification tests
+- [x] Task 2: Implement feed/channel/live capacity probes with focused verification tests
 - [ ] Task 3: Wire capacity drill into release gates and runbooks; finalize verification and tracking updates
 
 ### Task 1: Add Deterministic `release.capacity_drill` Planner And Mix Task Wrapper (Current Batch)
@@ -115,11 +115,16 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing probe tests for feed latency thresholds, channel fanout delivery/latency thresholds, and live join concurrency thresholds
-- [ ] Step 2: Run focused release-capacity tests to verify RED
-- [ ] Step 3: Implement deterministic probe execution with threshold validation and structured report output
-- [ ] Step 4: Run focused release-capacity tests to verify GREEN
-- [ ] Step 5: Run touched release/integration slices + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing probe tests for feed latency thresholds, channel fanout delivery/latency thresholds, and live join concurrency thresholds
+- [x] Step 2: Run focused release-capacity tests to verify RED
+- [x] Step 3: Implement deterministic probe execution with threshold validation and structured report output
+- [x] Step 4: Run focused release-capacity tests to verify GREEN
+- [x] Step 5: Run touched release/integration slices + `mix typecheck`, update checklist progress, and commit milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas/release/capacity_drill_test.exs test/live_canvas/release/capacity_drill_task_test.exs test/integration/release/capacity_drill_feed_test.exs test/integration/release/capacity_drill_channel_test.exs test/integration/release/capacity_drill_live_concurrency_test.exs` -> RED first (`12 tests, 6 failures`) and GREEN after implementation + threshold-option validation coverage (`14 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 3: Wire Capacity Drill Into Release Gates And Runbooks, Then Finalize Tracking
 
