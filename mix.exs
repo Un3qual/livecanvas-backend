@@ -41,6 +41,7 @@ defmodule LC.MixProject do
         "release.gates": :test,
         "release.migration_drill": :test,
         "release.live_runtime_drill": :test,
+        "release.capacity_drill": :test,
         "release.retention_sweep": :test
       ]
     ]
