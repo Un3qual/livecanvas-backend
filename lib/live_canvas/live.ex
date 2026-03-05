@@ -137,8 +137,15 @@ defmodule LC.Live do
       with true <- active_user?(user_id) || {:error, :not_authorized},
            true <- active_user?(host_id) || {:error, :not_authorized},
            {:ok, runtime_target} <- ensure_session_server(session_id),
-           {:ok, participant} <- upsert_live_participant(session_id, user_id, role, now),
-           :ok <- join_runtime(runtime_target, session_id, user_id, role, runtime_rpc) do
+           {:ok, participant} <-
+             upsert_live_participant_for_runtime_join(
+               runtime_target,
+               session_id,
+               user_id,
+               role,
+               now,
+               runtime_rpc
+             ) do
         {:ok, participant}
       end
 
@@ -248,6 +255,37 @@ defmodule LC.Live do
     )
   end
 
+  @spec upsert_live_participant_for_runtime_join(
+          runtime_target(),
+          pos_integer(),
+          pos_integer(),
+          LCSchemas.Live.live_participant_role(),
+          DateTime.t(),
+          runtime_rpc_module()
+        ) :: {:ok, LiveParticipant.t()} | {:error, term()}
+  defp upsert_live_participant_for_runtime_join(
+         runtime_target,
+         session_id,
+         user_id,
+         role,
+         now,
+         runtime_rpc
+       )
+       when is_integer(session_id) and is_integer(user_id) and is_atom(role) and
+              is_struct(now, DateTime) and is_atom(runtime_rpc) do
+    Repo.transact(fn ->
+      # Keep durable participant persistence coupled to runtime admission so
+      # failed remote handoff attempts do not leave ghost active participants.
+      with {:ok, participant} <- upsert_live_participant(session_id, user_id, role, now),
+           :ok <- join_runtime_with_retry(runtime_target, session_id, user_id, role, runtime_rpc) do
+        {:ok, participant}
+      else
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
+  end
+
   @spec mark_live_participant_left(pos_integer(), pos_integer(), DateTime.t()) :: :ok
   defp mark_live_participant_left(session_id, user_id, now)
        when is_integer(session_id) and is_integer(user_id) do
@@ -328,6 +366,42 @@ defmodule LC.Live do
          :ok <- remote_join(owner_node, session_id, user_id, role, runtime_rpc) do
       :ok
     end
+  end
+
+  @spec join_runtime_with_retry(
+          runtime_target(),
+          pos_integer(),
+          pos_integer(),
+          LCSchemas.Live.live_participant_role(),
+          runtime_rpc_module()
+        ) :: :ok | {:error, runtime_rpc_error()}
+  defp join_runtime_with_retry(
+         {:remote, _owner_node} = runtime_target,
+         session_id,
+         user_id,
+         role,
+         runtime_rpc
+       )
+       when is_integer(session_id) and is_integer(user_id) and is_atom(role) and
+              is_atom(runtime_rpc) do
+    case join_runtime(runtime_target, session_id, user_id, role, runtime_rpc) do
+      {:error, :remote_not_found} ->
+        # Partition healing can race with remote runtime restarts; retry one
+        # remote admission attempt before surfacing the not-found outcome.
+        case join_runtime(runtime_target, session_id, user_id, role, runtime_rpc) do
+          :ok -> :ok
+          {:error, _reason} -> {:error, :remote_not_found}
+        end
+
+      other ->
+        other
+    end
+  end
+
+  defp join_runtime_with_retry(runtime_target, session_id, user_id, role, runtime_rpc)
+       when is_integer(session_id) and is_integer(user_id) and is_atom(role) and
+              is_atom(runtime_rpc) do
+    join_runtime(runtime_target, session_id, user_id, role, runtime_rpc)
   end
 
   @spec remote_lookup(String.t(), pos_integer(), runtime_rpc_module()) ::

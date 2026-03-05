@@ -5,6 +5,7 @@ Use this directory for active and in-progress planning artifacts.
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
+- Live runtime partition/rejoin drills: `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md` (Task 1 reconnect-consistency hardening delivered; peer-node drills and operator runbook tasks remain open)
 
 ## Recently Completed
 

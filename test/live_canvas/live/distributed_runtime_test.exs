@@ -117,6 +117,81 @@ defmodule LC.Live.DistributedRuntimeTest do
                )
     end
 
+    test "retries remote join once when runtime not found and then succeeds" do
+      host = user_fixture()
+      viewer = user_fixture()
+      session = live_session_fixture(host.id)
+      remote_owner = "remote-owner@127.0.0.1"
+
+      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+
+      configure_runtime_rpc([
+        {:ok, :ok},
+        {:ok, {:error, :not_found}},
+        {:ok, :ok},
+        {:ok, :ok}
+      ])
+
+      assert {:ok, %LiveParticipant{live_session_id: session_id, user_id: viewer_id}} =
+               Live.join_live_session(
+                 session,
+                 viewer,
+                 :viewer,
+                 runtime_rpc: FakeRuntimeRPC
+               )
+
+      assert session_id == session.id
+      assert viewer_id == viewer.id
+
+      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_lookup_session_server,
+                      [first_lookup_session_id], _opts}
+
+      assert first_lookup_session_id == session.id
+
+      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_join_session_server,
+                      [first_join_session_id, first_join_viewer_id, :viewer], _opts}
+
+      assert first_join_session_id == session.id
+      assert first_join_viewer_id == viewer.id
+
+      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_lookup_session_server,
+                      [retry_lookup_session_id], _opts}
+
+      assert retry_lookup_session_id == session.id
+
+      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_join_session_server,
+                      [retry_join_session_id, retry_join_viewer_id, :viewer], _opts}
+
+      assert retry_join_session_id == session.id
+      assert retry_join_viewer_id == viewer.id
+    end
+
+    test "does not persist a participant row when remote join fails after retry" do
+      host = user_fixture()
+      viewer = user_fixture()
+      session = live_session_fixture(host.id)
+      remote_owner = "remote-owner@127.0.0.1"
+
+      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+
+      configure_runtime_rpc([
+        {:ok, :ok},
+        {:ok, {:error, :not_found}},
+        {:ok, :ok},
+        {:ok, {:error, :not_found}}
+      ])
+
+      assert {:error, :remote_not_found} =
+               Live.join_live_session(
+                 session,
+                 viewer,
+                 :viewer,
+                 runtime_rpc: FakeRuntimeRPC
+               )
+
+      assert is_nil(Repo.get_by(LiveParticipant, live_session_id: session.id, user_id: viewer.id))
+    end
+
     test "routes to remote owner when a stale local runtime process still exists" do
       host = user_fixture()
       viewer = user_fixture()
