@@ -4,6 +4,8 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
   import LC.AccountsFixtures
 
   alias LC.Infra.DataGovernance.Retention
+  alias LCSchemas.Chat.ChatMessage
+  alias LCSchemas.Live.{LiveParticipant, LiveSession}
   alias LCSchemas.Accounts.AuthEvent
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
 
@@ -22,6 +24,12 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
       old_timestamp = ~U[2026-01-15 20:00:00.000000Z]
       recent_timestamp = ~U[2026-03-03 20:00:00.000000Z]
       user = user_fixture()
+      live_host = user_fixture()
+      old_participant_user = user_fixture()
+      recent_participant_user = user_fixture()
+
+      live_session =
+        Repo.insert!(%LiveSession{host_id: live_host.id, status: :live, visibility: :public})
 
       old_auth_event =
         Repo.insert!(%AuthEvent{
@@ -98,6 +106,57 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
       set_webhook_timestamps!(old_webhook_event.id, old_timestamp, old_timestamp)
       set_webhook_timestamps!(recent_webhook_event.id, recent_timestamp, recent_timestamp)
 
+      old_chat_message =
+        Repo.insert!(%ChatMessage{
+          live_session_id: live_session.id,
+          sender_id: old_participant_user.id,
+          body: "old message",
+          kind: :user_message,
+          metadata: %{}
+        })
+
+      recent_chat_message =
+        Repo.insert!(%ChatMessage{
+          live_session_id: live_session.id,
+          sender_id: recent_participant_user.id,
+          body: "recent message",
+          kind: :user_message,
+          metadata: %{}
+        })
+
+      old_live_participant =
+        Repo.insert!(%LiveParticipant{
+          live_session_id: live_session.id,
+          user_id: old_participant_user.id,
+          role: :viewer,
+          joined_at: DateTime.add(old_timestamp, -60, :second),
+          left_at: old_timestamp
+        })
+
+      recent_live_participant =
+        Repo.insert!(%LiveParticipant{
+          live_session_id:
+            Repo.insert!(%LiveSession{
+              host_id: recent_participant_user.id,
+              status: :live,
+              visibility: :public
+            }).id,
+          user_id: live_host.id,
+          role: :viewer,
+          joined_at: DateTime.add(recent_timestamp, -60, :second),
+          left_at: recent_timestamp
+        })
+
+      set_chat_message_timestamps!(old_chat_message.id, old_timestamp)
+      set_chat_message_timestamps!(recent_chat_message.id, recent_timestamp)
+      set_live_participant_timestamps!(old_live_participant.id, old_timestamp, old_timestamp)
+
+      set_live_participant_timestamps!(
+        recent_live_participant.id,
+        recent_timestamp,
+        recent_timestamp
+      )
+
       assert {:ok, report} = Retention.run(cutoff_days: 30, now: now)
       assert report.mode == :dry_run
       assert report.deletion_stubbed?
@@ -106,10 +165,12 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
       assert Enum.map(report.families, & &1.family) == [
                :auth_events,
                :async_jobs,
-               :webhook_events
+               :webhook_events,
+               :chat_messages,
+               :live_participants
              ]
 
-      assert Enum.map(report.families, & &1.eligible_count) == [1, 1, 1]
+      assert Enum.map(report.families, & &1.eligible_count) == [1, 1, 1, 1, 1]
       assert Enum.all?(report.families, &(&1.action == :count_only))
     end
 
@@ -179,6 +240,39 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
       Repo.update_all(
         from(webhook_event in WebhookEvent, where: webhook_event.id == ^webhook_event_id),
         set: [inserted_at: inserted_at, updated_at: inserted_at, processed_at: processed_at]
+      )
+
+    :ok
+  end
+
+  @spec set_chat_message_timestamps!(pos_integer(), DateTime.t()) :: :ok
+  defp set_chat_message_timestamps!(chat_message_id, inserted_at)
+       when is_integer(chat_message_id) and chat_message_id > 0 and
+              is_struct(inserted_at, DateTime) do
+    {_count, _rows} =
+      Repo.update_all(
+        from(chat_message in ChatMessage, where: chat_message.id == ^chat_message_id),
+        set: [inserted_at: inserted_at, updated_at: inserted_at]
+      )
+
+    :ok
+  end
+
+  @spec set_live_participant_timestamps!(pos_integer(), DateTime.t(), DateTime.t() | nil) :: :ok
+  defp set_live_participant_timestamps!(live_participant_id, inserted_at, left_at)
+       when is_integer(live_participant_id) and live_participant_id > 0 and
+              is_struct(inserted_at, DateTime) do
+    {_count, _rows} =
+      Repo.update_all(
+        from(live_participant in LiveParticipant,
+          where: live_participant.id == ^live_participant_id
+        ),
+        set: [
+          inserted_at: inserted_at,
+          updated_at: inserted_at,
+          joined_at: inserted_at,
+          left_at: left_at
+        ]
       )
 
     :ok

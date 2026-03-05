@@ -31,6 +31,8 @@ defmodule Mix.Tasks.Release.RetentionSweepTest do
       assert output =~ "- auth_events: 1 eligible rows"
       assert output =~ "- async_jobs: 0 eligible rows"
       assert output =~ "- webhook_events: 0 eligible rows"
+      assert output =~ "- chat_messages: 0 eligible rows"
+      assert output =~ "- live_participants: 0 eligible rows"
     end
 
     test "apply mode is explicit and remains non-destructive while deletion is stubbed" do

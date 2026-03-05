@@ -5,12 +5,19 @@ defmodule LC.Infra.DataGovernance.Retention do
 
   alias LC.Infra.Repo
   alias LCSchemas.Accounts.AuthEvent
+  alias LCSchemas.Chat.ChatMessage
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
+  alias LCSchemas.Live.LiveParticipant
 
   @seconds_per_day 86_400
   @default_cutoff_days 30
 
-  @type family :: :auth_events | :async_jobs | :webhook_events
+  @type family ::
+          :auth_events
+          | :async_jobs
+          | :webhook_events
+          | :chat_messages
+          | :live_participants
   @type mode :: :dry_run | :apply
   @type action :: :count_only | :stubbed_delete
   @type family_report :: %{
@@ -112,7 +119,8 @@ defmodule LC.Infra.DataGovernance.Retention do
     end)
   end
 
-  defp family_order, do: [:auth_events, :async_jobs, :webhook_events]
+  defp family_order,
+    do: [:auth_events, :async_jobs, :webhook_events, :chat_messages, :live_participants]
 
   @spec count_candidates(family(), DateTime.t()) :: non_neg_integer()
   defp count_candidates(:auth_events, cutoff_at) do
@@ -136,6 +144,20 @@ defmodule LC.Infra.DataGovernance.Retention do
         webhook_event.status in [:processed, :failed] and
           not is_nil(webhook_event.processed_at) and
           webhook_event.processed_at <= ^cutoff_at
+    )
+    |> Repo.aggregate(:count, :id)
+  end
+
+  defp count_candidates(:chat_messages, cutoff_at) do
+    from(chat_message in ChatMessage, where: chat_message.inserted_at <= ^cutoff_at)
+    |> Repo.aggregate(:count, :id)
+  end
+
+  defp count_candidates(:live_participants, cutoff_at) do
+    # Only exited participants are retention candidates; active participation
+    # rows (left_at = nil) are still part of current live-session state.
+    from(live_participant in LiveParticipant,
+      where: not is_nil(live_participant.left_at) and live_participant.left_at <= ^cutoff_at
     )
     |> Repo.aggregate(:count, :id)
   end
