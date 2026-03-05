@@ -3,6 +3,15 @@ defmodule LC.Release.CapacityDrillTest do
 
   alias LC.Release.CapacityDrill
 
+  @thresholds %{
+    feed_mean_latency_ms: 120.0,
+    feed_p95_latency_ms: 180.0,
+    channel_min_delivery_rate: 1.0,
+    channel_p95_latency_ms: 200.0,
+    live_min_success_rate: 1.0,
+    live_p95_latency_ms: 300.0
+  }
+
   describe "run/1" do
     test "returns deterministic drill steps for dry runs" do
       assert {:dry_run, steps} =
@@ -79,6 +88,21 @@ defmodule LC.Release.CapacityDrillTest do
                  dry_run: true,
                  probes: [:unknown]
                )
+    end
+  end
+
+  describe "build_probe_report/3" do
+    test "fails strict delivery thresholds when a single delivery is missing at large sample sizes" do
+      report =
+        CapacityDrill.build_probe_report(
+          :channel,
+          %{sample_size: 2001, success_count: 2000, latency_ms: [1.0]},
+          @thresholds
+        )
+
+      refute report.passed?
+      assert report.delivery_rate < 1.0
+      assert Enum.any?(report.failure_reasons, &String.contains?(&1, "delivery rate"))
     end
   end
 end

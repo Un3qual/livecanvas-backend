@@ -417,7 +417,9 @@ defmodule LC.Release.CapacityDrill do
   defp run_live_probe(%{concurrency_viewers: concurrency_viewers, probe_timeout_ms: timeout_ms})
        when is_integer(concurrency_viewers) and is_integer(timeout_ms) do
     with {:ok, host} <- create_probe_user("capacity-live-host"),
-         {:ok, session} <- Live.start_live_session(host, %{visibility: :public}),
+         # Keep synthetic probe sessions off global discovery while preserving
+         # deterministic join behavior for load checks.
+         {:ok, session} <- Live.start_live_session(host, %{visibility: :followers}),
          {:ok, live_session} <- Live.mark_session_live(session),
          {:ok, viewers} <- create_probe_users("capacity-live-viewer", concurrency_viewers) do
       try do
@@ -558,8 +560,9 @@ defmodule LC.Release.CapacityDrill do
     end
   end
 
+  @doc false
   @spec build_probe_report(probe(), map(), probe_thresholds()) :: probe_report()
-  defp build_probe_report(:feed, metrics, thresholds) do
+  def build_probe_report(:feed, metrics, thresholds) do
     sample_size = Map.fetch!(metrics, :sample_size)
     success_count = Map.fetch!(metrics, :success_count)
     latencies = Map.fetch!(metrics, :latency_ms)
@@ -594,7 +597,7 @@ defmodule LC.Release.CapacityDrill do
     }
   end
 
-  defp build_probe_report(:channel, metrics, thresholds) do
+  def build_probe_report(:channel, metrics, thresholds) do
     sample_size = Map.fetch!(metrics, :sample_size)
     success_count = Map.fetch!(metrics, :success_count)
     latencies = Map.fetch!(metrics, :latency_ms)
@@ -630,7 +633,7 @@ defmodule LC.Release.CapacityDrill do
     }
   end
 
-  defp build_probe_report(:live, metrics, thresholds) do
+  def build_probe_report(:live, metrics, thresholds) do
     sample_size = Map.fetch!(metrics, :sample_size)
     success_count = Map.fetch!(metrics, :success_count)
     latencies = Map.fetch!(metrics, :latency_ms)
@@ -758,9 +761,7 @@ defmodule LC.Release.CapacityDrill do
   @spec ratio(non_neg_integer(), pos_integer()) :: float()
   defp ratio(numerator, denominator)
        when is_integer(numerator) and is_integer(denominator) and denominator > 0 do
-    numerator
-    |> Kernel./(denominator)
-    |> Float.round(3)
+    numerator / denominator
   end
 
   @spec monotonic_elapsed_ms(integer()) :: float()
