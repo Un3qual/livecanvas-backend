@@ -8,6 +8,7 @@ Use this directory for active and in-progress planning artifacts.
 
 ## Recently Completed
 
+- Live chat + moderation operational limits: `docs/plans/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md` (channel `chat:send` throughput limits and moderation-mutation-specific GraphQL limits delivered)
 - Account-recovery password reset foundation: `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md` (Accounts recovery primitives, web reset-password flow, and GraphQL recovery mutations delivered)
 - Live runtime heartbeat/failover hardening plan: `docs/plans/release/2026-03-04-live-runtime-heartbeat-and-failover-hardening.md` (lease heartbeat, stale-runtime handoff cleanup, and reconnect-safety regressions delivered)
 - Auth audit provider/recovery expansion plan: `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md` (provider identity unlink coverage delivered; recovery workflow follow-up now landed in the 2026-03-05 plan)

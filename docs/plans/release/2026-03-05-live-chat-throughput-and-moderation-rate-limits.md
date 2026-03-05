@@ -38,7 +38,7 @@ This slice directly addresses an active roadmap item with a bounded, low-risk tr
 
 - [x] Task 1: Add explicit `chat:send` throughput rate limiting in `LiveSessionChannel`
 - [x] Task 2: Add moderation-action-specific GraphQL mutation rate limiting
-- [ ] Task 3: Run focused verification, update roadmap/index tracking, and finalize milestone
+- [x] Task 3: Run focused verification, update roadmap/index tracking, and finalize milestone
 
 ### Task 1: Chat Send Throughput Limits (Current Batch)
 
@@ -90,6 +90,10 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/README.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Run final verification for touched slices (`mix compile`, focused `mix test`, `mix typecheck`)
-- [ ] Step 2: Update roadmap and plans index to reflect delivered operational limits and remaining follow-ups
-- [ ] Step 3: Mark checklist completion and commit final milestone
+- [x] Step 1: Run final verification for touched slices (`mix compile`, focused `mix test`, `mix typecheck`)
+- [x] Step 2: Update roadmap and plans index to reflect delivered operational limits and remaining follow-ups
+- [x] Step 3: Mark checklist completion and commit final milestone
+
+Verification evidence (2026-03-05):
+
+- `mix compile && mix test test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs && mix typecheck` -> PASS (`15 tests, 0 failures`; `Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)

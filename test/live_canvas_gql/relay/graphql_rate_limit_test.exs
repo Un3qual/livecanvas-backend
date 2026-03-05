@@ -86,4 +86,53 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
              ]
            } = Jason.decode!(second_conn.resp_body)
   end
+
+  test "keeps moderation and generic mutation buckets independent", %{conn: conn} do
+    previous_config = Application.get_env(:live_canvas, LCWeb.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LCWeb.RateLimiter,
+      limits: [
+        graphql_mutation: [limit: 1, window_ms: 60_000],
+        moderation_action: [limit: 1, window_ms: 60_000],
+        auth_login: [limit: 10, window_ms: 60_000],
+        channel_join: [limit: 10, window_ms: 60_000],
+        chat_send: [limit: 10, window_ms: 60_000]
+      ]
+    )
+
+    LCWeb.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LCWeb.RateLimiter, previous_config)
+      LCWeb.RateLimiter.reset!()
+    end)
+
+    conn = %{conn | remote_ip: {127, 0, 0, 1}}
+
+    moderation_mutation = """
+    mutation {
+      muteUser(input: { mutedId: \"123\" }) {
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    generic_mutation = "mutation { __typename }"
+
+    first_moderation = post(conn, "/graphql", %{"query" => moderation_mutation})
+    assert first_moderation.status == 200
+
+    first_generic = post(conn, "/graphql", %{"query" => generic_mutation})
+    assert first_generic.status == 200
+
+    second_moderation = post(conn, "/graphql", %{"query" => moderation_mutation})
+    assert second_moderation.status == 429
+
+    second_generic = post(conn, "/graphql", %{"query" => generic_mutation})
+    assert second_generic.status == 429
+  end
 end
