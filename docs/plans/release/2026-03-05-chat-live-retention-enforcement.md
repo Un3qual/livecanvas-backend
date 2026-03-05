@@ -35,7 +35,7 @@ This batch addresses an active roadmap gap with bounded risk and no schema churn
 ## Progress
 
 - [x] Task 1: Add `chat_messages` and `live_participants` retention candidate coverage
-- [ ] Task 2: Encode policy-aligned per-family retention windows and report output
+- [x] Task 2: Encode policy-aligned per-family retention windows and report output
 - [ ] Task 3: Evaluate safe apply-mode enforcement rollout path (feature gates + hold semantics) and track follow-up
 
 ### Task 1: Add Chat/Live Retention Candidate Coverage (Current Batch)
@@ -59,7 +59,7 @@ Verification evidence (2026-03-05):
 - `mix compile` -> PASS
 - `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
-### Task 2: Policy Window Alignment (Planned)
+### Task 2: Policy Window Alignment
 
 **Files:**
 - Modify: `lib/live_canvas/infra/data_governance/retention.ex`
@@ -70,11 +70,17 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-chat-live-retention-enforcement.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing tests for policy defaults (`auth_events` 365, `webhook_events` 90, `async_jobs` 30, `chat_messages` 180, `live_participants` 180) and CLI override behavior
-- [ ] Step 2: Run focused tests to verify RED
-- [ ] Step 3: Implement per-family cutoff resolution and report formatting updates
-- [ ] Step 4: Run focused tests to verify GREEN
-- [ ] Step 5: Run `mix test` on retention slices + `mix typecheck`, update checklist, and commit milestone
+- [x] Step 1: Add failing tests for policy defaults (`auth_events` 365, `webhook_events` 90, `async_jobs` 30, `chat_messages` 180, `live_participants` 180) and CLI override behavior
+- [x] Step 2: Run focused tests to verify RED
+- [x] Step 3: Implement per-family cutoff resolution and report formatting updates
+- [x] Step 4: Run focused tests to verify GREEN
+- [x] Step 5: Run `mix test` on retention slices + `mix typecheck`, update checklist, and commit milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas/infra/data_governance_retention_test.exs test/live_canvas/release/retention_sweep_task_test.exs` -> RED first (`10 tests, 5 failures`) and GREEN after implementation (`10 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 3: Apply-Mode Enforcement Follow-Up (Planned)
 

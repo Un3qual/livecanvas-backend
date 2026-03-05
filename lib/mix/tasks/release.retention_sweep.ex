@@ -12,7 +12,7 @@ defmodule Mix.Tasks.Release.RetentionSweep do
 
     * `--dry-run` - print candidate counts only (default mode)
     * `--apply` - explicit apply mode (currently stubbed and non-destructive)
-    * `--cutoff-days` - positive integer cutoff window in days
+    * `--cutoff-days` - positive integer override cutoff window in days for all families
   """
 
   @switches [dry_run: :boolean, apply: :boolean, cutoff_days: :integer]
@@ -50,12 +50,20 @@ defmodule Mix.Tasks.Release.RetentionSweep do
   @spec print_report(Retention.report()) :: :ok
   defp print_report(report) when is_map(report) do
     Mix.shell().info("Retention sweep mode: #{report.mode}")
-    Mix.shell().info("Cutoff days: #{report.cutoff_days}")
-    Mix.shell().info("Cutoff timestamp (UTC): #{DateTime.to_iso8601(report.cutoff_at)}")
+    Mix.shell().info("Evaluation timestamp (UTC): #{DateTime.to_iso8601(report.evaluated_at)}")
+
+    case report.cutoff_strategy do
+      :policy_defaults ->
+        Mix.shell().info("Cutoff strategy: policy_defaults")
+
+      :override ->
+        Mix.shell().info("Cutoff days override: #{report.cutoff_days}")
+        Mix.shell().info("Cutoff timestamp (UTC): #{DateTime.to_iso8601(report.cutoff_at)}")
+    end
 
     Enum.each(report.families, fn family ->
       Mix.shell().info(
-        "- #{family.table}: #{family.eligible_count} eligible rows (#{format_action(family.action)})"
+        "- #{family.table}: #{family.eligible_count} eligible rows (#{format_action(family.action)}, cutoff_days=#{family.cutoff_days}, cutoff_at=#{DateTime.to_iso8601(family.cutoff_at)})"
       )
     end)
 

@@ -193,7 +193,7 @@ The previous webhook/async-job planning hole is now closed by `docs/plans/releas
 Remaining tracked gaps:
 
 - Multi-node failover drills and reconnect consistency under real partition/rejoin scenarios remain unplanned implementation work.
-- Chat/live participation retention enforcement is now tracked by `docs/plans/release/2026-03-05-chat-live-retention-enforcement.md`; Task 1 candidate coverage landed, while policy-window alignment and apply-mode rollout controls remain pending.
+- Chat/live participation retention enforcement is now tracked by `docs/plans/release/2026-03-05-chat-live-retention-enforcement.md`; Tasks 1-2 (candidate coverage + policy-window alignment) are delivered, while apply-mode rollout controls remain pending.
 - Compliance hard-delete enablement follow-up remains intentionally paused by operator direction; do not resume until that pause is explicitly lifted.
 
 ## Evidence Notes On Key Blockers

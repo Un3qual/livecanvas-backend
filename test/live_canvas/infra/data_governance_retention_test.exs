@@ -17,6 +17,11 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
 
       assert report.cutoff_days == 10
       assert report.cutoff_at == ~U[2026-02-22 18:45:12.123456Z]
+      assert Enum.uniq(Enum.map(report.families, &Map.fetch!(&1, :cutoff_days))) == [10]
+
+      assert Enum.uniq(Enum.map(report.families, &Map.fetch!(&1, :cutoff_at))) == [
+               report.cutoff_at
+             ]
     end
 
     test "reports deterministic table ordering and candidate counts" do
@@ -172,6 +177,192 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
 
       assert Enum.map(report.families, & &1.eligible_count) == [1, 1, 1, 1, 1]
       assert Enum.all?(report.families, &(&1.action == :count_only))
+      assert Enum.uniq(Enum.map(report.families, &Map.fetch!(&1, :cutoff_days))) == [30]
+
+      assert Enum.uniq(Enum.map(report.families, &Map.fetch!(&1, :cutoff_at))) == [
+               report.cutoff_at
+             ]
+    end
+
+    test "uses policy cutoff windows per family when cutoff-days override is omitted" do
+      now = ~U[2026-03-05 00:00:00.000000Z]
+      user = user_fixture()
+
+      # auth_events policy: 365 days
+      old_auth_event =
+        Repo.insert!(%AuthEvent{
+          event_type: :password_login_succeeded,
+          user_id: user.id,
+          metadata: %{}
+        })
+
+      recent_auth_event =
+        Repo.insert!(%AuthEvent{
+          event_type: :password_login_failed,
+          user_id: user.id,
+          metadata: %{}
+        })
+
+      set_auth_event_inserted_at!(old_auth_event.id, DateTime.add(now, -(366 * 86_400), :second))
+
+      set_auth_event_inserted_at!(
+        recent_auth_event.id,
+        DateTime.add(now, -(300 * 86_400), :second)
+      )
+
+      # async_jobs policy: 30 days
+      old_async_job =
+        Repo.insert!(%AsyncJob{
+          kind: "retention-default-policy",
+          status: :completed,
+          payload: %{},
+          attempts: 1,
+          max_attempts: 3,
+          scheduled_at: DateTime.add(now, -(40 * 86_400), :second),
+          completed_at: DateTime.add(now, -(40 * 86_400), :second)
+        })
+
+      recent_async_job =
+        Repo.insert!(%AsyncJob{
+          kind: "retention-default-policy",
+          status: :completed,
+          payload: %{},
+          attempts: 1,
+          max_attempts: 3,
+          scheduled_at: DateTime.add(now, -(10 * 86_400), :second),
+          completed_at: DateTime.add(now, -(10 * 86_400), :second)
+        })
+
+      set_async_job_timestamps!(
+        old_async_job.id,
+        DateTime.add(now, -(40 * 86_400), :second),
+        DateTime.add(now, -(40 * 86_400), :second)
+      )
+
+      set_async_job_timestamps!(
+        recent_async_job.id,
+        DateTime.add(now, -(10 * 86_400), :second),
+        DateTime.add(now, -(10 * 86_400), :second)
+      )
+
+      # webhook_events policy: 90 days
+      old_webhook_event =
+        Repo.insert!(%WebhookEvent{
+          provider: "media",
+          external_event_id: Ecto.UUID.generate(),
+          event_type: "processed",
+          status: :processed,
+          payload: %{},
+          received_at: DateTime.add(now, -(100 * 86_400), :second),
+          processed_at: DateTime.add(now, -(100 * 86_400), :second)
+        })
+
+      recent_webhook_event =
+        Repo.insert!(%WebhookEvent{
+          provider: "media",
+          external_event_id: Ecto.UUID.generate(),
+          event_type: "processed",
+          status: :processed,
+          payload: %{},
+          received_at: DateTime.add(now, -(50 * 86_400), :second),
+          processed_at: DateTime.add(now, -(50 * 86_400), :second)
+        })
+
+      set_webhook_timestamps!(
+        old_webhook_event.id,
+        DateTime.add(now, -(100 * 86_400), :second),
+        DateTime.add(now, -(100 * 86_400), :second)
+      )
+
+      set_webhook_timestamps!(
+        recent_webhook_event.id,
+        DateTime.add(now, -(50 * 86_400), :second),
+        DateTime.add(now, -(50 * 86_400), :second)
+      )
+
+      host = user_fixture()
+      sender = user_fixture()
+      participant = user_fixture()
+
+      live_session =
+        Repo.insert!(%LiveSession{host_id: host.id, status: :live, visibility: :public})
+
+      # chat_messages policy: 180 days
+      old_chat_message =
+        Repo.insert!(%ChatMessage{
+          live_session_id: live_session.id,
+          sender_id: sender.id,
+          body: "old policy chat message",
+          kind: :user_message,
+          metadata: %{}
+        })
+
+      recent_chat_message =
+        Repo.insert!(%ChatMessage{
+          live_session_id: live_session.id,
+          sender_id: sender.id,
+          body: "recent policy chat message",
+          kind: :user_message,
+          metadata: %{}
+        })
+
+      set_chat_message_timestamps!(
+        old_chat_message.id,
+        DateTime.add(now, -(200 * 86_400), :second)
+      )
+
+      set_chat_message_timestamps!(
+        recent_chat_message.id,
+        DateTime.add(now, -(90 * 86_400), :second)
+      )
+
+      # live_participants policy: 180 days
+      old_live_participant =
+        Repo.insert!(%LiveParticipant{
+          live_session_id: live_session.id,
+          user_id: participant.id,
+          role: :viewer,
+          joined_at: DateTime.add(now, -(200 * 86_400 + 60), :second),
+          left_at: DateTime.add(now, -(200 * 86_400), :second)
+        })
+
+      recent_live_participant =
+        Repo.insert!(%LiveParticipant{
+          live_session_id:
+            Repo.insert!(%LiveSession{host_id: sender.id, status: :live, visibility: :public}).id,
+          user_id: host.id,
+          role: :viewer,
+          joined_at: DateTime.add(now, -(90 * 86_400 + 60), :second),
+          left_at: DateTime.add(now, -(90 * 86_400), :second)
+        })
+
+      set_live_participant_timestamps!(
+        old_live_participant.id,
+        DateTime.add(now, -(200 * 86_400), :second),
+        DateTime.add(now, -(200 * 86_400), :second)
+      )
+
+      set_live_participant_timestamps!(
+        recent_live_participant.id,
+        DateTime.add(now, -(90 * 86_400), :second),
+        DateTime.add(now, -(90 * 86_400), :second)
+      )
+
+      assert {:ok, report} = Retention.run(now: now)
+
+      assert report.cutoff_days == nil
+      assert report.cutoff_at == nil
+
+      assert Enum.map(report.families, & &1.family) == [
+               :auth_events,
+               :async_jobs,
+               :webhook_events,
+               :chat_messages,
+               :live_participants
+             ]
+
+      assert Enum.map(report.families, &Map.fetch!(&1, :cutoff_days)) == [365, 30, 90, 180, 180]
+      assert Enum.map(report.families, & &1.eligible_count) == [1, 1, 1, 1, 1]
     end
 
     test "apply mode remains non-destructive and marks each table as stubbed" do

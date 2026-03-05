@@ -10,7 +10,13 @@ defmodule LC.Infra.DataGovernance.Retention do
   alias LCSchemas.Live.LiveParticipant
 
   @seconds_per_day 86_400
-  @default_cutoff_days 30
+  @default_family_cutoff_days [
+    auth_events: 365,
+    async_jobs: 30,
+    webhook_events: 90,
+    chat_messages: 180,
+    live_participants: 180
+  ]
 
   @type family ::
           :auth_events
@@ -19,17 +25,22 @@ defmodule LC.Infra.DataGovernance.Retention do
           | :chat_messages
           | :live_participants
   @type mode :: :dry_run | :apply
+  @type cutoff_strategy :: :policy_defaults | :override
   @type action :: :count_only | :stubbed_delete
   @type family_report :: %{
           family: family(),
           table: String.t(),
+          cutoff_days: pos_integer(),
+          cutoff_at: DateTime.t(),
           eligible_count: non_neg_integer(),
           action: action()
         }
   @type report :: %{
           mode: mode(),
-          cutoff_days: pos_integer(),
-          cutoff_at: DateTime.t(),
+          cutoff_strategy: cutoff_strategy(),
+          cutoff_days: pos_integer() | nil,
+          cutoff_at: DateTime.t() | nil,
+          evaluated_at: DateTime.t(),
           deletion_stubbed?: true,
           families: [family_report()]
         }
@@ -45,17 +56,22 @@ defmodule LC.Infra.DataGovernance.Retention do
   @spec run(keyword()) :: {:ok, report()} | {:error, run_error()}
   def run(opts \\ []) when is_list(opts) do
     with {:ok, mode} <- normalize_mode(opts),
-         {:ok, cutoff_days} <- normalize_cutoff_days(opts) do
-      now = normalize_now(Keyword.get(opts, :now))
-      cutoff_at = cutoff_at(now, cutoff_days)
+         {:ok, cutoff_days_override} <- normalize_cutoff_days_override(opts) do
+      evaluated_at = normalize_now(Keyword.get(opts, :now))
+
+      {cutoff_strategy, cutoff_days, cutoff_at} =
+        report_cutoff_summary(evaluated_at, cutoff_days_override)
+
       action = action_for_mode(mode)
-      families = build_family_reports(cutoff_at, action)
+      families = build_family_reports(evaluated_at, cutoff_days_override, action)
 
       {:ok,
        %{
          mode: mode,
+         cutoff_strategy: cutoff_strategy,
          cutoff_days: cutoff_days,
          cutoff_at: cutoff_at,
+         evaluated_at: evaluated_at,
          deletion_stubbed?: true,
          families: families
        }}
@@ -79,15 +95,19 @@ defmodule LC.Infra.DataGovernance.Retention do
     end
   end
 
-  @spec normalize_cutoff_days(keyword()) :: {:ok, pos_integer()} | {:error, run_error()}
-  defp normalize_cutoff_days(opts) when is_list(opts) do
-    cutoff_days =
-      Keyword.get(opts, :cutoff_days, config_value(:default_cutoff_days, @default_cutoff_days))
+  @spec normalize_cutoff_days_override(keyword()) ::
+          {:ok, pos_integer() | nil} | {:error, run_error()}
+  defp normalize_cutoff_days_override(opts) when is_list(opts) do
+    if Keyword.has_key?(opts, :cutoff_days) do
+      cutoff_days = Keyword.get(opts, :cutoff_days)
 
-    if is_integer(cutoff_days) and cutoff_days > 0 do
-      {:ok, cutoff_days}
+      if is_integer(cutoff_days) and cutoff_days > 0 do
+        {:ok, cutoff_days}
+      else
+        {:error, :invalid_cutoff_days}
+      end
     else
-      {:error, :invalid_cutoff_days}
+      {:ok, nil}
     end
   end
 
@@ -106,13 +126,21 @@ defmodule LC.Infra.DataGovernance.Retention do
   defp action_for_mode(:dry_run), do: :count_only
   defp action_for_mode(:apply), do: :stubbed_delete
 
-  @spec build_family_reports(DateTime.t(), action()) :: [family_report()]
-  defp build_family_reports(cutoff_at, action) when is_struct(cutoff_at, DateTime) do
+  @spec build_family_reports(DateTime.t(), pos_integer() | nil, action()) :: [family_report()]
+  defp build_family_reports(evaluated_at, cutoff_days_override, action)
+       when is_struct(evaluated_at, DateTime) do
+    configured_cutoffs = family_cutoff_days_map()
+
     family_order()
     |> Enum.map(fn family ->
+      cutoff_days = cutoff_days_override || Map.fetch!(configured_cutoffs, family)
+      cutoff_at = cutoff_at(evaluated_at, cutoff_days)
+
       %{
         family: family,
         table: Atom.to_string(family),
+        cutoff_days: cutoff_days,
+        cutoff_at: cutoff_at,
         eligible_count: count_candidates(family, cutoff_at),
         action: action
       }
@@ -160,6 +188,40 @@ defmodule LC.Infra.DataGovernance.Retention do
       where: not is_nil(live_participant.left_at) and live_participant.left_at <= ^cutoff_at
     )
     |> Repo.aggregate(:count, :id)
+  end
+
+  @spec report_cutoff_summary(DateTime.t(), pos_integer() | nil) ::
+          {cutoff_strategy(), pos_integer() | nil, DateTime.t() | nil}
+  defp report_cutoff_summary(evaluated_at, nil) when is_struct(evaluated_at, DateTime),
+    do: {:policy_defaults, nil, nil}
+
+  defp report_cutoff_summary(evaluated_at, cutoff_days)
+       when is_struct(evaluated_at, DateTime) and is_integer(cutoff_days) and cutoff_days > 0 do
+    {:override, cutoff_days, cutoff_at(evaluated_at, cutoff_days)}
+  end
+
+  @spec family_cutoff_days_map() :: %{required(family()) => pos_integer()}
+  defp family_cutoff_days_map do
+    configured_cutoff_days =
+      config_value(:family_cutoff_days, @default_family_cutoff_days)
+
+    Enum.reduce(@default_family_cutoff_days, %{}, fn {family, default_cutoff_days}, acc ->
+      configured_value =
+        if Keyword.keyword?(configured_cutoff_days) do
+          Keyword.get(configured_cutoff_days, family, default_cutoff_days)
+        else
+          default_cutoff_days
+        end
+
+      cutoff_days =
+        if is_integer(configured_value) and configured_value > 0 do
+          configured_value
+        else
+          default_cutoff_days
+        end
+
+      Map.put(acc, family, cutoff_days)
+    end)
   end
 
   defp config_value(key, default) when is_atom(key) do

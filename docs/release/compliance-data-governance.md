@@ -49,10 +49,11 @@ This runbook defines the v1 baseline for data export, account deletion, and rete
 
 ### Retention Sweeper Execution
 
-1. Dry run first (`mix release.retention_sweep --dry-run --cutoff-days <n>`).
-2. Review per-table candidate counts and cutoff timestamp.
-3. Apply mode is explicit but currently non-destructive (`mix release.retention_sweep --apply --cutoff-days <n>`).
-4. Record candidate counts, cutoff, and legal-hold/incident-hold exceptions; note `deletion_stubbed=true`.
+1. Dry run first (`mix release.retention_sweep --dry-run`); this uses policy defaults per family (`auth_events` 365d, `webhook_events` 90d, `async_jobs` 30d, `chat_messages` 180d, `live_participants` 180d).
+2. Use `--cutoff-days <n>` only for explicit uniform-window override drills across all families.
+3. Review per-table candidate counts and family cutoff metadata.
+4. Apply mode is explicit but currently non-destructive (`mix release.retention_sweep --apply [--cutoff-days <n>]`).
+5. Record candidate counts, cutoff windows, and legal-hold/incident-hold exceptions; note `deletion_stubbed=true`.
 
 ## Baseline Control Requirements
 
