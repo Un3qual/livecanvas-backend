@@ -5,10 +5,10 @@ Use this directory for active and in-progress planning artifacts.
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Phase 5 capacity verification + launch gate wiring: `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`
 
 ## Recently Completed
 
+- Phase 5 capacity verification + launch gate wiring: `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md` (deterministic `mix release.capacity_drill` probes delivered, `mix release.gates` sequencing updated, and capacity runbook guidance published)
 - Content post lifecycle mutations: `docs/plans/release/2026-03-05-content-post-lifecycle-mutations.md` (viewer-scoped `updatePost`/`deletePost` delivery with context + Relay regression coverage)
 - Live runtime partition/rejoin drills: `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md` (reconnect consistency hardening, peer-node partition/takeover integration coverage, and `mix release.live_runtime_drill` operator runbook/command delivered)
 - Chat/live retention enforcement: `docs/plans/release/2026-03-05-chat-live-retention-enforcement.md` (retention candidate coverage, policy-window alignment, and apply-mode rollout guardrails delivered; hard deletion remains deferred)

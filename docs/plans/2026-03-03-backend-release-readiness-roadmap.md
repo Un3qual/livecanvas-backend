@@ -8,7 +8,7 @@
   - `mix test` -> PASS (`426 tests, 0 failures, 1 excluded`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
-- Plan tracking state: release-track plans now include delivered account-recovery password reset coverage, live chat/moderation rate-limit hardening, live runtime partition/rejoin drill coverage, and viewer-scoped post lifecycle mutations (`docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`, `docs/plans/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`, `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md`, `docs/plans/release/2026-03-05-content-post-lifecycle-mutations.md`) alongside media upload callback-driven async processing and deployment/rollback runbooks (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`).
+- Plan tracking state: release-track plans now include delivered account-recovery password reset coverage, live chat/moderation rate-limit hardening, live runtime partition/rejoin drill coverage, viewer-scoped post lifecycle mutations, and Phase 5 capacity verification + launch-gate wiring (`docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`, `docs/plans/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`, `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md`, `docs/plans/release/2026-03-05-content-post-lifecycle-mutations.md`, `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`) alongside media upload callback-driven async processing and deployment/rollback runbooks (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`).
 
 ## What Has Been Delivered
 
@@ -118,6 +118,7 @@ Per architecture decisions, these remain intentionally deferred and should not b
 - `docs/plans/release/2026-03-04-compliance-data-governance.md`
 - `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`
 - `docs/plans/release/2026-03-05-content-post-lifecycle-mutations.md`
+- `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`
 
 ## Release Roadmap (From Current State To Releasable Backend)
 
@@ -182,7 +183,7 @@ Mobile parallel:
 
 - Production observability: metrics, tracing/log correlation, actionable dashboards/alerts.
 - Reliability runbooks: incident handling, rollback, migration safety, backup/restore drills.
-- Performance and capacity verification (feed query load, channel fanout, live-session concurrency).
+- Performance and capacity verification (feed query load, channel fanout, live-session concurrency) is now delivered via `mix release.capacity_drill`, `mix release.gates`, and runbook guidance in `docs/release/performance-capacity-verification.md`.
 - Release checklist and staged rollout plan (internal dogfood -> beta -> GA).
 
 Mobile parallel:
@@ -202,6 +203,7 @@ Remaining tracked gaps:
 - Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, credential change emissions, provider identity unlink outcomes, and account-recovery request/reset outcomes in `lib/live_canvas/accounts.ex`) with transport coverage in `lib/live_canvas_web/controllers/user_reset_password_controller.ex` and `lib/live_canvas_gql/accounts/account_resolver.ex`, plus tests in `test/live_canvas/accounts/auth_event_test.exs`, `test/live_canvas/accounts_test.exs`, `test/live_canvas_web/controllers/user_reset_password_controller_test.exs`, `test/live_canvas_gql/accounts/account_mutations_test.exs`, and `test/live_canvas_gql/accounts/account_queries_test.exs`.
 - Live runtime ownership now uses durable leases plus remote-owner routing and lease heartbeat refresh (`lib/live_canvas/live/session_ownership.ex`, `lib/live_canvas/live/runtime_rpc.ex`, `lib/live_canvas/live/session_supervisor.ex`, `lib/live_canvas/live/session_server.ex`) with channel-facing `session_unavailable` normalization for remote runtime failures and stale-local-runtime handoff cleanup.
 - Runtime partition/rejoin drill hardening is implemented via reconnect-consistency join safeguards in `LC.Live.join_live_session/4`, real peer-node partition/takeover integration coverage (`test/integration/live/runtime_partition_rejoin_test.exs`), and operator-facing deterministic drill planning/task support (`lib/live_canvas/release/live_runtime_drill.ex`, `lib/mix/tasks/release.live_runtime_drill.ex`, `docs/release/live-runtime-failover-drills.md`).
+- Phase 5 capacity verification is implemented via deterministic probe planning/execution (`lib/live_canvas/release/capacity_drill.ex`, `lib/mix/tasks/release.capacity_drill.ex`), release-gate integration (`lib/live_canvas/release/gates.ex`), and runbook evidence/override guidance (`docs/release/performance-capacity-verification.md`, `docs/release/deployment-gates.md`).
 - Webhook + async-job delivery is implemented via signed webhook ingress (`lib/live_canvas_web/controllers/webhook_controller.ex`), durable async-job persistence (`lib/live_canvas/infra/async_jobs.ex`), supervised worker processing (`lib/live_canvas/infra/async_jobs/worker.ex`), and integration coverage (`test/integration/media_webhook_async_flow_test.exs`).
 - Operational abuse limits are implemented for channel chat sends (`:chat_send`) and moderation mutations (`:moderation_action`) through `LCWeb.RateLimiter` + transport enforcement in `lib/live_canvas_web/channels/live_session_channel.ex` and `lib/live_canvas_web/plugs/graphql_mutation_rate_limit.ex`, with coverage in `test/live_canvas_web/channels/live_session_channel_test.exs` and `test/live_canvas_gql/relay/graphql_rate_limit_test.exs`.
 - Content lifecycle writes now include viewer-scoped post update/delete APIs in `LC.Content` plus Relay mutations in `LCGQL.Content` (`lib/live_canvas/content.ex`, `lib/live_canvas_gql/content/content_mutations.ex`, `lib/live_canvas_gql/content/content_resolver.ex`) with regression coverage in `test/live_canvas/content_test.exs` and `test/live_canvas_gql/content/content_mutations_test.exs`.

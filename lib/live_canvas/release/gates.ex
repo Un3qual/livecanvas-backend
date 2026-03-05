@@ -13,7 +13,9 @@ defmodule LC.Release.Gates do
       %{task: "compile", args: ["--warnings-as-errors"]},
       %{task: "test", args: []},
       %{task: "typecheck", args: []},
-      %{task: "boundary.spec", args: []}
+      %{task: "boundary.spec", args: []},
+      # Capacity drill requires explicit confirmation outside test environments.
+      %{task: "release.capacity_drill", args: ["--confirm"]}
     ]
   end
 

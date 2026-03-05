@@ -20,6 +20,7 @@ defmodule LC.Release.GatesTest do
       assert_receive {:gate_step, "test", []}
       assert_receive {:gate_step, "typecheck", []}
       assert_receive {:gate_step, "boundary.spec", []}
+      assert_receive {:gate_step, "release.capacity_drill", ["--confirm"]}
       refute_receive {:gate_step, _, _}
     end
 
@@ -42,6 +43,7 @@ defmodule LC.Release.GatesTest do
       assert_receive {:gate_step, "test", []}
       refute_receive {:gate_step, "typecheck", []}
       refute_receive {:gate_step, "boundary.spec", []}
+      refute_receive {:gate_step, "release.capacity_drill", ["--confirm"]}
     end
   end
 
@@ -57,6 +59,7 @@ defmodule LC.Release.GatesTest do
       assert output =~ "mix test"
       assert output =~ "mix typecheck"
       assert output =~ "mix boundary.spec"
+      assert output =~ "mix release.capacity_drill --confirm"
     end
   end
 end

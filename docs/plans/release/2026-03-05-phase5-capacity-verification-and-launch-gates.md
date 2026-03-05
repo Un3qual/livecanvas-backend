@@ -37,7 +37,7 @@ This slice closes the highest-priority remaining non-`Content` launch-readiness 
 
 - [x] Task 1: Add deterministic `release.capacity_drill` planner and Mix task wrapper
 - [x] Task 2: Implement feed/channel/live capacity probes with focused verification tests
-- [ ] Task 3: Wire capacity drill into release gates and runbooks; finalize verification and tracking updates
+- [x] Task 3: Wire capacity drill into release gates and runbooks; finalize verification and tracking updates
 
 ### Task 1: Add Deterministic `release.capacity_drill` Planner And Mix Task Wrapper (Current Batch)
 
@@ -138,8 +138,14 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing gate/runbook-link tests (if applicable) for capacity drill inclusion in preflight sequencing
-- [ ] Step 2: Run focused release gate tests to verify RED
-- [ ] Step 3: Add capacity drill gate step + runbook docs with evidence template and threshold override guidance
-- [ ] Step 4: Run release gate tests and command dry-runs to verify GREEN
-- [ ] Step 5: Run final verification (`mix compile`, focused `mix test`, `mix typecheck`, `mix precommit`), update roadmap/index, mark checklist completion, and commit final milestone
+- [x] Step 1: Add failing gate/runbook-link tests (if applicable) for capacity drill inclusion in preflight sequencing
+- [x] Step 2: Run focused release gate tests to verify RED
+- [x] Step 3: Add capacity drill gate step + runbook docs with evidence template and threshold override guidance
+- [x] Step 4: Run release gate tests and command dry-runs to verify GREEN
+- [x] Step 5: Run final verification (`mix compile`, focused `mix test`, `mix typecheck`, `mix precommit`), update roadmap/index, mark checklist completion, and commit final milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas/release/gates_test.exs` -> RED first (`3 tests, 2 failures`) after asserting the new capacity gate step, then GREEN after gate wiring (`3 tests, 0 failures`)
+- `mix release.gates --dry-run` -> PASS; dry-run order now includes `mix release.capacity_drill --confirm` after `mix boundary.spec`
+- `MIX_ENV=test mix release.capacity_drill --dry-run` -> PASS with deterministic feed/channel/live probe step ordering
