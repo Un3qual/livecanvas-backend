@@ -156,7 +156,8 @@ Mobile parallel:
 ### Phase 3: Live/Chat Runtime Productionization
 
 - Distributed live runtime ownership baseline is now delivered (lease table + remote-owner join routing + channel-safe client error mapping).
-- Extend the baseline with heartbeat/lease-refresh strategy, multi-node failover drills, and reconnect consistency under partition/rejoin scenarios.
+- Heartbeat/lease-refresh hardening and stale-local-runtime handoff routing are now delivered via `docs/plans/release/2026-03-04-live-runtime-heartbeat-and-failover-hardening.md`.
+- Multi-node failover drills and reconnect consistency under partition/rejoin scenarios remain as follow-up hardening.
 - Add reconnect/rejoin consistency guarantees and conflict resolution rules.
 - Add operational limits for chat throughput and moderation actions.
 - Decide retention policy for chat/live participation records.
@@ -190,14 +191,13 @@ The previous webhook/async-job planning hole is now closed by `docs/plans/releas
 
 Remaining tracked gaps:
 
-- Provider identity unlink auth audit expansion is now delivered via `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md`.
 - Account-recovery auth audit expansion remains deferred until a concrete recovery workflow enters v1 scope.
 - Compliance hard-delete enablement follow-up remains intentionally paused by operator direction; do not resume until that pause is explicitly lifted.
 
 ## Evidence Notes On Key Blockers
 
 - Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, credential change emissions, and provider identity unlink outcomes in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`, `test/live_canvas/accounts_test.exs`, `test/live_canvas_gql/accounts/account_mutations_test.exs`, and `test/live_canvas_gql/accounts/account_queries_test.exs`.
-- Live runtime ownership now uses durable leases plus remote-owner routing (`lib/live_canvas/live/session_ownership.ex`, `lib/live_canvas/live/runtime_rpc.ex`, `lib/live_canvas/live/session_supervisor.ex`) with channel-facing `session_unavailable` normalization for remote runtime failures.
+- Live runtime ownership now uses durable leases plus remote-owner routing and lease heartbeat refresh (`lib/live_canvas/live/session_ownership.ex`, `lib/live_canvas/live/runtime_rpc.ex`, `lib/live_canvas/live/session_supervisor.ex`, `lib/live_canvas/live/session_server.ex`) with channel-facing `session_unavailable` normalization for remote runtime failures and stale-local-runtime handoff cleanup.
 - Webhook + async-job delivery is implemented via signed webhook ingress (`lib/live_canvas_web/controllers/webhook_controller.ex`), durable async-job persistence (`lib/live_canvas/infra/async_jobs.ex`), supervised worker processing (`lib/live_canvas/infra/async_jobs/worker.ex`), and integration coverage (`test/integration/media_webhook_async_flow_test.exs`).
 - Compliance data governance baseline is now implemented via `LC.Infra.DataGovernance` export/deletion flows and `LC.Infra.DataGovernance.Retention` (`mix release.retention_sweep`) with coverage in `test/live_canvas/infra/data_governance_export_test.exs`, `test/live_canvas/infra/data_governance_deletion_test.exs`, and `test/live_canvas/infra/data_governance_retention_test.exs`; hard deletion is intentionally stubbed pending follow-up controls.
 

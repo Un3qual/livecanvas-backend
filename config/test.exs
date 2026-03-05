@@ -32,7 +32,7 @@ config :live_canvas, LC.Infra.AsyncJobs.Worker, enabled: false
 # Keep explicit runtime lease defaults for tests so scenario tests can
 # temporarily override these values and restore deterministic baselines.
 config :live_canvas, LC.Live.SessionOwnership, lease_ttl_seconds: 30
-config :live_canvas, LC.Live.SessionSupervisor, lease_heartbeat_interval_ms: 10_000
+config :live_canvas, LC.Live.SessionSupervisor, lease_heartbeat_interval_ms: 60_000
 
 # In test we don't send emails
 config :live_canvas, LC.Infra.Mailer, adapter: Swoosh.Adapters.Test

@@ -39,7 +39,7 @@ Verified directly in `lib/`, `test/`, and runtime config before selecting this b
 - [x] Task 1: Add runtime lease heartbeat loop and ownership-loss shutdown behavior
 - [x] Task 2: Harden supervisor/live routing semantics for heartbeat-driven failover
 - [x] Task 3: Expand distributed/channel regression coverage for takeover and reconnect safety
-- [ ] Task 4: Run full verification, update roadmap/index tracking, and finalize milestone
+- [x] Task 4: Run full verification, update roadmap/index tracking, and finalize milestone
 
 ### Task 1: Runtime Lease Heartbeat Loop
 
@@ -132,6 +132,6 @@ git commit -m "feat: add live runtime lease heartbeat loop"
 - Modify: `docs/plans/release/2026-03-04-live-runtime-heartbeat-and-failover-hardening.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 2: Update roadmap/plan-index notes for delivered heartbeat+failover hardening scope and remaining launch gaps
-- [ ] Step 3: Mark completed checklist items and commit final milestone
+- [x] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Update roadmap/plan-index notes for delivered heartbeat+failover hardening scope and remaining launch gaps
+- [x] Step 3: Mark completed checklist items and commit final milestone

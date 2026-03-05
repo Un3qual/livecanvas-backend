@@ -5,10 +5,11 @@ Use this directory for active and in-progress planning artifacts.
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Live runtime heartbeat/failover hardening plan: `docs/plans/release/2026-03-04-live-runtime-heartbeat-and-failover-hardening.md`
+- No active implementation plan is currently in progress.
 
 ## Recently Completed
 
+- Live runtime heartbeat/failover hardening plan: `docs/plans/release/2026-03-04-live-runtime-heartbeat-and-failover-hardening.md` (lease heartbeat, stale-runtime handoff cleanup, and reconnect-safety regressions delivered)
 - Auth audit provider/recovery expansion plan: `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md` (provider identity unlink coverage delivered; account-recovery audit scope remains deferred)
 
 ## Execution Pause Notes
