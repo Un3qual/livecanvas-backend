@@ -39,7 +39,7 @@ This is the highest-leverage unblocked Phase 2 scope: it adds core write behavio
 
 - [x] Task 1: Add viewer-scoped post update/delete APIs in `LC.Content`
 - [x] Task 2: Add Relay `updatePost` + `deletePost` mutations and resolver wiring
-- [ ] Task 3: Run focused verification, update roadmap/index tracking, and finalize milestone
+- [x] Task 3: Run focused verification, update roadmap/index tracking, and finalize milestone
 
 ### Task 1: Content Boundary Post Lifecycle APIs
 
@@ -89,6 +89,10 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/README.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Run final verification for touched slices (`mix compile`, focused `mix test`, `mix typecheck`)
-- [ ] Step 2: Update roadmap + plan index to reflect delivered post lifecycle mutation scope and remaining follow-ups
-- [ ] Step 3: Mark checklist completion and commit final milestone
+- [x] Step 1: Run final verification for touched slices (`mix compile`, focused `mix test`, `mix typecheck`)
+- [x] Step 2: Update roadmap + plan index to reflect delivered post lifecycle mutation scope and remaining follow-ups
+- [x] Step 3: Mark checklist completion and commit final milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas/content_test.exs test/live_canvas_gql/content/content_mutations_test.exs && mix typecheck` -> PASS (`28 tests, 0 failures`; `Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)

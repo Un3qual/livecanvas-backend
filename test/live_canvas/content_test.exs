@@ -76,6 +76,13 @@ defmodule LC.ContentTest do
 
       assert %{body_text: ["should be at most 5000 character(s)"]} = errors_on(changeset)
     end
+
+    test "returns not_found for non-positive post ids" do
+      owner = user_fixture()
+
+      assert {:error, :not_found} = Content.update_user_post(owner, 0, %{body_text: "after"})
+      assert {:error, :not_found} = Content.update_user_post(owner, -1, %{body_text: "after"})
+    end
   end
 
   describe "delete_user_post/2" do
@@ -95,6 +102,13 @@ defmodule LC.ContentTest do
 
       assert {:error, :not_found} = Content.delete_user_post(other_user, post.id)
       assert Repo.get(PostSchema, post.id)
+    end
+
+    test "returns not_found for non-positive post ids" do
+      owner = user_fixture()
+
+      assert {:error, :not_found} = Content.delete_user_post(owner, 0)
+      assert {:error, :not_found} = Content.delete_user_post(owner, -1)
     end
   end
 

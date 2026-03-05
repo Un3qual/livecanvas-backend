@@ -54,6 +54,8 @@ defmodule LC.Content do
     end
   end
 
+  def update_user_post(%User{}, _post_id, _attrs), do: {:error, :not_found}
+
   @doc """
   Deletes a viewer-owned post by local post ID.
   """
@@ -65,6 +67,8 @@ defmodule LC.Content do
       %PostSchema{} = post -> Repo.delete(post)
     end
   end
+
+  def delete_user_post(%User{}, _post_id), do: {:error, :not_found}
 
   @doc """
   Persists media metadata owned by the given user.
