@@ -20,6 +20,7 @@ defmodule LC.Content do
   @type media_upload_result ::
           {:ok, %{media_asset: MediaAssetSchema.t(), upload: ObjectStorage.signed_upload()}}
           | {:error, changeset() | :invalid_upload_request | term()}
+  @type media_asset_public_url_result :: {:ok, String.t()} | {:error, term()}
   @type media_finalize_result :: {:ok, MediaAssetSchema.t()} | {:error, changeset() | atom()}
   @type webhook_ingest_result ::
           {:ok, :accepted | :duplicate}
@@ -150,6 +151,17 @@ defmodule LC.Content do
       when is_integer(media_asset_id) and media_asset_id > 0 do
     Repo.get_by(MediaAssetSchema, id: media_asset_id, owner_id: owner_id)
   end
+
+  @doc """
+  Returns the canonical public serving URL for a persisted media asset.
+  """
+  @spec media_asset_public_url(MediaAssetSchema.t()) :: media_asset_public_url_result()
+  def media_asset_public_url(%MediaAssetSchema{storage_key: storage_key})
+      when is_binary(storage_key) do
+    ObjectStorage.public_asset_url(storage_key)
+  end
+
+  def media_asset_public_url(%MediaAssetSchema{}), do: {:error, :invalid_storage_key}
 
   @doc """
   Finalizes a pending upload for the owner and enqueues async media processing.

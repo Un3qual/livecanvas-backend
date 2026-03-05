@@ -179,6 +179,22 @@ defmodule LCGQL.Content.Resolver do
 
   def media_asset(_parent, _args, _resolution), do: {:ok, nil}
 
+  @spec media_asset_public_url(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, String.t() | nil}
+  def media_asset_public_url(%{storage_key: _storage_key} = media_asset, _args, _resolution) do
+    case Content.media_asset_public_url(media_asset) do
+      {:ok, public_url} ->
+        {:ok, public_url}
+
+      # Preserve media-asset query availability even if storage configuration
+      # is temporarily unavailable; clients can retry using the same node ID.
+      {:error, _reason} ->
+        {:ok, nil}
+    end
+  end
+
+  def media_asset_public_url(_media_asset, _args, _resolution), do: {:ok, nil}
+
   @spec author(map(), map(), Absinthe.Resolution.t()) :: {:ok, User.t() | nil}
   def author(%{author_id: author_id}, _args, _resolution) when is_integer(author_id) do
     try do

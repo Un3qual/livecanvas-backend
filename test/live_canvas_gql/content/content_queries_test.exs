@@ -56,9 +56,13 @@ defmodule LCGQL.Content.ContentQueriesTest do
         id
         mimeType
         processingState
+        publicUrl
       }
     }
     """
+
+    assert {:ok, expected_public_url} =
+             LC.Infra.ObjectStorage.public_asset_url(media_asset.storage_key)
 
     assert {:ok,
             %{
@@ -66,7 +70,8 @@ defmodule LCGQL.Content.ContentQueriesTest do
                 "mediaAsset" => %{
                   "id" => returned_media_asset_id,
                   "mimeType" => "image/jpeg",
-                  "processingState" => "PENDING_UPLOAD"
+                  "processingState" => "PENDING_UPLOAD",
+                  "publicUrl" => returned_public_url
                 }
               }
             }} =
@@ -76,6 +81,7 @@ defmodule LCGQL.Content.ContentQueriesTest do
              )
 
     assert returned_media_asset_id == media_asset_id
+    assert returned_public_url == expected_public_url
   end
 
   test "mediaAsset query returns null without matching viewer scope" do

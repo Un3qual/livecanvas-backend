@@ -54,6 +54,11 @@ defmodule LCGQL.Content.Types do
     field :storage_key, non_null(:string)
     field :mime_type, non_null(:string)
     field :processing_state, non_null(:media_processing_state)
+
+    field :public_url, :string do
+      resolve(&Resolver.media_asset_public_url/3)
+    end
+
     field :inserted_at, non_null(:string)
   end
 

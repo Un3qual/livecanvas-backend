@@ -23,9 +23,8 @@ Verified directly in active code/config/docs before selecting this batch:
 
 ## Progress
 
-- [ ] Task 1: Add hardened object-storage contract and production adapter/runtime config
 - [x] Task 1: Add hardened object-storage contract and production adapter/runtime config
-- [ ] Task 2: Expose canonical media asset public URL in GraphQL and add contract tests
+- [x] Task 2: Expose canonical media asset public URL in GraphQL and add contract tests
 - [ ] Task 3: Final verification and roadmap/index tracking updates
 
 ### Task 1: Add Hardened Object-Storage Contract And Production Adapter/Runtime Config
@@ -64,11 +63,17 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-object-storage-serving-provider-hardening.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for `mediaAsset.publicUrl` in query and Relay node surfaces
-- [ ] Step 2: Run focused GraphQL tests to verify RED
-- [ ] Step 3: Implement viewer-safe public URL resolver path via `LC.Infra.ObjectStorage.public_asset_url/1`
-- [ ] Step 4: Run focused GraphQL tests to verify GREEN
-- [ ] Step 5: Run touched GraphQL/content test slices + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing GraphQL tests for `mediaAsset.publicUrl` in query and Relay node surfaces
+- [x] Step 2: Run focused GraphQL tests to verify RED
+- [x] Step 3: Implement viewer-safe public URL resolver path via `LC.Infra.ObjectStorage.public_asset_url/1`
+- [x] Step 4: Run focused GraphQL tests to verify GREEN
+- [x] Step 5: Run touched GraphQL/content test slices + `mix typecheck`, update checklist progress, and commit milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs` -> RED first (`9 tests, 2 failures`) due missing `publicUrl` GraphQL field, then GREEN after resolver/type implementation (`9 tests, 0 failures`)
+- `mix test test/live_canvas/content_test.exs test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs` -> PASS (`37 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 3: Final Verification And Tracking Updates
 
