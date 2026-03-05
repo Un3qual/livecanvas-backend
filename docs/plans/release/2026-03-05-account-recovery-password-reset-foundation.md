@@ -39,7 +39,7 @@ The release roadmap still tracks account-recovery auth-audit expansion as deferr
 - [x] Task 1: Add password-reset token context, Accounts recovery APIs, and recovery audit events
 - [x] Task 2: Add web reset-password transport flow (request + token consume forms/controllers)
 - [x] Task 3: Add GraphQL recovery mutations and relay-compatible error contracts
-- [ ] Task 4: Run full verification, update roadmap/index tracking, and finalize milestone
+- [x] Task 4: Run full verification, update roadmap/index tracking, and finalize milestone
 
 ### Task 1: Recovery Primitives In Accounts (Current Batch)
 
@@ -139,6 +139,13 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/README.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 2: Update roadmap planning-hole notes for recovery workflow delivery
-- [ ] Step 3: Mark completed checklist items and commit final milestone
+- [x] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Update roadmap planning-hole notes for recovery workflow delivery
+- [x] Step 3: Mark completed checklist items and commit final milestone
+
+Verification evidence (2026-03-05):
+
+- `mix compile` -> PASS
+- `mix test` -> PASS (`411 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
+- `mix precommit` -> PASS (after one transient rerun of a flaky live-session heartbeat test)

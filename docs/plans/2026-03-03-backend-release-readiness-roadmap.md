@@ -8,7 +8,7 @@
   - `mix test` -> PASS (`345 tests, 0 failures`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
-- Plan tracking state: release-track plans are complete through release-engineering deployment gates, with media upload callback-driven async processing and deployment/rollback runbooks now in place (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`).
+- Plan tracking state: release-track plans now include delivered account-recovery password reset coverage (`docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`) alongside media upload callback-driven async processing and deployment/rollback runbooks (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`).
 
 ## What Has Been Delivered
 
@@ -115,6 +115,7 @@ Per architecture decisions, these remain intentionally deferred and should not b
 - `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`
 - `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`
 - `docs/plans/release/2026-03-04-compliance-data-governance.md`
+- `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`
 
 ## Release Roadmap (From Current State To Releasable Backend)
 
@@ -136,7 +137,7 @@ Mobile parallel start now:
 - Finalize supported login methods for v1 launch (email/password + magic link vs additional providers).
 - Implement mobile-first auth endpoints/flows (not only web form/session flows).
 - Decide and implement provider rollout (Google/Apple/passkey either fully ship or explicitly defer behind flags with no client promise).
-- Auth audit expansion is delivered for password/magic-link login outcomes, refresh-token revocation/rotation outcomes, and password/email credential change outcomes; expand further for additional identity lifecycle events (for example provider unlink/account recovery) if they enter v1 scope.
+- Auth audit expansion is delivered for password/magic-link login outcomes, refresh-token revocation/rotation outcomes, password/email credential change outcomes, provider identity unlink outcomes, and account-recovery request/reset outcomes.
 
 Mobile parallel:
 - Start real login/signup/password-reset screens once auth contract is frozen.
@@ -191,12 +192,11 @@ The previous webhook/async-job planning hole is now closed by `docs/plans/releas
 
 Remaining tracked gaps:
 
-- Account-recovery auth audit expansion remains deferred until a concrete recovery workflow enters v1 scope.
 - Compliance hard-delete enablement follow-up remains intentionally paused by operator direction; do not resume until that pause is explicitly lifted.
 
 ## Evidence Notes On Key Blockers
 
-- Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, credential change emissions, and provider identity unlink outcomes in `lib/live_canvas/accounts.ex`) with coverage in `test/live_canvas/accounts/auth_event_test.exs`, `test/live_canvas/accounts_test.exs`, `test/live_canvas_gql/accounts/account_mutations_test.exs`, and `test/live_canvas_gql/accounts/account_queries_test.exs`.
+- Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, credential change emissions, provider identity unlink outcomes, and account-recovery request/reset outcomes in `lib/live_canvas/accounts.ex`) with transport coverage in `lib/live_canvas_web/controllers/user_reset_password_controller.ex` and `lib/live_canvas_gql/accounts/account_resolver.ex`, plus tests in `test/live_canvas/accounts/auth_event_test.exs`, `test/live_canvas/accounts_test.exs`, `test/live_canvas_web/controllers/user_reset_password_controller_test.exs`, `test/live_canvas_gql/accounts/account_mutations_test.exs`, and `test/live_canvas_gql/accounts/account_queries_test.exs`.
 - Live runtime ownership now uses durable leases plus remote-owner routing and lease heartbeat refresh (`lib/live_canvas/live/session_ownership.ex`, `lib/live_canvas/live/runtime_rpc.ex`, `lib/live_canvas/live/session_supervisor.ex`, `lib/live_canvas/live/session_server.ex`) with channel-facing `session_unavailable` normalization for remote runtime failures and stale-local-runtime handoff cleanup.
 - Webhook + async-job delivery is implemented via signed webhook ingress (`lib/live_canvas_web/controllers/webhook_controller.ex`), durable async-job persistence (`lib/live_canvas/infra/async_jobs.ex`), supervised worker processing (`lib/live_canvas/infra/async_jobs/worker.ex`), and integration coverage (`test/integration/media_webhook_async_flow_test.exs`).
 - Compliance data governance baseline is now implemented via `LC.Infra.DataGovernance` export/deletion flows and `LC.Infra.DataGovernance.Retention` (`mix release.retention_sweep`) with coverage in `test/live_canvas/infra/data_governance_export_test.exs`, `test/live_canvas/infra/data_governance_deletion_test.exs`, and `test/live_canvas/infra/data_governance_retention_test.exs`; hard deletion is intentionally stubbed pending follow-up controls.
@@ -204,4 +204,3 @@ Remaining tracked gaps:
 ## Suggested Next Plan Files To Create
 
 - `docs/plans/release/2026-03-04-compliance-hard-delete-enablement.md` (paused; keep as deferred candidate only)
-- `docs/plans/release/<date>-auth-account-recovery-audit-events.md` (deferred until recovery workflow is concretely scoped)

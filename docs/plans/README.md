@@ -5,12 +5,12 @@ Use this directory for active and in-progress planning artifacts.
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Account-recovery password reset foundation: `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`
 
 ## Recently Completed
 
+- Account-recovery password reset foundation: `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md` (Accounts recovery primitives, web reset-password flow, and GraphQL recovery mutations delivered)
 - Live runtime heartbeat/failover hardening plan: `docs/plans/release/2026-03-04-live-runtime-heartbeat-and-failover-hardening.md` (lease heartbeat, stale-runtime handoff cleanup, and reconnect-safety regressions delivered)
-- Auth audit provider/recovery expansion plan: `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md` (provider identity unlink coverage delivered; account-recovery audit scope remains deferred)
+- Auth audit provider/recovery expansion plan: `docs/plans/release/2026-03-04-auth-audit-provider-recovery-expansion.md` (provider identity unlink coverage delivered; recovery workflow follow-up now landed in the 2026-03-05 plan)
 
 ## Execution Pause Notes
 
@@ -19,7 +19,7 @@ Use this directory for active and in-progress planning artifacts.
 
 ## Deferred Candidates
 
-- Account-recovery auth audit expansion remains coupled to the concrete password-reset workflow rollout in `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`.
+- Compliance hard-delete enablement remains deferred while the explicit operator pause is active.
 
 ## Archived Completed Plans
 
