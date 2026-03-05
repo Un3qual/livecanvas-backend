@@ -22,6 +22,11 @@ defmodule LCGQL.Content.Resolver do
           errors: [mutation_error()]
         }
   @type request_media_upload_result :: {:ok, request_media_upload_payload()}
+  @type update_post_payload :: %{post: Post.t() | nil, errors: [mutation_error()]}
+  @type update_post_result :: {:ok, update_post_payload()}
+  @type delete_post_payload :: %{deleted_post_id: String.t() | nil, errors: [mutation_error()]}
+  @type delete_post_result :: {:ok, delete_post_payload()}
+  @type post_mutation_reason :: :invalid_id | :invalid_type | :not_found | :unauthenticated
 
   @spec create_post(
           term(),
@@ -87,6 +92,70 @@ defmodule LCGQL.Content.Resolver do
   def request_media_upload(_parent, _attrs, _resolution) do
     {:ok,
      %{media_asset: nil, signed_upload: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+  end
+
+  @spec update_post(
+          term(),
+          %{
+            optional(:input) => map(),
+            optional(:post_id) => term(),
+            optional(:body_text) => String.t(),
+            optional(:visibility) => atom()
+          },
+          Absinthe.Resolution.t()
+        ) :: update_post_result()
+  def update_post(parent, %{input: input}, resolution), do: update_post(parent, input, resolution)
+
+  def update_post(_parent, %{post_id: post_id} = attrs, %{
+        context: %{current_scope: %{user: %{id: _id} = viewer}}
+      }) do
+    with {:ok, id} <- decode_post_id(post_id),
+         {:ok, post} <- Content.update_user_post(viewer, id, update_post_attrs(attrs)) do
+      {:ok, %{post: post, errors: []}}
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok, %{post: nil, errors: format_changeset_errors(changeset)}}
+
+      {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found] ->
+        {:ok, %{post: nil, errors: [post_mutation_error(:post_id, reason)]}}
+    end
+  end
+
+  # Post updates are viewer-scoped so clients cannot mutate posts they do not
+  # own by providing arbitrary Relay IDs.
+  def update_post(_parent, _attrs, _resolution) do
+    {:ok, %{post: nil, errors: [post_mutation_error(nil, :unauthenticated)]}}
+  end
+
+  @spec delete_post(
+          term(),
+          %{optional(:input) => map(), optional(:post_id) => term()},
+          Absinthe.Resolution.t()
+        ) :: delete_post_result()
+  def delete_post(parent, %{input: input}, resolution), do: delete_post(parent, input, resolution)
+
+  def delete_post(_parent, %{post_id: post_id}, %{
+        context: %{current_scope: %{user: %{id: _id} = viewer}}
+      }) do
+    with {:ok, id} <- decode_post_id(post_id),
+         {:ok, deleted_post} <- Content.delete_user_post(viewer, id) do
+      {:ok,
+       %{
+         deleted_post_id:
+           Absinthe.Relay.Node.to_global_id(:post, deleted_post.id, LCGQL.Schema),
+         errors: []
+       }}
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok, %{deleted_post_id: nil, errors: format_changeset_errors(changeset)}}
+
+      {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found] ->
+        {:ok, %{deleted_post_id: nil, errors: [post_mutation_error(:post_id, reason)]}}
+    end
+  end
+
+  def delete_post(_parent, _attrs, _resolution) do
+    {:ok, %{deleted_post_id: nil, errors: [post_mutation_error(nil, :unauthenticated)]}}
   end
 
   @spec post(term(), %{id: term()}, term()) :: {:ok, Post.t() | nil}
@@ -155,4 +224,25 @@ defmodule LCGQL.Content.Resolver do
     |> Enum.sort_by(fn {name, _value} -> name end)
     |> Enum.map(fn {name, value} -> %{name: name, value: value} end)
   end
+
+  defp decode_post_id(post_id), do: Relay.decode_global_id(post_id, :post, LCGQL.Schema)
+
+  @spec update_post_attrs(map()) :: %{optional(:body_text | :visibility) => term()}
+  defp update_post_attrs(attrs) when is_map(attrs) do
+    # Restrict updates to launch-safe mutable fields and keep kind/author
+    # immutable through this API surface.
+    Map.take(attrs, [:body_text, :visibility])
+  end
+
+  @spec post_mutation_error(:post_id | nil, post_mutation_reason()) :: mutation_error()
+  defp post_mutation_error(field, reason) do
+    %{
+      field: format_post_field(field),
+      message: Atom.to_string(reason)
+    }
+  end
+
+  @spec format_post_field(:post_id | nil) :: String.t() | nil
+  defp format_post_field(nil), do: nil
+  defp format_post_field(:post_id), do: "postId"
 end

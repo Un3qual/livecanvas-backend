@@ -33,5 +33,33 @@ defmodule LCGQL.Content.Mutations do
 
       resolve(&Resolver.request_media_upload/3)
     end
+
+    payload field :update_post do
+      input do
+        field :post_id, non_null(:id)
+        field :body_text, :string
+        field :visibility, :post_visibility
+      end
+
+      output do
+        field :post, :post
+        field :errors, non_null(list_of(non_null(:content_error)))
+      end
+
+      resolve(&Resolver.update_post/3)
+    end
+
+    payload field :delete_post do
+      input do
+        field :post_id, non_null(:id)
+      end
+
+      output do
+        field :deleted_post_id, :id
+        field :errors, non_null(list_of(non_null(:content_error)))
+      end
+
+      resolve(&Resolver.delete_post/3)
+    end
   end
 end

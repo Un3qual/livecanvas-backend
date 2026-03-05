@@ -38,7 +38,7 @@ This is the highest-leverage unblocked Phase 2 scope: it adds core write behavio
 ## Progress
 
 - [x] Task 1: Add viewer-scoped post update/delete APIs in `LC.Content`
-- [ ] Task 2: Add Relay `updatePost` + `deletePost` mutations and resolver wiring
+- [x] Task 2: Add Relay `updatePost` + `deletePost` mutations and resolver wiring
 - [ ] Task 3: Run focused verification, update roadmap/index tracking, and finalize milestone
 
 ### Task 1: Content Boundary Post Lifecycle APIs
@@ -70,11 +70,16 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-content-post-lifecycle-mutations.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for `updatePost`/`deletePost` success, unauthenticated, and invalid-id ownership errors
-- [ ] Step 2: Run focused GraphQL tests to verify RED
-- [ ] Step 3: Implement Relay mutation schema + resolver decode/ownership flow
-- [ ] Step 4: Run focused GraphQL tests to verify GREEN
-- [ ] Step 5: Run `mix test` on touched GraphQL slices + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing GraphQL tests for `updatePost`/`deletePost` success, unauthenticated, and invalid-id ownership errors
+- [x] Step 2: Run focused GraphQL tests to verify RED
+- [x] Step 3: Implement Relay mutation schema + resolver decode/ownership flow
+- [x] Step 4: Run focused GraphQL tests to verify GREEN
+- [x] Step 5: Run `mix test` on touched GraphQL slices + `mix typecheck`, update checklist progress, and commit milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas_gql/content/content_mutations_test.exs` -> RED first (`12 tests, 8 failures`, missing `updatePost`/`deletePost`) and GREEN after implementation (`12 tests, 0 failures`)
+- `mix test test/live_canvas_gql/content/content_mutations_test.exs && mix typecheck` -> PASS after tightening new private helper specs (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 3: Verification And Tracking Updates
 

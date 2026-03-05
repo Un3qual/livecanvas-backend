@@ -3,7 +3,7 @@ defmodule LCGQL.Content.ContentMutationsTest do
 
   import LC.AccountsFixtures
 
-  alias LC.Accounts
+  alias LC.{Accounts, Content}
 
   test "createPost persists a post for the authenticated viewer" do
     viewer = user_fixture()
@@ -165,5 +165,283 @@ defmodule LCGQL.Content.ContentMutationsTest do
                 }
               }
             }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"mimeType" => "image/jpeg"})
+  end
+
+  test "updatePost updates a viewer-owned post" do
+    viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+    {:ok, post} = Content.create_post(viewer, %{kind: :standard, body_text: "before"})
+    post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+    mutation = """
+    mutation($postId: ID!, $bodyText: String!) {
+      updatePost(input: {postId: $postId, bodyText: $bodyText, visibility: PUBLIC}) {
+        post {
+          id
+          bodyText
+          visibility
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "updatePost" => %{
+                  "post" => %{
+                    "id" => returned_post_id,
+                    "bodyText" => "after",
+                    "visibility" => "PUBLIC"
+                  },
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"postId" => post_id, "bodyText" => "after"},
+               context: context
+             )
+
+    assert returned_post_id == post_id
+  end
+
+  test "updatePost returns ownership errors for posts outside viewer scope" do
+    owner = user_fixture()
+    other_viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(other_viewer)}
+    {:ok, post} = Content.create_post(owner, %{kind: :standard, body_text: "before"})
+    post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+    mutation = """
+    mutation($postId: ID!, $bodyText: String!) {
+      updatePost(input: {postId: $postId, bodyText: $bodyText}) {
+        post {
+          id
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "updatePost" => %{
+                  "post" => nil,
+                  "errors" => [%{"field" => "postId", "message" => "not_found"}]
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"postId" => post_id, "bodyText" => "after"},
+               context: context
+             )
+  end
+
+  test "updatePost returns structured errors for non-global post IDs" do
+    viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    mutation = """
+    mutation($postId: ID!, $bodyText: String!) {
+      updatePost(input: {postId: $postId, bodyText: $bodyText}) {
+        post {
+          id
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "updatePost" => %{
+                  "post" => nil,
+                  "errors" => [%{"field" => "postId", "message" => message}]
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"postId" => "123", "bodyText" => "after"},
+               context: context
+             )
+
+    assert message =~ "invalid_id"
+  end
+
+  test "updatePost returns unauthenticated errors without a viewer scope" do
+    viewer = user_fixture()
+    {:ok, post} = Content.create_post(viewer, %{kind: :standard, body_text: "before"})
+    post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+    mutation = """
+    mutation($postId: ID!, $bodyText: String!) {
+      updatePost(input: {postId: $postId, bodyText: $bodyText}) {
+        post {
+          id
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "updatePost" => %{
+                  "post" => nil,
+                  "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"postId" => post_id, "bodyText" => "after"}
+             )
+  end
+
+  test "deletePost deletes a viewer-owned post and returns deleted node ID" do
+    viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+    {:ok, post} = Content.create_post(viewer, %{kind: :standard, body_text: "before"})
+    post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+    mutation = """
+    mutation($postId: ID!) {
+      deletePost(input: {postId: $postId}) {
+        deletedPostId
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "deletePost" => %{
+                  "deletedPostId" => returned_post_id,
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"postId" => post_id},
+               context: context
+             )
+
+    assert returned_post_id == post_id
+    refute Content.get_post(post.id)
+  end
+
+  test "deletePost returns ownership errors for posts outside viewer scope" do
+    owner = user_fixture()
+    other_viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(other_viewer)}
+    {:ok, post} = Content.create_post(owner, %{kind: :standard, body_text: "before"})
+    post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+    mutation = """
+    mutation($postId: ID!) {
+      deletePost(input: {postId: $postId}) {
+        deletedPostId
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "deletePost" => %{
+                  "deletedPostId" => nil,
+                  "errors" => [%{"field" => "postId", "message" => "not_found"}]
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"postId" => post_id},
+               context: context
+             )
+  end
+
+  test "deletePost returns structured errors for non-global post IDs" do
+    viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    mutation = """
+    mutation($postId: ID!) {
+      deletePost(input: {postId: $postId}) {
+        deletedPostId
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "deletePost" => %{
+                  "deletedPostId" => nil,
+                  "errors" => [%{"field" => "postId", "message" => message}]
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"postId" => "123"},
+               context: context
+             )
+
+    assert message =~ "invalid_id"
+  end
+
+  test "deletePost returns unauthenticated errors without a viewer scope" do
+    viewer = user_fixture()
+    {:ok, post} = Content.create_post(viewer, %{kind: :standard, body_text: "before"})
+    post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+    mutation = """
+    mutation($postId: ID!) {
+      deletePost(input: {postId: $postId}) {
+        deletedPostId
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "deletePost" => %{
+                  "deletedPostId" => nil,
+                  "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                }
+              }
+            }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"postId" => post_id})
   end
 end
