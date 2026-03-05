@@ -12,6 +12,7 @@ Ready to run in production? Please [check our deployment guides](https://hexdocs
 ## Release Operations
 
 - [Deployment gates runbook](docs/release/deployment-gates.md)
+- [Live runtime failover drill runbook](docs/release/live-runtime-failover-drills.md)
 - [Staged rollout runbook](docs/release/staged-rollout.md)
 - [Rollback and restore runbook](docs/release/rollback-and-restore.md)
 - [Compliance data governance runbook](docs/release/compliance-data-governance.md)

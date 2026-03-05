@@ -38,7 +38,7 @@ This is the highest-impact remaining runtime reliability gap after distributed o
 
 - [x] Task 1: Harden reconnect join consistency for transient remote handoff failures
 - [x] Task 2: Add deterministic partition/rejoin drill integration coverage with real peer-node orchestration
-- [ ] Task 3: Add operator drill command + runbook for runtime ownership failover rehearsal
+- [x] Task 3: Add operator drill command + runbook for runtime ownership failover rehearsal
 - [ ] Task 4: Run final verification and update roadmap/plan index tracking
 
 ### Task 1: Reconnect Consistency Hardening
@@ -124,11 +124,17 @@ Verification evidence (2026-03-05):
 - Modify: `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing release-task tests for deterministic drill plan output (`--dry-run`) and safe non-test confirmation requirements
-- [ ] Step 2: Run focused release-task tests to verify RED
-- [ ] Step 3: Implement `LC.Release.LiveRuntimeDrill` command planner + Mix task wrapper and docs runbook
-- [ ] Step 4: Run focused release-task tests and task dry-run output to verify GREEN
-- [ ] Step 5: Run `mix compile` + touched task tests + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing release-task tests for deterministic drill plan output (`--dry-run`) and safe non-test confirmation requirements
+- [x] Step 2: Run focused release-task tests to verify RED
+- [x] Step 3: Implement `LC.Release.LiveRuntimeDrill` command planner + Mix task wrapper and docs runbook
+- [x] Step 4: Run focused release-task tests and task dry-run output to verify GREEN
+- [x] Step 5: Run `mix compile` + touched task tests + `mix typecheck`, update checklist progress, and commit milestone
+
+Verification evidence (2026-03-05):
+
+- `mix test test/live_canvas/release/live_runtime_drill_test.exs` -> RED first (`4 tests, 4 failures`) and GREEN after implementation (`4 tests, 0 failures`)
+- `mix release.live_runtime_drill --session-id 42 --takeover-node takeover@node --dry-run` -> PASS with deterministic five-step operator drill output
+- `mix compile && mix test test/live_canvas/release/live_runtime_drill_test.exs && mix typecheck` -> PASS
 
 ### Task 4: Final Verification And Tracking Updates
 
