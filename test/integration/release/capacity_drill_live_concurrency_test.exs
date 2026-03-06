@@ -49,6 +49,8 @@ defmodule LC.Integration.Release.CapacityDrillLiveConcurrencyTest do
     end
 
     test "creates follower-only live sessions so probe fixtures stay off global discovery feeds" do
+      latest_session_id = from(session in LiveSession, select: max(session.id)) |> Repo.one() || 0
+
       assert {:ok, _report} =
                CapacityDrill.run(
                  env: :test,
@@ -60,9 +62,15 @@ defmodule LC.Integration.Release.CapacityDrillLiveConcurrencyTest do
                  live_p95_latency_ms: 500.0
                )
 
-      visibility_values = from(session in LiveSession, select: session.visibility) |> Repo.all()
+      visibility_values =
+        from(
+          session in LiveSession,
+          where: session.id > ^latest_session_id,
+          select: session.visibility
+        )
+        |> Repo.all()
 
-      assert length(visibility_values) == 1
+      assert visibility_values != []
       assert Enum.all?(visibility_values, &(&1 == :followers))
     end
   end

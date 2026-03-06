@@ -1,0 +1,217 @@
+defmodule LCGQL.Live.Resolver do
+  alias LC.Live
+  alias LCGQL.Relay
+
+  @type mutation_error :: %{field: String.t() | nil, message: String.t()}
+  @type live_session_payload :: %{live_session: map() | nil, errors: [mutation_error()]}
+  @type leave_live_session_payload :: %{left: boolean(), errors: [mutation_error()]}
+  @type live_session_result :: {:ok, live_session_payload()}
+  @type leave_live_session_result :: {:ok, leave_live_session_payload()}
+  @type mutation_reason ::
+          :invalid_id
+          | :invalid_type
+          | :not_found
+          | :unauthenticated
+          | :not_authorized
+          | :ended
+          | :invalid_state
+
+  @spec start_live_session(
+          term(),
+          %{optional(:input) => map(), optional(:visibility) => atom()},
+          Absinthe.Resolution.t()
+        ) :: live_session_result()
+  def start_live_session(parent, %{input: input}, resolution),
+    do: start_live_session(parent, input, resolution)
+
+  def start_live_session(
+        _parent,
+        args,
+        %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
+      ) do
+    with {:ok, live_session} <- Live.start_live_session(viewer, start_live_session_attrs(args)) do
+      {:ok, %{live_session: live_session, errors: []}}
+    else
+      {:error, :not_authorized} ->
+        {:ok, %{live_session: nil, errors: [mutation_error(nil, :not_authorized)]}}
+
+      _other ->
+        {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+    end
+  end
+
+  def start_live_session(_parent, _args, _resolution) do
+    {:ok, %{live_session: nil, errors: [mutation_error(nil, :unauthenticated)]}}
+  end
+
+  @spec go_live_session(
+          term(),
+          %{optional(:input) => map(), optional(:live_session_id) => term()},
+          Absinthe.Resolution.t()
+        ) :: live_session_result()
+  def go_live_session(parent, %{input: input}, resolution),
+    do: go_live_session(parent, input, resolution)
+
+  def go_live_session(
+        _parent,
+        %{live_session_id: live_session_id},
+        %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
+      ) do
+    with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
+         {:ok, live_session} <- fetch_live_session(decoded_id),
+         :ok <- ensure_host_owned(live_session, viewer),
+         :ok <- ensure_joinable_state(live_session),
+         {:ok, live_session} <- Live.mark_session_live(live_session) do
+      {:ok, %{live_session: live_session, errors: []}}
+    else
+      {:error, reason}
+      when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
+        {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
+
+      _other ->
+        {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+    end
+  end
+
+  def go_live_session(_parent, _args, _resolution) do
+    {:ok, %{live_session: nil, errors: [mutation_error(nil, :unauthenticated)]}}
+  end
+
+  @spec join_live_session(
+          term(),
+          %{optional(:input) => map(), optional(:live_session_id) => term()},
+          Absinthe.Resolution.t()
+        ) :: live_session_result()
+  def join_live_session(parent, %{input: input}, resolution),
+    do: join_live_session(parent, input, resolution)
+
+  def join_live_session(
+        _parent,
+        %{live_session_id: live_session_id},
+        %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
+      ) do
+    with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
+         {:ok, live_session} <- fetch_joinable_session(decoded_id),
+         {:ok, _participant} <- Live.join_live_session(live_session, viewer, :viewer) do
+      {:ok, %{live_session: live_session, errors: []}}
+    else
+      {:error, reason}
+      when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
+        {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
+
+      _other ->
+        {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+    end
+  end
+
+  def join_live_session(_parent, _args, _resolution) do
+    {:ok, %{live_session: nil, errors: [mutation_error(nil, :unauthenticated)]}}
+  end
+
+  @spec leave_live_session(
+          term(),
+          %{optional(:input) => map(), optional(:live_session_id) => term()},
+          Absinthe.Resolution.t()
+        ) :: leave_live_session_result()
+  def leave_live_session(parent, %{input: input}, resolution),
+    do: leave_live_session(parent, input, resolution)
+
+  def leave_live_session(
+        _parent,
+        %{live_session_id: live_session_id},
+        %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
+      ) do
+    with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
+         {:ok, live_session} <- fetch_joinable_session(decoded_id) do
+      :ok = Live.leave_live_session(live_session, viewer)
+      {:ok, %{left: true, errors: []}}
+    else
+      {:error, reason}
+      when reason in [:invalid_id, :invalid_type, :not_found, :ended] ->
+        {:ok, %{left: false, errors: [mutation_error(:live_session_id, reason)]}}
+    end
+  end
+
+  def leave_live_session(_parent, _args, _resolution) do
+    {:ok, %{left: false, errors: [mutation_error(nil, :unauthenticated)]}}
+  end
+
+  @spec end_live_session(
+          term(),
+          %{optional(:input) => map(), optional(:live_session_id) => term()},
+          Absinthe.Resolution.t()
+        ) :: live_session_result()
+  def end_live_session(parent, %{input: input}, resolution),
+    do: end_live_session(parent, input, resolution)
+
+  def end_live_session(
+        _parent,
+        %{live_session_id: live_session_id},
+        %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
+      ) do
+    with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
+         {:ok, live_session} <- fetch_live_session(decoded_id),
+         :ok <- ensure_host_owned(live_session, viewer),
+         {:ok, live_session} <- Live.end_live_session(live_session) do
+      {:ok, %{live_session: live_session, errors: []}}
+    else
+      {:error, reason}
+      when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized] ->
+        {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
+
+      _other ->
+        {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+    end
+  end
+
+  def end_live_session(_parent, _args, _resolution) do
+    {:ok, %{live_session: nil, errors: [mutation_error(nil, :unauthenticated)]}}
+  end
+
+  defp decode_live_session_id(live_session_id),
+    do: Relay.decode_global_id(live_session_id, :live_session, LCGQL.Schema)
+
+  defp fetch_live_session(session_id) when is_integer(session_id) do
+    case Live.get_live_session(session_id) do
+      nil -> {:error, :not_found}
+      live_session -> {:ok, live_session}
+    end
+  end
+
+  defp fetch_joinable_session(session_id) when is_integer(session_id) do
+    Live.fetch_joinable_session(session_id)
+  end
+
+  # Host-only lifecycle transitions prevent viewers from driving session
+  # state changes through globally refetchable relay IDs.
+  defp ensure_host_owned(%{host_id: host_id}, %{id: user_id})
+       when is_integer(host_id) and is_integer(user_id) do
+    if host_id == user_id, do: :ok, else: {:error, :not_authorized}
+  end
+
+  defp ensure_joinable_state(%{status: :ended}), do: {:error, :ended}
+  defp ensure_joinable_state(_live_session), do: :ok
+
+  @spec start_live_session_attrs(map()) :: %{optional(:visibility) => atom()}
+  defp start_live_session_attrs(args) when is_map(args) do
+    Map.take(args, [:visibility])
+  end
+
+  @spec mutation_error(:live_session_id | nil, mutation_reason()) :: mutation_error()
+  defp mutation_error(field, reason) do
+    %{
+      field: error_field(field, reason),
+      message: error_message(reason)
+    }
+  end
+
+  @spec error_field(:live_session_id | nil, mutation_reason()) :: String.t() | nil
+  defp error_field(:live_session_id, reason) when reason in [:invalid_id, :invalid_type],
+    do: "liveSessionId"
+
+  defp error_field(_field, _reason), do: nil
+
+  @spec error_message(mutation_reason()) :: String.t()
+  defp error_message(reason) when reason in [:invalid_id, :invalid_type], do: "is invalid"
+  defp error_message(reason), do: Atom.to_string(reason)
+end
