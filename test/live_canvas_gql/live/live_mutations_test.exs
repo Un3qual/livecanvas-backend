@@ -176,6 +176,48 @@ defmodule LCGQL.Live.LiveMutationsTest do
                  variables: %{"liveSessionId" => session_id}
                )
     end
+
+    test "rejects repeated end transitions once a session is already ended" do
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
+      {:ok, first_end} = Live.end_live_session(started_session)
+
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, first_end.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      mutation = """
+      mutation EndLiveSession($liveSessionId: ID!) {
+        endLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [%{"field" => nil, "message" => "ended"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+
+      persisted = Live.get_live_session!(first_end.id)
+      assert persisted.ended_at == first_end.ended_at
+    end
   end
 
   describe "joinLiveSession and leaveLiveSession" do

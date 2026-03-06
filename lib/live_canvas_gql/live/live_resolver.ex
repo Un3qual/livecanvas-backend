@@ -152,11 +152,12 @@ defmodule LCGQL.Live.Resolver do
     with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
          {:ok, live_session} <- fetch_live_session(decoded_id),
          :ok <- ensure_host_owned(live_session, viewer),
+         :ok <- ensure_not_ended(live_session),
          {:ok, live_session} <- Live.end_live_session(live_session) do
       {:ok, %{live_session: live_session, errors: []}}
     else
       {:error, reason}
-      when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized] ->
+      when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
         {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
 
       _other ->
@@ -191,6 +192,9 @@ defmodule LCGQL.Live.Resolver do
 
   defp ensure_joinable_state(%{status: :ended}), do: {:error, :ended}
   defp ensure_joinable_state(_live_session), do: :ok
+
+  defp ensure_not_ended(%{status: :ended}), do: {:error, :ended}
+  defp ensure_not_ended(_live_session), do: :ok
 
   defp authorize_join(viewer, live_session) when is_map(viewer) and is_map(live_session) do
     # Keep GraphQL join policy aligned with channel joins so relationship and

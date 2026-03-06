@@ -60,9 +60,20 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
 
   defp mutation_query(_conn), do: :error
 
-  @spec rate_limit_key(String.t()) :: :graphql_mutation | :moderation_action
+  @spec rate_limit_key(String.t()) :: :auth_login | :graphql_mutation | :moderation_action
   defp rate_limit_key(query) when is_binary(query) do
-    if moderation_mutation?(query), do: :moderation_action, else: :graphql_mutation
+    cond do
+      auth_login_mutation?(query) -> :auth_login
+      moderation_mutation?(query) -> :moderation_action
+      true -> :graphql_mutation
+    end
+  end
+
+  @spec auth_login_mutation?(String.t()) :: boolean()
+  defp auth_login_mutation?(query) when is_binary(query) do
+    # Auth bootstrap mutations should use the same tighter login throttle as
+    # web session creation to avoid alternate-path brute force/abuse bypasses.
+    Regex.match?(~r/\b(loginWithPassword|requestMagicLinkLogin|loginWithMagicLink)\b/u, query)
   end
 
   @spec moderation_mutation?(String.t()) :: boolean()
