@@ -2,6 +2,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import Swoosh.TestAssertions
 
   alias LC.Accounts
   alias LC.Infra.Repo
@@ -1318,6 +1319,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   describe "requestMagicLinkLogin" do
     test "issues a magic-link token for existing users and returns an empty error list" do
       user = user_fixture()
+      flush_email_messages()
 
       mutation = """
       mutation RequestMagicLinkLogin($email: String!) {
@@ -1342,6 +1344,11 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
 
       assert %UserToken{context: :email_magic_link_token} =
                Repo.get_by(UserToken, user_id: user.id, context: :email_magic_link_token)
+
+      assert_email_sent(fn email ->
+        String.contains?(email.text_body, "https://livecanvas.invalid/users/log-in/") and
+          not String.contains?(email.text_body, "https://livecanvas.invalid/login/")
+      end)
     end
 
     test "does not enumerate missing emails and does not issue tokens" do
@@ -1675,6 +1682,15 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                )
 
       assert {:error, :revoked_token} = Accounts.authenticate_refresh_token(refresh_token)
+    end
+  end
+
+  defp flush_email_messages do
+    receive do
+      {:email, _email} -> flush_email_messages()
+      {:emails, _emails} -> flush_email_messages()
+    after
+      0 -> :ok
     end
   end
 end

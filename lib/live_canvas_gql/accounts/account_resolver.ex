@@ -809,7 +809,7 @@ defmodule LCGQL.Accounts.Resolver do
   # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
   # transport-agnostic while tests can assert magic-link delivery side effects.
   @spec magic_link_login_url(String.t()) :: String.t()
-  defp magic_link_login_url(token), do: "https://livecanvas.invalid/login/#{token}"
+  defp magic_link_login_url(token), do: "https://livecanvas.invalid/users/log-in/#{token}"
 
   @spec invite_delivery_error(invite_delivery_error_reason()) :: mutation_error()
   defp invite_delivery_error(:invalid_recipient),

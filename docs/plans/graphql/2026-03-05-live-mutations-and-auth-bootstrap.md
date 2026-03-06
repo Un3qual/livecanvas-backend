@@ -20,7 +20,7 @@
 
 - [x] Task 1: Add Relay live-session lifecycle mutation surface (start/go-live/join/leave/end)
 - [x] Task 2: Add Relay auth bootstrap mutation surface (password login + magic-link request/consume)
-- [ ] Task 3: Run verification, update plan/index tracking, and commit milestone
+- [x] Task 3: Run verification, update plan/index tracking, and commit milestone
 
 ## Task 1: Live Session Lifecycle Mutations
 
@@ -137,4 +137,4 @@
 **Step 3: Commit milestone**
 - Commit code + tests + related plan/index updates together.
 
-- [ ] Step 3 complete
+- [x] Step 3 complete
