@@ -2,8 +2,11 @@ defmodule LCGQL.Live.LiveMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import Ecto.Query
 
   alias LC.{Accounts, Live}
+  alias LC.Infra.Repo
+  alias LCSchemas.Live.LiveParticipant
 
   describe "startLiveSession" do
     test "starts a live session for the authenticated viewer" do
@@ -243,6 +246,99 @@ defmodule LCGQL.Live.LiveMutationsTest do
                  context: context,
                  variables: %{"liveSessionId" => session_id}
                )
+    end
+
+    test "enforces host audience authorization before joining a followers-only session" do
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
+      {:ok, live_session} = Live.mark_session_live(started_session)
+
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, live_session.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      join_mutation = """
+      mutation JoinLiveSession($liveSessionId: ID!) {
+        joinLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "joinLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [%{"field" => nil, "message" => "not_authorized"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 join_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+
+      refute Repo.get_by(LiveParticipant, live_session_id: live_session.id, user_id: viewer.id)
+    end
+
+    test "allows leave cleanup even after the session has ended" do
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, live_session} = Live.mark_session_live(started_session)
+      assert {:ok, _participant} = Live.join_live_session(live_session, viewer, :viewer)
+      {:ok, ended_session} = Live.end_live_session(live_session)
+
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      leave_mutation = """
+      mutation LeaveLiveSession($liveSessionId: ID!) {
+        leaveLiveSession(input: {liveSessionId: $liveSessionId}) {
+          left
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "leaveLiveSession" => %{
+                    "left" => true,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 leave_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+
+      assert left_at =
+               from(participant in LiveParticipant,
+                 where:
+                   participant.live_session_id == ^ended_session.id and
+                     participant.user_id == ^viewer.id,
+                 select: participant.left_at
+               )
+               |> Repo.one()
+
+      assert %DateTime{} = left_at
     end
   end
 

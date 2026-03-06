@@ -1,5 +1,5 @@
 defmodule LCGQL.Live.Resolver do
-  alias LC.Live
+  alias LC.{Chat, Live}
   alias LCGQL.Relay
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
@@ -92,6 +92,7 @@ defmodule LCGQL.Live.Resolver do
       ) do
     with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
          {:ok, live_session} <- fetch_joinable_session(decoded_id),
+         :ok <- authorize_join(viewer, live_session),
          {:ok, _participant} <- Live.join_live_session(live_session, viewer, :viewer) do
       {:ok, %{live_session: live_session, errors: []}}
     else
@@ -122,12 +123,11 @@ defmodule LCGQL.Live.Resolver do
         %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
       ) do
     with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
-         {:ok, live_session} <- fetch_joinable_session(decoded_id) do
+         {:ok, live_session} <- fetch_live_session(decoded_id) do
       :ok = Live.leave_live_session(live_session, viewer)
       {:ok, %{left: true, errors: []}}
     else
-      {:error, reason}
-      when reason in [:invalid_id, :invalid_type, :not_found, :ended] ->
+      {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found] ->
         {:ok, %{left: false, errors: [mutation_error(:live_session_id, reason)]}}
     end
   end
@@ -191,6 +191,16 @@ defmodule LCGQL.Live.Resolver do
 
   defp ensure_joinable_state(%{status: :ended}), do: {:error, :ended}
   defp ensure_joinable_state(_live_session), do: :ok
+
+  defp authorize_join(viewer, live_session) when is_map(viewer) and is_map(live_session) do
+    # Keep GraphQL join policy aligned with channel joins so relationship and
+    # moderation rules are enforced consistently across transports.
+    case Chat.authorize_join(viewer, live_session) do
+      :ok -> :ok
+      {:error, :session_ended} -> {:error, :ended}
+      {:error, :not_authorized} -> {:error, :not_authorized}
+    end
+  end
 
   @spec start_live_session_attrs(map()) :: %{optional(:visibility) => atom()}
   defp start_live_session_attrs(args) when is_map(args) do
