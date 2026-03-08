@@ -356,6 +356,109 @@ defmodule LCWeb.LiveSessionChannelTest do
     refute Map.has_key?(participants_after_leave, viewer.id)
   end
 
+  test "endLiveSession disconnects already-joined viewers" do
+    Process.flag(:trap_exit, true)
+
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    monitor_ref = Process.monitor(socket.channel_pid)
+
+    session_id = Absinthe.Relay.Node.to_global_id(:live_session, session.id, LCGQL.Schema)
+    context = %{current_scope: Accounts.scope_for_user(host)}
+
+    mutation = """
+    mutation EndLiveSession($liveSessionId: ID!) {
+      endLiveSession(input: {liveSessionId: $liveSessionId}) {
+        liveSession {
+          id
+          status
+        }
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "endLiveSession" => %{
+                  "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(
+               mutation,
+               LCGQL.Schema,
+               context: context,
+               variables: %{"liveSessionId" => session_id}
+             )
+
+    assert_receive {:DOWN, ^monitor_ref, :process, _, _}
+    assert :ok = wait_for_participant_left(session.id, viewer.id)
+  end
+
+  test "leaveLiveSession disconnects the caller's joined channel" do
+    Process.flag(:trap_exit, true)
+
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    monitor_ref = Process.monitor(socket.channel_pid)
+
+    session_id = Absinthe.Relay.Node.to_global_id(:live_session, session.id, LCGQL.Schema)
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    mutation = """
+    mutation LeaveLiveSession($liveSessionId: ID!) {
+      leaveLiveSession(input: {liveSessionId: $liveSessionId}) {
+        left
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "leaveLiveSession" => %{
+                  "left" => true,
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(
+               mutation,
+               LCGQL.Schema,
+               context: context,
+               variables: %{"liveSessionId" => session_id}
+             )
+
+    assert_receive {:DOWN, ^monitor_ref, :process, _, _}
+    assert :ok = wait_for_participant_left(session.id, viewer.id)
+  end
+
   test "ownership-loss handoff keeps join client-safe during reconnect windows" do
     with_runtime_timing([lease_ttl_seconds: 1, lease_heartbeat_interval_ms: 20], fn ->
       host = user_fixture(privacy_mode: :public)

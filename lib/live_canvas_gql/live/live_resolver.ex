@@ -1,6 +1,7 @@
 defmodule LCGQL.Live.Resolver do
   alias LC.{Chat, Live}
   alias LCGQL.Relay
+  alias Phoenix.Socket.Broadcast
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
   @type live_session_payload :: %{live_session: map() | nil, errors: [mutation_error()]}
@@ -125,6 +126,7 @@ defmodule LCGQL.Live.Resolver do
     with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
          {:ok, live_session} <- fetch_live_session(decoded_id) do
       :ok = Live.leave_live_session(live_session, viewer)
+      :ok = disconnect_live_session_user(live_session.id, viewer.id, :viewer_left)
       {:ok, %{left: true, errors: []}}
     else
       {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found] ->
@@ -154,6 +156,7 @@ defmodule LCGQL.Live.Resolver do
          :ok <- ensure_host_owned(live_session, viewer),
          :ok <- ensure_not_ended(live_session),
          {:ok, live_session} <- Live.end_live_session(live_session) do
+      :ok = disconnect_live_session_channels(live_session.id, :session_ended)
       {:ok, %{live_session: live_session, errors: []}}
     else
       {:error, reason}
@@ -206,10 +209,42 @@ defmodule LCGQL.Live.Resolver do
     end
   end
 
+  @spec disconnect_live_session_channels(pos_integer(), atom()) :: :ok
+  defp disconnect_live_session_channels(session_id, reason) when is_integer(session_id) do
+    topic = session_control_topic(session_id)
+
+    Phoenix.PubSub.broadcast(
+      LC.PubSub,
+      topic,
+      %Broadcast{topic: topic, event: "disconnect", payload: %{reason: Atom.to_string(reason)}}
+    )
+  end
+
+  @spec disconnect_live_session_user(pos_integer(), pos_integer(), atom()) :: :ok
+  defp disconnect_live_session_user(session_id, user_id, reason)
+       when is_integer(session_id) and is_integer(user_id) do
+    topic = session_user_control_topic(session_id, user_id)
+
+    Phoenix.PubSub.broadcast(
+      LC.PubSub,
+      topic,
+      %Broadcast{topic: topic, event: "disconnect", payload: %{reason: Atom.to_string(reason)}}
+    )
+  end
+
   @spec start_live_session_attrs(map()) :: %{optional(:visibility) => atom()}
   defp start_live_session_attrs(args) when is_map(args) do
     Map.take(args, [:visibility])
   end
+
+  @spec session_control_topic(pos_integer()) :: String.t()
+  defp session_control_topic(session_id) when is_integer(session_id),
+    do: "live_session_control:#{session_id}"
+
+  @spec session_user_control_topic(pos_integer(), pos_integer()) :: String.t()
+  defp session_user_control_topic(session_id, user_id)
+       when is_integer(session_id) and is_integer(user_id),
+       do: "live_session_control:#{session_id}:user:#{user_id}"
 
   @spec mutation_error(:live_session_id | nil, mutation_reason()) :: mutation_error()
   defp mutation_error(field, reason) do
