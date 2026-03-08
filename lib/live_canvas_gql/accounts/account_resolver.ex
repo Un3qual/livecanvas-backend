@@ -833,7 +833,6 @@ defmodule LCGQL.Accounts.Resolver do
   defp refresh_auth_error(reason),
     do: %{field: "refreshToken", message: Atom.to_string(reason)}
 
-  @spec issue_auth_tokens_payload(map()) :: auth_token_result()
   defp issue_auth_tokens_payload(%{id: _id} = user) do
     with {:ok, access_token_payload} <- Accounts.issue_access_token(user),
          {:ok, refresh_token_payload} <- Accounts.issue_refresh_token(user) do

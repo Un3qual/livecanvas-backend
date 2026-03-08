@@ -326,4 +326,59 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
 
     assert second_conn.status == 429
   end
+
+  test "uses auth-login limits when auth bootstrap mutations are wrapped in fragments", %{
+    conn: conn
+  } do
+    previous_config = Application.get_env(:live_canvas, LCWeb.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LCWeb.RateLimiter,
+      limits: [
+        graphql_mutation: [limit: 10, window_ms: 60_000],
+        moderation_action: [limit: 10, window_ms: 60_000],
+        auth_login: [limit: 1, window_ms: 60_000],
+        channel_join: [limit: 10, window_ms: 60_000],
+        chat_send: [limit: 10, window_ms: 60_000]
+      ]
+    )
+
+    LCWeb.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LCWeb.RateLimiter, previous_config)
+      LCWeb.RateLimiter.reset!()
+    end)
+
+    conn = %{conn | remote_ip: {127, 0, 0, 1}}
+    mutation_root_type = mutation_root_type_name()
+
+    auth_mutation = """
+    mutation {
+      ...AuthBootstrapFields
+    }
+
+    fragment AuthBootstrapFields on #{mutation_root_type} {
+      loginWithMagicLink(input: {token: \"invalid-token\"}) {
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    first_conn = post(conn, "/graphql", %{"query" => auth_mutation})
+    assert first_conn.status == 200
+
+    second_conn = post(conn, "/graphql", %{"query" => auth_mutation})
+    assert second_conn.status == 429
+  end
+
+  defp mutation_root_type_name do
+    assert {:ok, %{data: %{"__schema" => %{"mutationType" => %{"name" => name}}}}} =
+             Absinthe.run("{ __schema { mutationType { name } } }", LCGQL.Schema)
+
+    name
+  end
 end

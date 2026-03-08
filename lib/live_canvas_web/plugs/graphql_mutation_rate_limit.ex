@@ -5,7 +5,15 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
 
   import Plug.Conn
   alias Absinthe.Blueprint
-  alias Absinthe.Language.{Document, Field, OperationDefinition}
+  alias Absinthe.Language.{
+    Document,
+    Field,
+    Fragment,
+    FragmentSpread,
+    InlineFragment,
+    OperationDefinition,
+    SelectionSet
+  }
 
   alias LCWeb.RateLimiter
 
@@ -85,7 +93,7 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
            Absinthe.Phase.Parse.run(%Blueprint{input: query}),
          %OperationDefinition{operation: :mutation, selection_set: %{selections: selections}} <-
            selected_operation(document, operation_name) do
-      {:ok, for(%Field{name: name} <- selections, is_binary(name), do: name)}
+      {:ok, collect_field_names(selections, Document.fragments_by_name(document))}
     else
       _other -> :error
     end
@@ -121,4 +129,66 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
   @spec moderation_mutation_names() :: [String.t()]
   defp moderation_mutation_names,
     do: ["blockUser", "unblockUser", "muteUser", "unmuteUser"]
+
+  @type fragment_definitions :: %{optional(String.t()) => Fragment.t()}
+  @type selection_acc :: {[String.t()], MapSet.t(String.t())}
+  @type mutation_selection :: Field.t() | FragmentSpread.t() | InlineFragment.t()
+
+  @spec collect_field_names([mutation_selection()], fragment_definitions()) :: [String.t()]
+  defp collect_field_names(selections, fragments)
+       when is_list(selections) and is_map(fragments) do
+    selections
+    |> collect_field_names(fragments, MapSet.new())
+    |> elem(0)
+    |> Enum.reverse()
+  end
+
+  @spec collect_field_names(
+          [mutation_selection()],
+          fragment_definitions(),
+          MapSet.t(String.t())
+        ) :: selection_acc()
+  defp collect_field_names(selections, fragments, visited_fragments)
+       when is_list(selections) and is_map(fragments) do
+    Enum.reduce(selections, {[], visited_fragments}, fn
+      %Field{name: name}, {field_names, visited} when is_binary(name) ->
+        {[name | field_names], visited}
+
+      %InlineFragment{selection_set: %SelectionSet{selections: nested}}, {field_names, visited} ->
+        merge_nested_field_names(field_names, visited, nested, fragments)
+
+      %FragmentSpread{name: name}, {field_names, visited} when is_binary(name) ->
+        if MapSet.member?(visited, name) do
+          {field_names, visited}
+        else
+          case Map.get(fragments, name) do
+            %Fragment{selection_set: %SelectionSet{selections: nested}} ->
+              merge_nested_field_names(
+                field_names,
+                MapSet.put(visited, name),
+                nested,
+                fragments
+              )
+
+            _other ->
+              {field_names, visited}
+          end
+        end
+
+      _other, state ->
+        state
+    end)
+  end
+
+  @spec merge_nested_field_names(
+          [String.t()],
+          MapSet.t(String.t()),
+          [mutation_selection()],
+          fragment_definitions()
+        ) :: selection_acc()
+  defp merge_nested_field_names(field_names, visited, nested, fragments)
+       when is_list(field_names) and is_list(nested) and is_map(fragments) do
+    {nested_field_names, visited} = collect_field_names(nested, fragments, visited)
+    {nested_field_names ++ field_names, visited}
+  end
 end
