@@ -1148,6 +1148,136 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
   end
 
+  describe "beginAuthChallenge" do
+    test "returns structured auth errors for providers that do not use challenge issuance" do
+      mutation = """
+      mutation {
+        beginAuthChallenge(input: {provider: PASSWORD, purpose: LOG_IN}) {
+          challenge {
+            provider
+            purpose
+            dispatched
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "beginAuthChallenge" => %{
+                    "challenge" => nil,
+                    "errors" => [
+                      %{
+                        "field" => "provider",
+                        "code" => "UNSUPPORTED_PROVIDER",
+                        "message" => "unsupported_provider"
+                      }
+                    ]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
+  describe "signUp" do
+    test "returns auth error codes for invalid password signup input" do
+      mutation = """
+      mutation {
+        signUp(
+          input: {
+            provider: PASSWORD
+            password: {
+              email: "signup@example.com"
+              password: "a valid new password"
+            }
+          }
+        ) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "signUp" => %{
+                    "accessToken" => nil,
+                    "refreshToken" => nil,
+                    "errors" => [
+                      %{
+                        "field" => "password.passwordConfirmation",
+                        "code" => "INVALID_INPUT",
+                        "message" => "is required"
+                      }
+                    ]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
+  describe "logIn" do
+    test "returns auth error codes for invalid magic-link login input" do
+      mutation = """
+      mutation {
+        logIn(
+          input: {
+            provider: MAGIC_LINK
+            magicLink: {
+              email: "viewer@example.com"
+            }
+          }
+        ) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "logIn" => %{
+                    "accessToken" => nil,
+                    "refreshToken" => nil,
+                    "errors" => [
+                      %{
+                        "field" => "magicLink.token",
+                        "code" => "INVALID_INPUT",
+                        "message" => "is required"
+                      }
+                    ]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
   describe "issueViewerAuthTokens" do
     test "issues access and refresh tokens for the authenticated viewer" do
       viewer = user_fixture()

@@ -5,6 +5,58 @@ defmodule LCGQL.Accounts.Mutations do
   alias LCGQL.Accounts.Resolver
 
   object :account_mutations do
+    payload field :begin_auth_challenge do
+      input do
+        field :provider, non_null(:auth_provider)
+        field :purpose, non_null(:auth_challenge_purpose)
+        field :magic_link, :magic_link_auth_input
+        field :passkey, :passkey_auth_input
+      end
+
+      output do
+        field :challenge, :auth_challenge
+        field :errors, non_null(list_of(non_null(:auth_error)))
+      end
+
+      resolve(&Resolver.begin_auth_challenge/3)
+    end
+
+    payload field :sign_up do
+      input do
+        field :provider, non_null(:auth_provider)
+        field :password, :password_auth_input
+        field :magic_link, :magic_link_auth_input
+        field :oauth, :oauth_auth_input
+        field :passkey, :passkey_auth_input
+      end
+
+      output do
+        field :access_token, :token
+        field :refresh_token, :token
+        field :errors, non_null(list_of(non_null(:auth_error)))
+      end
+
+      resolve(&Resolver.sign_up/3)
+    end
+
+    payload field :log_in do
+      input do
+        field :provider, non_null(:auth_provider)
+        field :password, :password_auth_input
+        field :magic_link, :magic_link_auth_input
+        field :oauth, :oauth_auth_input
+        field :passkey, :passkey_auth_input
+      end
+
+      output do
+        field :access_token, :token
+        field :refresh_token, :token
+        field :errors, non_null(list_of(non_null(:auth_error)))
+      end
+
+      resolve(&Resolver.log_in/3)
+    end
+
     payload field :register_with_email do
       input do
         field :email, non_null(:string)

@@ -113,6 +113,37 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
 
       refute active_identity_id == revoked_identity_id
     end
+
+    test "exposes authProvider for launch-supported identity types" do
+      user = user_fixture()
+      _google_identity = attach_user_identity(user, :google_provider, "google-auth-provider")
+      _passkey_identity = attach_user_identity(user, :passkey_provider, "passkey-auth-provider")
+
+      query = """
+      query($first: Int!) {
+        viewer {
+          userIdentities(first: $first) {
+            edges {
+              node {
+                provider
+                authProvider
+              }
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(user)}
+
+      assert {:ok, %{data: %{"viewer" => %{"userIdentities" => identities}}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+
+      assert Enum.map(identities["edges"], & &1["node"]) == [
+               %{"provider" => "google_provider", "authProvider" => "GOOGLE"},
+               %{"provider" => "passkey_provider", "authProvider" => "PASSKEY"}
+             ]
+    end
   end
 
   describe "node(userIdentity)" do

@@ -6,6 +6,17 @@ defmodule LCGQL.Accounts.Resolver do
   alias LCSchemas.Accounts.{User, UserIdentity}
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
+  @type auth_error_code ::
+          :unauthenticated
+          | :invalid_input
+          | :invalid_credentials
+          | :email_taken
+          | :token_expired
+          | :token_revoked
+          | :unsupported_provider
+          | :provider_verification_failed
+          | :passkey_verification_failed
+  @type auth_error :: %{field: String.t() | nil, code: auth_error_code(), message: String.t()}
   @type mutation_payload :: %{
           user: User.t() | nil,
           errors: [mutation_error()]
@@ -37,12 +48,20 @@ defmodule LCGQL.Accounts.Resolver do
   @type contact_upsert_result :: {:ok, contact_upsert_payload()}
   @type invite_delivery_payload :: %{errors: [mutation_error()]}
   @type invite_delivery_result :: {:ok, invite_delivery_payload()}
+  @type auth_challenge_payload :: %{challenge: map() | nil, errors: [auth_error()]}
+  @type auth_challenge_result :: {:ok, auth_challenge_payload()}
   @type auth_token_payload :: %{
           access_token: map() | nil,
           refresh_token: map() | nil,
           errors: [mutation_error()]
         }
   @type auth_token_result :: {:ok, auth_token_payload()}
+  @type auth_entry_payload :: %{
+          access_token: map() | nil,
+          refresh_token: map() | nil,
+          errors: [auth_error()]
+        }
+  @type auth_entry_result :: {:ok, auth_entry_payload()}
   @type revoke_refresh_payload :: %{revoked: boolean(), errors: [mutation_error()]}
   @type revoke_refresh_result :: {:ok, revoke_refresh_payload()}
   @type contact_upsert_error_reason ::
@@ -396,6 +415,87 @@ defmodule LCGQL.Accounts.Resolver do
     {:ok, %{errors: [invite_delivery_error(:unauthenticated)]}}
   end
 
+  @spec begin_auth_challenge(
+          term(),
+          map(),
+          Absinthe.Resolution.t()
+        ) :: auth_challenge_result()
+  def begin_auth_challenge(parent, %{input: input}, resolution),
+    do: begin_auth_challenge(parent, input, resolution)
+
+  def begin_auth_challenge(_parent, %{provider: :password}, _resolution) do
+    {:ok, %{challenge: nil, errors: [auth_error("provider", :unsupported_provider)]}}
+  end
+
+  def begin_auth_challenge(_parent, %{provider: provider, purpose: purpose}, _resolution)
+      when provider in [:magic_link, :passkey] and purpose in [:sign_up, :log_in] do
+    {:ok,
+     %{
+       challenge: %{
+         provider: provider,
+         purpose: purpose,
+         dispatched: false,
+         challenge_token: nil,
+         payload_json: nil
+       },
+       errors: [auth_error(nil, :invalid_input)]
+     }}
+  end
+
+  def begin_auth_challenge(_parent, _args, _resolution) do
+    {:ok, %{challenge: nil, errors: [auth_error(nil, :invalid_input)]}}
+  end
+
+  @spec sign_up(
+          term(),
+          %{optional(:input) => map(), optional(:provider) => atom()},
+          Absinthe.Resolution.t()
+        ) :: auth_entry_result()
+  def sign_up(parent, %{input: input}, resolution), do: sign_up(parent, input, resolution)
+
+  def sign_up(_parent, %{provider: :password, password: password_input}, _resolution)
+      when is_map(password_input) do
+    if blank?(Map.get(password_input, :password_confirmation)) do
+      {:ok,
+       %{
+         access_token: nil,
+         refresh_token: nil,
+         errors: [auth_error("password.passwordConfirmation", :invalid_input, "is required")]
+       }}
+    else
+      {:ok, %{access_token: nil, refresh_token: nil, errors: [auth_error(nil, :invalid_input)]}}
+    end
+  end
+
+  def sign_up(_parent, _args, _resolution) do
+    {:ok, %{access_token: nil, refresh_token: nil, errors: [auth_error(nil, :invalid_input)]}}
+  end
+
+  @spec log_in(
+          term(),
+          %{optional(:input) => map(), optional(:provider) => atom()},
+          Absinthe.Resolution.t()
+        ) :: auth_entry_result()
+  def log_in(parent, %{input: input}, resolution), do: log_in(parent, input, resolution)
+
+  def log_in(_parent, %{provider: :magic_link, magic_link: magic_link_input}, _resolution)
+      when is_map(magic_link_input) do
+    if blank?(Map.get(magic_link_input, :token)) do
+      {:ok,
+       %{
+         access_token: nil,
+         refresh_token: nil,
+         errors: [auth_error("magicLink.token", :invalid_input, "is required")]
+       }}
+    else
+      {:ok, %{access_token: nil, refresh_token: nil, errors: [auth_error(nil, :invalid_input)]}}
+    end
+  end
+
+  def log_in(_parent, _args, _resolution) do
+    {:ok, %{access_token: nil, refresh_token: nil, errors: [auth_error(nil, :invalid_input)]}}
+  end
+
   @spec issue_viewer_auth_tokens(term(), %{optional(:input) => map()}, Absinthe.Resolution.t()) ::
           auth_token_result()
   def issue_viewer_auth_tokens(parent, %{input: input}, resolution),
@@ -469,6 +569,18 @@ defmodule LCGQL.Accounts.Resolver do
   def revoke_refresh_token(_parent, %{refresh_token: refresh_token}, _resolution) do
     :ok = Accounts.revoke_refresh_token(refresh_token)
     {:ok, %{revoked: true, errors: []}}
+  end
+
+  @spec user_identity_auth_provider(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, :google | :apple | :passkey}
+  def user_identity_auth_provider(%{provider: provider}, _args, _resolution) do
+    {:ok, auth_provider_value!(provider)}
+  end
+
+  @spec user_identity_oauth_provider(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, :google | :apple | nil}
+  def user_identity_oauth_provider(%{provider: provider}, _args, _resolution) do
+    {:ok, oauth_provider_value!(provider)}
   end
 
   @spec viewer(term(), map(), Absinthe.Resolution.t()) :: {:ok, User.t() | nil}
@@ -696,6 +808,36 @@ defmodule LCGQL.Accounts.Resolver do
   # transport-agnostic while tests can assert invite delivery side effects.
   @spec contact_invite_url(String.t()) :: String.t()
   defp contact_invite_url(token), do: "https://livecanvas.invalid/invites/#{token}"
+
+  defp auth_error(field, code, message \\ nil) do
+    %{
+      field: field,
+      code: code,
+      message: message || Atom.to_string(code)
+    }
+  end
+
+  @spec auth_provider_value!(LCSchemas.Accounts.user_identity_provider()) ::
+          :google | :apple | :passkey
+  defp auth_provider_value!(:google_provider), do: :google
+  defp auth_provider_value!(:apple_provider), do: :apple
+  defp auth_provider_value!(:passkey_provider), do: :passkey
+
+  defp auth_provider_value!(provider) do
+    raise ArgumentError, "unsupported auth provider mapping for #{inspect(provider)}"
+  end
+
+  @spec oauth_provider_value!(LCSchemas.Accounts.user_identity_provider()) :: :google | :apple | nil
+  defp oauth_provider_value!(:google_provider), do: :google
+  defp oauth_provider_value!(:apple_provider), do: :apple
+  defp oauth_provider_value!(:passkey_provider), do: nil
+
+  defp oauth_provider_value!(provider) do
+    raise ArgumentError, "unsupported oauth provider mapping for #{inspect(provider)}"
+  end
+
+  @spec blank?(term()) :: boolean()
+  defp blank?(value), do: value in [nil, ""]
 
   @spec invite_delivery_error(invite_delivery_error_reason()) :: mutation_error()
   defp invite_delivery_error(:invalid_recipient),
