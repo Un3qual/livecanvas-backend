@@ -167,7 +167,7 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
 
   @spec auth_login_mutation_names() :: [String.t()]
   defp auth_login_mutation_names,
-    do: ["loginWithPassword", "requestMagicLinkLogin", "loginWithMagicLink"]
+    do: ["logIn", "loginWithPassword", "requestMagicLinkLogin", "loginWithMagicLink"]
 
   @spec moderation_mutation_names() :: [String.t()]
   defp moderation_mutation_names,

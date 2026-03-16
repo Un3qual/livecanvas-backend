@@ -133,6 +133,60 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
            } = Jason.decode!(second_conn.resp_body)
   end
 
+  test "uses auth-login limits for logIn mutations", %{conn: conn} do
+    previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LC.RateLimiter,
+      limits: [
+        graphql_mutation: [limit: 10, window_ms: 60_000],
+        moderation_action: [limit: 10, window_ms: 60_000],
+        auth_login: [limit: 1, window_ms: 60_000],
+        channel_join: [limit: 10, window_ms: 60_000],
+        chat_send: [limit: 10, window_ms: 60_000]
+      ]
+    )
+
+    LC.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LC.RateLimiter, previous_config)
+      LC.RateLimiter.reset!()
+    end)
+
+    auth_mutation = """
+    mutation {
+      logIn(
+        input: {
+          provider: PASSWORD
+          password: {
+            email: "user@example.com"
+            password: "bad-password"
+          }
+        }
+      ) {
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    conn = %{conn | remote_ip: {127, 0, 0, 1}}
+    first_conn = post(conn, "/graphql", %{"query" => auth_mutation})
+    assert first_conn.status == 200
+
+    second_conn = post(conn, "/graphql", %{"query" => auth_mutation})
+    assert second_conn.status == 429
+
+    assert %{
+             "errors" => [
+               %{"message" => "rate_limited", "extensions" => %{"code" => "RATE_LIMITED"}}
+             ]
+           } = Jason.decode!(second_conn.resp_body)
+  end
+
   test "keeps moderation and generic mutation buckets independent", %{conn: conn} do
     previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
 
