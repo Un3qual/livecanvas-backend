@@ -8,14 +8,14 @@ defmodule LCWeb.UserSessionRateLimitTest do
   ]
 
   setup do
-    previous_config = Application.get_env(:live_canvas, LCWeb.RateLimiter, [])
+    previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
 
-    Application.put_env(:live_canvas, LCWeb.RateLimiter, limits: @rate_limits)
-    LCWeb.RateLimiter.reset!()
+    Application.put_env(:live_canvas, LC.RateLimiter, limits: @rate_limits)
+    LC.RateLimiter.reset!()
 
     on_exit(fn ->
-      Application.put_env(:live_canvas, LCWeb.RateLimiter, previous_config)
-      LCWeb.RateLimiter.reset!()
+      Application.put_env(:live_canvas, LC.RateLimiter, previous_config)
+      LC.RateLimiter.reset!()
     end)
 
     :ok

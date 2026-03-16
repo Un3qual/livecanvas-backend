@@ -2,7 +2,7 @@ defmodule LCWeb.LiveSessionChannel do
   use LCWeb, :channel
 
   alias LC.{Chat, Live}
-  alias LCWeb.RateLimiter
+  alias LC.RateLimiter
   alias Phoenix.Socket.Broadcast
 
   @disconnect_event "disconnect"

@@ -196,21 +196,21 @@ defmodule LCWeb.LiveSessionChannelTest do
   end
 
   test "rate limits repeated join attempts for the same viewer" do
-    previous_rate_limit_config = Application.get_env(:live_canvas, LCWeb.RateLimiter, [])
+    previous_rate_limit_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
 
     Application.put_env(
       :live_canvas,
-      LCWeb.RateLimiter,
+      LC.RateLimiter,
       Keyword.put(previous_rate_limit_config, :limits,
         channel_join: [limit: 1, window_ms: 60_000]
       )
     )
 
-    LCWeb.RateLimiter.reset!()
+    LC.RateLimiter.reset!()
 
     on_exit(fn ->
-      Application.put_env(:live_canvas, LCWeb.RateLimiter, previous_rate_limit_config)
-      LCWeb.RateLimiter.reset!()
+      Application.put_env(:live_canvas, LC.RateLimiter, previous_rate_limit_config)
+      LC.RateLimiter.reset!()
     end)
 
     host = user_fixture(privacy_mode: :public)
@@ -244,22 +244,22 @@ defmodule LCWeb.LiveSessionChannelTest do
   end
 
   test "rate limits repeated chat sends for the same viewer" do
-    previous_rate_limit_config = Application.get_env(:live_canvas, LCWeb.RateLimiter, [])
+    previous_rate_limit_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
 
     Application.put_env(
       :live_canvas,
-      LCWeb.RateLimiter,
+      LC.RateLimiter,
       Keyword.put(previous_rate_limit_config, :limits,
         channel_join: [limit: 10, window_ms: 60_000],
         chat_send: [limit: 1, window_ms: 60_000]
       )
     )
 
-    LCWeb.RateLimiter.reset!()
+    LC.RateLimiter.reset!()
 
     on_exit(fn ->
-      Application.put_env(:live_canvas, LCWeb.RateLimiter, previous_rate_limit_config)
-      LCWeb.RateLimiter.reset!()
+      Application.put_env(:live_canvas, LC.RateLimiter, previous_rate_limit_config)
+      LC.RateLimiter.reset!()
     end)
 
     host = user_fixture(privacy_mode: :public)

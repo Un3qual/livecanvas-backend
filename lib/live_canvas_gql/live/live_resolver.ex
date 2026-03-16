@@ -1,6 +1,7 @@
 defmodule LCGQL.Live.Resolver do
   alias LC.{Chat, Live}
   alias LCGQL.Relay
+  alias LC.RateLimiter
   alias Phoenix.Socket.Broadcast
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
@@ -14,6 +15,7 @@ defmodule LCGQL.Live.Resolver do
           | :not_found
           | :unauthenticated
           | :not_authorized
+          | :rate_limited
           | :ended
           | :invalid_state
 
@@ -92,11 +94,15 @@ defmodule LCGQL.Live.Resolver do
         %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
       ) do
     with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
+         :ok <- rate_limit_join(viewer.id),
          {:ok, live_session} <- fetch_joinable_session(decoded_id),
          :ok <- authorize_join(viewer, live_session),
          {:ok, _participant} <- Live.join_live_session(live_session, viewer, :viewer) do
       {:ok, %{live_session: live_session, errors: []}}
     else
+      {:error, :rate_limited} ->
+        {:ok, %{live_session: nil, errors: [mutation_error(nil, :rate_limited)]}}
+
       {:error, reason}
       when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
         {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
@@ -207,6 +213,11 @@ defmodule LCGQL.Live.Resolver do
       {:error, :session_ended} -> {:error, :ended}
       {:error, :not_authorized} -> {:error, :not_authorized}
     end
+  end
+
+  @spec rate_limit_join(pos_integer()) :: :ok | {:error, :rate_limited}
+  defp rate_limit_join(user_id) when is_integer(user_id) do
+    RateLimiter.allow(:channel_join, "user:#{user_id}")
   end
 
   @spec disconnect_live_session_channels(pos_integer(), atom()) :: :ok

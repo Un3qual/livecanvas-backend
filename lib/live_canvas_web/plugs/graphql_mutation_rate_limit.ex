@@ -15,7 +15,7 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
     SelectionSet
   }
 
-  alias LCWeb.RateLimiter
+  alias LC.RateLimiter
 
   @rate_limit_error_payload %{
     errors: [
@@ -35,7 +35,7 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
   def call(conn, _opts) do
     case mutation_fields(conn) do
       {:ok, field_names} ->
-        case RateLimiter.allow(rate_limit_key(field_names), RateLimiter.conn_subject(conn)) do
+        case allow_rate_limit(rate_limit_request(field_names), RateLimiter.conn_subject(conn)) do
           :ok ->
             conn
 
@@ -68,13 +68,33 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
 
   defp mutation_fields(_conn), do: :error
 
-  @spec rate_limit_key([String.t()]) :: :auth_login | :graphql_mutation | :moderation_action
-  defp rate_limit_key(field_names) when is_list(field_names) do
+  @type rate_limit_request ::
+          {LC.RateLimiter.limit_key(), pos_integer()}
+
+  @spec rate_limit_request([String.t()]) :: rate_limit_request()
+  defp rate_limit_request(field_names) when is_list(field_names) do
+    auth_login_count = Enum.count(field_names, &auth_login_mutation?/1)
+    moderation_count = Enum.count(field_names, &moderation_mutation?/1)
+
     cond do
-      Enum.any?(field_names, &auth_login_mutation?/1) -> :auth_login
-      Enum.any?(field_names, &moderation_mutation?/1) -> :moderation_action
-      true -> :graphql_mutation
+      auth_login_count > 0 -> {:auth_login, auth_login_count}
+      moderation_count > 0 -> {:moderation_action, moderation_count}
+      true -> {:graphql_mutation, 1}
     end
+  end
+
+  @spec allow_rate_limit(rate_limit_request(), String.t()) :: :ok | {:error, :rate_limited}
+  defp allow_rate_limit({limit_key, count}, subject)
+       when is_atom(limit_key) and is_integer(count) and count > 0 and is_binary(subject) do
+    # Batched GraphQL root fields can trigger repeated sensitive operations in a
+    # single request, so consume one slot per selected field rather than once
+    # per HTTP request.
+    Enum.reduce_while(1..count, :ok, fn _, :ok ->
+      case RateLimiter.allow(limit_key, subject) do
+        :ok -> {:cont, :ok}
+        {:error, :rate_limited} = error -> {:halt, error}
+      end
+    end)
   end
 
   @spec auth_login_mutation?(String.t()) :: boolean()

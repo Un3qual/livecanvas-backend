@@ -290,6 +290,83 @@ defmodule LCGQL.Live.LiveMutationsTest do
                )
     end
 
+    test "applies the channel join rate limit to joinLiveSession" do
+      previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
+
+      Application.put_env(
+        :live_canvas,
+        LC.RateLimiter,
+        limits: [
+          graphql_mutation: [limit: 10, window_ms: 60_000],
+          moderation_action: [limit: 10, window_ms: 60_000],
+          auth_login: [limit: 10, window_ms: 60_000],
+          channel_join: [limit: 1, window_ms: 60_000],
+          chat_send: [limit: 10, window_ms: 60_000]
+        ]
+      )
+
+      LC.RateLimiter.reset!()
+
+      on_exit(fn ->
+        Application.put_env(:live_canvas, LC.RateLimiter, previous_config)
+        LC.RateLimiter.reset!()
+      end)
+
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, live_session} = Live.mark_session_live(started_session)
+
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, live_session.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      join_mutation = """
+      mutation JoinLiveSession($liveSessionId: ID!) {
+        joinLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "joinLiveSession" => %{
+                    "liveSession" => %{"id" => ^session_id},
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 join_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "joinLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [%{"field" => nil, "message" => "rate_limited"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 join_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+    end
+
     test "enforces host audience authorization before joining a followers-only session" do
       host = user_fixture()
       viewer = user_fixture()
