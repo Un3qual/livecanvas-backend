@@ -40,7 +40,7 @@ Verified directly in active docs, code, and tests before writing this plan:
 ## Progress
 
 - [x] Task 1: Add generic auth GraphQL foundation and auth-specific error codes
-- [ ] Task 2: Deliver password + magic-link challenge/signup/login flows
+- [x] Task 2: Deliver password + magic-link challenge/signup/login flows
 - [ ] Task 3: Deliver Google + Apple signup/login flows
 - [ ] Task 4: Deliver passkey challenge/signup/login flows with dedicated credential persistence
 - [ ] Task 5: Replace node-local throttles with cluster-aware OTP owner routing
@@ -96,13 +96,13 @@ Verification evidence (2026-03-16):
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing Accounts and GraphQL tests for password signup/login and magic-link challenge issuance plus signup/login redemption
-- [ ] Step 2: Run focused Accounts/GraphQL auth tests to verify RED
-- [ ] Step 3: Implement Accounts entry points for password signup/login and magic-link challenge/signup/login, returning access + refresh token pairs on success
-- [ ] Step 4: Keep email confirmation separate from password signup while treating successful magic-link redemption as email ownership proof
-- [ ] Step 5: Wire GraphQL resolvers to the new Accounts APIs and keep browser routes untouched
-- [ ] Step 6: Run focused Accounts/GraphQL/integration auth tests to verify GREEN
-- [ ] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing Accounts and GraphQL tests for password signup/login and magic-link challenge issuance plus signup/login redemption
+- [x] Step 2: Run focused Accounts/GraphQL auth tests to verify RED
+- [x] Step 3: Implement Accounts entry points for password signup/login and magic-link challenge/signup/login, returning access + refresh token pairs on success
+- [x] Step 4: Keep email confirmation separate from password signup while treating successful magic-link redemption as email ownership proof
+- [x] Step 5: Wire GraphQL resolvers to the new Accounts APIs and keep browser routes untouched
+- [x] Step 6: Run focused Accounts/GraphQL/integration auth tests to verify GREEN
+- [x] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 2 behavior targets:**
 
@@ -111,6 +111,12 @@ Verification evidence (2026-03-16):
 - `beginAuthChallenge(provider: MAGIC_LINK, purpose: SIGN_UP, ...)` creates a signup magic-link challenge for a new email.
 - `beginAuthChallenge(provider: MAGIC_LINK, purpose: LOG_IN, ...)` creates a login magic-link challenge for an existing account while keeping enumeration-safe responses.
 - `signUp(provider: MAGIC_LINK, ...)` and `logIn(provider: MAGIC_LINK, ...)` redeem challenge tokens and return tokens.
+
+Verification evidence (2026-03-16):
+
+- `mix test test/live_canvas/accounts/auth_entrypoints_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/integration/accounts_login_flow_test.exs` -> RED first (`54 tests, 16 failures`) and GREEN after implementation (`54 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 3: Deliver Google + Apple Signup/Login Flows
 
@@ -193,7 +199,7 @@ Verification evidence (2026-03-16):
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
 **Task 5 Step Progress:**
-- [ ] Step 1: Add failing limiter tests for deterministic owner-node selection, remote-owner forwarding, and local fallback when owner routing fails
+- [x] Step 1: Add failing limiter tests for deterministic owner-node selection, remote-owner forwarding, and local fallback when owner routing fails
 - [ ] Step 2: Run focused limiter tests to verify RED
 - [ ] Step 3: Implement deterministic node selection using the connected cluster membership and `:erpc` forwarding to an owner-node local ETS counter path
 - [ ] Step 4: Preserve the existing public `allow/2`, `conn_subject/1`, and `reset!/0` API so current plugs/channels/controllers do not change

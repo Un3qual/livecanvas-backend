@@ -105,6 +105,18 @@ defmodule LC.Accounts do
           | {:error, account_deletion_cancel_error() | changeset()}
   @type token_pair_payload :: %{access_token: token_payload(), refresh_token: token_payload()}
   @type token_pair_result :: {:ok, token_pair_payload()} | {:error, refresh_token_auth_error()}
+  @type auth_entry_payload :: %{
+          user: User.t(),
+          access_token: token_payload(),
+          refresh_token: token_payload()
+        }
+  @type auth_entry_error :: :email_taken | :invalid_credentials | changeset()
+  @type auth_entry_result :: {:ok, auth_entry_payload()} | {:error, auth_entry_error()}
+  @type auth_challenge_purpose :: :sign_up | :log_in
+  @type magic_link_challenge_payload :: %{user: User.t() | nil, dispatched: boolean()}
+  @type magic_link_challenge_result ::
+          {:ok, magic_link_challenge_payload()}
+          | {:error, :email_taken | :invalid_credentials | changeset()}
   @type password_reset_result ::
           {:ok, {User.t(), [UserToken.t()]}} | {:error, :not_found | changeset()}
   @type registration_attrs :: %{
@@ -360,6 +372,104 @@ defmodule LC.Accounts do
     %User{}
     |> UserChanges.email_changeset(attrs, opts)
   end
+
+  @doc """
+  Registers a password-backed account and immediately returns an auth token pair.
+  """
+  @spec sign_up_with_password(map()) :: auth_entry_result()
+  def sign_up_with_password(attrs) when is_map(attrs) do
+    email_changeset = UserChanges.email_changeset(%User{}, attrs)
+    email = get_field(email_changeset, :email)
+
+    Repo.transact(fn ->
+      cond do
+        not email_changeset.valid? ->
+          {:error, email_changeset}
+
+        email_taken?(email) ->
+          {:error, :email_taken}
+
+        true ->
+          with {:ok, user} <- Repo.insert(email_changeset),
+               {:ok, _user_email_address} <- attach_email_address(user, email, []),
+               {:ok, user_with_password} <-
+                 user
+                 |> UserChanges.password_changeset(attrs)
+                 |> Repo.update(),
+               {:ok, auth_entry} <- issue_auth_entry_tokens(put_primary_email(user_with_password)) do
+            {:ok, auth_entry}
+          end
+      end
+    end)
+  end
+
+  def sign_up_with_password(_attrs), do: {:error, :invalid_credentials}
+
+  @doc """
+  Issues an auth token pair for a valid email/password login.
+  """
+  @spec log_in_with_password(map()) :: auth_entry_result()
+  def log_in_with_password(%{email: email, password: password})
+      when is_binary(email) and is_binary(password) do
+    case get_user_by_email_and_password(email, password) do
+      %User{} = user ->
+        Repo.transact(fn ->
+          issue_auth_entry_tokens(user)
+        end)
+
+      nil ->
+        {:error, :invalid_credentials}
+    end
+  end
+
+  def log_in_with_password(_attrs), do: {:error, :invalid_credentials}
+
+  @doc """
+  Begins a reusable magic-link challenge for signup or login.
+  """
+  @spec begin_magic_link_challenge(auth_challenge_purpose(), String.t(), (String.t() ->
+                                                                            String.t())) ::
+          magic_link_challenge_result()
+  def begin_magic_link_challenge(purpose, email, magic_link_url_fun)
+      when purpose in [:sign_up, :log_in] and is_binary(email) and
+             is_function(magic_link_url_fun, 1) do
+    email_changeset = UserChanges.email_changeset(%User{}, %{email: email})
+    normalized_email = get_field(email_changeset, :email)
+
+    cond do
+      not email_changeset.valid? ->
+        {:error, email_changeset}
+
+      purpose == :sign_up ->
+        begin_magic_link_sign_up(normalized_email, magic_link_url_fun)
+
+      true ->
+        begin_magic_link_log_in(normalized_email, magic_link_url_fun)
+    end
+  end
+
+  def begin_magic_link_challenge(_purpose, _email, _magic_link_url_fun),
+    do: {:error, :invalid_credentials}
+
+  @doc """
+  Completes magic-link signup and returns auth tokens.
+  """
+  @spec sign_up_with_magic_link(String.t()) :: auth_entry_result()
+  def sign_up_with_magic_link(serialized_value) when is_binary(serialized_value) do
+    complete_magic_link_auth(serialized_value)
+  end
+
+  def sign_up_with_magic_link(_serialized_value), do: {:error, :invalid_credentials}
+
+  @doc """
+  Completes magic-link login and returns auth tokens.
+  """
+  @spec log_in_with_magic_link(String.t()) :: auth_entry_result()
+  def log_in_with_magic_link(serialized_value) when is_binary(serialized_value) do
+    complete_magic_link_auth(serialized_value)
+  end
+
+  def log_in_with_magic_link(_serialized_value), do: {:error, :invalid_credentials}
 
   ## Settings
 
@@ -1193,6 +1303,66 @@ defmodule LC.Accounts do
     end
   end
 
+  @spec issue_auth_entry_tokens(User.t()) :: {:ok, auth_entry_payload()} | {:error, changeset()}
+  defp issue_auth_entry_tokens(%User{} = user) do
+    with {:ok, access_token_payload} <- issue_access_token(user),
+         {:ok, refresh_token_payload} <- issue_refresh_token(user) do
+      {:ok,
+       %{
+         user: user,
+         access_token: access_token_payload,
+         refresh_token: refresh_token_payload
+       }}
+    end
+  end
+
+  @spec begin_magic_link_sign_up(String.t(), (String.t() -> String.t())) ::
+          magic_link_challenge_result()
+  defp begin_magic_link_sign_up(email, magic_link_url_fun) do
+    case register_user(%{email: email}) do
+      {:ok, user} ->
+        user = put_primary_email(user)
+
+        # Challenge acceptance should not fork on notifier transport state;
+        # callers need a deterministic response while delivery remains best-effort.
+        _ = deliver_login_instructions(user, magic_link_url_fun)
+        {:ok, %{user: user, dispatched: true}}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        if email_taken_error?(changeset), do: {:error, :email_taken}, else: {:error, changeset}
+    end
+  end
+
+  @spec begin_magic_link_log_in(String.t(), (String.t() -> String.t())) ::
+          magic_link_challenge_result()
+  defp begin_magic_link_log_in(email, magic_link_url_fun) do
+    _ =
+      case get_user_by_email(email) do
+        nil ->
+          :ok
+
+        %User{} = user ->
+          # Login challenge responses stay uniform so callers cannot enumerate
+          # whether a given email is already registered.
+          deliver_login_instructions(user, magic_link_url_fun)
+      end
+
+    {:ok, %{user: nil, dispatched: true}}
+  end
+
+  @spec complete_magic_link_auth(String.t()) :: auth_entry_result()
+  defp complete_magic_link_auth(serialized_value) when is_binary(serialized_value) do
+    Repo.transact(fn ->
+      with {:ok, {user, _expired_tokens}} <- login_user_by_magic_link(serialized_value),
+           {:ok, auth_entry} <- issue_auth_entry_tokens(user) do
+        {:ok, auth_entry}
+      else
+        {:error, :not_found} -> {:error, :invalid_credentials}
+        {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset}
+      end
+    end)
+  end
+
   defp upsert_contact_entry_row(user, contact_client_id, contact_name, birthday) do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
@@ -1745,6 +1915,13 @@ defmodule LC.Accounts do
 
   defp email_taken?(nil), do: false
   defp email_taken?(email), do: not is_nil(get_user_by_email(email))
+
+  @spec email_taken_error?(Ecto.Changeset.t()) :: boolean()
+  defp email_taken_error?(%Ecto.Changeset{} = changeset) do
+    Enum.any?(Keyword.get_values(changeset.errors, :email), fn {message, _opts} ->
+      message == "has already been taken"
+    end)
+  end
 
   defp email_taken_changeset(changeset),
     do: add_error(changeset, :email, "has already been taken")
