@@ -23,6 +23,7 @@
 
 ## Planning And Documentation
 
+- Until further notice, prioritize product feature completeness over observability, automation, and other non-product follow-up work unless the user explicitly directs otherwise.
 - When creating plans, use docs subfolders intelligently so related plans stay organized.
 - Plans must be detailed and specific while still allowing executors to make informed decisions based on their own research.
 - Split plans into multiple steps and/or multiple files when that improves clarity or execution safety.

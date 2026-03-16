@@ -2,6 +2,11 @@
 
 Use this directory for active and in-progress planning artifacts.
 
+## Execution Priority
+
+- Until further notice, product feature completeness is the primary goal.
+- Prefer product-facing backend work over observability, automation, and other operational follow-up work unless the user explicitly reprioritizes or the work is required to unblock product delivery.
+
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`

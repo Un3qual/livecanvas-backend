@@ -10,6 +10,8 @@ later phases. It is intentionally scoped to the backend only.
 
 ### Current Execution Note (2026-03-02)
 
+- Product feature completeness is the main goal until further notice.
+- Prioritize product-facing backend work over observability, automation, and other operational hardening unless that work is explicitly requested or required to unblock product delivery.
 - Keep the existing `Content` implementation as-is.
 - Defer any new `Content` scope until it is required to unblock forward progress
   in active work.
