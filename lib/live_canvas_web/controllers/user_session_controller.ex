@@ -2,7 +2,7 @@ defmodule LCWeb.UserSessionController do
   use LCWeb, :controller
 
   alias LC.Accounts
-  alias LCWeb.RateLimiter
+  alias LC.RateLimiter
   alias LCWeb.UserAuth
 
   @type conn :: Plug.Conn.t()

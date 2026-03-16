@@ -8,7 +8,7 @@
   - `mix test` -> PASS (`426 tests, 0 failures, 1 excluded`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
-- Plan tracking state: release-track plans now include delivered account-recovery password reset coverage, live chat/moderation rate-limit hardening, live runtime partition/rejoin drill coverage, viewer-scoped post lifecycle mutations, object-storage serving/provider hardening, and Phase 5 capacity verification + launch-gate wiring (`docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`, `docs/plans/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`, `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md`, `docs/plans/release/2026-03-05-content-post-lifecycle-mutations.md`, `docs/plans/release/2026-03-05-object-storage-serving-provider-hardening.md`, `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`) alongside media upload callback-driven async processing and deployment/rollback runbooks (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`).
+- Plan tracking state: release-track plans now include delivered account-recovery password reset coverage, live chat/moderation rate-limit hardening, live runtime partition/rejoin drill coverage, viewer-scoped post lifecycle mutations, object-storage serving/provider hardening, and Phase 5 capacity verification + launch-gate wiring (`docs/plans/archive/completed/release/2026-03-05-account-recovery-password-reset-foundation.md`, `docs/plans/archive/completed/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`, `docs/plans/archive/completed/release/2026-03-05-live-runtime-partition-rejoin-drills.md`, `docs/plans/archive/completed/release/2026-03-05-content-post-lifecycle-mutations.md`, `docs/plans/archive/completed/release/2026-03-05-object-storage-serving-provider-hardening.md`, `docs/plans/archive/completed/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`) alongside media upload callback-driven async processing and deployment/rollback runbooks (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/archive/completed/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/archive/completed/release/2026-03-03-release-engineering-and-deployment-gates.md`).
 
 ## What Has Been Delivered
 
@@ -58,7 +58,7 @@ Main reason: the current API surface proves domain behavior, but live-runtime sc
 
 Auth/security baseline now includes viewer-scoped GraphQL writes, bearer token GraphQL auth precedence, GraphiQL environment gating, abuse-rate limiting, and persisted auth audit events for login outcomes, refresh-token revocation/rotation outcomes, and credential change outcomes.
 
-Observability baseline now includes Telemetry instrumentation for live session lifecycle outcomes, live channel join/chat outcomes, and auth lifecycle parity events (`[:live_canvas, :accounts, :auth, <event_type>]`) with a documented launch-ops checklist in `docs/plans/release/2026-03-03-observability-and-launch-ops.md`.
+Observability baseline now includes Telemetry instrumentation for live session lifecycle outcomes, live channel join/chat outcomes, and auth lifecycle parity events (`[:live_canvas, :accounts, :auth, <event_type>]`) with a documented launch-ops checklist in `docs/plans/archive/completed/release/2026-03-03-observability-and-launch-ops.md`.
 
 Compliance baseline implementation is now in place: policy/runbook docs plus viewer-scoped export and account-deletion request workflows are delivered, and retention baseline execution is exposed via `mix release.retention_sweep` (with apply-mode deletion intentionally stubbed for now).
 
@@ -109,17 +109,17 @@ Per architecture decisions, these remain intentionally deferred and should not b
 ### Release Track Plans
 
 - `docs/plans/2026-03-03-release-authn-authz-hardening.md`
-- `docs/plans/release/2026-03-03-auth-audit-events.md`
-- `docs/plans/release/2026-03-03-auth-audit-expansion.md`
-- `docs/plans/release/2026-03-03-observability-and-launch-ops.md`
-- `docs/plans/release/2026-03-03-live-runtime-distributed-ownership.md`
-- `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`
-- `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`
-- `docs/plans/release/2026-03-04-compliance-data-governance.md`
-- `docs/plans/release/2026-03-05-account-recovery-password-reset-foundation.md`
-- `docs/plans/release/2026-03-05-content-post-lifecycle-mutations.md`
-- `docs/plans/release/2026-03-05-object-storage-serving-provider-hardening.md`
-- `docs/plans/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`
+- `docs/plans/archive/completed/release/2026-03-03-auth-audit-events.md`
+- `docs/plans/archive/completed/release/2026-03-03-auth-audit-expansion.md`
+- `docs/plans/archive/completed/release/2026-03-03-observability-and-launch-ops.md`
+- `docs/plans/archive/completed/release/2026-03-03-live-runtime-distributed-ownership.md`
+- `docs/plans/archive/completed/release/2026-03-03-webhooks-and-async-jobs.md`
+- `docs/plans/archive/completed/release/2026-03-03-release-engineering-and-deployment-gates.md`
+- `docs/plans/archive/completed/release/2026-03-04-compliance-data-governance.md`
+- `docs/plans/archive/completed/release/2026-03-05-account-recovery-password-reset-foundation.md`
+- `docs/plans/archive/completed/release/2026-03-05-content-post-lifecycle-mutations.md`
+- `docs/plans/archive/completed/release/2026-03-05-object-storage-serving-provider-hardening.md`
+- `docs/plans/archive/completed/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`
 
 ## Release Roadmap (From Current State To Releasable Backend)
 
@@ -161,10 +161,10 @@ Mobile parallel:
 ### Phase 3: Live/Chat Runtime Productionization
 
 - Distributed live runtime ownership baseline is now delivered (lease table + remote-owner join routing + channel-safe client error mapping).
-- Heartbeat/lease-refresh hardening and stale-local-runtime handoff routing are now delivered via `docs/plans/release/2026-03-04-live-runtime-heartbeat-and-failover-hardening.md`.
-- Multi-node failover drills and reconnect consistency under partition/rejoin scenarios are now delivered via `docs/plans/release/2026-03-05-live-runtime-partition-rejoin-drills.md` (`test/integration/live/runtime_partition_rejoin_test.exs`, `mix release.live_runtime_drill`).
+- Heartbeat/lease-refresh hardening and stale-local-runtime handoff routing are now delivered via `docs/plans/archive/completed/release/2026-03-04-live-runtime-heartbeat-and-failover-hardening.md`.
+- Multi-node failover drills and reconnect consistency under partition/rejoin scenarios are now delivered via `docs/plans/archive/completed/release/2026-03-05-live-runtime-partition-rejoin-drills.md` (`test/integration/live/runtime_partition_rejoin_test.exs`, `mix release.live_runtime_drill`).
 - Reconnect/rejoin behavior is now validated through real peer-node partition/takeover coverage plus operator-facing failover rehearsal runbook/command.
-- Operational limits for chat throughput and moderation actions are now delivered via `docs/plans/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`.
+- Operational limits for chat throughput and moderation actions are now delivered via `docs/plans/archive/completed/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`.
 - Retention policy for chat/live participation records is documented; implementation enforcement remains follow-up work.
 
 Mobile parallel:
@@ -173,7 +173,7 @@ Mobile parallel:
 
 ### Phase 4: Media, Storage, And External Integration
 
-- Object-storage serving strategy and provider hardening are now delivered via `docs/plans/release/2026-03-05-object-storage-serving-provider-hardening.md` (`LC.Infra.ObjectStorage.ConfigurableAdapter`, runtime config validation, and GraphQL `mediaAsset.publicUrl` contract).
+- Object-storage serving strategy and provider hardening are now delivered via `docs/plans/archive/completed/release/2026-03-05-object-storage-serving-provider-hardening.md` (`LC.Infra.ObjectStorage.ConfigurableAdapter`, runtime config validation, and GraphQL `mediaAsset.publicUrl` contract).
 - Webhook callback ingress for media processing is now delivered (`POST /api/webhooks/media-processing`).
 - Background job retries/idempotent async work is now delivered (`async_jobs` + `LC.Infra.AsyncJobs.Worker`).
 
@@ -192,11 +192,11 @@ Mobile parallel:
 
 ## Planning Holes (Missing Or Underspecified Right Now)
 
-The previous webhook/async-job planning hole is now closed by `docs/plans/release/2026-03-03-webhooks-and-async-jobs.md`, the release-engineering deployment-gates hole is now closed by `docs/plans/release/2026-03-03-release-engineering-and-deployment-gates.md`, the compliance/data-governance planning hole is now closed by `docs/plans/release/2026-03-04-compliance-data-governance.md`, and the object-storage serving/provider hardening hole is now closed by `docs/plans/release/2026-03-05-object-storage-serving-provider-hardening.md`.
+The previous webhook/async-job planning hole is now closed by `docs/plans/archive/completed/release/2026-03-03-webhooks-and-async-jobs.md`, the release-engineering deployment-gates hole is now closed by `docs/plans/archive/completed/release/2026-03-03-release-engineering-and-deployment-gates.md`, the compliance/data-governance planning hole is now closed by `docs/plans/archive/completed/release/2026-03-04-compliance-data-governance.md`, and the object-storage serving/provider hardening hole is now closed by `docs/plans/archive/completed/release/2026-03-05-object-storage-serving-provider-hardening.md`.
 
 Remaining tracked gaps:
 
-- Chat/live participation retention enforcement is now tracked by `docs/plans/release/2026-03-05-chat-live-retention-enforcement.md`; Tasks 1-3 (candidate coverage, policy-window alignment, and apply-mode guardrails) are delivered, while destructive hard-delete execution remains deferred.
+- Chat/live participation retention enforcement is now tracked by `docs/plans/archive/completed/release/2026-03-05-chat-live-retention-enforcement.md`; Tasks 1-3 (candidate coverage, policy-window alignment, and apply-mode guardrails) are delivered, while destructive hard-delete execution remains deferred.
 - Compliance hard-delete enablement follow-up remains intentionally paused by operator direction; do not resume until that pause is explicitly lifted.
 
 ## Evidence Notes On Key Blockers
