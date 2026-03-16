@@ -1072,10 +1072,11 @@ defmodule LC.Accounts do
   Delivers the magic link login instructions to the given user.
   """
   @spec deliver_login_instructions(User.t(), (String.t() -> String.t())) ::
-          {:ok, Swoosh.Email.t()} | {:error, changeset()}
+          {:ok, Swoosh.Email.t()} | {:error, :magic_link_not_allowed | changeset()}
   def deliver_login_instructions(%User{} = user, magic_link_url_fun)
       when is_function(magic_link_url_fun, 1) do
-    with {:ok, %{token: serialized_value}} <- issue_magic_link_token(user) do
+    with true <- magic_link_login_allowed?(user) || {:error, :magic_link_not_allowed},
+         {:ok, %{token: serialized_value}} <- issue_magic_link_token(user) do
       UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(serialized_value))
     end
   end
@@ -1915,6 +1916,13 @@ defmodule LC.Accounts do
 
   defp email_taken?(nil), do: false
   defp email_taken?(email), do: not is_nil(get_user_by_email(email))
+
+  @spec magic_link_login_allowed?(User.t()) :: boolean()
+  defp magic_link_login_allowed?(%User{confirmed_at: nil, hashed_password: hashed_password})
+       when not is_nil(hashed_password),
+       do: false
+
+  defp magic_link_login_allowed?(%User{}), do: true
 
   @spec email_taken_error?(Ecto.Changeset.t()) :: boolean()
   defp email_taken_error?(%Ecto.Changeset{} = changeset) do

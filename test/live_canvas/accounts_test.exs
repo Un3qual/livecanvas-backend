@@ -793,7 +793,12 @@ defmodule LC.AccountsTest do
 
     test "raises when unconfirmed user has password set" do
       user = unconfirmed_user_fixture()
-      {1, nil} = Repo.update_all(User, set: [hashed_password: "hashed"])
+
+      {1, nil} =
+        Repo.update_all(from(u in User, where: u.id == ^user.id),
+          set: [hashed_password: "hashed"]
+        )
+
       {encoded_token, _hashed_token} = generate_user_magic_link_token(user)
 
       assert_raise RuntimeError, ~r/magic link log in is not allowed/, fn ->
@@ -899,6 +904,22 @@ defmodule LC.AccountsTest do
       assert user_token.user_id == user.id
       assert user_token.sent_to == user.email
       assert user_token.context == :email_magic_link_token
+    end
+
+    test "does not issue a token for unconfirmed users who already set a password" do
+      password = valid_user_password()
+
+      assert {:ok, %{user: user}} =
+               Accounts.sign_up_with_password(%{
+                 email: "blocked-magic-link@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      assert {:error, :magic_link_not_allowed} =
+               Accounts.deliver_login_instructions(user, &"https://livecanvas.invalid/#{&1}")
+
+      refute Repo.get_by(UserToken, user_id: user.id, context: :email_magic_link_token)
     end
   end
 

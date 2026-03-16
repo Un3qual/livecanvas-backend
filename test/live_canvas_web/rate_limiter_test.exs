@@ -1,16 +1,16 @@
-defmodule LCWeb.RateLimiterTest do
+defmodule LC.RateLimiterTest do
   use ExUnit.Case, async: false
 
   @mock_erpc __MODULE__.MockErpc
 
   setup do
-    original_env = Application.get_env(:live_canvas, LCWeb.RateLimiter, [])
+    original_env = Application.get_env(:live_canvas, LC.RateLimiter, [])
 
     on_exit(fn ->
-      Application.put_env(:live_canvas, LCWeb.RateLimiter, original_env)
+      Application.put_env(:live_canvas, LC.RateLimiter, original_env)
     end)
 
-    LCWeb.RateLimiter.reset!()
+    LC.RateLimiter.reset!()
     Process.delete(:erpc_response)
     :ok
   end
@@ -20,10 +20,10 @@ defmodule LCWeb.RateLimiterTest do
       configure_env(cluster_nodes: [:zig@localhost, :alpha@localhost])
 
       subject = "stable-subject"
-      first_owner = LCWeb.RateLimiter.owner_node(:auth_login, subject)
+      first_owner = LC.RateLimiter.owner_node(:auth_login, subject)
 
       configure_env(cluster_nodes: [:alpha@localhost, :zig@localhost])
-      second_owner = LCWeb.RateLimiter.owner_node(:auth_login, subject)
+      second_owner = LC.RateLimiter.owner_node(:auth_login, subject)
 
       assert first_owner == second_owner
     end
@@ -37,7 +37,7 @@ defmodule LCWeb.RateLimiterTest do
       subject = "remote-subject"
       limit_key = :auth_login
 
-      assert {:error, :rate_limited} == LCWeb.RateLimiter.allow(limit_key, subject)
+      assert {:error, :rate_limited} == LC.RateLimiter.allow(limit_key, subject)
     end
 
     test "falls back to local enforcement when :erpc fails" do
@@ -52,14 +52,14 @@ defmodule LCWeb.RateLimiterTest do
       subject = "fallback-subject"
       limit_key = :auth_login
 
-      assert :ok == LCWeb.RateLimiter.allow(limit_key, subject)
-      assert {:error, :rate_limited} == LCWeb.RateLimiter.allow(limit_key, subject)
+      assert :ok == LC.RateLimiter.allow(limit_key, subject)
+      assert {:error, :rate_limited} == LC.RateLimiter.allow(limit_key, subject)
     end
   end
 
   defp configure_env(opts) do
-    base = Application.get_env(:live_canvas, LCWeb.RateLimiter, [])
-    Application.put_env(:live_canvas, LCWeb.RateLimiter, Keyword.merge(base, opts))
+    base = Application.get_env(:live_canvas, LC.RateLimiter, [])
+    Application.put_env(:live_canvas, LC.RateLimiter, Keyword.merge(base, opts))
   end
 
   defmodule MockErpc do

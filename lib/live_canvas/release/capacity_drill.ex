@@ -552,7 +552,9 @@ defmodule LC.Release.CapacityDrill do
 
   @spec create_probe_user(String.t()) :: {:ok, struct()} | {:error, term()}
   defp create_probe_user(prefix) when is_binary(prefix) do
-    email = "#{prefix}-#{System.unique_integer([:positive, :monotonic])}@example.com"
+    # UUID-based probe emails prevent collisions across VM restarts and
+    # repeated drill runs against long-lived environments.
+    email = "#{prefix}-#{Ecto.UUID.generate()}@example.com"
 
     case Accounts.register_user_with_email(%{email: email}) do
       {:ok, user} -> {:ok, user}

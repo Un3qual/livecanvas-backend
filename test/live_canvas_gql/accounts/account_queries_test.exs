@@ -144,6 +144,46 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
                %{"provider" => "passkey_provider", "authProvider" => "PASSKEY"}
              ]
     end
+
+    test "keeps legacy identity providers queryable without raising" do
+      user = user_fixture()
+      _instagram_identity = attach_user_identity(user, :instagram_provider, "instagram-legacy")
+      _snap_identity = attach_user_identity(user, :snap_provider, "snap-legacy")
+
+      query = """
+      query($first: Int!) {
+        viewer {
+          userIdentities(first: $first) {
+            edges {
+              node {
+                provider
+                authProvider
+                oauthProvider
+              }
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(user)}
+
+      assert {:ok, %{data: %{"viewer" => %{"userIdentities" => identities}}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+
+      assert Enum.map(identities["edges"], & &1["node"]) == [
+               %{
+                 "provider" => "instagram_provider",
+                 "authProvider" => nil,
+                 "oauthProvider" => "INSTAGRAM"
+               },
+               %{
+                 "provider" => "snap_provider",
+                 "authProvider" => nil,
+                 "oauthProvider" => nil
+               }
+             ]
+    end
   end
 
   describe "node(userIdentity)" do

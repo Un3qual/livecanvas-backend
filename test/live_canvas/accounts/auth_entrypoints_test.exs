@@ -127,6 +127,33 @@ defmodule LC.Accounts.AuthEntrypointsTest do
                  :id
                )
     end
+
+    test "does not issue a login magic link for unconfirmed password users" do
+      password = valid_user_password()
+
+      assert {:ok, %{user: user}} =
+               Accounts.sign_up_with_password(%{
+                 email: "password-magic-link-blocked@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      assert {:ok, %{user: nil, dispatched: true}} =
+               Accounts.begin_magic_link_challenge(
+                 :log_in,
+                 user.email,
+                 &"https://livecanvas.invalid/users/log-in/#{&1}"
+               )
+
+      assert 0 ==
+               Repo.aggregate(
+                 from(token in UserToken,
+                   where: token.context == :email_magic_link_token and token.user_id == ^user.id
+                 ),
+                 :count,
+                 :id
+               )
+    end
   end
 
   describe "sign_up_with_magic_link/1" do

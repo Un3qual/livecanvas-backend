@@ -2,7 +2,10 @@ defmodule LCWeb.LiveSessionChannel do
   use LCWeb, :channel
 
   alias LC.{Chat, Live}
-  alias LCWeb.RateLimiter
+  alias LC.RateLimiter
+  alias Phoenix.Socket.Broadcast
+
+  @disconnect_event "disconnect"
 
   @impl true
   @spec join(String.t(), map(), Phoenix.Socket.t()) ::
@@ -20,7 +23,8 @@ defmodule LCWeb.LiveSessionChannel do
            :ok <- rate_limit_join(user_id),
            {:ok, live_session} <- Live.fetch_joinable_session(session_id),
            :ok <- Chat.authorize_join(current_user, live_session),
-           {:ok, _participant} <- Live.join_live_session(live_session, current_user, :viewer) do
+           {:ok, _participant} <- Live.join_live_session(live_session, current_user, :viewer),
+           :ok <- subscribe_to_control_topics(session_id, user_id) do
         {:ok, assign(socket, :live_session, live_session), session_id}
       else
         {:error, reason} -> {:error, reason}
@@ -58,6 +62,12 @@ defmodule LCWeb.LiveSessionChannel do
       )
 
     {:error, %{reason: join_error_reason(:not_authorized)}}
+  end
+
+  @impl true
+  @spec handle_info(Broadcast.t(), Phoenix.Socket.t()) :: {:stop, term(), Phoenix.Socket.t()}
+  def handle_info(%Broadcast{event: @disconnect_event}, socket) do
+    {:stop, :session_disconnected, socket}
   end
 
   @impl true
@@ -232,4 +242,23 @@ defmodule LCWeb.LiveSessionChannel do
       inserted_at: DateTime.to_iso8601(chat_message.inserted_at)
     }
   end
+
+  @spec subscribe_to_control_topics(pos_integer(), pos_integer()) :: :ok
+  defp subscribe_to_control_topics(session_id, user_id)
+       when is_integer(session_id) and is_integer(user_id) do
+    # Session control topics let GraphQL lifecycle mutations invalidate already
+    # joined channels so socket state does not drift from persisted state.
+    :ok = LCWeb.Endpoint.subscribe(session_control_topic(session_id))
+    :ok = LCWeb.Endpoint.subscribe(session_user_control_topic(session_id, user_id))
+    :ok
+  end
+
+  @spec session_control_topic(pos_integer()) :: String.t()
+  defp session_control_topic(session_id) when is_integer(session_id),
+    do: "live_session_control:#{session_id}"
+
+  @spec session_user_control_topic(pos_integer(), pos_integer()) :: String.t()
+  defp session_user_control_topic(session_id, user_id)
+       when is_integer(session_id) and is_integer(user_id),
+       do: "live_session_control:#{session_id}:user:#{user_id}"
 end

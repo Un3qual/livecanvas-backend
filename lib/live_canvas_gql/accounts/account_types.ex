@@ -89,7 +89,7 @@ defmodule LCGQL.Accounts.Types do
   node object(:user_identity) do
     field :provider, non_null(:string)
 
-    field :auth_provider, non_null(:auth_provider) do
+    field :auth_provider, :auth_provider do
       resolve(&Resolver.user_identity_auth_provider/3)
     end
 

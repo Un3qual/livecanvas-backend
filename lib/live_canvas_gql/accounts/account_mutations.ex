@@ -191,6 +191,47 @@ defmodule LCGQL.Accounts.Mutations do
       resolve(&Resolver.deliver_viewer_contact_invite/3)
     end
 
+    payload field :login_with_password do
+      input do
+        field :email, non_null(:string)
+        field :password, non_null(:string)
+      end
+
+      output do
+        field :access_token, :token
+        field :refresh_token, :token
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.login_with_password/3)
+    end
+
+    payload field :request_magic_link_login do
+      input do
+        field :email, non_null(:string)
+      end
+
+      output do
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.request_magic_link_login/3)
+    end
+
+    payload field :login_with_magic_link do
+      input do
+        field :token, non_null(:string)
+      end
+
+      output do
+        field :access_token, :token
+        field :refresh_token, :token
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.login_with_magic_link/3)
+    end
+
     payload field :issue_viewer_auth_tokens do
       input do
         field :device_info, :device_info_input

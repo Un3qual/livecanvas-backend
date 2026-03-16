@@ -105,9 +105,11 @@ defmodule LCGQL.Schema do
   mutation do
     import_types(LCGQL.Accounts.Mutations)
     import_types(LCGQL.Content.Mutations)
+    import_types(LCGQL.Live.Mutations)
     import_types(LCGQL.Social.Mutations)
     import_fields(:account_mutations)
     import_fields(:content_mutations)
+    import_fields(:live_mutations)
     import_fields(:social_mutations)
   end
 

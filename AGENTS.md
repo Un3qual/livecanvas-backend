@@ -16,6 +16,7 @@
 - Keep progress checkboxes up to date as work proceeds.
 - Do not create standalone checkbox-only or docs-only progress commits; bundle progress updates with related code/test changes in the same commit.
 - Commit at milestone boundaries: completed task section, user-visible behavior change, or required verification checkpoint.
+- Favor more frequent milestone commits during execution (avoid long stretches without a commit) while still keeping each commit scoped to meaningful completed work.
 - Dispatch subagents only when there are 2+ substantial independent tracks; avoid subagents for simple plan reading or tiny edits.
 - Run the minimum verification needed for each batch; avoid verbose command flags unless diagnosing failures.
 - Once the requested work is complete, merge into `main` and remove the worktree.
