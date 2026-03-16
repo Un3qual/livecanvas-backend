@@ -15,24 +15,25 @@ defmodule LCWeb.RateLimiter do
     chat_send: [limit: 120, window_ms: 60_000]
   ]
 
+  @default_env [
+    erpc_module: :erpc,
+    erpc_timeout: 5_000
+  ]
+
   @spec allow(limit_key(), String.t()) :: allow_result()
   def allow(limit_key, subject) when is_atom(limit_key) and is_binary(subject) do
-    prune_expired_entries()
+    now_ms = System.system_time(:millisecond)
 
     case limit_config(limit_key) do
       [limit: limit, window_ms: window_ms]
       when is_integer(limit) and limit > 0 and is_integer(window_ms) and window_ms > 0 ->
-        now_ms = System.system_time(:millisecond)
-        bucket_started_at = div(now_ms, window_ms) * window_ms
+        owner = owner_node(limit_key, subject)
 
-        # Keep each bucket for one additional window so in-flight requests can
-        # still be counted correctly while cleanup remains simple.
-        expires_at = bucket_started_at + window_ms * 2
-
-        entry_key = {limit_key, subject, bucket_started_at}
-        current_count = increment_counter(entry_key, expires_at)
-
-        if current_count > limit, do: {:error, :rate_limited}, else: :ok
+        if owner == Node.self() do
+          do_allow(limit_key, subject, now_ms, limit, window_ms)
+        else
+          remote_allow(owner, limit_key, subject, now_ms, limit, window_ms)
+        end
 
       _other ->
         # Missing/invalid config should fail open rather than locking out users.
@@ -60,6 +61,90 @@ defmodule LCWeb.RateLimiter do
   defp increment_counter(entry_key, expires_at) do
     _ = ensure_table()
     :ets.update_counter(@table, entry_key, {2, 1}, {entry_key, 0, expires_at})
+  end
+
+  @doc false
+  @spec allow_owner(limit_key(), String.t(), integer(), pos_integer(), pos_integer()) ::
+          allow_result()
+  def allow_owner(limit_key, subject, now_ms, limit, window_ms) do
+    do_allow(limit_key, subject, now_ms, limit, window_ms)
+  end
+
+  defp do_allow(limit_key, subject, now_ms, limit, window_ms) do
+    prune_expired_entries()
+    bucket_started_at = div(now_ms, window_ms) * window_ms
+
+    # Keep each bucket for one additional window so in-flight requests can
+    # still be counted correctly while cleanup remains simple.
+    expires_at = bucket_started_at + window_ms * 2
+
+    entry_key = {limit_key, subject, bucket_started_at}
+    current_count = increment_counter(entry_key, expires_at)
+
+    if current_count > limit, do: {:error, :rate_limited}, else: :ok
+  end
+
+  defp remote_allow(owner, limit_key, subject, now_ms, limit, window_ms) do
+    module = __MODULE__
+    args = [limit_key, subject, now_ms, limit, window_ms]
+
+    case safe_erpc_call(owner, module, :allow_owner, args) do
+      {:ok, result} -> result
+      {:error, _reason} -> do_allow(limit_key, subject, now_ms, limit, window_ms)
+    end
+  end
+
+  @doc false
+  @spec owner_node(limit_key(), String.t()) :: node()
+  def owner_node(limit_key, subject) when is_atom(limit_key) and is_binary(subject) do
+    # Hash over the deterministically ordered node list so every subject lands on one owner.
+    nodes = sort_nodes(cluster_nodes())
+
+    case nodes do
+      [] ->
+        Node.self()
+
+      sorted ->
+        idx = :erlang.phash2({limit_key, subject}, length(sorted))
+        Enum.at(sorted, idx)
+    end
+  end
+
+  defp cluster_nodes do
+    env = rate_limiter_env()
+
+    case Keyword.get(env, :cluster_nodes) do
+      nil -> [Node.self() | Node.list()]
+      [] -> [Node.self()]
+      nodes -> nodes
+    end
+  end
+
+  defp sort_nodes(nodes) do
+    nodes
+    |> Enum.uniq()
+    |> Enum.sort_by(&Atom.to_string/1)
+  end
+
+  defp rate_limiter_env do
+    Keyword.merge(@default_env, Application.get_env(:live_canvas, __MODULE__, []))
+  end
+
+  defp safe_erpc_call(owner, module, fun, args) do
+    env = rate_limiter_env()
+    timeout = Keyword.get(env, :erpc_timeout, 5_000)
+    erpc = Keyword.get(env, :erpc_module, :erpc)
+
+    try do
+      case erpc.call(owner, module, fun, args, timeout) do
+        {:badrpc, _} = reason -> {:error, reason}
+        result -> {:ok, result}
+      end
+    catch
+      :exit, reason -> {:error, reason}
+      :error, reason -> {:error, reason}
+      :throw, reason -> {:error, reason}
+    end
   end
 
   @spec prune_expired_entries() :: true

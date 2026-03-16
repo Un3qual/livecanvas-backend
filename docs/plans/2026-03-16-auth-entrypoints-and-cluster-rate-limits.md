@@ -43,7 +43,7 @@ Verified directly in active docs, code, and tests before writing this plan:
 - [x] Task 2: Deliver password + magic-link challenge/signup/login flows
 - [ ] Task 3: Deliver Google + Apple signup/login flows
 - [ ] Task 4: Deliver passkey challenge/signup/login flows with dedicated credential persistence
-- [ ] Task 5: Replace node-local throttles with cluster-aware OTP owner routing
+- [x] Task 5: Replace node-local throttles with cluster-aware OTP owner routing
 - [ ] Task 6: Run full verification and update roadmap/index tracking
 
 ### Task 1: Add Generic Auth GraphQL Foundation And Auth-Specific Error Codes
@@ -200,18 +200,25 @@ Verification evidence (2026-03-16):
 
 **Task 5 Step Progress:**
 - [x] Step 1: Add failing limiter tests for deterministic owner-node selection, remote-owner forwarding, and local fallback when owner routing fails
-- [ ] Step 2: Run focused limiter tests to verify RED
-- [ ] Step 3: Implement deterministic node selection using the connected cluster membership and `:erpc` forwarding to an owner-node local ETS counter path
-- [ ] Step 4: Preserve the existing public `allow/2`, `conn_subject/1`, and `reset!/0` API so current plugs/channels/controllers do not change
-- [ ] Step 5: Keep unhealthy-cluster behavior fail-open to local enforcement rather than rejecting traffic on transport errors
-- [ ] Step 6: Run focused limiter/controller/channel/GraphQL rate-limit tests to verify GREEN
-- [ ] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 2: Run focused limiter tests to verify RED
+- [x] Step 3: Implement deterministic node selection using the connected cluster membership and `:erpc` forwarding to an owner-node local ETS counter path
+- [x] Step 4: Preserve the existing public `allow/2`, `conn_subject/1`, and `reset!/0` API so current plugs/channels/controllers do not change
+- [x] Step 5: Keep unhealthy-cluster behavior fail-open to local enforcement rather than rejecting traffic on transport errors
+- [x] Step 6: Run focused limiter/controller/channel/GraphQL rate-limit tests to verify GREEN
+- [x] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 5 behavior targets:**
 
 - `auth_login`, `graphql_mutation`, `moderation_action`, `channel_join`, and `chat_send` limits are cluster-aware in healthy distributed conditions.
 - The authoritative bucket for a subject is owned by one node at a time via deterministic hashing.
 - Remote-owner transport failures fall back to local-node enforcement instead of hard request failure.
+
+Verification evidence (2026-03-16):
+
+- `mix test test/live_canvas_web/rate_limiter_test.exs` -> RED first (`3 tests, 1 failure`) while stabilizing the focused suite, then GREEN (`3 tests, 0 failures`)
+- `mix test test/live_canvas_web/rate_limiter_test.exs test/live_canvas_web/controllers/user_session_rate_limit_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs test/live_canvas_web/channels/live_session_channel_test.exs` -> GREEN (`19 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 6: Run Full Verification And Update Roadmap/Index Tracking
 
