@@ -88,12 +88,12 @@ defmodule LCGQL.Accounts.Types do
 
   node object(:user_identity) do
     field :provider, non_null(:string)
+
     field :auth_provider, non_null(:auth_provider) do
       resolve(&Resolver.user_identity_auth_provider/3)
     end
 
-    field :oauth_provider, :oauth_provider,
-      deprecate: "Use authProvider instead." do
+    field :oauth_provider, :oauth_provider, deprecate: "Use authProvider instead." do
       resolve(&Resolver.user_identity_oauth_provider/3)
     end
 
