@@ -11,6 +11,32 @@ defmodule LCGQL.Accounts.Types do
   connection(node_type: :data_export_request)
   connection(node_type: :account_deletion_request)
 
+  @desc "Supported auth providers for generic signup, login, and challenge flows."
+  enum :auth_provider do
+    value(:password)
+    value(:magic_link)
+    value(:google)
+    value(:apple)
+    value(:passkey)
+  end
+
+  enum :auth_challenge_purpose do
+    value(:sign_up)
+    value(:log_in)
+  end
+
+  enum :auth_error_code do
+    value(:unauthenticated)
+    value(:invalid_input)
+    value(:invalid_credentials)
+    value(:email_taken)
+    value(:token_expired)
+    value(:token_revoked)
+    value(:unsupported_provider)
+    value(:provider_verification_failed)
+    value(:passkey_verification_failed)
+  end
+
   @desc "List of supported OAuth providers for logging in."
   enum :oauth_provider do
     value(:apple, description: "Sign in with Apple")
@@ -62,7 +88,15 @@ defmodule LCGQL.Accounts.Types do
 
   node object(:user_identity) do
     field :provider, non_null(:string)
-    field :oauth_provider, non_null(:oauth_provider)
+
+    field :auth_provider, :auth_provider do
+      resolve(&Resolver.user_identity_auth_provider/3)
+    end
+
+    field :oauth_provider, :oauth_provider, deprecate: "Use authProvider instead." do
+      resolve(&Resolver.user_identity_oauth_provider/3)
+    end
+
     field :uid, non_null(:string)
     # field :user, non_null(:user), resolve: dataloader(User)
     field :inserted_at, non_null(:string)
@@ -121,6 +155,55 @@ defmodule LCGQL.Accounts.Types do
     field :updated_at, :string
   end
 
+  object :auth_challenge do
+    field :provider, non_null(:auth_provider)
+    field :purpose, non_null(:auth_challenge_purpose)
+    field :dispatched, non_null(:boolean)
+    field :challenge_token, :string
+    field :payload_json, :string
+  end
+
+  input_object :password_auth_input do
+    field :email, :string
+    field :password, :string
+    field :password_confirmation, :string
+  end
+
+  input_object :magic_link_auth_input do
+    field :email, :string
+    field :token, :string
+  end
+
+  input_object :oauth_auth_input do
+    field :id_token, :string
+  end
+
+  input_object :passkey_auth_input do
+    field :email, :string
+    field :challenge_token, :string
+    field :credential_id, :string
+    field :client_data_json, :string
+    field :authenticator_data, :string
+    field :signature, :string
+    field :attestation_object, :string
+    field :user_handle, :string
+  end
+
+  input_object :auth_input do
+    field :provider, non_null(:auth_provider)
+    field :password, :password_auth_input
+    field :magic_link, :magic_link_auth_input
+    field :oauth, :oauth_auth_input
+    field :passkey, :passkey_auth_input
+  end
+
+  input_object :auth_challenge_input do
+    field :provider, non_null(:auth_provider)
+    field :purpose, non_null(:auth_challenge_purpose)
+    field :magic_link, :magic_link_auth_input
+    field :passkey, :passkey_auth_input
+  end
+
   input_object :device_info_input do
     field :device_unique_id, :string
     field :app_version, :string
@@ -135,6 +218,12 @@ defmodule LCGQL.Accounts.Types do
 
   object :user_error do
     field :field, :string
+    field :message, non_null(:string)
+  end
+
+  object :auth_error do
+    field :field, :string
+    field :code, non_null(:auth_error_code)
     field :message, non_null(:string)
   end
 end

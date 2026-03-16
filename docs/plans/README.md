@@ -10,6 +10,7 @@ Use this directory for active and in-progress planning artifacts.
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
+- Unified auth entry points + cluster-aware rate limits: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 - GraphQL live + auth bootstrap implementation: `docs/plans/graphql/2026-03-05-live-mutations-and-auth-bootstrap.md`
 
 ## Recently Completed
