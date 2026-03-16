@@ -5,6 +5,7 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
 
   import Plug.Conn
   alias Absinthe.Blueprint
+
   alias Absinthe.Language.{
     Document,
     Field,
@@ -141,7 +142,8 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
   end
 
   @spec selected_operation(Document.t(), String.t() | nil) :: OperationDefinition.t() | nil
-  defp selected_operation(%Document{} = document, operation_name) when is_binary(operation_name) do
+  defp selected_operation(%Document{} = document, operation_name)
+       when is_binary(operation_name) do
     case Document.get_operation(document, operation_name) do
       %OperationDefinition{operation: :mutation} = operation -> operation
       _other -> nil
@@ -165,7 +167,7 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
 
   @spec auth_login_mutation_names() :: [String.t()]
   defp auth_login_mutation_names,
-    do: ["loginWithPassword", "requestMagicLinkLogin", "loginWithMagicLink"]
+    do: ["logIn", "loginWithPassword", "requestMagicLinkLogin", "loginWithMagicLink"]
 
   @spec moderation_mutation_names() :: [String.t()]
   defp moderation_mutation_names,

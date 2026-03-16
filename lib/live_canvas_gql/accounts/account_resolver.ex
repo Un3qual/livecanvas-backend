@@ -6,6 +6,17 @@ defmodule LCGQL.Accounts.Resolver do
   alias LCSchemas.Accounts.{User, UserIdentity}
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
+  @type auth_error_code ::
+          :unauthenticated
+          | :invalid_input
+          | :invalid_credentials
+          | :email_taken
+          | :token_expired
+          | :token_revoked
+          | :unsupported_provider
+          | :provider_verification_failed
+          | :passkey_verification_failed
+  @type auth_error :: %{field: String.t() | nil, code: auth_error_code(), message: String.t()}
   @type mutation_payload :: %{
           user: User.t() | nil,
           errors: [mutation_error()]
@@ -37,6 +48,8 @@ defmodule LCGQL.Accounts.Resolver do
   @type contact_upsert_result :: {:ok, contact_upsert_payload()}
   @type invite_delivery_payload :: %{errors: [mutation_error()]}
   @type invite_delivery_result :: {:ok, invite_delivery_payload()}
+  @type auth_challenge_payload :: %{challenge: map() | nil, errors: [auth_error()]}
+  @type auth_challenge_result :: {:ok, auth_challenge_payload()}
   @type magic_link_login_request_payload :: %{errors: [mutation_error()]}
   @type magic_link_login_request_result :: {:ok, magic_link_login_request_payload()}
   @type auth_token_payload :: %{
@@ -45,6 +58,12 @@ defmodule LCGQL.Accounts.Resolver do
           errors: [mutation_error()]
         }
   @type auth_token_result :: {:ok, auth_token_payload()}
+  @type auth_entry_payload :: %{
+          access_token: map() | nil,
+          refresh_token: map() | nil,
+          errors: [auth_error()]
+        }
+  @type auth_entry_result :: {:ok, auth_entry_payload()}
   @type revoke_refresh_payload :: %{revoked: boolean(), errors: [mutation_error()]}
   @type revoke_refresh_result :: {:ok, revoke_refresh_payload()}
   @type contact_upsert_error_reason ::
@@ -399,6 +418,206 @@ defmodule LCGQL.Accounts.Resolver do
     {:ok, %{errors: [invite_delivery_error(:unauthenticated)]}}
   end
 
+  @spec begin_auth_challenge(
+          term(),
+          map(),
+          Absinthe.Resolution.t()
+        ) :: auth_challenge_result()
+  def begin_auth_challenge(parent, %{input: input}, resolution),
+    do: begin_auth_challenge(parent, input, resolution)
+
+  def begin_auth_challenge(_parent, %{provider: :password}, _resolution) do
+    {:ok, %{challenge: nil, errors: [auth_error("provider", :unsupported_provider)]}}
+  end
+
+  def begin_auth_challenge(
+        _parent,
+        %{provider: :magic_link, purpose: purpose, magic_link: magic_link_input},
+        _resolution
+      )
+      when purpose in [:sign_up, :log_in] and is_map(magic_link_input) do
+    with :ok <- require_auth_field(magic_link_input, :email, "magicLink") do
+      case Accounts.begin_magic_link_challenge(
+             purpose,
+             Map.fetch!(magic_link_input, :email),
+             &magic_link_url/1
+           ) do
+        {:ok, %{dispatched: dispatched}} ->
+          {:ok,
+           %{
+             challenge: %{
+               provider: :magic_link,
+               purpose: purpose,
+               dispatched: dispatched,
+               challenge_token: nil,
+               payload_json: nil
+             },
+             errors: []
+           }}
+
+        {:error, :email_taken} ->
+          {:ok,
+           %{
+             challenge: nil,
+             errors: [auth_error("magicLink.email", :email_taken, "has already been taken")]
+           }}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok, %{challenge: nil, errors: format_auth_changeset_errors(changeset, "magicLink")}}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, %{challenge: nil, errors: [auth_error]}}
+    end
+  end
+
+  def begin_auth_challenge(_parent, %{provider: provider, purpose: purpose}, _resolution)
+      when provider in [:magic_link, :passkey] and purpose in [:sign_up, :log_in] do
+    {:ok,
+     %{
+       challenge: %{
+         provider: provider,
+         purpose: purpose,
+         dispatched: false,
+         challenge_token: nil,
+         payload_json: nil
+       },
+       errors: [auth_error(nil, :invalid_input)]
+     }}
+  end
+
+  def begin_auth_challenge(_parent, _args, _resolution) do
+    {:ok, %{challenge: nil, errors: [auth_error(nil, :invalid_input)]}}
+  end
+
+  @spec sign_up(
+          term(),
+          %{optional(:input) => map(), optional(:provider) => atom()},
+          Absinthe.Resolution.t()
+        ) :: auth_entry_result()
+  def sign_up(parent, %{input: input}, resolution), do: sign_up(parent, input, resolution)
+
+  def sign_up(_parent, %{provider: :password, password: password_input}, _resolution)
+      when is_map(password_input) do
+    with :ok <- require_auth_field(password_input, :email, "password"),
+         :ok <- require_auth_field(password_input, :password, "password"),
+         :ok <- require_auth_field(password_input, :password_confirmation, "password") do
+      case Accounts.sign_up_with_password(password_input) do
+        {:ok, auth_entry} ->
+          {:ok, auth_entry_payload(auth_entry)}
+
+        {:error, :email_taken} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("password.email", :email_taken, "has already been taken")
+           ])}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "password"))}
+
+        {:error, :invalid_credentials} ->
+          {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, auth_entry_error_payload([auth_error])}
+    end
+  end
+
+  def sign_up(_parent, %{provider: :magic_link, magic_link: magic_link_input}, _resolution)
+      when is_map(magic_link_input) do
+    with :ok <- require_auth_field(magic_link_input, :token, "magicLink") do
+      case Accounts.sign_up_with_magic_link(Map.fetch!(magic_link_input, :token)) do
+        {:ok, auth_entry} ->
+          {:ok, auth_entry_payload(auth_entry)}
+
+        {:error, :invalid_credentials} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("magicLink.token", :invalid_credentials)
+           ])}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "magicLink"))}
+
+        {:error, :email_taken} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("magicLink.email", :email_taken, "has already been taken")
+           ])}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, auth_entry_error_payload([auth_error])}
+    end
+  end
+
+  def sign_up(_parent, _args, _resolution) do
+    {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+  end
+
+  @spec log_in(
+          term(),
+          %{optional(:input) => map(), optional(:provider) => atom()},
+          Absinthe.Resolution.t()
+        ) :: auth_entry_result()
+  def log_in(parent, %{input: input}, resolution), do: log_in(parent, input, resolution)
+
+  def log_in(_parent, %{provider: :password, password: password_input}, _resolution)
+      when is_map(password_input) do
+    with :ok <- require_auth_field(password_input, :email, "password"),
+         :ok <- require_auth_field(password_input, :password, "password") do
+      case Accounts.log_in_with_password(password_input) do
+        {:ok, auth_entry} ->
+          {:ok, auth_entry_payload(auth_entry)}
+
+        {:error, :invalid_credentials} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("password.password", :invalid_credentials)
+           ])}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "password"))}
+
+        {:error, :email_taken} ->
+          {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, auth_entry_error_payload([auth_error])}
+    end
+  end
+
+  def log_in(_parent, %{provider: :magic_link, magic_link: magic_link_input}, _resolution)
+      when is_map(magic_link_input) do
+    with :ok <- require_auth_field(magic_link_input, :token, "magicLink") do
+      case Accounts.log_in_with_magic_link(Map.fetch!(magic_link_input, :token)) do
+        {:ok, auth_entry} ->
+          {:ok, auth_entry_payload(auth_entry)}
+
+        {:error, :invalid_credentials} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("magicLink.token", :invalid_credentials)
+           ])}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "magicLink"))}
+
+        {:error, :email_taken} ->
+          {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, auth_entry_error_payload([auth_error])}
+    end
+  end
+
+  def log_in(_parent, _args, _resolution) do
+    {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+  end
+
   @spec login_with_password(
           term(),
           %{
@@ -578,6 +797,18 @@ defmodule LCGQL.Accounts.Resolver do
   def revoke_refresh_token(_parent, %{refresh_token: refresh_token}, _resolution) do
     :ok = Accounts.revoke_refresh_token(refresh_token)
     {:ok, %{revoked: true, errors: []}}
+  end
+
+  @spec user_identity_auth_provider(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, :google | :apple | :passkey | nil}
+  def user_identity_auth_provider(%{provider: provider}, _args, _resolution) do
+    {:ok, auth_provider_value(provider)}
+  end
+
+  @spec user_identity_oauth_provider(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, :google | :apple | :instagram | nil}
+  def user_identity_oauth_provider(%{provider: provider}, _args, _resolution) do
+    {:ok, oauth_provider_value(provider)}
   end
 
   @spec viewer(term(), map(), Absinthe.Resolution.t()) :: {:ok, User.t() | nil}
@@ -798,6 +1029,11 @@ defmodule LCGQL.Accounts.Resolver do
 
   # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
   # transport-agnostic while tests can assert invite delivery side effects.
+  @spec magic_link_url(String.t()) :: String.t()
+  defp magic_link_url(token), do: "https://livecanvas.invalid/users/log-in/#{token}"
+
+  # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
+  # transport-agnostic while tests can assert invite delivery side effects.
   @spec password_reset_url(String.t()) :: String.t()
   defp password_reset_url(token), do: "https://livecanvas.invalid/users/reset-password/#{token}"
 
@@ -810,6 +1046,32 @@ defmodule LCGQL.Accounts.Resolver do
   # transport-agnostic while tests can assert magic-link delivery side effects.
   @spec magic_link_login_url(String.t()) :: String.t()
   defp magic_link_login_url(token), do: "https://livecanvas.invalid/users/log-in/#{token}"
+
+  @spec auth_error(String.t() | nil, auth_error_code(), String.t() | nil) :: auth_error()
+  defp auth_error(field, code, message \\ nil) do
+    %{
+      field: field,
+      code: code,
+      message: message || Atom.to_string(code)
+    }
+  end
+
+  @spec auth_provider_value(LCSchemas.Accounts.user_identity_provider()) ::
+          :google | :apple | :passkey | nil
+  defp auth_provider_value(:google_provider), do: :google
+  defp auth_provider_value(:apple_provider), do: :apple
+  defp auth_provider_value(:passkey_provider), do: :passkey
+  defp auth_provider_value(_provider), do: nil
+
+  @spec oauth_provider_value(LCSchemas.Accounts.user_identity_provider()) ::
+          :google | :apple | :instagram | nil
+  defp oauth_provider_value(:google_provider), do: :google
+  defp oauth_provider_value(:apple_provider), do: :apple
+  defp oauth_provider_value(:instagram_provider), do: :instagram
+  defp oauth_provider_value(_provider), do: nil
+
+  @spec blank?(term()) :: boolean()
+  defp blank?(value), do: value in [nil, ""]
 
   @spec invite_delivery_error(invite_delivery_error_reason()) :: mutation_error()
   defp invite_delivery_error(:invalid_recipient),
@@ -833,6 +1095,44 @@ defmodule LCGQL.Accounts.Resolver do
   defp refresh_auth_error(reason),
     do: %{field: "refreshToken", message: Atom.to_string(reason)}
 
+  @spec auth_entry_payload(LC.Accounts.auth_entry_payload()) :: auth_entry_payload()
+  defp auth_entry_payload(%{access_token: access_token, refresh_token: refresh_token}) do
+    %{
+      access_token: token_view(access_token),
+      refresh_token: token_view(refresh_token),
+      errors: []
+    }
+  end
+
+  @spec auth_entry_error_payload([auth_error()]) :: auth_entry_payload()
+  defp auth_entry_error_payload(errors) do
+    %{access_token: nil, refresh_token: nil, errors: errors}
+  end
+
+  defp require_auth_field(input, field, prefix) when is_map(input) and is_atom(field) do
+    if blank?(Map.get(input, field)) do
+      {:error, auth_error(prefixed_auth_field(prefix, field), :invalid_input, "is required")}
+    else
+      :ok
+    end
+  end
+
+  @spec format_auth_changeset_errors(Ecto.Changeset.t(), String.t()) :: [auth_error()]
+  defp format_auth_changeset_errors(changeset, prefix) do
+    changeset
+    |> traverse_errors(fn {message, options} ->
+      Enum.reduce(options, message, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Enum.flat_map(fn {field, messages} ->
+      Enum.map(messages, fn message ->
+        auth_error(prefixed_auth_field(prefix, field), :invalid_input, message)
+      end)
+    end)
+  end
+
+  @spec issue_auth_tokens_payload(User.t()) :: auth_token_result()
   defp issue_auth_tokens_payload(%{id: _id} = user) do
     with {:ok, access_token_payload} <- Accounts.issue_access_token(user),
          {:ok, refresh_token_payload} <- Accounts.issue_refresh_token(user) do
@@ -867,6 +1167,22 @@ defmodule LCGQL.Accounts.Resolver do
   @spec iso8601_datetime(DateTime.t() | nil) :: String.t() | nil
   defp iso8601_datetime(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
   defp iso8601_datetime(_dt), do: nil
+
+  @spec prefixed_auth_field(String.t(), atom()) :: String.t()
+  defp prefixed_auth_field(prefix, field) when is_binary(prefix) and is_atom(field) do
+    "#{prefix}.#{camelize_lower(field)}"
+  end
+
+  @spec camelize_lower(atom()) :: String.t()
+  defp camelize_lower(field) when is_atom(field) do
+    field
+    |> Atom.to_string()
+    |> Macro.camelize()
+    |> then(fn
+      <<first::utf8, rest::binary>> -> String.downcase(<<first::utf8>>) <> rest
+      "" -> ""
+    end)
+  end
 
   @spec contact_match_node(LC.Accounts.contact_match()) :: contact_match_node()
   defp contact_match_node(%{contact_entry: %{id: id}} = contact_match) do

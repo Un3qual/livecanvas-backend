@@ -905,6 +905,22 @@ defmodule LC.AccountsTest do
       assert user_token.sent_to == user.email
       assert user_token.context == :email_magic_link_token
     end
+
+    test "does not issue a token for unconfirmed users who already set a password" do
+      password = valid_user_password()
+
+      assert {:ok, %{user: user}} =
+               Accounts.sign_up_with_password(%{
+                 email: "blocked-magic-link@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      assert {:error, :magic_link_not_allowed} =
+               Accounts.deliver_login_instructions(user, &"https://livecanvas.invalid/#{&1}")
+
+      refute Repo.get_by(UserToken, user_id: user.id, context: :email_magic_link_token)
+    end
   end
 
   describe "deliver_contact_invite_instructions/3" do
