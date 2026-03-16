@@ -35,7 +35,7 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
   def call(conn, _opts) do
     case mutation_fields(conn) do
       {:ok, field_names} ->
-        case allow_rate_limit(rate_limit_request(field_names), RateLimiter.conn_subject(conn)) do
+        case allow_rate_limits(rate_limit_requests(field_names), RateLimiter.conn_subject(conn)) do
           :ok ->
             conn
 
@@ -70,31 +70,52 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
 
   @type rate_limit_request ::
           {LC.RateLimiter.limit_key(), pos_integer()}
+  @type rate_limit_requests :: [rate_limit_request()]
 
-  @spec rate_limit_request([String.t()]) :: rate_limit_request()
-  defp rate_limit_request(field_names) when is_list(field_names) do
+  @spec rate_limit_requests([String.t()]) :: rate_limit_requests()
+  defp rate_limit_requests(field_names) when is_list(field_names) do
     auth_login_count = Enum.count(field_names, &auth_login_mutation?/1)
     moderation_count = Enum.count(field_names, &moderation_mutation?/1)
+    generic_mutation_count = length(field_names) - auth_login_count - moderation_count
 
-    cond do
-      auth_login_count > 0 -> {:auth_login, auth_login_count}
-      moderation_count > 0 -> {:moderation_action, moderation_count}
-      true -> {:graphql_mutation, 1}
-    end
+    []
+    |> maybe_append_rate_limit(:auth_login, auth_login_count)
+    |> maybe_append_rate_limit(:moderation_action, moderation_count)
+    |> maybe_append_rate_limit(:graphql_mutation, if(generic_mutation_count > 0, do: 1, else: 0))
+  end
+
+  @spec allow_rate_limits(rate_limit_requests(), String.t()) :: :ok | {:error, :rate_limited}
+  defp allow_rate_limits(rate_limit_requests, subject)
+       when is_list(rate_limit_requests) and is_binary(subject) do
+    Enum.reduce_while(rate_limit_requests, :ok, fn rate_limit_request, :ok ->
+      case allow_rate_limit(rate_limit_request, subject) do
+        :ok -> {:cont, :ok}
+        {:error, :rate_limited} = error -> {:halt, error}
+      end
+    end)
   end
 
   @spec allow_rate_limit(rate_limit_request(), String.t()) :: :ok | {:error, :rate_limited}
   defp allow_rate_limit({limit_key, count}, subject)
        when is_atom(limit_key) and is_integer(count) and count > 0 and is_binary(subject) do
-    # Batched GraphQL root fields can trigger repeated sensitive operations in a
-    # single request, so consume one slot per selected field rather than once
-    # per HTTP request.
+    # Mixed GraphQL root fields can trigger multiple sensitive behaviors in one
+    # request, so charge each present bucket and consume one slot per matching
+    # field instead of picking a single category for the whole document.
     Enum.reduce_while(1..count, :ok, fn _, :ok ->
       case RateLimiter.allow(limit_key, subject) do
         :ok -> {:cont, :ok}
         {:error, :rate_limited} = error -> {:halt, error}
       end
     end)
+  end
+
+  defp maybe_append_rate_limit(rate_limit_requests, _limit_key, count)
+       when is_list(rate_limit_requests) and count <= 0,
+       do: rate_limit_requests
+
+  defp maybe_append_rate_limit(rate_limit_requests, limit_key, count)
+       when is_list(rate_limit_requests) and is_atom(limit_key) and is_integer(count) do
+    rate_limit_requests ++ [{limit_key, count}]
   end
 
   @spec auth_login_mutation?(String.t()) :: boolean()

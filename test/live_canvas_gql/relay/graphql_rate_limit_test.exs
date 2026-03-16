@@ -421,6 +421,58 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
     assert response_conn.status == 429
   end
 
+  test "applies moderation limits even when the mutation also includes auth fields", %{
+    conn: conn
+  } do
+    previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LC.RateLimiter,
+      limits: [
+        graphql_mutation: [limit: 10, window_ms: 60_000],
+        moderation_action: [limit: 1, window_ms: 60_000],
+        auth_login: [limit: 10, window_ms: 60_000],
+        channel_join: [limit: 10, window_ms: 60_000],
+        chat_send: [limit: 10, window_ms: 60_000]
+      ]
+    )
+
+    LC.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LC.RateLimiter, previous_config)
+      LC.RateLimiter.reset!()
+    end)
+
+    conn = %{conn | remote_ip: {127, 0, 0, 1}}
+
+    mixed_mutation = """
+    mutation {
+      auth: loginWithMagicLink(input: {token: "invalid-token"}) {
+        errors {
+          message
+        }
+      }
+
+      firstMute: muteUser(input: { mutedId: "123" }) {
+        errors {
+          message
+        }
+      }
+
+      secondMute: muteUser(input: { mutedId: "456" }) {
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    response_conn = post(conn, "/graphql", %{"query" => mixed_mutation})
+    assert response_conn.status == 429
+  end
+
   defp mutation_root_type_name do
     assert {:ok, %{data: %{"__schema" => %{"mutationType" => %{"name" => name}}}}} =
              Absinthe.run("{ __schema { mutationType { name } } }", LCGQL.Schema)
