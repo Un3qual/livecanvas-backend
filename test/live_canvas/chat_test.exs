@@ -94,6 +94,21 @@ defmodule LC.ChatTest do
       assert [^live_message] = Repo.all(Chat.history_query(ended_session))
     end
 
+    test "allows public-session history reads for active viewers after the session ends" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, public_message} = Chat.create_message(live_session, host, %{body: "public"})
+      assert :ok = Chat.authorize_history_access(viewer, live_session)
+      assert [^public_message] = Repo.all(Chat.history_query(live_session))
+
+      {:ok, ended_session} = Live.end_live_session(live_session)
+
+      assert :ok = Chat.authorize_history_access(viewer, ended_session)
+      assert [^public_message] = Repo.all(Chat.history_query(ended_session))
+    end
+
     test "denies history reads for outsiders, suspended viewers, and muted viewers" do
       host = user_fixture()
       outsider = user_fixture()
