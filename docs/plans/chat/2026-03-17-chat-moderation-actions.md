@@ -12,11 +12,11 @@
 
 ## Execution Summary
 
-- Status: queued
+- Status: active
 - Track: `docs/plans/chat/TRACK.md`
-- First batch: `Task 1`
+- Current batch: `Task 2`
 - Start after: `docs/plans/chat/2026-03-17-chat-history-query-api.md` -> `Task 3`
-- Advance to: this plan's `Task 2`, then `Task 3`; after the plan is complete, move to `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 1`
+- Advance to: this plan's `Task 3`; after the plan is complete, move to `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 1`
 
 ## Candidate Status Verification (2026-03-17)
 

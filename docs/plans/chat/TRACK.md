@@ -9,16 +9,16 @@ Deliver durable chat history first, then host-owned moderation, then typed syste
 ## Ordered Plans
 
 1. `docs/plans/chat/2026-03-17-chat-history-query-api.md`
-   - Status: in progress
-   - Current batch: `Task 3`
-   - Unblocks: the published client contract plus the next moderation slice
+   - Status: completed
+   - Completed batch: `Task 3`
+   - Unblocks: the next moderation slice
 2. `docs/plans/chat/2026-03-17-chat-moderation-actions.md`
-   - Status: queued
+   - Status: in progress
+   - Current batch: `Task 2`
    - Start after: chat-history `Task 3` is complete
-   - First batch: `Task 1`
 3. `docs/plans/chat/2026-03-17-chat-system-events.md`
    - Status: queued
-   - Start after: moderation is complete unless dependencies are explicitly revalidated
+   - Start after: moderation `Task 3` is complete unless dependencies are explicitly revalidated
    - First batch: `Task 1`
 
 ## Shared Constraints
