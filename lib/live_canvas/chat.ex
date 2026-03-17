@@ -6,7 +6,7 @@ defmodule LC.Chat do
   use Boundary, deps: [LC.Infra, LC.Social, LCSchemas]
   import Ecto.Query, warn: false
 
-  alias LC.Chat.History
+  alias LC.Chat.{History, SystemEvents}
   alias LC.Chat.ChatMessage, as: ChatMessageChanges
   alias LC.Infra.Repo
   alias LC.Social
@@ -19,6 +19,10 @@ defmodule LC.Chat do
   @type authorize_history_result :: :ok | {:error, :not_authorized}
   @type chat_message_result ::
           {:ok, ChatMessage.t()} | {:error, changeset() | :not_authorized | :session_ended}
+  @type system_event_opts :: [actor: User.t(), metadata: map()]
+  @type system_event_result ::
+          {:ok, ChatMessage.t()}
+          | {:error, changeset() | :invalid_metadata | :not_authorized | :unknown_event_type}
   @type remove_message_result ::
           {:ok, ChatMessage.t()} | {:error, changeset() | :not_authorized | :not_found}
 
@@ -135,6 +139,27 @@ defmodule LC.Chat do
   end
 
   @doc """
+  Persists a bounded system event for a live session.
+  """
+  @spec record_system_event(LiveSession.t(), LCSchemas.Chat.chat_system_event_type(), system_event_opts()) ::
+          system_event_result()
+  def record_system_event(%LiveSession{} = live_session, event_type, opts)
+      when is_atom(event_type) and is_list(opts) do
+    with %User{} = actor <- Keyword.get(opts, :actor),
+         :ok <- authorize_system_event_actor(live_session, actor),
+         {:ok, attrs} <- SystemEvents.attrs_for_insert(live_session, actor, event_type, opts),
+         {:ok, chat_message} <-
+           %ChatMessage{}
+           |> ChatMessageChanges.changeset(attrs)
+           |> Repo.insert() do
+      {:ok, chat_message}
+    else
+      nil -> {:error, :not_authorized}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  @doc """
   Marks a retained chat message as removed when acted on by the owning session host.
   """
   @spec remove_message(ChatMessage.t(), User.t()) :: remove_message_result()
@@ -199,6 +224,22 @@ defmodule LC.Chat do
   end
 
   defp authorize_message_removal(%ChatMessage{}, _actor_id), do: {:error, :not_authorized}
+
+  @spec authorize_system_event_actor(LiveSession.t(), User.t()) ::
+          :ok | {:error, :not_authorized}
+  defp authorize_system_event_actor(
+         %LiveSession{host_id: host_id},
+         %User{id: actor_id}
+       )
+       when is_integer(host_id) and is_integer(actor_id) do
+    # The initial system-event vocabulary is host-owned only until reconnect-
+    # safe participant event deduplication exists.
+    if host_id == actor_id and active_user?(actor_id) do
+      :ok
+    else
+      {:error, :not_authorized}
+    end
+  end
 
   @spec finalize_message_removal(ChatMessage.t(), pos_integer()) :: remove_message_result()
   defp finalize_message_removal(%ChatMessage{status: :removed} = chat_message, _actor_id),

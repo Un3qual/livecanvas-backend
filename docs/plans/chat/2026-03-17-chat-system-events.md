@@ -14,7 +14,7 @@
 
 - Status: active
 - Track: `docs/plans/chat/TRACK.md`
-- Current batch: `Task 1`
+- Current batch: `Task 2`
 - Start after: `docs/plans/chat/2026-03-17-chat-moderation-actions.md` is complete unless dependencies are explicitly revalidated
 - Depends on: the shared Relay `ChatMessage` history surface created by the earlier chat slices
 - Advance to: this plan's `Task 2`, then `Task 3`
@@ -47,7 +47,7 @@ Verified directly in active code and tests before writing this plan:
 
 ## Progress
 
-- [ ] Task 1: Add a bounded system-event vocabulary and persistence API in `LC.Chat`
+- [x] Task 1: Add a bounded system-event vocabulary and persistence API in `LC.Chat`
 - [ ] Task 2: Emit and broadcast lifecycle/moderation system events from existing adapters
 - [ ] Task 3: Expose typed system-event projections in GraphQL history and finalize verification
 
@@ -62,12 +62,12 @@ Verified directly in active code and tests before writing this plan:
 - Modify: `test/live_canvas/chat_test.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing Chat tests for standardized system-event creation
-- [ ] Step 2: Add failing Chat tests for bounded event-type validation
-- [ ] Step 3: Run focused Chat tests to verify RED
-- [ ] Step 4: Implement a normalized system-event builder and `record_system_event/3`
-- [ ] Step 5: Re-run focused Chat tests to verify GREEN
-- [ ] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing Chat tests for standardized system-event creation
+- [x] Step 2: Add failing Chat tests for bounded event-type validation
+- [x] Step 3: Run focused Chat tests to verify RED
+- [x] Step 4: Implement a normalized system-event builder and `record_system_event/3`
+- [x] Step 5: Re-run focused Chat tests to verify GREEN
+- [x] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 1 behavior targets:**
 
