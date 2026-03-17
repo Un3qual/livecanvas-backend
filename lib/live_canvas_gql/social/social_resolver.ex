@@ -124,10 +124,13 @@ defmodule LCGQL.Social.Resolver do
     {:ok, %{errors: [social_error(nil, :unauthenticated)]}}
   end
 
-  @spec relationship_state(any(), %{viewer_id: term(), creator_id: term()}, any()) ::
+  @spec relationship_state(any(), %{creator_id: term()}, Absinthe.Resolution.t()) ::
           {:ok, Social.relationship_state()}
-  def relationship_state(_parent, %{viewer_id: viewer_id, creator_id: creator_id}, _resolution) do
-    with {:ok, viewer} <- fetch_user(viewer_id, :viewer_id),
+  def relationship_state(_parent, %{creator_id: creator_id}, resolution) do
+    # Relationship-state reads are viewer-scoped in the stabilized mobile
+    # contract, so GraphQL derives the viewer from auth scope instead of
+    # trusting a caller-supplied viewer ID.
+    with {:ok, viewer} <- viewer_from_resolution(resolution),
          {:ok, creator} <- fetch_user(creator_id, :creator_id) do
       {:ok, Social.relationship_state(viewer, creator)}
     else
@@ -135,9 +138,9 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec is_muted(any(), %{viewer_id: term(), creator_id: term()}, any()) :: {:ok, boolean()}
-  def is_muted(_parent, %{viewer_id: viewer_id, creator_id: creator_id}, _resolution) do
-    with {:ok, viewer} <- fetch_user(viewer_id, :viewer_id),
+  @spec is_muted(any(), %{creator_id: term()}, Absinthe.Resolution.t()) :: {:ok, boolean()}
+  def is_muted(_parent, %{creator_id: creator_id}, resolution) do
+    with {:ok, viewer} <- viewer_from_resolution(resolution),
          {:ok, creator} <- fetch_user(creator_id, :creator_id) do
       {:ok, Social.muted?(viewer, creator)}
     else
@@ -191,10 +194,19 @@ defmodule LCGQL.Social.Resolver do
   defp format_field(:followed_id), do: "followedId"
   defp format_field(:follower_id), do: "followerId"
   defp format_field(:muted_id), do: "mutedId"
-  defp format_field(:viewer_id), do: "viewerId"
   defp format_field(field), do: Atom.to_string(field)
 
   @spec format_error_message(resolver_error()) :: String.t()
   defp format_error_message(%Ecto.Changeset{}), do: "validation_failed"
   defp format_error_message(reason) when is_atom(reason), do: Atom.to_string(reason)
+
+  @spec viewer_from_resolution(Absinthe.Resolution.t()) :: {:ok, map()} | :error
+  defp viewer_from_resolution(%Absinthe.Resolution{
+         context: %{current_scope: %{user: %{id: user_id} = viewer}}
+       })
+       when is_integer(user_id) do
+    {:ok, viewer}
+  end
+
+  defp viewer_from_resolution(_resolution), do: :error
 end

@@ -3,49 +3,113 @@ defmodule LCGQL.Social.SocialQueriesTest do
 
   import LC.AccountsFixtures
 
-  alias LC.Social
+  alias LC.{Accounts, Social}
 
   describe "relationshipState" do
-    test "reports blocked when creator blocks viewer" do
+    test "reports blocked for the authenticated viewer" do
       viewer = user_fixture()
       creator = user_fixture()
-      viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
       creator_id = Absinthe.Relay.Node.to_global_id(:user, creator.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
 
       {:ok, _follow} = Social.follow_user(viewer, creator)
       {:ok, _block} = Social.block_user(creator, viewer)
 
       query = """
-      query($viewerId: ID!, $creatorId: ID!) {
-        relationshipState(viewerId: $viewerId, creatorId: $creatorId)
+      query($creatorId: ID!) {
+        relationshipState(creatorId: $creatorId)
       }
       """
 
       assert {:ok, %{data: %{"relationshipState" => "BLOCKED"}}} =
                Absinthe.run(query, LCGQL.Schema,
-                 variables: %{"viewerId" => viewer_id, "creatorId" => creator_id}
+                 variables: %{"creatorId" => creator_id},
+                 context: context
+               )
+    end
+
+    test "returns NONE without an authenticated viewer" do
+      creator = user_fixture()
+      creator_id = Absinthe.Relay.Node.to_global_id(:user, creator.id, LCGQL.Schema)
+
+      query = """
+      query($creatorId: ID!) {
+        relationshipState(creatorId: $creatorId)
+      }
+      """
+
+      assert {:ok, %{data: %{"relationshipState" => "NONE"}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"creatorId" => creator_id})
+    end
+
+    test "returns NONE for an invalid creator id" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      query = """
+      query($creatorId: ID!) {
+        relationshipState(creatorId: $creatorId)
+      }
+      """
+
+      assert {:ok, %{data: %{"relationshipState" => "NONE"}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"creatorId" => "123"},
+                 context: context
                )
     end
   end
 
   describe "isMuted" do
-    test "returns true when viewer has muted creator" do
+    test "returns true when the authenticated viewer has muted creator" do
       viewer = user_fixture()
       creator = user_fixture()
-      viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
       creator_id = Absinthe.Relay.Node.to_global_id(:user, creator.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
 
       {:ok, _mute} = Social.mute_user(viewer, creator)
 
       query = """
-      query($viewerId: ID!, $creatorId: ID!) {
-        isMuted(viewerId: $viewerId, creatorId: $creatorId)
+      query($creatorId: ID!) {
+        isMuted(creatorId: $creatorId)
       }
       """
 
       assert {:ok, %{data: %{"isMuted" => true}}} =
                Absinthe.run(query, LCGQL.Schema,
-                 variables: %{"viewerId" => viewer_id, "creatorId" => creator_id}
+                 variables: %{"creatorId" => creator_id},
+                 context: context
+               )
+    end
+
+    test "returns false without an authenticated viewer" do
+      creator = user_fixture()
+      creator_id = Absinthe.Relay.Node.to_global_id(:user, creator.id, LCGQL.Schema)
+
+      query = """
+      query($creatorId: ID!) {
+        isMuted(creatorId: $creatorId)
+      }
+      """
+
+      assert {:ok, %{data: %{"isMuted" => false}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"creatorId" => creator_id})
+    end
+
+    test "returns false for an invalid creator id" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      query = """
+      query($creatorId: ID!) {
+        isMuted(creatorId: $creatorId)
+      }
+      """
+
+      assert {:ok, %{data: %{"isMuted" => false}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"creatorId" => "123"},
+                 context: context
                )
     end
   end

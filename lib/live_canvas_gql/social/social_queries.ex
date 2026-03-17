@@ -5,14 +5,12 @@ defmodule LCGQL.Social.Queries do
 
   object :social_queries do
     field :relationship_state, non_null(:relationship_state) do
-      arg(:viewer_id, non_null(:id))
       arg(:creator_id, non_null(:id))
 
       resolve(&Resolver.relationship_state/3)
     end
 
     field :is_muted, non_null(:boolean) do
-      arg(:viewer_id, non_null(:id))
       arg(:creator_id, non_null(:id))
 
       resolve(&Resolver.is_muted/3)
