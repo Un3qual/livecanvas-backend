@@ -480,27 +480,28 @@ defmodule LC.Accounts do
   @spec sign_up_with_provider(auth_provider(), String.t()) :: auth_entry_result()
   def sign_up_with_provider(provider, id_token)
       when provider in [:google, :apple] and is_binary(id_token) do
-    Repo.transact(fn ->
-      with {:ok, verified_identity} <- ProviderAuth.verify(provider, id_token),
-           :ok <- ensure_provider_identity_available(verified_identity),
-           {:ok, user} <- create_provider_user(verified_identity.email),
-           {:ok, _identity} <- persist_provider_identity(user, verified_identity),
-           {:ok, auth_entry} <- issue_auth_entry_tokens(user) do
-        {:ok, auth_entry}
-      else
-        {:error, :provider_identity_exists} ->
-          {:error, :provider_verification_failed}
+    with {:ok, verified_identity} <- ProviderAuth.verify(provider, id_token) do
+      Repo.transact(fn ->
+        with :ok <- ensure_provider_identity_available(verified_identity),
+             {:ok, user} <- create_provider_user(verified_identity.email),
+             {:ok, _identity} <- persist_provider_identity(user, verified_identity),
+             {:ok, auth_entry} <- issue_auth_entry_tokens(user) do
+          {:ok, auth_entry}
+        else
+          {:error, :provider_identity_exists} ->
+            {:error, :provider_verification_failed}
 
-        {:error, :provider_verification_failed} ->
-          {:error, :provider_verification_failed}
+          {:error, :email_taken} ->
+            {:error, :email_taken}
 
-        {:error, :email_taken} ->
-          {:error, :email_taken}
-
-        {:error, %Ecto.Changeset{} = changeset} ->
-          {:error, changeset}
-      end
-    end)
+          {:error, %Ecto.Changeset{} = changeset} ->
+            {:error, changeset}
+        end
+      end)
+    else
+      {:error, :provider_verification_failed} ->
+        {:error, :provider_verification_failed}
+    end
   end
 
   def sign_up_with_provider(_provider, _id_token), do: {:error, :provider_verification_failed}
@@ -511,25 +512,27 @@ defmodule LC.Accounts do
   @spec log_in_with_provider(auth_provider(), String.t()) :: auth_entry_result()
   def log_in_with_provider(provider, id_token)
       when provider in [:google, :apple] and is_binary(id_token) do
-    Repo.transact(fn ->
-      with {:ok, verified_identity} <- ProviderAuth.verify(provider, id_token),
-           %UserIdentity{} = identity <- active_provider_identity(verified_identity),
-           %User{} = user <- get_user!(identity.user_id),
-           true <- active_user?(user),
-           {:ok, _identity} <- touch_provider_identity(identity, verified_identity.provider_data),
-           {:ok, auth_entry} <- issue_auth_entry_tokens(user) do
-        {:ok, auth_entry}
-      else
-        {:error, :provider_verification_failed} ->
-          {:error, :provider_verification_failed}
+    with {:ok, verified_identity} <- ProviderAuth.verify(provider, id_token) do
+      Repo.transact(fn ->
+        with %UserIdentity{} = identity <- active_provider_identity(verified_identity),
+             %User{} = user <- get_user!(identity.user_id),
+             true <- active_user?(user),
+             {:ok, _identity} <-
+               touch_provider_identity(identity, verified_identity.provider_data),
+             {:ok, auth_entry} <- issue_auth_entry_tokens(user) do
+          {:ok, auth_entry}
+        else
+          {:error, %Ecto.Changeset{} = changeset} ->
+            {:error, changeset}
 
-        {:error, %Ecto.Changeset{} = changeset} ->
-          {:error, changeset}
-
-        _other ->
-          {:error, :provider_verification_failed}
-      end
-    end)
+          _other ->
+            {:error, :provider_verification_failed}
+        end
+      end)
+    else
+      {:error, :provider_verification_failed} ->
+        {:error, :provider_verification_failed}
+    end
   end
 
   def log_in_with_provider(_provider, _id_token), do: {:error, :provider_verification_failed}

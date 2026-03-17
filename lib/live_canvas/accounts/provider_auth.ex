@@ -3,6 +3,9 @@ defmodule LC.Accounts.ProviderAuth do
 
   alias __MODULE__.{Apple, Google}
 
+  @default_jwks_cache_ttl_seconds 300
+  @jwks_cache_table :lc_provider_auth_jwks_cache
+
   @type provider :: :google | :apple
   @type verified_identity :: %{
           required(:provider) => :google_provider | :apple_provider,
@@ -140,7 +143,7 @@ defmodule LC.Accounts.ProviderAuth do
           {:ok, map()} | {:error, :provider_verification_failed}
   defp fetch_signing_key(kid, opts) when is_binary(kid) and is_list(opts) do
     with {:ok, jwks_url} <- fetch_string(opts, :jwks_url),
-         {:ok, %{"keys" => keys}} <- http_get(opts, jwks_url),
+         {:ok, %{"keys" => keys}} <- fetch_jwks(opts, jwks_url),
          %{} = key <- Enum.find(keys, &matches_kid?(&1, kid)) do
       {:ok, key}
     else
@@ -148,27 +151,55 @@ defmodule LC.Accounts.ProviderAuth do
     end
   end
 
-  @spec http_get(keyword(), String.t()) :: {:ok, map()} | {:error, :provider_verification_failed}
+  @spec fetch_jwks(keyword(), String.t()) ::
+          {:ok, map()} | {:error, :provider_verification_failed}
+  defp fetch_jwks(opts, url) when is_list(opts) and is_binary(url) do
+    now = Keyword.get(opts, :now, System.os_time(:second))
+
+    case cached_jwks(url, now) do
+      {:ok, jwks} ->
+        {:ok, jwks}
+
+      :miss ->
+        with {:ok, jwks, ttl_seconds} <- http_get(opts, url) do
+          cache_jwks(url, jwks, now + ttl_seconds)
+          {:ok, jwks}
+        end
+    end
+  end
+
+  @spec http_get(keyword(), String.t()) ::
+          {:ok, map(), pos_integer()} | {:error, :provider_verification_failed}
   defp http_get(opts, url) when is_list(opts) and is_binary(url) do
     http_get = Keyword.get(opts, :http_get) || (&default_http_get/1)
 
     case http_get.(url) do
-      {:ok, %{"keys" => [_ | _]} = jwks} -> {:ok, jwks}
-      {:ok, %{keys: [_ | _]} = jwks} -> {:ok, stringify_map_keys(jwks)}
-      _other -> {:error, :provider_verification_failed}
+      {:ok, response, ttl_seconds} when is_integer(ttl_seconds) and ttl_seconds > 0 ->
+        normalize_jwks_response(response, ttl_seconds)
+
+      {:ok, response} ->
+        normalize_jwks_response(
+          response,
+          Keyword.get(opts, :jwks_cache_ttl_seconds, @default_jwks_cache_ttl_seconds)
+        )
+
+      _other ->
+        {:error, :provider_verification_failed}
     end
   end
 
-  @spec default_http_get(String.t()) :: {:ok, map()} | {:error, :provider_verification_failed}
   defp default_http_get(url) when is_binary(url) do
     case Req.get(url: url) do
-      {:ok, %Req.Response{status: 200, body: body}} when is_map(body) ->
-        {:ok, stringify_map_keys(body)}
+      {:ok, %Req.Response{status: 200, body: body, headers: headers}} when is_map(body) ->
+        {:ok, stringify_map_keys(body), cache_ttl_seconds(headers)}
 
-      {:ok, %Req.Response{status: 200, body: body}} when is_binary(body) ->
+      {:ok, %Req.Response{status: 200, body: body, headers: headers}} when is_binary(body) ->
         case Jason.decode(body) do
-          {:ok, decoded_body} when is_map(decoded_body) -> {:ok, decoded_body}
-          _other -> {:error, :provider_verification_failed}
+          {:ok, decoded_body} when is_map(decoded_body) ->
+            {:ok, stringify_map_keys(decoded_body), cache_ttl_seconds(headers)}
+
+          _other ->
+            {:error, :provider_verification_failed}
         end
 
       _other ->
@@ -285,6 +316,97 @@ defmodule LC.Accounts.ProviderAuth do
   @spec stringify_nested_value(term()) :: term()
   defp stringify_nested_value(value) when is_map(value), do: stringify_map_keys(value)
   defp stringify_nested_value(value), do: value
+
+  @spec normalize_jwks_response(map(), pos_integer()) ::
+          {:ok, map(), pos_integer()} | {:error, :provider_verification_failed}
+  defp normalize_jwks_response(%{"keys" => [_ | _]} = jwks, ttl_seconds)
+       when is_integer(ttl_seconds) and ttl_seconds > 0,
+       do: {:ok, jwks, ttl_seconds}
+
+  defp normalize_jwks_response(%{keys: [_ | _]} = jwks, ttl_seconds)
+       when is_integer(ttl_seconds) and ttl_seconds > 0,
+       do: {:ok, stringify_map_keys(jwks), ttl_seconds}
+
+  defp normalize_jwks_response(_response, _ttl_seconds),
+    do: {:error, :provider_verification_failed}
+
+  defp cache_ttl_seconds(headers) do
+    if is_list(headers) do
+      case Enum.find_value(headers, &header_cache_ttl_seconds/1) do
+        nil -> @default_jwks_cache_ttl_seconds
+        ttl_seconds -> ttl_seconds
+      end
+    else
+      @default_jwks_cache_ttl_seconds
+    end
+  end
+
+  @spec header_cache_ttl_seconds(term()) :: pos_integer() | nil
+  defp header_cache_ttl_seconds({key, value}) when is_binary(key) do
+    if String.downcase(key) == "cache-control" do
+      parse_cache_control_ttl(value)
+    end
+  end
+
+  defp header_cache_ttl_seconds(_header), do: nil
+
+  @spec parse_cache_control_ttl(String.t() | [String.t()] | term()) :: pos_integer() | nil
+  defp parse_cache_control_ttl(values) when is_list(values) do
+    Enum.find_value(values, &parse_cache_control_ttl/1)
+  end
+
+  defp parse_cache_control_ttl(value) when is_binary(value) do
+    case Regex.run(~r/max-age=(\d+)/, value) do
+      [_, ttl_seconds] ->
+        case Integer.parse(ttl_seconds) do
+          {parsed_ttl_seconds, ""} when parsed_ttl_seconds > 0 -> parsed_ttl_seconds
+          _other -> nil
+        end
+
+      _other ->
+        nil
+    end
+  end
+
+  defp parse_cache_control_ttl(_value), do: nil
+
+  @spec cached_jwks(String.t(), integer()) :: {:ok, map()} | :miss
+  defp cached_jwks(url, now) when is_binary(url) and is_integer(now) do
+    case :ets.lookup(jwks_cache_table(), url) do
+      [{^url, jwks, expires_at}]
+      when is_map(jwks) and is_integer(expires_at) and expires_at > now ->
+        {:ok, jwks}
+
+      [{^url, _jwks, expires_at}] when is_integer(expires_at) and expires_at <= now ->
+        :ets.delete(jwks_cache_table(), url)
+        :miss
+
+      _other ->
+        :miss
+    end
+  end
+
+  @spec cache_jwks(String.t(), map(), integer()) :: true
+  defp cache_jwks(url, jwks, expires_at)
+       when is_binary(url) and is_map(jwks) and is_integer(expires_at) do
+    :ets.insert(jwks_cache_table(), {url, jwks, expires_at})
+  end
+
+  @spec jwks_cache_table() :: atom() | :ets.tid()
+  defp jwks_cache_table do
+    case :ets.whereis(@jwks_cache_table) do
+      :undefined ->
+        :ets.new(@jwks_cache_table, [
+          :named_table,
+          :public,
+          read_concurrency: true,
+          write_concurrency: true
+        ])
+
+      table ->
+        table
+    end
+  end
 
   @spec valid_string?(term()) :: boolean()
   defp valid_string?(value) when is_binary(value), do: String.trim(value) != ""

@@ -28,6 +28,25 @@ defmodule LC.Accounts.ProviderAuthTest do
         assert {:error, :provider_verification_failed} = ProviderAuth.verify(:apple, bundle.token)
       end)
     end
+
+    test "reuses cached JWKS across repeated verifications" do
+      jwks_url = "https://google.example.com/oauth/jwks/#{System.unique_integer([:positive])}"
+      bundle = provider_token_bundle(:google, jwks_url: jwks_url)
+      parent = self()
+
+      http_get = fn url ->
+        send(parent, :jwks_requested)
+        Keyword.fetch!(bundle.config, :http_get).(url)
+      end
+
+      with_provider_configs([google: Keyword.put(bundle.config, :http_get, http_get)], fn ->
+        assert {:ok, _verified_identity} = ProviderAuth.verify(:google, bundle.token)
+        assert {:ok, _verified_identity} = ProviderAuth.verify(:google, bundle.token)
+      end)
+
+      assert_receive :jwks_requested
+      refute_receive :jwks_requested
+    end
   end
 
   describe "sign_up_with_provider/2" do
@@ -88,6 +107,23 @@ defmodule LC.Accounts.ProviderAuthTest do
         assert {:error, :email_taken} = Accounts.sign_up_with_provider(:google, bundle.token)
       end)
     end
+
+    test "verifies the provider token before opening the signup transaction" do
+      jwks_url = "https://google.example.com/oauth/jwks/#{System.unique_integer([:positive])}"
+      bundle = provider_token_bundle(:google, jwks_url: jwks_url)
+      parent = self()
+
+      http_get = fn url ->
+        send(parent, {:verify_in_transaction, Repo.in_transaction?()})
+        Keyword.fetch!(bundle.config, :http_get).(url)
+      end
+
+      with_provider_configs([google: Keyword.put(bundle.config, :http_get, http_get)], fn ->
+        assert {:ok, _auth_entry} = Accounts.sign_up_with_provider(:google, bundle.token)
+      end)
+
+      assert_receive {:verify_in_transaction, false}
+    end
   end
 
   describe "log_in_with_provider/2" do
@@ -125,6 +161,30 @@ defmodule LC.Accounts.ProviderAuthTest do
         assert {:error, :provider_verification_failed} =
                  Accounts.log_in_with_provider(:apple, bundle.token)
       end)
+    end
+
+    test "verifies the provider token before opening the login transaction" do
+      jwks_url = "https://apple.example.com/oauth/jwks/#{System.unique_integer([:positive])}"
+      bundle = provider_token_bundle(:apple, jwks_url: jwks_url)
+      user = user_fixture(%{email: bundle.claims["email"]})
+
+      _identity =
+        attach_user_identity(user, :apple_provider, bundle.claims["sub"],
+          provider_data: %{"email" => bundle.claims["email"]}
+        )
+
+      parent = self()
+
+      http_get = fn url ->
+        send(parent, {:verify_in_transaction, Repo.in_transaction?()})
+        Keyword.fetch!(bundle.config, :http_get).(url)
+      end
+
+      with_provider_configs([apple: Keyword.put(bundle.config, :http_get, http_get)], fn ->
+        assert {:ok, _auth_entry} = Accounts.log_in_with_provider(:apple, bundle.token)
+      end)
+
+      assert_receive {:verify_in_transaction, false}
     end
   end
 end
