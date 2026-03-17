@@ -166,4 +166,56 @@ defmodule LC.ChatTest do
       assert ordered_bodies == ["first", "second", "third"]
     end
   end
+
+  describe "remove_message/2" do
+    test "lets the session host remove a retained message and repeats idempotently" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      assert {:ok, message} = Chat.create_message(session, viewer, %{body: "remove me"})
+
+      assert {:ok, removed_message} = remove_message(message, host)
+      assert Map.get(removed_message, :status) == :removed
+      assert Map.get(removed_message, :moderated_by_id) == host.id
+      assert match?(%DateTime{}, Map.get(removed_message, :moderated_at))
+      assert removed_message.body == "remove me"
+
+      persisted_message = Repo.get!(ChatMessage, message.id)
+      assert Map.get(persisted_message, :status) == :removed
+      assert Map.get(persisted_message, :moderated_by_id) == host.id
+
+      assert {:ok, repeated_message} = remove_message(removed_message, host)
+      assert repeated_message.id == removed_message.id
+      assert Map.get(repeated_message, :status) == :removed
+
+      assert DateTime.compare(
+               Map.get(repeated_message, :moderated_at),
+               Map.get(removed_message, :moderated_at)
+             ) == :eq
+    end
+
+    test "rejects sender and outsider attempts when they do not host the session" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      outsider = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      assert {:ok, message} = Chat.create_message(session, sender, %{body: "hands off"})
+
+      assert {:error, :not_authorized} = remove_message(message, sender)
+      assert {:error, :not_authorized} = remove_message(message, outsider)
+
+      persisted_message = Repo.get!(ChatMessage, message.id)
+      assert Map.get(persisted_message, :status, :active) == :active
+      assert Map.get(persisted_message, :moderated_at) == nil
+      assert Map.get(persisted_message, :moderated_by_id) == nil
+    end
+  end
+
+  defp remove_message(chat_message, actor) do
+    if function_exported?(Chat, :remove_message, 2) do
+      apply(Chat, :remove_message, [chat_message, actor])
+    else
+      :missing_remove_message
+    end
+  end
 end
