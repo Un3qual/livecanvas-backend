@@ -35,7 +35,7 @@ Verified directly in active code and tests before writing this plan:
 
 ## Progress
 
-- [ ] Task 1: Add moderation persistence and host-authority APIs in `LC.Chat`
+- [x] Task 1: Add moderation persistence and host-authority APIs in `LC.Chat`
 - [ ] Task 2: Expose host-scoped moderation mutations and moderated message reads in GraphQL
 - [ ] Task 3: Broadcast realtime moderation updates and finalize verification
 
@@ -51,12 +51,12 @@ Verified directly in active code and tests before writing this plan:
 - Create as needed: `test/live_canvas_schemas/chat/chat_message_test.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing schema and Chat tests for moderated message state
-- [ ] Step 2: Add failing Chat tests for host-only `remove_message/2` authority
-- [ ] Step 3: Run focused schema and Chat tests to verify RED
-- [ ] Step 4: Add additive moderation fields and implement `LC.Chat.remove_message/2`
-- [ ] Step 5: Re-run focused schema and Chat tests to verify GREEN
-- [ ] Step 6: Run `mix compile`, `MIX_ENV=test mix ecto.migrate --quiet`, and `mix typecheck`; then update checklist progress and commit milestone
+- [x] Step 1: Add failing schema and Chat tests for moderated message state
+- [x] Step 2: Add failing Chat tests for host-only `remove_message/2` authority
+- [x] Step 3: Run focused schema and Chat tests to verify RED
+- [x] Step 4: Add additive moderation fields and implement `LC.Chat.remove_message/2`
+- [x] Step 5: Re-run focused schema and Chat tests to verify GREEN
+- [x] Step 6: Run `mix compile`, `MIX_ENV=test mix ecto.migrate --quiet`, and `mix typecheck`; then update checklist progress and commit milestone
 
 **Task 1 behavior targets:**
 

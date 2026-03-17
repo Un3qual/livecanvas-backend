@@ -19,6 +19,8 @@ defmodule LC.Chat do
   @type authorize_history_result :: :ok | {:error, :not_authorized}
   @type chat_message_result ::
           {:ok, ChatMessage.t()} | {:error, changeset() | :not_authorized | :session_ended}
+  @type remove_message_result ::
+          {:ok, ChatMessage.t()} | {:error, changeset() | :not_authorized | :not_found}
 
   @doc """
   Authorizes whether the given viewer can join the provided live session topic.
@@ -132,6 +134,21 @@ defmodule LC.Chat do
     end
   end
 
+  @doc """
+  Marks a retained chat message as removed when acted on by the owning session host.
+  """
+  @spec remove_message(ChatMessage.t(), User.t()) :: remove_message_result()
+  def remove_message(%ChatMessage{id: message_id}, %User{id: actor_id})
+      when is_integer(message_id) and is_integer(actor_id) do
+    with %ChatMessage{} = chat_message <- removable_message_query(message_id) |> Repo.one(),
+         :ok <- authorize_message_removal(chat_message, actor_id) do
+      finalize_message_removal(chat_message, actor_id)
+    else
+      nil -> {:error, :not_found}
+      {:error, _reason} = error -> error
+    end
+  end
+
   @doc false
   @spec run_query(Ecto.Query.t()) :: [term()]
   def run_query(query), do: Repo.all(query)
@@ -156,5 +173,59 @@ defmodule LC.Chat do
       preload: [:sender, live_session: live_session],
       limit: 1
     )
+  end
+
+  @spec removable_message_query(pos_integer()) :: Ecto.Query.t()
+  defp removable_message_query(message_id) when is_integer(message_id) and message_id > 0 do
+    from(chat_message in ChatMessage,
+      where: chat_message.id == ^message_id,
+      join: live_session in assoc(chat_message, :live_session),
+      preload: [live_session: live_session],
+      limit: 1
+    )
+  end
+
+  @spec authorize_message_removal(ChatMessage.t(), pos_integer()) ::
+          :ok | {:error, :not_authorized}
+  defp authorize_message_removal(%ChatMessage{live_session: %LiveSession{host_id: host_id}}, actor_id)
+       when is_integer(host_id) and is_integer(actor_id) do
+    # Removal authority belongs to the session host, not the message sender,
+    # so viewers cannot delete their own persisted chat rows after the fact.
+    if host_id == actor_id and active_user?(actor_id) do
+      :ok
+    else
+      {:error, :not_authorized}
+    end
+  end
+
+  defp authorize_message_removal(%ChatMessage{}, _actor_id), do: {:error, :not_authorized}
+
+  @spec finalize_message_removal(ChatMessage.t(), pos_integer()) :: remove_message_result()
+  defp finalize_message_removal(%ChatMessage{status: :removed} = chat_message, _actor_id),
+    do: {:ok, chat_message}
+
+  defp finalize_message_removal(%ChatMessage{id: message_id}, actor_id)
+       when is_integer(message_id) and is_integer(actor_id) do
+    moderated_at = now_utc()
+
+    # Competing host removals can race after both readers observe `:active`, so
+    # keep the state transition in one conditional update and then reload the
+    # row. Later contenders reuse the first persisted moderation timestamp.
+    from(chat_message in ChatMessage,
+      where: chat_message.id == ^message_id and chat_message.status != :removed
+    )
+    |> Repo.update_all(
+      set: [status: :removed, moderated_at: moderated_at, moderated_by_id: actor_id]
+    )
+
+    case removable_message_query(message_id) |> Repo.one() do
+      %ChatMessage{} = chat_message -> {:ok, chat_message}
+      nil -> {:error, :not_found}
+    end
+  end
+
+  @spec now_utc() :: DateTime.t()
+  defp now_utc do
+    DateTime.utc_now() |> DateTime.truncate(:microsecond)
   end
 end
