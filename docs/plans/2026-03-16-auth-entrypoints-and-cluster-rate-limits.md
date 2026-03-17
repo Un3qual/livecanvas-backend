@@ -44,7 +44,7 @@ Verified directly in active docs, code, and tests before writing this plan:
 - [x] Task 3: Deliver Google + Apple signup/login flows
 - [x] Task 4: Deliver passkey challenge/signup/login flows with dedicated credential persistence
 - [x] Task 5: Replace node-local throttles with cluster-aware OTP owner routing
-- [ ] Task 6: Run full verification and update roadmap/index tracking
+- [x] Task 6: Run full verification and update roadmap/index tracking
 
 ### Task 1: Add Generic Auth GraphQL Foundation And Auth-Specific Error Codes
 
@@ -249,7 +249,16 @@ Verification evidence (2026-03-16):
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
 **Task 6 Step Progress:**
-- [ ] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [ ] Step 2: Update the roadmap/index to record delivered auth entry points, provider rollout status, and cluster-aware limiter behavior
-- [ ] Step 3: Archive or relabel older active-plan references only if their scope is now superseded by this delivered work
-- [ ] Step 4: Mark all completed checklist items and commit the final milestone
+- [x] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
+- [x] Step 2: Update the roadmap/index to record delivered auth entry points, provider rollout status, and cluster-aware limiter behavior
+- [x] Step 3: Archive or relabel older active-plan references only if their scope is now superseded by this delivered work
+- [x] Step 4: Mark all completed checklist items and commit the final milestone
+
+Verification evidence (2026-03-16):
+
+- `mix compile` -> PASS
+- `mix test` -> PASS (`546 tests, 0 failures, 1 excluded`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
+- `mix precommit` -> PASS
+- `docs/plans/README.md` now relabels this plan under Recently Completed instead of Active Work
+- `docs/plans/2026-03-03-backend-release-readiness-roadmap.md` now records the shipped mobile auth contract, v1 provider rollout, and cluster-aware auth/mutation/channel abuse throttles

@@ -2,6 +2,8 @@ defmodule LC.ProviderAuthTestSupport do
   @moduledoc false
 
   @type provider :: :google | :apple
+  @type provider_module ::
+          LC.Accounts.ProviderAuth.Google | LC.Accounts.ProviderAuth.Apple
 
   @spec provider_token_bundle(provider(), keyword()) :: %{
           token: String.t(),
@@ -78,7 +80,7 @@ defmodule LC.ProviderAuthTestSupport do
     end
   end
 
-  @spec provider_module(provider()) :: module()
+  @spec provider_module(provider()) :: provider_module()
   def provider_module(:google), do: LC.Accounts.ProviderAuth.Google
   def provider_module(:apple), do: LC.Accounts.ProviderAuth.Apple
 

@@ -10,11 +10,11 @@ Use this directory for active and in-progress planning artifacts.
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Unified auth entry points + cluster-aware rate limits: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 - GraphQL live + auth bootstrap implementation: `docs/plans/graphql/2026-03-05-live-mutations-and-auth-bootstrap.md`
 
 ## Recently Completed
 
+- Unified auth entry points + cluster-aware rate limits: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md` (mobile-first `beginAuthChallenge`/`signUp`/`logIn` flows shipped for password, magic-link, Google, Apple, and passkey; `LCWeb.RateLimiter` owner routing is now cluster-aware)
 - Object storage serving strategy + provider hardening: `docs/plans/archive/completed/release/2026-03-05-object-storage-serving-provider-hardening.md` (configurable object-storage adapter/runtime validation plus GraphQL `mediaAsset.publicUrl` delivery with query + Relay node contract coverage)
 - Phase 5 capacity verification + launch gate wiring: `docs/plans/archive/completed/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md` (deterministic `mix release.capacity_drill` probes delivered, `mix release.gates` sequencing updated, and capacity runbook guidance published)
 - Content post lifecycle mutations: `docs/plans/archive/completed/release/2026-03-05-content-post-lifecycle-mutations.md` (viewer-scoped `updatePost`/`deletePost` delivery with context + Relay regression coverage)

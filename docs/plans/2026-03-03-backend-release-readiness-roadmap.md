@@ -127,9 +127,9 @@ Per architecture decisions, these remain intentionally deferred and should not b
 
 - Lock mutation actor identity to authenticated viewer scope (remove client-controlled actor IDs for sensitive writes).
 - Add strict authz checks for content/social/accounts writes.
-- Define API auth contract for mobile (`access + refresh` lifecycle, token rotation/revocation, failure semantics).
+- Mobile API auth contract is now delivered with access/refresh lifecycle, refresh-token rotation/revocation, and stable failure semantics across GraphQL auth entry points.
 - Restrict non-production GraphiQL exposure.
-- Add rate limiting and abuse throttles for auth + mutation + channel joins.
+- Abuse throttles for auth, GraphQL mutations, and channel joins are now cluster-aware through deterministic owner-node routing with local fail-open fallback.
 
 Mobile parallel start now:
 - Can build app shell, navigation, design system, GraphQL client infrastructure, local persistence, and offline cache strategy.
@@ -138,14 +138,14 @@ Mobile parallel start now:
 
 ### Phase 1: Authentication And Identity Production Slice
 
-- Finalize supported login methods for v1 launch (email/password + magic link vs additional providers).
-- Implement mobile-first auth endpoints/flows (not only web form/session flows).
-- Decide and implement provider rollout (Google/Apple/passkey either fully ship or explicitly defer behind flags with no client promise).
+- Supported v1 login methods are now fixed to password, magic link, Google, Apple, and passkey.
+- Mobile-first auth endpoints are now delivered through GraphQL `beginAuthChallenge`, `signUp`, and `logIn` flows instead of relying only on browser form/session routes.
+- Provider rollout is now implemented end-to-end for Google, Apple, and passkey with dedicated verification/persistence paths rather than deferred flags.
 - Auth audit expansion is delivered for password/magic-link login outcomes, refresh-token revocation/rotation outcomes, password/email credential change outcomes, provider identity unlink outcomes, and account-recovery request/reset outcomes.
 
 Mobile parallel:
-- Start real login/signup/password-reset screens once auth contract is frozen.
-- Implement token refresh/expiry UX immediately after backend token semantics are finalized.
+- Real login/signup/password-reset screens can now integrate against the shipped auth contract.
+- Token refresh and expiry UX can proceed against the delivered access/refresh lifecycle.
 
 ### Phase 2: API Contract Stabilization For Social/Content/Feed
 
@@ -202,11 +202,12 @@ Remaining tracked gaps:
 ## Evidence Notes On Key Blockers
 
 - Auth audit expansion is implemented in `LC.Accounts` (`record_auth_event/2`, `list_user_auth_events/2`, login/revocation/rotation, credential change emissions, provider identity unlink outcomes, and account-recovery request/reset outcomes in `lib/live_canvas/accounts.ex`) with transport coverage in `lib/live_canvas_web/controllers/user_reset_password_controller.ex` and `lib/live_canvas_gql/accounts/account_resolver.ex`, plus tests in `test/live_canvas/accounts/auth_event_test.exs`, `test/live_canvas/accounts_test.exs`, `test/live_canvas_web/controllers/user_reset_password_controller_test.exs`, `test/live_canvas_gql/accounts/account_mutations_test.exs`, and `test/live_canvas_gql/accounts/account_queries_test.exs`.
+- Mobile auth entry points are implemented in `LC.Accounts` and `LCGQL.Accounts` through `begin_passkey_challenge/2`, `sign_up_with_passkey/1`, `log_in_with_passkey/1`, provider-token flows, and the shared GraphQL `beginAuthChallenge`/`signUp`/`logIn` mutations, with credential persistence in `lib/live_canvas_schemas/accounts/user_passkey.ex` plus coverage in `test/live_canvas/accounts/passkeys_test.exs`, `test/live_canvas_gql/accounts/account_mutations_test.exs`, and `test/live_canvas/accounts/provider_auth_test.exs`.
 - Live runtime ownership now uses durable leases plus remote-owner routing and lease heartbeat refresh (`lib/live_canvas/live/session_ownership.ex`, `lib/live_canvas/live/runtime_rpc.ex`, `lib/live_canvas/live/session_supervisor.ex`, `lib/live_canvas/live/session_server.ex`) with channel-facing `session_unavailable` normalization for remote runtime failures and stale-local-runtime handoff cleanup.
 - Runtime partition/rejoin drill hardening is implemented via reconnect-consistency join safeguards in `LC.Live.join_live_session/4`, real peer-node partition/takeover integration coverage (`test/integration/live/runtime_partition_rejoin_test.exs`), and operator-facing deterministic drill planning/task support (`lib/live_canvas/release/live_runtime_drill.ex`, `lib/mix/tasks/release.live_runtime_drill.ex`, `docs/release/live-runtime-failover-drills.md`).
 - Phase 5 capacity verification is implemented via deterministic probe planning/execution (`lib/live_canvas/release/capacity_drill.ex`, `lib/mix/tasks/release.capacity_drill.ex`), release-gate integration (`lib/live_canvas/release/gates.ex`), and runbook evidence/override guidance (`docs/release/performance-capacity-verification.md`, `docs/release/deployment-gates.md`).
 - Webhook + async-job delivery is implemented via signed webhook ingress (`lib/live_canvas_web/controllers/webhook_controller.ex`), durable async-job persistence (`lib/live_canvas/infra/async_jobs.ex`), supervised worker processing (`lib/live_canvas/infra/async_jobs/worker.ex`), and integration coverage (`test/integration/media_webhook_async_flow_test.exs`).
-- Operational abuse limits are implemented for channel chat sends (`:chat_send`) and moderation mutations (`:moderation_action`) through `LCWeb.RateLimiter` + transport enforcement in `lib/live_canvas_web/channels/live_session_channel.ex` and `lib/live_canvas_web/plugs/graphql_mutation_rate_limit.ex`, with coverage in `test/live_canvas_web/channels/live_session_channel_test.exs` and `test/live_canvas_gql/relay/graphql_rate_limit_test.exs`.
+- Operational abuse limits are implemented through cluster-aware `LCWeb.RateLimiter` owner routing for auth logins (`:auth_login`), GraphQL mutations (`:graphql_mutation` and `:moderation_action`), channel joins (`:channel_join`), and chat sends (`:chat_send`), with transport enforcement in `lib/live_canvas_web/controllers/user_session_controller.ex`, `lib/live_canvas_web/plugs/graphql_mutation_rate_limit.ex`, and `lib/live_canvas_web/channels/live_session_channel.ex`, plus coverage in `test/live_canvas_web/controllers/user_session_rate_limit_test.exs`, `test/live_canvas_gql/relay/graphql_rate_limit_test.exs`, `test/live_canvas_web/channels/live_session_channel_test.exs`, and `test/live_canvas_web/rate_limiter_test.exs`.
 - Content lifecycle writes now include viewer-scoped post update/delete APIs in `LC.Content` plus Relay mutations in `LCGQL.Content` (`lib/live_canvas/content.ex`, `lib/live_canvas_gql/content/content_mutations.ex`, `lib/live_canvas_gql/content/content_resolver.ex`) with regression coverage in `test/live_canvas/content_test.exs` and `test/live_canvas_gql/content/content_mutations_test.exs`.
 - Object-storage provider hardening is implemented via configurable adapter/runtime validation and canonical serving URL generation (`lib/live_canvas/infra/object_storage/configurable_adapter.ex`, `config/runtime.exs`, `lib/live_canvas/infra/object_storage.ex`), with GraphQL delivery through `mediaAsset.publicUrl` in `lib/live_canvas_gql/content/content_types.ex` + `lib/live_canvas_gql/content/content_resolver.ex` and coverage in `test/live_canvas/infra/object_storage/configurable_adapter_test.exs`, `test/live_canvas_gql/content/content_queries_test.exs`, and `test/live_canvas_gql/relay/node_queries_test.exs`.
 - Compliance data governance baseline is now implemented via `LC.Infra.DataGovernance` export/deletion flows and `LC.Infra.DataGovernance.Retention` (`mix release.retention_sweep`) with coverage in `test/live_canvas/infra/data_governance_export_test.exs`, `test/live_canvas/infra/data_governance_deletion_test.exs`, and `test/live_canvas/infra/data_governance_retention_test.exs`; hard deletion is intentionally stubbed pending follow-up controls.
