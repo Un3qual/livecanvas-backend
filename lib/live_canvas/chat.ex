@@ -6,6 +6,7 @@ defmodule LC.Chat do
   use Boundary, deps: [LC.Infra, LC.Social, LCSchemas]
   import Ecto.Query, warn: false
 
+  alias LC.Chat.History
   alias LC.Chat.ChatMessage, as: ChatMessageChanges
   alias LC.Infra.Repo
   alias LC.Social
@@ -15,6 +16,7 @@ defmodule LC.Chat do
 
   @type changeset :: Ecto.Changeset.t()
   @type authorize_join_result :: :ok | {:error, :not_authorized | :session_ended}
+  @type authorize_history_result :: :ok | {:error, :not_authorized}
   @type chat_message_result ::
           {:ok, ChatMessage.t()} | {:error, changeset() | :not_authorized | :session_ended}
 
@@ -32,10 +34,42 @@ defmodule LC.Chat do
   def authorize_join(%User{}, %LiveSession{status: :ended}), do: {:error, :session_ended}
 
   def authorize_join(
-        %User{id: viewer_id} = viewer,
-        %LiveSession{host_id: host_id, visibility: visibility}
-      )
-      when visibility in [:followers, :public] and is_integer(viewer_id) and is_integer(host_id) do
+        %User{} = viewer,
+        %LiveSession{} = live_session
+      ) do
+    authorize_visible_session_access(viewer, live_session)
+  end
+
+  @doc """
+  Authorizes whether the given viewer can read retained history for a live session.
+  """
+  @spec authorize_history_access(User.t(), LiveSession.t()) :: authorize_history_result()
+  def authorize_history_access(%User{id: viewer_id}, %LiveSession{host_id: viewer_id})
+      when is_integer(viewer_id) do
+    if active_user?(viewer_id), do: :ok, else: {:error, :not_authorized}
+  end
+
+  def authorize_history_access(%User{} = viewer, %LiveSession{} = live_session) do
+    # Retained chat stays readable after a stream ends, so history access
+    # reuses visibility policy without the live-only ended-session rejection.
+    authorize_visible_session_access(viewer, live_session)
+  end
+
+  @doc """
+  Returns a deterministic history query for a live session's retained chat.
+  """
+  @spec history_query(LiveSession.t()) :: Ecto.Query.t()
+  def history_query(%LiveSession{id: live_session_id}) when is_integer(live_session_id) do
+    History.query(live_session_id)
+  end
+
+  @spec authorize_visible_session_access(User.t(), LiveSession.t()) ::
+          :ok | {:error, :not_authorized}
+  defp authorize_visible_session_access(
+         %User{id: viewer_id} = viewer,
+         %LiveSession{host_id: host_id, visibility: visibility}
+       )
+       when visibility in [:followers, :public] and is_integer(viewer_id) and is_integer(host_id) do
     # Always re-check moderation state in the database before evaluating social
     # policy so suspended users cannot use stale socket identity data.
     with true <- active_user?(viewer_id),

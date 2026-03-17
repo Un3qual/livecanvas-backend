@@ -33,7 +33,7 @@ Verified directly in active code before writing this plan:
 
 ## Progress
 
-- [ ] Task 1: Add Chat context history access and deterministic ordering primitives
+- [x] Task 1: Add Chat context history access and deterministic ordering primitives
 - [ ] Task 2: Expose Relay `ChatMessage` node and bidirectional `LiveSession.chatMessages`
 - [ ] Task 3: Publish the chat-history client contract and run verification
 
@@ -45,13 +45,13 @@ Verified directly in active code before writing this plan:
 - Modify: `test/live_canvas/chat_test.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing context tests for authorized history access on live and ended sessions
-- [ ] Step 2: Add failing context tests for unauthorized outsiders, suspended users, and muted-viewer policy
-- [ ] Step 3: Add failing context tests for deterministic chronological ordering with `inserted_at`, then `id`
-- [ ] Step 4: Run focused context tests to verify RED
-- [ ] Step 5: Implement `authorize_history_access/2` and ordered history-query primitives in `LC.Chat`
-- [ ] Step 6: Re-run focused context tests to verify GREEN
-- [ ] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing context tests for authorized history access on live and ended sessions
+- [x] Step 2: Add failing context tests for unauthorized outsiders, suspended users, and muted-viewer policy
+- [x] Step 3: Add failing context tests for deterministic chronological ordering with `inserted_at`, then `id`
+- [x] Step 4: Run focused context tests to verify RED
+- [x] Step 5: Implement `authorize_history_access/2` and ordered history-query primitives in `LC.Chat`
+- [x] Step 6: Re-run focused context tests to verify GREEN
+- [x] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 1 behavior targets:**
 
@@ -113,7 +113,7 @@ mix typecheck
 
 **Task 3 Step Progress:**
 - [ ] Step 1: Write the contract doc for the supported Chat history surface, including bidirectional pagination semantics
-- [ ] Step 2: Update the plans index so the new Chat history slice is discoverable from active work
+- [x] Step 2: Update the plans index so the new Chat history slice is discoverable from active work
 - [ ] Step 3: Run final verification on touched suites plus `mix compile` and `mix typecheck`
 - [ ] Step 4: Mark checklist completion and commit the milestone
 
