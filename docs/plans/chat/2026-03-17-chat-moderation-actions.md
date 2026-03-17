@@ -14,9 +14,9 @@
 
 - Status: active
 - Track: `docs/plans/chat/TRACK.md`
-- Current batch: `Task 2`
+- Current batch: `Task 3`
 - Start after: `docs/plans/chat/2026-03-17-chat-history-query-api.md` -> `Task 3`
-- Advance to: this plan's `Task 3`; after the plan is complete, move to `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 1`
+- Advance to: `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 1`
 
 ## Candidate Status Verification (2026-03-17)
 
@@ -44,8 +44,8 @@ Verified directly in active code and tests before writing this plan:
 ## Progress
 
 - [x] Task 1: Add moderation persistence and host-authority APIs in `LC.Chat`
-- [ ] Task 2: Expose host-scoped moderation mutations and moderated message reads in GraphQL
-- [ ] Task 3: Broadcast realtime moderation updates and finalize verification
+- [x] Task 2: Expose host-scoped moderation mutations and moderated message reads in GraphQL
+- [ ] Task 3: Broadcast realtime moderation updates for PR #11 and finalize verification
 
 ### Task 1: Add Moderation Persistence And Host-Authority APIs In `LC.Chat`
 
@@ -128,13 +128,13 @@ git commit -m "feat: add chat message moderation state"
 - Modify: `test/live_canvas_gql/relay/graphql_rate_limit_test.exs`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for `removeLiveChatMessage` success, outsider denial, and repeated removal semantics
-- [ ] Step 2: Add failing GraphQL tests for moderated messages appearing redacted in history and node reads
-- [ ] Step 3: Add failing rate-limit tests proving chat moderation uses the existing `:moderation_action` bucket
-- [ ] Step 4: Run focused GraphQL tests to verify RED
-- [ ] Step 5: Implement Chat mutation schema/resolver wiring and moderation-aware message projections
-- [ ] Step 6: Re-run focused GraphQL tests to verify GREEN
-- [ ] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing GraphQL tests for `removeLiveChatMessage` success, outsider denial, and repeated removal semantics
+- [x] Step 2: Add failing GraphQL tests for moderated messages appearing redacted in history and node reads
+- [x] Step 3: Add failing rate-limit tests proving chat moderation uses the existing `:moderation_action` bucket
+- [x] Step 4: Run focused GraphQL tests to verify RED
+- [x] Step 5: Implement Chat mutation schema/resolver wiring and moderation-aware message projections
+- [x] Step 6: Re-run focused GraphQL tests to verify GREEN
+- [x] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 2 behavior targets:**
 
@@ -187,16 +187,18 @@ git add lib/live_canvas_gql/chat/chat_mutations.ex lib/live_canvas_gql/chat/chat
 git commit -m "feat: expose chat moderation mutations"
 ```
 
-### Task 3: Broadcast Realtime Moderation Updates And Finalize Verification
+### Task 3: Broadcast Realtime Moderation Updates For PR #11 And Finalize Verification
 
 **Files:**
+- Modify: `lib/live_canvas_gql/chat/chat_resolver.ex`
 - Modify: `lib/live_canvas_web/channels/live_session_channel.ex`
+- Modify: `test/live_canvas_gql/chat/chat_mutations_test.exs`
 - Modify: `test/live_canvas_web/channels/live_session_channel_test.exs`
 - Modify: `docs/plans/chat/2026-03-17-chat-moderation-actions.md`
-- Modify: `docs/plans/README.md`
+- Modify: `docs/plans/NOW.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing channel tests for moderation update broadcasts
+- [ ] Step 1: Add failing GraphQL/channel integration tests for moderation update broadcasts
 - [ ] Step 2: Run focused Chat/channel tests to verify RED
 - [ ] Step 3: Broadcast a stable moderation update event for already-joined viewers
 - [ ] Step 4: Re-run focused Chat/channel tests to verify GREEN
@@ -208,23 +210,51 @@ git commit -m "feat: expose chat moderation mutations"
 - The event payload is sufficient for clients to reconcile existing message rows in-place instead of requiring a full history refetch.
 - Realtime moderation updates do not change the existing `"chat:message"` contract for new-message delivery.
 
+**PR #11 blocking review finding this task resolves:**
+
+- `removeLiveChatMessage` currently succeeds in GraphQL and persists `status: :removed`, but it does not notify already-joined `live_session:*` channel subscribers.
+- The concrete failure mode is that viewers who already received the original `"chat:message"` event continue rendering the abusive message until they manually refetch history or reconnect.
+- This task is complete only once the same moderation action updates both durable history reads and the active room transport.
+
 **Suggested TDD details:**
 
 Step 1 should add coverage for:
-- a joined viewer receiving a moderation update after a host removes one of the session's messages
-- no cross-session broadcast leakage
+- a joined viewer receiving a `"chat:message_updated"` broadcast after a host removes one of the session's messages through `removeLiveChatMessage`
+- the update payload preserving the existing `%{message: ...}` envelope while exposing a client-safe moderated projection
+- no cross-session broadcast leakage when another live room has joined viewers
+- repeated removals remaining idempotent without reintroducing the original body
+- the GraphQL mutation test suite continuing to assert the caller gets the same redacted `chatMessage` payload after the broadcast side effect is added
 
 Step 2 command:
 
 ```bash
-mix test test/live_canvas/chat_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
+mix test test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
 ```
 
-Expected: FAIL because the channel does not yet broadcast message update/removal events.
+Expected: FAIL because `removeLiveChatMessage` does not yet broadcast a moderation update to the live-session topic.
 
 Step 3 implementation notes:
-- Prefer a distinct event such as `"chat:message_updated"` so clients can handle message creation and message moderation as separate reconciliation paths.
-- Keep the channel payload shape aligned with the GraphQL `ChatMessage` projection where practical.
+- Trigger the broadcast from the successful `removeLiveChatMessage` path in `LCGQL.Chat.Resolver`, immediately after `Chat.remove_message/2` returns the moderated row. This keeps the durable state transition in `LC.Chat` while matching the existing GraphQL lifecycle pattern that already disconnects channels after mutations in `LCGQL.Live.Resolver`.
+- Reuse the live-session topic (`"live_session:#{live_session_id}"`) so only already-joined viewers for that room receive the update.
+- Prefer a distinct event such as `"chat:message_updated"` so clients can treat message creation and message moderation as separate reconciliation paths and avoid duplicating an existing row.
+- Put the payload construction in `LCWeb.LiveSessionChannel` if needed for reuse, but keep the emitted shape stable and explicit:
+
+```elixir
+%{
+  message: %{
+    id: chat_message.id,
+    body: nil,
+    sender_id: chat_message.sender_id,
+    inserted_at: DateTime.to_iso8601(chat_message.inserted_at),
+    status: "removed",
+    moderated_at: DateTime.to_iso8601(chat_message.moderated_at)
+  }
+}
+```
+
+- Preserve the existing `"chat:message"` payload and event name for new-message delivery; moderation must not masquerade as message creation.
+- Broadcasting the same redacted payload on repeated host removals is acceptable and keeps the mutation idempotent for clients that may have missed the first event.
+- Add a concise comment near the broadcast call explaining that durable history redaction alone is insufficient because active viewers render from channel events until they reconcile an update.
 
 Step 5 commands:
 

@@ -173,6 +173,65 @@ defmodule LCGQL.Chat.ChatQueriesTest do
       assert is_binary(start_cursor)
       assert is_binary(end_cursor)
     end
+
+    test "redacts moderated messages in history connections and node reads" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, message} = Chat.create_message(live_session, viewer, %{body: "to be removed"})
+      {:ok, removed_message} = Chat.remove_message(message, host)
+      {:ok, ended_session} = Live.end_live_session(live_session)
+
+      live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+
+      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
+      viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+      moderated_at = DateTime.to_iso8601(removed_message.moderated_at)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "chatMessages" => %{
+                      "edges" => [
+                        %{
+                          "node" => %{
+                            "id" => ^message_id,
+                            "body" => nil,
+                            "status" => "REMOVED",
+                            "moderatedAt" => ^moderated_at,
+                            "sender" => %{"id" => ^viewer_id}
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }} =
+               Absinthe.run(chat_history_query(), LCGQL.Schema,
+                 variables: %{"id" => live_session_id, "first" => 10},
+                 context: context
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^message_id,
+                    "body" => nil,
+                    "status" => "REMOVED",
+                    "moderatedAt" => ^moderated_at,
+                    "sender" => %{"id" => ^viewer_id}
+                  }
+                }
+              }} =
+               Absinthe.run(chat_message_node_query(), LCGQL.Schema,
+                 variables: %{"id" => message_id},
+                 context: context
+               )
+    end
   end
 
   defp chat_history_query do
@@ -192,6 +251,8 @@ defmodule LCGQL.Chat.ChatQueriesTest do
               node {
                 id
                 body
+                status
+                moderatedAt
                 kind
                 insertedAt
                 sender {
@@ -205,6 +266,24 @@ defmodule LCGQL.Chat.ChatQueriesTest do
               hasNextPage
               hasPreviousPage
             }
+          }
+        }
+      }
+    }
+    """
+  end
+
+  defp chat_message_node_query do
+    """
+    query($id: ID!) {
+      node(id: $id) {
+        ... on ChatMessage {
+          id
+          body
+          status
+          moderatedAt
+          sender {
+            id
           }
         }
       }
