@@ -12,11 +12,11 @@
 
 ## Execution Summary
 
-- Status: active
+- Status: completed
 - Track: `docs/plans/chat/TRACK.md`
-- Current batch: `Task 3`
+- Current batch: none; plan complete
 - Depends on: approved design in `docs/plans/chat/2026-03-17-chat-product-surface-design.md`; Tasks 1 and 2 are already complete
-- Advance to: `docs/plans/chat/2026-03-17-chat-moderation-actions.md` -> `Task 1`
+- Advance to: `docs/plans/chat/2026-03-17-chat-moderation-actions.md` -> `Task 2`
 
 ## Candidate Status Verification (2026-03-17)
 
@@ -43,7 +43,7 @@ Verified directly in active code before writing this plan:
 
 - [x] Task 1: Add Chat context history access and deterministic ordering primitives
 - [x] Task 2: Expose Relay `ChatMessage` node and bidirectional `LiveSession.chatMessages`
-- [ ] Task 3: Publish the chat-history client contract and run verification
+- [x] Task 3: Publish the chat-history client contract and run verification
 
 ### Task 1: Add Chat Context History Access And Deterministic Ordering Primitives
 
@@ -120,10 +120,10 @@ mix typecheck
 - Modify: `docs/plans/README.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Write the contract doc for the supported Chat history surface, including bidirectional pagination semantics
+- [x] Step 1: Write the contract doc for the supported Chat history surface, including bidirectional pagination semantics
 - [x] Step 2: Update the plans index so the new Chat history slice is discoverable from active work
-- [ ] Step 3: Run final verification on touched suites plus `mix compile` and `mix typecheck`
-- [ ] Step 4: Mark checklist completion and commit the milestone
+- [x] Step 3: Run final verification on touched suites plus `mix compile` and `mix typecheck`
+- [x] Step 4: Mark checklist completion and commit the milestone
 
 **Task 3 contract targets:**
 
