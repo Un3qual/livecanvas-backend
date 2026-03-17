@@ -166,8 +166,10 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
   end
 
   @spec auth_login_mutation_names() :: [String.t()]
+  # Removed auth field names intentionally fall through to the generic
+  # mutation bucket so the limiter does not preserve retired transports.
   defp auth_login_mutation_names,
-    do: ["logIn", "loginWithPassword", "requestMagicLinkLogin", "loginWithMagicLink"]
+    do: ["logIn"]
 
   @spec moderation_mutation_names() :: [String.t()]
   defp moderation_mutation_names,

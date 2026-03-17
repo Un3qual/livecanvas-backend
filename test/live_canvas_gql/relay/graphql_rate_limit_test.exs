@@ -87,53 +87,7 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
            } = Jason.decode!(second_conn.resp_body)
   end
 
-  test "uses auth-login limits for auth bootstrap mutations", %{conn: conn} do
-    previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
-
-    Application.put_env(
-      :live_canvas,
-      LC.RateLimiter,
-      limits: [
-        graphql_mutation: [limit: 10, window_ms: 60_000],
-        moderation_action: [limit: 10, window_ms: 60_000],
-        auth_login: [limit: 1, window_ms: 60_000],
-        channel_join: [limit: 10, window_ms: 60_000],
-        chat_send: [limit: 10, window_ms: 60_000]
-      ]
-    )
-
-    LC.RateLimiter.reset!()
-
-    on_exit(fn ->
-      Application.put_env(:live_canvas, LC.RateLimiter, previous_config)
-      LC.RateLimiter.reset!()
-    end)
-
-    auth_mutation = """
-    mutation {
-      loginWithPassword(input: {email: \"user@example.com\", password: \"bad-password\"}) {
-        errors {
-          message
-        }
-      }
-    }
-    """
-
-    conn = %{conn | remote_ip: {127, 0, 0, 1}}
-    first_conn = post(conn, "/graphql", %{"query" => auth_mutation})
-    assert first_conn.status == 200
-
-    second_conn = post(conn, "/graphql", %{"query" => auth_mutation})
-    assert second_conn.status == 429
-
-    assert %{
-             "errors" => [
-               %{"message" => "rate_limited", "extensions" => %{"code" => "RATE_LIMITED"}}
-             ]
-           } = Jason.decode!(second_conn.resp_body)
-  end
-
-  test "uses auth-login limits for logIn mutations", %{conn: conn} do
+  test "uses auth-login limits for canonical password logIn mutations", %{conn: conn} do
     previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
 
     Application.put_env(
@@ -185,6 +139,103 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
                %{"message" => "rate_limited", "extensions" => %{"code" => "RATE_LIMITED"}}
              ]
            } = Jason.decode!(second_conn.resp_body)
+  end
+
+  test "uses auth-login limits for canonical magic-link logIn mutations", %{conn: conn} do
+    previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LC.RateLimiter,
+      limits: [
+        graphql_mutation: [limit: 10, window_ms: 60_000],
+        moderation_action: [limit: 10, window_ms: 60_000],
+        auth_login: [limit: 1, window_ms: 60_000],
+        channel_join: [limit: 10, window_ms: 60_000],
+        chat_send: [limit: 10, window_ms: 60_000]
+      ]
+    )
+
+    LC.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LC.RateLimiter, previous_config)
+      LC.RateLimiter.reset!()
+    end)
+
+    auth_mutation = """
+    mutation {
+      logIn(
+        input: {
+          provider: MAGIC_LINK
+          magicLink: {
+            token: "invalid-token"
+          }
+        }
+      ) {
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    conn = %{conn | remote_ip: {127, 0, 0, 1}}
+    first_conn = post(conn, "/graphql", %{"query" => auth_mutation})
+    assert first_conn.status == 200
+
+    second_conn = post(conn, "/graphql", %{"query" => auth_mutation})
+    assert second_conn.status == 429
+
+    assert %{
+             "errors" => [
+               %{"message" => "rate_limited", "extensions" => %{"code" => "RATE_LIMITED"}}
+             ]
+           } = Jason.decode!(second_conn.resp_body)
+  end
+
+  test "treats removed legacy auth fields as generic invalid mutations", %{conn: conn} do
+    previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LC.RateLimiter,
+      limits: [
+        graphql_mutation: [limit: 10, window_ms: 60_000],
+        moderation_action: [limit: 10, window_ms: 60_000],
+        auth_login: [limit: 1, window_ms: 60_000],
+        channel_join: [limit: 10, window_ms: 60_000],
+        chat_send: [limit: 10, window_ms: 60_000]
+      ]
+    )
+
+    LC.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LC.RateLimiter, previous_config)
+      LC.RateLimiter.reset!()
+    end)
+
+    legacy_auth_mutation = """
+    mutation {
+      loginWithMagicLink(input: {token: "invalid-token"}) {
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    conn = %{conn | remote_ip: {127, 0, 0, 1}}
+    first_conn = post(conn, "/graphql", %{"query" => legacy_auth_mutation})
+    second_conn = post(conn, "/graphql", %{"query" => legacy_auth_mutation})
+
+    assert first_conn.status == 200
+    assert second_conn.status == 200
+    assert first_conn.resp_body =~ "Cannot query field"
+    assert first_conn.resp_body =~ "loginWithMagicLink"
+    assert second_conn.resp_body =~ "Cannot query field"
+    assert second_conn.resp_body =~ "loginWithMagicLink"
   end
 
   test "keeps moderation and generic mutation buckets independent", %{conn: conn} do
@@ -262,7 +313,14 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
 
     auth_mutation = """
     mutation {
-      loginWithMagicLink(input: {token: \"invalid-token\"}) {
+      logIn(
+        input: {
+          provider: MAGIC_LINK
+          magicLink: {
+            token: "invalid-token"
+          }
+        }
+      ) {
         errors {
           message
         }
@@ -310,7 +368,7 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
     conn = %{conn | remote_ip: {127, 0, 0, 1}}
 
     moderation_mutation = """
-    mutation loginWithPassword {
+    mutation LogInTextOnly {
       muteUser(input: { mutedId: \"123\" }) {
         errors {
           message
@@ -352,7 +410,14 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
 
     mutation = """
     mutation AuthBootstrap {
-      loginWithMagicLink(input: {token: \"invalid-token\"}) {
+      logIn(
+        input: {
+          provider: MAGIC_LINK
+          magicLink: {
+            token: "invalid-token"
+          }
+        }
+      ) {
         errors {
           message
         }
@@ -414,7 +479,14 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
     }
 
     fragment AuthBootstrapFields on #{mutation_root_type} {
-      loginWithMagicLink(input: {token: \"invalid-token\"}) {
+      logIn(
+        input: {
+          provider: MAGIC_LINK
+          magicLink: {
+            token: "invalid-token"
+          }
+        }
+      ) {
         errors {
           message
         }
@@ -455,15 +527,28 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
 
     auth_mutation = """
     mutation {
-      first: loginWithPassword(
-        input: {email: "user@example.com", password: "bad-password"}
+      first: logIn(
+        input: {
+          provider: PASSWORD
+          password: {
+            email: "user@example.com"
+            password: "bad-password"
+          }
+        }
       ) {
         errors {
           message
         }
       }
 
-      second: loginWithMagicLink(input: {token: "invalid-token"}) {
+      second: logIn(
+        input: {
+          provider: MAGIC_LINK
+          magicLink: {
+            token: "invalid-token"
+          }
+        }
+      ) {
         errors {
           message
         }
@@ -503,7 +588,14 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
 
     mixed_mutation = """
     mutation {
-      auth: loginWithMagicLink(input: {token: "invalid-token"}) {
+      auth: logIn(
+        input: {
+          provider: MAGIC_LINK
+          magicLink: {
+            token: "invalid-token"
+          }
+        }
+      ) {
         errors {
           message
         }

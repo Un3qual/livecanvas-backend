@@ -10,10 +10,10 @@ Use this directory for active and in-progress planning artifacts.
 ## Active Work
 
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Phase 2 mobile GraphQL contract stabilization: `docs/plans/graphql/2026-03-16-phase2-mobile-contract-stabilization.md`
 
 ## Recently Completed
 
+- Phase 2 mobile GraphQL contract stabilization: `docs/plans/graphql/2026-03-16-phase2-mobile-contract-stabilization.md` (viewer-scoped social reads, legacy auth mutation removal, rate-limit contract cleanup, and the published mobile contract doc all landed)
 - Private-account completion: `docs/plans/social/2026-03-16-private-account-completion.md` (GraphQL `privacyMode`, viewer privacy updates, pending follow-request inbox/decline flow, and privacy-aware followers/following shipped)
 - GraphQL live + auth bootstrap implementation: `docs/plans/graphql/2026-03-05-live-mutations-and-auth-bootstrap.md` (Relay live-session lifecycle mutations plus initial GraphQL auth bootstrap flows shipped)
 - Unified auth entry points + cluster-aware rate limits: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md` (mobile-first `beginAuthChallenge`/`signUp`/`logIn` flows shipped for password, magic-link, Google, Apple, and passkey; `LCWeb.RateLimiter` owner routing is now cluster-aware)

@@ -4,7 +4,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   import LC.AccountsFixtures
   import LC.PasskeyTestSupport
   import LC.ProviderAuthTestSupport
-  import Swoosh.TestAssertions
 
   alias LC.Accounts
   alias LC.Infra.Repo
@@ -913,6 +912,20 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
 
       refute schema_sdl =~
                "RevokeRefreshTokenPayload {\n  revoked: Boolean!\n  errors: [UserError!]!\n  successful: Boolean!"
+    end
+
+    test "exposes only the supported GraphQL auth entry points" do
+      schema_sdl = Absinthe.Schema.to_sdl(LCGQL.Schema)
+
+      assert schema_sdl =~ "beginAuthChallenge"
+      assert schema_sdl =~ "signUp"
+      assert schema_sdl =~ "logIn"
+      assert schema_sdl =~ "refreshAuthTokens"
+      assert schema_sdl =~ "revokeRefreshToken"
+
+      refute schema_sdl =~ "loginWithPassword"
+      refute schema_sdl =~ "requestMagicLinkLogin"
+      refute schema_sdl =~ "loginWithMagicLink"
     end
   end
 
@@ -2160,270 +2173,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
   end
 
-  describe "loginWithPassword" do
-    test "issues access and refresh tokens for valid credentials" do
-      user = user_fixture() |> set_password()
-
-      mutation = """
-      mutation LoginWithPassword($email: String!, $password: String!) {
-        loginWithPassword(input: {email: $email, password: $password}) {
-          accessToken {
-            serializedValue
-            tokenVersion
-          }
-          refreshToken {
-            serializedValue
-            tokenVersion
-          }
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
-      assert {:ok,
-              %{
-                data: %{
-                  "loginWithPassword" => %{
-                    "accessToken" => %{"serializedValue" => access_token, "tokenVersion" => 1},
-                    "refreshToken" => %{"serializedValue" => refresh_token, "tokenVersion" => 1},
-                    "errors" => []
-                  }
-                }
-              }} =
-               Absinthe.run(
-                 mutation,
-                 LCGQL.Schema,
-                 variables: %{"email" => user.email, "password" => valid_user_password()}
-               )
-
-      assert {:ok, %{id: access_token_id}} = Accounts.Tokens.decode_serialized_value(access_token)
-
-      assert {:ok, %{id: refresh_token_id}} =
-               Accounts.Tokens.decode_serialized_value(refresh_token)
-
-      assert %UserToken{context: :access_token} = Repo.get(UserToken, access_token_id)
-      assert %UserToken{context: :refresh_token} = Repo.get(UserToken, refresh_token_id)
-    end
-
-    test "returns deterministic invalid-credential errors" do
-      user = user_fixture() |> set_password()
-
-      mutation = """
-      mutation LoginWithPassword($email: String!, $password: String!) {
-        loginWithPassword(input: {email: $email, password: $password}) {
-          accessToken {
-            serializedValue
-          }
-          refreshToken {
-            serializedValue
-          }
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
-      assert {:ok,
-              %{
-                data: %{
-                  "loginWithPassword" => %{
-                    "accessToken" => nil,
-                    "refreshToken" => nil,
-                    "errors" => [%{"field" => nil, "message" => "invalid_credentials"}]
-                  }
-                }
-              }} =
-               Absinthe.run(
-                 mutation,
-                 LCGQL.Schema,
-                 variables: %{"email" => user.email, "password" => "wrong-password"}
-               )
-    end
-  end
-
-  describe "requestMagicLinkLogin" do
-    test "issues a magic-link token for existing users and returns an empty error list" do
-      user = user_fixture()
-      flush_email_messages()
-
-      mutation = """
-      mutation RequestMagicLinkLogin($email: String!) {
-        requestMagicLinkLogin(input: {email: $email}) {
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
-      assert {:ok,
-              %{
-                data: %{
-                  "requestMagicLinkLogin" => %{
-                    "errors" => []
-                  }
-                }
-              }} =
-               Absinthe.run(mutation, LCGQL.Schema, variables: %{"email" => user.email})
-
-      assert %UserToken{context: :email_magic_link_token} =
-               Repo.get_by(UserToken, user_id: user.id, context: :email_magic_link_token)
-
-      assert_email_sent(fn email ->
-        String.contains?(email.text_body, "https://livecanvas.invalid/users/log-in/") and
-          not String.contains?(email.text_body, "https://livecanvas.invalid/login/")
-      end)
-    end
-
-    test "does not enumerate missing emails and does not issue tokens" do
-      mutation = """
-      mutation RequestMagicLinkLogin($email: String!) {
-        requestMagicLinkLogin(input: {email: $email}) {
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
-      before_count = Repo.aggregate(UserToken, :count, :id)
-
-      assert {:ok,
-              %{
-                data: %{
-                  "requestMagicLinkLogin" => %{
-                    "errors" => []
-                  }
-                }
-              }} =
-               Absinthe.run(
-                 mutation,
-                 LCGQL.Schema,
-                 variables: %{"email" => "missing-user@example.com"}
-               )
-
-      after_count = Repo.aggregate(UserToken, :count, :id)
-      assert after_count == before_count
-    end
-
-    test "does not issue tokens for unconfirmed password users" do
-      password = valid_user_password()
-
-      assert {:ok, %{user: user}} =
-               Accounts.sign_up_with_password(%{
-                 email: "graphql-magic-link-blocked@example.com",
-                 password: password,
-                 password_confirmation: password
-               })
-
-      mutation = """
-      mutation RequestMagicLinkLogin($email: String!) {
-        requestMagicLinkLogin(input: {email: $email}) {
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
-      assert {:ok, %{data: %{"requestMagicLinkLogin" => %{"errors" => []}}}} =
-               Absinthe.run(mutation, LCGQL.Schema, variables: %{"email" => user.email})
-
-      refute Repo.get_by(UserToken, user_id: user.id, context: :email_magic_link_token)
-    end
-  end
-
-  describe "loginWithMagicLink" do
-    test "consumes a magic-link token and issues access/refresh tokens" do
-      user = user_fixture()
-      {magic_link_token, _hashed_token} = generate_user_magic_link_token(user)
-
-      mutation = """
-      mutation LoginWithMagicLink($token: String!) {
-        loginWithMagicLink(input: {token: $token}) {
-          accessToken {
-            serializedValue
-            tokenVersion
-          }
-          refreshToken {
-            serializedValue
-            tokenVersion
-          }
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
-      assert {:ok,
-              %{
-                data: %{
-                  "loginWithMagicLink" => %{
-                    "accessToken" => %{"serializedValue" => access_token, "tokenVersion" => 1},
-                    "refreshToken" => %{"serializedValue" => refresh_token, "tokenVersion" => 1},
-                    "errors" => []
-                  }
-                }
-              }} =
-               Absinthe.run(
-                 mutation,
-                 LCGQL.Schema,
-                 variables: %{"token" => magic_link_token}
-               )
-
-      assert {:error, :not_found} = Accounts.login_user_by_magic_link(magic_link_token)
-
-      assert {:ok, %{user: %{id: viewer_id}}} = Accounts.authenticate_access_token(access_token)
-      assert viewer_id == user.id
-
-      assert {:ok, %{user: %{id: refresh_user_id}}} =
-               Accounts.authenticate_refresh_token(refresh_token)
-
-      assert refresh_user_id == user.id
-    end
-
-    test "returns invalid_or_expired for unusable magic-link tokens" do
-      mutation = """
-      mutation LoginWithMagicLink($token: String!) {
-        loginWithMagicLink(input: {token: $token}) {
-          accessToken {
-            serializedValue
-          }
-          refreshToken {
-            serializedValue
-          }
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
-      assert {:ok,
-              %{
-                data: %{
-                  "loginWithMagicLink" => %{
-                    "accessToken" => nil,
-                    "refreshToken" => nil,
-                    "errors" => [%{"field" => nil, "message" => "invalid_or_expired"}]
-                  }
-                }
-              }} =
-               Absinthe.run(mutation, LCGQL.Schema, variables: %{"token" => "invalid-token"})
-    end
-  end
-
   describe "refreshAuthTokens" do
     test "rotates a refresh token into a fresh access and refresh pair" do
       viewer = user_fixture()
@@ -2639,15 +2388,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                )
 
       assert {:error, :revoked_token} = Accounts.authenticate_refresh_token(refresh_token)
-    end
-  end
-
-  defp flush_email_messages do
-    receive do
-      {:email, _email} -> flush_email_messages()
-      {:emails, _emails} -> flush_email_messages()
-    after
-      0 -> :ok
     end
   end
 end

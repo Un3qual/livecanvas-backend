@@ -50,8 +50,6 @@ defmodule LCGQL.Accounts.Resolver do
   @type invite_delivery_result :: {:ok, invite_delivery_payload()}
   @type auth_challenge_payload :: %{challenge: map() | nil, errors: [auth_error()]}
   @type auth_challenge_result :: {:ok, auth_challenge_payload()}
-  @type magic_link_login_request_payload :: %{errors: [mutation_error()]}
-  @type magic_link_login_request_result :: {:ok, magic_link_login_request_payload()}
   @type auth_token_payload :: %{
           access_token: map() | nil,
           refresh_token: map() | nil,
@@ -84,7 +82,6 @@ defmodule LCGQL.Accounts.Resolver do
   @type invite_delivery_error_reason :: :invalid_recipient | :unauthenticated | :delivery_failed
   @type reset_password_error_reason :: :invalid_or_expired
   @type refresh_auth_error_reason :: :invalid_token | :expired_token | :revoked_token
-  @type login_with_magic_link_error_reason :: :invalid_or_expired
   @type token_view :: %{
           serialized_value: String.t(),
           token_version: integer(),
@@ -844,112 +841,6 @@ defmodule LCGQL.Accounts.Resolver do
     {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
   end
 
-  @spec login_with_password(
-          term(),
-          %{
-            optional(:input) => map(),
-            optional(:email) => String.t(),
-            optional(:password) => String.t()
-          },
-          Absinthe.Resolution.t()
-        ) :: auth_token_result()
-  def login_with_password(parent, %{input: input}, resolution),
-    do: login_with_password(parent, input, resolution)
-
-  def login_with_password(_parent, %{email: email, password: password}, _resolution)
-      when is_binary(email) and is_binary(password) do
-    case Accounts.get_user_by_email_and_password(email, password) do
-      %{id: _id} = user ->
-        issue_auth_tokens_payload(user)
-
-      _ ->
-        {:ok,
-         %{
-           access_token: nil,
-           refresh_token: nil,
-           errors: [%{field: nil, message: "invalid_credentials"}]
-         }}
-    end
-  end
-
-  def login_with_password(_parent, _args, _resolution) do
-    {:ok,
-     %{
-       access_token: nil,
-       refresh_token: nil,
-       errors: [%{field: nil, message: "invalid_credentials"}]
-     }}
-  end
-
-  @spec request_magic_link_login(
-          term(),
-          %{optional(:input) => map(), optional(:email) => String.t()},
-          Absinthe.Resolution.t()
-        ) :: magic_link_login_request_result()
-  def request_magic_link_login(parent, %{input: input}, resolution),
-    do: request_magic_link_login(parent, input, resolution)
-
-  def request_magic_link_login(_parent, %{email: email}, _resolution) when is_binary(email) do
-    email
-    |> Accounts.get_user_by_email()
-    |> case do
-      nil ->
-        :ok
-
-      %{id: _id} = user ->
-        # Keep request responses non-enumerating and best-effort so clients do
-        # not learn account existence from delivery outcomes.
-        case Accounts.deliver_login_instructions(user, &magic_link_login_url/1) do
-          {:ok, _email} -> :ok
-          _ -> :ok
-        end
-    end
-
-    {:ok, %{errors: []}}
-  end
-
-  def request_magic_link_login(_parent, _args, _resolution), do: {:ok, %{errors: []}}
-
-  @spec login_with_magic_link(
-          term(),
-          %{optional(:input) => map(), optional(:token) => String.t()},
-          Absinthe.Resolution.t()
-        ) :: auth_token_result()
-  def login_with_magic_link(parent, %{input: input}, resolution),
-    do: login_with_magic_link(parent, input, resolution)
-
-  def login_with_magic_link(_parent, %{token: token}, _resolution) when is_binary(token) do
-    case Accounts.login_user_by_magic_link(token) do
-      {:ok, {user, _expired_tokens}} ->
-        issue_auth_tokens_payload(user)
-
-      {:error, :not_found} ->
-        {:ok,
-         %{
-           access_token: nil,
-           refresh_token: nil,
-           errors: [login_with_magic_link_error(:invalid_or_expired)]
-         }}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok,
-         %{
-           access_token: nil,
-           refresh_token: nil,
-           errors: format_changeset_errors(changeset)
-         }}
-    end
-  end
-
-  def login_with_magic_link(_parent, _args, _resolution) do
-    {:ok,
-     %{
-       access_token: nil,
-       refresh_token: nil,
-       errors: [login_with_magic_link_error(:invalid_or_expired)]
-     }}
-  end
-
   @spec issue_viewer_auth_tokens(term(), %{optional(:input) => map()}, Absinthe.Resolution.t()) ::
           auth_token_result()
   def issue_viewer_auth_tokens(parent, %{input: input}, resolution),
@@ -1268,11 +1159,6 @@ defmodule LCGQL.Accounts.Resolver do
   @spec contact_invite_url(String.t()) :: String.t()
   defp contact_invite_url(token), do: "https://livecanvas.invalid/invites/#{token}"
 
-  # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
-  # transport-agnostic while tests can assert magic-link delivery side effects.
-  @spec magic_link_login_url(String.t()) :: String.t()
-  defp magic_link_login_url(token), do: "https://livecanvas.invalid/users/log-in/#{token}"
-
   @spec auth_error(String.t() | nil, auth_error_code(), String.t() | nil) :: auth_error()
   defp auth_error(field, code, message \\ nil) do
     %{
@@ -1311,10 +1197,6 @@ defmodule LCGQL.Accounts.Resolver do
 
   @spec reset_password_error(reset_password_error_reason()) :: mutation_error()
   defp reset_password_error(:invalid_or_expired),
-    do: %{field: nil, message: "invalid_or_expired"}
-
-  @spec login_with_magic_link_error(login_with_magic_link_error_reason()) :: mutation_error()
-  defp login_with_magic_link_error(:invalid_or_expired),
     do: %{field: nil, message: "invalid_or_expired"}
 
   @spec refresh_auth_error(refresh_auth_error_reason()) :: mutation_error()
@@ -1364,27 +1246,6 @@ defmodule LCGQL.Accounts.Resolver do
         auth_error(prefixed_auth_field(prefix, field), :invalid_input, message)
       end)
     end)
-  end
-
-  @spec issue_auth_tokens_payload(User.t()) :: auth_token_result()
-  defp issue_auth_tokens_payload(%{id: _id} = user) do
-    with {:ok, access_token_payload} <- Accounts.issue_access_token(user),
-         {:ok, refresh_token_payload} <- Accounts.issue_refresh_token(user) do
-      {:ok,
-       %{
-         access_token: token_view(access_token_payload),
-         refresh_token: token_view(refresh_token_payload),
-         errors: []
-       }}
-    else
-      {:error, _changeset} ->
-        {:ok,
-         %{
-           access_token: nil,
-           refresh_token: nil,
-           errors: [%{field: nil, message: "invalid_token"}]
-         }}
-    end
   end
 
   @spec token_view(LC.Accounts.token_payload()) :: token_view()

@@ -150,9 +150,11 @@ Mobile parallel:
 ### Phase 2: API Contract Stabilization For Social/Content/Feed
 
 - Freeze external API contract (fields, enums, error codes, pagination guarantees).
+- The mobile-facing GraphQL contract is now published in `docs/contracts/mobile-graphql-phase2.md`, including the supported auth entrypoints, viewer-scoped social reads, and Relay expectations.
+- Viewer-scoped social stabilization is now delivered for `relationshipState`, `isMuted`, `followers`, and `following`, and the legacy auth mutations have been removed from the schema.
 - Move write APIs to viewer-scoped behavior by default.
 - Content edit/delete lifecycle operations are now delivered via viewer-scoped `updatePost`/`deletePost`; report-path follow-up remains product-dependent.
-- Publish a backend-client contract doc for mobile consumption.
+- Publish a backend-client contract doc for mobile consumption (`docs/contracts/mobile-graphql-phase2.md`) that enumerates the supported auth entrypoints, viewer-scoped social read fields, and removed legacy mutations.
 
 Mobile parallel:
 - Full feed and social feature integration can run in parallel once this contract is locked.
