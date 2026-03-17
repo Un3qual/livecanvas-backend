@@ -2,6 +2,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import LC.ProviderAuthTestSupport
   import Swoosh.TestAssertions
 
   alias LC.Accounts
@@ -1433,6 +1434,51 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
 
       assert Accounts.get_user_by_email(user.email).confirmed_at
     end
+
+    test "creates a Google account from a verified provider token" do
+      bundle = provider_token_bundle(:google)
+
+      mutation = """
+      mutation SignUp($idToken: String!) {
+        signUp(
+          input: {
+            provider: GOOGLE
+            oauth: {idToken: $idToken}
+          }
+        ) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      with_provider_configs([google: bundle.config], fn ->
+        assert {:ok,
+                %{
+                  data: %{
+                    "signUp" => %{
+                      "accessToken" => %{"serializedValue" => _access_token},
+                      "refreshToken" => %{"serializedValue" => _refresh_token},
+                      "errors" => []
+                    }
+                  }
+                }} =
+                 Absinthe.run(mutation, LCGQL.Schema, variables: %{"idToken" => bundle.token})
+      end)
+
+      assert user = Accounts.get_user_by_email(bundle.claims["email"])
+      assert Accounts.get_user_by_identity(:google_provider, bundle.claims["sub"]).id == user.id
+      assert user.confirmed_at
+    end
   end
 
   describe "logIn" do
@@ -1562,6 +1608,101 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                   }
                 }
               }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"token" => token})
+    end
+
+    test "returns provider_verification_failed when a provider token has no linked identity" do
+      bundle = provider_token_bundle(:apple)
+      _user = user_fixture(%{email: bundle.claims["email"]})
+
+      mutation = """
+      mutation LogIn($idToken: String!) {
+        logIn(
+          input: {
+            provider: APPLE
+            oauth: {idToken: $idToken}
+          }
+        ) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      with_provider_configs([apple: bundle.config], fn ->
+        assert {:ok,
+                %{
+                  data: %{
+                    "logIn" => %{
+                      "accessToken" => nil,
+                      "refreshToken" => nil,
+                      "errors" => [
+                        %{
+                          "field" => "oauth.idToken",
+                          "code" => "PROVIDER_VERIFICATION_FAILED",
+                          "message" => "provider_verification_failed"
+                        }
+                      ]
+                    }
+                  }
+                }} =
+                 Absinthe.run(mutation, LCGQL.Schema, variables: %{"idToken" => bundle.token})
+      end)
+    end
+
+    test "logs in with Apple and returns auth tokens for an existing linked identity" do
+      bundle = provider_token_bundle(:apple)
+      user = user_fixture(%{email: bundle.claims["email"]})
+
+      _identity =
+        attach_user_identity(user, :apple_provider, bundle.claims["sub"],
+          provider_data: %{"email" => bundle.claims["email"]}
+        )
+
+      mutation = """
+      mutation LogIn($idToken: String!) {
+        logIn(
+          input: {
+            provider: APPLE
+            oauth: {idToken: $idToken}
+          }
+        ) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      with_provider_configs([apple: bundle.config], fn ->
+        assert {:ok,
+                %{
+                  data: %{
+                    "logIn" => %{
+                      "accessToken" => %{"serializedValue" => _access_token},
+                      "refreshToken" => %{"serializedValue" => _refresh_token},
+                      "errors" => []
+                    }
+                  }
+                }} =
+                 Absinthe.run(mutation, LCGQL.Schema, variables: %{"idToken" => bundle.token})
+      end)
     end
   end
 

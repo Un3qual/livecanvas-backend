@@ -101,6 +101,41 @@ if config_env() == :prod do
     public_base_url: object_storage_public_base_url,
     upload_ttl_seconds: object_storage_upload_ttl_seconds
 
+  parse_csv_env = fn env_name, default_values ->
+    env_name
+    |> System.get_env(Enum.join(default_values, ","))
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  fetch_provider_audiences = fn env_name, provider_label ->
+    case parse_csv_env.(env_name, []) do
+      [_ | _] = audiences ->
+        audiences
+
+      [] ->
+        raise """
+        environment variable #{env_name} is missing.
+        Provide one or more #{provider_label} OIDC audiences as a comma-separated list.
+        """
+    end
+  end
+
+  config :live_canvas, LC.Accounts.ProviderAuth.Google,
+    audiences: fetch_provider_audiences.("GOOGLE_OIDC_AUDIENCES", "Google"),
+    issuers:
+      parse_csv_env.("GOOGLE_OIDC_ISSUERS", [
+        "https://accounts.google.com",
+        "accounts.google.com"
+      ]),
+    jwks_url: System.get_env("GOOGLE_OIDC_JWKS_URL", "https://www.googleapis.com/oauth2/v3/certs")
+
+  config :live_canvas, LC.Accounts.ProviderAuth.Apple,
+    audiences: fetch_provider_audiences.("APPLE_OIDC_AUDIENCES", "Apple"),
+    issuers: parse_csv_env.("APPLE_OIDC_ISSUERS", ["https://appleid.apple.com"]),
+    jwks_url: System.get_env("APPLE_OIDC_JWKS_URL", "https://appleid.apple.com/auth/keys")
+
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key
