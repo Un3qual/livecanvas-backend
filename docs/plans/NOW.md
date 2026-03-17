@@ -7,13 +7,13 @@ Status: active
 
 - Track: `chat`
 - Plan: `docs/plans/chat/2026-03-17-chat-moderation-actions.md`
-- Batch: `Task 3: Broadcast Realtime Moderation Updates And Finalize Verification`
-- Why now: the GraphQL moderation surface is verified, and the next unblocked slice is the realtime reconciliation path for already-joined viewers.
+- Batch: `Task 3: Broadcast Realtime Moderation Updates For PR #11 And Finalize Verification`
+- Why now: PR `#11` is blocked on a correctness gap where `removeLiveChatMessage` redacts persisted history but leaves already-joined viewers rendering the stale abusive message until they refetch or reconnect.
 
 ## Do This Now
 
-- Add the failing channel tests for moderation update broadcasts.
-- Implement the stable realtime moderation update event in `LCWeb.LiveSessionChannel`.
+- Add the failing GraphQL/channel integration coverage for `removeLiveChatMessage` broadcasting `"chat:message_updated"` to the owning live-session topic only.
+- Implement the moderation update broadcast from the successful GraphQL removal path and keep the payload reconcilable with the existing channel message envelope.
 - Run the Task 3 verification commands from `docs/plans/chat/2026-03-17-chat-moderation-actions.md`.
 - Mark Task 3 complete in the plan once the verification evidence is fresh.
 
