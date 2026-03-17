@@ -10,16 +10,19 @@
 
 ## Batching And Commit Policy
 
+- Start ordinary execution turns from `docs/plans/NOW.md`; treat it as the authoritative pointer for the next batch.
+- Use `docs/plans/INDEX.md` only when `NOW.md` is stale, blocked, or empty.
+- If the selected work belongs to a multi-plan track, consult that track's `TRACK.md` before opening unrelated plan files.
 - Verify implementation status before acting; do not assume an unchecked plan item is unimplemented.
 - Prefer the next meaningful batch over a single micro-step: execute one full task section or 3-5 related steps when safe.
-- If there is no unfinished plan item, review `ARCHITECTURE.md` and create the next implementation plan.
+- If `NOW.md` has no current batch, review `ARCHITECTURE.md` and create the next implementation plan, then update `INDEX.md` and `NOW.md`.
 - Keep progress checkboxes up to date as work proceeds.
 - Do not create standalone checkbox-only or docs-only progress commits; bundle progress updates with related code/test changes in the same commit.
 - Commit at milestone boundaries: completed task section, user-visible behavior change, or required verification checkpoint.
 - Favor more frequent milestone commits during execution (avoid long stretches without a commit) while still keeping each commit scoped to meaningful completed work.
 - Dispatch subagents only when there are 2+ substantial independent tracks; avoid subagents for simple plan reading or tiny edits.
 - Run the minimum verification needed for each batch; avoid verbose command flags unless diagnosing failures.
-- Once the requested work is complete, merge into `main` and remove the worktree.
+- Once the requested work is complete, open a PR unless the user explicitly asks for a direct local merge/remove-worktree flow.
 
 ## Planning And Documentation
 

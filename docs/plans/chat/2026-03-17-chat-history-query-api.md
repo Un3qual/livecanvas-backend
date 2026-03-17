@@ -10,6 +10,14 @@
 
 ---
 
+## Execution Summary
+
+- Status: active
+- Track: `docs/plans/chat/TRACK.md`
+- Current batch: `Task 3`
+- Depends on: approved design in `docs/plans/chat/2026-03-17-chat-product-surface-design.md`; Tasks 1 and 2 are already complete
+- Advance to: `docs/plans/chat/2026-03-17-chat-moderation-actions.md` -> `Task 1`
+
 ## Candidate Status Verification (2026-03-17)
 
 Verified directly in active code before writing this plan:
