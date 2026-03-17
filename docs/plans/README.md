@@ -42,7 +42,7 @@ Use this directory for active execution docs and detailed implementation plans.
 ## Starter Prompt
 
 ```text
-Open /Users/admin/.codex/worktrees/e21e/backend/docs/plans/NOW.md and execute the Current Batch.
+Open docs/plans/NOW.md and execute the Current Batch.
 
 Follow AGENTS.md for execution policy.
 Verify only the selected batch and its immediate prerequisites in code before editing; do not rescan unrelated plans unless NOW.md is stale, blocked, or complete.
