@@ -2,114 +2,94 @@
 
 Approved on 2026-03-17.
 
-This design defines the next product-facing Chat work for the LiveCanvas
-backend. It covers three bounded slices:
+This document captures the approved design for the next Chat planning set:
 
-1. durable chat history queries
-2. message-level moderation actions
-3. richer system-event delivery and persistence
-
-The canonical architecture constraints remain in [ARCHITECTURE.md](/Users/admin/.codex/worktrees/00a5/backend/ARCHITECTURE.md) and [conventions.md](/Users/admin/Desktop/Programming/projects/LiveCanvas/backend/docs/architecture/conventions.md).
+- retained chat history / query API
+- host-owned moderator actions on chat messages
+- richer system events in the chat stream
 
 ## Current State
 
-- Chat currently persists retained live-session messages in
-  `chat_messages` through `LC.Chat.create_message/3`.
-- Realtime delivery is channel-only through
-  `LCWeb.LiveSessionChannel` and the `"chat:message"` event.
-- GraphQL exposes `LiveSession` lifecycle mutations, but it does not expose a
-  Relay-first `ChatMessage` node or connection.
-- `Chat.authorize_join/2` already centralizes the effective viewer policy for
-  live-session participation, including suspension, blocks, mutes, and
-  followers-only access.
-- `chat_messages.kind` already supports `:user_message` and `:system_event`,
-  which is the preferred seam for richer product events.
+The backend already supports live chat as a realtime channel flow:
+
+- viewers join `live_session:*` topics through `LCWeb.LiveSessionChannel`
+- `chat:send` persists a retained `chat_messages` row through `LC.Chat.create_message/3`
+- joined clients receive `chat:message` broadcasts
+- join/send policy already enforces suspension, follow visibility, mute rules, and throughput limits
+
+What does not exist yet:
+
+- no GraphQL Chat API
+- no Relay `ChatMessage` node or connection
+- no durable chat-history read surface
+- no host-owned message moderation flow
+- no richer system-event stream beyond the latent `chat_messages.kind = :system_event` seam
 
 ## Shared Design Decisions
 
 ### Transport Split
 
-- GraphQL owns durable chat reads and writes that mobile/web clients must be
-  able to refetch.
-- Phoenix Channels continue to own low-latency realtime delivery.
-- New chat product work must keep those transports consistent instead of
-  inventing separate policy or payload rules.
+- Phoenix Channels remain the realtime transport for joining a live room and sending messages.
+- GraphQL becomes the durable transport for reading retained chat history and invoking message moderation actions.
+- Realtime updates and durable reads must describe the same underlying chat-message model so clients do not have to reconcile two incompatible payload shapes.
 
-### Access Policy
+### Relay And Pagination
 
-- Chat history and message-level nodes are viewer-scoped.
-- A viewer may read retained chat history only when that viewer could
-  successfully join the live session under current `LC.Chat` policy.
-- The GraphQL layer must reuse `LC.Chat` and `LC.Live` boundary APIs rather
-  than reimplementing visibility rules.
-- `node(id:)` for `ChatMessage` must return `nil` outside the authorized viewer
-  scope, following the same ownership pattern used for follow requests,
-  identities, exports, and deletion requests.
+- Chat history is Relay-first.
+- `ChatMessage` becomes a Relay node with global IDs.
+- `LiveSession.chatMessages` is exposed as a Relay connection with `paginate: :both`.
+- The connection must support `first/after` and `last/before` so clients can infinite scroll in both directions.
+- Cursor ordering is deterministic by `inserted_at`, then `id`, with explicit tie-break handling in the query layer.
 
-### Relay Contract And Pagination
+### History Access Policy
 
-- Durable chat history must be Relay-first: `ChatMessage` nodes, global IDs,
-  connections, edges, and cursor pagination.
-- The history connection must support both forward and backward pagination so
-  clients can infinite scroll in either direction.
-- The canonical message ordering is ascending by `inserted_at`, then `id`, so
-  cursors stay deterministic even when messages share a timestamp.
-- Clients should be able to request the latest window with `last`/`before`,
-  fetch older history with `before`, and fetch newer messages with `after`
-  without changing sort order between requests.
+- History reads use the same viewer/host visibility and moderation policy as live chat access.
+- Unlike socket joins, history access must still work for ended sessions; a durable history API cannot reject reads only because the session is no longer live.
+- The implementation should therefore add a dedicated history-access policy instead of reusing the `:session_ended` branch in `authorize_join/2`.
 
-### Data Modeling
+### Message Moderation Authority
 
-- `chat_messages` remains the durable source of truth for retained chat items.
-- User-authored chat and system-generated chat should share the same
-  persistence path whenever possible so the history API can expose one
-  connection.
-- Message moderation should prefer additive state on `chat_messages` over a new
-  event store unless implementation research proves otherwise.
-- System events should use the existing `kind = :system_event` seam with a
-  bounded event-type vocabulary in metadata or adjacent fields.
+- The first moderation slice is host-owned.
+- The session host can remove chat messages for that live session.
+- Broader moderator/admin roles are out of scope for this planning set because the current data model does not define them.
+- Sender self-delete or message restore is also out of scope for the initial moderation slice unless future product direction explicitly expands it.
 
-## Slice Boundaries
+### Moderation Persistence
 
-### 1. Chat History / Query API
+- Message moderation is additive, not destructive.
+- Moderated rows stay in `chat_messages`.
+- The moderation slice should add explicit moderation state to `chat_messages` rather than overloading the existing `metadata` map with opaque transport-only values.
+- Read surfaces can then omit or tombstone moderated rows deterministically without relying on best-effort channel state.
 
-- Add a `ChatMessage` Relay node and a viewer-scoped connection for retained
-  messages on `LiveSession`.
-- Keep the history API focused on durable reads, payload normalization, and
-  bidirectional pagination.
-- Do not add message-level moderation behavior in this slice.
+### System Event Modeling
 
-### 2. Moderator Actions On Chat Messages
+- System events stay in the existing `chat_messages` table through `kind = :system_event`.
+- To keep the slice additive, system events remain actor-backed instead of introducing senderless rows in the first pass.
+- `sender_id` therefore continues to reference the real actor who caused the event:
+  - host for start / go-live / end
+  - viewer for join / leave
+  - moderator for future moderation-generated events if that follow-up is added later
+- Event-specific details live in structured `metadata`, with a stable event-type discriminator exposed through GraphQL and channel payloads.
 
-- Add bounded message-level moderation operations for retained chat messages.
-- The initial moderation authority should align with existing live-session
-  ownership rules instead of introducing a broader staff or role system.
-- Moderation state must be visible in durable history and must propagate to
-  active channel subscribers through a stable transport contract.
+### Producer Boundaries
 
-### 3. Richer System Events
+- `LC.Live` remains the owner of lifecycle state transitions.
+- Chat system-event persistence should be triggered from the same successful lifecycle paths that already own those transitions so channel disconnect paths and GraphQL lifecycle paths stay consistent.
+- User-originated `chat:send` stays separate from lifecycle-generated system events, and the `:chat_send` limiter must not be reused for those system events.
 
-- Add product-facing system events on top of the existing system-event message
-  seam so live-session lifecycle and moderation events can appear in both
-  channel delivery and retained history.
-- Keep the first event set intentionally small and low-noise. Join/leave events
-  are in scope only if they can be recorded without creating reconnect spam or
-  runtime ownership drift.
+## Sequence
 
-## Recommended Execution Order
+Recommended execution order:
 
-1. `Chat history/query API`
-2. `Moderator actions on chat messages`
-3. `Richer system events in chat`
+1. Chat history / query API
+2. Host-owned message moderation actions
+3. Richer system events in the chat stream
 
-This order puts the Relay history contract first, gives moderation a stable
-node/connection surface to operate on, and lets system events build on the same
-durable message contract instead of inventing parallel payload shapes.
+This order keeps the foundational durable read model in place before adding moderation or event expansion, and it ensures later slices can reuse the same `ChatMessage` Relay node and bidirectional connection instead of inventing parallel shapes.
 
 ## Non-Goals
 
-- Replacing the realtime channel transport
-- Introducing a new chat service or external queue
-- General-purpose trust-and-safety staff tooling
-- Solving long-term analytics, retention hard-delete, or compliance-hold policy
-- Expanding beyond live-session chat into DMs or room-based chat
+- dedicated moderator/admin role modeling
+- compliance hard-delete follow-up
+- replacing channel sends with GraphQL mutations
+- replay/content scope beyond retained live chat
