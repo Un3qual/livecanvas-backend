@@ -14,9 +14,9 @@
 
 - Status: active
 - Track: `docs/plans/chat/TRACK.md`
-- Current batch: `Task 2`
+- Current batch: `Task 3`
 - Start after: `docs/plans/chat/2026-03-17-chat-history-query-api.md` -> `Task 3`
-- Advance to: this plan's `Task 3`; after the plan is complete, move to `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 1`
+- Advance to: `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 1`
 
 ## Candidate Status Verification (2026-03-17)
 
@@ -44,7 +44,7 @@ Verified directly in active code and tests before writing this plan:
 ## Progress
 
 - [x] Task 1: Add moderation persistence and host-authority APIs in `LC.Chat`
-- [ ] Task 2: Expose host-scoped moderation mutations and moderated message reads in GraphQL
+- [x] Task 2: Expose host-scoped moderation mutations and moderated message reads in GraphQL
 - [ ] Task 3: Broadcast realtime moderation updates and finalize verification
 
 ### Task 1: Add Moderation Persistence And Host-Authority APIs In `LC.Chat`
@@ -128,13 +128,13 @@ git commit -m "feat: add chat message moderation state"
 - Modify: `test/live_canvas_gql/relay/graphql_rate_limit_test.exs`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for `removeLiveChatMessage` success, outsider denial, and repeated removal semantics
-- [ ] Step 2: Add failing GraphQL tests for moderated messages appearing redacted in history and node reads
-- [ ] Step 3: Add failing rate-limit tests proving chat moderation uses the existing `:moderation_action` bucket
-- [ ] Step 4: Run focused GraphQL tests to verify RED
-- [ ] Step 5: Implement Chat mutation schema/resolver wiring and moderation-aware message projections
-- [ ] Step 6: Re-run focused GraphQL tests to verify GREEN
-- [ ] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing GraphQL tests for `removeLiveChatMessage` success, outsider denial, and repeated removal semantics
+- [x] Step 2: Add failing GraphQL tests for moderated messages appearing redacted in history and node reads
+- [x] Step 3: Add failing rate-limit tests proving chat moderation uses the existing `:moderation_action` bucket
+- [x] Step 4: Run focused GraphQL tests to verify RED
+- [x] Step 5: Implement Chat mutation schema/resolver wiring and moderation-aware message projections
+- [x] Step 6: Re-run focused GraphQL tests to verify GREEN
+- [x] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 2 behavior targets:**
 

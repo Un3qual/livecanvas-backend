@@ -14,7 +14,7 @@ Deliver durable chat history first, then host-owned moderation, then typed syste
    - Unblocks: the next moderation slice
 2. `docs/plans/chat/2026-03-17-chat-moderation-actions.md`
    - Status: in progress
-   - Current batch: `Task 2`
+   - Current batch: `Task 3`
    - Start after: chat-history `Task 3` is complete
 3. `docs/plans/chat/2026-03-17-chat-system-events.md`
    - Status: queued

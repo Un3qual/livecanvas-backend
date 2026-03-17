@@ -173,7 +173,7 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
 
   @spec moderation_mutation_names() :: [String.t()]
   defp moderation_mutation_names,
-    do: ["blockUser", "unblockUser", "muteUser", "unmuteUser"]
+    do: ["blockUser", "unblockUser", "muteUser", "unmuteUser", "removeLiveChatMessage"]
 
   @type fragment_definitions :: %{optional(String.t()) => Fragment.t()}
   @type selection_acc :: {[String.t()], MapSet.t(String.t())}
