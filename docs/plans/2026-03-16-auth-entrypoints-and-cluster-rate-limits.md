@@ -41,7 +41,7 @@ Verified directly in active docs, code, and tests before writing this plan:
 
 - [x] Task 1: Add generic auth GraphQL foundation and auth-specific error codes
 - [x] Task 2: Deliver password + magic-link challenge/signup/login flows
-- [ ] Task 3: Deliver Google + Apple signup/login flows
+- [x] Task 3: Deliver Google + Apple signup/login flows
 - [ ] Task 4: Deliver passkey challenge/signup/login flows with dedicated credential persistence
 - [x] Task 5: Replace node-local throttles with cluster-aware OTP owner routing
 - [ ] Task 6: Run full verification and update roadmap/index tracking
@@ -129,23 +129,30 @@ Verification evidence (2026-03-16):
 - Modify: `config/config.exs`
 - Modify: `config/runtime.exs`
 - Create: `test/live_canvas/accounts/provider_auth_test.exs`
+- Create: `test/support/provider_auth_test_support.ex`
 - Modify: `test/live_canvas_gql/accounts/account_mutations_test.exs`
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing tests for Google/Apple provider-token verification, existing-identity login, and new-account signup semantics
-- [ ] Step 2: Run focused provider-auth tests to verify RED
-- [ ] Step 3: Implement a verifier behaviour plus Google/Apple verifier modules with injected HTTP/JWKS/config seams
-- [ ] Step 4: Implement Accounts signup/login entry points that create or resolve linked `user_identities` for Google and Apple
-- [ ] Step 5: Add runtime configuration for provider audiences/issuers/JWKS URLs and keep failure reasons deterministic
-- [ ] Step 6: Run focused Accounts/GraphQL provider-auth tests to verify GREEN
-- [ ] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing tests for Google/Apple provider-token verification, existing-identity login, and new-account signup semantics
+- [x] Step 2: Run focused provider-auth tests to verify RED
+- [x] Step 3: Implement a verifier behaviour plus Google/Apple verifier modules with injected HTTP/JWKS/config seams
+- [x] Step 4: Implement Accounts signup/login entry points that create or resolve linked `user_identities` for Google and Apple
+- [x] Step 5: Add runtime configuration for provider audiences/issuers/JWKS URLs and keep failure reasons deterministic
+- [x] Step 6: Run focused Accounts/GraphQL provider-auth tests to verify GREEN
+- [x] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 3 behavior targets:**
 
 - `signUp(provider: GOOGLE|APPLE, ...)` succeeds only when the presented provider proof is valid and no active identity is already linked.
 - `logIn(provider: GOOGLE|APPLE, ...)` succeeds only for an existing active linked identity.
 - Provider verification failures map to stable auth error codes instead of leaking transport exceptions.
+
+Verification evidence (2026-03-16):
+
+- `mix test test/live_canvas/accounts/provider_auth_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs` -> RED first (`60 tests, 10 failures`) and GREEN after implementation (`60 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 4: Deliver Passkey Challenge/Signup/Login Flows With Dedicated Credential Persistence
 

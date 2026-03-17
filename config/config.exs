@@ -96,6 +96,16 @@ config :live_canvas, LC.Infra.ObjectStorage.ConfigurableAdapter, upload_ttl_seco
 
 config :live_canvas, LC.Infra.SMS, adapter: LC.Infra.SMS.FakeAdapter
 
+config :live_canvas, LC.Accounts.ProviderAuth.Google,
+  audiences: ["livecanvas-google-client-id"],
+  issuers: ["https://accounts.google.com", "accounts.google.com"],
+  jwks_url: "https://www.googleapis.com/oauth2/v3/certs"
+
+config :live_canvas, LC.Accounts.ProviderAuth.Apple,
+  audiences: ["livecanvas-apple-client-id"],
+  issuers: ["https://appleid.apple.com"],
+  jwks_url: "https://appleid.apple.com/auth/keys"
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

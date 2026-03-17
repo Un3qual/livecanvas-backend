@@ -552,6 +552,40 @@ defmodule LCGQL.Accounts.Resolver do
     end
   end
 
+  def sign_up(_parent, %{provider: provider, oauth: oauth_input}, _resolution)
+      when provider in [:google, :apple] and is_map(oauth_input) do
+    with :ok <- require_auth_field(oauth_input, :id_token, "oauth") do
+      case Accounts.sign_up_with_provider(provider, Map.fetch!(oauth_input, :id_token)) do
+        {:ok, auth_entry} ->
+          {:ok, auth_entry_payload(auth_entry)}
+
+        {:error, :email_taken} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("oauth.idToken", :email_taken, "has already been taken")
+           ])}
+
+        {:error, :provider_verification_failed} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("oauth.idToken", :provider_verification_failed)
+           ])}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "oauth"))}
+
+        {:error, :invalid_credentials} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("oauth.idToken", :provider_verification_failed)
+           ])}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, auth_entry_error_payload([auth_error])}
+    end
+  end
+
   def sign_up(_parent, _args, _resolution) do
     {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
   end
@@ -607,6 +641,37 @@ defmodule LCGQL.Accounts.Resolver do
 
         {:error, :email_taken} ->
           {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, auth_entry_error_payload([auth_error])}
+    end
+  end
+
+  def log_in(_parent, %{provider: provider, oauth: oauth_input}, _resolution)
+      when provider in [:google, :apple] and is_map(oauth_input) do
+    with :ok <- require_auth_field(oauth_input, :id_token, "oauth") do
+      case Accounts.log_in_with_provider(provider, Map.fetch!(oauth_input, :id_token)) do
+        {:ok, auth_entry} ->
+          {:ok, auth_entry_payload(auth_entry)}
+
+        {:error, :provider_verification_failed} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("oauth.idToken", :provider_verification_failed)
+           ])}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "oauth"))}
+
+        {:error, :invalid_credentials} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("oauth.idToken", :provider_verification_failed)
+           ])}
+
+        {:error, :email_taken} ->
+          {:ok, auth_entry_error_payload([auth_error("oauth.idToken", :invalid_input)])}
       end
     else
       {:error, auth_error} ->

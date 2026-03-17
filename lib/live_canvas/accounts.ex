@@ -8,7 +8,7 @@ defmodule LC.Accounts do
     exports: [Tokens]
 
   import Ecto.Query, warn: false
-  import Ecto.Changeset, only: [add_error: 3, change: 2, get_field: 2]
+  import Ecto.Changeset, only: [add_error: 3, change: 2, get_field: 2, put_change: 3]
 
   alias LC.Infra.{DataGovernance, Repo}
   alias LCSchemas.Accounts.AuthEvent, as: AuthEventSchema
@@ -31,6 +31,7 @@ defmodule LC.Accounts do
   alias LC.Accounts.{
     AuthEvent,
     Passwords,
+    ProviderAuth,
     PhoneNotifier,
     PhoneNumbers,
     Scope,
@@ -110,7 +111,9 @@ defmodule LC.Accounts do
           access_token: token_payload(),
           refresh_token: token_payload()
         }
-  @type auth_entry_error :: :email_taken | :invalid_credentials | changeset()
+  @type auth_provider :: :google | :apple
+  @type auth_entry_error ::
+          :email_taken | :invalid_credentials | :provider_verification_failed | changeset()
   @type auth_entry_result :: {:ok, auth_entry_payload()} | {:error, auth_entry_error()}
   @type auth_challenge_purpose :: :sign_up | :log_in
   @type magic_link_challenge_payload :: %{user: User.t() | nil, dispatched: boolean()}
@@ -470,6 +473,66 @@ defmodule LC.Accounts do
   end
 
   def log_in_with_magic_link(_serialized_value), do: {:error, :invalid_credentials}
+
+  @doc """
+  Registers a Google or Apple-backed account and returns an auth token pair.
+  """
+  @spec sign_up_with_provider(auth_provider(), String.t()) :: auth_entry_result()
+  def sign_up_with_provider(provider, id_token)
+      when provider in [:google, :apple] and is_binary(id_token) do
+    Repo.transact(fn ->
+      with {:ok, verified_identity} <- ProviderAuth.verify(provider, id_token),
+           :ok <- ensure_provider_identity_available(verified_identity),
+           {:ok, user} <- create_provider_user(verified_identity.email),
+           {:ok, _identity} <- persist_provider_identity(user, verified_identity),
+           {:ok, auth_entry} <- issue_auth_entry_tokens(user) do
+        {:ok, auth_entry}
+      else
+        {:error, :provider_identity_exists} ->
+          {:error, :provider_verification_failed}
+
+        {:error, :provider_verification_failed} ->
+          {:error, :provider_verification_failed}
+
+        {:error, :email_taken} ->
+          {:error, :email_taken}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:error, changeset}
+      end
+    end)
+  end
+
+  def sign_up_with_provider(_provider, _id_token), do: {:error, :provider_verification_failed}
+
+  @doc """
+  Issues an auth token pair for a valid Google or Apple login.
+  """
+  @spec log_in_with_provider(auth_provider(), String.t()) :: auth_entry_result()
+  def log_in_with_provider(provider, id_token)
+      when provider in [:google, :apple] and is_binary(id_token) do
+    Repo.transact(fn ->
+      with {:ok, verified_identity} <- ProviderAuth.verify(provider, id_token),
+           %UserIdentity{} = identity <- active_provider_identity(verified_identity),
+           %User{} = user <- get_user!(identity.user_id),
+           true <- active_user?(user),
+           {:ok, _identity} <- touch_provider_identity(identity, verified_identity.provider_data),
+           {:ok, auth_entry} <- issue_auth_entry_tokens(user) do
+        {:ok, auth_entry}
+      else
+        {:error, :provider_verification_failed} ->
+          {:error, :provider_verification_failed}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:error, changeset}
+
+        _other ->
+          {:error, :provider_verification_failed}
+      end
+    end)
+  end
+
+  def log_in_with_provider(_provider, _id_token), do: {:error, :provider_verification_failed}
 
   ## Settings
 
@@ -1317,6 +1380,74 @@ defmodule LC.Accounts do
     end
   end
 
+  @spec ensure_provider_identity_available(ProviderAuth.verified_identity()) ::
+          :ok | {:error, :provider_identity_exists}
+  defp ensure_provider_identity_available(%{provider: provider, provider_uid: provider_uid}) do
+    if get_user_by_identity(provider, provider_uid) do
+      {:error, :provider_identity_exists}
+    else
+      :ok
+    end
+  end
+
+  @spec create_provider_user(String.t()) :: user_result() | {:error, :email_taken}
+  defp create_provider_user(email) when is_binary(email) do
+    verified_at = now_utc()
+
+    changeset =
+      %User{}
+      |> UserChanges.email_changeset(%{email: email})
+      |> put_change(:confirmed_at, verified_at)
+
+    normalized_email = get_field(changeset, :email)
+
+    cond do
+      not changeset.valid? ->
+        {:error, changeset}
+
+      email_taken?(normalized_email) ->
+        {:error, :email_taken}
+
+      true ->
+        with {:ok, user} <- Repo.insert(changeset),
+             {:ok, _user_email_address} <-
+               attach_email_address(user, normalized_email, verified_at: verified_at) do
+          {:ok, put_primary_email(user)}
+        end
+    end
+  end
+
+  @spec persist_provider_identity(User.t(), ProviderAuth.verified_identity()) ::
+          {:ok, UserIdentity.t()} | {:error, changeset()}
+  defp persist_provider_identity(%User{} = user, verified_identity)
+       when is_map(verified_identity) do
+    register_user_identity(
+      user,
+      verified_identity.provider,
+      verified_identity.provider_uid,
+      provider_data: verified_identity.provider_data,
+      last_used_at: now_utc()
+    )
+  end
+
+  @spec active_provider_identity(ProviderAuth.verified_identity()) :: UserIdentity.t() | nil
+  defp active_provider_identity(%{provider: provider, provider_uid: provider_uid}) do
+    provider
+    |> active_provider_identity_query(provider_uid)
+    |> Repo.one()
+  end
+
+  @spec touch_provider_identity(UserIdentity.t(), map()) ::
+          {:ok, UserIdentity.t()} | {:error, changeset()}
+  defp touch_provider_identity(%UserIdentity{} = identity, provider_data)
+       when is_map(provider_data) do
+    # Provider login must only succeed for an existing linked identity; we refresh
+    # metadata here but never use a matching email to implicitly create or link one.
+    identity
+    |> change(provider_data: provider_data, last_used_at: now_utc())
+    |> Repo.update()
+  end
+
   @spec begin_magic_link_sign_up(String.t(), (String.t() -> String.t())) ::
           magic_link_challenge_result()
   defp begin_magic_link_sign_up(email, magic_link_url_fun) do
@@ -1672,6 +1803,16 @@ defmodule LC.Accounts do
       where:
         user_identity.user_id == ^user_id and
           user_identity.id == ^identity_id and
+          is_nil(user_identity.revoked_at),
+      limit: 1
+    )
+  end
+
+  defp active_provider_identity_query(provider, provider_uid) do
+    from(user_identity in UserIdentity,
+      where:
+        user_identity.provider == ^provider and
+          user_identity.provider_uid == ^provider_uid and
           is_nil(user_identity.revoked_at),
       limit: 1
     )
