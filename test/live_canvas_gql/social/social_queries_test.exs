@@ -217,4 +217,88 @@ defmodule LCGQL.Social.SocialQueriesTest do
       assert second_page["pageInfo"]["hasNextPage"] == false
     end
   end
+
+  describe "viewerPendingFollowRequests" do
+    test "returns a viewer-scoped relay connection of pending follow requests" do
+      viewer = user_fixture(privacy_mode: :private)
+      follower_1 = user_fixture()
+      follower_2 = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      follower_1_id = Absinthe.Relay.Node.to_global_id(:user, follower_1.id, LCGQL.Schema)
+      follower_2_id = Absinthe.Relay.Node.to_global_id(:user, follower_2.id, LCGQL.Schema)
+
+      assert {:ok, follow_1} = Social.follow_user(follower_1, viewer)
+      assert {:ok, follow_2} = Social.follow_user(follower_2, viewer)
+
+      follow_request_1_id =
+        Absinthe.Relay.Node.to_global_id(:follow_request, follow_1.id, LCGQL.Schema)
+
+      follow_request_2_id =
+        Absinthe.Relay.Node.to_global_id(:follow_request, follow_2.id, LCGQL.Schema)
+
+      query = """
+      query($first: Int!) {
+        viewerPendingFollowRequests(first: $first) {
+          edges {
+            node {
+              id
+              state
+              requestedAt
+              follower {
+                id
+              }
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "viewerPendingFollowRequests" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^follow_request_1_id,
+                          "state" => "REQUESTED",
+                          "requestedAt" => requested_at_1,
+                          "follower" => %{"id" => ^follower_1_id}
+                        }
+                      },
+                      %{
+                        "node" => %{
+                          "id" => ^follow_request_2_id,
+                          "state" => "REQUESTED",
+                          "requestedAt" => requested_at_2,
+                          "follower" => %{"id" => ^follower_2_id}
+                        }
+                      }
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+
+      assert is_binary(requested_at_1)
+      assert is_binary(requested_at_2)
+    end
+
+    test "returns an empty connection without a viewer scope" do
+      query = """
+      query($first: Int!) {
+        viewerPendingFollowRequests(first: $first) {
+          edges {
+            node {
+              id
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"viewerPendingFollowRequests" => %{"edges" => []}}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10})
+    end
+  end
 end

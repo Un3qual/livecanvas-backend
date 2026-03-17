@@ -23,7 +23,7 @@
 
 - [x] Task 1: Add GraphQL privacy-mode read/write support
 - [x] Task 2: Add Social query/mutation helpers for pending follow requests
-- [ ] Task 3: Expose Relay follow-request inbox and accept/decline mutations
+- [x] Task 3: Expose Relay follow-request inbox and accept/decline mutations
 - [ ] Task 4: Make followers/following privacy-aware and run verification
 
 ### Task 1: Add GraphQL Privacy-Mode Read/Write Support
@@ -95,20 +95,26 @@ Verification evidence (2026-03-16):
 - Test: `test/live_canvas_gql/relay/node_queries_test.exs`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for a viewer-scoped pending follow-request connection
-- [ ] Step 2: Add failing GraphQL tests for follow-request node refetch ownership
-- [ ] Step 3: Add failing GraphQL tests for `declineFollowRequest`
-- [ ] Step 4: Run focused Social GraphQL tests to verify RED
-- [ ] Step 5: Add Relay node/connection types for follow requests plus viewer-scoped query and mutation resolvers
-- [ ] Step 6: Keep node resolution ownership-safe with explicit comments around the invariant
-- [ ] Step 7: Re-run focused Social GraphQL tests to verify GREEN
-- [ ] Step 8: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing GraphQL tests for a viewer-scoped pending follow-request connection
+- [x] Step 2: Add failing GraphQL tests for follow-request node refetch ownership
+- [x] Step 3: Add failing GraphQL tests for `declineFollowRequest`
+- [x] Step 4: Run focused Social GraphQL tests to verify RED
+- [x] Step 5: Add Relay node/connection types for follow requests plus viewer-scoped query and mutation resolvers
+- [x] Step 6: Keep node resolution ownership-safe with explicit comments around the invariant
+- [x] Step 7: Re-run focused Social GraphQL tests to verify GREEN
+- [x] Step 8: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 3 behavior targets:**
 
 - `viewerPendingFollowRequests` returns only pending requests owned by the authenticated viewer.
 - `acceptFollowRequest` and `declineFollowRequest` operate on viewer-owned pending requests only.
 - `node(id:)` for a follow request returns `nil` outside the owner scope.
+
+Verification evidence (2026-03-16):
+
+- `mix test test/live_canvas_gql/social/social_queries_test.exs test/live_canvas_gql/social/social_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs` -> RED first (`33 tests, 6 failures`) and GREEN after implementation (`33 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 4: Make Followers/Following Privacy-Aware And Run Verification
 

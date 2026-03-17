@@ -215,6 +215,21 @@ defmodule LC.Social do
 
   def get_pending_follow_request(%User{}, _follow_id), do: nil
 
+  @doc """
+  Returns one pending follow request for the given follower/acted-on user pair.
+  """
+  @spec get_pending_follow_request_for_follower(User.t(), User.t()) :: Follow.t() | nil
+  def get_pending_follow_request_for_follower(%User{id: followed_id}, %User{id: follower_id}) do
+    from(follow in Follow,
+      where:
+        follow.followed_id == ^followed_id and follow.follower_id == ^follower_id and
+          follow.state == :requested,
+      preload: [:follower],
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
   @doc false
   @spec run_query(Ecto.Query.t()) :: [term()]
   def run_query(query), do: Repo.all(query)

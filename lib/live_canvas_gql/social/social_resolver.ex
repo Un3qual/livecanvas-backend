@@ -46,12 +46,15 @@ defmodule LCGQL.Social.Resolver do
         %{context: %{current_scope: %{user: %{id: _id} = acting_user}}}
       ) do
     with {:ok, follower} <- fetch_user(follower_id, :follower_id),
-         # Accept-follow is viewer-owned: the authenticated viewer is the
-         # recipient/acting user for the pending follower request.
-         {:ok, follow} <- Social.follow_user(follower, acting_user),
+         # Accept-follow is viewer-owned: only an already-pending request for
+         # the authenticated viewer can transition to accepted.
+         %{} = follow <- Social.get_pending_follow_request_for_follower(acting_user, follower),
          {:ok, accepted_follow} <- Social.accept_follow_request(follow, acting_user) do
       {:ok, %{follow: follow_payload(accepted_follow), errors: []}}
     else
+      nil ->
+        {:ok, %{follow: nil, errors: [social_error(:follower_id, :not_found)]}}
+
       {:error, {field, reason}} ->
         {:ok, %{follow: nil, errors: [social_error(field, reason)]}}
 
@@ -62,6 +65,37 @@ defmodule LCGQL.Social.Resolver do
 
   def accept_follow_request(_parent, _args, _resolution) do
     {:ok, %{follow: nil, errors: [social_error(nil, :unauthenticated)]}}
+  end
+
+  @spec decline_follow_request(
+          any(),
+          %{follower_id: term()},
+          Absinthe.Resolution.t()
+        ) ::
+          {:ok, error_only_result_payload()}
+  def decline_follow_request(
+        _parent,
+        %{follower_id: follower_id},
+        %{context: %{current_scope: %{user: %{id: _id} = acting_user}}}
+      ) do
+    with {:ok, follower} <- fetch_user(follower_id, :follower_id),
+         %{} = follow <- Social.get_pending_follow_request_for_follower(acting_user, follower),
+         :ok <- Social.decline_follow_request(follow, acting_user) do
+      {:ok, %{errors: []}}
+    else
+      nil ->
+        {:ok, %{errors: [social_error(:follower_id, :not_found)]}}
+
+      {:error, {field, reason}} ->
+        {:ok, %{errors: [social_error(field, reason)]}}
+
+      {:error, reason} ->
+        {:ok, %{errors: [social_error(nil, reason)]}}
+    end
+  end
+
+  def decline_follow_request(_parent, _args, _resolution) do
+    {:ok, %{errors: [social_error(nil, :unauthenticated)]}}
   end
 
   @spec block_user(any(), %{blocked_id: term()}, any()) ::
@@ -161,6 +195,41 @@ defmodule LCGQL.Social.Resolver do
     query = Social.following_users_query(user)
     Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
   end
+
+  @spec viewer_pending_follow_requests(term(), map(), Absinthe.Resolution.t()) ::
+          {:ok, map()} | {:error, term()}
+  def viewer_pending_follow_requests(_parent, args, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
+    query = Social.pending_follow_requests_query(user)
+    Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+  end
+
+  def viewer_pending_follow_requests(_parent, args, _resolution) do
+    Absinthe.Relay.Connection.from_list([], args)
+  end
+
+  @spec follow_request_requested_at(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t()}
+  def follow_request_requested_at(%{requested_at: %DateTime{} = requested_at}, _args, _resolution) do
+    {:ok, DateTime.to_iso8601(requested_at)}
+  end
+
+  def follow_request_requested_at(_follow_request, _args, _resolution), do: {:ok, ""}
+
+  @spec follow_request_follower(map(), map(), Absinthe.Resolution.t()) :: {:ok, map() | nil}
+  def follow_request_follower(%{follower: %{id: _id} = follower}, _args, _resolution),
+    do: {:ok, follower}
+
+  def follow_request_follower(%{follower_id: follower_id}, _args, _resolution)
+      when is_integer(follower_id) do
+    try do
+      {:ok, Accounts.get_user!(follower_id)}
+    rescue
+      Ecto.NoResultsError -> {:ok, nil}
+    end
+  end
+
+  def follow_request_follower(_follow_request, _args, _resolution), do: {:ok, nil}
 
   defp fetch_user(user_id, field) do
     with {:ok, id} <- Relay.decode_global_id(user_id, :user, LCGQL.Schema) do

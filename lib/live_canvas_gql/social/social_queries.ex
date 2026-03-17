@@ -1,5 +1,6 @@
 defmodule LCGQL.Social.Queries do
   use Absinthe.Schema.Notation
+  use Absinthe.Relay.Schema.Notation, :modern
 
   alias LCGQL.Social.Resolver
 
@@ -14,6 +15,12 @@ defmodule LCGQL.Social.Queries do
       arg(:creator_id, non_null(:id))
 
       resolve(&Resolver.is_muted/3)
+    end
+
+    connection field :viewer_pending_follow_requests,
+                 node_type: :follow_request,
+                 paginate: :forward do
+      resolve(&Resolver.viewer_pending_follow_requests/3)
     end
   end
 end

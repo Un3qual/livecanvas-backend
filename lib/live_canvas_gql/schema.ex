@@ -4,7 +4,7 @@ defmodule LCGQL.Schema do
   use Absinthe.Relay.Schema,
     flavor: :modern
 
-  alias LC.{Accounts, Content, Live}
+  alias LC.{Accounts, Content, Live, Social}
 
   # global_id_translator: SmokespotsGraphQL.IDTranslator
   import_types(Absinthe.Plug.Types)
@@ -35,6 +35,9 @@ defmodule LCGQL.Schema do
 
         %{type: :live_session, id: id}, _resolution ->
           fetch_live_session_node(id)
+
+        %{type: :follow_request, id: id}, resolution ->
+          fetch_follow_request_node(id, resolution)
 
         %{type: :data_export_request, id: id}, resolution ->
           fetch_data_export_request_node(id, resolution)
@@ -92,6 +95,9 @@ defmodule LCGQL.Schema do
 
       %{status: _status, visibility: _visibility, host_id: _host_id}, _resolution ->
         :live_session
+
+      %{state: :requested, follower_id: _follower_id, followed_id: _followed_id}, _resolution ->
+        :follow_request
 
       %{contact_entry: %{contact_client_id: _contact_client_id}, matched_users: _matched_users},
       _resolution ->
@@ -160,6 +166,20 @@ defmodule LCGQL.Schema do
   rescue
     Ecto.NoResultsError -> {:ok, nil}
   end
+
+  # Follow-request nodes are viewer-scoped because a pending request belongs to
+  # the acted-on account and should not be globally enumerable or refetchable.
+  defp fetch_follow_request_node(id, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
+        {:ok, Social.get_pending_follow_request(user, local_id)}
+
+      _ ->
+        {:ok, nil}
+    end
+  end
+
+  defp fetch_follow_request_node(_id, _resolution), do: {:ok, nil}
 
   # Export-request nodes are viewer-scoped because they carry private governance
   # workflow metadata; node refetch enforces ownership through the auth scope.

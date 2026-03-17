@@ -31,6 +31,18 @@ defmodule LCGQL.Social.Mutations do
       resolve(&Resolver.accept_follow_request/3)
     end
 
+    payload field :decline_follow_request do
+      input do
+        field :follower_id, non_null(:id)
+      end
+
+      output do
+        field :errors, non_null(list_of(non_null(:social_error)))
+      end
+
+      resolve(&Resolver.decline_follow_request/3)
+    end
+
     payload field :block_user do
       input do
         field :blocked_id, non_null(:id)

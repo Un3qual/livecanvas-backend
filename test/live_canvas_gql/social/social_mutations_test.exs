@@ -185,6 +185,70 @@ defmodule LCGQL.Social.SocialMutationsTest do
     end
   end
 
+  describe "declineFollowRequest" do
+    test "uses the authenticated viewer as acting user" do
+      requester = user_fixture()
+      viewer = user_fixture(privacy_mode: :private)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      requester_id = Absinthe.Relay.Node.to_global_id(:user, requester.id, LCGQL.Schema)
+
+      assert {:ok, follow} = Social.follow_user(requester, viewer)
+
+      mutation = """
+      mutation($followerId: ID!) {
+        declineFollowRequest(input: {followerId: $followerId}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "declineFollowRequest" => %{
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"followerId" => requester_id},
+                 context: context
+               )
+
+      assert Social.get_pending_follow_request(viewer, follow.id) == nil
+      assert :none == Social.relationship_state(requester, viewer)
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      requester = user_fixture()
+      requester_id = Absinthe.Relay.Node.to_global_id(:user, requester.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($followerId: ID!) {
+        declineFollowRequest(input: {followerId: $followerId}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "declineFollowRequest" => %{
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema, variables: %{"followerId" => requester_id})
+    end
+  end
+
   describe "schema cleanup" do
     test "does not expose legacy successful relay payload fields" do
       schema_sdl = Absinthe.Schema.to_sdl(LCGQL.Schema)

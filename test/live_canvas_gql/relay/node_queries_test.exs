@@ -199,5 +199,80 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                  context: context
                )
     end
+
+    test "refetches a viewer-owned pending follow request from a relay global id" do
+      viewer = user_fixture(privacy_mode: :private)
+      follower = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, follow_request} = LC.Social.follow_user(follower, viewer)
+
+      follow_request_id =
+        Absinthe.Relay.Node.to_global_id(:follow_request, follow_request.id, LCGQL.Schema)
+
+      follower_id = Absinthe.Relay.Node.to_global_id(:user, follower.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on FollowRequest {
+            state
+            requestedAt
+            follower {
+              id
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^follow_request_id,
+                    "state" => "REQUESTED",
+                    "requestedAt" => requested_at,
+                    "follower" => %{"id" => ^follower_id}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => follow_request_id},
+                 context: context
+               )
+
+      assert is_binary(requested_at)
+    end
+
+    test "returns null for pending follow request node lookups without owner scope" do
+      owner = user_fixture(privacy_mode: :private)
+      other_viewer = user_fixture()
+      follower = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(other_viewer)}
+
+      assert {:ok, follow_request} = LC.Social.follow_user(follower, owner)
+
+      follow_request_id =
+        Absinthe.Relay.Node.to_global_id(:follow_request, follow_request.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => follow_request_id})
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => follow_request_id},
+                 context: context
+               )
+    end
   end
 end
