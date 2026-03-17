@@ -66,8 +66,14 @@ defmodule LCGQL.Accounts.Types do
     value(:canceled)
   end
 
+  enum :user_privacy_mode do
+    value(:private)
+    value(:public)
+  end
+
   node object(:user) do
     field :email, :string
+    field :privacy_mode, non_null(:user_privacy_mode)
     field :inserted_at, non_null(:string)
 
     connection field :user_identities, node_type: :user_identity, paginate: :forward do

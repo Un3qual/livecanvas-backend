@@ -23,6 +23,22 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       assert {:ok, %{data: %{"viewer" => %{"id" => ^user_id, "email" => ^expected_email}}}} =
                Absinthe.run(query, LCGQL.Schema, context: context)
     end
+
+    test "exposes privacyMode for the current scoped user" do
+      user = user_fixture(privacy_mode: :public)
+      context = %{current_scope: Accounts.scope_for_user(user)}
+
+      query = """
+      query {
+        viewer {
+          privacyMode
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"viewer" => %{"privacyMode" => "PUBLIC"}}}} =
+               Absinthe.run(query, LCGQL.Schema, context: context)
+    end
   end
 
   describe "viewer.userIdentities" do
@@ -226,6 +242,26 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
                  variables: %{"id" => outsider_identity_id},
                  context: context
                )
+    end
+  end
+
+  describe "node(user)" do
+    test "exposes privacyMode on user nodes" do
+      user = user_fixture(privacy_mode: :public)
+      user_id = Absinthe.Relay.Node.to_global_id(:user, user.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          ... on User {
+            privacyMode
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => %{"privacyMode" => "PUBLIC"}}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => user_id})
     end
   end
 

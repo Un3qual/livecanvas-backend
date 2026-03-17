@@ -150,6 +150,37 @@ defmodule LCGQL.Accounts.Resolver do
     {:ok, %{user: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
   end
 
+  @spec update_viewer_privacy_mode(
+          term(),
+          %{
+            optional(:input) => map(),
+            optional(:privacy_mode) => LCSchemas.Accounts.user_privacy_mode()
+          },
+          Absinthe.Resolution.t()
+        ) :: mutation_result()
+  def update_viewer_privacy_mode(parent, %{input: input}, resolution),
+    do: update_viewer_privacy_mode(parent, input, resolution)
+
+  def update_viewer_privacy_mode(
+        _parent,
+        %{privacy_mode: privacy_mode},
+        %{context: %{current_scope: %{user: %{id: _id} = user}}}
+      ) do
+    case Accounts.update_user_privacy_mode(user, privacy_mode) do
+      {:ok, updated_user} ->
+        {:ok, %{user: updated_user, errors: []}}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok, %{user: nil, errors: format_changeset_errors(changeset)}}
+    end
+  end
+
+  # Privacy-mode updates are viewer-scoped so clients cannot toggle another
+  # account's visibility through GraphQL payload data.
+  def update_viewer_privacy_mode(_parent, _args, _resolution) do
+    {:ok, %{user: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+  end
+
   @spec request_password_reset(
           term(),
           %{optional(:input) => map(), optional(:email) => String.t()},

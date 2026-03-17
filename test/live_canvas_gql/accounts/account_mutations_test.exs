@@ -134,6 +134,67 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
   end
 
+  describe "updateViewerPrivacyMode" do
+    test "updates privacy mode for the authenticated viewer" do
+      user = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(user)}
+      user_id = Absinthe.Relay.Node.to_global_id(:user, user.id, LCGQL.Schema)
+
+      mutation = """
+      mutation {
+        updateViewerPrivacyMode(input: {privacyMode: PUBLIC}) {
+          user {
+            id
+            privacyMode
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "updateViewerPrivacyMode" => %{
+                    "user" => %{"id" => ^user_id, "privacyMode" => "PUBLIC"},
+                    "errors" => []
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+
+      assert Accounts.get_user!(user.id).privacy_mode == :public
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      mutation = """
+      mutation {
+        updateViewerPrivacyMode(input: {privacyMode: PUBLIC}) {
+          user {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "updateViewerPrivacyMode" => %{
+                    "user" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
   describe "requestPasswordReset" do
     test "issues a password reset token when the email exists" do
       user = user_fixture()

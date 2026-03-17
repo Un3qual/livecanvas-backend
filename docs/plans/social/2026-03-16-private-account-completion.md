@@ -21,7 +21,7 @@
 
 ## Progress
 
-- [ ] Task 1: Add GraphQL privacy-mode read/write support
+- [x] Task 1: Add GraphQL privacy-mode read/write support
 - [ ] Task 2: Add Social query/mutation helpers for pending follow requests
 - [ ] Task 3: Expose Relay follow-request inbox and accept/decline mutations
 - [ ] Task 4: Make followers/following privacy-aware and run verification
@@ -36,18 +36,24 @@
 - Test: `test/live_canvas_gql/accounts/account_mutations_test.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing query coverage for `viewer { privacyMode }` and `node(id: ...) { ... on User { privacyMode } }`
-- [ ] Step 2: Add failing mutation coverage for `updateViewerPrivacyMode(input: { privacyMode: ... })`
-- [ ] Step 3: Run focused Accounts GraphQL tests to verify RED
-- [ ] Step 4: Add `USER_PRIVACY_MODE` enum, `privacyMode` field on `User`, and viewer-scoped resolver wiring
-- [ ] Step 5: Re-run focused Accounts GraphQL tests to verify GREEN
-- [ ] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing query coverage for `viewer { privacyMode }` and `node(id: ...) { ... on User { privacyMode } }`
+- [x] Step 2: Add failing mutation coverage for `updateViewerPrivacyMode(input: { privacyMode: ... })`
+- [x] Step 3: Run focused Accounts GraphQL tests to verify RED
+- [x] Step 4: Add `USER_PRIVACY_MODE` enum, `privacyMode` field on `User`, and viewer-scoped resolver wiring
+- [x] Step 5: Re-run focused Accounts GraphQL tests to verify GREEN
+- [x] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 1 behavior targets:**
 
 - `privacyMode` is available on `viewer` and `User` node reads.
 - `updateViewerPrivacyMode` uses the authenticated viewer only.
 - Invalid privacy values fail through the normal GraphQL/schema contract rather than ad hoc transport checks.
+
+Verification evidence (2026-03-16):
+
+- `mix test test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs` -> RED first (`67 tests, 4 failures`) and GREEN after implementation (`67 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 2: Add Social Query/Mutation Helpers For Pending Follow Requests
 
