@@ -75,6 +75,121 @@ defmodule LC.ChatTest do
     end
   end
 
+  describe "record_system_event/3" do
+    test "persists a standardized session_live system event" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, system_event} =
+               record_system_event(session, :session_live,
+                 actor: host,
+                 metadata: %{ignored: "value"}
+               )
+
+      assert system_event.live_session_id == session.id
+      assert system_event.sender_id == host.id
+      assert system_event.kind == :system_event
+      assert system_event.status == :active
+      assert system_event.body == "The live session started."
+      assert system_event.metadata == %{"details" => %{}, "event_type" => "session_live"}
+
+      assert %ChatMessage{} = Repo.get!(ChatMessage, system_event.id)
+    end
+
+    test "persists a standardized session_ended system event" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, ended_session} = Live.end_live_session(session)
+
+      assert {:ok, system_event} =
+               record_system_event(ended_session, :session_ended,
+                 actor: host,
+                 metadata: %{"ignored" => "value"}
+               )
+
+      assert system_event.live_session_id == ended_session.id
+      assert system_event.sender_id == host.id
+      assert system_event.kind == :system_event
+      assert system_event.status == :active
+      assert system_event.body == "The live session ended."
+      assert system_event.metadata == %{"details" => %{}, "event_type" => "session_ended"}
+    end
+
+    test "persists a message_removed system event with bounded metadata" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      assert {:ok, message} = Chat.create_message(session, viewer, %{body: "remove me"})
+
+      assert {:ok, system_event} =
+               record_system_event(session, :message_removed,
+                 actor: host,
+                 metadata: %{
+                   "chat_message_entropy_id" => message.entropy_id,
+                   chat_message_id: message.id,
+                   ignored: "drop me"
+                 }
+               )
+
+      assert system_event.live_session_id == session.id
+      assert system_event.sender_id == host.id
+      assert system_event.kind == :system_event
+      assert system_event.status == :active
+      assert system_event.body == "A chat message was removed."
+
+      assert system_event.metadata == %{
+               "details" => %{
+                 "chat_message_entropy_id" => message.entropy_id,
+                 "chat_message_id" => message.id
+               },
+               "event_type" => "message_removed"
+             }
+    end
+
+    test "rejects malformed message_removed entropy ids" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      assert {:ok, message} = Chat.create_message(session, viewer, %{body: "remove me"})
+
+      assert {:error, :invalid_metadata} =
+               record_system_event(session, :message_removed,
+                 actor: host,
+                 metadata: %{
+                   "chat_message_entropy_id" => "not-a-uuid",
+                   chat_message_id: message.id
+                 }
+               )
+
+      refute Repo.exists?(
+               from(chat_message in ChatMessage,
+                 where:
+                   chat_message.live_session_id == ^session.id and
+                     chat_message.kind == :system_event
+               )
+             )
+    end
+
+    test "rejects unknown system event types" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:error, :unknown_event_type} =
+               record_system_event(session, :viewer_joined,
+                 actor: host,
+                 metadata: %{viewer_id: host.id}
+               )
+
+      refute Repo.exists?(
+               from(chat_message in ChatMessage,
+                 where:
+                   chat_message.live_session_id == ^session.id and
+                     chat_message.kind == :system_event
+               )
+             )
+    end
+  end
+
   describe "authorize_history_access/2" do
     test "allows history reads for authorized viewers on live and ended sessions" do
       host = user_fixture()
@@ -241,10 +356,18 @@ defmodule LC.ChatTest do
   end
 
   defp remove_message(chat_message, actor) do
-    if function_exported?(Chat, :remove_message, 2) do
+    if Code.ensure_loaded?(Chat) and function_exported?(Chat, :remove_message, 2) do
       apply(Chat, :remove_message, [chat_message, actor])
     else
       :missing_remove_message
+    end
+  end
+
+  defp record_system_event(live_session, event_type, opts) do
+    if Code.ensure_loaded?(Chat) and function_exported?(Chat, :record_system_event, 3) do
+      apply(Chat, :record_system_event, [live_session, event_type, opts])
+    else
+      :missing_record_system_event
     end
   end
 

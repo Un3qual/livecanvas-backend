@@ -50,6 +50,9 @@ defmodule LC.Chat.ChatMessage do
     ])
     |> validate_required([:live_session_id, :sender_id, :body, :kind, :status])
     |> validate_length(:body, min: 1, max: @max_body_length)
+    |> validate_change(:metadata, fn :metadata, metadata ->
+      if is_map(metadata), do: [], else: [metadata: "must be a map"]
+    end)
     |> foreign_key_constraint(:live_session_id)
     |> foreign_key_constraint(:sender_id)
     |> foreign_key_constraint(:moderated_by_id)

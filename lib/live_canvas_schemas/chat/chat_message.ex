@@ -16,7 +16,7 @@ defmodule LCSchemas.Chat.ChatMessage do
           body: String.t() | nil,
           kind: LCSchemas.Chat.chat_message_kind() | nil,
           status: LCSchemas.Chat.chat_message_status() | nil,
-          metadata: map(),
+          metadata: LCSchemas.Chat.chat_message_metadata(),
           moderated_at: DateTime.t() | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
