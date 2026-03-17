@@ -136,6 +136,11 @@ if config_env() == :prod do
     issuers: parse_csv_env.("APPLE_OIDC_ISSUERS", ["https://appleid.apple.com"]),
     jwks_url: System.get_env("APPLE_OIDC_JWKS_URL", "https://appleid.apple.com/auth/keys")
 
+  config :live_canvas, LC.Accounts.Passkeys,
+    origin: parse_csv_env.("PASSKEY_ORIGINS", ["https://#{host}"]),
+    rp_id: System.get_env("PASSKEY_RP_ID", host),
+    rp_name: System.get_env("PASSKEY_RP_NAME", "LiveCanvas")
+
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key

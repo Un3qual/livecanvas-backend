@@ -106,6 +106,14 @@ config :live_canvas, LC.Accounts.ProviderAuth.Apple,
   issuers: ["https://appleid.apple.com"],
   jwks_url: "https://appleid.apple.com/auth/keys"
 
+config :live_canvas, LC.Accounts.Passkeys,
+  adapter: LC.Accounts.Passkeys.WaxAdapter,
+  attestation: "none",
+  origin: "https://livecanvas.invalid",
+  rp_id: "livecanvas.invalid",
+  rp_name: "LiveCanvas",
+  user_verification: "preferred"
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

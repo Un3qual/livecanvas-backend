@@ -24,6 +24,7 @@ defmodule LC.Accounts do
     UserContactEntryPhoneNumber,
     UserEmailAddress,
     UserIdentity,
+    UserPasskey,
     UserPhoneNumber,
     UserToken
   }
@@ -31,6 +32,7 @@ defmodule LC.Accounts do
   alias LC.Accounts.{
     AuthEvent,
     Passwords,
+    Passkeys,
     ProviderAuth,
     PhoneNotifier,
     PhoneNumbers,
@@ -111,15 +113,31 @@ defmodule LC.Accounts do
           access_token: token_payload(),
           refresh_token: token_payload()
         }
-  @type auth_provider :: :google | :apple
+  @type auth_provider :: :google | :apple | :passkey
   @type auth_entry_error ::
-          :email_taken | :invalid_credentials | :provider_verification_failed | changeset()
+          :email_taken
+          | :invalid_credentials
+          | :passkey_verification_failed
+          | :provider_verification_failed
+          | :token_expired
+          | :token_revoked
+          | changeset()
   @type auth_entry_result :: {:ok, auth_entry_payload()} | {:error, auth_entry_error()}
   @type auth_challenge_purpose :: :sign_up | :log_in
   @type magic_link_challenge_payload :: %{user: User.t() | nil, dispatched: boolean()}
   @type magic_link_challenge_result ::
           {:ok, magic_link_challenge_payload()}
           | {:error, :email_taken | :invalid_credentials | changeset()}
+  @type passkey_challenge_payload :: %{
+          required(:challenge_token) => String.t(),
+          required(:dispatched) => boolean(),
+          required(:payload_json) => String.t(),
+          required(:user) => User.t()
+        }
+  @type passkey_challenge_result ::
+          {:ok, passkey_challenge_payload()}
+          | {:error,
+             :email_taken | :invalid_credentials | :passkey_verification_failed | changeset()}
   @type password_reset_result ::
           {:ok, {User.t(), [UserToken.t()]}} | {:error, :not_found | changeset()}
   @type registration_attrs :: %{
@@ -455,6 +473,34 @@ defmodule LC.Accounts do
     do: {:error, :invalid_credentials}
 
   @doc """
+  Begins a reusable passkey challenge for signup or login.
+
+  The serialized token embeds the raw secret that the passkey adapter reuses as
+  the WebAuthn challenge bytes, so challenge issuance stays one-table and
+  replay-safe without adding a second persistence model.
+  """
+  @spec begin_passkey_challenge(auth_challenge_purpose(), String.t()) ::
+          passkey_challenge_result()
+  def begin_passkey_challenge(purpose, email)
+      when purpose in [:sign_up, :log_in] and is_binary(email) do
+    email_changeset = UserChanges.email_changeset(%User{}, %{email: email})
+    normalized_email = get_field(email_changeset, :email)
+
+    cond do
+      not email_changeset.valid? ->
+        {:error, email_changeset}
+
+      purpose == :sign_up ->
+        begin_passkey_sign_up(normalized_email)
+
+      true ->
+        begin_passkey_log_in(normalized_email)
+    end
+  end
+
+  def begin_passkey_challenge(_purpose, _email), do: {:error, :invalid_credentials}
+
+  @doc """
   Completes magic-link signup and returns auth tokens.
   """
   @spec sign_up_with_magic_link(String.t()) :: auth_entry_result()
@@ -465,6 +511,51 @@ defmodule LC.Accounts do
   def sign_up_with_magic_link(_serialized_value), do: {:error, :invalid_credentials}
 
   @doc """
+  Completes passkey signup and returns auth tokens.
+  """
+  @spec sign_up_with_passkey(map()) :: auth_entry_result()
+  def sign_up_with_passkey(attrs) when is_map(attrs) do
+    Repo.transact(fn ->
+      with {:ok, {user, challenge_token, raw_secret}} <-
+             fetch_passkey_challenge(
+               fetch_attr(attrs, :challenge_token),
+               :passkey_registration_challenge_token
+             ),
+           {:ok, verified_passkey} <- Passkeys.verify_registration(attrs, raw_secret),
+           :ok <- ensure_passkey_credential_available(verified_passkey.credential_id),
+           {:ok, confirmed_user} <- confirm_user(user),
+           {:ok, identity} <- persist_passkey_identity(confirmed_user, verified_passkey),
+           {:ok, _user_passkey} <-
+             persist_user_passkey(confirmed_user, identity, verified_passkey),
+           :ok <- revoke_user_token(challenge_token, strict: true),
+           {:ok, auth_entry} <- issue_auth_entry_tokens(confirmed_user) do
+        {:ok, auth_entry}
+      else
+        {:error, :expired_token} ->
+          {:error, :token_expired}
+
+        {:error, :revoked_token} ->
+          {:error, :token_revoked}
+
+        {:error, :invalid_token} ->
+          {:error, :invalid_credentials}
+
+        {:error, :provider_identity_exists} ->
+          {:error, :passkey_verification_failed}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:error, changeset}
+
+        {:error, reason}
+        when reason in [:email_taken, :invalid_credentials, :passkey_verification_failed] ->
+          {:error, reason}
+      end
+    end)
+  end
+
+  def sign_up_with_passkey(_attrs), do: {:error, :invalid_credentials}
+
+  @doc """
   Completes magic-link login and returns auth tokens.
   """
   @spec log_in_with_magic_link(String.t()) :: auth_entry_result()
@@ -473,6 +564,59 @@ defmodule LC.Accounts do
   end
 
   def log_in_with_magic_link(_serialized_value), do: {:error, :invalid_credentials}
+
+  @doc """
+  Completes passkey login and returns auth tokens.
+  """
+  @spec log_in_with_passkey(map()) :: auth_entry_result()
+  def log_in_with_passkey(attrs) when is_map(attrs) do
+    Repo.transact(fn ->
+      with {:ok, {user, challenge_token, raw_secret}} <-
+             fetch_passkey_challenge(
+               fetch_attr(attrs, :challenge_token),
+               :passkey_authentication_challenge_token
+             ),
+           credential_id when is_binary(credential_id) <- fetch_attr(attrs, :credential_id),
+           %UserPasskey{} = user_passkey <- active_user_passkey(user.id, credential_id),
+           true <- active_user?(user),
+           {:ok, %{sign_count: sign_count}} <-
+             Passkeys.verify_authentication(attrs, user_passkey, raw_secret),
+           {:ok, _updated_passkey} <- touch_user_passkey(user_passkey, sign_count),
+           %UserIdentity{} = identity <-
+             get_active_user_identity(user, user_passkey.user_identity_id),
+           {:ok, _updated_identity} <- touch_provider_identity(identity, identity.provider_data),
+           :ok <- revoke_user_token(challenge_token, strict: true),
+           {:ok, auth_entry} <- issue_auth_entry_tokens(user) do
+        {:ok, auth_entry}
+      else
+        {:error, :expired_token} ->
+          {:error, :token_expired}
+
+        {:error, :revoked_token} ->
+          {:error, :token_revoked}
+
+        {:error, :invalid_token} ->
+          {:error, :invalid_credentials}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:error, changeset}
+
+        {:error, :passkey_verification_failed} = error ->
+          error
+
+        nil ->
+          {:error, :invalid_credentials}
+
+        false ->
+          {:error, :invalid_credentials}
+
+        _other ->
+          {:error, :invalid_credentials}
+      end
+    end)
+  end
+
+  def log_in_with_passkey(_attrs), do: {:error, :invalid_credentials}
 
   @doc """
   Registers a Google or Apple-backed account and returns an auth token pair.
@@ -766,6 +910,16 @@ defmodule LC.Accounts do
   @spec issue_magic_link_token(User.t()) :: token_result()
   def issue_magic_link_token(%User{} = user) do
     issue_user_token(user, :email_magic_link_token, sent_to: user.email)
+  end
+
+  @spec issue_passkey_registration_challenge_token(User.t()) :: token_result()
+  defp issue_passkey_registration_challenge_token(%User{} = user) do
+    issue_user_token(user, :passkey_registration_challenge_token, sent_to: user.email)
+  end
+
+  @spec issue_passkey_authentication_challenge_token(User.t()) :: token_result()
+  defp issue_passkey_authentication_challenge_token(%User{} = user) do
+    issue_user_token(user, :passkey_authentication_challenge_token, sent_to: user.email)
   end
 
   @doc """
@@ -1501,6 +1655,177 @@ defmodule LC.Accounts do
     end)
   end
 
+  @spec begin_passkey_sign_up(String.t()) :: passkey_challenge_result()
+  defp begin_passkey_sign_up(email) do
+    case register_user(%{email: email}) do
+      {:ok, user} ->
+        user = put_primary_email(user)
+
+        Repo.transact(fn ->
+          with {:ok, %{token: challenge_token}} <-
+                 issue_passkey_registration_challenge_token(user),
+               {:ok, payload_json} <- passkey_registration_payload(user, challenge_token) do
+            {:ok,
+             %{
+               user: user,
+               dispatched: true,
+               challenge_token: challenge_token,
+               payload_json: payload_json
+             }}
+          end
+        end)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        if email_taken_error?(changeset), do: {:error, :email_taken}, else: {:error, changeset}
+    end
+  end
+
+  @spec begin_passkey_log_in(String.t()) :: passkey_challenge_result()
+  defp begin_passkey_log_in(email) do
+    case get_user_by_email(email) do
+      %User{} = user ->
+        passkeys = list_active_user_passkeys(user)
+
+        if not active_user?(user) or passkeys == [] do
+          {:error, :invalid_credentials}
+        else
+          Repo.transact(fn ->
+            with {:ok, %{token: challenge_token}} <-
+                   issue_passkey_authentication_challenge_token(user),
+                 {:ok, payload_json} <-
+                   passkey_authentication_payload(user, passkeys, challenge_token) do
+              {:ok,
+               %{
+                 user: user,
+                 dispatched: true,
+                 challenge_token: challenge_token,
+                 payload_json: payload_json
+               }}
+            end
+          end)
+        end
+
+      _other ->
+        {:error, :invalid_credentials}
+    end
+  end
+
+  @spec passkey_registration_payload(User.t(), String.t()) ::
+          {:ok, String.t()} | {:error, :passkey_verification_failed}
+  defp passkey_registration_payload(%User{} = user, challenge_token)
+       when is_binary(challenge_token) do
+    with {:ok, %{raw_secret: raw_secret}} <- Tokens.decode_serialized_value(challenge_token),
+         {:ok, options} <- Passkeys.build_registration_options(user, raw_secret) do
+      {:ok, Passkeys.challenge_options_json(options)}
+    else
+      _other -> {:error, :passkey_verification_failed}
+    end
+  end
+
+  @spec passkey_authentication_payload(User.t(), [UserPasskey.t()], String.t()) ::
+          {:ok, String.t()} | {:error, :passkey_verification_failed}
+  defp passkey_authentication_payload(%User{} = user, passkeys, challenge_token)
+       when is_list(passkeys) and is_binary(challenge_token) do
+    with {:ok, %{raw_secret: raw_secret}} <- Tokens.decode_serialized_value(challenge_token),
+         {:ok, options} <- Passkeys.build_authentication_options(user, passkeys, raw_secret) do
+      {:ok, Passkeys.challenge_options_json(options)}
+    else
+      _other -> {:error, :passkey_verification_failed}
+    end
+  end
+
+  @spec fetch_passkey_challenge(
+          String.t() | nil,
+          :passkey_registration_challenge_token | :passkey_authentication_challenge_token
+        ) ::
+          {:ok, {User.t(), UserToken.t(), binary()}}
+          | {:error, :expired_token | :invalid_token | :revoked_token}
+  defp fetch_passkey_challenge(serialized_value, expected_context)
+       when is_binary(serialized_value) and
+              expected_context in [
+                :passkey_registration_challenge_token,
+                :passkey_authentication_challenge_token
+              ] do
+    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+         {:ok, {user, user_token, current_email}} <- fetch_token_lookup_row(query),
+         :ok <-
+           validate_passkey_challenge_token(
+             user_token,
+             raw_secret,
+             current_email,
+             expected_context
+           ) do
+      {:ok, {hydrate_user(user, user_token, current_email), user_token, raw_secret}}
+    else
+      :error -> {:error, :invalid_token}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp fetch_passkey_challenge(_serialized_value, _expected_context),
+    do: {:error, :invalid_token}
+
+  @spec validate_passkey_challenge_token(
+          UserToken.t(),
+          binary(),
+          String.t() | nil,
+          :passkey_registration_challenge_token | :passkey_authentication_challenge_token
+        ) :: :ok | {:error, :expired_token | :invalid_token}
+  defp validate_passkey_challenge_token(
+         %UserToken{context: context},
+         _raw_secret,
+         _current_email,
+         expected_context
+       )
+       when context != expected_context,
+       do: {:error, :invalid_token}
+
+  defp validate_passkey_challenge_token(
+         %UserToken{} = user_token,
+         raw_secret,
+         current_email,
+         :passkey_registration_challenge_token
+       )
+       when is_binary(raw_secret) do
+    cond do
+      not Tokens.valid_secret?(user_token, raw_secret) ->
+        {:error, :invalid_token}
+
+      not Tokens.valid_passkey_registration_challenge_token?(
+        user_token,
+        raw_secret,
+        current_email
+      ) ->
+        {:error, :expired_token}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_passkey_challenge_token(
+         %UserToken{} = user_token,
+         raw_secret,
+         current_email,
+         :passkey_authentication_challenge_token
+       )
+       when is_binary(raw_secret) do
+    cond do
+      not Tokens.valid_secret?(user_token, raw_secret) ->
+        {:error, :invalid_token}
+
+      not Tokens.valid_passkey_authentication_challenge_token?(
+        user_token,
+        raw_secret,
+        current_email
+      ) ->
+        {:error, :expired_token}
+
+      true ->
+        :ok
+    end
+  end
+
   defp upsert_contact_entry_row(user, contact_client_id, contact_name, birthday) do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
@@ -1824,6 +2149,27 @@ defmodule LC.Accounts do
     )
   end
 
+  defp active_user_passkey_query(user_id, credential_id) do
+    from(user_passkey in UserPasskey,
+      join: user_identity in UserIdentity,
+      on: user_identity.id == user_passkey.user_identity_id,
+      where:
+        user_passkey.user_id == ^user_id and
+          user_passkey.credential_id == ^credential_id and
+          is_nil(user_identity.revoked_at),
+      limit: 1
+    )
+  end
+
+  defp active_user_passkeys_query(user_id) do
+    from(user_passkey in UserPasskey,
+      join: user_identity in UserIdentity,
+      on: user_identity.id == user_passkey.user_identity_id,
+      where: user_passkey.user_id == ^user_id and is_nil(user_identity.revoked_at),
+      order_by: [asc: user_passkey.inserted_at, asc: user_passkey.id]
+    )
+  end
+
   defp provider_identity_exists?(provider, provider_uid) do
     from(user_identity in UserIdentity,
       where: user_identity.provider == ^provider and user_identity.provider_uid == ^provider_uid,
@@ -1922,6 +2268,86 @@ defmodule LC.Accounts do
   end
 
   defp refresh_token_secret_matches?(_user_token, _raw_secret), do: false
+
+  @spec list_active_user_passkeys(User.t()) :: [UserPasskey.t()]
+  defp list_active_user_passkeys(%User{id: user_id}) when is_integer(user_id) do
+    user_id
+    |> active_user_passkeys_query()
+    |> Repo.all()
+  end
+
+  @spec active_user_passkey(pos_integer(), String.t()) :: UserPasskey.t() | nil
+  defp active_user_passkey(user_id, credential_id)
+       when is_integer(user_id) and is_binary(credential_id) do
+    user_id
+    |> active_user_passkey_query(credential_id)
+    |> Repo.one()
+  end
+
+  @spec ensure_passkey_credential_available(String.t()) ::
+          :ok | {:error, :provider_identity_exists}
+  defp ensure_passkey_credential_available(credential_id) when is_binary(credential_id) do
+    if provider_identity_exists?(:passkey_provider, credential_id) do
+      {:error, :provider_identity_exists}
+    else
+      :ok
+    end
+  end
+
+  @spec persist_passkey_identity(User.t(), Passkeys.verification_result()) ::
+          {:ok, UserIdentity.t()} | {:error, changeset()}
+  defp persist_passkey_identity(%User{} = user, verified_passkey) when is_map(verified_passkey) do
+    register_user_identity(
+      user,
+      :passkey_provider,
+      verified_passkey.credential_id,
+      provider_data: %{"credential_id" => verified_passkey.credential_id},
+      last_used_at: now_utc()
+    )
+  end
+
+  @spec persist_user_passkey(User.t(), UserIdentity.t(), Passkeys.verification_result()) ::
+          {:ok, UserPasskey.t()} | {:error, changeset()}
+  defp persist_user_passkey(%User{} = user, %UserIdentity{} = identity, verified_passkey)
+       when is_map(verified_passkey) do
+    Repo.insert(%UserPasskey{
+      user_id: user.id,
+      user_identity_id: identity.id,
+      credential_id: verified_passkey.credential_id,
+      public_key: verified_passkey.public_key,
+      sign_count: verified_passkey.sign_count,
+      transports: verified_passkey.transports,
+      last_used_at: now_utc()
+    })
+  end
+
+  @spec touch_user_passkey(UserPasskey.t(), non_neg_integer()) ::
+          {:ok, UserPasskey.t()} | {:error, changeset()}
+  defp touch_user_passkey(%UserPasskey{} = user_passkey, sign_count)
+       when is_integer(sign_count) and sign_count >= 0 do
+    # Keep the verifier-provided counter so later assertions can reject stale
+    # authenticators instead of silently allowing sign_count rollback.
+    user_passkey
+    |> change(sign_count: sign_count, last_used_at: now_utc())
+    |> Repo.update()
+  end
+
+  @spec confirm_user(User.t()) :: user_result()
+  defp confirm_user(%User{} = user) do
+    fresh_user = fresh_user!(user)
+
+    if fresh_user.confirmed_at do
+      {:ok, put_primary_email(fresh_user)}
+    else
+      fresh_user
+      |> change(confirmed_at: now_utc())
+      |> Repo.update()
+      |> case do
+        {:ok, confirmed_user} -> {:ok, put_primary_email(confirmed_user)}
+        {:error, changeset} -> {:error, changeset}
+      end
+    end
+  end
 
   @spec revoke_user_token(UserToken.t(), keyword()) :: :ok | {:error, :revoked_token}
   defp revoke_user_token(%UserToken{id: token_id}, opts) do

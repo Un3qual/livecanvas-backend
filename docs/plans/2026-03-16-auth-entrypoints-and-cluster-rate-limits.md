@@ -42,7 +42,7 @@ Verified directly in active docs, code, and tests before writing this plan:
 - [x] Task 1: Add generic auth GraphQL foundation and auth-specific error codes
 - [x] Task 2: Deliver password + magic-link challenge/signup/login flows
 - [x] Task 3: Deliver Google + Apple signup/login flows
-- [ ] Task 4: Deliver passkey challenge/signup/login flows with dedicated credential persistence
+- [x] Task 4: Deliver passkey challenge/signup/login flows with dedicated credential persistence
 - [x] Task 5: Replace node-local throttles with cluster-aware OTP owner routing
 - [ ] Task 6: Run full verification and update roadmap/index tracking
 
@@ -173,13 +173,13 @@ Verification evidence (2026-03-16):
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Add failing schema, Accounts, and GraphQL tests for passkey challenge issuance, signup attestation completion, and login assertion completion
-- [ ] Step 2: Run focused passkey tests to verify RED
-- [ ] Step 3: Implement persisted passkey challenge-token contexts and the `user_passkeys` relational table using bigint + `entropy_id`
-- [ ] Step 4: Implement passkey challenge issuance and attestation/assertion verification in Accounts-owned modules
-- [ ] Step 5: Link passkey credentials to `user_identities` with `provider: :passkey_provider` while keeping credential-specific state in `user_passkeys`
-- [ ] Step 6: Run focused schema/Accounts/GraphQL passkey tests to verify GREEN
-- [ ] Step 7: Run `MIX_ENV=test mix ecto.migrate --quiet`, touched passkey tests, `mix compile`, and `mix typecheck`; then update checklist progress and commit milestone
+- [x] Step 1: Add failing schema, Accounts, and GraphQL tests for passkey challenge issuance, signup attestation completion, and login assertion completion
+- [x] Step 2: Run focused passkey tests to verify RED
+- [x] Step 3: Implement persisted passkey challenge-token contexts and the `user_passkeys` relational table using bigint + `entropy_id`
+- [x] Step 4: Implement passkey challenge issuance and attestation/assertion verification in Accounts-owned modules
+- [x] Step 5: Link passkey credentials to `user_identities` with `provider: :passkey_provider` while keeping credential-specific state in `user_passkeys`
+- [x] Step 6: Run focused schema/Accounts/GraphQL passkey tests to verify GREEN
+- [x] Step 7: Run `MIX_ENV=test mix ecto.migrate --quiet`, touched passkey tests, `mix compile`, and `mix typecheck`; then update checklist progress and commit milestone
 
 **Task 4 persistence targets:**
 
@@ -194,6 +194,20 @@ Verification evidence (2026-03-16):
   - `transports`
   - `last_used_at`
   - timestamps
+
+**Task 4 behavior targets:**
+
+- `beginAuthChallenge(provider: PASSKEY, purpose: SIGN_UP, ...)` issues a persisted registration challenge token plus WebAuthn creation options.
+- `beginAuthChallenge(provider: PASSKEY, purpose: LOG_IN, ...)` issues an enumeration-safe authentication challenge plus WebAuthn request options for active credentials.
+- `signUp(provider: PASSKEY, ...)` confirms the challenge, persists a dedicated `user_passkeys` row, and returns auth tokens.
+- `logIn(provider: PASSKEY, ...)` verifies the assertion against the stored credential, updates sign-in counters, and returns auth tokens.
+
+Verification evidence (2026-03-16):
+
+- `mix test test/live_canvas_schemas/accounts/user_passkey_test.exs test/live_canvas/accounts/passkeys_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs` -> RED first (`61 tests, 8 failures`) and GREEN after implementation (`61 tests, 0 failures`)
+- `MIX_ENV=test mix ecto.migrate --quiet` -> PASS
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 5: Replace Node-Local Throttles With Cluster-Aware OTP Owner Routing
 

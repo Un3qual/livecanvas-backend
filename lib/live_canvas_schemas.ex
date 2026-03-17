@@ -17,6 +17,7 @@ defmodule LCSchemas do
       Accounts.UserEmailAddress,
       Accounts.UserIdentity,
       Accounts.UserIdentityProvider,
+      Accounts.UserPasskey,
       Accounts.UserPhoneNumber,
       Accounts.UserToken,
       Accounts.UserTokenContext,

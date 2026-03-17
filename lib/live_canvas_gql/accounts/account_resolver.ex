@@ -471,6 +471,51 @@ defmodule LCGQL.Accounts.Resolver do
     end
   end
 
+  def begin_auth_challenge(
+        _parent,
+        %{provider: :passkey, purpose: purpose, passkey: passkey_input},
+        _resolution
+      )
+      when purpose in [:sign_up, :log_in] and is_map(passkey_input) do
+    with :ok <- require_auth_field(passkey_input, :email, "passkey") do
+      case Accounts.begin_passkey_challenge(
+             purpose,
+             Map.fetch!(passkey_input, :email)
+           ) do
+        {:ok, %{challenge_token: challenge_token, payload_json: payload_json} = challenge} ->
+          dispatched = Map.get(challenge, :dispatched, true)
+
+          {:ok,
+           %{
+             challenge: %{
+               provider: :passkey,
+               purpose: purpose,
+               dispatched: dispatched,
+               challenge_token: challenge_token,
+               payload_json: payload_json
+             },
+             errors: []
+           }}
+
+        {:error, :email_taken} ->
+          {:ok,
+           %{
+             challenge: nil,
+             errors: [auth_error("passkey.email", :email_taken, "has already been taken")]
+           }}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok, %{challenge: nil, errors: format_auth_changeset_errors(changeset, "passkey")}}
+
+        {:error, reason} ->
+          {:ok, %{challenge: nil, errors: [passkey_challenge_error(reason)]}}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, %{challenge: nil, errors: [auth_error]}}
+    end
+  end
+
   def begin_auth_challenge(_parent, %{provider: provider, purpose: purpose}, _resolution)
       when provider in [:magic_link, :passkey] and purpose in [:sign_up, :log_in] do
     {:ok,
@@ -586,6 +631,51 @@ defmodule LCGQL.Accounts.Resolver do
     end
   end
 
+  def sign_up(_parent, %{provider: :passkey, passkey: passkey_input}, _resolution)
+      when is_map(passkey_input) do
+    with :ok <- require_auth_field(passkey_input, :challenge_token, "passkey"),
+         :ok <- require_auth_field(passkey_input, :credential_id, "passkey"),
+         :ok <- require_auth_field(passkey_input, :client_data_json, "passkey"),
+         :ok <- require_auth_field(passkey_input, :attestation_object, "passkey") do
+      # Keep passkey signup in Accounts and return normal auth_entry payloads
+      # to keep GraphQL behavior parity with password and magic-link flows.
+      case Accounts.sign_up_with_passkey(passkey_input) do
+        {:ok, auth_entry} ->
+          {:ok, auth_entry_payload(auth_entry)}
+
+        {:error, :invalid_credentials} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("passkey.challengeToken", :invalid_credentials)
+           ])}
+
+        {:error, :email_taken} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("passkey.email", :email_taken, "has already been taken")
+           ])}
+
+        {:error, :token_expired} ->
+          {:ok, auth_entry_error_payload([auth_error("passkey.challengeToken", :token_expired)])}
+
+        {:error, :token_revoked} ->
+          {:ok, auth_entry_error_payload([auth_error("passkey.challengeToken", :token_revoked)])}
+
+        {:error, :passkey_verification_failed} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("passkey", :passkey_verification_failed, "passkey_verification_failed")
+           ])}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "passkey"))}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, auth_entry_error_payload([auth_error])}
+    end
+  end
+
   def sign_up(_parent, _args, _resolution) do
     {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
   end
@@ -672,6 +762,46 @@ defmodule LCGQL.Accounts.Resolver do
 
         {:error, :email_taken} ->
           {:ok, auth_entry_error_payload([auth_error("oauth.idToken", :invalid_input)])}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, auth_entry_error_payload([auth_error])}
+    end
+  end
+
+  def log_in(_parent, %{provider: :passkey, passkey: passkey_input}, _resolution)
+      when is_map(passkey_input) do
+    with :ok <- require_auth_field(passkey_input, :challenge_token, "passkey"),
+         :ok <- require_auth_field(passkey_input, :credential_id, "passkey"),
+         :ok <- require_auth_field(passkey_input, :client_data_json, "passkey"),
+         :ok <- require_auth_field(passkey_input, :authenticator_data, "passkey"),
+         :ok <- require_auth_field(passkey_input, :signature, "passkey") do
+      # Keep passkey assertions in the Accounts layer and normalize passkey
+      # verification errors to the shared auth error contract.
+      case Accounts.log_in_with_passkey(passkey_input) do
+        {:ok, auth_entry} ->
+          {:ok, auth_entry_payload(auth_entry)}
+
+        {:error, :invalid_credentials} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("passkey.challengeToken", :invalid_credentials)
+           ])}
+
+        {:error, :token_expired} ->
+          {:ok, auth_entry_error_payload([auth_error("passkey.challengeToken", :token_expired)])}
+
+        {:error, :token_revoked} ->
+          {:ok, auth_entry_error_payload([auth_error("passkey.challengeToken", :token_revoked)])}
+
+        {:error, :passkey_verification_failed} ->
+          {:ok,
+           auth_entry_error_payload([
+             auth_error("passkey", :passkey_verification_failed, "passkey_verification_failed")
+           ])}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "passkey"))}
       end
     else
       {:error, auth_error} ->
@@ -1168,6 +1298,14 @@ defmodule LCGQL.Accounts.Resolver do
       errors: []
     }
   end
+
+  @spec passkey_challenge_error(:invalid_credentials | :passkey_verification_failed) ::
+          auth_error()
+  defp passkey_challenge_error(:invalid_credentials),
+    do: auth_error("passkey.challengeToken", :invalid_credentials)
+
+  defp passkey_challenge_error(:passkey_verification_failed),
+    do: auth_error("passkey", :passkey_verification_failed)
 
   @spec auth_entry_error_payload([auth_error()]) :: auth_entry_payload()
   defp auth_entry_error_payload(errors) do

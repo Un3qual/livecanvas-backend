@@ -120,6 +120,7 @@ defmodule LC.MixProject do
       {:ex_phone_number, "~> 0.4.10"},
       {:swoosh, "~> 1.16"},
       {:req, "~> 0.5"},
+      {:wax_, "~> 0.7.0"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},

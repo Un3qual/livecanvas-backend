@@ -14,6 +14,8 @@ defenum(
     :phone_mfa_token,
     :phone_magic_link_token,
     :phone_one_time_code_token,
+    :passkey_registration_challenge_token,
+    :passkey_authentication_challenge_token,
     :access_token,
     :refresh_token
   ]

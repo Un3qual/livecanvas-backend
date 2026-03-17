@@ -9,6 +9,7 @@ defmodule LC.Accounts.Tokens do
   @rand_size 32
   @magic_link_validity_in_minutes 15
   @password_reset_validity_in_minutes 60
+  @passkey_challenge_validity_in_minutes 10
   @change_email_validity_in_days 7
   @session_validity_in_days 14
   @refresh_validity_in_days 30
@@ -28,6 +29,8 @@ defmodule LC.Accounts.Tokens do
           | :email_magic_link_token
           | :password_reset_token
           | :email_one_time_code_token
+  @type passkey_challenge_context ::
+          :passkey_registration_challenge_token | :passkey_authentication_challenge_token
 
   @type token_pair :: {binary(), UserToken.t()}
 
@@ -145,6 +148,34 @@ defmodule LC.Accounts.Tokens do
   end
 
   @doc false
+  @spec valid_passkey_registration_challenge_token?(UserToken.t(), binary(), String.t() | nil) ::
+          boolean()
+  def valid_passkey_registration_challenge_token?(%UserToken{} = token, raw_secret, current_email) do
+    valid_passkey_challenge_token?(
+      token,
+      raw_secret,
+      current_email,
+      :passkey_registration_challenge_token
+    )
+  end
+
+  @doc false
+  @spec valid_passkey_authentication_challenge_token?(UserToken.t(), binary(), String.t() | nil) ::
+          boolean()
+  def valid_passkey_authentication_challenge_token?(
+        %UserToken{} = token,
+        raw_secret,
+        current_email
+      ) do
+    valid_passkey_challenge_token?(
+      token,
+      raw_secret,
+      current_email,
+      :passkey_authentication_challenge_token
+    )
+  end
+
+  @doc false
   @spec valid_secret?(UserToken.t(), binary()) :: boolean()
   def valid_secret?(%UserToken{secret_hash: stored_secret_hash}, raw_secret)
       when is_binary(stored_secret_hash) and is_binary(raw_secret) do
@@ -188,4 +219,17 @@ defmodule LC.Accounts.Tokens do
   end
 
   defp token_fresh?(_, _), do: false
+
+  @spec valid_passkey_challenge_token?(
+          UserToken.t(),
+          binary(),
+          String.t() | nil,
+          passkey_challenge_context()
+        ) :: boolean()
+  defp valid_passkey_challenge_token?(%UserToken{} = token, raw_secret, current_email, context) do
+    valid_secret?(token, raw_secret) and
+      token.context == context and
+      token.sent_to == current_email and
+      token_fresh?(token.inserted_at, minutes: @passkey_challenge_validity_in_minutes)
+  end
 end

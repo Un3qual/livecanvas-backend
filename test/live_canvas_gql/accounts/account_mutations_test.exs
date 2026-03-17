@@ -2,6 +2,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import LC.PasskeyTestSupport
   import LC.ProviderAuthTestSupport
   import Swoosh.TestAssertions
 
@@ -1291,6 +1292,56 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                :id
              ) == 0
     end
+
+    test "issues a passkey signup challenge and returns challenge metadata" do
+      email = unique_user_email()
+
+      mutation = """
+      mutation BeginAuthChallenge($email: String!) {
+        beginAuthChallenge(
+          input: {
+            provider: PASSKEY
+            purpose: SIGN_UP
+            passkey: {email: $email}
+          }
+        ) {
+          challenge {
+            provider
+            purpose
+            dispatched
+            challengeToken
+            payloadJson
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      with_fake_passkey_adapter(fn ->
+        assert {:ok,
+                %{
+                  data: %{
+                    "beginAuthChallenge" => %{
+                      "challenge" => %{
+                        "provider" => "PASSKEY",
+                        "purpose" => "SIGN_UP",
+                        "dispatched" => true,
+                        "challengeToken" => challenge_token,
+                        "payloadJson" => payload_json
+                      },
+                      "errors" => []
+                    }
+                  }
+                }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"email" => email})
+
+        assert is_binary(challenge_token)
+        assert %{"rp" => %{"id" => "livecanvas.invalid"}} = Jason.decode!(payload_json)
+      end)
+    end
   end
 
   describe "signUp" do
@@ -1478,6 +1529,93 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
       assert user = Accounts.get_user_by_email(bundle.claims["email"])
       assert Accounts.get_user_by_identity(:google_provider, bundle.claims["sub"]).id == user.id
       assert user.confirmed_at
+    end
+
+    test "creates a passkey account and returns auth tokens" do
+      email = unique_user_email()
+
+      begin_mutation = """
+      mutation BeginAuthChallenge($email: String!) {
+        beginAuthChallenge(
+          input: {
+            provider: PASSKEY
+            purpose: SIGN_UP
+            passkey: {email: $email}
+          }
+        ) {
+          challenge {
+            challengeToken
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      mutation = """
+      mutation SignUp($challengeToken: String!, $credentialId: String!, $clientDataJson: String!, $attestationObject: String!) {
+        signUp(
+          input: {
+            provider: PASSKEY
+            passkey: {
+              challengeToken: $challengeToken
+              credentialId: $credentialId
+              clientDataJson: $clientDataJson
+              attestationObject: $attestationObject
+            }
+          }
+        ) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      with_fake_passkey_adapter(fn ->
+        assert {:ok,
+                %{
+                  data: %{
+                    "beginAuthChallenge" => %{
+                      "challenge" => %{"challengeToken" => challenge_token}
+                    }
+                  }
+                }} =
+                 Absinthe.run(begin_mutation, LCGQL.Schema, variables: %{"email" => email})
+
+        registration_input =
+          registration_passkey_input(challenge_token, credential_id: "graphql-signup-passkey")
+
+        assert {:ok,
+                %{
+                  data: %{
+                    "signUp" => %{
+                      "accessToken" => %{"serializedValue" => _access_token},
+                      "refreshToken" => %{"serializedValue" => _refresh_token},
+                      "errors" => []
+                    }
+                  }
+                }} =
+                 Absinthe.run(mutation, LCGQL.Schema,
+                   variables: %{
+                     "challengeToken" => challenge_token,
+                     "credentialId" => "graphql-signup-passkey",
+                     "clientDataJson" => registration_input.client_data_json,
+                     "attestationObject" => registration_input.attestation_object
+                   }
+                 )
+      end)
     end
   end
 
@@ -1702,6 +1840,180 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                   }
                 }} =
                  Absinthe.run(mutation, LCGQL.Schema, variables: %{"idToken" => bundle.token})
+      end)
+    end
+
+    test "logs in with passkey and returns auth tokens" do
+      email = unique_user_email()
+
+      begin_sign_up_mutation = """
+      mutation BeginSignUp($email: String!) {
+        beginAuthChallenge(
+          input: {
+            provider: PASSKEY
+            purpose: SIGN_UP
+            passkey: {email: $email}
+          }
+        ) {
+          challenge {
+            challengeToken
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      sign_up_mutation = """
+      mutation SignUp($challengeToken: String!, $credentialId: String!, $clientDataJson: String!, $attestationObject: String!) {
+        signUp(
+          input: {
+            provider: PASSKEY
+            passkey: {
+              challengeToken: $challengeToken
+              credentialId: $credentialId
+              clientDataJson: $clientDataJson
+              attestationObject: $attestationObject
+            }
+          }
+        ) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      begin_login_mutation = """
+      mutation BeginLogIn($email: String!) {
+        beginAuthChallenge(
+          input: {
+            provider: PASSKEY
+            purpose: LOG_IN
+            passkey: {email: $email}
+          }
+        ) {
+          challenge {
+            challengeToken
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      log_in_mutation = """
+      mutation LogIn($challengeToken: String!, $credentialId: String!, $clientDataJson: String!, $authenticatorData: String!, $signature: String!) {
+        logIn(
+          input: {
+            provider: PASSKEY
+            passkey: {
+              challengeToken: $challengeToken
+              credentialId: $credentialId
+              clientDataJson: $clientDataJson
+              authenticatorData: $authenticatorData
+              signature: $signature
+            }
+          }
+        ) {
+          accessToken {
+            serializedValue
+          }
+          refreshToken {
+            serializedValue
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      with_fake_passkey_adapter(fn ->
+        assert {:ok,
+                %{
+                  data: %{
+                    "beginAuthChallenge" => %{
+                      "challenge" => %{"challengeToken" => sign_up_challenge_token}
+                    }
+                  }
+                }} =
+                 Absinthe.run(begin_sign_up_mutation, LCGQL.Schema,
+                   variables: %{"email" => email}
+                 )
+
+        registration_input =
+          registration_passkey_input(sign_up_challenge_token,
+            credential_id: "graphql-login-passkey"
+          )
+
+        assert {:ok,
+                %{
+                  data: %{
+                    "signUp" => %{
+                      "accessToken" => %{"serializedValue" => _access_token},
+                      "refreshToken" => %{"serializedValue" => _refresh_token},
+                      "errors" => []
+                    }
+                  }
+                }} =
+                 Absinthe.run(sign_up_mutation, LCGQL.Schema,
+                   variables: %{
+                     "challengeToken" => sign_up_challenge_token,
+                     "credentialId" => "graphql-login-passkey",
+                     "clientDataJson" => registration_input.client_data_json,
+                     "attestationObject" => registration_input.attestation_object
+                   }
+                 )
+
+        assert {:ok,
+                %{
+                  data: %{
+                    "beginAuthChallenge" => %{
+                      "challenge" => %{"challengeToken" => login_challenge_token}
+                    }
+                  }
+                }} =
+                 Absinthe.run(begin_login_mutation, LCGQL.Schema, variables: %{"email" => email})
+
+        assertion_input =
+          assertion_passkey_input(login_challenge_token, "graphql-login-passkey", sign_count: 5)
+
+        assert {:ok,
+                %{
+                  data: %{
+                    "logIn" => %{
+                      "accessToken" => %{"serializedValue" => _access_token},
+                      "refreshToken" => %{"serializedValue" => _refresh_token},
+                      "errors" => []
+                    }
+                  }
+                }} =
+                 Absinthe.run(log_in_mutation, LCGQL.Schema,
+                   variables: %{
+                     "challengeToken" => login_challenge_token,
+                     "credentialId" => "graphql-login-passkey",
+                     "clientDataJson" => assertion_input.client_data_json,
+                     "authenticatorData" => assertion_input.authenticator_data,
+                     "signature" => assertion_input.signature
+                   }
+                 )
       end)
     end
   end
