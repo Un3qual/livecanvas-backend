@@ -154,6 +154,53 @@ defmodule LCGQL.Social.SocialMutationsTest do
       assert :accepted == Social.relationship_state(requester, viewer)
     end
 
+    test "removes the request from the pending inbox once accepted" do
+      requester = user_fixture()
+      viewer = user_fixture(privacy_mode: :private)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      requester_id = Absinthe.Relay.Node.to_global_id(:user, requester.id, LCGQL.Schema)
+
+      assert {:ok, _follow} = Social.follow_user(requester, viewer)
+
+      mutation = """
+      mutation($followerId: ID!) {
+        acceptFollowRequest(input: {followerId: $followerId}) {
+          follow {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      inbox_query = """
+      query {
+        viewerPendingFollowRequests(first: 10) {
+          edges {
+            node {
+              id
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"viewerPendingFollowRequests" => %{"edges" => [_pending_request]}}}} =
+               Absinthe.run(inbox_query, LCGQL.Schema, context: context)
+
+      assert {:ok, %{data: %{"acceptFollowRequest" => %{"errors" => []}}}} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"followerId" => requester_id},
+                 context: context
+               )
+
+      assert {:ok, %{data: %{"viewerPendingFollowRequests" => %{"edges" => []}}}} =
+               Absinthe.run(inbox_query, LCGQL.Schema, context: context)
+    end
+
     test "returns unauthenticated errors without a viewer scope" do
       requester = user_fixture()
       requester_id = Absinthe.Relay.Node.to_global_id(:user, requester.id, LCGQL.Schema)

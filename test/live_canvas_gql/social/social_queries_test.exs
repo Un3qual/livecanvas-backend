@@ -167,7 +167,7 @@ defmodule LCGQL.Social.SocialQueriesTest do
     end
 
     test "node.user.following returns relay edges and pageInfo" do
-      follower = user_fixture()
+      follower = user_fixture(privacy_mode: :public)
       creator_1 = user_fixture(privacy_mode: :public)
       creator_2 = user_fixture(privacy_mode: :public)
       follower_id = Absinthe.Relay.Node.to_global_id(:user, follower.id, LCGQL.Schema)
@@ -299,6 +299,122 @@ defmodule LCGQL.Social.SocialQueriesTest do
 
       assert {:ok, %{data: %{"viewerPendingFollowRequests" => %{"edges" => []}}}} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10})
+    end
+  end
+
+  describe "privacy-aware relationship connections" do
+    test "hides private-account followers from unauthenticated viewers and outsiders" do
+      private_user = user_fixture(privacy_mode: :private)
+      accepted_follower = user_fixture()
+      outsider = user_fixture()
+      private_user_id = Absinthe.Relay.Node.to_global_id(:user, private_user.id, LCGQL.Schema)
+      outsider_context = %{current_scope: Accounts.scope_for_user(outsider)}
+
+      assert {:ok, follow} = Social.follow_user(accepted_follower, private_user)
+      assert {:ok, _accepted_follow} = Social.accept_follow_request(follow, private_user)
+
+      query = """
+      query($id: ID!, $first: Int!) {
+        node(id: $id) {
+          ... on User {
+            followers(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => %{"followers" => %{"edges" => []}}}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => private_user_id, "first" => 10}
+               )
+
+      assert {:ok, %{data: %{"node" => %{"followers" => %{"edges" => []}}}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => private_user_id, "first" => 10},
+                 context: outsider_context
+               )
+    end
+
+    test "allows owners and accepted followers to see private-account relationship connections" do
+      private_user = user_fixture(privacy_mode: :private)
+      accepted_follower = user_fixture()
+      followed_1 = user_fixture(privacy_mode: :public)
+      followed_2 = user_fixture(privacy_mode: :public)
+      private_user_id = Absinthe.Relay.Node.to_global_id(:user, private_user.id, LCGQL.Schema)
+      accepted_follower_context = %{current_scope: Accounts.scope_for_user(accepted_follower)}
+      owner_context = %{current_scope: Accounts.scope_for_user(private_user)}
+
+      assert {:ok, pending_follow} = Social.follow_user(accepted_follower, private_user)
+      assert {:ok, _accepted_follow} = Social.accept_follow_request(pending_follow, private_user)
+      assert {:ok, _followed_1} = Social.follow_user(private_user, followed_1)
+      assert {:ok, _followed_2} = Social.follow_user(private_user, followed_2)
+
+      query = """
+      query($id: ID!, $first: Int!) {
+        node(id: $id) {
+          ... on User {
+            followers(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+            following(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "followers" => %{"edges" => [%{"node" => %{"id" => _follower_id}}]},
+                    "following" => %{
+                      "edges" => [
+                        %{"node" => %{"id" => _following_id_1}},
+                        %{"node" => %{"id" => _following_id_2}}
+                      ]
+                    }
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => private_user_id, "first" => 10},
+                 context: accepted_follower_context
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "followers" => %{"edges" => [%{"node" => %{"id" => _owner_follower_id}}]},
+                    "following" => %{
+                      "edges" => [
+                        %{"node" => %{"id" => _owner_following_id_1}},
+                        %{"node" => %{"id" => _owner_following_id_2}}
+                      ]
+                    }
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => private_user_id, "first" => 10},
+                 context: owner_context
+               )
     end
   end
 end

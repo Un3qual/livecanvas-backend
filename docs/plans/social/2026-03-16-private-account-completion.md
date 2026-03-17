@@ -24,7 +24,7 @@
 - [x] Task 1: Add GraphQL privacy-mode read/write support
 - [x] Task 2: Add Social query/mutation helpers for pending follow requests
 - [x] Task 3: Expose Relay follow-request inbox and accept/decline mutations
-- [ ] Task 4: Make followers/following privacy-aware and run verification
+- [x] Task 4: Make followers/following privacy-aware and run verification
 
 ### Task 1: Add GraphQL Privacy-Mode Read/Write Support
 
@@ -126,16 +126,22 @@ Verification evidence (2026-03-16):
 - Modify as needed: `docs/plans/social/2026-03-16-private-account-completion.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Add failing tests for private-account follower/following visibility behavior
-- [ ] Step 2: Define viewer-aware access rules for the connection resolvers and verify RED
-- [ ] Step 3: Implement privacy-aware connection access using Social policy helpers
-- [ ] Step 4: Add regression coverage proving accepted relationships remain readable when policy allows them
-- [ ] Step 5: Run focused Social/Accounts GraphQL suites to verify GREEN
-- [ ] Step 6: Run final verification (`mix test` on touched suites, `mix compile`, `mix typecheck`)
-- [ ] Step 7: Update checklist progress and commit milestone
+- [x] Step 1: Add failing tests for private-account follower/following visibility behavior
+- [x] Step 2: Define viewer-aware access rules for the connection resolvers and verify RED
+- [x] Step 3: Implement privacy-aware connection access using Social policy helpers
+- [x] Step 4: Add regression coverage proving accepted relationships remain readable when policy allows them
+- [x] Step 5: Run focused Social/Accounts GraphQL suites to verify GREEN
+- [x] Step 6: Run final verification (`mix test` on touched suites, `mix compile`, `mix typecheck`)
+- [x] Step 7: Update checklist progress and commit milestone
 
 **Task 4 behavior targets:**
 
 - Private accounts do not expose `followers` / `following` to unauthorized viewers.
 - Owners can still read their own graph.
 - Public-account graph behavior remains unchanged.
+
+Verification evidence (2026-03-16):
+
+- `mix test test/live_canvas/social_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/social/social_queries_test.exs test/live_canvas_gql/social/social_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs` -> PASS (`111 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)

@@ -184,16 +184,24 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec followers(map(), map(), Absinthe.Resolution.t()) :: {:ok, map()} | {:error, term()}
-  def followers(%{id: _id} = user, args, _resolution) do
-    query = Social.follower_users_query(user)
-    Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+  @spec followers(map(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
+  def followers(%{id: _id} = user, args, resolution) do
+    if can_view_relationship_graph?(user, resolution) do
+      query = Social.follower_users_query(user)
+      Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+    else
+      Absinthe.Relay.Connection.from_list([], args)
+    end
   end
 
-  @spec following(map(), map(), Absinthe.Resolution.t()) :: {:ok, map()} | {:error, term()}
-  def following(%{id: _id} = user, args, _resolution) do
-    query = Social.following_users_query(user)
-    Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+  @spec following(map(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
+  def following(%{id: _id} = user, args, resolution) do
+    if can_view_relationship_graph?(user, resolution) do
+      query = Social.following_users_query(user)
+      Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+    else
+      Absinthe.Relay.Connection.from_list([], args)
+    end
   end
 
   @spec viewer_pending_follow_requests(term(), map(), Absinthe.Resolution.t()) ::
@@ -278,4 +286,14 @@ defmodule LCGQL.Social.Resolver do
   end
 
   defp viewer_from_resolution(_resolution), do: :error
+
+  @spec can_view_relationship_graph?(map(), Absinthe.Resolution.t()) :: boolean()
+  defp can_view_relationship_graph?(%{privacy_mode: :public}, _resolution), do: true
+
+  defp can_view_relationship_graph?(%{} = user, resolution) do
+    case viewer_from_resolution(resolution) do
+      {:ok, viewer} -> Social.can_view_user?(viewer, user)
+      :error -> false
+    end
+  end
 end
