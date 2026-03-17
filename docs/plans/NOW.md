@@ -6,29 +6,29 @@ Status: active
 ## Current Batch
 
 - Track: `chat`
-- Plan: `docs/plans/chat/2026-03-17-chat-moderation-actions.md`
-- Batch: `Task 3: Broadcast Realtime Moderation Updates For PR #11 And Finalize Verification`
-- Why now: PR `#11` is blocked on a correctness gap where `removeLiveChatMessage` redacts persisted history but leaves already-joined viewers rendering the stale abusive message until they refetch or reconnect.
+- Plan: `docs/plans/chat/2026-03-17-chat-system-events.md`
+- Batch: `Task 1: Add a bounded system-event vocabulary and persistence API in LC.Chat`
+- Why now: the moderation batch is complete, and the next unblocked chat milestone is the bounded system-event vocabulary that lifecycle and moderation adapters need before they can emit durable system messages through the shared Relay `ChatMessage` model.
 
 ## Do This Now
 
-- Add the failing GraphQL/channel integration coverage for `removeLiveChatMessage` broadcasting `"chat:message_updated"` to the owning live-session topic only.
-- Implement the moderation update broadcast from the successful GraphQL removal path and keep the payload reconcilable with the existing channel message envelope.
-- Run the Task 3 verification commands from `docs/plans/chat/2026-03-17-chat-moderation-actions.md`.
-- Mark Task 3 complete in the plan once the verification evidence is fresh.
+- Add failing Chat tests for standardized `system_event` creation through `LC.Chat.record_system_event/3`.
+- Add failing Chat tests that reject unknown event types and normalize event metadata into a bounded shape.
+- Implement the normalized system-event builder plus `record_system_event/3` in `LC.Chat`.
+- Run the Task 1 verification commands from `docs/plans/chat/2026-03-17-chat-system-events.md` and mark Task 1 progress as it lands.
 
 ## Verification Scope
 
 ```bash
-mix test test/live_canvas/chat_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
+mix test test/live_canvas/chat_test.exs
 mix compile
-mix test test/live_canvas/chat_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs
+mix test test/live_canvas/chat_test.exs
 mix typecheck
 ```
 
 ## Next Up
 
-- `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 1: Add a bounded system-event vocabulary and persistence API in LC.Chat`
+- `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 2: Emit and broadcast lifecycle/moderation system events from existing adapters`
 
 ## Repair Conditions
 
