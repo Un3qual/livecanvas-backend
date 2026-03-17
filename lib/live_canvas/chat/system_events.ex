@@ -86,12 +86,22 @@ defmodule LC.Chat.SystemEvents do
   @spec normalize_message_reference(term(), term()) ::
           {:ok, {pos_integer(), Ecto.UUID.t()}} | {:error, :invalid_metadata}
   defp normalize_message_reference(chat_message_id, entropy_id)
-       when is_integer(chat_message_id) and chat_message_id > 0 and is_binary(entropy_id) do
-    {:ok, {chat_message_id, entropy_id}}
+       when is_integer(chat_message_id) and chat_message_id > 0 do
+    with {:ok, cast_entropy_id} <- cast_entropy_id(entropy_id) do
+      {:ok, {chat_message_id, cast_entropy_id}}
+    end
   end
 
   defp normalize_message_reference(_chat_message_id, _entropy_id),
     do: {:error, :invalid_metadata}
+
+  @spec cast_entropy_id(term()) :: {:ok, Ecto.UUID.t()} | {:error, :invalid_metadata}
+  defp cast_entropy_id(entropy_id) do
+    case Ecto.UUID.cast(entropy_id) do
+      {:ok, cast_entropy_id} -> {:ok, cast_entropy_id}
+      :error -> {:error, :invalid_metadata}
+    end
+  end
 
   defp value_for(attrs, key) when is_map(attrs) do
     Map.get(attrs, key) || Map.get(attrs, Atom.to_string(key))

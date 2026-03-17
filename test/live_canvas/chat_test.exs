@@ -146,6 +146,30 @@ defmodule LC.ChatTest do
              }
     end
 
+    test "rejects malformed message_removed entropy ids" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      assert {:ok, message} = Chat.create_message(session, viewer, %{body: "remove me"})
+
+      assert {:error, :invalid_metadata} =
+               record_system_event(session, :message_removed,
+                 actor: host,
+                 metadata: %{
+                   "chat_message_entropy_id" => "not-a-uuid",
+                   chat_message_id: message.id
+                 }
+               )
+
+      refute Repo.exists?(
+               from(chat_message in ChatMessage,
+                 where:
+                   chat_message.live_session_id == ^session.id and
+                     chat_message.kind == :system_event
+               )
+             )
+    end
+
     test "rejects unknown system event types" do
       host = user_fixture(privacy_mode: :public)
       {:ok, session} = Live.start_live_session(host, %{visibility: :public})
