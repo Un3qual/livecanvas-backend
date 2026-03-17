@@ -64,6 +64,22 @@ defmodule LC.Accounts.ProviderAuthTest do
       end)
     end
 
+    test "returns provider_verification_failed when the provider identity was revoked" do
+      bundle = provider_token_bundle(:google)
+      user = user_fixture()
+
+      _revoked_identity =
+        attach_user_identity(user, :google_provider, bundle.claims["sub"],
+          provider_data: %{"email" => bundle.claims["email"]},
+          revoked_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+        )
+
+      with_provider_configs([google: bundle.config], fn ->
+        assert {:error, :provider_verification_failed} =
+                 Accounts.sign_up_with_provider(:google, bundle.token)
+      end)
+    end
+
     test "returns email_taken when another account already owns the provider email" do
       bundle = provider_token_bundle(:google)
       _existing_user = user_fixture(%{email: bundle.claims["email"]})

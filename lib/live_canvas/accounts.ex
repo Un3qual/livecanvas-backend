@@ -1383,7 +1383,10 @@ defmodule LC.Accounts do
   @spec ensure_provider_identity_available(ProviderAuth.verified_identity()) ::
           :ok | {:error, :provider_identity_exists}
   defp ensure_provider_identity_available(%{provider: provider, provider_uid: provider_uid}) do
-    if get_user_by_identity(provider, provider_uid) do
+    # Provider UIDs stay globally unique even after unlink/revocation, so signup
+    # must reject any persisted row here instead of relying on the later insert
+    # to surface a database constraint violation.
+    if provider_identity_exists?(provider, provider_uid) do
       {:error, :provider_identity_exists}
     else
       :ok
@@ -1816,6 +1819,15 @@ defmodule LC.Accounts do
           is_nil(user_identity.revoked_at),
       limit: 1
     )
+  end
+
+  defp provider_identity_exists?(provider, provider_uid) do
+    from(user_identity in UserIdentity,
+      where: user_identity.provider == ^provider and user_identity.provider_uid == ^provider_uid,
+      select: 1,
+      limit: 1
+    )
+    |> Repo.exists?()
   end
 
   defp current_email_for_user(user_id) do
