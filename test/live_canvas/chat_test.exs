@@ -209,6 +209,35 @@ defmodule LC.ChatTest do
       assert Map.get(persisted_message, :moderated_at) == nil
       assert Map.get(persisted_message, :moderated_by_id) == nil
     end
+
+    test "keeps one moderation timestamp when concurrent host removals race" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, message} = Chat.create_message(session, viewer, %{body: "race condition"})
+
+      removal_tasks =
+        Enum.map(1..2, fn _attempt ->
+          Task.async(fn -> remove_message(message, host) end)
+        end)
+
+      Enum.each(removal_tasks, &allow_chat_db(&1.pid))
+
+      results = Enum.map(removal_tasks, &Task.await(&1, 5_000))
+      assert Enum.all?(results, &match?({:ok, %ChatMessage{}}, &1))
+
+      moderated_at_values =
+        results
+        |> Enum.map(fn {:ok, removed_message} -> Map.get(removed_message, :moderated_at) end)
+        |> Enum.uniq()
+
+      assert length(moderated_at_values) == 1
+
+      persisted_message = Repo.get!(ChatMessage, message.id)
+
+      assert persisted_message.moderated_at in moderated_at_values
+      assert persisted_message.moderated_by_id == host.id
+    end
   end
 
   defp remove_message(chat_message, actor) do
@@ -216,6 +245,14 @@ defmodule LC.ChatTest do
       apply(Chat, :remove_message, [chat_message, actor])
     else
       :missing_remove_message
+    end
+  end
+
+  defp allow_chat_db(pid) when is_pid(pid) do
+    case Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid) do
+      :ok -> :ok
+      {:already, _owner} -> :ok
+      :not_found -> :ok
     end
   end
 end

@@ -142,13 +142,7 @@ defmodule LC.Chat do
       when is_integer(message_id) and is_integer(actor_id) do
     with %ChatMessage{} = chat_message <- removable_message_query(message_id) |> Repo.one(),
          :ok <- authorize_message_removal(chat_message, actor_id) do
-      if chat_message.status == :removed do
-        {:ok, chat_message}
-      else
-        chat_message
-        |> ChatMessageChanges.removal_changeset(actor_id, now_utc())
-        |> Repo.update()
-      end
+      finalize_message_removal(chat_message, actor_id)
     else
       nil -> {:error, :not_found}
       {:error, _reason} = error -> error
@@ -205,6 +199,30 @@ defmodule LC.Chat do
   end
 
   defp authorize_message_removal(%ChatMessage{}, _actor_id), do: {:error, :not_authorized}
+
+  @spec finalize_message_removal(ChatMessage.t(), pos_integer()) :: remove_message_result()
+  defp finalize_message_removal(%ChatMessage{status: :removed} = chat_message, _actor_id),
+    do: {:ok, chat_message}
+
+  defp finalize_message_removal(%ChatMessage{id: message_id}, actor_id)
+       when is_integer(message_id) and is_integer(actor_id) do
+    moderated_at = now_utc()
+
+    # Competing host removals can race after both readers observe `:active`, so
+    # keep the state transition in one conditional update and then reload the
+    # row. Later contenders reuse the first persisted moderation timestamp.
+    from(chat_message in ChatMessage,
+      where: chat_message.id == ^message_id and chat_message.status != :removed
+    )
+    |> Repo.update_all(
+      set: [status: :removed, moderated_at: moderated_at, moderated_by_id: actor_id]
+    )
+
+    case removable_message_query(message_id) |> Repo.one() do
+      %ChatMessage{} = chat_message -> {:ok, chat_message}
+      nil -> {:error, :not_found}
+    end
+  end
 
   @spec now_utc() :: DateTime.t()
   defp now_utc do
