@@ -4,12 +4,13 @@ defmodule LCGQL.Schema do
   use Absinthe.Relay.Schema,
     flavor: :modern
 
-  alias LC.{Accounts, Content, Live, Social}
+  alias LC.{Accounts, Chat, Content, Live, Social}
 
   # global_id_translator: SmokespotsGraphQL.IDTranslator
   import_types(Absinthe.Plug.Types)
   import_types(LCGQL.Accounts.Queries)
   import_types(LCGQL.Accounts.Types)
+  import_types(LCGQL.Chat.Types)
   import_types(LCGQL.Content.Queries)
   import_types(LCGQL.Content.Types)
   import_types(LCGQL.Feed.Queries)
@@ -38,6 +39,9 @@ defmodule LCGQL.Schema do
 
         %{type: :follow_request, id: id}, resolution ->
           fetch_follow_request_node(id, resolution)
+
+        %{type: :chat_message, id: id}, resolution ->
+          fetch_chat_message_node(id, resolution)
 
         %{type: :data_export_request, id: id}, resolution ->
           fetch_data_export_request_node(id, resolution)
@@ -98,6 +102,9 @@ defmodule LCGQL.Schema do
 
       %{state: :requested, follower_id: _follower_id, followed_id: _followed_id}, _resolution ->
         :follow_request
+
+      %{kind: _kind, metadata: _metadata, live_session_id: _live_session_id}, _resolution ->
+        :chat_message
 
       %{contact_entry: %{contact_client_id: _contact_client_id}, matched_users: _matched_users},
       _resolution ->
@@ -162,7 +169,13 @@ defmodule LCGQL.Schema do
   defp fetch_media_asset_node(_id, _resolution), do: {:ok, nil}
 
   defp fetch_live_session_node(id) do
-    {:ok, Live.get_live_session!(id)}
+    case Ecto.Type.cast(:id, id) do
+      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
+        {:ok, Live.get_live_session!(local_id)}
+
+      _ ->
+        {:ok, nil}
+    end
   rescue
     Ecto.NoResultsError -> {:ok, nil}
   end
@@ -180,6 +193,20 @@ defmodule LCGQL.Schema do
   end
 
   defp fetch_follow_request_node(_id, _resolution), do: {:ok, nil}
+
+  # Chat-message nodes are viewer-scoped because history remains readable after
+  # a session ends, but only to viewers who still satisfy chat visibility rules.
+  defp fetch_chat_message_node(id, %{context: %{current_scope: %{user: %{id: _id} = viewer}}}) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
+        {:ok, Chat.get_history_message(viewer, local_id)}
+
+      _ ->
+        {:ok, nil}
+    end
+  end
+
+  defp fetch_chat_message_node(_id, _resolution), do: {:ok, nil}
 
   # Export-request nodes are viewer-scoped because they carry private governance
   # workflow metadata; node refetch enforces ownership through the auth scope.

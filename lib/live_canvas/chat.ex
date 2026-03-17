@@ -63,6 +63,22 @@ defmodule LC.Chat do
     History.query(live_session_id)
   end
 
+  @doc """
+  Returns one retained chat message when the viewer can read its session history.
+  """
+  @spec get_history_message(User.t(), pos_integer()) :: ChatMessage.t() | nil
+  def get_history_message(%User{} = viewer, message_id)
+      when is_integer(message_id) and message_id > 0 do
+    with %ChatMessage{} = chat_message <- history_message_query(message_id) |> Repo.one(),
+         :ok <- authorize_history_access(viewer, chat_message.live_session) do
+      chat_message
+    else
+      _other -> nil
+    end
+  end
+
+  def get_history_message(%User{}, _message_id), do: nil
+
   @spec authorize_visible_session_access(User.t(), LiveSession.t()) ::
           :ok | {:error, :not_authorized}
   defp authorize_visible_session_access(
@@ -116,6 +132,10 @@ defmodule LC.Chat do
     end
   end
 
+  @doc false
+  @spec run_query(Ecto.Query.t()) :: [term()]
+  def run_query(query), do: Repo.all(query)
+
   @spec active_host(pos_integer()) :: User.t() | nil
   defp active_host(host_id) when is_integer(host_id) do
     from(user in User, where: user.id == ^host_id and is_nil(user.suspended_at))
@@ -126,5 +146,15 @@ defmodule LC.Chat do
   defp active_user?(user_id) when is_integer(user_id) do
     from(user in User, where: user.id == ^user_id and is_nil(user.suspended_at), select: user.id)
     |> Repo.exists?()
+  end
+
+  @spec history_message_query(pos_integer()) :: Ecto.Query.t()
+  defp history_message_query(message_id) when is_integer(message_id) and message_id > 0 do
+    from(chat_message in ChatMessage,
+      where: chat_message.id == ^message_id,
+      join: live_session in assoc(chat_message, :live_session),
+      preload: [:sender, live_session: live_session],
+      limit: 1
+    )
   end
 end

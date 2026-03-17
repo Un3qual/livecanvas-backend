@@ -2,7 +2,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
   use LC.DataCase, async: true
 
   import LC.AccountsFixtures
-  alias LC.{Accounts, Content}
+  alias LC.{Accounts, Chat, Content, Live}
 
   describe "node" do
     test "refetches a user from a relay global id" do
@@ -273,6 +273,108 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                  variables: %{"id" => follow_request_id},
                  context: context
                )
+    end
+
+    test "refetches an authorized chat message from a relay global id" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      assert {:ok, message} = Chat.create_message(live_session, host, %{body: "hello history"})
+      {:ok, ended_session} = Live.end_live_session(live_session)
+
+      assert ended_session.status == :ended
+
+      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
+      sender_id = Absinthe.Relay.Node.to_global_id(:user, host.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on ChatMessage {
+            body
+            kind
+            insertedAt
+            sender {
+              id
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^message_id,
+                    "body" => "hello history",
+                    "kind" => "USER_MESSAGE",
+                    "insertedAt" => inserted_at,
+                    "sender" => %{"id" => ^sender_id}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => message_id},
+                 context: context
+               )
+
+      assert is_binary(inserted_at)
+    end
+
+    test "returns safe null or empty fallbacks for unauthorized chat history node lookups" do
+      host = user_fixture()
+      outsider = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(outsider)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :followers})
+      assert {:ok, message} = Chat.create_message(live_session, host, %{body: "private history"})
+      {:ok, ended_session} = Live.end_live_session(live_session)
+
+      live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+
+      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
+
+      history_query = """
+      query($id: ID!) {
+        node(id: $id) {
+          ... on LiveSession {
+            chatMessages(first: 10) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+      """
+
+      node_query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => %{"chatMessages" => %{"edges" => []}}}}} =
+               Absinthe.run(history_query, LCGQL.Schema,
+                 variables: %{"id" => live_session_id},
+                 context: context
+               )
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(node_query, LCGQL.Schema,
+                 variables: %{"id" => message_id},
+                 context: context
+               )
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(node_query, LCGQL.Schema, variables: %{"id" => message_id})
     end
   end
 end

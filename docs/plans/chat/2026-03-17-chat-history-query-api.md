@@ -34,7 +34,7 @@ Verified directly in active code before writing this plan:
 ## Progress
 
 - [x] Task 1: Add Chat context history access and deterministic ordering primitives
-- [ ] Task 2: Expose Relay `ChatMessage` node and bidirectional `LiveSession.chatMessages`
+- [x] Task 2: Expose Relay `ChatMessage` node and bidirectional `LiveSession.chatMessages`
 - [ ] Task 3: Publish the chat-history client contract and run verification
 
 ### Task 1: Add Chat Context History Access And Deterministic Ordering Primitives
@@ -80,14 +80,14 @@ mix typecheck
 - Modify: `test/live_canvas_gql/relay/node_queries_test.exs`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for `node(id: ...) { ... on LiveSession { chatMessages(...) } }` using `first/after`
-- [ ] Step 2: Add failing GraphQL tests for `last/before` pagination and `pageInfo.hasPreviousPage`
-- [ ] Step 3: Add failing GraphQL tests for `ChatMessage` node refetch and owner-safe unauthorized fallbacks
-- [ ] Step 4: Run focused GraphQL tests to verify RED
-- [ ] Step 5: Implement `ChatMessage` Relay types, node resolution, and `LiveSession.chatMessages` with `paginate: :both`
-- [ ] Step 6: Add concise comments around cursor ordering and ended-session history access invariants
-- [ ] Step 7: Re-run focused GraphQL tests to verify GREEN
-- [ ] Step 8: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing GraphQL tests for `node(id: ...) { ... on LiveSession { chatMessages(...) } }` using `first/after`
+- [x] Step 2: Add failing GraphQL tests for `last/before` pagination and `pageInfo.hasPreviousPage`
+- [x] Step 3: Add failing GraphQL tests for `ChatMessage` node refetch and owner-safe unauthorized fallbacks
+- [x] Step 4: Run focused GraphQL tests to verify RED
+- [x] Step 5: Implement `ChatMessage` Relay types, node resolution, and `LiveSession.chatMessages` with `paginate: :both`
+- [x] Step 6: Add concise comments around cursor ordering and ended-session history access invariants
+- [x] Step 7: Re-run focused GraphQL tests to verify GREEN
+- [x] Step 8: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 2 behavior targets:**
 
