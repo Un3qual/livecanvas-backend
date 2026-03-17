@@ -2,6 +2,8 @@
 
 Approved on 2026-03-17.
 
+Day-to-day execution ordering now lives in `docs/plans/chat/TRACK.md` and `docs/plans/NOW.md`; use this document for rationale and approved design decisions.
+
 This document captures the approved design for the next Chat planning set:
 
 - retained chat history / query API
