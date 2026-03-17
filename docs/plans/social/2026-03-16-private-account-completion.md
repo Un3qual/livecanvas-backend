@@ -22,7 +22,7 @@
 ## Progress
 
 - [x] Task 1: Add GraphQL privacy-mode read/write support
-- [ ] Task 2: Add Social query/mutation helpers for pending follow requests
+- [x] Task 2: Add Social query/mutation helpers for pending follow requests
 - [ ] Task 3: Expose Relay follow-request inbox and accept/decline mutations
 - [ ] Task 4: Make followers/following privacy-aware and run verification
 
@@ -63,19 +63,24 @@ Verification evidence (2026-03-16):
 - Optionally modify: `test/support/fixtures/social_fixtures.ex`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing Social tests for deterministic pending inbound follow-request listing
-- [ ] Step 2: Add failing Social tests for viewer-owned fetch of a pending follow request by id
-- [ ] Step 3: Add failing Social tests for declining a pending follow request
-- [ ] Step 4: Run focused Social tests to verify RED
-- [ ] Step 5: Implement `pending_follow_requests_query/1`, `get_pending_follow_request/2`, and `decline_follow_request/2`
-- [ ] Step 6: Re-run focused Social tests to verify GREEN
-- [ ] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add Social tests for deterministic pending inbound follow-request listing
+- [x] Step 2: Add Social tests for viewer-owned fetch of a pending follow request by id
+- [x] Step 3: Add Social tests for declining a pending follow request
+- [x] Step 4: Implement `pending_follow_requests_query/1`, `get_pending_follow_request/2`, and `decline_follow_request/2`
+- [x] Step 5: Run focused Social tests to verify the helper behavior
+- [x] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 2 behavior targets:**
 
 - Pending follow requests are queryable only for the acted-on user.
 - Ordering is Relay-stable via `requested_at`, then `id`.
 - Declining a request removes it without affecting unrelated accepted relationships.
+
+Verification evidence (2026-03-16):
+
+- `mix test test/live_canvas/social_test.exs` -> PASS (`8 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 ### Task 3: Expose Relay Follow-Request Inbox And Accept/Decline Mutations
 

@@ -18,6 +18,7 @@ defmodule LC.Social do
   @type block_result :: {:ok, Block.t()} | {:error, term()}
   @type mute_result :: {:ok, Mute.t()} | {:error, term()}
   @type unmute_result :: :ok
+  @type decline_follow_result :: :ok | {:error, :not_allowed | Ecto.Changeset.t()}
 
   @doc """
   Creates or updates a follow relationship between two users.
@@ -57,6 +58,21 @@ defmodule LC.Social do
   end
 
   def accept_follow_request(%Follow{}, %User{}), do: {:error, :not_allowed}
+
+  @doc """
+  Declines a pending follow request when the acted-on user owns it.
+  """
+  @spec decline_follow_request(Follow.t(), User.t()) :: decline_follow_result()
+  def decline_follow_request(%Follow{followed_id: followed_id, state: :requested} = follow, %User{
+        id: followed_id
+      }) do
+    case Repo.delete(follow) do
+      {:ok, _deleted_follow} -> :ok
+      {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset}
+    end
+  end
+
+  def decline_follow_request(%Follow{}, %User{}), do: {:error, :not_allowed}
 
   @doc """
   Records a block relationship between two users.
@@ -169,6 +185,35 @@ defmodule LC.Social do
       order_by: [asc: follow.inserted_at, asc: follow.id]
     )
   end
+
+  @doc """
+  Returns a deterministic query for pending follow requests owned by the user.
+  """
+  @spec pending_follow_requests_query(User.t()) :: Ecto.Query.t()
+  def pending_follow_requests_query(%User{id: user_id}) do
+    from(follow in Follow,
+      where: follow.followed_id == ^user_id and follow.state == :requested,
+      preload: [:follower],
+      order_by: [asc: follow.requested_at, asc: follow.id]
+    )
+  end
+
+  @doc """
+  Returns one pending follow request owned by the user.
+  """
+  @spec get_pending_follow_request(User.t(), pos_integer()) :: Follow.t() | nil
+  def get_pending_follow_request(%User{id: user_id}, follow_id)
+      when is_integer(follow_id) and follow_id > 0 do
+    from(follow in Follow,
+      where:
+        follow.followed_id == ^user_id and follow.id == ^follow_id and follow.state == :requested,
+      preload: [:follower],
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  def get_pending_follow_request(%User{}, _follow_id), do: nil
 
   @doc false
   @spec run_query(Ecto.Query.t()) :: [term()]
