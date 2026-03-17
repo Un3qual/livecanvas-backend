@@ -47,6 +47,28 @@ defmodule LC.Accounts.ProviderAuthTest do
       assert_receive :jwks_requested
       refute_receive :jwks_requested
     end
+
+    test "keeps cached JWKS available after the verifying process exits" do
+      jwks_url = "https://google.example.com/oauth/jwks/#{System.unique_integer([:positive])}"
+      bundle = provider_token_bundle(:google, jwks_url: jwks_url)
+      parent = self()
+
+      http_get = fn url ->
+        send(parent, :jwks_requested)
+        Keyword.fetch!(bundle.config, :http_get).(url)
+      end
+
+      with_provider_configs([google: Keyword.put(bundle.config, :http_get, http_get)], fn ->
+        assert {:ok, _verified_identity} =
+                 Task.async(fn -> ProviderAuth.verify(:google, bundle.token) end)
+                 |> Task.await()
+
+        assert {:ok, _verified_identity} = ProviderAuth.verify(:google, bundle.token)
+      end)
+
+      assert_receive :jwks_requested
+      refute_receive :jwks_requested
+    end
   end
 
   describe "sign_up_with_provider/2" do

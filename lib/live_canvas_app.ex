@@ -13,6 +13,7 @@ defmodule LCApp do
     base_children = [
       LCWeb.Telemetry,
       LC.repo_module(),
+      {LC.Accounts.ProviderAuth.JwksCache, []},
       {DNSCluster, query: Application.get_env(:live_canvas, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: LC.PubSub},
       LCWeb.Presence,

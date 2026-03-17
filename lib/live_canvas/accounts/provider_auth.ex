@@ -1,10 +1,9 @@
 defmodule LC.Accounts.ProviderAuth do
   @moduledoc false
 
-  alias __MODULE__.{Apple, Google}
+  alias __MODULE__.{Apple, Google, JwksCache}
 
   @default_jwks_cache_ttl_seconds 300
-  @jwks_cache_table :lc_provider_auth_jwks_cache
 
   @type provider :: :google | :apple
   @type verified_identity :: %{
@@ -372,40 +371,13 @@ defmodule LC.Accounts.ProviderAuth do
 
   @spec cached_jwks(String.t(), integer()) :: {:ok, map()} | :miss
   defp cached_jwks(url, now) when is_binary(url) and is_integer(now) do
-    case :ets.lookup(jwks_cache_table(), url) do
-      [{^url, jwks, expires_at}]
-      when is_map(jwks) and is_integer(expires_at) and expires_at > now ->
-        {:ok, jwks}
-
-      [{^url, _jwks, expires_at}] when is_integer(expires_at) and expires_at <= now ->
-        :ets.delete(jwks_cache_table(), url)
-        :miss
-
-      _other ->
-        :miss
-    end
+    JwksCache.fetch(url, now)
   end
 
   @spec cache_jwks(String.t(), map(), integer()) :: true
   defp cache_jwks(url, jwks, expires_at)
        when is_binary(url) and is_map(jwks) and is_integer(expires_at) do
-    :ets.insert(jwks_cache_table(), {url, jwks, expires_at})
-  end
-
-  @spec jwks_cache_table() :: atom() | :ets.tid()
-  defp jwks_cache_table do
-    case :ets.whereis(@jwks_cache_table) do
-      :undefined ->
-        :ets.new(@jwks_cache_table, [
-          :named_table,
-          :public,
-          read_concurrency: true,
-          write_concurrency: true
-        ])
-
-      table ->
-        table
-    end
+    JwksCache.put(url, jwks, expires_at)
   end
 
   @spec valid_string?(term()) :: boolean()

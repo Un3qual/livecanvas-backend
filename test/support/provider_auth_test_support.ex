@@ -12,7 +12,13 @@ defmodule LC.ProviderAuthTestSupport do
     kid = Keyword.get(opts, :kid, "#{provider}-kid")
     issuer = Keyword.get(opts, :issuer, default_issuer(provider))
     audience = Keyword.get(opts, :audience, "#{provider}-client-id")
-    jwks_url = Keyword.get(opts, :jwks_url, "https://#{provider}.example.com/oauth/jwks")
+
+    jwks_url =
+      Keyword.get(
+        opts,
+        :jwks_url,
+        "https://#{provider}.example.com/oauth/jwks/#{System.unique_integer([:positive])}"
+      )
 
     claims =
       provider
