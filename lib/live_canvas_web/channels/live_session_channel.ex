@@ -71,6 +71,13 @@ defmodule LCWeb.LiveSessionChannel do
   end
 
   @impl true
+  @spec handle_out(String.t(), map(), Phoenix.Socket.t()) :: {:noreply, Phoenix.Socket.t()}
+  def handle_out(event, payload, socket) when is_binary(event) and is_map(payload) do
+    push(socket, event, payload)
+    {:noreply, socket}
+  end
+
+  @impl true
   @spec handle_in(String.t(), map(), Phoenix.Socket.t()) ::
           {:reply, {:error | :ok, map()}, Phoenix.Socket.t()}
   def handle_in(

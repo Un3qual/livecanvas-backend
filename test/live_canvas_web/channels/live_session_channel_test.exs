@@ -72,6 +72,199 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert %ChatMessage{id: ^message_id, body: "hello"} = Repo.get!(ChatMessage, message_id)
   end
 
+  test "removeLiveChatMessage broadcasts a redacted update only to the owning live session" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    other_host = user_fixture(privacy_mode: :public)
+    other_viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    {:ok, other_session} = Live.start_live_session(other_host, %{visibility: :public})
+
+    assert {:ok, _join_payload, viewer_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    assert {:ok, _join_payload, _other_viewer_socket} =
+             subscribe_and_join(
+               socket_for(other_viewer),
+               LiveSessionChannel,
+               "live_session:#{other_session.id}"
+             )
+
+    send_ref = push(viewer_socket, "chat:send", %{"body" => "abusive message"})
+
+    assert_reply send_ref, :ok,
+                 %{
+                   message: %{
+                     body: "abusive message",
+                     id: message_id,
+                     inserted_at: inserted_at,
+                     sender_id: sender_id
+                   }
+                 }
+
+    assert sender_id == viewer.id
+    assert_broadcast "chat:message", %{message: %{body: "abusive message", id: ^message_id}}
+
+    chat_message_id =
+      Absinthe.Relay.Node.to_global_id(:chat_message, message_id, LCGQL.Schema)
+
+    sender_node_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+    context = %{current_scope: Accounts.scope_for_user(host)}
+    session_topic = "live_session:#{session.id}"
+    other_session_topic = "live_session:#{other_session.id}"
+
+    assert {:ok,
+            %{
+              data: %{
+                "removeLiveChatMessage" => %{
+                  "chatMessage" => %{
+                    "id" => ^chat_message_id,
+                    "body" => nil,
+                    "status" => "REMOVED",
+                    "moderatedAt" => moderated_at,
+                    "sender" => %{"id" => ^sender_node_id}
+                  },
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(
+               remove_message_mutation(),
+               LCGQL.Schema,
+               context: context,
+               variables: %{"chatMessageId" => chat_message_id}
+             )
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "chat:message_updated",
+      payload: %{
+        message: %{
+          id: ^message_id,
+          body: nil,
+          sender_id: ^sender_id,
+          inserted_at: ^inserted_at,
+          status: "removed",
+          moderated_at: ^moderated_at
+        }
+      }
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^other_session_topic,
+      event: "chat:message_updated"
+    }
+  end
+
+  test "removeLiveChatMessage rebroadcasts the redacted payload on repeated removals" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:ok, _join_payload, viewer_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    send_ref = push(viewer_socket, "chat:send", %{"body" => "remove once"})
+
+    assert_reply send_ref, :ok,
+                 %{
+                   message: %{
+                     id: message_id,
+                     inserted_at: inserted_at,
+                     sender_id: sender_id
+                   }
+                 }
+
+    assert sender_id == viewer.id
+    assert_broadcast "chat:message", %{message: %{body: "remove once", id: ^message_id}}
+
+    chat_message_id =
+      Absinthe.Relay.Node.to_global_id(:chat_message, message_id, LCGQL.Schema)
+
+    context = %{current_scope: Accounts.scope_for_user(host)}
+    session_topic = "live_session:#{session.id}"
+
+    assert {:ok,
+            %{
+              data: %{
+                "removeLiveChatMessage" => %{
+                  "chatMessage" => %{
+                    "id" => ^chat_message_id,
+                    "body" => nil,
+                    "status" => "REMOVED",
+                    "moderatedAt" => moderated_at
+                  },
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(
+               remove_message_mutation(),
+               LCGQL.Schema,
+               context: context,
+               variables: %{"chatMessageId" => chat_message_id}
+             )
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "chat:message_updated",
+      payload: %{
+        message: %{
+          id: ^message_id,
+          body: nil,
+          sender_id: ^sender_id,
+          inserted_at: ^inserted_at,
+          status: "removed",
+          moderated_at: ^moderated_at
+        }
+      }
+    }
+
+    assert {:ok,
+            %{
+              data: %{
+                "removeLiveChatMessage" => %{
+                  "chatMessage" => %{
+                    "id" => ^chat_message_id,
+                    "body" => nil,
+                    "status" => "REMOVED",
+                    "moderatedAt" => ^moderated_at
+                  },
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(
+               remove_message_mutation(),
+               LCGQL.Schema,
+               context: context,
+               variables: %{"chatMessageId" => chat_message_id}
+             )
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "chat:message_updated",
+      payload: %{
+        message: %{
+          id: ^message_id,
+          body: nil,
+          sender_id: ^sender_id,
+          inserted_at: ^inserted_at,
+          status: "removed",
+          moderated_at: ^moderated_at
+        }
+      }
+    }
+  end
+
   test "viewer who muted host cannot join a live session topic" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
@@ -600,5 +793,27 @@ defmodule LCWeb.LiveSessionChannelTest do
       Application.put_env(:live_canvas, SessionOwnership, previous_ownership_config)
       Application.put_env(:live_canvas, SessionSupervisor, previous_supervisor_config)
     end
+  end
+
+  defp remove_message_mutation do
+    """
+    mutation($chatMessageId: ID!) {
+      removeLiveChatMessage(input: { chatMessageId: $chatMessageId }) {
+        chatMessage {
+          id
+          body
+          status
+          moderatedAt
+          sender {
+            id
+          }
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
   end
 end

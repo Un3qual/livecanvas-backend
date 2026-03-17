@@ -12,9 +12,9 @@
 
 ## Execution Summary
 
-- Status: active
+- Status: completed
 - Track: `docs/plans/chat/TRACK.md`
-- Current batch: `Task 3`
+- Current batch: none; plan complete
 - Start after: `docs/plans/chat/2026-03-17-chat-history-query-api.md` -> `Task 3`
 - Advance to: `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 1`
 
@@ -45,7 +45,7 @@ Verified directly in active code and tests before writing this plan:
 
 - [x] Task 1: Add moderation persistence and host-authority APIs in `LC.Chat`
 - [x] Task 2: Expose host-scoped moderation mutations and moderated message reads in GraphQL
-- [ ] Task 3: Broadcast realtime moderation updates for PR #11 and finalize verification
+- [x] Task 3: Broadcast realtime moderation updates for PR #11 and finalize verification
 
 ### Task 1: Add Moderation Persistence And Host-Authority APIs In `LC.Chat`
 
@@ -198,11 +198,11 @@ git commit -m "feat: expose chat moderation mutations"
 - Modify: `docs/plans/NOW.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing GraphQL/channel integration tests for moderation update broadcasts
-- [ ] Step 2: Run focused Chat/channel tests to verify RED
-- [ ] Step 3: Broadcast a stable moderation update event for already-joined viewers
-- [ ] Step 4: Re-run focused Chat/channel tests to verify GREEN
-- [ ] Step 5: Run final verification, update plan/index tracking, and commit the milestone
+- [x] Step 1: Add failing GraphQL/channel integration tests for moderation update broadcasts
+- [x] Step 2: Run focused Chat/channel tests to verify RED
+- [x] Step 3: Broadcast a stable moderation update event for already-joined viewers
+- [x] Step 4: Re-run focused Chat/channel tests to verify GREEN
+- [x] Step 5: Run final verification, update plan/index tracking, and commit the milestone
 
 **Task 3 behavior targets:**
 
