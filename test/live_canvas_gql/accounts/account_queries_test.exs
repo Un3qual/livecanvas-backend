@@ -92,6 +92,46 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       assert second_page["pageInfo"]["hasNextPage"] == false
     end
 
+    test "exposes the linked user and batches repeated owner lookups" do
+      user = user_fixture()
+      _identity_1 = attach_user_identity(user, :google_provider, "google-linked-user-1")
+      _identity_2 = attach_user_identity(user, :apple_provider, "apple-linked-user-1")
+
+      query = """
+      query($first: Int!) {
+        viewer {
+          userIdentities(first: $first) {
+            edges {
+              node {
+                id
+                user {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(user)}
+      user_id = Absinthe.Relay.Node.to_global_id(:user, user.id, LCGQL.Schema)
+
+      {result, queries} =
+        capture_repo_queries(fn ->
+          Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+        end)
+
+      assert {:ok, %{data: %{"viewer" => %{"userIdentities" => %{"edges" => edges}}}}} = result
+      assert length(edges) == 2
+
+      assert Enum.all?(edges, fn %{"node" => %{"user" => %{"id" => edge_user_id}}} ->
+               edge_user_id == user_id
+             end)
+
+      assert count_table_queries(queries, "users") <= 1
+    end
+
     test "returns only active identities after revocation" do
       user = user_fixture()
       _active_identity = attach_user_identity(user, :google_provider, "google-active-identity")

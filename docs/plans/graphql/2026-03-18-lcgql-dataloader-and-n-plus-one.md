@@ -28,7 +28,7 @@
 ## Progress
 
 - [x] Task 1: Add request-scoped dataloader plumbing to the GraphQL context
-- [ ] Task 2: Migrate the highest-fanout field resolvers to dataloader-backed fetches
+- [x] Task 2: Migrate the highest-fanout field resolvers to dataloader-backed fetches
 - [ ] Task 3: Tighten remaining direct lookups and verify Relay/auth behavior
 
 ### Task 1: Add Request-Scoped Dataloader Plumbing To The GraphQL Context

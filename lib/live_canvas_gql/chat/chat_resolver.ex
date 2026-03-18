@@ -109,17 +109,13 @@ defmodule LCGQL.Chat.Resolver do
 
   def chat_message_inserted_at(_chat_message, _args, _resolution), do: {:ok, ""}
 
-  @spec chat_message_sender(map(), map(), Absinthe.Resolution.t()) :: {:ok, map() | nil}
+  @spec chat_message_sender(map(), map(), Absinthe.Resolution.t()) ::
+          LCGQL.Dataloader.dataloader_result()
   def chat_message_sender(%{sender: %{id: _id} = sender}, _args, _resolution), do: {:ok, sender}
 
-  def chat_message_sender(%{sender_id: sender_id}, _args, _resolution)
-      when is_integer(sender_id) do
-    try do
-      {:ok, Accounts.get_user!(sender_id)}
-    rescue
-      Ecto.NoResultsError -> {:ok, nil}
-    end
-  end
+  def chat_message_sender(%{sender_id: sender_id} = chat_message, _args, resolution)
+      when is_integer(sender_id),
+      do: LCGQL.Dataloader.load_assoc(chat_message, :sender, Accounts, resolution)
 
   def chat_message_sender(_chat_message, _args, _resolution), do: {:ok, nil}
 

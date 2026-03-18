@@ -36,18 +36,16 @@ defmodule LCGQL.Feed.Resolver do
     end
   end
 
-  @spec host(map(), map(), Absinthe.Resolution.t()) :: {:ok, map() | nil}
-  def host(%{host_id: host_id}, _args, _resolution) when is_integer(host_id) do
-    try do
-      {:ok, Accounts.get_user!(host_id)}
-    rescue
-      Ecto.NoResultsError -> {:ok, nil}
-    end
-  end
+  @spec host(map(), map(), Absinthe.Resolution.t()) :: LCGQL.Dataloader.dataloader_result()
+  def host(%{host: %{id: _id} = host}, _args, _resolution), do: {:ok, host}
+
+  def host(%{host_id: host_id} = live_session, _args, resolution) when is_integer(host_id),
+    do: LCGQL.Dataloader.load_assoc(live_session, :host, Accounts, resolution)
 
   def host(_live_session, _args, _resolution), do: {:ok, nil}
 
-  @spec recording_media_asset(map(), map(), Absinthe.Resolution.t()) :: {:ok, map() | nil}
+  @spec recording_media_asset(map(), map(), Absinthe.Resolution.t()) ::
+          LCGQL.Dataloader.dataloader_result()
   def recording_media_asset(%{recording_media_asset_id: recording_media_asset_id} = live_session, _args, resolution)
       when is_integer(recording_media_asset_id) do
     with {:ok, viewer} <- viewer_from_resolution(resolution),
@@ -55,7 +53,7 @@ defmodule LCGQL.Feed.Resolver do
          # fields must re-apply retained-history visibility before following
          # foreign keys into durable recording assets.
          :ok <- Chat.authorize_history_access(viewer, live_session) do
-      {:ok, load_recording_media_asset(live_session, recording_media_asset_id)}
+      load_durable_recording_media_asset(live_session, resolution)
     else
       _other -> {:ok, nil}
     end
@@ -71,21 +69,6 @@ defmodule LCGQL.Feed.Resolver do
 
   def recording_media_asset_id(_recording_media_asset, _args, _resolution), do: {:ok, nil}
 
-  @spec load_recording_media_asset(map(), pos_integer()) :: map() | nil
-  defp load_recording_media_asset(live_session, recording_media_asset_id)
-       when is_integer(recording_media_asset_id) do
-    case Map.get(live_session, :recording_media_asset) do
-      %Ecto.Association.NotLoaded{} ->
-        Content.get_live_recording_media_asset(recording_media_asset_id)
-
-      recording_media_asset when is_map(recording_media_asset) ->
-        recording_media_asset
-
-      _other ->
-        Content.get_live_recording_media_asset(recording_media_asset_id)
-    end
-  end
-
   defp viewer_from_resolution(%Absinthe.Resolution{
          context: %{current_scope: %{user: %{id: user_id} = viewer}}
        })
@@ -93,4 +76,27 @@ defmodule LCGQL.Feed.Resolver do
        do: {:ok, viewer}
 
   defp viewer_from_resolution(_resolution), do: :error
+
+  @spec load_durable_recording_media_asset(map(), Absinthe.Resolution.t()) ::
+          LCGQL.Dataloader.dataloader_result()
+  defp load_durable_recording_media_asset(live_session, %{context: %{loader: loader}})
+       when is_map(live_session) do
+    loader
+    |> Dataloader.load(Content, :recording_media_asset, live_session)
+    |> Absinthe.Resolution.Helpers.on_load(fn loader ->
+      {:ok,
+       loader
+       |> Dataloader.get(Content, :recording_media_asset, live_session)
+       |> durable_recording_media_asset()}
+    end)
+  end
+
+  defp load_durable_recording_media_asset(_live_session, _resolution), do: {:ok, nil}
+
+  @spec durable_recording_media_asset(map() | nil) :: map() | nil
+  defp durable_recording_media_asset(%{processing_state: processing_state} = recording_media_asset)
+       when processing_state in [:uploaded, :processed, "uploaded", "processed"],
+       do: recording_media_asset
+
+  defp durable_recording_media_asset(_recording_media_asset), do: nil
 end

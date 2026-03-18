@@ -178,6 +178,47 @@ defmodule LCGQL.Feed.FeedQueriesTest do
               }} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
     end
+
+    test "batches repeated author lookups when homeFeed requests post authors" do
+      viewer = user_fixture()
+      creators = for _ <- 1..3, do: user_fixture(privacy_mode: :public)
+
+      for {creator, index} <- Enum.with_index(creators, 1) do
+        assert {:ok, _post} =
+                 Content.create_post(creator, %{
+                   kind: :standard,
+                   body_text: "batched-author-#{index}",
+                   visibility: :public
+                 })
+      end
+
+      query = """
+      query($first: Int!) {
+        homeFeed(first: $first) {
+          edges {
+            node {
+              id
+              author {
+                id
+              }
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      {result, queries} =
+        capture_repo_queries(fn ->
+          Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+        end)
+
+      assert {:ok, %{data: %{"homeFeed" => %{"edges" => edges}}}} = result
+      assert length(edges) == 3
+
+      assert count_table_queries(queries, "users") <= 2
+    end
   end
 
   describe "liveNow" do
@@ -324,6 +365,43 @@ defmodule LCGQL.Feed.FeedQueriesTest do
               }} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
     end
+
+    test "batches repeated host lookups when liveNow requests hosts" do
+      viewer = user_fixture()
+
+      for _ <- 1..3 do
+        host = user_fixture(privacy_mode: :public)
+        {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+        assert {:ok, _session} = Live.mark_session_live(live_session)
+      end
+
+      query = """
+      query($first: Int!) {
+        liveNow(first: $first) {
+          edges {
+            node {
+              id
+              host {
+                id
+              }
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      {result, queries} =
+        capture_repo_queries(fn ->
+          Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+        end)
+
+      assert {:ok, %{data: %{"liveNow" => %{"edges" => edges}}}} = result
+      assert length(edges) == 3
+
+      assert count_table_queries(queries, "users") <= 2
+    end
   end
 
   describe "replayFeed" do
@@ -431,6 +509,55 @@ defmodule LCGQL.Feed.FeedQueriesTest do
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
     end
 
+    test "batches repeated recording lookups for replayFeed edges" do
+      viewer = user_fixture()
+
+      for index <- 1..2 do
+        host = user_fixture(privacy_mode: :public)
+
+        {:ok, recording_asset} =
+          Content.create_media_asset(host, %{
+            storage_key: "uploads/users/#{host.id}/replay-batch-#{index}.mp4",
+            mime_type: "video/mp4",
+            processing_state: :processed
+          })
+
+        {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+
+        assert {:ok, _ended_session} =
+                 Live.end_live_session(live_session, %{
+                   recording_media_asset_id: recording_asset.id
+                 })
+      end
+
+      query = """
+      query($first: Int!) {
+        replayFeed(first: $first) {
+          edges {
+            node {
+              id
+              recordingMediaAsset {
+                id
+              }
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      {result, queries} =
+        capture_repo_queries(fn ->
+          Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+        end)
+
+      assert {:ok, %{data: %{"replayFeed" => %{"edges" => edges}}}} = result
+      assert length(edges) == 2
+
+      assert count_table_queries(queries, "media_assets") <= 1
+    end
+
     test "shows follower-only replay sessions only to accepted followers" do
       viewer = user_fixture()
       outsider = user_fixture()
@@ -507,6 +634,68 @@ defmodule LCGQL.Feed.FeedQueriesTest do
 
       assert {:ok, %{data: %{"replayFeed" => %{"edges" => []}}}} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10})
+    end
+
+    test "returns nil recordingMediaAsset when the linked recording is no longer durable" do
+      viewer = user_fixture()
+      host = user_fixture(privacy_mode: :public)
+
+      {:ok, recording_asset} =
+        Content.create_media_asset(host, %{
+          storage_key: "uploads/users/#{host.id}/replay-feed-failed.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
+
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+
+      {:ok, ended_session} =
+        Live.end_live_session(live_session, %{recording_media_asset_id: recording_asset.id})
+
+      {1, nil} =
+        Repo.update_all(
+          from(media_asset in LCSchemas.Content.MediaAsset,
+            where: media_asset.id == ^recording_asset.id
+          ),
+          set: [processing_state: :failed]
+        )
+
+      query = """
+      query($first: Int!) {
+        replayFeed(first: $first) {
+          edges {
+            node {
+              id
+              recordingMediaAsset {
+                id
+              }
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      ended_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "replayFeed" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^ended_session_id,
+                          "recordingMediaAsset" => nil
+                        }
+                      }
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
     end
   end
 end

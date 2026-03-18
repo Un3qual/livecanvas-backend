@@ -936,6 +936,26 @@ defmodule LCGQL.Accounts.Resolver do
 
   def viewer(_parent, _args, _resolution), do: {:ok, nil}
 
+  @spec user_identity_user(map(), map(), Absinthe.Resolution.t()) ::
+          LCGQL.Dataloader.dataloader_result()
+  def user_identity_user(%{user: %{id: user_id} = user}, _args, resolution)
+      when is_integer(user_id) do
+    case viewer_id_from_resolution(resolution) do
+      {:ok, ^user_id} -> {:ok, user}
+      _other -> {:ok, nil}
+    end
+  end
+
+  def user_identity_user(%{user_id: user_id} = user_identity, _args, resolution)
+      when is_integer(user_id) do
+    case viewer_id_from_resolution(resolution) do
+      {:ok, ^user_id} -> LCGQL.Dataloader.load_assoc(user_identity, :user, Accounts, resolution)
+      _other -> {:ok, nil}
+    end
+  end
+
+  def user_identity_user(_user_identity, _args, _resolution), do: {:ok, nil}
+
   @spec user_identities(map(), map(), Absinthe.Resolution.t()) ::
           {:ok, map()} | {:error, term()}
   def user_identities(%{id: _id} = user, args, _resolution) do
@@ -957,6 +977,15 @@ defmodule LCGQL.Accounts.Resolver do
   def viewer_contact_matches(_parent, args, _resolution) do
     Absinthe.Relay.Connection.from_list([], args)
   end
+
+  @spec viewer_id_from_resolution(Absinthe.Resolution.t()) :: {:ok, pos_integer()} | :error
+  defp viewer_id_from_resolution(%Absinthe.Resolution{
+         context: %{current_scope: %{user: %{id: user_id}}}
+       })
+       when is_integer(user_id),
+       do: {:ok, user_id}
+
+  defp viewer_id_from_resolution(_resolution), do: :error
 
   @spec viewer_data_export_requests(term(), map(), Absinthe.Resolution.t()) ::
           {:ok, map()} | {:error, term()}
