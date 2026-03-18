@@ -177,7 +177,7 @@ defmodule LCGQL.Live.Resolver do
       # Broadcast the persisted terminal event before disconnecting joined
       # channels so they can reconcile one last durable history row in order.
       :ok = maybe_emit_lifecycle_system_event(ended_live_session, :session_ended, transitioned?, viewer)
-      :ok = disconnect_live_session_channels(ended_live_session.id, :session_ended)
+      :ok = maybe_disconnect_live_session_channels(ended_live_session.id, transitioned?, :session_ended)
       {:ok, %{live_session: ended_live_session, errors: []}}
     else
       {:error, reason}
@@ -254,6 +254,12 @@ defmodule LCGQL.Live.Resolver do
       %Broadcast{topic: topic, event: "disconnect", payload: %{reason: Atom.to_string(reason)}}
     )
   end
+
+  defp maybe_disconnect_live_session_channels(session_id, true, reason) when is_integer(session_id) do
+    disconnect_live_session_channels(session_id, reason)
+  end
+
+  defp maybe_disconnect_live_session_channels(_session_id, _transitioned?, _reason), do: :ok
 
   @spec disconnect_live_session_user(pos_integer(), pos_integer(), atom()) :: :ok
   defp disconnect_live_session_user(session_id, user_id, reason)

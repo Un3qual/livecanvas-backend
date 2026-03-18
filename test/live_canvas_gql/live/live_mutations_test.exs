@@ -361,6 +361,89 @@ defmodule LCGQL.Live.LiveMutationsTest do
       assert persisted.ended_at == first_end.ended_at
     end
 
+    test "broadcasts one disconnect when concurrent end requests race" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, live_session} = Live.mark_session_live(started_session)
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, live_session.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      control_topic = "live_session_control:#{live_session.id}"
+      session_topic = "live_session:#{live_session.id}"
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, session_topic)
+
+      mutation = """
+      mutation EndLiveSession($liveSessionId: ID!) {
+        endLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      tasks =
+        Enum.map(1..2, fn _attempt ->
+          Task.async(fn ->
+            Absinthe.run(
+              mutation,
+              LCGQL.Schema,
+              context: context,
+              variables: %{"liveSessionId" => session_id}
+            )
+          end)
+        end)
+
+      Enum.each(tasks, &allow_live_db(&1.pid))
+
+      assert Enum.all?(
+               Enum.map(tasks, &Task.await(&1, 5_000)),
+               &match?(
+                 {:ok,
+                  %{
+                    data: %{
+                      "endLiveSession" => %{
+                        "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                        "errors" => []
+                      }
+                    }
+                  }},
+                 &1
+               )
+             )
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^session_topic,
+        event: "chat:message",
+        payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
+      }
+
+      refute_receive %Phoenix.Socket.Broadcast{
+        topic: ^session_topic,
+        event: "chat:message",
+        payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
+      },
+      200
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^control_topic,
+        event: "disconnect",
+        payload: %{reason: "session_ended"}
+      }
+
+      refute_receive %Phoenix.Socket.Broadcast{
+        topic: ^control_topic,
+        event: "disconnect",
+        payload: %{reason: "session_ended"}
+      },
+      200
+    end
+
     test "returns ended when go-live loses a concurrent end race after joinable-state checks" do
       host = user_fixture()
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
