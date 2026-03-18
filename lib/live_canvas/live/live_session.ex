@@ -10,6 +10,7 @@ defmodule LC.Live.LiveSession do
             :ended_at
             | :ended_reason
             | :host_id
+            | :recording_media_asset_id
             | :status
             | :started_at
             | :visibility
@@ -29,9 +30,18 @@ defmodule LC.Live.LiveSession do
   @spec changeset(LiveSessionSchema.t(), attrs()) :: Ecto.Changeset.t()
   def changeset(%LiveSessionSchema{} = live_session, attrs) when is_map(attrs) do
     live_session
-    |> cast(attrs, [:host_id, :status, :visibility, :started_at, :ended_at, :ended_reason])
+    |> cast(attrs, [
+      :host_id,
+      :status,
+      :visibility,
+      :started_at,
+      :ended_at,
+      :ended_reason,
+      :recording_media_asset_id
+    ])
     |> validate_required([:host_id, :status, :visibility])
     |> foreign_key_constraint(:host_id)
+    |> foreign_key_constraint(:recording_media_asset_id)
   end
 
   @spec mark_live_changeset(LiveSessionSchema.t(), DateTime.t()) :: Ecto.Changeset.t()
@@ -50,8 +60,14 @@ defmodule LC.Live.LiveSession do
   def end_changeset(%LiveSessionSchema{} = live_session, attrs, %DateTime{} = now)
       when is_map(attrs) do
     ended_reason = attrs |> value_for(:ended_reason, :host_ended) |> normalize_ended_reason()
+    recording_media_asset_id = value_for(attrs, :recording_media_asset_id, nil)
 
-    changeset(live_session, %{status: :ended, ended_at: now, ended_reason: ended_reason})
+    changeset(live_session, %{
+      status: :ended,
+      ended_at: now,
+      ended_reason: ended_reason,
+      recording_media_asset_id: recording_media_asset_id
+    })
   end
 
   defp value_for(attrs, key, default) do

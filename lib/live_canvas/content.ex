@@ -4,6 +4,7 @@ defmodule LC.Content do
   """
 
   use Boundary, deps: [LC.Infra, LCSchemas]
+  import Ecto.Query, warn: false
 
   alias LC.Content.{MediaAsset, Post}
   alias LC.Infra.{AsyncJobs, ObjectStorage, Repo, WebhookEvent}
@@ -17,6 +18,9 @@ defmodule LC.Content do
   @type post_update_result :: {:ok, PostSchema.t()} | {:error, changeset() | :not_found}
   @type post_delete_result :: {:ok, PostSchema.t()} | {:error, changeset() | :not_found}
   @type media_asset_result :: {:ok, MediaAssetSchema.t()} | {:error, changeset()}
+  @type live_recording_media_asset_opts :: [lock: :for_update]
+  @type live_recording_media_asset_result ::
+          {:ok, MediaAssetSchema.t()} | {:error, :invalid_processing_state | :not_found}
   @type media_upload_result ::
           {:ok, %{media_asset: MediaAssetSchema.t(), upload: ObjectStorage.signed_upload()}}
           | {:error, changeset() | :invalid_upload_request | term()}
@@ -153,6 +157,39 @@ defmodule LC.Content do
   end
 
   @doc """
+  Fetches an owner-owned media asset that is durable enough to link as a live recording.
+  """
+  @spec fetch_live_recording_media_asset(pos_integer(), pos_integer(), live_recording_media_asset_opts()) ::
+          live_recording_media_asset_result()
+  def fetch_live_recording_media_asset(owner_id, media_asset_id, opts \\ [])
+
+  def fetch_live_recording_media_asset(owner_id, media_asset_id, opts)
+       when is_integer(owner_id) and owner_id > 0 and is_integer(media_asset_id) and
+             media_asset_id > 0 and is_list(opts) do
+    query =
+      from(media_asset in MediaAssetSchema,
+        where: media_asset.id == ^media_asset_id and media_asset.owner_id == ^owner_id
+      )
+      |> maybe_lock_live_recording_query(Keyword.get(opts, :lock))
+
+    case Repo.one(query) do
+      %MediaAssetSchema{processing_state: processing_state} = media_asset
+      when processing_state in [:uploaded, :processed] ->
+        {:ok, media_asset}
+
+      %MediaAssetSchema{} ->
+        # Ended sessions must not point at recordings that are still missing
+        # upload data or have already failed terminal processing.
+        {:error, :invalid_processing_state}
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
+  def fetch_live_recording_media_asset(_owner_id, _media_asset_id, _opts), do: {:error, :not_found}
+
+  @doc """
   Returns the canonical public serving URL for a persisted media asset.
   """
   @spec media_asset_public_url(MediaAssetSchema.t()) :: media_asset_public_url_result()
@@ -276,4 +313,11 @@ defmodule LC.Content do
   @spec normalize_webhook_result(:duplicate | :inserted) :: :accepted | :duplicate
   defp normalize_webhook_result(:inserted), do: :accepted
   defp normalize_webhook_result(:duplicate), do: :duplicate
+
+  @spec maybe_lock_live_recording_query(Ecto.Query.t(), :for_update | nil) :: Ecto.Query.t()
+  defp maybe_lock_live_recording_query(query, nil), do: query
+
+  defp maybe_lock_live_recording_query(query, :for_update) do
+    from(media_asset in query, lock: "FOR UPDATE")
+  end
 end

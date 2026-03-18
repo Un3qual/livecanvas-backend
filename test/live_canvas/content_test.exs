@@ -3,10 +3,11 @@ defmodule LC.ContentTest do
 
   import LC.AccountsFixtures
 
-  alias LC.Content
+  alias LC.{Content, Live}
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
+  alias LCSchemas.Live.LiveSession
 
   describe "create_post/2" do
     test "persists author-owned content" do
@@ -110,6 +111,47 @@ defmodule LC.ContentTest do
 
       assert {:error, :not_found} = Content.delete_user_post(owner, 0)
       assert {:error, :not_found} = Content.delete_user_post(owner, -1)
+    end
+
+    test "uses SET NULL for linked recording media asset deletion" do
+      owner = user_fixture()
+      {:ok, post} = Content.create_post(owner, %{kind: :standard, body_text: "recorded post"})
+
+      assert {:ok, media_asset} =
+               Content.create_media_asset(owner, %{
+                 post_id: post.id,
+                 storage_key: "uploads/users/#{owner.id}/recorded-post.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :uploaded
+               })
+
+      assert {:ok, session} = Live.start_live_session(owner, %{visibility: :followers})
+
+      assert {:ok, ended_session} =
+               Live.end_live_session(session, %{
+                 ended_reason: :host_ended,
+                 recording_media_asset_id: media_asset.id
+               })
+
+      assert Map.get(ended_session, :recording_media_asset_id) == media_asset.id
+
+      constraint_rows =
+        Repo.query!(
+          """
+          SELECT rc.delete_rule
+          FROM information_schema.referential_constraints AS rc
+          WHERE rc.constraint_schema = current_schema()
+            AND rc.constraint_name = 'live_sessions_recording_media_asset_id_fkey'
+          """
+        ).rows
+
+      assert [["SET NULL"]] = constraint_rows
+
+      assert {:ok, deleted_post} = Content.delete_user_post(owner, post.id)
+      assert deleted_post.id == post.id
+      refute Repo.get(MediaAssetSchema, media_asset.id)
+
+      assert %LiveSession{recording_media_asset_id: nil} = Live.get_live_session!(session.id)
     end
   end
 
