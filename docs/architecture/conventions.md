@@ -31,6 +31,7 @@
 - The target standard is Relay-first: `node` lookups, global IDs, connection fields, edges, cursors, and Relay-friendly mutations.
 - The current schema is Relay-aligned: authenticated `viewer`, `node(id:)`, strict global ID decoding, connection-based pagination (`userIdentities`, `followers`, `following`), and Relay payload mutations for both Accounts and Social APIs.
 - Preserve Relay semantics in all new GraphQL work, and use the dedicated migration plan before reshaping existing fields.
+- Re-apply authorization at both the node fetch and child-field resolver layers. A globally refetchable parent node or stored foreign key must never become a shortcut around viewer ownership or visibility checks; treat any raw-ID child lookup without an auth predicate as a `CWE-639` / IDOR risk.
 
 ## Planned Refactors
 
