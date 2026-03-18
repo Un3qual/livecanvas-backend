@@ -554,10 +554,8 @@ defmodule LC.Live do
           {:ok, LiveParticipant.t() | LiveSession.t()} | {:error, term()}
 
   @spec maybe_stop_session_server(non_neg_integer(), pos_integer()) :: :ok
-  defp maybe_stop_session_server(1, session_id) when is_integer(session_id),
+  defp maybe_stop_session_server(_updated_count, session_id) when is_integer(session_id),
     do: SessionSupervisor.stop_session_server(session_id)
-
-  defp maybe_stop_session_server(_updated_count, _session_id), do: :ok
 
   @spec normalize_transition_result(end_live_session_transition_result()) :: end_live_session_result()
   defp normalize_transition_result({:ok, live_session, _transitioned?}), do: {:ok, live_session}

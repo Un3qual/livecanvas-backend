@@ -223,6 +223,32 @@ defmodule LC.LiveTest do
       assert :ok = wait_for_session_server_down(session.id)
     end
 
+    test "stops the local session server when the end transition was already won elsewhere" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, pid} = Live.lookup_session_server(session.id)
+      assert Process.alive?(pid)
+
+      ended_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+      {1, _rows} =
+        from(live_session in LiveSession, where: live_session.id == ^session.id)
+        |> Repo.update_all(
+          set: [status: :ended, ended_at: ended_at, ended_reason: :host_ended]
+        )
+
+      assert {:ok,
+              %LiveSession{
+                status: :ended,
+                ended_at: ^ended_at,
+                ended_reason: :host_ended
+              }, false} =
+               Live.end_live_session_with_transition(session, %{ended_reason: :host_ended})
+
+      assert :ok = wait_for_session_server_down(session.id)
+    end
+
     test "returns not_authorized when the viewer is suspended" do
       host = user_fixture(privacy_mode: :public)
       viewer = user_fixture()
