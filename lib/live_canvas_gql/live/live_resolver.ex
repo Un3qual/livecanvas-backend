@@ -9,6 +9,7 @@ defmodule LCGQL.Live.Resolver do
   @type leave_live_session_payload :: %{left: boolean(), errors: [mutation_error()]}
   @type live_session_result :: {:ok, live_session_payload()}
   @type leave_live_session_result :: {:ok, leave_live_session_payload()}
+  @type mutation_error_field :: :live_session_id | :recording_media_asset_id | nil
   @type mutation_reason ::
           :invalid_id
           | :invalid_type
@@ -157,7 +158,11 @@ defmodule LCGQL.Live.Resolver do
 
   @spec end_live_session(
           term(),
-          %{optional(:input) => map(), optional(:live_session_id) => term()},
+          %{
+            optional(:input) => map(),
+            optional(:live_session_id) => term(),
+            optional(:recording_media_asset_id) => term()
+          },
           Absinthe.Resolution.t()
         ) :: live_session_result()
   def end_live_session(parent, %{input: input}, resolution),
@@ -165,32 +170,68 @@ defmodule LCGQL.Live.Resolver do
 
   def end_live_session(
         _parent,
-        %{live_session_id: live_session_id},
+        %{live_session_id: live_session_id} = args,
         %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
       ) do
-    with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
-         {:ok, live_session} <- fetch_live_session(decoded_id),
-         :ok <- ensure_host_owned(live_session, viewer),
-         :ok <- ensure_not_ended(live_session),
-         {:ok, ended_live_session, transitioned?} <-
-           Live.end_live_session_with_transition(live_session) do
-      # Broadcast the persisted terminal event before disconnecting joined
-      # channels so they can reconcile one last durable history row in order.
-      :ok = maybe_emit_lifecycle_system_event(ended_live_session, :session_ended, transitioned?, viewer)
-      :ok = maybe_disconnect_live_session_channels(ended_live_session.id, transitioned?, :session_ended)
-      {:ok, %{live_session: ended_live_session, errors: []}}
-    else
-      {:error, reason}
-      when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
-        {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
+    case decode_optional_recording_media_asset_id(Map.get(args, :recording_media_asset_id)) do
+      {:ok, recording_media_asset_id} ->
+        end_attrs =
+          case recording_media_asset_id do
+            nil -> %{}
+            decoded_id -> %{recording_media_asset_id: decoded_id}
+          end
 
-      _other ->
-        {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+        with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
+             {:ok, live_session} <- fetch_live_session(decoded_id),
+             :ok <- ensure_host_owned(live_session, viewer),
+             :ok <- ensure_not_ended(live_session),
+             {:ok, ended_live_session, transitioned?} <-
+               # Keep ownership and processing-state validation in `LC.Live`; the
+               # GraphQL layer only decodes Relay IDs before forwarding them.
+               Live.end_live_session_with_transition(live_session, end_attrs) do
+          # Broadcast the persisted terminal event before disconnecting joined
+          # channels so they can reconcile one last durable history row in order.
+          :ok =
+            maybe_emit_lifecycle_system_event(
+              ended_live_session,
+              :session_ended,
+              transitioned?,
+              viewer
+            )
+
+          :ok =
+            maybe_disconnect_live_session_channels(
+              ended_live_session.id,
+              transitioned?,
+              :session_ended
+            )
+
+          {:ok, %{live_session: ended_live_session, errors: []}}
+        else
+          {:error, reason}
+          when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
+            {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            {:ok, %{live_session: nil, errors: format_changeset_errors(changeset)}}
+
+          _other ->
+            {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+        end
+
+      {:error, reason} ->
+        {:ok, %{live_session: nil, errors: [mutation_error(:recording_media_asset_id, reason)]}}
     end
   end
 
   def end_live_session(_parent, _args, _resolution) do
     {:ok, %{live_session: nil, errors: [mutation_error(nil, :unauthenticated)]}}
+  end
+
+  defp decode_optional_recording_media_asset_id(nil), do: {:ok, nil}
+
+  defp decode_optional_recording_media_asset_id(recording_media_asset_id) do
+    Relay.decode_global_id(recording_media_asset_id, :media_asset, LCGQL.Schema)
   end
 
   defp decode_live_session_id(live_session_id),
@@ -311,7 +352,22 @@ defmodule LCGQL.Live.Resolver do
   defp broadcast_system_event({:ok, system_event}), do: Chat.broadcast_message(system_event)
   defp broadcast_system_event({:error, _reason}), do: :ok
 
-  @spec mutation_error(:live_session_id | nil, mutation_reason()) :: mutation_error()
+  @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
+  defp format_changeset_errors(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {message, options} ->
+      Enum.reduce(options, message, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Enum.flat_map(fn {field, messages} ->
+      Enum.map(messages, fn message ->
+        %{field: camelize_lower(field), message: message}
+      end)
+    end)
+  end
+
+  @spec mutation_error(mutation_error_field(), mutation_reason()) :: mutation_error()
   defp mutation_error(field, reason) do
     %{
       field: error_field(field, reason),
@@ -319,11 +375,25 @@ defmodule LCGQL.Live.Resolver do
     }
   end
 
-  @spec error_field(:live_session_id | nil, mutation_reason()) :: String.t() | nil
+  @spec error_field(mutation_error_field(), mutation_reason()) :: String.t() | nil
   defp error_field(:live_session_id, reason) when reason in [:invalid_id, :invalid_type],
     do: "liveSessionId"
 
+  defp error_field(:recording_media_asset_id, reason) when reason in [:invalid_id, :invalid_type],
+    do: "recordingMediaAssetId"
+
   defp error_field(_field, _reason), do: nil
+
+  @spec camelize_lower(atom()) :: String.t()
+  defp camelize_lower(field) when is_atom(field) do
+    field
+    |> Atom.to_string()
+    |> Macro.camelize()
+    |> then(fn
+      <<first::utf8, rest::binary>> -> String.downcase(<<first::utf8>>) <> rest
+      "" -> ""
+    end)
+  end
 
   @spec error_message(mutation_reason()) :: String.t()
   defp error_message(reason) when reason in [:invalid_id, :invalid_type], do: "is invalid"

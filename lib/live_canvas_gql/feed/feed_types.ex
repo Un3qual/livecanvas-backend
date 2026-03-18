@@ -30,6 +30,10 @@ defmodule LCGQL.Feed.Types do
       resolve(&Resolver.host/3)
     end
 
+    field :recording_media_asset, :media_asset do
+      resolve(&Resolver.recording_media_asset/3)
+    end
+
     connection field :chat_messages, node_type: :chat_message, paginate: :both do
       resolve(&ChatResolver.chat_messages/3)
     end
