@@ -7,24 +7,24 @@ Status: active
 
 - Track: `graphql`
 - Plan: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md`
-- Batch: `Task 1: Add request-scoped dataloader plumbing to the GraphQL context`
-- Why now: the live replay track is complete, and the GraphQL dataloader plan is the next unblocked queued batch in `docs/plans/INDEX.md`.
+- Batch: `Task 2: Migrate the highest-fanout field resolvers to dataloader-backed fetches`
+- Why now: Task 1 is complete, and Task 2 is the next unblocked batch in the active GraphQL dataloader plan.
 
 ## Do This Now
 
-- Add failing request-context coverage that proves every GraphQL request gets a fresh loader in Absinthe context.
-- Add the focused node/query coverage needed to prove the loader is available during field resolution without dropping auth scope.
-- Implement `LCGQL.Dataloader` plus the minimum context/schema wiring, then rerun the focused tests and commit the Task 1 milestone.
+- Add query-count coverage for repeated user/media lookups across the targeted list and edge resolvers.
+- Convert the hot child resolvers to dataloader-backed fetches without weakening existing viewer authorization or fallback semantics.
+- Re-run the focused Task 2 GraphQL suites and commit the batching milestone once the repeated lookups are flattened.
 
 ## Verification Scope
 
 ```bash
-mix test test/live_canvas_gql/relay/request_context_test.exs test/live_canvas_gql/relay/node_queries_test.exs
+mix test test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/social/social_queries_test.exs test/live_canvas_gql/accounts/account_queries_test.exs
 ```
 
 ## Next Up
 
-- Continue with `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 2` once Task 1 is complete.
+- Continue with `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 3` once Task 2 is complete.
 
 ## Repair Conditions
 

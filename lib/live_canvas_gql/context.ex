@@ -6,6 +6,7 @@ defmodule LCGQL.Context do
   import Plug.Conn, only: [fetch_session: 1, get_req_header: 2, get_session: 2]
 
   alias LC.Accounts
+  alias LCGQL.Dataloader
 
   @type conn :: Plug.Conn.t()
   @type auth_transport :: :bearer | :session | :none
@@ -23,11 +24,19 @@ defmodule LCGQL.Context do
     conn = fetch_session(conn)
     {scope, auth_metadata} = scope_from_request(conn)
 
+    loader =
+      Dataloader.new(%{
+        current_scope: scope,
+        auth_transport: auth_metadata.transport,
+        auth_error: auth_metadata.error
+      })
+
     Absinthe.Plug.put_options(conn,
       context: %{
         current_scope: scope,
         auth_transport: auth_metadata.transport,
-        auth_error: auth_metadata.error
+        auth_error: auth_metadata.error,
+        loader: loader
       }
     )
   end
