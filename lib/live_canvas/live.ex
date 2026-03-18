@@ -97,14 +97,19 @@ defmodule LC.Live do
       )
       |> Repo.update_all(set: [status: :live, started_at: now])
 
-    case Repo.get(LiveSession, session_id) do
-      %LiveSession{status: :ended} = ended_session ->
+    case {updated_count, Repo.get(LiveSession, session_id)} do
+      # A concurrent end transition can commit between the winning update and
+      # the reload, but this caller still owns the starting-to-live transition.
+      {1, %LiveSession{} = persisted_session} ->
+        {:ok, persisted_session, true}
+
+      {0, %LiveSession{status: :ended} = ended_session} ->
         {:error, LiveSessionChanges.mark_live_changeset(ended_session, now)}
 
-      %LiveSession{} = persisted_session ->
-        {:ok, persisted_session, updated_count == 1}
+      {0, %LiveSession{} = persisted_session} ->
+        {:ok, persisted_session, false}
 
-      nil ->
+      {_updated_count, nil} ->
         {:error, :not_found}
     end
   end

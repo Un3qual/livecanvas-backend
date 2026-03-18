@@ -103,6 +103,59 @@ defmodule LC.LiveTest do
 
       assert %{status: :live, started_at: %DateTime{}} = Live.get_live_session!(session.id)
     end
+
+    test "preserves a won go-live transition when end wins the post-update reload race" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+      test_pid = self()
+
+      lock_task =
+        Task.async(fn ->
+          Repo.transaction(fn ->
+            from(live_session in LiveSession,
+              where: live_session.id == ^session.id,
+              lock: "FOR UPDATE"
+            )
+            |> Repo.one!()
+
+            send(test_pid, :live_session_locked)
+
+            receive do
+              :release_live_session_lock -> :ok
+            after
+              5_000 -> exit(:release_live_session_lock_timeout)
+            end
+          end)
+        end)
+
+      allow_live_db(lock_task.pid)
+      assert_receive :live_session_locked
+
+      go_live_task = Task.async(fn -> Live.mark_session_live_with_transition(session) end)
+      allow_live_db(go_live_task.pid)
+      Process.sleep(20)
+
+      end_task =
+        Task.async(fn ->
+          Live.end_live_session_with_transition(session, %{ended_reason: :host_ended})
+        end)
+
+      allow_live_db(end_task.pid)
+      send(lock_task.pid, :release_live_session_lock)
+
+      assert {:ok, _lock_result} = Task.await(lock_task, 5_000)
+      assert {:ok, %LiveSession{started_at: %DateTime{}}, true} = Task.await(go_live_task, 5_000)
+      assert {:ok, %LiveSession{status: :ended, ended_reason: :host_ended}, true} =
+               Task.await(end_task, 5_000)
+
+      assert %LiveSession{
+               status: :ended,
+               started_at: %DateTime{},
+               ended_reason: :host_ended
+             } = Live.get_live_session!(session.id)
+
+      assert :ok = wait_for_session_server_down(session.id)
+    end
   end
 
   describe "join_live_session/3 and end_live_session/2" do
