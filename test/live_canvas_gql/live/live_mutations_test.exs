@@ -6,7 +6,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
   alias LC.{Accounts, Live}
   alias LC.Infra.Repo
-  alias LCSchemas.{Chat.ChatMessage, Live.LiveParticipant}
+  alias LCSchemas.{Chat.ChatMessage, Live.LiveParticipant, Live.LiveSession}
 
   describe "startLiveSession" do
     test "starts a live session for the authenticated viewer" do
@@ -360,6 +360,69 @@ defmodule LCGQL.Live.LiveMutationsTest do
       persisted = Live.get_live_session!(first_end.id)
       assert persisted.ended_at == first_end.ended_at
     end
+
+    test "returns ended when go-live loses a concurrent end race after joinable-state checks" do
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      go_live_mutation = """
+      mutation GoLiveSession($liveSessionId: ID!) {
+        goLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      go_live_task =
+        Task.async(fn ->
+          receive do
+            :run_go_live -> :ok
+          end
+
+          Absinthe.run(
+            go_live_mutation,
+            LCGQL.Schema,
+            context: context,
+            variables: %{"liveSessionId" => session_id}
+          )
+        end)
+
+      allow_live_db(go_live_task.pid)
+      :erlang.trace_pattern({Live, :mark_session_live_with_transition, 1}, true, [:local])
+      :erlang.trace(go_live_task.pid, true, [:call])
+      send(go_live_task.pid, :run_go_live)
+
+      assert_receive {:trace, traced_pid, :call, {Live, :mark_session_live_with_transition, [_]}},
+                     5_000
+
+      assert traced_pid == go_live_task.pid
+      :erlang.suspend_process(go_live_task.pid)
+
+      assert {:ok, %LiveSession{status: :ended, ended_reason: :host_ended}, true} =
+               Live.end_live_session_with_transition(started_session, %{ended_reason: :host_ended})
+
+      :erlang.resume_process(go_live_task.pid)
+      :erlang.trace(go_live_task.pid, false, [:call])
+      :erlang.trace_pattern({Live, :mark_session_live_with_transition, 1}, false, [:local])
+
+      assert {:ok,
+              %{
+                data: %{
+                  "goLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [%{"field" => nil, "message" => "ended"}]
+                  }
+                }
+              }} = Task.await(go_live_task, 5_000)
+    end
   end
 
   describe "joinLiveSession and leaveLiveSession" do
@@ -639,6 +702,14 @@ defmodule LCGQL.Live.LiveMutationsTest do
                  context: context,
                  variables: %{"liveSessionId" => non_session_id}
                )
+    end
+  end
+
+  defp allow_live_db(pid) when is_pid(pid) do
+    case Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid) do
+      :ok -> :ok
+      {:already, _owner} -> :ok
+      :not_found -> :ok
     end
   end
 end

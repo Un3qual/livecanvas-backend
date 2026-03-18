@@ -75,6 +75,13 @@ defmodule LCGQL.Live.Resolver do
       when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
         {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
 
+      {:error, %Ecto.Changeset{} = changeset} ->
+        if ended_go_live_changeset?(changeset) do
+          {:ok, %{live_session: nil, errors: [mutation_error(nil, :ended)]}}
+        else
+          {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+        end
+
       _other ->
         {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
     end
@@ -212,6 +219,15 @@ defmodule LCGQL.Live.Resolver do
 
   defp ensure_not_ended(%{status: :ended}), do: {:error, :ended}
   defp ensure_not_ended(_live_session), do: :ok
+
+  defp ended_go_live_changeset?(%Ecto.Changeset{data: %{status: :ended}, errors: errors}) do
+    Enum.any?(errors, fn
+      {:status, {_message, _opts}} -> true
+      _other -> false
+    end)
+  end
+
+  defp ended_go_live_changeset?(_changeset), do: false
 
   defp authorize_join(viewer, live_session) when is_map(viewer) and is_map(live_session) do
     # Keep GraphQL join policy aligned with channel joins so relationship and
