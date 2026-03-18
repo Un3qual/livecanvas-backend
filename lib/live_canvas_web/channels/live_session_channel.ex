@@ -97,7 +97,7 @@ defmodule LCWeb.LiveSessionChannel do
            :ok <- rate_limit_chat_send(user_id, live_session_id),
            {:ok, chat_message} <-
              Chat.create_message(live_session, current_user, %{body: body}) do
-        {:ok, %{message: chat_message_payload(chat_message)}}
+        {:ok, %{message: Chat.message_payload(chat_message)}}
       else
         {:error, reason} -> {:error, reason}
       end
@@ -239,15 +239,6 @@ defmodule LCWeb.LiveSessionChannel do
     # Scope to a viewer within a specific live session so one chatty room does
     # not globally throttle the same user in other rooms.
     RateLimiter.allow(:chat_send, "session:#{live_session_id}:user:#{user_id}")
-  end
-
-  defp chat_message_payload(chat_message) do
-    %{
-      id: chat_message.id,
-      body: chat_message.body,
-      sender_id: chat_message.sender_id,
-      inserted_at: DateTime.to_iso8601(chat_message.inserted_at)
-    }
   end
 
   @spec subscribe_to_control_topics(pos_integer(), pos_integer()) :: :ok

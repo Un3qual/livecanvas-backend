@@ -74,6 +74,7 @@ defmodule LCWeb.LiveSessionChannelTest do
 
   test "removeLiveChatMessage broadcasts a redacted update only to the owning live session" do
     host = user_fixture(privacy_mode: :public)
+    host_id = host.id
     viewer = user_fixture()
     other_host = user_fixture(privacy_mode: :public)
     other_viewer = user_fixture()
@@ -154,14 +155,45 @@ defmodule LCWeb.LiveSessionChannelTest do
       }
     }
 
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "chat:message",
+      payload: %{
+        message: %{
+          body: "A chat message was removed.",
+          sender_id: ^host_id,
+          inserted_at: system_event_inserted_at,
+          kind: "system_event",
+          status: "active",
+          moderated_at: nil,
+          metadata: %{
+            "details" => %{
+              "chat_message_entropy_id" => chat_message_entropy_id,
+              "chat_message_id" => ^message_id
+            },
+            "event_type" => "message_removed"
+          }
+        }
+      }
+    }
+
+    assert is_binary(system_event_inserted_at)
+    assert chat_message_entropy_id == Repo.get!(ChatMessage, message_id).entropy_id
+
     refute_receive %Phoenix.Socket.Message{
       topic: ^other_session_topic,
       event: "chat:message_updated"
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^other_session_topic,
+      event: "chat:message"
     }
   end
 
   test "removeLiveChatMessage rebroadcasts the redacted payload on repeated removals" do
     host = user_fixture(privacy_mode: :public)
+    host_id = host.id
     viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
 
@@ -184,13 +216,18 @@ defmodule LCWeb.LiveSessionChannelTest do
                  }
 
     assert sender_id == viewer.id
+    session_topic = "live_session:#{session.id}"
     assert_broadcast "chat:message", %{message: %{body: "remove once", id: ^message_id}}
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "chat:message",
+      payload: %{message: %{body: "remove once", id: ^message_id}}
+    }
 
     chat_message_id =
       Absinthe.Relay.Node.to_global_id(:chat_message, message_id, LCGQL.Schema)
 
     context = %{current_scope: Accounts.scope_for_user(host)}
-    session_topic = "live_session:#{session.id}"
 
     assert {:ok,
             %{
@@ -228,6 +265,31 @@ defmodule LCWeb.LiveSessionChannelTest do
       }
     }
 
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "chat:message",
+      payload: %{
+        message: %{
+          body: "A chat message was removed.",
+          sender_id: ^host_id,
+          inserted_at: system_event_inserted_at,
+          kind: "system_event",
+          status: "active",
+          moderated_at: nil,
+          metadata: %{
+            "details" => %{
+              "chat_message_entropy_id" => chat_message_entropy_id,
+              "chat_message_id" => ^message_id
+            },
+            "event_type" => "message_removed"
+          }
+        }
+      }
+    }
+
+    assert is_binary(system_event_inserted_at)
+    assert chat_message_entropy_id == Repo.get!(ChatMessage, message_id).entropy_id
+
     assert {:ok,
             %{
               data: %{
@@ -248,6 +310,11 @@ defmodule LCWeb.LiveSessionChannelTest do
                context: context,
                variables: %{"chatMessageId" => chat_message_id}
              )
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "chat:message"
+    }
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
@@ -553,6 +620,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     Process.flag(:trap_exit, true)
 
     host = user_fixture(privacy_mode: :public)
+    host_id = host.id
     viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
 
@@ -567,6 +635,21 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     session_id = Absinthe.Relay.Node.to_global_id(:live_session, session.id, LCGQL.Schema)
     context = %{current_scope: Accounts.scope_for_user(host)}
+    session_topic = "live_session:#{session.id}"
+
+    go_live_mutation = """
+    mutation GoLiveSession($liveSessionId: ID!) {
+      goLiveSession(input: {liveSessionId: $liveSessionId}) {
+        liveSession {
+          id
+          status
+        }
+        errors {
+          message
+        }
+      }
+    }
+    """
 
     mutation = """
     mutation EndLiveSession($liveSessionId: ID!) {
@@ -585,6 +668,40 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert {:ok,
             %{
               data: %{
+                "goLiveSession" => %{
+                  "liveSession" => %{"id" => ^session_id, "status" => "LIVE"},
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(
+               go_live_mutation,
+               LCGQL.Schema,
+               context: context,
+               variables: %{"liveSessionId" => session_id}
+             )
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "chat:message",
+      payload: %{
+        message: %{
+          body: "The live session started.",
+          sender_id: ^host_id,
+          inserted_at: go_live_inserted_at,
+          kind: "system_event",
+          status: "active",
+          moderated_at: nil,
+          metadata: %{"details" => %{}, "event_type" => "session_live"}
+        }
+      }
+    }
+
+    assert is_binary(go_live_inserted_at)
+
+    assert {:ok,
+            %{
+              data: %{
                 "endLiveSession" => %{
                   "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
                   "errors" => []
@@ -598,6 +715,23 @@ defmodule LCWeb.LiveSessionChannelTest do
                variables: %{"liveSessionId" => session_id}
              )
 
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "chat:message",
+      payload: %{
+        message: %{
+          body: "The live session ended.",
+          sender_id: ^host_id,
+          inserted_at: end_inserted_at,
+          kind: "system_event",
+          status: "active",
+          moderated_at: nil,
+          metadata: %{"details" => %{}, "event_type" => "session_ended"}
+        }
+      }
+    }
+
+    assert is_binary(end_inserted_at)
     assert_receive {:DOWN, ^monitor_ref, :process, _, _}
     assert :ok = wait_for_participant_left(session.id, viewer.id)
   end

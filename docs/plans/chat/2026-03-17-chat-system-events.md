@@ -14,10 +14,10 @@
 
 - Status: active
 - Track: `docs/plans/chat/TRACK.md`
-- Current batch: `Task 2`
+- Current batch: `Task 3`
 - Start after: `docs/plans/chat/2026-03-17-chat-moderation-actions.md` is complete unless dependencies are explicitly revalidated
 - Depends on: the shared Relay `ChatMessage` history surface created by the earlier chat slices
-- Advance to: this plan's `Task 2`, then `Task 3`
+- Advance to: this plan's `Task 3`
 
 ## Candidate Status Verification (2026-03-17)
 
@@ -48,7 +48,7 @@ Verified directly in active code and tests before writing this plan:
 ## Progress
 
 - [x] Task 1: Add a bounded system-event vocabulary and persistence API in `LC.Chat`
-- [ ] Task 2: Emit and broadcast lifecycle/moderation system events from existing adapters
+- [x] Task 2: Emit and broadcast lifecycle/moderation system events from existing adapters
 - [ ] Task 3: Expose typed system-event projections in GraphQL history and finalize verification
 
 ### Task 1: Add A Bounded System-Event Vocabulary And Persistence API In `LC.Chat`
@@ -128,13 +128,13 @@ git commit -m "feat: add bounded chat system event helpers"
 - Modify as needed: `test/integration/live_session_flow_test.exs`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing tests for `session_live` and `session_ended` system-event emission
-- [ ] Step 2: Add failing tests for moderation-triggered `message_removed` system events
-- [ ] Step 3: Run focused adapter/integration tests to verify RED
-- [ ] Step 4: Emit system events after successful live lifecycle and moderation transitions
-- [ ] Step 5: Broadcast persisted system events over the existing chat channel contract
-- [ ] Step 6: Re-run focused adapter/integration tests to verify GREEN
-- [ ] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing tests for `session_live` and `session_ended` system-event emission
+- [x] Step 2: Add failing tests for moderation-triggered `message_removed` system events
+- [x] Step 3: Run focused adapter/integration tests to verify RED
+- [x] Step 4: Emit system events after successful live lifecycle and moderation transitions
+- [x] Step 5: Broadcast persisted system events over the existing chat channel contract
+- [x] Step 6: Re-run focused adapter/integration tests to verify GREEN
+- [x] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 2 behavior targets:**
 

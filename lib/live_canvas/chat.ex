@@ -6,7 +6,7 @@ defmodule LC.Chat do
   use Boundary, deps: [LC.Infra, LC.Social, LCSchemas]
   import Ecto.Query, warn: false
 
-  alias LC.Chat.{History, SystemEvents}
+  alias LC.Chat.{Broadcasts, History, SystemEvents}
   alias LC.Chat.ChatMessage, as: ChatMessageChanges
   alias LC.Infra.Repo
   alias LC.Social
@@ -25,6 +25,7 @@ defmodule LC.Chat do
           | {:error, changeset() | :invalid_metadata | :not_authorized | :unknown_event_type}
   @type remove_message_result ::
           {:ok, ChatMessage.t()} | {:error, changeset() | :not_authorized | :not_found}
+  @type chat_transport_payload :: Broadcasts.message_payload()
 
   @doc """
   Authorizes whether the given viewer can join the provided live session topic.
@@ -177,6 +178,30 @@ defmodule LC.Chat do
   @doc false
   @spec run_query(Ecto.Query.t()) :: [term()]
   def run_query(query), do: Repo.all(query)
+
+  @doc """
+  Broadcasts a retained chat message over the shared live-session transport.
+  """
+  @spec broadcast_message(ChatMessage.t() | map()) :: :ok
+  def broadcast_message(chat_message) when is_map(chat_message) do
+    Broadcasts.broadcast_message(chat_message)
+  end
+
+  @doc """
+  Broadcasts an in-place retained chat message update over the shared transport.
+  """
+  @spec broadcast_message_update(ChatMessage.t() | map()) :: :ok
+  def broadcast_message_update(chat_message) when is_map(chat_message) do
+    Broadcasts.broadcast_message_update(chat_message)
+  end
+
+  @doc """
+  Builds the shared channel payload projection for a retained chat message.
+  """
+  @spec message_payload(ChatMessage.t() | map()) :: chat_transport_payload()
+  def message_payload(chat_message) when is_map(chat_message) do
+    Broadcasts.message_payload(chat_message)
+  end
 
   @spec active_host(pos_integer()) :: User.t() | nil
   defp active_host(host_id) when is_integer(host_id) do

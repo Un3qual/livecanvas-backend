@@ -2,8 +2,11 @@ defmodule LCGQL.Chat.ChatMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import Ecto.Query
 
   alias LC.{Accounts, Chat, Live}
+  alias LC.Infra.Repo
+  alias LCSchemas.Chat.ChatMessage
 
   describe "removeLiveChatMessage" do
     test "allows the session host to remove a viewer-authored message" do
@@ -38,6 +41,94 @@ defmodule LCGQL.Chat.ChatMutationsTest do
 
       assert is_binary(moderated_at)
       assert %{status: :removed} = Chat.get_history_message(host, message.id)
+    end
+
+    test "records and broadcasts one message_removed system event for the first removal" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      live_session_id = live_session.id
+      {:ok, message} = Chat.create_message(live_session, sender, %{body: "remove me"})
+      topic = "live_session:#{live_session.id}"
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
+
+      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "removeLiveChatMessage" => %{
+                    "chatMessage" => %{
+                      "id" => ^message_id,
+                      "body" => nil,
+                      "status" => "REMOVED",
+                      "moderatedAt" => moderated_at
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(remove_message_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageId" => message_id},
+                 context: context
+               )
+
+      assert is_binary(moderated_at)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "chat:message",
+        payload: %{
+          message: %{
+            id: system_event_id,
+            body: "A chat message was removed.",
+            sender_id: sender_id,
+            inserted_at: inserted_at,
+            kind: "system_event",
+            status: "active",
+            moderated_at: nil,
+            metadata: %{
+              "details" => %{
+                "chat_message_entropy_id" => chat_message_entropy_id,
+                "chat_message_id" => chat_message_id
+              },
+              "event_type" => "message_removed"
+            }
+          }
+        }
+      }
+
+      assert is_integer(system_event_id)
+      assert sender_id == host.id
+      assert is_binary(inserted_at)
+      assert chat_message_id == message.id
+      assert chat_message_entropy_id == message.entropy_id
+
+      assert [
+               %ChatMessage{
+                 id: ^system_event_id,
+                 live_session_id: ^live_session_id,
+                 sender_id: ^sender_id,
+                 body: "A chat message was removed.",
+                 kind: :system_event,
+                 status: :active,
+                 metadata: %{
+                   "details" => %{
+                     "chat_message_entropy_id" => ^chat_message_entropy_id,
+                     "chat_message_id" => ^chat_message_id
+                   },
+                   "event_type" => "message_removed"
+                 }
+               }
+             ] =
+               from(chat_message in ChatMessage,
+                 where:
+                   chat_message.live_session_id == ^live_session.id and
+                     chat_message.kind == :system_event,
+                 order_by: [asc: chat_message.inserted_at, asc: chat_message.id]
+               )
+               |> Repo.all()
     end
 
     test "returns not_authorized when the sender is not the session host" do
@@ -131,6 +222,14 @@ defmodule LCGQL.Chat.ChatMutationsTest do
                  variables: %{"chatMessageId" => message_id},
                  context: context
                )
+
+      assert 1 ==
+               from(chat_message in ChatMessage,
+                 where:
+                   chat_message.live_session_id == ^live_session.id and
+                     chat_message.kind == :system_event
+               )
+               |> Repo.aggregate(:count)
     end
   end
 
