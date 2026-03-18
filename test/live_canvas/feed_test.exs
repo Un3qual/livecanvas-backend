@@ -5,7 +5,8 @@ defmodule LC.FeedTest do
   import LC.ContentFixtures
   import LC.SocialFixtures
 
-  alias LC.{Accounts, Content, Feed, Live, Social}
+  alias LC.{Accounts, Content, Feed, Live, ReadPolicy, Social}
+  alias LCSchemas.Content.Post
   alias LCSchemas.Live.LiveSession, as: LiveSessionSchema
 
   describe "home_feed/2" do
@@ -86,6 +87,68 @@ defmodule LC.FeedTest do
       assert [first_post, second_post] = Feed.home_feed(viewer, limit: 10)
       assert first_post.id == public_post.id
       assert second_post.id == followed_post.id
+    end
+  end
+
+  describe "viewer_visible_query/3" do
+    test "applies the home feed visibility matrix to post queries" do
+      viewer = user_fixture()
+      followed_creator = user_fixture()
+      public_creator = user_fixture(privacy_mode: :public)
+      blocked_creator = user_fixture(privacy_mode: :public)
+      muted_creator = user_fixture(privacy_mode: :public)
+      reverse_muter = user_fixture(privacy_mode: :public)
+
+      _follow = accepted_follow_fixture(viewer, followed_creator)
+      {:ok, _block} = Social.block_user(blocked_creator, viewer)
+      _mute = mute_fixture(viewer, muted_creator)
+      _reverse_mute = mute_fixture(reverse_muter, viewer)
+
+      {:ok, followed_post} =
+        Content.create_post(followed_creator, %{kind: :standard, body_text: "followers-visible"})
+
+      {:ok, public_post} =
+        Content.create_post(public_creator, %{
+          kind: :standard,
+          body_text: "public-visible",
+          visibility: :public
+        })
+
+      {:ok, _blocked_post} =
+        Content.create_post(blocked_creator, %{
+          kind: :standard,
+          body_text: "blocked-hidden",
+          visibility: :public
+        })
+
+      {:ok, _muted_post} =
+        Content.create_post(muted_creator, %{
+          kind: :standard,
+          body_text: "muted-hidden",
+          visibility: :public
+        })
+
+      {:ok, reverse_muted_post} =
+        Content.create_post(reverse_muter, %{
+          kind: :standard,
+          body_text: "reverse-mute-visible",
+          visibility: :public
+        })
+
+      assert Code.ensure_loaded?(ReadPolicy)
+
+      helper_post_ids =
+        Post
+        |> ReadPolicy.viewer_visible_query(viewer,
+          owner_key: :author_id,
+          visibility_key: :visibility
+        )
+        |> order_by([post], desc: post.inserted_at, desc: post.id)
+        |> Repo.all()
+        |> Enum.map(& &1.id)
+
+      assert helper_post_ids == [reverse_muted_post.id, public_post.id, followed_post.id]
+      assert helper_post_ids == Feed.home_feed(viewer, limit: 10) |> Enum.map(& &1.id)
     end
   end
 
