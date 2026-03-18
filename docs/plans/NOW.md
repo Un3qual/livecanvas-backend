@@ -7,24 +7,24 @@ Status: active
 
 - Track: `live`
 - Plan: `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md`
-- Batch: `Task 1: Add replay discovery query primitives in Feed`
-- Why now: durable recording linkage is complete, so the next unblocked product batch is replay discovery over ended sessions with linked recordings.
+- Batch: `Task 2: Expose replayFeed and harden Relay live-session fetches`
+- Why now: Feed now exposes replay discovery primitives, so the next unblocked batch is wiring them through GraphQL and closing the live-session Relay auth gap.
 
 ## Do This Now
 
-- Add failing `LC.Feed` tests for replay visibility, ordering, and exclusion of unrecorded or unauthorized sessions.
-- Implement `LC.Feed.replay_feed/2` and `LC.Feed.replay_feed_query/1` for visible ended sessions with linked recordings.
-- Run the task verification commands, update `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md`, and commit the milestone.
+- Add failing GraphQL tests for `replayFeed` and failing Relay node tests for unauthorized `LiveSession` refetches.
+- Implement the `replayFeed` connection in GraphQL and re-apply viewer authorization in `LiveSession` node fetches.
+- Run the Task 2 verification commands, update `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md`, and commit the milestone.
 
 ## Verification Scope
 
 ```bash
-mix test test/live_canvas/feed_test.exs
+mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs
 ```
 
 ## Next Up
 
-- Expose `replayFeed` in GraphQL and lock Relay `LiveSession` node refetch to viewer-scoped visibility rules.
+- Run final verification for the touched Feed and GraphQL suites and refresh the live replay tracking docs.
 
 ## Repair Conditions
 
