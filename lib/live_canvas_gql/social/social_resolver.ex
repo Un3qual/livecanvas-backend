@@ -224,18 +224,14 @@ defmodule LCGQL.Social.Resolver do
 
   def follow_request_requested_at(_follow_request, _args, _resolution), do: {:ok, ""}
 
-  @spec follow_request_follower(map(), map(), Absinthe.Resolution.t()) :: {:ok, map() | nil}
+  @spec follow_request_follower(map(), map(), Absinthe.Resolution.t()) ::
+          LCGQL.Dataloader.dataloader_result()
   def follow_request_follower(%{follower: %{id: _id} = follower}, _args, _resolution),
     do: {:ok, follower}
 
-  def follow_request_follower(%{follower_id: follower_id}, _args, _resolution)
-      when is_integer(follower_id) do
-    try do
-      {:ok, Accounts.get_user!(follower_id)}
-    rescue
-      Ecto.NoResultsError -> {:ok, nil}
-    end
-  end
+  def follow_request_follower(%{follower_id: follower_id} = follow_request, _args, resolution)
+      when is_integer(follower_id),
+      do: LCGQL.Dataloader.load_assoc(follow_request, :follower, Accounts, resolution)
 
   def follow_request_follower(_follow_request, _args, _resolution), do: {:ok, nil}
 

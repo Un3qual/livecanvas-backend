@@ -3,7 +3,6 @@ defmodule LCGQL.Content.Resolver do
 
   alias LC.{Accounts, Content}
   alias LCGQL.Relay
-  alias LCSchemas.Accounts.User
   alias LCSchemas.Content.{MediaAsset, Post}
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
@@ -195,14 +194,11 @@ defmodule LCGQL.Content.Resolver do
 
   def media_asset_public_url(_media_asset, _args, _resolution), do: {:ok, nil}
 
-  @spec author(map(), map(), Absinthe.Resolution.t()) :: {:ok, User.t() | nil}
-  def author(%{author_id: author_id}, _args, _resolution) when is_integer(author_id) do
-    try do
-      {:ok, Accounts.get_user!(author_id)}
-    rescue
-      Ecto.NoResultsError -> {:ok, nil}
-    end
-  end
+  @spec author(map(), map(), Absinthe.Resolution.t()) :: LCGQL.Dataloader.dataloader_result()
+  def author(%{author: %{id: _id} = author}, _args, _resolution), do: {:ok, author}
+
+  def author(%{author_id: author_id} = post, _args, resolution) when is_integer(author_id),
+    do: LCGQL.Dataloader.load_assoc(post, :author, Accounts, resolution)
 
   def author(_post, _args, _resolution), do: {:ok, nil}
 

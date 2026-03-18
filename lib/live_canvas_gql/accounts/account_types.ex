@@ -104,7 +104,11 @@ defmodule LCGQL.Accounts.Types do
     end
 
     field :uid, non_null(:string)
-    # field :user, non_null(:user), resolve: dataloader(User)
+
+    field :user, non_null(:user) do
+      resolve(&Resolver.user_identity_user/3)
+    end
+
     field :inserted_at, non_null(:string)
   end
 

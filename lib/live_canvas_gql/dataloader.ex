@@ -18,6 +18,7 @@ defmodule LCGQL.Dataloader do
           required(:auth_error) => LCGQL.Context.auth_error(),
           required(:request_ref) => reference()
         }
+  @type dataloader_result :: {:ok, term() | nil} | Absinthe.Resolution.Helpers.dataloader_tuple()
 
   @spec new(request_context()) :: Dataloader.t()
   def new(context) when is_map(context) do
@@ -39,4 +40,16 @@ defmodule LCGQL.Dataloader do
     # isolated loader state even when viewer scope/auth metadata are identical.
     Dataloader.Ecto.new(Repo, default_params: source_context)
   end
+
+  @spec load_assoc(map(), atom(), module(), Absinthe.Resolution.t()) :: dataloader_result()
+  def load_assoc(parent, association, source, %{context: %{loader: loader}})
+      when is_map(parent) and is_atom(association) and is_atom(source) do
+    loader
+    |> Dataloader.load(source, association, parent)
+    |> Absinthe.Resolution.Helpers.on_load(fn loader ->
+      {:ok, Dataloader.get(loader, source, association, parent)}
+    end)
+  end
+
+  def load_assoc(_parent, _association, _source, _resolution), do: {:ok, nil}
 end
