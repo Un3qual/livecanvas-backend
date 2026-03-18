@@ -329,6 +329,40 @@ defmodule LC.LiveTest do
                errors_on(changeset)
     end
 
+    test "keeps the session runtime running when end validation fails" do
+      host = user_fixture()
+      other_user = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(other_user, %{
+                 storage_key: "uploads/users/#{other_user.id}/foreign-runtime-recording.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :uploaded
+               })
+
+      assert {:ok, pid} = Live.lookup_session_server(session.id)
+      assert Process.alive?(pid)
+      monitor_ref = Process.monitor(pid)
+
+      assert {:error, changeset} =
+               Live.end_live_session(session, %{
+                 ended_reason: :host_ended,
+                 recording_media_asset_id: recording_asset.id
+               })
+
+      assert %{recording_media_asset_id: ["must belong to the session host"]} =
+               errors_on(changeset)
+
+      refute_receive {:DOWN, ^monitor_ref, :process, ^pid, _reason}, 100
+      assert {:ok, same_pid} = Live.lookup_session_server(session.id)
+      assert same_pid == pid
+      assert Process.alive?(same_pid)
+
+      assert %LiveSession{status: :starting, recording_media_asset_id: nil} =
+               Live.get_live_session!(session.id)
+    end
+
     test "rejects linking a pending-upload recording asset" do
       host = user_fixture()
       {:ok, session} = Live.start_live_session(host, %{visibility: :followers})

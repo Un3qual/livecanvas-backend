@@ -172,14 +172,16 @@ defmodule LC.Live do
       end
 
     :ok =
-      maybe_stop_session_server(
-        case result do
-          {:ok, %LiveSession{}, true} -> 1
-          {:ok, %LiveSession{}, false} -> 0
-          {:error, _reason} -> 0
-        end,
-        session_id
-      )
+      case result do
+        {:ok, %LiveSession{}, true} ->
+          maybe_stop_session_server(1, session_id)
+
+        {:ok, %LiveSession{}, false} ->
+          maybe_stop_session_server(0, session_id)
+
+        {:error, _reason} ->
+          :ok
+      end
 
     :ok = emit_live_session_telemetry(:end, %{session_id: session_id}, normalize_transition_result(result))
     result
