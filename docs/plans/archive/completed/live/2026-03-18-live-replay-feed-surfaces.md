@@ -12,11 +12,11 @@
 
 ## Execution Summary
 
-- Status: active
+- Status: completed
 - Track: `docs/plans/live/TRACK.md`
-- Current batch: `Task 3`
+- Completed on: `2026-03-18`
 - Depends on: `docs/plans/archive/completed/live/2026-03-17-live-session-recording-linkage.md`
-- Advance to: refresh plan tracking and select the next live batch from the track
+- Advanced to: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 1`
 
 ## Candidate Status Verification (2026-03-18)
 
@@ -43,7 +43,7 @@ Verified directly in active code and tests before writing this plan:
 
 - [x] Task 1: Add replay discovery query primitives in Feed
 - [x] Task 2: Expose replayFeed and harden Relay live-session fetches
-- [ ] Task 3: Run final verification and refresh tracking
+- [x] Task 3: Run final verification and refresh tracking
 
 ### Task 1: Add Replay Discovery Query Primitives In Feed
 
@@ -105,7 +105,7 @@ Expected: PASS.
 Step 6 commit:
 
 ```bash
-git add lib/live_canvas/feed.ex test/live_canvas/feed_test.exs docs/plans/live/2026-03-18-live-replay-feed-surfaces.md
+git add lib/live_canvas/feed.ex test/live_canvas/feed_test.exs docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md
 git commit -m "feat: add replay feed query primitives"
 ```
 
@@ -172,23 +172,23 @@ Expected: PASS.
 Step 6 commit:
 
 ```bash
-git add lib/live_canvas_gql/feed/feed_queries.ex lib/live_canvas_gql/feed/feed_resolver.ex lib/live_canvas_gql/schema.ex test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs docs/plans/live/2026-03-18-live-replay-feed-surfaces.md
+git add lib/live_canvas_gql/feed/feed_queries.ex lib/live_canvas_gql/feed/feed_resolver.ex lib/live_canvas_gql/schema.ex test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md
 git commit -m "feat: expose replay feed discovery"
 ```
 
 ### Task 3: Run Final Verification And Refresh Tracking
 
 **Files:**
-- Modify: `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md`
+- Modify: `docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md`
 - Modify: `docs/plans/live/TRACK.md`
 - Modify: `docs/plans/INDEX.md`
 - Modify: `docs/plans/NOW.md`
 - Modify: `docs/plans/README.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Run final verification on the touched Feed and GraphQL suites
-- [ ] Step 2: Update plan, track, index, and `NOW.md` tracking based on the next unblocked batch
-- [ ] Step 3: Commit the milestone
+- [x] Step 1: Run final verification on the touched Feed and GraphQL suites
+- [x] Step 2: Update plan, track, index, and `NOW.md` tracking based on the next unblocked batch
+- [x] Step 3: Commit the milestone
 
 **Task 3 verification commands:**
 
@@ -203,6 +203,6 @@ Expected: PASS.
 Step 3 commit:
 
 ```bash
-git add docs/plans/live/2026-03-18-live-replay-feed-surfaces.md docs/plans/live/TRACK.md docs/plans/INDEX.md docs/plans/NOW.md docs/plans/README.md
+git add docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md docs/plans/live/TRACK.md docs/plans/INDEX.md docs/plans/NOW.md docs/plans/README.md
 git commit -m "docs: track live replay feed work"
 ```

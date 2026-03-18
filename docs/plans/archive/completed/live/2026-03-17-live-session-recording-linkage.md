@@ -16,7 +16,7 @@
 - Track: `docs/plans/live/TRACK.md`
 - Current batch: complete
 - Depends on: completed media upload/finalize pipeline and existing Relay `live_session` / `media_asset` nodes
-- Advance to: `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md` -> `Task 1`
+- Advance to: `docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md` -> `Task 1`
 
 ## Candidate Status Verification (2026-03-17)
 
