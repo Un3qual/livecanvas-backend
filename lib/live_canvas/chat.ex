@@ -25,6 +25,9 @@ defmodule LC.Chat do
           | {:error, changeset() | :invalid_metadata | :not_authorized | :unknown_event_type}
   @type remove_message_result ::
           {:ok, ChatMessage.t()} | {:error, changeset() | :not_authorized | :not_found}
+  @type remove_message_transition_result ::
+          {:ok, ChatMessage.t(), boolean()}
+          | {:error, changeset() | :not_authorized | :not_found}
   @type chat_transport_payload :: Broadcasts.message_payload()
 
   @doc """
@@ -166,9 +169,22 @@ defmodule LC.Chat do
   @spec remove_message(ChatMessage.t(), User.t()) :: remove_message_result()
   def remove_message(%ChatMessage{id: message_id}, %User{id: actor_id})
       when is_integer(message_id) and is_integer(actor_id) do
+    case remove_message_with_transition(%ChatMessage{id: message_id}, %User{id: actor_id}) do
+      {:ok, chat_message, _transitioned?} -> {:ok, chat_message}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  @doc """
+  Marks a retained chat message as removed and reports whether this call won the
+  persisted moderation state transition.
+  """
+  @spec remove_message_with_transition(ChatMessage.t(), User.t()) :: remove_message_transition_result()
+  def remove_message_with_transition(%ChatMessage{id: message_id}, %User{id: actor_id})
+      when is_integer(message_id) and is_integer(actor_id) do
     with %ChatMessage{} = chat_message <- removable_message_query(message_id) |> Repo.one(),
          :ok <- authorize_message_removal(chat_message, actor_id) do
-      finalize_message_removal(chat_message, actor_id)
+      finalize_message_removal_with_transition(chat_message, actor_id)
     else
       nil -> {:error, :not_found}
       {:error, _reason} = error -> error
@@ -266,26 +282,31 @@ defmodule LC.Chat do
     end
   end
 
-  @spec finalize_message_removal(ChatMessage.t(), pos_integer()) :: remove_message_result()
-  defp finalize_message_removal(%ChatMessage{status: :removed} = chat_message, _actor_id),
-    do: {:ok, chat_message}
+  @spec finalize_message_removal_with_transition(ChatMessage.t(), pos_integer()) ::
+          remove_message_transition_result()
+  defp finalize_message_removal_with_transition(
+         %ChatMessage{status: :removed} = chat_message,
+         _actor_id
+       ),
+       do: {:ok, chat_message, false}
 
-  defp finalize_message_removal(%ChatMessage{id: message_id}, actor_id)
+  defp finalize_message_removal_with_transition(%ChatMessage{id: message_id}, actor_id)
        when is_integer(message_id) and is_integer(actor_id) do
     moderated_at = now_utc()
 
     # Competing host removals can race after both readers observe `:active`, so
     # keep the state transition in one conditional update and then reload the
     # row. Later contenders reuse the first persisted moderation timestamp.
-    from(chat_message in ChatMessage,
-      where: chat_message.id == ^message_id and chat_message.status != :removed
-    )
-    |> Repo.update_all(
-      set: [status: :removed, moderated_at: moderated_at, moderated_by_id: actor_id]
-    )
+    {updated_count, _} =
+      from(chat_message in ChatMessage,
+        where: chat_message.id == ^message_id and chat_message.status != :removed
+      )
+      |> Repo.update_all(
+        set: [status: :removed, moderated_at: moderated_at, moderated_by_id: actor_id]
+      )
 
     case removable_message_query(message_id) |> Repo.one() do
-      %ChatMessage{} = chat_message -> {:ok, chat_message}
+      %ChatMessage{} = chat_message -> {:ok, chat_message, updated_count == 1}
       nil -> {:error, :not_found}
     end
   end

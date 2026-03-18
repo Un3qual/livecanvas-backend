@@ -48,13 +48,13 @@ defmodule LCGQL.Chat.Resolver do
       ) do
     with {:ok, decoded_id} <- Relay.decode_global_id(chat_message_id, :chat_message, LCGQL.Schema),
          %{} = chat_message <- Chat.get_history_message(viewer, decoded_id),
-         {:ok, removed_message} <- Chat.remove_message(chat_message, viewer) do
+         {:ok, removed_message, transitioned?} <- Chat.remove_message_with_transition(chat_message, viewer) do
       # Durable redaction fixes future history reads, but joined viewers keep
       # rendering the original channel event until they reconcile an update.
       :ok = Chat.broadcast_message_update(removed_message)
       # Emit from the moderation adapter after the state transition succeeds so
       # `LC.Chat` stays responsible for persistence without owning its callers.
-      :ok = maybe_broadcast_removal_system_event(chat_message, removed_message, viewer)
+      :ok = maybe_broadcast_removal_system_event(removed_message, transitioned?, viewer)
       {:ok, %{chat_message: removed_message, errors: []}}
     else
       nil ->
@@ -123,24 +123,17 @@ defmodule LCGQL.Chat.Resolver do
   defp visible_body(chat_message) when is_map(chat_message), do: Map.get(chat_message, :body)
 
   defp maybe_broadcast_removal_system_event(
-         %{live_session: live_session} = original_message,
-         removed_message,
+         %{live_session: live_session} = removed_message,
+         true,
          viewer
        )
-       when is_map(live_session) and is_map(removed_message) and is_map(viewer) do
-    if removed_message?(original_message) do
-      :ok
-    else
-      live_session
-      |> Chat.record_system_event(:message_removed, actor: viewer, metadata: %{chat_message: removed_message})
-      |> broadcast_system_event()
-    end
+       when is_map(live_session) and is_map(viewer) do
+    live_session
+    |> Chat.record_system_event(:message_removed, actor: viewer, metadata: %{chat_message: removed_message})
+    |> broadcast_system_event()
   end
 
-  defp maybe_broadcast_removal_system_event(_original_message, _removed_message, _viewer), do: :ok
-
-  defp removed_message?(%{status: :removed}), do: true
-  defp removed_message?(_chat_message), do: false
+  defp maybe_broadcast_removal_system_event(_removed_message, _transitioned?, _viewer), do: :ok
 
   defp broadcast_system_event({:ok, system_event}), do: Chat.broadcast_message(system_event)
   defp broadcast_system_event({:error, _reason}), do: :ok
