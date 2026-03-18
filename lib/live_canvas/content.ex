@@ -157,6 +157,22 @@ defmodule LC.Content do
   end
 
   @doc """
+  Gets a durable media asset that is safe to expose from an ended live session.
+  """
+  @spec get_live_recording_media_asset(pos_integer()) :: MediaAssetSchema.t() | nil
+  def get_live_recording_media_asset(media_asset_id)
+      when is_integer(media_asset_id) and media_asset_id > 0 do
+    from(media_asset in MediaAssetSchema,
+      where:
+        media_asset.id == ^media_asset_id and
+          media_asset.processing_state in [:uploaded, :processed]
+    )
+    |> Repo.one()
+  end
+
+  def get_live_recording_media_asset(_media_asset_id), do: nil
+
+  @doc """
   Fetches an owner-owned media asset that is durable enough to link as a live recording.
   """
   @spec fetch_live_recording_media_asset(pos_integer(), pos_integer(), live_recording_media_asset_opts()) ::

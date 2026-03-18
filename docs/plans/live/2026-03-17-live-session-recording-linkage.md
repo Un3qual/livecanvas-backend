@@ -14,9 +14,9 @@
 
 - Status: active
 - Track: `docs/plans/live/TRACK.md`
-- Current batch: `Task 2`
+- Current batch: `Task 3`
 - Depends on: completed media upload/finalize pipeline and existing Relay `live_session` / `media_asset` nodes
-- Advance to: this plan's `Task 2`
+- Advance to: this plan's `Task 3`
 
 ## Candidate Status Verification (2026-03-17)
 
@@ -42,7 +42,7 @@ Verified directly in active code and tests before writing this plan:
 ## Progress
 
 - [x] Task 1: Add durable recording linkage storage and end-session validation
-- [ ] Task 2: Expose recording linkage through GraphQL live-session surfaces
+- [x] Task 2: Expose recording linkage through GraphQL live-session surfaces
 - [ ] Task 3: Run final verification and refresh tracking
 
 ### Task 1: Add Durable Recording Linkage Storage And End-Session Validation
@@ -125,12 +125,12 @@ git commit -m "feat: link recordings to ended live sessions"
 - Modify as needed: `test/live_canvas_gql/feed/feed_queries_test.exs`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL mutation tests for `endLiveSession(recordingMediaAssetId:)`
-- [ ] Step 2: Add failing Relay node tests for `LiveSession.recordingMediaAsset`
-- [ ] Step 3: Run focused GraphQL live and relay tests to verify RED
-- [ ] Step 4: Expose `recordingMediaAsset` on `LiveSession` and wire `recordingMediaAssetId` through `endLiveSession`
-- [ ] Step 5: Re-run focused GraphQL live and relay tests to verify GREEN
-- [ ] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing GraphQL mutation tests for `endLiveSession(recordingMediaAssetId:)`
+- [x] Step 2: Add failing Relay node tests for `LiveSession.recordingMediaAsset`
+- [x] Step 3: Run focused GraphQL live and relay tests to verify RED
+- [x] Step 4: Expose `recordingMediaAsset` on `LiveSession` and wire `recordingMediaAssetId` through `endLiveSession`
+- [x] Step 5: Re-run focused GraphQL live and relay tests to verify GREEN
+- [x] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 2 behavior targets:**
 

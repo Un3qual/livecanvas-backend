@@ -60,6 +60,7 @@ defmodule LCGQL.Live.Mutations do
     payload field :end_live_session do
       input do
         field :live_session_id, non_null(:id)
+        field :recording_media_asset_id, :id
       end
 
       output do

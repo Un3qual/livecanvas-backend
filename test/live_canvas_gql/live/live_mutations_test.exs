@@ -4,7 +4,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
   import LC.AccountsFixtures
   import Ecto.Query
 
-  alias LC.{Accounts, Live}
+  alias LC.{Accounts, Content, Live}
   alias LC.Infra.Repo
   alias LCSchemas.{Chat.ChatMessage, Live.LiveParticipant, Live.LiveSession}
 
@@ -482,6 +482,255 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
       persisted = Live.get_live_session!(first_end.id)
       assert persisted.ended_at == first_end.ended_at
+    end
+
+    test "links a host-owned recording asset through endLiveSession" do
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(host, %{
+                 storage_key: "uploads/users/#{host.id}/graphql-recording.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :uploaded
+               })
+
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      recording_media_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, recording_asset.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      mutation = """
+      mutation EndLiveSession($liveSessionId: ID!, $recordingMediaAssetId: ID) {
+        endLiveSession(
+          input: {
+            liveSessionId: $liveSessionId
+            recordingMediaAssetId: $recordingMediaAssetId
+          }
+        ) {
+          liveSession {
+            id
+            status
+            recordingMediaAsset {
+              id
+              processingState
+              publicUrl
+            }
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok, expected_public_url} =
+               LC.Infra.ObjectStorage.public_asset_url(recording_asset.storage_key)
+
+      expected_recording_media_asset_local_id = recording_asset.id
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => %{
+                      "id" => ^session_id,
+                      "status" => "ENDED",
+                      "recordingMediaAsset" => %{
+                        "id" => ^recording_media_asset_id,
+                        "processingState" => "UPLOADED",
+                        "publicUrl" => returned_public_url
+                      }
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{
+                   "liveSessionId" => session_id,
+                   "recordingMediaAssetId" => recording_media_asset_id
+                 }
+               )
+
+      assert returned_public_url == expected_public_url
+
+      assert %{recording_media_asset_id: ^expected_recording_media_asset_local_id} =
+               Live.get_live_session!(started_session.id)
+    end
+
+    test "returns structured invalid-id errors for non-media-asset recording IDs" do
+      host = user_fixture()
+      other_user = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+      invalid_recording_id = Absinthe.Relay.Node.to_global_id(:user, other_user.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      mutation = """
+      mutation EndLiveSession($liveSessionId: ID!, $recordingMediaAssetId: ID) {
+        endLiveSession(
+          input: {
+            liveSessionId: $liveSessionId
+            recordingMediaAssetId: $recordingMediaAssetId
+          }
+        ) {
+          liveSession {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [%{"field" => "recordingMediaAssetId", "message" => "is invalid"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{
+                   "liveSessionId" => session_id,
+                   "recordingMediaAssetId" => invalid_recording_id
+                 }
+               )
+    end
+
+    test "returns mutation errors when the recording asset belongs to another user" do
+      host = user_fixture()
+      other_user = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(other_user, %{
+                 storage_key: "uploads/users/#{other_user.id}/graphql-foreign-recording.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :uploaded
+               })
+
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      recording_media_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, recording_asset.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      mutation = """
+      mutation EndLiveSession($liveSessionId: ID!, $recordingMediaAssetId: ID) {
+        endLiveSession(
+          input: {
+            liveSessionId: $liveSessionId
+            recordingMediaAssetId: $recordingMediaAssetId
+          }
+        ) {
+          liveSession {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [
+                      %{
+                        "field" => "recordingMediaAssetId",
+                        "message" => "must belong to the session host"
+                      }
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{
+                   "liveSessionId" => session_id,
+                   "recordingMediaAssetId" => recording_media_asset_id
+                 }
+               )
+    end
+
+    test "returns mutation errors when the recording asset is not uploaded or processed" do
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, %{media_asset: recording_asset}} =
+               Content.request_media_upload(host, %{mime_type: "video/mp4"})
+
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      recording_media_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, recording_asset.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      mutation = """
+      mutation EndLiveSession($liveSessionId: ID!, $recordingMediaAssetId: ID) {
+        endLiveSession(
+          input: {
+            liveSessionId: $liveSessionId
+            recordingMediaAssetId: $recordingMediaAssetId
+          }
+        ) {
+          liveSession {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [
+                      %{
+                        "field" => "recordingMediaAssetId",
+                        "message" => "must be uploaded or processed"
+                      }
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{
+                   "liveSessionId" => session_id,
+                   "recordingMediaAssetId" => recording_media_asset_id
+                 }
+               )
     end
 
     test "broadcasts one disconnect when concurrent end requests race" do
