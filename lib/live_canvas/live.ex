@@ -136,47 +136,50 @@ defmodule LC.Live do
 
   @spec end_live_session_with_transition(persisted_live_session(), map()) ::
           end_live_session_transition_result()
-  def end_live_session_with_transition(%LiveSession{id: session_id} = live_session, attrs)
+  def end_live_session_with_transition(%LiveSession{id: session_id}, attrs)
       when is_integer(session_id) and is_map(attrs) do
     now = now_utc()
-
-    changeset =
-      live_session
-      |> LiveSessionChanges.end_changeset(attrs, now)
-      |> validate_recording_media_asset(live_session.host_id)
-
+    # Lock the session row before validating the optional recording so a
+    # concurrent asset delete cannot slip between validation and persistence.
     result =
-      if changeset.valid? do
-        ended_reason = Ecto.Changeset.get_field(changeset, :ended_reason)
-        recording_media_asset_id = Ecto.Changeset.get_field(changeset, :recording_media_asset_id)
+      case Repo.transact(fn ->
+             case lock_live_session_for_end(session_id) do
+               nil ->
+                 Repo.rollback(:not_found)
 
-        query =
-          from(persisted_session in LiveSession,
-            where: persisted_session.id == ^session_id and persisted_session.status != :ended,
-            update: [
-              set: [
-                status: :ended,
-                ended_at: ^now,
-                ended_reason: ^ended_reason,
-                # Preserve the first durable recording linkage if end is retried.
-                recording_media_asset_id:
-                  fragment(
-                    "coalesce(?, ?)",
-                    persisted_session.recording_media_asset_id,
-                    type(^recording_media_asset_id, :integer)
-                  )
-              ]
-            ]
-          )
+               %LiveSession{status: :ended} = ended_session ->
+                 {:ok, {ended_session, false}}
 
-        {updated_count, _} = Repo.update_all(query, [])
+               %LiveSession{} = persisted_session ->
+                 changeset =
+                   persisted_session
+                   |> LiveSessionChanges.end_changeset(attrs, now)
+                   |> validate_recording_media_asset(persisted_session.host_id, lock: :for_update)
 
-        ended_session = Repo.get!(LiveSession, session_id)
-        :ok = maybe_stop_session_server(updated_count, session_id)
-        {:ok, ended_session, updated_count == 1}
-      else
-        {:error, changeset}
+                 if changeset.valid? do
+                   {:ok, ended_session} = Repo.update(changeset)
+                   {:ok, {ended_session, true}}
+                 else
+                   Repo.rollback(changeset)
+                 end
+             end
+           end) do
+        {:ok, {ended_session, transitioned?}} ->
+          {:ok, ended_session, transitioned?}
+
+        {:error, reason} ->
+          {:error, reason}
       end
+
+    :ok =
+      maybe_stop_session_server(
+        case result do
+          {:ok, %LiveSession{}, true} -> 1
+          {:ok, %LiveSession{}, false} -> 0
+          {:error, _reason} -> 0
+        end,
+        session_id
+      )
 
     :ok = emit_live_session_telemetry(:end, %{session_id: session_id}, normalize_transition_result(result))
     result
@@ -333,15 +336,16 @@ defmodule LC.Live do
     end
   end
 
-  @spec validate_recording_media_asset(Ecto.Changeset.t(), pos_integer() | nil) ::
+  @spec validate_recording_media_asset(Ecto.Changeset.t(), pos_integer() | nil, keyword()) ::
           Ecto.Changeset.t()
-  defp validate_recording_media_asset(changeset, host_id) when is_integer(host_id) do
+  defp validate_recording_media_asset(changeset, host_id, opts)
+       when is_integer(host_id) and is_list(opts) do
     case Ecto.Changeset.get_field(changeset, :recording_media_asset_id) do
       nil ->
         changeset
 
       recording_media_asset_id ->
-        case Content.fetch_live_recording_media_asset(host_id, recording_media_asset_id) do
+        case Content.fetch_live_recording_media_asset(host_id, recording_media_asset_id, opts) do
           {:ok, _media_asset} ->
             changeset
 
@@ -362,8 +366,17 @@ defmodule LC.Live do
     end
   end
 
-  defp validate_recording_media_asset(changeset, _host_id) do
+  defp validate_recording_media_asset(changeset, _host_id, _opts) do
     Ecto.Changeset.add_error(changeset, :recording_media_asset_id, "must belong to the session host")
+  end
+
+  @spec lock_live_session_for_end(pos_integer()) :: LiveSession.t() | nil
+  defp lock_live_session_for_end(session_id) when is_integer(session_id) do
+    from(live_session in LiveSession,
+      where: live_session.id == ^session_id,
+      lock: "FOR UPDATE"
+    )
+    |> Repo.one()
   end
 
   defp upsert_live_participant(session_id, user_id, role, now) do
@@ -605,7 +618,7 @@ defmodule LC.Live do
   @type live_session_event_result ::
           {:ok, LiveParticipant.t() | LiveSession.t()} | {:error, term()}
 
-  @spec maybe_stop_session_server(non_neg_integer(), pos_integer()) :: :ok
+  @spec maybe_stop_session_server(0 | 1, pos_integer()) :: :ok
   defp maybe_stop_session_server(_updated_count, session_id) when is_integer(session_id),
     do: SessionSupervisor.stop_session_server(session_id)
 
