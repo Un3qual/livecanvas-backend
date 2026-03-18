@@ -31,6 +31,31 @@ defmodule LC.Feed do
   end
 
   @doc """
+  Returns one post when it is visible to the provided viewer or publicly visible.
+  """
+  @spec get_visible_post(User.t() | nil, pos_integer()) :: Post.t() | nil
+  def get_visible_post(%User{} = viewer, post_id)
+      when is_integer(post_id) and post_id > 0 do
+    viewer
+    |> home_feed_query()
+    |> where([post], post.id == ^post_id)
+    |> Repo.one()
+  end
+
+  def get_visible_post(nil, post_id) when is_integer(post_id) and post_id > 0 do
+    # Anonymous reads are limited to public posts from active authors so Relay
+    # IDs and top-level post lookups cannot bypass follower visibility.
+    from(post in Post,
+      join: author in User,
+      on: author.id == post.author_id,
+      where: post.id == ^post_id and is_nil(author.suspended_at) and post.visibility == :public
+    )
+    |> Repo.one()
+  end
+
+  def get_visible_post(_viewer, _post_id), do: nil
+
+  @doc """
   Returns a deterministic query for the viewer's visible home feed.
   """
   @spec home_feed_query(User.t()) :: Ecto.Query.t()
