@@ -232,6 +232,94 @@ defmodule LCGQL.Chat.ChatQueriesTest do
                  context: context
                )
     end
+
+    test "returns mixed user and system messages with typed system-event projections" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, first_message} = Chat.create_message(live_session, viewer, %{body: "first"})
+
+      {:ok, system_event} =
+        Chat.record_system_event(live_session, :message_removed,
+          actor: host,
+          metadata: %{chat_message: first_message}
+        )
+
+      {:ok, third_message} = Chat.create_message(live_session, host, %{body: "third"})
+      {:ok, ended_session} = Live.end_live_session(live_session)
+
+      shared_time = ~U[2026-03-17 21:00:00.000000Z]
+      later_time = DateTime.add(shared_time, 1, :second)
+      set_message_timestamp(first_message, shared_time)
+      set_message_timestamp(system_event, shared_time)
+      set_message_timestamp(third_message, later_time)
+
+      live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+
+      first_message_id =
+        Absinthe.Relay.Node.to_global_id(:chat_message, first_message.id, LCGQL.Schema)
+
+      system_event_id =
+        Absinthe.Relay.Node.to_global_id(:chat_message, system_event.id, LCGQL.Schema)
+
+      third_message_id =
+        Absinthe.Relay.Node.to_global_id(:chat_message, third_message.id, LCGQL.Schema)
+
+      first_message_entropy_id = first_message.entropy_id
+      viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+      host_id = Absinthe.Relay.Node.to_global_id(:user, host.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "chatMessages" => %{
+                      "edges" => [
+                        %{
+                          "node" => %{
+                            "id" => ^first_message_id,
+                            "body" => "first",
+                            "kind" => "USER_MESSAGE",
+                            "systemEventType" => nil,
+                            "systemEventDetails" => nil,
+                            "sender" => %{"id" => ^viewer_id}
+                          }
+                        },
+                        %{
+                          "node" => %{
+                            "id" => ^system_event_id,
+                            "body" => "A chat message was removed.",
+                            "kind" => "SYSTEM_EVENT",
+                            "systemEventType" => "MESSAGE_REMOVED",
+                            "systemEventDetails" => %{
+                              "chatMessageId" => ^first_message_id,
+                              "chatMessageEntropyId" => ^first_message_entropy_id
+                            },
+                            "sender" => %{"id" => ^host_id}
+                          }
+                        },
+                        %{
+                          "node" => %{
+                            "id" => ^third_message_id,
+                            "body" => "third",
+                            "kind" => "USER_MESSAGE",
+                            "systemEventType" => nil,
+                            "systemEventDetails" => nil,
+                            "sender" => %{"id" => ^host_id}
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }} =
+               Absinthe.run(chat_history_with_system_events_query(), LCGQL.Schema,
+                 variables: %{"id" => live_session_id, "first" => 10},
+                 context: context
+               )
+    end
   end
 
   defp chat_history_query do
@@ -284,6 +372,34 @@ defmodule LCGQL.Chat.ChatQueriesTest do
           moderatedAt
           sender {
             id
+          }
+        }
+      }
+    }
+    """
+  end
+
+  defp chat_history_with_system_events_query do
+    """
+    query($id: ID!, $first: Int) {
+      node(id: $id) {
+        ... on LiveSession {
+          chatMessages(first: $first) {
+            edges {
+              node {
+                id
+                body
+                kind
+                systemEventType
+                systemEventDetails {
+                  chatMessageId
+                  chatMessageEntropyId
+                }
+                sender {
+                  id
+                }
+              }
+            }
           }
         }
       }

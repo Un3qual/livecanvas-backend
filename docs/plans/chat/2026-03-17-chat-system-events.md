@@ -49,7 +49,7 @@ Verified directly in active code and tests before writing this plan:
 
 - [x] Task 1: Add a bounded system-event vocabulary and persistence API in `LC.Chat`
 - [x] Task 2: Emit and broadcast lifecycle/moderation system events from existing adapters
-- [ ] Task 3: Expose typed system-event projections in GraphQL history and finalize verification
+- [x] Task 3: Expose typed system-event projections in GraphQL history and finalize verification
 
 ### Task 1: Add A Bounded System-Event Vocabulary And Persistence API In `LC.Chat`
 
@@ -189,20 +189,30 @@ git commit -m "feat: emit chat lifecycle system events"
 - Modify: `lib/live_canvas_gql/chat/chat_resolver.ex`
 - Modify: `test/live_canvas_gql/chat/chat_queries_test.exs`
 - Modify: `docs/plans/chat/2026-03-17-chat-system-events.md`
+- Modify: `docs/plans/chat/TRACK.md`
+- Modify: `docs/plans/INDEX.md`
+- Modify: `docs/plans/NOW.md`
 - Modify: `docs/plans/README.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing GraphQL history tests for typed system-event projection
-- [ ] Step 2: Run focused GraphQL Chat tests to verify RED
-- [ ] Step 3: Expose system-event type and metadata fields on `ChatMessage`
-- [ ] Step 4: Re-run focused GraphQL Chat tests to verify GREEN
-- [ ] Step 5: Run final verification, update plan/index tracking, and commit the milestone
+- [x] Step 1: Add failing GraphQL history tests for typed system-event projection
+- [x] Step 2: Run focused GraphQL Chat tests to verify RED
+- [x] Step 3: Expose system-event type and metadata fields on `ChatMessage`
+- [x] Step 4: Re-run focused GraphQL Chat tests to verify GREEN
+- [x] Step 5: Run final verification, update plan/index tracking, and commit the milestone
 
 **Task 3 behavior targets:**
 
 - GraphQL history returns both user messages and system events through one connection.
 - System events expose a typed `systemEventType` field (or equivalent) instead of forcing clients to parse raw metadata.
 - User-authored messages and system events remain compatible with the same bidirectional history connection.
+
+Verification evidence (2026-03-17):
+
+- `mix test test/live_canvas_gql/chat/chat_queries_test.exs` -> RED first (`4 tests, 1 failure`) and GREEN after implementation (`4 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix test test/live_canvas/chat_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/integration/live_session_flow_test.exs` -> PASS (`59 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)
 
 **Suggested TDD details:**
 

@@ -16,7 +16,7 @@ Use this directory for active execution docs and detailed implementation plans.
 
 ## Active Tracks
 
-- Chat product surface: `docs/plans/chat/TRACK.md`
+- Live replay and recording: `docs/plans/live/TRACK.md`
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 
 ## Paused Or Deferred
