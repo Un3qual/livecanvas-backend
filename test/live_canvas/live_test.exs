@@ -263,6 +263,42 @@ defmodule LC.LiveTest do
       assert Map.get(ended_session, :recording_media_asset_id) == recording_asset.id
     end
 
+    test "links a recording asset whose bigint id exceeds 32-bit integer range" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+      recording_media_asset_id = 3_000_000_000
+
+      Repo.query!(
+        """
+        INSERT INTO media_assets (
+          id,
+          entropy_id,
+          owner_id,
+          storage_key,
+          mime_type,
+          processing_state,
+          inserted_at,
+          updated_at
+        )
+        VALUES ($1, uuidv7(), $2, $3, $4, 'uploaded', NOW(), NOW())
+        """,
+        [
+          recording_media_asset_id,
+          host.id,
+          "uploads/users/#{host.id}/recording-bigint.mp4",
+          "video/mp4"
+        ]
+      )
+
+      assert {:ok, ended_session} =
+               Live.end_live_session(session, %{
+                 ended_reason: :host_ended,
+                 recording_media_asset_id: recording_media_asset_id
+               })
+
+      assert Map.get(ended_session, :recording_media_asset_id) == recording_media_asset_id
+    end
+
     test "keeps recording_media_asset_id nil when no recording asset is supplied" do
       host = user_fixture()
       {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
