@@ -3,7 +3,18 @@ defmodule LCGQL.Relay.NodeQueriesTest do
 
   import LC.AccountsFixtures
   import LC.SocialFixtures
+
   alias LC.{Accounts, Chat, Content, Live}
+
+  defmodule CaptureExecutionContextPhase do
+    use Absinthe.Phase
+
+    @impl true
+    def run(blueprint, opts) do
+      send(opts[:test_pid], {:execution_context, blueprint.execution.context})
+      {:ok, blueprint}
+    end
+  end
 
   describe "node" do
     test "refetches a user from a relay global id" do
@@ -458,8 +469,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       }
       """
 
-      assert {:ok,
-              %{data: %{"node" => nil}}} =
+      assert {:ok, %{data: %{"node" => nil}}} =
                Absinthe.run(query, LCGQL.Schema,
                  variables: %{"id" => live_session_id},
                  context: context
@@ -660,5 +670,75 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       assert {:ok, %{data: %{"node" => nil}}} =
                Absinthe.run(node_query, LCGQL.Schema, variables: %{"id" => message_id})
     end
+
+    test "injects a loader into execution context without dropping viewer scope" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, %{media_asset: first_asset}} =
+               Content.request_media_upload(viewer, %{mime_type: "image/jpeg"})
+
+      assert {:ok, %{media_asset: second_asset}} =
+               Content.request_media_upload(viewer, %{mime_type: "image/png"})
+
+      first_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, first_asset.id, LCGQL.Schema)
+
+      second_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, second_asset.id, LCGQL.Schema)
+
+      query = """
+      query($firstId: ID!, $secondId: ID!) {
+        firstAsset: node(id: $firstId) {
+          ... on MediaAsset {
+            id
+            publicUrl
+          }
+        }
+        secondAsset: node(id: $secondId) {
+          ... on MediaAsset {
+            id
+            publicUrl
+          }
+        }
+      }
+      """
+
+      assert {:ok, first_public_url} =
+               LC.Infra.ObjectStorage.public_asset_url(first_asset.storage_key)
+
+      assert {:ok, second_public_url} =
+               LC.Infra.ObjectStorage.public_asset_url(second_asset.storage_key)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "firstAsset" => %{"id" => ^first_asset_id, "publicUrl" => ^first_public_url},
+                  "secondAsset" => %{"id" => ^second_asset_id, "publicUrl" => ^second_public_url}
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"firstId" => first_asset_id, "secondId" => second_asset_id},
+                 context: context,
+                 pipeline_modifier: &capture_execution_context(&1, &2, self())
+               )
+
+      assert_receive {:execution_context, captured_context}
+      assert %Dataloader{} = captured_context.loader
+      assert captured_context.current_scope.user.id == viewer.id
+      assert captured_context.auth_transport == :none
+      assert captured_context.auth_error == nil
+
+      assert captured_context.loader.sources[Accounts].default_params.current_scope.user.id ==
+               viewer.id
+    end
+  end
+
+  defp capture_execution_context(pipeline, _options, test_pid) do
+    Absinthe.Pipeline.insert_after(
+      pipeline,
+      Absinthe.Phase.Document.Execution.Resolution,
+      {CaptureExecutionContextPhase, test_pid: test_pid}
+    )
   end
 end

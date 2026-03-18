@@ -5,6 +5,7 @@ defmodule LCGQL.Schema do
     flavor: :modern
 
   alias LC.{Accounts, Chat, Content, Live, Social}
+  alias LCGQL.Dataloader
 
   # global_id_translator: SmokespotsGraphQL.IDTranslator
   import_types(Absinthe.Plug.Types)
@@ -126,6 +127,21 @@ defmodule LCGQL.Schema do
     import_fields(:content_mutations)
     import_fields(:live_mutations)
     import_fields(:social_mutations)
+  end
+
+  @impl true
+  @spec plugins() :: [Absinthe.Plugin.t()]
+  def plugins do
+    [Absinthe.Middleware.Dataloader | Absinthe.Plugin.defaults()]
+  end
+
+  @impl true
+  @spec context(map()) :: map()
+  def context(context) do
+    context
+    |> Map.put_new(:auth_transport, :none)
+    |> Map.put_new(:auth_error, nil)
+    |> Map.put_new_lazy(:loader, fn -> Dataloader.new(context) end)
   end
 
   # Node resolution crosses from GraphQL IDs into boundary APIs, so keep the

@@ -90,4 +90,64 @@ defmodule LCGQL.Relay.RequestContextTest do
       assert %{"data" => %{"viewer" => nil}} = json_response(conn, 200)
     end
   end
+
+  describe "request loader context" do
+    test "assigns a fresh dataloader to each GraphQL request", %{conn: conn} do
+      user = user_fixture()
+
+      first_conn =
+        conn
+        |> log_in_user(user)
+        |> post("/graphql", %{query: viewer_email_query()})
+
+      second_conn =
+        Phoenix.ConnTest.build_conn()
+        |> log_in_user(user)
+        |> post("/graphql", %{query: viewer_email_query()})
+
+      first_loader = graphql_loader(first_conn)
+      second_loader = graphql_loader(second_conn)
+
+      assert %Dataloader{} = first_loader
+      assert %Dataloader{} = second_loader
+
+      refute loader_request_ref(first_loader) == loader_request_ref(second_loader)
+    end
+
+    test "keeps auth scope and auth metadata alongside the loader", %{conn: conn} do
+      user = user_fixture()
+      {:ok, %{token: token}} = Accounts.issue_access_token(user)
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Bearer #{token}")
+        |> post("/graphql", %{query: viewer_email_query()})
+
+      assert %Dataloader{} = graphql_loader(conn)
+      assert conn.private.absinthe.context.current_scope.user.id == user.id
+      assert get_in(conn.private, [:absinthe, :context, :auth_transport]) == :bearer
+      assert get_in(conn.private, [:absinthe, :context, :auth_error]) == nil
+    end
+  end
+
+  defp viewer_email_query do
+    """
+    query {
+      viewer {
+        email
+      }
+    }
+    """
+  end
+
+  defp graphql_loader(conn) do
+    get_in(conn.private, [:absinthe, :context, :loader])
+  end
+
+  defp loader_request_ref(%Dataloader{sources: sources}) do
+    sources
+    |> Map.fetch!(Accounts)
+    |> Map.fetch!(:default_params)
+    |> Map.fetch!(:request_ref)
+  end
 end
