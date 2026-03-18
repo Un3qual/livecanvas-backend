@@ -34,8 +34,8 @@ defmodule LCGQL.Schema do
         %{type: :media_asset, id: id}, resolution ->
           fetch_media_asset_node(id, resolution)
 
-        %{type: :live_session, id: id}, _resolution ->
-          fetch_live_session_node(id)
+        %{type: :live_session, id: id}, resolution ->
+          fetch_live_session_node(id, resolution)
 
         %{type: :follow_request, id: id}, resolution ->
           fetch_follow_request_node(id, resolution)
@@ -170,16 +170,27 @@ defmodule LCGQL.Schema do
 
   defp fetch_media_asset_node(_id, _resolution), do: {:ok, nil}
 
-  defp fetch_live_session_node(id) do
-    case Ecto.Type.cast(:id, id) do
-      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
-        {:ok, Live.get_live_session!(local_id)}
-
-      _ ->
-        {:ok, nil}
+  # Globally refetchable live-session IDs must re-apply viewer visibility so
+  # replay/history surfaces cannot bypass ownership checks via `node(id:)`
+  # (`CWE-639` / IDOR).
+  defp fetch_live_session_node(id, %{context: %{current_scope: %{user: %{id: _id} = viewer}}}) do
+    with {:ok, local_id} when is_integer(local_id) and local_id > 0 <- Ecto.Type.cast(:id, id),
+         %{status: _status} = live_session <- Live.get_live_session(local_id),
+         :ok <- authorize_live_session_node_refetch(viewer, live_session) do
+      {:ok, live_session}
+    else
+      _other -> {:ok, nil}
     end
-  rescue
-    Ecto.NoResultsError -> {:ok, nil}
+  end
+
+  defp fetch_live_session_node(_id, _resolution), do: {:ok, nil}
+
+  defp authorize_live_session_node_refetch(viewer, %{status: :ended} = live_session) do
+    Chat.authorize_history_access(viewer, live_session)
+  end
+
+  defp authorize_live_session_node_refetch(viewer, live_session) do
+    Chat.authorize_join(viewer, live_session)
   end
 
   # Follow-request nodes are viewer-scoped because a pending request belongs to

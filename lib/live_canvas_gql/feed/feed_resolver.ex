@@ -25,6 +25,17 @@ defmodule LCGQL.Feed.Resolver do
     end
   end
 
+  @spec replay_feed(term(), map(), Absinthe.Resolution.t()) :: connection_result()
+  def replay_feed(_parent, args, resolution) do
+    with {:ok, viewer} <- viewer_from_resolution(resolution) do
+      viewer
+      |> Feed.replay_feed_query()
+      |> Absinthe.Relay.Connection.from_query(&Feed.run_query/1, args)
+    else
+      _ -> Absinthe.Relay.Connection.from_list([], args)
+    end
+  end
+
   @spec host(map(), map(), Absinthe.Resolution.t()) :: {:ok, map() | nil}
   def host(%{host_id: host_id}, _args, _resolution) when is_integer(host_id) do
     try do
