@@ -12,5 +12,9 @@ defmodule LCGQL.Feed.Queries do
     connection field :live_now, node_type: :live_session, paginate: :forward do
       resolve(&Resolver.live_now/3)
     end
+
+    connection field :replay_feed, node_type: :live_session, paginate: :forward do
+      resolve(&Resolver.replay_feed/3)
+    end
   end
 end

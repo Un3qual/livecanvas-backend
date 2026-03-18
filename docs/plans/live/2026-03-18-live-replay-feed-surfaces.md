@@ -14,9 +14,9 @@
 
 - Status: active
 - Track: `docs/plans/live/TRACK.md`
-- Current batch: `Task 2`
+- Current batch: `Task 3`
 - Depends on: `docs/plans/archive/completed/live/2026-03-17-live-session-recording-linkage.md`
-- Advance to: this plan's `Task 3`
+- Advance to: refresh plan tracking and select the next live batch from the track
 
 ## Candidate Status Verification (2026-03-18)
 
@@ -42,7 +42,7 @@ Verified directly in active code and tests before writing this plan:
 ## Progress
 
 - [x] Task 1: Add replay discovery query primitives in Feed
-- [ ] Task 2: Expose replayFeed and harden Relay live-session fetches
+- [x] Task 2: Expose replayFeed and harden Relay live-session fetches
 - [ ] Task 3: Run final verification and refresh tracking
 
 ### Task 1: Add Replay Discovery Query Primitives In Feed
@@ -119,12 +119,12 @@ git commit -m "feat: add replay feed query primitives"
 - Modify: `test/live_canvas_gql/relay/node_queries_test.exs`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for `replayFeed`
-- [ ] Step 2: Add failing Relay node tests for unauthorized live-session node refetch
-- [ ] Step 3: Run focused Feed and Relay node tests to verify RED
-- [ ] Step 4: Add the `replayFeed` connection and re-apply viewer authorization in live-session node fetches
-- [ ] Step 5: Re-run focused Feed and Relay node tests to verify GREEN
-- [ ] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing GraphQL tests for `replayFeed`
+- [x] Step 2: Add failing Relay node tests for unauthorized live-session node refetch
+- [x] Step 3: Run focused Feed and Relay node tests to verify RED
+- [x] Step 4: Add the `replayFeed` connection and re-apply viewer authorization in live-session node fetches
+- [x] Step 5: Re-run focused Feed and Relay node tests to verify GREEN
+- [x] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 2 behavior targets:**
 

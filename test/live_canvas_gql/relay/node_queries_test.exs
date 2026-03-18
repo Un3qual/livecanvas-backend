@@ -2,6 +2,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
   use LC.DataCase, async: true
 
   import LC.AccountsFixtures
+  import LC.SocialFixtures
   alias LC.{Accounts, Chat, Content, Live}
 
   describe "node" do
@@ -425,7 +426,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       assert first_error.message =~ "Cannot query field \"storageKey\""
     end
 
-    test "returns nil for recording media assets when the viewer cannot read session history" do
+    test "returns nil for unauthorized ended live session node lookups even when a recording is linked" do
       host = user_fixture()
       outsider = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(outsider)}
@@ -458,14 +459,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       """
 
       assert {:ok,
-              %{
-                data: %{
-                  "node" => %{
-                    "id" => ^live_session_id,
-                    "recordingMediaAsset" => nil
-                  }
-                }
-              }} =
+              %{data: %{"node" => nil}}} =
                Absinthe.run(query, LCGQL.Schema,
                  variables: %{"id" => live_session_id},
                  context: context
@@ -510,7 +504,119 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                )
     end
 
-    test "returns safe null or empty fallbacks for unauthorized chat history node lookups" do
+    test "returns nil for unauthorized follower-only ended live session node lookups" do
+      host = user_fixture()
+      outsider = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(outsider)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(host, %{
+                 storage_key: "uploads/users/#{host.id}/private-ended-node.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :processed
+               })
+
+      {:ok, ended_session} =
+        Live.end_live_session(live_session, %{recording_media_asset_id: recording_asset.id})
+
+      live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => live_session_id},
+                 context: context
+               )
+    end
+
+    test "returns nil for unauthorized follower-only active live session node lookups" do
+      host = user_fixture()
+      outsider = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(outsider)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :followers})
+      {:ok, active_session} = Live.mark_session_live(live_session)
+
+      live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, active_session.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => live_session_id},
+                 context: context
+               )
+    end
+
+    test "refetches an authorized follower-visible replay session from a relay global id" do
+      host = user_fixture()
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      _follow = accepted_follow_fixture(viewer, host)
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(host, %{
+                 storage_key: "uploads/users/#{host.id}/authorized-replay-node.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :processed
+               })
+
+      {:ok, ended_session} =
+        Live.end_live_session(live_session, %{recording_media_asset_id: recording_asset.id})
+
+      live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+
+      recording_media_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, recording_asset.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on LiveSession {
+            status
+            recordingMediaAsset {
+              id
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^live_session_id,
+                    "status" => "ENDED",
+                    "recordingMediaAsset" => %{"id" => ^recording_media_asset_id}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => live_session_id},
+                 context: context
+               )
+    end
+
+    test "returns nil node fallbacks for unauthorized chat history lookups" do
       host = user_fixture()
       outsider = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(outsider)}
@@ -523,18 +629,10 @@ defmodule LCGQL.Relay.NodeQueriesTest do
 
       message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
 
-      history_query = """
+      live_session_query = """
       query($id: ID!) {
         node(id: $id) {
-          ... on LiveSession {
-            chatMessages(first: 10) {
-              edges {
-                node {
-                  id
-                }
-              }
-            }
-          }
+          id
         }
       }
       """
@@ -547,8 +645,8 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       }
       """
 
-      assert {:ok, %{data: %{"node" => %{"chatMessages" => %{"edges" => []}}}}} =
-               Absinthe.run(history_query, LCGQL.Schema,
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(live_session_query, LCGQL.Schema,
                  variables: %{"id" => live_session_id},
                  context: context
                )

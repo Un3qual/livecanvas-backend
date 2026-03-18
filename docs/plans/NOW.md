@@ -7,24 +7,26 @@ Status: active
 
 - Track: `live`
 - Plan: `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md`
-- Batch: `Task 2: Expose replayFeed and harden Relay live-session fetches`
-- Why now: Feed now exposes replay discovery primitives, so the next unblocked batch is wiring them through GraphQL and closing the live-session Relay auth gap.
+- Batch: `Task 3: Run final verification and refresh tracking`
+- Why now: Task 2 is complete, so the next unblocked batch is the plan-close verification pass and documentation/tracking refresh for the live replay work.
 
 ## Do This Now
 
-- Add failing GraphQL tests for `replayFeed` and failing Relay node tests for unauthorized `LiveSession` refetches.
-- Implement the `replayFeed` connection in GraphQL and re-apply viewer authorization in `LiveSession` node fetches.
-- Run the Task 2 verification commands, update `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md`, and commit the milestone.
+- Run the final verification commands for the touched Feed and GraphQL suites.
+- Update `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md`, `docs/plans/live/TRACK.md`, `docs/plans/INDEX.md`, `docs/plans/NOW.md`, and `docs/plans/README.md`.
+- Commit the Task 3 tracking milestone once the docs reflect the next unblocked work.
 
 ## Verification Scope
 
 ```bash
-mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs
+mix compile
+mix test test/live_canvas/feed_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs
+mix typecheck
 ```
 
 ## Next Up
 
-- Run final verification for the touched Feed and GraphQL suites and refresh the live replay tracking docs.
+- Close this plan in the live track and point `NOW.md` at the next unblocked batch selected from `docs/plans/live/TRACK.md`.
 
 ## Repair Conditions
 
