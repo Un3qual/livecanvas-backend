@@ -353,6 +353,24 @@ defmodule LC.ChatTest do
       assert persisted_message.moderated_at in moderated_at_values
       assert persisted_message.moderated_by_id == host.id
     end
+
+    test "returns one removal transition winner when concurrent host removals race" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, message} = Chat.create_message(session, viewer, %{body: "transition race"})
+
+      removal_tasks =
+        Enum.map(1..2, fn _attempt ->
+          Task.async(fn -> remove_message_with_transition(message, host) end)
+        end)
+
+      Enum.each(removal_tasks, &allow_chat_db(&1.pid))
+
+      results = Enum.map(removal_tasks, &Task.await(&1, 5_000))
+      assert Enum.count(results, &match?({:ok, %ChatMessage{}, true}, &1)) == 1
+      assert Enum.count(results, &match?({:ok, %ChatMessage{}, false}, &1)) == 1
+    end
   end
 
   defp remove_message(chat_message, actor) do
@@ -360,6 +378,14 @@ defmodule LC.ChatTest do
       apply(Chat, :remove_message, [chat_message, actor])
     else
       :missing_remove_message
+    end
+  end
+
+  defp remove_message_with_transition(chat_message, actor) do
+    if Code.ensure_loaded?(Chat) and function_exported?(Chat, :remove_message_with_transition, 2) do
+      apply(Chat, :remove_message_with_transition, [chat_message, actor])
+    else
+      :missing_remove_message_with_transition
     end
   end
 

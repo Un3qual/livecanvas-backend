@@ -5,7 +5,6 @@ defmodule LCGQL.Chat.Resolver do
 
   alias LC.{Accounts, Chat}
   alias LCGQL.Relay
-  alias Phoenix.Socket.Broadcast
 
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
@@ -49,10 +48,13 @@ defmodule LCGQL.Chat.Resolver do
       ) do
     with {:ok, decoded_id} <- Relay.decode_global_id(chat_message_id, :chat_message, LCGQL.Schema),
          %{} = chat_message <- Chat.get_history_message(viewer, decoded_id),
-         {:ok, removed_message} <- Chat.remove_message(chat_message, viewer) do
+         {:ok, removed_message, transitioned?} <- Chat.remove_message_with_transition(chat_message, viewer) do
       # Durable redaction fixes future history reads, but joined viewers keep
       # rendering the original channel event until they reconcile an update.
-      :ok = broadcast_removed_message(removed_message)
+      :ok = Chat.broadcast_message_update(removed_message)
+      # Emit from the moderation adapter after the state transition succeeds so
+      # `LC.Chat` stays responsible for persistence without owning its callers.
+      :ok = maybe_broadcast_removal_system_event(removed_message, transitioned?, viewer)
       {:ok, %{chat_message: removed_message, errors: []}}
     else
       nil ->
@@ -120,43 +122,33 @@ defmodule LCGQL.Chat.Resolver do
   defp visible_body(%{status: "removed"}), do: nil
   defp visible_body(chat_message) when is_map(chat_message), do: Map.get(chat_message, :body)
 
-  @spec broadcast_removed_message(map()) :: :ok
-  defp broadcast_removed_message(%{live_session_id: live_session_id} = chat_message)
-       when is_integer(live_session_id) do
-    topic = "live_session:#{live_session_id}"
-
-    Phoenix.PubSub.broadcast(
-      LC.PubSub,
-      topic,
-      %Broadcast{
-        topic: topic,
-        event: "chat:message_updated",
-        payload: %{message: removed_message_payload(chat_message)}
-      }
-    )
+  defp maybe_broadcast_removal_system_event(
+         %{live_session: live_session} = removed_message,
+         true,
+         viewer
+       )
+       when is_map(live_session) and is_map(viewer) do
+    # Moderating durable system events should redact the row in place without
+    # recursively persisting another moderation event about the prior event.
+    if user_message_kind?(removed_message) do
+      live_session
+      |> Chat.record_system_event(:message_removed,
+        actor: viewer,
+        metadata: %{chat_message: removed_message}
+      )
+      |> broadcast_system_event()
+    else
+      :ok
+    end
   end
 
-  defp broadcast_removed_message(_chat_message), do: :ok
+  defp maybe_broadcast_removal_system_event(_removed_message, _transitioned?, _viewer), do: :ok
 
-  defp removed_message_payload(chat_message) when is_map(chat_message) do
-    %{
-      id: Map.get(chat_message, :id),
-      body: visible_body(chat_message),
-      sender_id: Map.get(chat_message, :sender_id),
-      inserted_at: iso8601(Map.get(chat_message, :inserted_at)),
-      status: status_string(Map.get(chat_message, :status, :active)),
-      moderated_at: iso8601(Map.get(chat_message, :moderated_at))
-    }
-  end
+  defp broadcast_system_event({:ok, system_event}), do: Chat.broadcast_message(system_event)
+  defp broadcast_system_event({:error, _reason}), do: :ok
 
-  @spec iso8601(DateTime.t() | nil) :: String.t() | nil
-  defp iso8601(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
-  defp iso8601(_datetime), do: nil
-
-  @spec status_string(atom() | String.t()) :: String.t()
-  defp status_string(status) when is_atom(status), do: Atom.to_string(status)
-  defp status_string(status) when is_binary(status), do: status
-  defp status_string(_status), do: "active"
+  defp user_message_kind?(%{kind: kind}) when kind in [:user_message, "user_message"], do: true
+  defp user_message_kind?(_chat_message), do: false
 
   @spec mutation_error(:chat_message_id | nil, remove_message_reason()) :: mutation_error()
   defp mutation_error(field, reason) do

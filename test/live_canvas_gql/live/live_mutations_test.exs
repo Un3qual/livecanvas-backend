@@ -6,7 +6,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
   alias LC.{Accounts, Live}
   alias LC.Infra.Repo
-  alias LCSchemas.Live.LiveParticipant
+  alias LCSchemas.{Chat.ChatMessage, Live.LiveParticipant, Live.LiveSession}
 
   describe "startLiveSession" do
     test "starts a live session for the authenticated viewer" do
@@ -177,6 +177,271 @@ defmodule LCGQL.Live.LiveMutationsTest do
                )
     end
 
+    test "persists and broadcasts lifecycle system events for successful host transitions" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      topic = "live_session:#{started_session.id}"
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      go_live_mutation = """
+      mutation GoLiveSession($liveSessionId: ID!) {
+        goLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      end_mutation = """
+      mutation EndLiveSession($liveSessionId: ID!) {
+        endLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "goLiveSession" => %{
+                    "liveSession" => %{"id" => ^session_id, "status" => "LIVE"},
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 go_live_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "chat:message",
+        payload: %{
+          message: %{
+            id: go_live_message_id,
+            body: "The live session started.",
+            sender_id: sender_id,
+            inserted_at: go_live_inserted_at,
+            kind: "system_event",
+            status: "active",
+            moderated_at: nil,
+            metadata: %{"details" => %{}, "event_type" => "session_live"}
+          }
+        }
+      }
+
+      assert is_integer(go_live_message_id)
+      assert sender_id == host.id
+      assert is_binary(go_live_inserted_at)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 end_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "chat:message",
+        payload: %{
+          message: %{
+            id: end_message_id,
+            body: "The live session ended.",
+            sender_id: sender_id,
+            inserted_at: end_inserted_at,
+            kind: "system_event",
+            status: "active",
+            moderated_at: nil,
+            metadata: %{"details" => %{}, "event_type" => "session_ended"}
+          }
+        }
+      }
+
+      assert is_integer(end_message_id)
+      assert sender_id == host.id
+      assert is_binary(end_inserted_at)
+
+      assert [
+               %ChatMessage{
+                 id: ^go_live_message_id,
+                 body: "The live session started.",
+                 sender_id: ^sender_id,
+                 kind: :system_event,
+                 status: :active,
+                 metadata: %{"details" => %{}, "event_type" => "session_live"}
+               },
+               %ChatMessage{
+                 id: ^end_message_id,
+                 body: "The live session ended.",
+                 sender_id: ^sender_id,
+                 kind: :system_event,
+                 status: :active,
+                 metadata: %{"details" => %{}, "event_type" => "session_ended"}
+               }
+             ] =
+               from(chat_message in ChatMessage,
+                 where:
+                   chat_message.live_session_id == ^started_session.id and
+                     chat_message.kind == :system_event,
+                 order_by: [asc: chat_message.inserted_at, asc: chat_message.id]
+               )
+               |> Repo.all()
+    end
+
+    test "does not emit session_live when a concurrent end wins before the go-live reload" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      topic = "live_session:#{started_session.id}"
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      test_pid = self()
+
+      go_live_mutation = """
+      mutation GoLiveSession($liveSessionId: ID!) {
+        goLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      end_mutation = """
+      mutation EndLiveSession($liveSessionId: ID!) {
+        endLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      lock_task =
+        Task.async(fn ->
+          Repo.transaction(fn ->
+            from(live_session in LiveSession,
+              where: live_session.id == ^started_session.id,
+              lock: "FOR UPDATE"
+            )
+            |> Repo.one!()
+
+            send(test_pid, :live_session_locked)
+
+            receive do
+              :release_live_session_lock -> :ok
+            after
+              5_000 -> exit(:release_live_session_lock_timeout)
+            end
+          end)
+        end)
+
+      allow_live_db(lock_task.pid)
+      assert_receive :live_session_locked
+
+      go_live_task =
+        Task.async(fn ->
+          Absinthe.run(
+            go_live_mutation,
+            LCGQL.Schema,
+            context: context,
+            variables: %{"liveSessionId" => session_id}
+          )
+        end)
+
+      allow_live_db(go_live_task.pid)
+      Process.sleep(20)
+
+      end_task =
+        Task.async(fn ->
+          Absinthe.run(
+            end_mutation,
+            LCGQL.Schema,
+            context: context,
+            variables: %{"liveSessionId" => session_id}
+          )
+        end)
+
+      allow_live_db(end_task.pid)
+      send(lock_task.pid, :release_live_session_lock)
+
+      assert {:ok, _lock_result} = Task.await(lock_task, 5_000)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "goLiveSession" => %{
+                    "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                    "errors" => []
+                  }
+                }
+              }} = Task.await(go_live_task, 5_000)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                    "errors" => []
+                  }
+                }
+              }} = Task.await(end_task, 5_000)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "chat:message",
+        payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
+      }
+
+      refute_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "chat:message",
+        payload: %{message: %{metadata: %{"event_type" => "session_live"}}}
+      },
+      200
+    end
+
     test "rejects repeated end transitions once a session is already ended" do
       host = user_fixture()
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
@@ -217,6 +482,196 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
       persisted = Live.get_live_session!(first_end.id)
       assert persisted.ended_at == first_end.ended_at
+    end
+
+    test "broadcasts one disconnect when concurrent end requests race" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, live_session} = Live.mark_session_live(started_session)
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, live_session.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      control_topic = "live_session_control:#{live_session.id}"
+      session_topic = "live_session:#{live_session.id}"
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, session_topic)
+
+      mutation = """
+      mutation EndLiveSession($liveSessionId: ID!) {
+        endLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      tasks =
+        Enum.map(1..2, fn _attempt ->
+          Task.async(fn ->
+            Absinthe.run(
+              mutation,
+              LCGQL.Schema,
+              context: context,
+              variables: %{"liveSessionId" => session_id}
+            )
+          end)
+        end)
+
+      Enum.each(tasks, &allow_live_db(&1.pid))
+
+      assert Enum.all?(
+               Enum.map(tasks, &Task.await(&1, 5_000)),
+               &match?(
+                 {:ok,
+                  %{
+                    data: %{
+                      "endLiveSession" => %{
+                        "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                        "errors" => []
+                      }
+                    }
+                  }},
+                 &1
+               )
+             )
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^session_topic,
+        event: "chat:message",
+        payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
+      }
+
+      refute_receive %Phoenix.Socket.Broadcast{
+        topic: ^session_topic,
+        event: "chat:message",
+        payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
+      },
+      200
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^control_topic,
+        event: "disconnect",
+        payload: %{reason: "session_ended"}
+      }
+
+      refute_receive %Phoenix.Socket.Broadcast{
+        topic: ^control_topic,
+        event: "disconnect",
+        payload: %{reason: "session_ended"}
+      },
+      200
+    end
+
+    test "returns ended when go-live loses a concurrent end race after joinable-state checks" do
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      test_pid = self()
+
+      go_live_mutation = """
+      mutation GoLiveSession($liveSessionId: ID!) {
+        goLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      end_mutation = """
+      mutation EndLiveSession($liveSessionId: ID!) {
+        endLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      lock_task =
+        Task.async(fn ->
+          Repo.transaction(fn ->
+            from(live_session in LiveSession,
+              where: live_session.id == ^started_session.id,
+              lock: "FOR UPDATE"
+            )
+            |> Repo.one!()
+
+            send(test_pid, :live_session_locked)
+
+            receive do
+              :release_live_session_lock -> :ok
+            after
+              5_000 -> exit(:release_live_session_lock_timeout)
+            end
+          end)
+        end)
+
+      allow_live_db(lock_task.pid)
+      assert_receive :live_session_locked
+
+      end_task =
+        Task.async(fn ->
+          Absinthe.run(
+            end_mutation,
+            LCGQL.Schema,
+            context: context,
+            variables: %{"liveSessionId" => session_id}
+          )
+        end)
+
+      allow_live_db(end_task.pid)
+      Process.sleep(20)
+
+      go_live_task =
+        Task.async(fn ->
+          Absinthe.run(
+            go_live_mutation,
+            LCGQL.Schema,
+            context: context,
+            variables: %{"liveSessionId" => session_id}
+          )
+        end)
+
+      allow_live_db(go_live_task.pid)
+      send(lock_task.pid, :release_live_session_lock)
+
+      assert {:ok, _lock_result} = Task.await(lock_task, 5_000)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                    "errors" => []
+                  }
+                }
+              }} = Task.await(end_task, 5_000)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "goLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [%{"field" => nil, "message" => "ended"}]
+                  }
+                }
+              }} = Task.await(go_live_task, 5_000)
     end
   end
 
@@ -497,6 +952,14 @@ defmodule LCGQL.Live.LiveMutationsTest do
                  context: context,
                  variables: %{"liveSessionId" => non_session_id}
                )
+    end
+  end
+
+  defp allow_live_db(pid) when is_pid(pid) do
+    case Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid) do
+      :ok -> :ok
+      {:already, _owner} -> :ok
+      :not_found -> :ok
     end
   end
 end

@@ -64,12 +64,23 @@ defmodule LCGQL.Live.Resolver do
          {:ok, live_session} <- fetch_live_session(decoded_id),
          :ok <- ensure_host_owned(live_session, viewer),
          :ok <- ensure_joinable_state(live_session),
-         {:ok, live_session} <- Live.mark_session_live(live_session) do
-      {:ok, %{live_session: live_session, errors: []}}
+         {:ok, updated_live_session, transitioned?} <-
+           Live.mark_session_live_with_transition(live_session) do
+      # Emit from the adapter after the Live boundary succeeds so `LC.Live`
+      # stays decoupled from durable chat history and channel transport details.
+      :ok = maybe_emit_lifecycle_system_event(updated_live_session, :session_live, transitioned?, viewer)
+      {:ok, %{live_session: updated_live_session, errors: []}}
     else
       {:error, reason}
       when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
         {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        if ended_go_live_changeset?(changeset) do
+          {:ok, %{live_session: nil, errors: [mutation_error(nil, :ended)]}}
+        else
+          {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+        end
 
       _other ->
         {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
@@ -161,9 +172,13 @@ defmodule LCGQL.Live.Resolver do
          {:ok, live_session} <- fetch_live_session(decoded_id),
          :ok <- ensure_host_owned(live_session, viewer),
          :ok <- ensure_not_ended(live_session),
-         {:ok, live_session} <- Live.end_live_session(live_session) do
-      :ok = disconnect_live_session_channels(live_session.id, :session_ended)
-      {:ok, %{live_session: live_session, errors: []}}
+         {:ok, ended_live_session, transitioned?} <-
+           Live.end_live_session_with_transition(live_session) do
+      # Broadcast the persisted terminal event before disconnecting joined
+      # channels so they can reconcile one last durable history row in order.
+      :ok = maybe_emit_lifecycle_system_event(ended_live_session, :session_ended, transitioned?, viewer)
+      :ok = maybe_disconnect_live_session_channels(ended_live_session.id, transitioned?, :session_ended)
+      {:ok, %{live_session: ended_live_session, errors: []}}
     else
       {:error, reason}
       when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
@@ -205,6 +220,15 @@ defmodule LCGQL.Live.Resolver do
   defp ensure_not_ended(%{status: :ended}), do: {:error, :ended}
   defp ensure_not_ended(_live_session), do: :ok
 
+  defp ended_go_live_changeset?(%Ecto.Changeset{data: %{status: :ended}, errors: errors}) do
+    Enum.any?(errors, fn
+      {:status, {_message, _opts}} -> true
+      _other -> false
+    end)
+  end
+
+  defp ended_go_live_changeset?(_changeset), do: false
+
   defp authorize_join(viewer, live_session) when is_map(viewer) and is_map(live_session) do
     # Keep GraphQL join policy aligned with channel joins so relationship and
     # moderation rules are enforced consistently across transports.
@@ -231,6 +255,12 @@ defmodule LCGQL.Live.Resolver do
     )
   end
 
+  defp maybe_disconnect_live_session_channels(session_id, true, reason) when is_integer(session_id) do
+    disconnect_live_session_channels(session_id, reason)
+  end
+
+  defp maybe_disconnect_live_session_channels(_session_id, _transitioned?, _reason), do: :ok
+
   @spec disconnect_live_session_user(pos_integer(), pos_integer(), atom()) :: :ok
   defp disconnect_live_session_user(session_id, user_id, reason)
        when is_integer(session_id) and is_integer(user_id) do
@@ -256,6 +286,30 @@ defmodule LCGQL.Live.Resolver do
   defp session_user_control_topic(session_id, user_id)
        when is_integer(session_id) and is_integer(user_id),
        do: "live_session_control:#{session_id}:user:#{user_id}"
+
+  defp maybe_emit_lifecycle_system_event(live_session, event_type, true, viewer)
+       when event_type in [:session_ended, :session_live] and is_map(live_session) and
+              is_map(viewer) do
+    # Emit only when the persisted reload still matches the lifecycle event.
+    # This suppresses stale `session_live` rows if a concurrent end wins before
+    # the go-live caller reloads the row after owning the DB transition.
+    if emit_matching_lifecycle_event?(live_session, event_type) do
+      live_session
+      |> Chat.record_system_event(event_type, actor: viewer)
+      |> broadcast_system_event()
+    else
+      :ok
+    end
+  end
+
+  defp maybe_emit_lifecycle_system_event(_live_session, _event_type, _transitioned?, _viewer), do: :ok
+
+  defp emit_matching_lifecycle_event?(%{status: :live}, :session_live), do: true
+  defp emit_matching_lifecycle_event?(%{status: :ended}, :session_ended), do: true
+  defp emit_matching_lifecycle_event?(_live_session, _event_type), do: false
+
+  defp broadcast_system_event({:ok, system_event}), do: Chat.broadcast_message(system_event)
+  defp broadcast_system_event({:error, _reason}), do: :ok
 
   @spec mutation_error(:live_session_id | nil, mutation_reason()) :: mutation_error()
   defp mutation_error(field, reason) do

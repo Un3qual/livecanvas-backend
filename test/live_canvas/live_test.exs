@@ -5,7 +5,7 @@ defmodule LC.LiveTest do
 
   alias LC.{Accounts, Live}
   alias LC.Live.SessionServer
-  alias LCSchemas.Live.LiveParticipant
+  alias LCSchemas.Live.{LiveParticipant, LiveSession}
 
   @live_session_telemetry_events [
     [:live_canvas, :live, :session, :start],
@@ -85,6 +85,77 @@ defmodule LC.LiveTest do
       assert {:error, changeset} = Live.mark_session_live(ended_session)
       assert %{status: ["cannot transition ended session to live"]} = errors_on(changeset)
     end
+
+    test "returns one transition winner when concurrent go-live calls race" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      tasks =
+        Enum.map(1..2, fn _attempt ->
+          Task.async(fn -> Live.mark_session_live_with_transition(session) end)
+        end)
+
+      Enum.each(tasks, &allow_live_db(&1.pid))
+
+      results = Enum.map(tasks, &Task.await(&1, 5_000))
+      assert Enum.count(results, &match?({:ok, %LiveSession{}, true}, &1)) == 1
+      assert Enum.count(results, &match?({:ok, %LiveSession{}, false}, &1)) == 1
+
+      assert %{status: :live, started_at: %DateTime{}} = Live.get_live_session!(session.id)
+    end
+
+    test "preserves a won go-live transition when end wins the post-update reload race" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+      test_pid = self()
+
+      lock_task =
+        Task.async(fn ->
+          Repo.transaction(fn ->
+            from(live_session in LiveSession,
+              where: live_session.id == ^session.id,
+              lock: "FOR UPDATE"
+            )
+            |> Repo.one!()
+
+            send(test_pid, :live_session_locked)
+
+            receive do
+              :release_live_session_lock -> :ok
+            after
+              5_000 -> exit(:release_live_session_lock_timeout)
+            end
+          end)
+        end)
+
+      allow_live_db(lock_task.pid)
+      assert_receive :live_session_locked
+
+      go_live_task = Task.async(fn -> Live.mark_session_live_with_transition(session) end)
+      allow_live_db(go_live_task.pid)
+      Process.sleep(20)
+
+      end_task =
+        Task.async(fn ->
+          Live.end_live_session_with_transition(session, %{ended_reason: :host_ended})
+        end)
+
+      allow_live_db(end_task.pid)
+      send(lock_task.pid, :release_live_session_lock)
+
+      assert {:ok, _lock_result} = Task.await(lock_task, 5_000)
+      assert {:ok, %LiveSession{started_at: %DateTime{}}, true} = Task.await(go_live_task, 5_000)
+      assert {:ok, %LiveSession{status: :ended, ended_reason: :host_ended}, true} =
+               Task.await(end_task, 5_000)
+
+      assert %LiveSession{
+               status: :ended,
+               started_at: %DateTime{},
+               ended_reason: :host_ended
+             } = Live.get_live_session!(session.id)
+
+      assert :ok = wait_for_session_server_down(session.id)
+    end
   end
 
   describe "join_live_session/3 and end_live_session/2" do
@@ -129,6 +200,53 @@ defmodule LC.LiveTest do
 
       assert_receive {:telemetry_event, [:live_canvas, :live, :session, :end], %{count: 1},
                       %{result: :ok, session_id: ^expected_session_id, status: :ended}}
+    end
+
+    test "returns one transition winner when concurrent end calls race" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      tasks =
+        Enum.map(1..2, fn _attempt ->
+          Task.async(fn -> Live.end_live_session_with_transition(session, %{ended_reason: :host_ended}) end)
+        end)
+
+      Enum.each(tasks, &allow_live_db(&1.pid))
+
+      results = Enum.map(tasks, &Task.await(&1, 5_000))
+      assert Enum.count(results, &match?({:ok, %LiveSession{}, true}, &1)) == 1
+      assert Enum.count(results, &match?({:ok, %LiveSession{}, false}, &1)) == 1
+
+      assert %{status: :ended, ended_reason: :host_ended, ended_at: %DateTime{}} =
+               Live.get_live_session!(session.id)
+
+      assert :ok = wait_for_session_server_down(session.id)
+    end
+
+    test "stops the local session server when the end transition was already won elsewhere" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, pid} = Live.lookup_session_server(session.id)
+      assert Process.alive?(pid)
+
+      ended_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+      {1, _rows} =
+        from(live_session in LiveSession, where: live_session.id == ^session.id)
+        |> Repo.update_all(
+          set: [status: :ended, ended_at: ended_at, ended_reason: :host_ended]
+        )
+
+      assert {:ok,
+              %LiveSession{
+                status: :ended,
+                ended_at: ^ended_at,
+                ended_reason: :host_ended
+              }, false} =
+               Live.end_live_session_with_transition(session, %{ended_reason: :host_ended})
+
+      assert :ok = wait_for_session_server_down(session.id)
     end
 
     test "returns not_authorized when the viewer is suspended" do
@@ -285,5 +403,13 @@ defmodule LC.LiveTest do
       when is_list(event) and is_map(measurements) and is_map(metadata) and is_pid(test_pid) do
     send(test_pid, {:telemetry_event, event, measurements, metadata})
     :ok
+  end
+
+  defp allow_live_db(pid) when is_pid(pid) do
+    case Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid) do
+      :ok -> :ok
+      {:already, _owner} -> :ok
+      :not_found -> :ok
+    end
   end
 end

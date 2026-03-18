@@ -14,8 +14,20 @@ defmodule LC.Live do
   alias LCSchemas.Live.{LiveParticipant, LiveSession}
 
   @type changeset :: Ecto.Changeset.t()
+  @type persisted_live_session :: %LiveSession{id: pos_integer()}
+  @type ended_live_session :: %LiveSession{
+          id: pos_integer(),
+          status: :ended,
+          ended_at: DateTime.t(),
+          ended_reason: LCSchemas.Live.live_session_end_reason()
+        }
   @type fetch_joinable_session_result :: {:ok, LiveSession.t()} | {:error, :ended | :not_found}
   @type live_session_result :: {:ok, LiveSession.t()} | {:error, changeset() | term()}
+  @type live_session_transition_result ::
+          {:ok, LiveSession.t(), boolean()} | {:error, changeset() | term()}
+  @type end_live_session_result :: {:ok, ended_live_session()} | {:error, changeset()}
+  @type end_live_session_transition_result ::
+          {:ok, ended_live_session(), boolean()} | {:error, changeset()}
   @type live_participant_result :: {:ok, LiveParticipant.t()} | {:error, changeset() | term()}
   @type leave_live_session_result :: :ok
   @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
@@ -57,31 +69,97 @@ defmodule LC.Live do
   @doc """
   Marks a live session as started after media negotiation succeeds.
   """
-  @spec mark_session_live(LiveSession.t()) :: live_session_result()
+  @spec mark_session_live(persisted_live_session()) :: live_session_result()
   def mark_session_live(%LiveSession{} = live_session) do
-    live_session
-    |> LiveSessionChanges.mark_live_changeset(now_utc())
-    |> Repo.update()
+    case mark_session_live_with_transition(live_session) do
+      {:ok, updated_live_session, _transitioned?} -> {:ok, updated_live_session}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  @doc """
+  Marks a live session as started and reports whether this call won the
+  persisted starting-to-live transition.
+  """
+  @spec mark_session_live_with_transition(persisted_live_session()) ::
+          live_session_transition_result()
+  def mark_session_live_with_transition(%LiveSession{status: :ended} = live_session) do
+    {:error, LiveSessionChanges.mark_live_changeset(live_session, now_utc())}
+  end
+
+  def mark_session_live_with_transition(%LiveSession{id: session_id})
+      when is_integer(session_id) do
+    now = now_utc()
+
+    {updated_count, _} =
+      from(live_session in LiveSession,
+        where: live_session.id == ^session_id and live_session.status == :starting
+      )
+      |> Repo.update_all(set: [status: :live, started_at: now])
+
+    case {updated_count, Repo.get(LiveSession, session_id)} do
+      # A concurrent end transition can commit between the winning update and
+      # the reload, but this caller still owns the starting-to-live transition.
+      {1, %LiveSession{} = persisted_session} ->
+        {:ok, persisted_session, true}
+
+      {0, %LiveSession{status: :ended} = ended_session} ->
+        {:error, LiveSessionChanges.mark_live_changeset(ended_session, now)}
+
+      {0, %LiveSession{} = persisted_session} ->
+        {:ok, persisted_session, false}
+
+      {_updated_count, nil} ->
+        {:error, :not_found}
+    end
   end
 
   @doc """
   Marks a live session as ended and tears down runtime state.
   """
-  @spec end_live_session(LiveSession.t()) :: live_session_result()
+  @spec end_live_session(persisted_live_session()) :: end_live_session_result()
   def end_live_session(%LiveSession{} = live_session), do: end_live_session(live_session, %{})
 
-  @spec end_live_session(LiveSession.t(), map()) :: live_session_result()
+  @spec end_live_session(persisted_live_session(), map()) :: end_live_session_result()
   def end_live_session(%LiveSession{} = live_session, attrs) when is_map(attrs) do
+    case end_live_session_with_transition(live_session, attrs) do
+      {:ok, ended_live_session, _transitioned?} -> {:ok, ended_live_session}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  @spec end_live_session_with_transition(persisted_live_session()) ::
+          end_live_session_transition_result()
+  def end_live_session_with_transition(%LiveSession{} = live_session),
+    do: end_live_session_with_transition(live_session, %{})
+
+  @spec end_live_session_with_transition(persisted_live_session(), map()) ::
+          end_live_session_transition_result()
+  def end_live_session_with_transition(%LiveSession{id: session_id} = live_session, attrs)
+      when is_integer(session_id) and is_map(attrs) do
+    now = now_utc()
+    changeset = LiveSessionChanges.end_changeset(live_session, attrs, now)
+
     result =
-      with {:ok, ended_session} <-
-             live_session
-             |> LiveSessionChanges.end_changeset(attrs, now_utc())
-             |> Repo.update(),
-           :ok <- SessionSupervisor.stop_session_server(live_session.id) do
-        {:ok, ended_session}
+      if changeset.valid? do
+        ended_reason = Ecto.Changeset.get_field(changeset, :ended_reason)
+
+        {updated_count, _} =
+          from(persisted_session in LiveSession,
+            where: persisted_session.id == ^session_id and persisted_session.status != :ended
+          )
+          |> Repo.update_all(
+            set: [status: :ended, ended_at: now, ended_reason: ended_reason]
+          )
+
+        ended_session = Repo.get!(LiveSession, session_id)
+        :ok = maybe_stop_session_server(updated_count, session_id)
+        {:ok, ended_session, updated_count == 1}
+      else
+        {:error, changeset}
       end
 
-    :ok = emit_live_session_telemetry(:end, %{session_id: live_session.id}, result)
+    :ok = emit_live_session_telemetry(:end, %{session_id: session_id}, normalize_transition_result(result))
     result
   end
 
@@ -474,6 +552,14 @@ defmodule LC.Live do
   @type live_session_event :: :end | :join | :start
   @type live_session_event_result ::
           {:ok, LiveParticipant.t() | LiveSession.t()} | {:error, term()}
+
+  @spec maybe_stop_session_server(non_neg_integer(), pos_integer()) :: :ok
+  defp maybe_stop_session_server(_updated_count, session_id) when is_integer(session_id),
+    do: SessionSupervisor.stop_session_server(session_id)
+
+  @spec normalize_transition_result(end_live_session_transition_result()) :: end_live_session_result()
+  defp normalize_transition_result({:ok, live_session, _transitioned?}), do: {:ok, live_session}
+  defp normalize_transition_result({:error, _reason} = error), do: error
 
   defp emit_live_session_telemetry(event, metadata, result)
        when event in [:start, :join, :end] and is_map(metadata) do
