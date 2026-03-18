@@ -52,6 +52,14 @@ defmodule LCGQL.Feed.Resolver do
 
   def recording_media_asset(_live_session, _args, _resolution), do: {:ok, nil}
 
+  @spec recording_media_asset_id(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
+  def recording_media_asset_id(%{id: recording_media_asset_id}, _args, _resolution)
+      when is_integer(recording_media_asset_id) do
+    {:ok, Absinthe.Relay.Node.to_global_id(:media_asset, recording_media_asset_id, LCGQL.Schema)}
+  end
+
+  def recording_media_asset_id(_recording_media_asset, _args, _resolution), do: {:ok, nil}
+
   @spec load_recording_media_asset(map(), pos_integer()) :: map() | nil
   defp load_recording_media_asset(live_session, recording_media_asset_id)
        when is_integer(recording_media_asset_id) do

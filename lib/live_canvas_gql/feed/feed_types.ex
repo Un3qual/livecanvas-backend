@@ -3,6 +3,7 @@ defmodule LCGQL.Feed.Types do
   use Absinthe.Relay.Schema.Notation, :modern
 
   alias LCGQL.Chat.Resolver, as: ChatResolver
+  alias LCGQL.Content.Resolver, as: ContentResolver
   alias LCGQL.Feed.Resolver
 
   connection(node_type: :live_session)
@@ -19,6 +20,18 @@ defmodule LCGQL.Feed.Types do
     value(:public)
   end
 
+  object :live_session_recording_media_asset do
+    field :id, non_null(:id) do
+      resolve(&Resolver.recording_media_asset_id/3)
+    end
+
+    field :processing_state, non_null(:media_processing_state)
+
+    field :public_url, :string do
+      resolve(&ContentResolver.media_asset_public_url/3)
+    end
+  end
+
   node object(:live_session) do
     field :status, non_null(:live_session_status)
     field :visibility, non_null(:live_session_visibility)
@@ -30,7 +43,7 @@ defmodule LCGQL.Feed.Types do
       resolve(&Resolver.host/3)
     end
 
-    field :recording_media_asset, :media_asset do
+    field :recording_media_asset, :live_session_recording_media_asset do
       resolve(&Resolver.recording_media_asset/3)
     end
 
