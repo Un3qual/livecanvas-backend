@@ -5,28 +5,26 @@ Status: active
 
 ## Current Batch
 
-- Track: `live`
-- Plan: `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md`
-- Batch: `Task 3: Run final verification and refresh tracking`
-- Why now: Task 2 is complete, so the next unblocked batch is the plan-close verification pass and documentation/tracking refresh for the live replay work.
+- Track: `graphql`
+- Plan: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md`
+- Batch: `Task 1: Add request-scoped dataloader plumbing to the GraphQL context`
+- Why now: the live replay track is complete, and the GraphQL dataloader plan is the next unblocked queued batch in `docs/plans/INDEX.md`.
 
 ## Do This Now
 
-- Run the final verification commands for the touched Feed and GraphQL suites.
-- Update `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md`, `docs/plans/live/TRACK.md`, `docs/plans/INDEX.md`, `docs/plans/NOW.md`, and `docs/plans/README.md`.
-- Commit the Task 3 tracking milestone once the docs reflect the next unblocked work.
+- Add failing request-context coverage that proves every GraphQL request gets a fresh loader in Absinthe context.
+- Add the focused node/query coverage needed to prove the loader is available during field resolution without dropping auth scope.
+- Implement `LCGQL.Dataloader` plus the minimum context/schema wiring, then rerun the focused tests and commit the Task 1 milestone.
 
 ## Verification Scope
 
 ```bash
-mix compile
-mix test test/live_canvas/feed_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs
-mix typecheck
+mix test test/live_canvas_gql/relay/request_context_test.exs test/live_canvas_gql/relay/node_queries_test.exs
 ```
 
 ## Next Up
 
-- Close this plan in the live track and point `NOW.md` at the next unblocked batch selected from `docs/plans/live/TRACK.md`.
+- Continue with `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 2` once Task 1 is complete.
 
 ## Repair Conditions
 

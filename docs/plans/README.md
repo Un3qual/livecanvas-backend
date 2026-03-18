@@ -16,8 +16,12 @@ Use this directory for active execution docs and detailed implementation plans.
 
 ## Active Tracks
 
-- Live replay and recording: `docs/plans/live/TRACK.md` (current focus: replay feed surfaces on ended sessions with linked recordings)
+- GraphQL batching and N+1 reduction: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` (current focus: request-scoped dataloader plumbing)
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
+
+## Recently Completed
+
+- Live replay and recording track: archived under `docs/plans/archive/completed/live/`
 
 ## Paused Or Deferred
 
