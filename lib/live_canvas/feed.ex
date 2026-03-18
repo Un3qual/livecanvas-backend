@@ -17,6 +17,7 @@ defmodule LC.Feed do
 
   @type home_feed_opts :: [limit: pos_integer()]
   @type live_now_opts :: [limit: pos_integer()]
+  @type replay_feed_opts :: [limit: pos_integer()]
 
   @doc """
   Returns the viewer's visible home feed ordered newest-first.
@@ -99,6 +100,55 @@ defmodule LC.Feed do
           not is_nil(follow.id),
       order_by: [
         desc: live_session.started_at,
+        desc: live_session.inserted_at,
+        desc: live_session.id
+      ]
+    )
+  end
+
+  @doc """
+  Returns visible replay sessions with linked recordings, newest-ended first.
+  """
+  @spec replay_feed(User.t(), replay_feed_opts()) :: [LiveSession.t()]
+  def replay_feed(%User{} = viewer, opts \\ []) do
+    viewer
+    |> replay_feed_query()
+    |> limit(^normalize_limit(opts))
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns a deterministic query for visible replay sessions with linked recordings.
+  """
+  @spec replay_feed_query(User.t()) :: Ecto.Query.t()
+  def replay_feed_query(%User{id: viewer_id}) when is_integer(viewer_id) do
+    from(live_session in LiveSession,
+      join: host in User,
+      on: host.id == live_session.host_id,
+      left_join: follow in Follow,
+      on:
+        follow.follower_id == ^viewer_id and
+          follow.followed_id == live_session.host_id and
+          follow.state == :accepted,
+      left_join: mute in Mute,
+      on: mute.muter_id == ^viewer_id and mute.muted_id == live_session.host_id,
+      left_join: block in Block,
+      on:
+        (block.blocker_id == ^viewer_id and block.blocked_id == live_session.host_id) or
+          (block.blocker_id == live_session.host_id and block.blocked_id == ^viewer_id),
+      where: live_session.status == :ended,
+      where: not is_nil(live_session.recording_media_asset_id),
+      where: is_nil(host.suspended_at),
+      where: is_nil(block.id),
+      # Replay discovery mirrors retained-history visibility, not live-only
+      # presence, so viewer-issued mutes still hide ended sessions.
+      where: is_nil(mute.id),
+      where:
+        live_session.host_id == ^viewer_id or
+          live_session.visibility == :public or
+          not is_nil(follow.id),
+      order_by: [
+        desc: live_session.ended_at,
         desc: live_session.inserted_at,
         desc: live_session.id
       ]

@@ -14,9 +14,9 @@
 
 - Status: active
 - Track: `docs/plans/live/TRACK.md`
-- Current batch: `Task 1`
+- Current batch: `Task 2`
 - Depends on: `docs/plans/archive/completed/live/2026-03-17-live-session-recording-linkage.md`
-- Advance to: this plan's `Task 1`
+- Advance to: this plan's `Task 3`
 
 ## Candidate Status Verification (2026-03-18)
 
@@ -41,7 +41,7 @@ Verified directly in active code and tests before writing this plan:
 
 ## Progress
 
-- [ ] Task 1: Add replay discovery query primitives in Feed
+- [x] Task 1: Add replay discovery query primitives in Feed
 - [ ] Task 2: Expose replayFeed and harden Relay live-session fetches
 - [ ] Task 3: Run final verification and refresh tracking
 
@@ -52,12 +52,12 @@ Verified directly in active code and tests before writing this plan:
 - Modify: `test/live_canvas/feed_test.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing Feed tests for replay visibility and ordering
-- [ ] Step 2: Add failing Feed tests for unrecorded and unauthorized session exclusion
-- [ ] Step 3: Run focused Feed tests to verify RED
-- [ ] Step 4: Add `replay_feed/2` and `replay_feed_query/1` for visible ended sessions with recordings
-- [ ] Step 5: Re-run focused Feed tests to verify GREEN
-- [ ] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing Feed tests for replay visibility and ordering
+- [x] Step 2: Add failing Feed tests for unrecorded and unauthorized session exclusion
+- [x] Step 3: Run focused Feed tests to verify RED
+- [x] Step 4: Add `replay_feed/2` and `replay_feed_query/1` for visible ended sessions with recordings
+- [x] Step 5: Re-run focused Feed tests to verify GREEN
+- [x] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 1 behavior targets:**
 
