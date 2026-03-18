@@ -3,9 +3,10 @@ defmodule LC.Live do
   The Live context.
   """
 
-  use Boundary, deps: [LC.Infra, LCSchemas]
+  use Boundary, deps: [LC.Content, LC.Infra, LCSchemas]
   import Ecto.Query, warn: false
 
+  alias LC.Content
   alias LC.Infra.Repo
   alias LC.Live.{RuntimeRPC, SessionServer, SessionSupervisor}
   alias LC.Live.LiveParticipant, as: LiveParticipantChanges
@@ -138,19 +139,37 @@ defmodule LC.Live do
   def end_live_session_with_transition(%LiveSession{id: session_id} = live_session, attrs)
       when is_integer(session_id) and is_map(attrs) do
     now = now_utc()
-    changeset = LiveSessionChanges.end_changeset(live_session, attrs, now)
+
+    changeset =
+      live_session
+      |> LiveSessionChanges.end_changeset(attrs, now)
+      |> validate_recording_media_asset(live_session.host_id)
 
     result =
       if changeset.valid? do
         ended_reason = Ecto.Changeset.get_field(changeset, :ended_reason)
+        recording_media_asset_id = Ecto.Changeset.get_field(changeset, :recording_media_asset_id)
 
-        {updated_count, _} =
+        query =
           from(persisted_session in LiveSession,
-            where: persisted_session.id == ^session_id and persisted_session.status != :ended
+            where: persisted_session.id == ^session_id and persisted_session.status != :ended,
+            update: [
+              set: [
+                status: :ended,
+                ended_at: ^now,
+                ended_reason: ^ended_reason,
+                # Preserve the first durable recording linkage if end is retried.
+                recording_media_asset_id:
+                  fragment(
+                    "coalesce(?, ?)",
+                    persisted_session.recording_media_asset_id,
+                    type(^recording_media_asset_id, :integer)
+                  )
+              ]
+            ]
           )
-          |> Repo.update_all(
-            set: [status: :ended, ended_at: now, ended_reason: ended_reason]
-          )
+
+        {updated_count, _} = Repo.update_all(query, [])
 
         ended_session = Repo.get!(LiveSession, session_id)
         :ok = maybe_stop_session_server(updated_count, session_id)
@@ -312,6 +331,39 @@ defmodule LC.Live do
       {:error, {:owned_by_remote, _owner_node}} ->
         {:error, :not_found}
     end
+  end
+
+  @spec validate_recording_media_asset(Ecto.Changeset.t(), pos_integer() | nil) ::
+          Ecto.Changeset.t()
+  defp validate_recording_media_asset(changeset, host_id) when is_integer(host_id) do
+    case Ecto.Changeset.get_field(changeset, :recording_media_asset_id) do
+      nil ->
+        changeset
+
+      recording_media_asset_id ->
+        case Content.fetch_live_recording_media_asset(host_id, recording_media_asset_id) do
+          {:ok, _media_asset} ->
+            changeset
+
+          {:error, :not_found} ->
+            Ecto.Changeset.add_error(
+              changeset,
+              :recording_media_asset_id,
+              "must belong to the session host"
+            )
+
+          {:error, :invalid_processing_state} ->
+            Ecto.Changeset.add_error(
+              changeset,
+              :recording_media_asset_id,
+              "must be uploaded or processed"
+            )
+        end
+    end
+  end
+
+  defp validate_recording_media_asset(changeset, _host_id) do
+    Ecto.Changeset.add_error(changeset, :recording_media_asset_id, "must belong to the session host")
   end
 
   defp upsert_live_participant(session_id, user_id, role, now) do

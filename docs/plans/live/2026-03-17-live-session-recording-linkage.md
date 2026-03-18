@@ -14,9 +14,9 @@
 
 - Status: active
 - Track: `docs/plans/live/TRACK.md`
-- Current batch: `Task 1`
+- Current batch: `Task 2`
 - Depends on: completed media upload/finalize pipeline and existing Relay `live_session` / `media_asset` nodes
-- Advance to: this plan's `Task 1`
+- Advance to: this plan's `Task 2`
 
 ## Candidate Status Verification (2026-03-17)
 
@@ -41,7 +41,7 @@ Verified directly in active code and tests before writing this plan:
 
 ## Progress
 
-- [ ] Task 1: Add durable recording linkage storage and end-session validation
+- [x] Task 1: Add durable recording linkage storage and end-session validation
 - [ ] Task 2: Expose recording linkage through GraphQL live-session surfaces
 - [ ] Task 3: Run final verification and refresh tracking
 
@@ -57,12 +57,12 @@ Verified directly in active code and tests before writing this plan:
 - Modify as needed: `test/live_canvas/content_test.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing Live tests for linking a host-owned recording asset when ending a session
-- [ ] Step 2: Add failing Live tests for rejecting foreign, pending-upload, and failed recording assets
-- [ ] Step 3: Run focused Live and Content tests to verify RED
-- [ ] Step 4: Add the nullable recording FK, schema and typespec fields, and `LC.Live` end-session validation and linkage
-- [ ] Step 5: Re-run focused Live and Content tests to verify GREEN
-- [ ] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
+- [x] Step 1: Add failing Live tests for linking a host-owned recording asset when ending a session
+- [x] Step 2: Add failing Live tests for rejecting foreign, pending-upload, and failed recording assets
+- [x] Step 3: Run focused Live and Content tests to verify RED
+- [x] Step 4: Add the nullable recording FK, schema and typespec fields, and `LC.Live` end-session validation and linkage
+- [x] Step 5: Re-run focused Live and Content tests to verify GREEN
+- [x] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 1 behavior targets:**
 

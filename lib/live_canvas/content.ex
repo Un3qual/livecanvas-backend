@@ -17,6 +17,8 @@ defmodule LC.Content do
   @type post_update_result :: {:ok, PostSchema.t()} | {:error, changeset() | :not_found}
   @type post_delete_result :: {:ok, PostSchema.t()} | {:error, changeset() | :not_found}
   @type media_asset_result :: {:ok, MediaAssetSchema.t()} | {:error, changeset()}
+  @type live_recording_media_asset_result ::
+          {:ok, MediaAssetSchema.t()} | {:error, :invalid_processing_state | :not_found}
   @type media_upload_result ::
           {:ok, %{media_asset: MediaAssetSchema.t(), upload: ObjectStorage.signed_upload()}}
           | {:error, changeset() | :invalid_upload_request | term()}
@@ -151,6 +153,31 @@ defmodule LC.Content do
       when is_integer(media_asset_id) and media_asset_id > 0 do
     Repo.get_by(MediaAssetSchema, id: media_asset_id, owner_id: owner_id)
   end
+
+  @doc """
+  Fetches an owner-owned media asset that is durable enough to link as a live recording.
+  """
+  @spec fetch_live_recording_media_asset(pos_integer(), pos_integer()) ::
+          live_recording_media_asset_result()
+  def fetch_live_recording_media_asset(owner_id, media_asset_id)
+      when is_integer(owner_id) and owner_id > 0 and is_integer(media_asset_id) and
+             media_asset_id > 0 do
+    case Repo.get_by(MediaAssetSchema, id: media_asset_id, owner_id: owner_id) do
+      %MediaAssetSchema{processing_state: processing_state} = media_asset
+      when processing_state in [:uploaded, :processed] ->
+        {:ok, media_asset}
+
+      %MediaAssetSchema{} ->
+        # Ended sessions must not point at recordings that are still missing
+        # upload data or have already failed terminal processing.
+        {:error, :invalid_processing_state}
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
+  def fetch_live_recording_media_asset(_owner_id, _media_asset_id), do: {:error, :not_found}
 
   @doc """
   Returns the canonical public serving URL for a persisted media asset.

@@ -3,7 +3,7 @@ defmodule LC.LiveTest do
 
   import LC.AccountsFixtures
 
-  alias LC.{Accounts, Live}
+  alias LC.{Accounts, Content, Live}
   alias LC.Live.SessionServer
   alias LCSchemas.Live.{LiveParticipant, LiveSession}
 
@@ -221,6 +221,153 @@ defmodule LC.LiveTest do
                Live.get_live_session!(session.id)
 
       assert :ok = wait_for_session_server_down(session.id)
+    end
+
+    test "links a host-owned uploaded recording asset when ending a session" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(host, %{
+                 storage_key: "uploads/users/#{host.id}/recording-uploaded.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :uploaded
+               })
+
+      assert {:ok, ended_session} =
+               Live.end_live_session(session, %{
+                 ended_reason: :host_ended,
+                 recording_media_asset_id: recording_asset.id
+               })
+
+      assert Map.get(ended_session, :recording_media_asset_id) == recording_asset.id
+    end
+
+    test "links a host-owned processed recording asset when ending a session" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(host, %{
+                 storage_key: "uploads/users/#{host.id}/recording-processed.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :processed
+               })
+
+      assert {:ok, ended_session} =
+               Live.end_live_session(session, %{
+                 ended_reason: :host_ended,
+                 recording_media_asset_id: recording_asset.id
+               })
+
+      assert Map.get(ended_session, :recording_media_asset_id) == recording_asset.id
+    end
+
+    test "keeps recording_media_asset_id nil when no recording asset is supplied" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, ended_session} = Live.end_live_session(session, %{ended_reason: :host_ended})
+      assert Map.get(ended_session, :recording_media_asset_id) == nil
+    end
+
+    test "rejects linking another user's recording asset" do
+      host = user_fixture()
+      other_user = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(other_user, %{
+                 storage_key: "uploads/users/#{other_user.id}/foreign-recording.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :uploaded
+               })
+
+      assert {:error, changeset} =
+               Live.end_live_session(session, %{
+                 ended_reason: :host_ended,
+                 recording_media_asset_id: recording_asset.id
+               })
+
+      assert %{recording_media_asset_id: ["must belong to the session host"]} =
+               errors_on(changeset)
+    end
+
+    test "rejects linking a pending-upload recording asset" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, %{media_asset: recording_asset}} =
+               Content.request_media_upload(host, %{mime_type: "video/mp4"})
+
+      assert {:error, changeset} =
+               Live.end_live_session(session, %{
+                 ended_reason: :host_ended,
+                 recording_media_asset_id: recording_asset.id
+               })
+
+      assert %{recording_media_asset_id: ["must be uploaded or processed"]} =
+               errors_on(changeset)
+    end
+
+    test "rejects linking a failed recording asset" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(host, %{
+                 storage_key: "uploads/users/#{host.id}/failed-recording.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :failed
+               })
+
+      assert {:error, changeset} =
+               Live.end_live_session(session, %{
+                 ended_reason: :host_ended,
+                 recording_media_asset_id: recording_asset.id
+               })
+
+      assert %{recording_media_asset_id: ["must be uploaded or processed"]} =
+               errors_on(changeset)
+    end
+
+    test "keeps the first linked recording when repeated end calls race or repeat" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, first_recording_asset} =
+               Content.create_media_asset(host, %{
+                 storage_key: "uploads/users/#{host.id}/recording-first.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :uploaded
+               })
+
+      assert {:ok, second_recording_asset} =
+               Content.create_media_asset(host, %{
+                 storage_key: "uploads/users/#{host.id}/recording-second.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :processed
+               })
+
+      assert {:ok, ended_session} =
+               Live.end_live_session(session, %{
+                 ended_reason: :host_ended,
+                 recording_media_asset_id: first_recording_asset.id
+               })
+
+      first_recording_id = Map.get(ended_session, :recording_media_asset_id)
+      assert first_recording_id == first_recording_asset.id
+
+      assert {:ok, ended_session_again} =
+               Live.end_live_session(session, %{
+                 ended_reason: :host_ended,
+                 recording_media_asset_id: second_recording_asset.id
+               })
+
+      assert Map.get(ended_session_again, :recording_media_asset_id) == first_recording_id
+
+      assert Map.get(Live.get_live_session!(session.id), :recording_media_asset_id) ==
+               first_recording_id
     end
 
     test "stops the local session server when the end transition was already won elsewhere" do

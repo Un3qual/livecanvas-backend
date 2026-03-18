@@ -7,27 +7,27 @@ Status: active
 
 - Track: `live`
 - Plan: `docs/plans/live/2026-03-17-live-session-recording-linkage.md`
-- Batch: `Task 1: Add durable recording linkage storage and end-session validation`
-- Why now: The chat product surface track is complete, and the architecture still requires replay/recording linkage when a live session ends; current `live_sessions`, `LC.Live`, and GraphQL surfaces have no durable recording reference yet.
+- Batch: `Task 2: Expose recording linkage through GraphQL live-session surfaces`
+- Why now: Task 1 has landed with durable recording linkage and end-session validation in the Live/Content boundaries, so the next unblocked batch is exposing that linked recording through the Relay `endLiveSession` payload and `LiveSession` node.
 
 ## Do This Now
 
-- Add failing Live tests for linking a host-owned uploaded/processed media asset when a session ends, plus rejection coverage for foreign, pending-upload, and failed assets.
-- Add the nullable `recording_media_asset_id` linkage and validation helpers in `LC.Live` / `LC.Content` without inventing a second recording store.
-- Re-run the focused Live/Content tests, then the Task 1 verification commands from `docs/plans/live/2026-03-17-live-session-recording-linkage.md`.
-- Mark Task 1 progress as it lands and refresh `NOW.md` when the next batch becomes current.
+- Add failing GraphQL mutation coverage for `endLiveSession(recordingMediaAssetId:)`, including success, invalid Relay ID type, and foreign/disallowed asset rejection paths.
+- Add failing Relay node coverage for `LiveSession.recordingMediaAsset`, including both linked-recording and nil-recording cases.
+- Wire `recordingMediaAssetId` through the mutation/resolver into `LC.Live` and expose `recordingMediaAsset` on the Relay `LiveSession` node without duplicating media metadata.
+- Re-run the focused GraphQL live/feed/relay tests, then the Task 2 verification commands from `docs/plans/live/2026-03-17-live-session-recording-linkage.md`.
 
 ## Verification Scope
 
 ```bash
 mix compile
-mix test test/live_canvas/live_test.exs test/live_canvas/content_test.exs
+mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/feed/feed_queries_test.exs
 mix typecheck
 ```
 
 ## Next Up
 
-- Move to `Task 2` in `docs/plans/live/2026-03-17-live-session-recording-linkage.md` to expose the linked recording through `endLiveSession` and the Relay `LiveSession` node.
+- Move to `Task 3` in `docs/plans/live/2026-03-17-live-session-recording-linkage.md` to run final verification and refresh plan tracking once the GraphQL slice lands.
 
 ## Repair Conditions
 

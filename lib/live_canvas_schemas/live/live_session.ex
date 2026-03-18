@@ -2,6 +2,7 @@ defmodule LCSchemas.Live.LiveSession do
   use LCSchemas.Schema, :relational
 
   alias LCSchemas.Accounts.User
+  alias LCSchemas.Content.MediaAsset
   alias LCSchemas.Live.LiveParticipant
 
   @type t :: %__MODULE__{
@@ -14,6 +15,8 @@ defmodule LCSchemas.Live.LiveSession do
           started_at: DateTime.t() | nil,
           ended_at: DateTime.t() | nil,
           ended_reason: LCSchemas.Live.live_session_end_reason() | nil,
+          recording_media_asset_id: pos_integer() | nil,
+          recording_media_asset: MediaAsset.t() | Ecto.Association.NotLoaded.t(),
           live_participants: [LiveParticipant.t()] | Ecto.Association.NotLoaded.t(),
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
@@ -29,6 +32,7 @@ defmodule LCSchemas.Live.LiveSession do
     field :ended_reason, Ecto.Enum, values: [:host_ended, :moderator_ended, :network_failure]
 
     belongs_to :host, User
+    belongs_to :recording_media_asset, MediaAsset
     has_many :live_participants, LiveParticipant
 
     timestamps()
