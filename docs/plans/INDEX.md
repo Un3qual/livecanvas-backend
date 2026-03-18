@@ -18,6 +18,20 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 - Status: reference-only for now
 - Notes: use this roadmap when there is no runnable product track in `NOW.md`; it is not the per-turn execution pointer
 
+## Queued Candidate Work
+
+### GraphQL Batching And N+1 Reduction
+
+- Plan: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md`
+- Status: queued
+- Notes: introduces request-scoped dataloader wiring in LCGQL, then migrates the highest-fanout child resolvers without weakening Relay or viewer-scoped auth checks
+
+### Shared Read-Policy Query Composition
+
+- Plan: `docs/plans/2026-03-18-query-policy-composition-and-reuse.md`
+- Status: queued
+- Notes: centralizes repeated block/mute/follow/visibility query composition across Feed, Chat, and Social so future read surfaces reuse one policy vocabulary
+
 ## Paused Or Deferred
 
 - Compliance hard-delete enablement remains paused until explicitly resumed.
