@@ -5,9 +5,11 @@ defmodule LCGQL.Content.ContentQueriesTest do
 
   alias LC.{Accounts, Content}
 
-  test "post query returns a Relay node by global ID" do
+  test "post query returns a public post by global ID" do
     author = user_fixture()
-    {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "first post"})
+    {:ok, post} =
+      Content.create_post(author, %{kind: :standard, body_text: "first post", visibility: :public})
+
     post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
     author_id = Absinthe.Relay.Node.to_global_id(:user, author.id, LCGQL.Schema)
 
@@ -39,6 +41,34 @@ defmodule LCGQL.Content.ContentQueriesTest do
 
     assert returned_post_id == post_id
     assert returned_author_id == author_id
+  end
+
+  test "post query returns null for follower-only posts without viewer visibility" do
+    author = user_fixture()
+    outsider = user_fixture()
+    outsider_context = %{current_scope: Accounts.scope_for_user(outsider)}
+
+    {:ok, post} =
+      Content.create_post(author, %{kind: :standard, body_text: "followers only"})
+
+    post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+    query = """
+    query($id: ID!) {
+      post(id: $id) {
+        id
+      }
+    }
+    """
+
+    assert {:ok, %{data: %{"post" => nil}}} =
+             Absinthe.run(query, LCGQL.Schema, variables: %{"id" => post_id})
+
+    assert {:ok, %{data: %{"post" => nil}}} =
+             Absinthe.run(query, LCGQL.Schema,
+               variables: %{"id" => post_id},
+               context: outsider_context
+             )
   end
 
   test "mediaAsset query returns viewer-owned media by global ID" do

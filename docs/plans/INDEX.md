@@ -4,13 +4,13 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 ## Active Tracks
 
-### GraphQL Batching And N+1 Reduction
+### Shared Read-Policy Query Composition
 
-- Plan: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md`
+- Plan: `docs/plans/2026-03-18-query-policy-composition-and-reuse.md`
 - Status: active
-- Current batch: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 1`
-- Next queued batch: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 2`
-- Notes: add request-scoped dataloader support in LCGQL first, then batch the highest-fanout child lookups without weakening Relay or viewer-scoped auth checks
+- Current batch: `docs/plans/2026-03-18-query-policy-composition-and-reuse.md` -> `Task 1`
+- Next queued batch: `docs/plans/2026-03-18-query-policy-composition-and-reuse.md` -> `Task 2`
+- Notes: centralizes repeated block/mute/follow/visibility query composition across Feed, Chat, and Social so future read surfaces reuse one policy vocabulary
 
 ### Release Roadmap And Planning Holes
 
@@ -20,11 +20,7 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 ## Queued Candidate Work
 
-### Shared Read-Policy Query Composition
-
-- Plan: `docs/plans/2026-03-18-query-policy-composition-and-reuse.md`
-- Status: queued
-- Notes: centralizes repeated block/mute/follow/visibility query composition across Feed, Chat, and Social so future read surfaces reuse one policy vocabulary
+- No additional queued candidate work is currently staged ahead of the active read-policy track.
 
 ## Paused Or Deferred
 
@@ -32,6 +28,7 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 ## Completed Work
 
+- GraphQL batching and N+1 reduction is complete through `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 3`.
 - Chat product surface track is complete through `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 3`.
 - Live replay and recording track is complete through `docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md` -> `Task 3`.
 - Checklist-complete plans belong in `docs/plans/archive/completed/`.

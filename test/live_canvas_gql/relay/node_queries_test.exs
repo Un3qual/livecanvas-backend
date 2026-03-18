@@ -53,6 +53,76 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       assert first_error.message =~ "Could not decode ID value"
     end
 
+    test "returns nil for follower-only post node lookups without viewer visibility" do
+      author = user_fixture()
+      outsider = user_fixture()
+      outsider_context = %{current_scope: Accounts.scope_for_user(outsider)}
+
+      {:ok, post} =
+        Content.create_post(author, %{kind: :standard, body_text: "private node post"})
+
+      post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => post_id})
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => post_id},
+                 context: outsider_context
+               )
+    end
+
+    test "refetches a follower-visible post and its loader-backed author from a relay global id" do
+      author = user_fixture()
+      follower = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(follower)}
+      _follow = accepted_follow_fixture(follower, author)
+
+      {:ok, post} =
+        Content.create_post(author, %{kind: :standard, body_text: "visible to followers"})
+
+      post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+      author_id = Absinthe.Relay.Node.to_global_id(:user, author.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on Post {
+            bodyText
+            author {
+              id
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^post_id,
+                    "bodyText" => "visible to followers",
+                    "author" => %{"id" => ^author_id}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => post_id},
+                 context: context
+               )
+    end
+
     test "refetches a viewer-owned contact match from a relay global id" do
       viewer = user_fixture()
       matched_user = user_fixture()

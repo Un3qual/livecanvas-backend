@@ -4,7 +4,7 @@ defmodule LCGQL.Schema do
   use Absinthe.Relay.Schema,
     flavor: :modern
 
-  alias LC.{Accounts, Chat, Content, Live, Social}
+  alias LC.{Accounts, Chat, Content, Feed, Live, Social}
   alias LCGQL.Dataloader
 
   # global_id_translator: SmokespotsGraphQL.IDTranslator
@@ -29,8 +29,8 @@ defmodule LCGQL.Schema do
         %{type: :user_identity, id: id}, resolution ->
           fetch_user_identity_node(id, resolution)
 
-        %{type: :post, id: id}, _resolution ->
-          fetch_post_node(id)
+        %{type: :post, id: id}, resolution ->
+          fetch_post_node(id, resolution)
 
         %{type: :media_asset, id: id}, resolution ->
           fetch_media_asset_node(id, resolution)
@@ -166,10 +166,26 @@ defmodule LCGQL.Schema do
 
   defp fetch_user_identity_node(_id, _resolution), do: {:ok, nil}
 
-  defp fetch_post_node(id) do
-    {:ok, Content.get_post!(id)}
-  rescue
-    Ecto.NoResultsError -> {:ok, nil}
+  # Post nodes must re-apply feed visibility so Relay refetch cannot turn a
+  # follower-only post ID into a shortcut around author visibility policy.
+  defp fetch_post_node(id, %{context: %{current_scope: %{user: %{id: _id} = viewer}}}) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
+        {:ok, Feed.get_visible_post(viewer, local_id)}
+
+      _ ->
+        {:ok, nil}
+    end
+  end
+
+  defp fetch_post_node(id, _resolution) do
+    case Ecto.Type.cast(:id, id) do
+      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
+        {:ok, Feed.get_visible_post(nil, local_id)}
+
+      _ ->
+        {:ok, nil}
+    end
   end
 
   # Media-asset nodes are viewer-scoped to avoid exposing object keys across

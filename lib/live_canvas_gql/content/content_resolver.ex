@@ -1,7 +1,7 @@
 defmodule LCGQL.Content.Resolver do
   import Ecto.Changeset, only: [traverse_errors: 2]
 
-  alias LC.{Accounts, Content}
+  alias LC.{Accounts, Content, Feed}
   alias LCGQL.Relay
   alias LCSchemas.Content.{MediaAsset, Post}
 
@@ -157,9 +157,9 @@ defmodule LCGQL.Content.Resolver do
   end
 
   @spec post(term(), %{id: term()}, term()) :: {:ok, Post.t() | nil}
-  def post(_parent, %{id: post_id}, _resolution) do
+  def post(_parent, %{id: post_id}, resolution) do
     with {:ok, id} <- Relay.decode_global_id(post_id, :post, LCGQL.Schema) do
-      {:ok, Content.get_post(id)}
+      {:ok, visible_post(id, resolution)}
     else
       _ -> {:ok, nil}
     end
@@ -237,6 +237,16 @@ defmodule LCGQL.Content.Resolver do
   end
 
   defp decode_post_id(post_id), do: Relay.decode_global_id(post_id, :post, LCGQL.Schema)
+
+  @spec visible_post(pos_integer(), Absinthe.Resolution.t()) :: Post.t() | nil
+  defp visible_post(id, %{context: %{current_scope: %{user: %{id: _id} = viewer}}})
+       when is_integer(id) and id > 0 do
+    Feed.get_visible_post(viewer, id)
+  end
+
+  defp visible_post(id, _resolution) when is_integer(id) and id > 0 do
+    Feed.get_visible_post(nil, id)
+  end
 
   @spec update_post_attrs(map()) :: %{optional(:body_text | :visibility) => term()}
   defp update_post_attrs(attrs) when is_map(attrs) do

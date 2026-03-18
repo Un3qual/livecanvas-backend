@@ -5,28 +5,33 @@ Status: active
 
 ## Current Batch
 
-- Track: `graphql`
-- Plan: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md`
-- Batch: `Task 3: Tighten remaining direct lookups and verify Relay/auth behavior`
-- Why now: Task 2 is complete, and Task 3 is the next unblocked batch in the active GraphQL dataloader plan.
+- Track: `read_policy`
+- Plan: `docs/plans/2026-03-18-query-policy-composition-and-reuse.md`
+- Batch: `Task 1: Baseline the repeated policy matrix and lock behavior with focused tests`
+- Why now: the GraphQL dataloader/auth track is complete through Task 3, and this is the next queued product-facing batch in `docs/plans/INDEX.md`.
 
 ## Do This Now
 
-- Add the authorization regression coverage for Relay node fetches and loader-backed child fields.
-- Remove any remaining repeated child-field lookups that still bypass the request-scoped loader.
-- Re-run the Task 3 compile, GraphQL, and typecheck verification before the auth-preservation milestone commit.
+- Add or tighten focused feed/social/chat tests that lock the shared blocked, muted, reverse-mute, and follower/public visibility matrix in place.
+- Add a regression test that exercises the same visibility rules through GraphQL feed and social surfaces.
+- Run the Task 1 feed/social/chat verification slice before extracting shared policy helpers.
 
 ## Verification Scope
 
 ```bash
-mix compile
-mix test test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/social/social_queries_test.exs
-mix typecheck
+mix test \
+  test/live_canvas/feed_test.exs \
+  test/live_canvas/social_test.exs \
+  test/live_canvas/chat_test.exs \
+  test/live_canvas_gql/feed/feed_queries_test.exs \
+  test/live_canvas_gql/social/social_queries_test.exs \
+  test/live_canvas_gql/chat/chat_queries_test.exs \
+  test/integration/feed_visibility_flow_test.exs
 ```
 
 ## Next Up
 
-- Complete `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` once Task 3 passes verification.
+- Start `docs/plans/2026-03-18-query-policy-composition-and-reuse.md` Task 2 once the Task 1 baseline tests are green and committed.
 
 ## Repair Conditions
 
