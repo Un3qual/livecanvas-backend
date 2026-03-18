@@ -304,6 +304,43 @@ defmodule LCGQL.Feed.FeedQueriesTest do
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
     end
 
+    test "does not exclude live sessions from hosts who muted the current viewer" do
+      viewer = user_fixture()
+      host = user_fixture(privacy_mode: :public)
+      _mute = mute_fixture(host, viewer)
+
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, _live_session} = Live.mark_session_live(live_session)
+
+      query = """
+      query($first: Int!) {
+        liveNow(first: $first) {
+          edges {
+            node {
+              id
+              status
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, live_session.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "liveNow" => %{
+                    "edges" => [%{"node" => %{"id" => ^live_session_id, "status" => "LIVE"}}]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+    end
+
     test "returns only currently-live sessions visible to the current viewer" do
       viewer = user_fixture()
       followed_host = user_fixture()
@@ -469,7 +506,8 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       public_host_id = Absinthe.Relay.Node.to_global_id(:user, public_host.id, LCGQL.Schema)
       followed_host_id = Absinthe.Relay.Node.to_global_id(:user, followed_host.id, LCGQL.Schema)
 
-      public_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, public_asset.id, LCGQL.Schema)
+      public_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, public_asset.id, LCGQL.Schema)
 
       followed_asset_id =
         Absinthe.Relay.Node.to_global_id(:media_asset, followed_asset.id, LCGQL.Schema)
@@ -612,6 +650,72 @@ defmodule LCGQL.Feed.FeedQueriesTest do
                  variables: %{"first" => 10},
                  context: hidden_context
                )
+    end
+
+    test "keeps replay mute visibility directional" do
+      viewer = user_fixture()
+      muted_host = user_fixture(privacy_mode: :public)
+      reverse_muter = user_fixture(privacy_mode: :public)
+      _mute = mute_fixture(viewer, muted_host)
+      _reverse_mute = mute_fixture(reverse_muter, viewer)
+
+      {:ok, muted_asset} =
+        Content.create_media_asset(muted_host, %{
+          storage_key: "uploads/users/#{muted_host.id}/replay-feed-muted.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
+
+      {:ok, muted_session} = Live.start_live_session(muted_host, %{visibility: :public})
+
+      {:ok, _ended_muted_session} =
+        Live.end_live_session(muted_session, %{recording_media_asset_id: muted_asset.id})
+
+      {:ok, reverse_muted_asset} =
+        Content.create_media_asset(reverse_muter, %{
+          storage_key: "uploads/users/#{reverse_muter.id}/replay-feed-reverse-muted.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
+
+      {:ok, reverse_muted_session} =
+        Live.start_live_session(reverse_muter, %{visibility: :public})
+
+      {:ok, ended_reverse_muted_session} =
+        Live.end_live_session(reverse_muted_session, %{
+          recording_media_asset_id: reverse_muted_asset.id
+        })
+
+      query = """
+      query($first: Int!) {
+        replayFeed(first: $first) {
+          edges {
+            node {
+              id
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      ended_reverse_muted_session_id =
+        Absinthe.Relay.Node.to_global_id(
+          :live_session,
+          ended_reverse_muted_session.id,
+          LCGQL.Schema
+        )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "replayFeed" => %{
+                    "edges" => [%{"node" => %{"id" => ^ended_reverse_muted_session_id}}]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
     end
 
     test "returns an empty replay connection without viewer scope and excludes unrecorded sessions" do

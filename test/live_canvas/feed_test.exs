@@ -112,6 +112,18 @@ defmodule LC.FeedTest do
       assert [] = Feed.live_now(viewer, limit: 10)
     end
 
+    test "does not exclude hosts who muted the viewer" do
+      viewer = user_fixture()
+      host = user_fixture(privacy_mode: :public)
+      _mute = mute_fixture(host, viewer)
+
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, _live_session} = Live.mark_session_live(live_session)
+
+      assert [visible_session] = Feed.live_now(viewer, limit: 10)
+      assert visible_session.id == live_session.id
+    end
+
     test "returns only visible live sessions ordered newest-first" do
       viewer = user_fixture()
       followed_host = user_fixture()
@@ -166,7 +178,9 @@ defmodule LC.FeedTest do
       public_host = user_fixture()
 
       replay_session = ended_replay_session_fixture(public_host, %{visibility: :public})
-      _unrecorded_session = ended_replay_session_fixture(public_host, %{visibility: :public, with_recording: false})
+
+      _unrecorded_session =
+        ended_replay_session_fixture(public_host, %{visibility: :public, with_recording: false})
 
       assert [visible_session] = Feed.replay_feed(viewer, limit: 10)
       assert visible_session.id == replay_session.id
@@ -183,7 +197,9 @@ defmodule LC.FeedTest do
       _blocked_replay = ended_replay_session_fixture(blocked_host, %{visibility: :public})
       _muted_replay = ended_replay_session_fixture(muted_host, %{visibility: :public})
       _suspended_replay = ended_replay_session_fixture(suspended_host, %{visibility: :public})
-      _follower_only_replay = ended_replay_session_fixture(follower_only_host, %{visibility: :followers})
+
+      _follower_only_replay =
+        ended_replay_session_fixture(follower_only_host, %{visibility: :followers})
 
       {:ok, _block} = Social.block_user(blocked_host, viewer)
       _mute = mute_fixture(viewer, muted_host)
@@ -191,6 +207,17 @@ defmodule LC.FeedTest do
 
       assert [visible_session] = Feed.replay_feed(viewer, limit: 10)
       assert visible_session.id == own_replay.id
+    end
+
+    test "does not exclude replay sessions from hosts who muted the viewer" do
+      viewer = user_fixture()
+      host = user_fixture(privacy_mode: :public)
+      _mute = mute_fixture(host, viewer)
+
+      replay_session = ended_replay_session_fixture(host, %{visibility: :public})
+
+      assert [visible_session] = Feed.replay_feed(viewer, limit: 10)
+      assert visible_session.id == replay_session.id
     end
   end
 
@@ -207,7 +234,8 @@ defmodule LC.FeedTest do
           media_asset_fixture(host, %{
             mime_type: "video/mp4",
             processing_state: :uploaded,
-            storage_key: "uploads/users/#{host.id}/replay-#{System.unique_integer([:positive])}.mp4"
+            storage_key:
+              "uploads/users/#{host.id}/replay-#{System.unique_integer([:positive])}.mp4"
           })
 
         %{ended_reason: :host_ended, recording_media_asset_id: recording_asset.id}

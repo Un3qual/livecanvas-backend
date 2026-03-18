@@ -2,6 +2,7 @@ defmodule LCGQL.Chat.ChatQueriesTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import LC.SocialFixtures
   import Ecto.Query
 
   alias LC.{Accounts, Chat, Live}
@@ -9,6 +10,168 @@ defmodule LCGQL.Chat.ChatQueriesTest do
   alias LCSchemas.Chat.ChatMessage
 
   describe "node.liveSession.chatMessages" do
+    test "keeps block, mute, reverse-mute, and follower/public history visibility aligned" do
+      viewer = user_fixture()
+      public_host = user_fixture(privacy_mode: :public)
+      followed_host = user_fixture()
+      blocked_host = user_fixture(privacy_mode: :public)
+      muted_host = user_fixture(privacy_mode: :public)
+      reverse_muter = user_fixture(privacy_mode: :public)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      _follow = accepted_follow_fixture(viewer, followed_host)
+      _block = block_fixture(blocked_host, viewer)
+      _mute = mute_fixture(viewer, muted_host)
+      _reverse_mute = mute_fixture(reverse_muter, viewer)
+
+      {:ok, public_session} = Live.start_live_session(public_host, %{visibility: :public})
+
+      assert {:ok, _public_message} =
+               Chat.create_message(public_session, public_host, %{body: "public"})
+
+      {:ok, ended_public_session} = Live.end_live_session(public_session)
+
+      {:ok, followed_session} = Live.start_live_session(followed_host, %{visibility: :followers})
+
+      assert {:ok, _followed_message} =
+               Chat.create_message(followed_session, followed_host, %{body: "followers"})
+
+      {:ok, ended_followed_session} = Live.end_live_session(followed_session)
+
+      {:ok, blocked_session} = Live.start_live_session(blocked_host, %{visibility: :public})
+
+      assert {:ok, _blocked_message} =
+               Chat.create_message(blocked_session, blocked_host, %{body: "blocked"})
+
+      {:ok, ended_blocked_session} = Live.end_live_session(blocked_session)
+
+      {:ok, muted_session} = Live.start_live_session(muted_host, %{visibility: :public})
+
+      assert {:ok, _muted_message} =
+               Chat.create_message(muted_session, muted_host, %{body: "muted"})
+
+      {:ok, ended_muted_session} = Live.end_live_session(muted_session)
+
+      {:ok, reverse_muted_session} =
+        Live.start_live_session(reverse_muter, %{visibility: :public})
+
+      assert {:ok, _reverse_muted_message} =
+               Chat.create_message(reverse_muted_session, reverse_muter, %{body: "reverse-mute"})
+
+      {:ok, ended_reverse_muted_session} = Live.end_live_session(reverse_muted_session)
+
+      query = """
+      query(
+        $publicSessionId: ID!,
+        $followedSessionId: ID!,
+        $blockedSessionId: ID!,
+        $mutedSessionId: ID!,
+        $reverseMutedSessionId: ID!
+      ) {
+        publicSession: node(id: $publicSessionId) {
+          ... on LiveSession {
+            id
+            chatMessages(first: 10) {
+              edges {
+                node {
+                  body
+                }
+              }
+            }
+          }
+        }
+        followedSession: node(id: $followedSessionId) {
+          ... on LiveSession {
+            id
+            chatMessages(first: 10) {
+              edges {
+                node {
+                  body
+                }
+              }
+            }
+          }
+        }
+        blockedSession: node(id: $blockedSessionId) {
+          ... on LiveSession {
+            id
+            chatMessages(first: 10) {
+              edges {
+                node {
+                  body
+                }
+              }
+            }
+          }
+        }
+        mutedSession: node(id: $mutedSessionId) {
+          ... on LiveSession {
+            id
+            chatMessages(first: 10) {
+              edges {
+                node {
+                  body
+                }
+              }
+            }
+          }
+        }
+        reverseMutedSession: node(id: $reverseMutedSessionId) {
+          ... on LiveSession {
+            id
+            chatMessages(first: 10) {
+              edges {
+                node {
+                  body
+                }
+              }
+            }
+          }
+        }
+      }
+      """
+
+      variables = %{
+        "publicSessionId" =>
+          Absinthe.Relay.Node.to_global_id(:live_session, ended_public_session.id, LCGQL.Schema),
+        "followedSessionId" =>
+          Absinthe.Relay.Node.to_global_id(:live_session, ended_followed_session.id, LCGQL.Schema),
+        "blockedSessionId" =>
+          Absinthe.Relay.Node.to_global_id(:live_session, ended_blocked_session.id, LCGQL.Schema),
+        "mutedSessionId" =>
+          Absinthe.Relay.Node.to_global_id(:live_session, ended_muted_session.id, LCGQL.Schema),
+        "reverseMutedSessionId" =>
+          Absinthe.Relay.Node.to_global_id(
+            :live_session,
+            ended_reverse_muted_session.id,
+            LCGQL.Schema
+          )
+      }
+
+      assert {:ok,
+              %{
+                data: %{
+                  "publicSession" => %{
+                    "chatMessages" => %{
+                      "edges" => [%{"node" => %{"body" => "public"}}]
+                    }
+                  },
+                  "followedSession" => %{
+                    "chatMessages" => %{
+                      "edges" => [%{"node" => %{"body" => "followers"}}]
+                    }
+                  },
+                  "blockedSession" => nil,
+                  "mutedSession" => nil,
+                  "reverseMutedSession" => %{
+                    "chatMessages" => %{
+                      "edges" => [%{"node" => %{"body" => "reverse-mute"}}]
+                    }
+                  }
+                }
+              }} = Absinthe.run(query, LCGQL.Schema, variables: variables, context: context)
+    end
+
     test "supports first/after pagination for ended-session history" do
       host = user_fixture(privacy_mode: :public)
       viewer = user_fixture()
