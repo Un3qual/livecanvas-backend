@@ -30,7 +30,7 @@ Verified directly in the codebase before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Baseline the repeated policy matrix and lock behavior with focused tests
+- [x] Task 1: Baseline the repeated policy matrix and lock behavior with focused tests
 - [ ] Task 2: Extract reusable viewer-visibility query helpers and refactor feed queries
 - [ ] Task 3: Reuse the shared policy helpers in chat/social boundary authorization and verify Relay/auth safety
 
@@ -46,11 +46,11 @@ Verified directly in the codebase before drafting this plan:
 - Modify: `test/integration/feed_visibility_flow_test.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add or tighten tests that capture the shared viewer policy matrix for blocked creators/hosts, viewer-muted creators/hosts, reverse-mute cases, and follower/public visibility
-- [ ] Step 2: Add a regression test that exercises the same visibility rules through the GraphQL feed and social surfaces so the refactor cannot change the Relay contract
-- [ ] Step 3: Run the focused feed/social/chat test slice to establish the current baseline and verify the new assertions fail only where the refactor is still needed
-- [ ] Step 4: Confirm the tests describe the intended behavior in the smallest possible surface area and do not encode implementation details
-- [ ] Step 5: Commit the baseline test updates before extracting shared policy helpers
+- [x] Step 1: Add or tighten tests that capture the shared viewer policy matrix for blocked creators/hosts, viewer-muted creators/hosts, reverse-mute cases, and follower/public visibility
+- [x] Step 2: Add a regression test that exercises the same visibility rules through the GraphQL feed and social surfaces so the refactor cannot change the Relay contract
+- [x] Step 3: Run the focused feed/social/chat test slice to establish the current baseline and verify the new assertions fail only where the refactor is still needed
+- [x] Step 4: Confirm the tests describe the intended behavior in the smallest possible surface area and do not encode implementation details
+- [x] Step 5: Commit the baseline test updates before extracting shared policy helpers
 
 **Task 1 behavior targets:**
 

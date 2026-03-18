@@ -114,6 +114,68 @@ defmodule LCGQL.Social.SocialQueriesTest do
     end
   end
 
+  describe "viewer visibility matrix" do
+    test "reports blocked, muted, reverse-mute, and follower/public states consistently" do
+      viewer = user_fixture()
+      public_creator = user_fixture(privacy_mode: :public)
+      followed_creator = user_fixture(privacy_mode: :private)
+      blocked_creator = user_fixture(privacy_mode: :public)
+      muted_creator = user_fixture(privacy_mode: :public)
+      reverse_muter = user_fixture(privacy_mode: :public)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, follow} = Social.follow_user(viewer, followed_creator)
+      assert {:ok, _accepted_follow} = Social.accept_follow_request(follow, followed_creator)
+      assert {:ok, _block} = Social.block_user(blocked_creator, viewer)
+      assert {:ok, _mute} = Social.mute_user(viewer, muted_creator)
+      assert {:ok, _reverse_mute} = Social.mute_user(reverse_muter, viewer)
+
+      query = """
+      query(
+        $publicCreatorId: ID!,
+        $followedCreatorId: ID!,
+        $blockedCreatorId: ID!,
+        $mutedCreatorId: ID!,
+        $reverseMuterId: ID!
+      ) {
+        publicRelationship: relationshipState(creatorId: $publicCreatorId)
+        followedRelationship: relationshipState(creatorId: $followedCreatorId)
+        blockedRelationship: relationshipState(creatorId: $blockedCreatorId)
+        mutedRelationship: relationshipState(creatorId: $mutedCreatorId)
+        reverseMutedRelationship: relationshipState(creatorId: $reverseMuterId)
+        mutedCreatorMuted: isMuted(creatorId: $mutedCreatorId)
+        reverseMuterMuted: isMuted(creatorId: $reverseMuterId)
+      }
+      """
+
+      variables = %{
+        "publicCreatorId" =>
+          Absinthe.Relay.Node.to_global_id(:user, public_creator.id, LCGQL.Schema),
+        "followedCreatorId" =>
+          Absinthe.Relay.Node.to_global_id(:user, followed_creator.id, LCGQL.Schema),
+        "blockedCreatorId" =>
+          Absinthe.Relay.Node.to_global_id(:user, blocked_creator.id, LCGQL.Schema),
+        "mutedCreatorId" =>
+          Absinthe.Relay.Node.to_global_id(:user, muted_creator.id, LCGQL.Schema),
+        "reverseMuterId" =>
+          Absinthe.Relay.Node.to_global_id(:user, reverse_muter.id, LCGQL.Schema)
+      }
+
+      assert {:ok,
+              %{
+                data: %{
+                  "publicRelationship" => "PUBLIC",
+                  "followedRelationship" => "ACCEPTED",
+                  "blockedRelationship" => "BLOCKED",
+                  "mutedRelationship" => "PUBLIC",
+                  "reverseMutedRelationship" => "PUBLIC",
+                  "mutedCreatorMuted" => true,
+                  "reverseMuterMuted" => false
+                }
+              }} = Absinthe.run(query, LCGQL.Schema, variables: variables, context: context)
+    end
+  end
+
   describe "user relationship connections" do
     test "node.user.followers returns relay edges and pageInfo" do
       creator = user_fixture(privacy_mode: :public)

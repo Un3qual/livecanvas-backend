@@ -45,6 +45,15 @@ defmodule LC.ChatTest do
       assert {:error, :not_authorized} = Chat.authorize_join(viewer, session)
     end
 
+    test "denies join when the host has blocked the viewer" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      _block = block_fixture(host, viewer)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:error, :not_authorized} = Chat.authorize_join(viewer, session)
+    end
+
     test "allows join when host has muted the viewer" do
       host = user_fixture(privacy_mode: :public)
       viewer = user_fixture()
@@ -222,6 +231,45 @@ defmodule LC.ChatTest do
 
       assert :ok = Chat.authorize_history_access(viewer, ended_session)
       assert [^public_message] = Repo.all(Chat.history_query(ended_session))
+    end
+
+    test "keeps block, mute, reverse-mute, and follower/public history visibility consistent" do
+      viewer = user_fixture()
+      public_host = user_fixture(privacy_mode: :public)
+      followed_host = user_fixture()
+      blocked_host = user_fixture(privacy_mode: :public)
+      muted_host = user_fixture(privacy_mode: :public)
+      reverse_muter = user_fixture(privacy_mode: :public)
+
+      _follow = accepted_follow_fixture(viewer, followed_host)
+      _block = block_fixture(blocked_host, viewer)
+      _mute = mute_fixture(viewer, muted_host)
+      _reverse_mute = mute_fixture(reverse_muter, viewer)
+
+      {:ok, public_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, followed_session} = Live.start_live_session(followed_host, %{visibility: :followers})
+      {:ok, blocked_session} = Live.start_live_session(blocked_host, %{visibility: :public})
+      {:ok, muted_session} = Live.start_live_session(muted_host, %{visibility: :public})
+
+      {:ok, reverse_muted_session} =
+        Live.start_live_session(reverse_muter, %{visibility: :public})
+
+      {:ok, ended_public_session} = Live.end_live_session(public_session)
+      {:ok, ended_followed_session} = Live.end_live_session(followed_session)
+      {:ok, ended_blocked_session} = Live.end_live_session(blocked_session)
+      {:ok, ended_muted_session} = Live.end_live_session(muted_session)
+      {:ok, ended_reverse_muted_session} = Live.end_live_session(reverse_muted_session)
+
+      assert :ok = Chat.authorize_history_access(viewer, ended_public_session)
+      assert :ok = Chat.authorize_history_access(viewer, ended_followed_session)
+
+      assert {:error, :not_authorized} =
+               Chat.authorize_history_access(viewer, ended_blocked_session)
+
+      assert {:error, :not_authorized} =
+               Chat.authorize_history_access(viewer, ended_muted_session)
+
+      assert :ok = Chat.authorize_history_access(viewer, ended_reverse_muted_session)
     end
 
     test "denies history reads for outsiders, suspended viewers, and muted viewers" do

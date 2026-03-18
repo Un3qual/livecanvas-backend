@@ -58,6 +58,46 @@ defmodule LC.SocialTest do
     end
   end
 
+  describe "viewer visibility matrix" do
+    test "keeps block, mute, reverse-mute, and follower/public state separate" do
+      viewer = user_fixture()
+      public_creator = user_fixture(privacy_mode: :public)
+      private_creator = user_fixture(privacy_mode: :private)
+      followed_private_creator = user_fixture(privacy_mode: :private)
+      blocked_creator = user_fixture(privacy_mode: :public)
+      muted_creator = user_fixture(privacy_mode: :public)
+      reverse_muter = user_fixture(privacy_mode: :public)
+
+      assert {:ok, follow} = Social.follow_user(viewer, followed_private_creator)
+
+      assert {:ok, _accepted_follow} =
+               Social.accept_follow_request(follow, followed_private_creator)
+
+      assert {:ok, _block} = Social.block_user(blocked_creator, viewer)
+      assert {:ok, _mute} = Social.mute_user(viewer, muted_creator)
+      assert {:ok, _reverse_mute} = Social.mute_user(reverse_muter, viewer)
+
+      assert Social.relationship_state(viewer, public_creator) == :public
+      assert Social.relationship_state(viewer, private_creator) == :none
+      assert Social.relationship_state(viewer, followed_private_creator) == :accepted
+      assert Social.relationship_state(viewer, blocked_creator) == :blocked
+      assert Social.relationship_state(viewer, muted_creator) == :public
+      assert Social.relationship_state(viewer, reverse_muter) == :public
+
+      assert Social.can_view_user?(viewer, public_creator)
+      refute Social.can_view_user?(viewer, private_creator)
+      assert Social.can_view_user?(viewer, followed_private_creator)
+      refute Social.can_view_user?(viewer, blocked_creator)
+      assert Social.can_view_user?(viewer, muted_creator)
+      assert Social.can_view_user?(viewer, reverse_muter)
+
+      assert Social.muted?(viewer, muted_creator)
+      refute Social.muted?(muted_creator, viewer)
+      refute Social.muted?(viewer, reverse_muter)
+      assert Social.muted?(reverse_muter, viewer)
+    end
+  end
+
   describe "pending follow requests" do
     test "pending_follow_requests_query/1 returns only pending inbound requests in stable order" do
       followed = user_fixture(privacy_mode: :private)
