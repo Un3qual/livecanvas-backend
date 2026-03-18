@@ -231,6 +231,70 @@ defmodule LCGQL.Chat.ChatMutationsTest do
                )
                |> Repo.aggregate(:count)
     end
+
+    test "does not emit another removal event when removing a system event row" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, message} = Chat.create_message(live_session, sender, %{body: "remove me"})
+
+      assert {:ok, system_event} =
+               Chat.record_system_event(live_session, :message_removed,
+                 actor: host,
+                 metadata: %{chat_message: message}
+               )
+
+      topic = "live_session:#{live_session.id}"
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
+
+      system_event_id =
+        Absinthe.Relay.Node.to_global_id(:chat_message, system_event.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "removeLiveChatMessage" => %{
+                    "chatMessage" => %{
+                      "id" => ^system_event_id,
+                      "body" => nil,
+                      "status" => "REMOVED",
+                      "moderatedAt" => moderated_at
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(remove_message_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageId" => system_event_id},
+                 context: context
+               )
+
+      assert is_binary(moderated_at)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "chat:message_updated",
+        payload: %{message: %{id: updated_id, body: nil, kind: "system_event", status: "removed"}}
+      }
+
+      assert updated_id == system_event.id
+
+      refute_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "chat:message",
+        payload: %{message: %{metadata: %{"event_type" => "message_removed"}}}
+      },
+      200
+
+      assert 1 ==
+               from(chat_message in ChatMessage,
+                 where:
+                   chat_message.live_session_id == ^live_session.id and
+                     chat_message.kind == :system_event
+               )
+               |> Repo.aggregate(:count)
+    end
   end
 
   defp remove_message_mutation do

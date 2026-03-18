@@ -128,15 +128,27 @@ defmodule LCGQL.Chat.Resolver do
          viewer
        )
        when is_map(live_session) and is_map(viewer) do
-    live_session
-    |> Chat.record_system_event(:message_removed, actor: viewer, metadata: %{chat_message: removed_message})
-    |> broadcast_system_event()
+    # Moderating durable system events should redact the row in place without
+    # recursively persisting another moderation event about the prior event.
+    if user_message_kind?(removed_message) do
+      live_session
+      |> Chat.record_system_event(:message_removed,
+        actor: viewer,
+        metadata: %{chat_message: removed_message}
+      )
+      |> broadcast_system_event()
+    else
+      :ok
+    end
   end
 
   defp maybe_broadcast_removal_system_event(_removed_message, _transitioned?, _viewer), do: :ok
 
   defp broadcast_system_event({:ok, system_event}), do: Chat.broadcast_message(system_event)
   defp broadcast_system_event({:error, _reason}), do: :ok
+
+  defp user_message_kind?(%{kind: kind}) when kind in [:user_message, "user_message"], do: true
+  defp user_message_kind?(_chat_message), do: false
 
   @spec mutation_error(:chat_message_id | nil, remove_message_reason()) :: mutation_error()
   defp mutation_error(field, reason) do
