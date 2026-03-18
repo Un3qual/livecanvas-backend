@@ -8,9 +8,9 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 - Track file: `docs/plans/live/TRACK.md`
 - Status: active
-- Current batch: `docs/plans/live/2026-03-17-live-session-recording-linkage.md` -> `Task 1`
-- Next queued batch: `docs/plans/live/2026-03-17-live-session-recording-linkage.md` -> `Task 2`
-- Notes: establish durable recording linkage on `live_sessions` first, then extend replay-facing GraphQL reads on the existing Relay `LiveSession` + `MediaAsset` contract
+- Current batch: `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md` -> `Task 1`
+- Next queued batch: `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md` -> `Task 2`
+- Notes: replay linkage now lands on ended `live_sessions`; the next slice is replay discovery in Feed plus viewer-scoped Relay live-session refetches
 
 ### Release Roadmap And Planning Holes
 
@@ -25,5 +25,6 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 ## Completed Work
 
 - Chat product surface track is complete through `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 3`.
+- Live session recording linkage is complete in `docs/plans/archive/completed/live/2026-03-17-live-session-recording-linkage.md`.
 - Checklist-complete plans belong in `docs/plans/archive/completed/`.
 - Archived plans are historical context, not the default starting point for a new execution turn.

@@ -16,7 +16,7 @@ Use this directory for active execution docs and detailed implementation plans.
 
 ## Active Tracks
 
-- Live replay and recording: `docs/plans/live/TRACK.md`
+- Live replay and recording: `docs/plans/live/TRACK.md` (current focus: replay feed surfaces on ended sessions with linked recordings)
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 
 ## Paused Or Deferred
@@ -29,7 +29,7 @@ Use this directory for active execution docs and detailed implementation plans.
 - Use `docs/plans/INDEX.md` only when `NOW.md` is stale, blocked, or empty.
 - If the selected work belongs to a multi-plan track, read that track's `TRACK.md` before opening detailed plan files.
 - Avoid scanning unrelated active plans or archived work during normal execution.
-- Move checklist-complete plans to `docs/plans/archive/completed/`.
+- Move checklist-complete plans to `docs/plans/archive/completed/<track>/`.
 
 ## Starting A New Feature
 

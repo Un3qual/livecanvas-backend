@@ -12,11 +12,11 @@
 
 ## Execution Summary
 
-- Status: active
+- Status: complete
 - Track: `docs/plans/live/TRACK.md`
-- Current batch: `Task 3`
+- Current batch: complete
 - Depends on: completed media upload/finalize pipeline and existing Relay `live_session` / `media_asset` nodes
-- Advance to: this plan's `Task 3`
+- Advance to: `docs/plans/live/2026-03-18-live-replay-feed-surfaces.md` -> `Task 1`
 
 ## Candidate Status Verification (2026-03-17)
 
@@ -43,7 +43,7 @@ Verified directly in active code and tests before writing this plan:
 
 - [x] Task 1: Add durable recording linkage storage and end-session validation
 - [x] Task 2: Expose recording linkage through GraphQL live-session surfaces
-- [ ] Task 3: Run final verification and refresh tracking
+- [x] Task 3: Run final verification and refresh tracking
 
 ### Task 1: Add Durable Recording Linkage Storage And End-Session Validation
 
@@ -190,9 +190,9 @@ git commit -m "feat: expose live session recording linkage in graphql"
 - Modify: `docs/plans/README.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Run final verification on the touched Live, Content, and GraphQL suites
-- [ ] Step 2: Update plan, track, index, and `NOW.md` tracking based on the next unblocked batch
-- [ ] Step 3: Commit the milestone
+- [x] Step 1: Run final verification on the touched Live, Content, and GraphQL suites
+- [x] Step 2: Update plan, track, index, and `NOW.md` tracking based on the next unblocked batch
+- [x] Step 3: Commit the milestone
 
 **Task 3 verification commands:**
 
