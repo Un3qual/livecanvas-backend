@@ -17,9 +17,9 @@ Deliver durable chat history first, then host-owned moderation, then typed syste
    - Completed batch: `Task 3`
    - Start after: chat-history `Task 3` is complete
 3. `docs/plans/chat/2026-03-17-chat-system-events.md`
-   - Status: in progress
+   - Status: completed
    - Start after: moderation `Task 3` is complete unless dependencies are explicitly revalidated
-   - Current batch: `Task 2`
+   - Completed batch: `Task 3`
 
 ## Shared Constraints
 

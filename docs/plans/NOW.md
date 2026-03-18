@@ -5,29 +5,29 @@ Status: active
 
 ## Current Batch
 
-- Track: `chat`
-- Plan: `docs/plans/chat/2026-03-17-chat-system-events.md`
-- Batch: `Task 3: Expose typed system-event projections in GraphQL history and finalize verification`
-- Why now: Task 2 landed durable lifecycle and moderation system-event emission plus shared channel broadcasts, so the next unblocked chat milestone is exposing typed system-event projections through the Relay chat history surface.
+- Track: `live`
+- Plan: `docs/plans/live/2026-03-17-live-session-recording-linkage.md`
+- Batch: `Task 1: Add durable recording linkage storage and end-session validation`
+- Why now: The chat product surface track is complete, and the architecture still requires replay/recording linkage when a live session ends; current `live_sessions`, `LC.Live`, and GraphQL surfaces have no durable recording reference yet.
 
 ## Do This Now
 
-- Add failing GraphQL history tests for mixed user/system-message connections and typed `systemEventType` projection.
-- Expose additive typed system-event fields on the shared `ChatMessage` Relay node without splitting history into parallel lists.
-- Re-run the focused GraphQL chat history tests, then the Task 3 final verification commands from `docs/plans/chat/2026-03-17-chat-system-events.md`.
-- Mark Task 3 progress as it lands and refresh plan/index tracking when the task is complete.
+- Add failing Live tests for linking a host-owned uploaded/processed media asset when a session ends, plus rejection coverage for foreign, pending-upload, and failed assets.
+- Add the nullable `recording_media_asset_id` linkage and validation helpers in `LC.Live` / `LC.Content` without inventing a second recording store.
+- Re-run the focused Live/Content tests, then the Task 1 verification commands from `docs/plans/live/2026-03-17-live-session-recording-linkage.md`.
+- Mark Task 1 progress as it lands and refresh `NOW.md` when the next batch becomes current.
 
 ## Verification Scope
 
 ```bash
 mix compile
-mix test test/live_canvas/chat_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/integration/live_session_flow_test.exs
+mix test test/live_canvas/live_test.exs test/live_canvas/content_test.exs
 mix typecheck
 ```
 
 ## Next Up
 
-- Re-evaluate `docs/plans/chat/TRACK.md` and refresh plan/index tracking after Task 3 closes.
+- Move to `Task 2` in `docs/plans/live/2026-03-17-live-session-recording-linkage.md` to expose the linked recording through `endLiveSession` and the Relay `LiveSession` node.
 
 ## Repair Conditions
 
