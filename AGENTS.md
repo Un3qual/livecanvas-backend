@@ -6,6 +6,7 @@
 - Allow explicit exceptions, such as `user_tokens`, to use pure UUIDv7 identifiers.
 - Use SHA3-based token hashing, not SHA-2, for persisted token secrets.
 - Keep the GraphQL API Relay-first: nodes, global IDs, connections, edges, and cursor pagination.
+- Re-apply viewer authorization in GraphQL node fetchers and child field resolvers; globally refetchable IDs and raw foreign keys must not bypass ownership or visibility rules (`CWE-639` / IDOR).
 - Add typespecs for public functions and run `mix typecheck` when you touch typed code.
 
 ## Batching And Commit Policy

@@ -385,6 +385,53 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       assert returned_public_url == expected_public_url
     end
 
+    test "returns nil for recording media assets when the viewer cannot read session history" do
+      host = user_fixture()
+      outsider = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(outsider)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(host, %{
+                 storage_key: "uploads/users/#{host.id}/private-node-recording.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :processed
+               })
+
+      {:ok, ended_session} =
+        Live.end_live_session(live_session, %{recording_media_asset_id: recording_asset.id})
+
+      live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on LiveSession {
+            recordingMediaAsset {
+              id
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^live_session_id,
+                    "recordingMediaAsset" => nil
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => live_session_id},
+                 context: context
+               )
+    end
+
     test "returns nil for live session recording media assets when no recording is linked" do
       host = user_fixture(privacy_mode: :public)
       viewer = user_fixture()
