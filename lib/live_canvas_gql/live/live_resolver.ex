@@ -290,12 +290,23 @@ defmodule LCGQL.Live.Resolver do
   defp maybe_emit_lifecycle_system_event(live_session, event_type, true, viewer)
        when event_type in [:session_ended, :session_live] and is_map(live_session) and
               is_map(viewer) do
+    # Emit only when the persisted reload still matches the lifecycle event.
+    # This suppresses stale `session_live` rows if a concurrent end wins before
+    # the go-live caller reloads the row after owning the DB transition.
+    if emit_matching_lifecycle_event?(live_session, event_type) do
       live_session
       |> Chat.record_system_event(event_type, actor: viewer)
       |> broadcast_system_event()
+    else
+      :ok
+    end
   end
 
   defp maybe_emit_lifecycle_system_event(_live_session, _event_type, _transitioned?, _viewer), do: :ok
+
+  defp emit_matching_lifecycle_event?(%{status: :live}, :session_live), do: true
+  defp emit_matching_lifecycle_event?(%{status: :ended}, :session_ended), do: true
+  defp emit_matching_lifecycle_event?(_live_session, _event_type), do: false
 
   defp broadcast_system_event({:ok, system_event}), do: Chat.broadcast_message(system_event)
   defp broadcast_system_event({:error, _reason}), do: :ok

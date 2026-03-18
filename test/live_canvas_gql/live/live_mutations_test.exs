@@ -319,6 +319,129 @@ defmodule LCGQL.Live.LiveMutationsTest do
                |> Repo.all()
     end
 
+    test "does not emit session_live when a concurrent end wins before the go-live reload" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      topic = "live_session:#{started_session.id}"
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      test_pid = self()
+
+      go_live_mutation = """
+      mutation GoLiveSession($liveSessionId: ID!) {
+        goLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      end_mutation = """
+      mutation EndLiveSession($liveSessionId: ID!) {
+        endLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      lock_task =
+        Task.async(fn ->
+          Repo.transaction(fn ->
+            from(live_session in LiveSession,
+              where: live_session.id == ^started_session.id,
+              lock: "FOR UPDATE"
+            )
+            |> Repo.one!()
+
+            send(test_pid, :live_session_locked)
+
+            receive do
+              :release_live_session_lock -> :ok
+            after
+              5_000 -> exit(:release_live_session_lock_timeout)
+            end
+          end)
+        end)
+
+      allow_live_db(lock_task.pid)
+      assert_receive :live_session_locked
+
+      go_live_task =
+        Task.async(fn ->
+          Absinthe.run(
+            go_live_mutation,
+            LCGQL.Schema,
+            context: context,
+            variables: %{"liveSessionId" => session_id}
+          )
+        end)
+
+      allow_live_db(go_live_task.pid)
+      Process.sleep(20)
+
+      end_task =
+        Task.async(fn ->
+          Absinthe.run(
+            end_mutation,
+            LCGQL.Schema,
+            context: context,
+            variables: %{"liveSessionId" => session_id}
+          )
+        end)
+
+      allow_live_db(end_task.pid)
+      send(lock_task.pid, :release_live_session_lock)
+
+      assert {:ok, _lock_result} = Task.await(lock_task, 5_000)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "goLiveSession" => %{
+                    "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                    "errors" => []
+                  }
+                }
+              }} = Task.await(go_live_task, 5_000)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                    "errors" => []
+                  }
+                }
+              }} = Task.await(end_task, 5_000)
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "chat:message",
+        payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
+      }
+
+      refute_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "chat:message",
+        payload: %{message: %{metadata: %{"event_type" => "session_live"}}}
+      },
+      200
+    end
+
     test "rejects repeated end transitions once a session is already ended" do
       host = user_fixture()
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
@@ -449,6 +572,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
       session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
       context = %{current_scope: Accounts.scope_for_user(host)}
+      test_pid = self()
 
       go_live_mutation = """
       mutation GoLiveSession($liveSessionId: ID!) {
@@ -464,12 +588,58 @@ defmodule LCGQL.Live.LiveMutationsTest do
       }
       """
 
+      end_mutation = """
+      mutation EndLiveSession($liveSessionId: ID!) {
+        endLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      lock_task =
+        Task.async(fn ->
+          Repo.transaction(fn ->
+            from(live_session in LiveSession,
+              where: live_session.id == ^started_session.id,
+              lock: "FOR UPDATE"
+            )
+            |> Repo.one!()
+
+            send(test_pid, :live_session_locked)
+
+            receive do
+              :release_live_session_lock -> :ok
+            after
+              5_000 -> exit(:release_live_session_lock_timeout)
+            end
+          end)
+        end)
+
+      allow_live_db(lock_task.pid)
+      assert_receive :live_session_locked
+
+      end_task =
+        Task.async(fn ->
+          Absinthe.run(
+            end_mutation,
+            LCGQL.Schema,
+            context: context,
+            variables: %{"liveSessionId" => session_id}
+          )
+        end)
+
+      allow_live_db(end_task.pid)
+      Process.sleep(20)
+
       go_live_task =
         Task.async(fn ->
-          receive do
-            :run_go_live -> :ok
-          end
-
           Absinthe.run(
             go_live_mutation,
             LCGQL.Schema,
@@ -479,22 +649,19 @@ defmodule LCGQL.Live.LiveMutationsTest do
         end)
 
       allow_live_db(go_live_task.pid)
-      :erlang.trace_pattern({Live, :mark_session_live_with_transition, 1}, true, [:local])
-      :erlang.trace(go_live_task.pid, true, [:call])
-      send(go_live_task.pid, :run_go_live)
+      send(lock_task.pid, :release_live_session_lock)
 
-      assert_receive {:trace, traced_pid, :call, {Live, :mark_session_live_with_transition, [_]}},
-                     5_000
+      assert {:ok, _lock_result} = Task.await(lock_task, 5_000)
 
-      assert traced_pid == go_live_task.pid
-      :erlang.suspend_process(go_live_task.pid)
-
-      assert {:ok, %LiveSession{status: :ended, ended_reason: :host_ended}, true} =
-               Live.end_live_session_with_transition(started_session, %{ended_reason: :host_ended})
-
-      :erlang.resume_process(go_live_task.pid)
-      :erlang.trace(go_live_task.pid, false, [:call])
-      :erlang.trace_pattern({Live, :mark_session_live_with_transition, 1}, false, [:local])
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                    "errors" => []
+                  }
+                }
+              }} = Task.await(end_task, 5_000)
 
       assert {:ok,
               %{
