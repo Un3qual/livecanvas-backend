@@ -635,5 +635,67 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       assert {:ok, %{data: %{"replayFeed" => %{"edges" => []}}}} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10})
     end
+
+    test "returns nil recordingMediaAsset when the linked recording is no longer durable" do
+      viewer = user_fixture()
+      host = user_fixture(privacy_mode: :public)
+
+      {:ok, recording_asset} =
+        Content.create_media_asset(host, %{
+          storage_key: "uploads/users/#{host.id}/replay-feed-failed.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
+
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+
+      {:ok, ended_session} =
+        Live.end_live_session(live_session, %{recording_media_asset_id: recording_asset.id})
+
+      {1, nil} =
+        Repo.update_all(
+          from(media_asset in LCSchemas.Content.MediaAsset,
+            where: media_asset.id == ^recording_asset.id
+          ),
+          set: [processing_state: :failed]
+        )
+
+      query = """
+      query($first: Int!) {
+        replayFeed(first: $first) {
+          edges {
+            node {
+              id
+              recordingMediaAsset {
+                id
+              }
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      ended_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "replayFeed" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^ended_session_id,
+                          "recordingMediaAsset" => nil
+                        }
+                      }
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+    end
   end
 end
