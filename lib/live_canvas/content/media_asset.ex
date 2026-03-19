@@ -57,5 +57,7 @@ defmodule LC.Content.MediaAsset do
       :duration_ms
     ])
     |> validate_required([:owner_id, :storage_key, :mime_type])
+    |> foreign_key_constraint(:owner_id)
+    |> foreign_key_constraint(:post_id)
   end
 end

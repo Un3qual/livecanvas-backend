@@ -9,6 +9,8 @@ defmodule LC.ContentTest do
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
   alias LCSchemas.Live.LiveSession
 
+  @story_ttl_seconds 24 * 60 * 60
+
   describe "create_post/2" do
     test "persists author-owned content" do
       author = user_fixture()
@@ -20,6 +22,138 @@ defmodule LC.ContentTest do
       assert post.body_text == "first post"
       assert post.visibility == :followers
       assert is_binary(post.entropy_id)
+    end
+
+    test "attaches viewer-owned uploaded and processed media assets to a new post" do
+      author = user_fixture()
+
+      assert {:ok, uploaded_asset} =
+               Content.create_media_asset(author, %{
+                 storage_key: "uploads/users/#{author.id}/uploaded.jpg",
+                 mime_type: "image/jpeg",
+                 processing_state: :uploaded
+               })
+
+      assert {:ok, processed_asset} =
+               Content.create_media_asset(author, %{
+                 storage_key: "uploads/users/#{author.id}/processed.jpg",
+                 mime_type: "image/jpeg",
+                 processing_state: :processed
+               })
+
+      assert {:ok, post} =
+               Content.create_post(author, %{
+                 kind: :standard,
+                 body_text: "with attachments",
+                 media_asset_ids: [uploaded_asset.id, processed_asset.id]
+               })
+
+      attached_post = Repo.preload(post, :media_assets)
+
+      assert Enum.sort(Enum.map(attached_post.media_assets, & &1.id)) ==
+               Enum.sort([uploaded_asset.id, processed_asset.id])
+
+      assert Repo.get!(MediaAssetSchema, uploaded_asset.id).post_id == post.id
+      assert Repo.get!(MediaAssetSchema, processed_asset.id).post_id == post.id
+    end
+
+    test "rejects media assets owned by another viewer" do
+      author = user_fixture()
+      other_user = user_fixture()
+
+      assert {:ok, other_asset} =
+               Content.create_media_asset(other_user, %{
+                 storage_key: "uploads/users/#{other_user.id}/other.jpg",
+                 mime_type: "image/jpeg",
+                 processing_state: :uploaded
+               })
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Content.create_post(author, %{
+                 kind: :standard,
+                 body_text: "cross-account attach",
+                 media_asset_ids: [other_asset.id]
+               })
+
+      assert %{media_asset_ids: ["must reference viewer-owned uploaded or processed assets"]} =
+               errors_on(changeset)
+
+      assert Repo.aggregate(PostSchema, :count, :id) == 0
+      assert Repo.get!(MediaAssetSchema, other_asset.id).post_id == nil
+    end
+
+    test "rejects media assets that are not in a durable processing state" do
+      author = user_fixture()
+
+      assert {:ok, %{media_asset: pending_asset}} =
+               Content.request_media_upload(author, %{mime_type: "image/jpeg"})
+
+      assert {:ok, failed_asset} =
+               Content.create_media_asset(author, %{
+                 storage_key: "uploads/users/#{author.id}/failed.jpg",
+                 mime_type: "image/jpeg",
+                 processing_state: :failed
+               })
+
+      for media_asset_id <- [pending_asset.id, failed_asset.id] do
+        assert {:error, %Ecto.Changeset{} = changeset} =
+                 Content.create_post(author, %{
+                   kind: :standard,
+                   body_text: "invalid attachment",
+                   media_asset_ids: [media_asset_id]
+                 })
+
+        assert %{media_asset_ids: ["must reference viewer-owned uploaded or processed assets"]} =
+                 errors_on(changeset)
+      end
+
+      assert Repo.aggregate(PostSchema, :count, :id) == 0
+      assert Repo.get!(MediaAssetSchema, pending_asset.id).post_id == nil
+      assert Repo.get!(MediaAssetSchema, failed_asset.id).post_id == nil
+    end
+
+    test "defaults story posts to a bounded expiry window" do
+      author = user_fixture()
+      before_insert = DateTime.utc_now()
+
+      assert {:ok, story_post} =
+               Content.create_post(author, %{
+                 kind: :story,
+                 body_text: "story post"
+               })
+
+      after_insert = DateTime.utc_now()
+      lower_bound = DateTime.add(before_insert, @story_ttl_seconds, :second)
+      upper_bound = DateTime.add(after_insert, @story_ttl_seconds, :second)
+
+      assert story_post.kind == :story
+      assert %DateTime{} = story_post.expires_at
+      assert DateTime.compare(story_post.expires_at, lower_bound) in [:eq, :gt]
+      assert DateTime.compare(story_post.expires_at, upper_bound) in [:eq, :lt]
+    end
+
+    test "rejects explicit story expirations outside the allowed window" do
+      author = user_fixture()
+      past_expiration = DateTime.add(DateTime.utc_now(), -1, :second)
+      far_future_expiration = DateTime.add(DateTime.utc_now(), @story_ttl_seconds + 1, :second)
+
+      assert {:error, %Ecto.Changeset{} = past_changeset} =
+               Content.create_post(author, %{
+                 kind: :story,
+                 body_text: "expired story",
+                 expires_at: past_expiration
+               })
+
+      assert %{expires_at: ["must be in the future"]} = errors_on(past_changeset)
+
+      assert {:error, %Ecto.Changeset{} = far_future_changeset} =
+               Content.create_post(author, %{
+                 kind: :story,
+                 body_text: "permanent story",
+                 expires_at: far_future_expiration
+               })
+
+      assert %{expires_at: ["must be within 24 hours"]} = errors_on(far_future_changeset)
     end
   end
 
