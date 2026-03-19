@@ -7,7 +7,7 @@ defmodule LCGQL.Content.Mutations do
   object :content_mutations do
     payload field :create_post do
       input do
-        field :kind, non_null(:post_kind)
+        field :kind, non_null(:create_post_kind)
         field :body_text, :string
         field :visibility, :post_visibility
       end

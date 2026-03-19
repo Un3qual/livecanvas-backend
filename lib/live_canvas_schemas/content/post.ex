@@ -20,7 +20,7 @@ defmodule LCSchemas.Content.Post do
 
   schema "posts" do
     field :entropy_id, Ecto.UUID, read_after_writes: true
-    field :kind, Ecto.Enum, values: [:standard]
+    field :kind, Ecto.Enum, values: [:standard, :story]
     field :body_text, :string
     field :visibility, Ecto.Enum, values: [:followers, :public], default: :followers
     field :expires_at, :utc_datetime_usec

@@ -7,24 +7,24 @@ Status: active
 
 - Track: `content_story_surface`
 - Plan: `docs/plans/content/2026-03-18-post-media-attachments-and-story-feed.md`
-- Batch: `Task 1: Add viewer-owned post media attachment primitives and story-kind foundation in LC.Content`
-- Why now: The read-policy track is complete, and `ARCHITECTURE.md` still names stories as missing product-facing scope. The next unblocked batch is the content foundation that story feed and media-backed posts depend on.
+- Batch: `Task 2: Add story-aware feed queries and visibility rules in LC.Feed`
+- Why now: Task 1 is complete and verified, so the next unblocked batch is the read-model split that keeps stories out of `homeFeed` and makes expired story visibility consistent across feed and refetch paths.
 
 ## Do This Now
 
-- Add focused `LC.Content` tests for viewer-owned post media attachment and story expiry validation.
-- Extend the content boundary so `create_post/2` can safely attach viewer-owned durable media assets and support `kind: :story` with bounded expiry defaults.
-- Add the supporting schema/type updates and story-query index migration, then verify only the focused content foundation slice.
+- Add focused feed and GraphQL query tests proving `home_feed` excludes stories, `story_feed` returns only active visible stories ordered newest-first, and expired stories disappear from direct post and Relay node lookups.
+- Implement `LC.Feed.story_feed/2` plus kind-aware `home_feed_query/1` and visible-post filtering without weakening existing suspension, block, mute, or follower/public visibility rules.
+- Verify only the focused feed and Relay visibility slice for Task 2.
 
 ## Verification Scope
 
 ```bash
-mix test test/live_canvas/content_test.exs
+mix test test/live_canvas/feed_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs
 ```
 
 ## Next Up
 
-- Once Task 1 is green and committed, advance to `docs/plans/content/2026-03-18-post-media-attachments-and-story-feed.md` -> `Task 2`.
+- Once Task 2 is green and committed, advance to `docs/plans/content/2026-03-18-post-media-attachments-and-story-feed.md` -> `Task 3`.
 
 ## Repair Conditions
 

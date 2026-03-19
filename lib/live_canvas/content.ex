@@ -29,17 +29,36 @@ defmodule LC.Content do
   @type webhook_ingest_result ::
           {:ok, :accepted | :duplicate}
           | {:error, :enqueue_failed | :invalid_payload | Ecto.Changeset.t()}
+  @type attachable_post_media_assets_result ::
+          {:ok, [MediaAssetSchema.t()]} | {:error, Ecto.Changeset.t()}
   @media_processing_job_kind "media_asset_processing"
   @media_processing_job_max_attempts 2
+  @post_media_asset_error "must reference viewer-owned uploaded or processed assets"
 
   @doc """
   Persists a post owned by the given author.
   """
   @spec create_post(User.t(), map()) :: post_result()
   def create_post(%User{id: author_id}, attrs) when is_map(attrs) do
-    %PostSchema{}
-    |> Post.changeset(Post.attrs_for_insert(author_id, attrs))
-    |> Repo.insert()
+    post_changeset =
+      %PostSchema{}
+      |> Post.changeset(Post.attrs_for_insert(author_id, attrs))
+
+    with {:ok, media_asset_ids} <- normalize_media_asset_ids(attrs, post_changeset),
+         true <- post_changeset.valid? || {:error, post_changeset} do
+      Repo.transaction(fn ->
+        with {:ok, media_assets} <-
+               fetch_attachable_post_media_assets(author_id, media_asset_ids, post_changeset),
+             {:ok, post} <- Repo.insert(post_changeset),
+             {:ok, _attached_assets} <- attach_post_media_assets(post, media_assets) do
+          post
+        else
+          {:error, %Ecto.Changeset{} = changeset} ->
+            Repo.rollback(changeset)
+        end
+      end)
+      |> normalize_create_post_result()
+    end
   end
 
   @doc """
@@ -264,6 +283,98 @@ defmodule LC.Content do
       {:error, _reason} -> {:error, :enqueue_failed}
     end
   end
+
+  @spec normalize_media_asset_ids(map(), Ecto.Changeset.t()) ::
+          {:ok, [pos_integer()]} | {:error, Ecto.Changeset.t()}
+  defp normalize_media_asset_ids(attrs, %Ecto.Changeset{} = post_changeset) when is_map(attrs) do
+    case Map.get(attrs, :media_asset_ids) || Map.get(attrs, "media_asset_ids") do
+      nil ->
+        {:ok, []}
+
+      media_asset_ids when is_list(media_asset_ids) ->
+        if Enum.all?(media_asset_ids, &is_integer(&1) and &1 > 0) do
+          {:ok, Enum.uniq(media_asset_ids)}
+        else
+          {:error,
+           Ecto.Changeset.add_error(
+             post_changeset,
+             :media_asset_ids,
+             "must be a list of positive ids"
+           )}
+        end
+
+      _invalid_media_asset_ids ->
+        {:error,
+         Ecto.Changeset.add_error(post_changeset, :media_asset_ids, "must be a list of positive ids")}
+    end
+  end
+
+  @spec fetch_attachable_post_media_assets(pos_integer(), [pos_integer()], Ecto.Changeset.t()) ::
+          attachable_post_media_assets_result()
+  defp fetch_attachable_post_media_assets(_author_id, [], %Ecto.Changeset{}), do: {:ok, []}
+
+  defp fetch_attachable_post_media_assets(
+         author_id,
+         media_asset_ids,
+         %Ecto.Changeset{} = post_changeset
+       )
+       when is_integer(author_id) and author_id > 0 and is_list(media_asset_ids) do
+    media_assets =
+      from(media_asset in MediaAssetSchema,
+        where: media_asset.id in ^media_asset_ids and media_asset.owner_id == ^author_id,
+        lock: "FOR UPDATE"
+      )
+      |> Repo.all()
+
+    if attachable_post_media_assets?(media_assets, media_asset_ids) do
+      {:ok, media_assets}
+    else
+      {:error, Ecto.Changeset.add_error(post_changeset, :media_asset_ids, @post_media_asset_error)}
+    end
+  end
+
+  @spec attachable_post_media_assets?([MediaAssetSchema.t()], [pos_integer()]) :: boolean()
+  defp attachable_post_media_assets?(media_assets, media_asset_ids)
+       when is_list(media_assets) and is_list(media_asset_ids) do
+    loaded_ids = media_assets |> Enum.map(& &1.id) |> Enum.sort()
+    requested_ids = Enum.sort(media_asset_ids)
+
+    loaded_ids == requested_ids and
+      Enum.all?(media_assets, &attachable_post_media_asset?/1)
+  end
+
+  @spec attachable_post_media_asset?(MediaAssetSchema.t()) :: boolean()
+  defp attachable_post_media_asset?(
+         %MediaAssetSchema{post_id: nil, processing_state: processing_state}
+       )
+       when processing_state in [:uploaded, :processed],
+       do: true
+
+  defp attachable_post_media_asset?(%MediaAssetSchema{}), do: false
+
+  @spec attach_post_media_assets(PostSchema.t(), [MediaAssetSchema.t()]) ::
+          {:ok, [MediaAssetSchema.t()]} | {:error, Ecto.Changeset.t()}
+  defp attach_post_media_assets(%PostSchema{}, []), do: {:ok, []}
+
+  defp attach_post_media_assets(%PostSchema{id: post_id}, media_assets)
+       when is_integer(post_id) and post_id > 0 and is_list(media_assets) do
+    Enum.reduce_while(media_assets, {:ok, []}, fn media_asset, {:ok, attached_assets} ->
+      case media_asset
+           |> MediaAsset.changeset(%{post_id: post_id})
+           |> Repo.update() do
+        {:ok, attached_asset} ->
+          {:cont, {:ok, [attached_asset | attached_assets]}}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:halt, {:error, changeset}}
+      end
+    end)
+  end
+
+  @spec normalize_create_post_result({:ok, PostSchema.t()} | {:error, Ecto.Changeset.t()}) ::
+          post_result()
+  defp normalize_create_post_result({:ok, %PostSchema{} = post}), do: {:ok, post}
+  defp normalize_create_post_result({:error, %Ecto.Changeset{} = changeset}), do: {:error, changeset}
 
   @spec update_media_asset(MediaAssetSchema.t(), map()) ::
           {:ok, MediaAssetSchema.t()} | {:error, changeset()}

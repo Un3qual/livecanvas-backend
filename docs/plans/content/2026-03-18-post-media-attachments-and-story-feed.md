@@ -31,7 +31,7 @@ Verified directly in the codebase before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Add viewer-owned post media attachment primitives and story-kind foundation in `LC.Content`
+- [x] Task 1: Add viewer-owned post media attachment primitives and story-kind foundation in `LC.Content`
 - [ ] Task 2: Add story-aware feed queries and visibility rules in `LC.Feed`
 - [ ] Task 3: Publish Relay story/media GraphQL surfaces and verify node/auth behavior
 
@@ -48,13 +48,13 @@ Verified directly in the codebase before drafting this plan:
 - Create: `priv/repo/migrations/20260318210000_add_story_post_indexes.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing `LC.Content` tests for attaching viewer-owned uploaded media assets to a new post, rejecting assets owned by another user, and rejecting assets still in `:pending_upload` or `:failed`
-- [ ] Step 2: Add failing `LC.Content` tests for `kind: :story` rows defaulting to a bounded expiry window and rejecting invalid explicit expirations
-- [ ] Step 3: Extend `LCSchemas.Content.post_kind()` and `LCSchemas.Content.Post` so `:story` is a valid persisted post kind
-- [ ] Step 4: Add the minimal migration/index support for story lookups (`posts.kind`, `posts.expires_at`, and any composite index needed for active story ordering)
-- [ ] Step 5: Refactor `LC.Content.create_post/2` so it accepts viewer-scoped `media_asset_ids`, locks the candidate assets, verifies ownership + durable processing state, and associates them to the inserted post inside one transaction
-- [ ] Step 6: Centralize story-specific validation in `LC.Content.Post` so story expiry defaults and invariants live in one place instead of the GraphQL layer
-- [ ] Step 7: Run `mix test test/live_canvas/content_test.exs` and commit the content-foundation slice
+- [x] Step 1: Add failing `LC.Content` tests for attaching viewer-owned uploaded media assets to a new post, rejecting assets owned by another user, and rejecting assets still in `:pending_upload` or `:failed`
+- [x] Step 2: Add failing `LC.Content` tests for `kind: :story` rows defaulting to a bounded expiry window and rejecting invalid explicit expirations
+- [x] Step 3: Extend `LCSchemas.Content.post_kind()` and `LCSchemas.Content.Post` so `:story` is a valid persisted post kind
+- [x] Step 4: Add the minimal migration/index support for story lookups (`posts.kind`, `posts.expires_at`, and any composite index needed for active story ordering)
+- [x] Step 5: Refactor `LC.Content.create_post/2` so it accepts viewer-scoped `media_asset_ids`, locks the candidate assets, verifies ownership + durable processing state, and associates them to the inserted post inside one transaction
+- [x] Step 6: Centralize story-specific validation in `LC.Content.Post` so story expiry defaults and invariants live in one place instead of the GraphQL layer
+- [x] Step 7: Run `mix test test/live_canvas/content_test.exs` and commit the content-foundation slice
 
 **Task 1 behavior targets:**
 
