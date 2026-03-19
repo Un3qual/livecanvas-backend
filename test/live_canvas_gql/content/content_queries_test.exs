@@ -4,6 +4,7 @@ defmodule LCGQL.Content.ContentQueriesTest do
   import LC.AccountsFixtures
 
   alias LC.{Accounts, Content}
+  alias LCSchemas.Content.Post
 
   test "post query returns a public post by global ID" do
     author = user_fixture()
@@ -74,6 +75,41 @@ defmodule LCGQL.Content.ContentQueriesTest do
 
     assert returned_post_id == post_id
     assert is_binary(expires_at)
+  end
+
+  test "post query returns null for expired story posts even with a valid public ID" do
+    author = user_fixture()
+    viewer = user_fixture()
+    viewer_context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    {:ok, story_post} =
+      Content.create_post(author, %{kind: :story, body_text: "expired story", visibility: :public})
+
+    expired_at = ~U[2026-03-18 17:00:00.000000Z]
+
+    {1, _rows} =
+      Repo.update_all(from(post in Post, where: post.id == ^story_post.id),
+        set: [expires_at: expired_at, updated_at: expired_at]
+      )
+
+    post_id = Absinthe.Relay.Node.to_global_id(:post, story_post.id, LCGQL.Schema)
+
+    query = """
+    query($id: ID!) {
+      post(id: $id) {
+        id
+      }
+    }
+    """
+
+    assert {:ok, %{data: %{"post" => nil}}} =
+             Absinthe.run(query, LCGQL.Schema, variables: %{"id" => post_id})
+
+    assert {:ok, %{data: %{"post" => nil}}} =
+             Absinthe.run(query, LCGQL.Schema,
+               variables: %{"id" => post_id},
+               context: viewer_context
+             )
   end
 
   test "post query returns null for follower-only posts without viewer visibility" do

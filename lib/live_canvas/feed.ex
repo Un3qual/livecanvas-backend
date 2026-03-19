@@ -16,6 +16,7 @@ defmodule LC.Feed do
   @default_limit 25
 
   @type home_feed_opts :: [limit: pos_integer()]
+  @type story_feed_opts :: [limit: pos_integer()]
   @type live_now_opts :: [limit: pos_integer()]
   @type replay_feed_opts :: [limit: pos_integer()]
 
@@ -31,13 +32,24 @@ defmodule LC.Feed do
   end
 
   @doc """
+  Returns the viewer's visible active stories ordered newest-first.
+  """
+  @spec story_feed(User.t(), story_feed_opts()) :: [Post.t()]
+  def story_feed(%User{} = viewer, opts \\ []) do
+    viewer
+    |> story_feed_query()
+    |> limit(^normalize_limit(opts))
+    |> Repo.all()
+  end
+
+  @doc """
   Returns one post when it is visible to the provided viewer or publicly visible.
   """
   @spec get_visible_post(User.t() | nil, pos_integer()) :: Post.t() | nil
   def get_visible_post(%User{} = viewer, post_id)
       when is_integer(post_id) and post_id > 0 do
     viewer
-    |> home_feed_query()
+    |> visible_post_query()
     |> where([post], post.id == ^post_id)
     |> Repo.one()
   end
@@ -48,7 +60,11 @@ defmodule LC.Feed do
     from(post in Post,
       join: author in User,
       on: author.id == post.author_id,
-      where: post.id == ^post_id and is_nil(author.suspended_at) and post.visibility == :public
+      where:
+        post.id == ^post_id and
+          is_nil(author.suspended_at) and
+          post.visibility == :public and
+          (post.kind == :standard or (post.kind == :story and post.expires_at > ^DateTime.utc_now()))
     )
     |> Repo.one()
   end
@@ -61,7 +77,19 @@ defmodule LC.Feed do
   @spec home_feed_query(User.t()) :: Ecto.Query.t()
   def home_feed_query(%User{} = viewer) do
     Post
-    |> ReadPolicy.viewer_visible_query(viewer, owner_key: :author_id, visibility_key: :visibility)
+    |> visible_post_query(viewer)
+    |> where([post], post.kind == :standard)
+    |> order_by([post], desc: post.inserted_at, desc: post.id)
+  end
+
+  @doc """
+  Returns a deterministic query for the viewer's visible active story feed.
+  """
+  @spec story_feed_query(User.t()) :: Ecto.Query.t()
+  def story_feed_query(%User{} = viewer) do
+    Post
+    |> visible_post_query(viewer)
+    |> where([post], post.kind == :story)
     |> order_by([post], desc: post.inserted_at, desc: post.id)
   end
 
@@ -123,6 +151,26 @@ defmodule LC.Feed do
   @doc false
   @spec run_query(Ecto.Query.t()) :: [term()]
   def run_query(query), do: Repo.all(query)
+
+  @spec visible_post_query(User.t()) :: Ecto.Query.t()
+  defp visible_post_query(%User{} = viewer) do
+    Post
+    |> visible_post_query(viewer)
+  end
+
+  @spec visible_post_query(Ecto.Queryable.t(), User.t()) :: Ecto.Query.t()
+  defp visible_post_query(queryable, %User{} = viewer) do
+    now = DateTime.utc_now()
+
+    queryable
+    |> ReadPolicy.viewer_visible_query(viewer, owner_key: :author_id, visibility_key: :visibility)
+    # Direct lookups still need active story visibility even though the home
+    # feed itself excludes stories.
+    |> where(
+      [read_policy_resource: post],
+      post.kind == :standard or (post.kind == :story and post.expires_at > ^now)
+    )
+  end
 
   defp normalize_limit(opts) do
     case Keyword.get(opts, :limit, @default_limit) do

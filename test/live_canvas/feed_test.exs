@@ -10,6 +10,24 @@ defmodule LC.FeedTest do
   alias LCSchemas.Live.LiveSession, as: LiveSessionSchema
 
   describe "home_feed/2" do
+    test "excludes visible story posts" do
+      viewer = user_fixture()
+      creator = user_fixture(privacy_mode: :public)
+
+      {:ok, _story_post} =
+        Content.create_post(creator, %{kind: :story, body_text: "story", visibility: :public})
+
+      {:ok, standard_post} =
+        Content.create_post(creator, %{
+          kind: :standard,
+          body_text: "timeline",
+          visibility: :public
+        })
+
+      assert [visible_post] = Feed.home_feed(viewer, limit: 10)
+      assert visible_post.id == standard_post.id
+    end
+
     test "excludes suspended creators" do
       viewer = user_fixture()
       suspended_creator = user_fixture(privacy_mode: :public)
@@ -87,6 +105,97 @@ defmodule LC.FeedTest do
       assert [first_post, second_post] = Feed.home_feed(viewer, limit: 10)
       assert first_post.id == public_post.id
       assert second_post.id == followed_post.id
+    end
+  end
+
+  describe "story_feed/2" do
+    test "returns active visible stories ordered newest-first" do
+      viewer = user_fixture()
+      followed_creator = user_fixture()
+      public_creator = user_fixture(privacy_mode: :public)
+      blocked_creator = user_fixture(privacy_mode: :public)
+      muted_creator = user_fixture(privacy_mode: :public)
+
+      _follow = accepted_follow_fixture(viewer, followed_creator)
+      {:ok, _block} = Social.block_user(blocked_creator, viewer)
+      _mute = mute_fixture(viewer, muted_creator)
+
+      {:ok, followed_story} =
+        Content.create_post(followed_creator, %{kind: :story, body_text: "followers story"})
+
+      {:ok, public_story} =
+        Content.create_post(public_creator, %{
+          kind: :story,
+          body_text: "public story",
+          visibility: :public
+        })
+
+      {:ok, _expired_story} =
+        Content.create_post(public_creator, %{
+          kind: :story,
+          body_text: "expired story",
+          visibility: :public
+        })
+
+      {:ok, _standard_post} =
+        Content.create_post(public_creator, %{
+          kind: :standard,
+          body_text: "standard post",
+          visibility: :public
+        })
+
+      {:ok, _blocked_story} =
+        Content.create_post(blocked_creator, %{
+          kind: :story,
+          body_text: "blocked story",
+          visibility: :public
+        })
+
+      {:ok, _muted_story} =
+        Content.create_post(muted_creator, %{
+          kind: :story,
+          body_text: "muted story",
+          visibility: :public
+        })
+
+      now = DateTime.utc_now()
+      followed_inserted_at = DateTime.add(now, -180, :second)
+      public_inserted_at = DateTime.add(now, -120, :second)
+      expired_inserted_at = DateTime.add(now, -60, :second)
+      active_expires_at = DateTime.add(now, 60, :second)
+      expired_expires_at = DateTime.add(now, -60, :second)
+
+      {1, _rows} =
+        Repo.update_all(from(post in Post, where: post.id == ^followed_story.id),
+          set: [
+            inserted_at: followed_inserted_at,
+            updated_at: followed_inserted_at,
+            expires_at: active_expires_at
+          ]
+        )
+
+      {1, _rows} =
+        Repo.update_all(from(post in Post, where: post.id == ^public_story.id),
+          set: [
+            inserted_at: public_inserted_at,
+            updated_at: public_inserted_at,
+            expires_at: active_expires_at
+          ]
+        )
+
+      {1, _rows} =
+        Repo.update_all(
+          from(post in Post, where: post.body_text == "expired story"),
+          set: [
+            inserted_at: expired_inserted_at,
+            updated_at: expired_inserted_at,
+            expires_at: expired_expires_at
+          ]
+        )
+
+      assert [first_story, second_story] = Feed.story_feed(viewer, limit: 10)
+      assert first_story.id == public_story.id
+      assert second_story.id == followed_story.id
     end
   end
 
