@@ -43,6 +43,39 @@ defmodule LCGQL.Content.ContentQueriesTest do
     assert returned_author_id == author_id
   end
 
+  test "post query serializes story post kinds without raising" do
+    author = user_fixture()
+
+    {:ok, post} =
+      Content.create_post(author, %{kind: :story, body_text: "story post", visibility: :public})
+
+    post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+    query = """
+    query($id: ID!) {
+      post(id: $id) {
+        id
+        kind
+        expiresAt
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "post" => %{
+                  "id" => returned_post_id,
+                  "kind" => "STORY",
+                  "expiresAt" => expires_at
+                }
+              }
+            }} = Absinthe.run(query, LCGQL.Schema, variables: %{"id" => post_id})
+
+    assert returned_post_id == post_id
+    assert is_binary(expires_at)
+  end
+
   test "post query returns null for follower-only posts without viewer visibility" do
     author = user_fixture()
     outsider = user_fixture()

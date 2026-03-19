@@ -6,6 +6,13 @@ defmodule LCGQL.Content.Types do
 
   enum :post_kind do
     value(:standard)
+    value(:story)
+  end
+
+  enum :create_post_kind do
+    # Keep createPost launch-scoped until the dedicated story mutation inputs
+    # land with attachment support in the later GraphQL batch.
+    value(:standard)
   end
 
   enum :post_visibility do
