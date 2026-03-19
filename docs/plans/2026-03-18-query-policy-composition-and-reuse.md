@@ -31,7 +31,7 @@ Verified directly in the codebase before drafting this plan:
 ## Progress
 
 - [x] Task 1: Baseline the repeated policy matrix and lock behavior with focused tests
-- [ ] Task 2: Extract reusable viewer-visibility query helpers and refactor feed queries
+- [x] Task 2: Extract reusable viewer-visibility query helpers and refactor feed queries
 - [ ] Task 3: Reuse the shared policy helpers in chat/social boundary authorization and verify Relay/auth safety
 
 ### Task 1: Baseline The Repeated Policy Matrix And Lock Behavior With Focused Tests
@@ -86,12 +86,12 @@ Expected: the current suite should remain behaviorally consistent while the new 
 - Modify: `test/integration/feed_visibility_flow_test.exs`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Write a failing test or expectation that proves the shared query helper can express the same feed visibility outcomes without duplicating join logic in each feed query
-- [ ] Step 2: Introduce the shared read-policy helper module with small, composable functions for blocked-user hiding, directional mute hiding, and follow/public visibility checks
-- [ ] Step 3: Refactor `LC.Feed.home_feed_query/1`, `LC.Feed.live_now_query/1`, and `LC.Feed.replay_feed_query/1` to compose the helper instead of hand-writing the same join set three times
-- [ ] Step 4: Preserve query ordering, cursor stability, and the exact visible row set while reducing duplicated SQL construction
-- [ ] Step 5: Run the focused feed tests and GraphQL feed tests to verify the helper does not alter visible results
-- [ ] Step 6: Run `mix compile` and commit the efficiency-focused refactor once the query shape is stable
+- [x] Step 1: Write a failing test or expectation that proves the shared query helper can express the same feed visibility outcomes without duplicating join logic in each feed query
+- [x] Step 2: Introduce the shared read-policy helper module with small, composable functions for blocked-user hiding, directional mute hiding, and follow/public visibility checks
+- [x] Step 3: Refactor `LC.Feed.home_feed_query/1`, `LC.Feed.live_now_query/1`, and `LC.Feed.replay_feed_query/1` to compose the helper instead of hand-writing the same join set three times
+- [x] Step 4: Preserve query ordering, cursor stability, and the exact visible row set while reducing duplicated SQL construction
+- [x] Step 5: Run the focused feed tests and GraphQL feed tests to verify the helper does not alter visible results
+- [x] Step 6: Run `mix compile` and commit the efficiency-focused refactor once the query shape is stable
 
 **Task 2 behavior targets:**
 

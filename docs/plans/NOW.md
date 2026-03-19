@@ -7,24 +7,26 @@ Status: active
 
 - Track: `read_policy`
 - Plan: `docs/plans/2026-03-18-query-policy-composition-and-reuse.md`
-- Batch: `Task 2: Extract reusable viewer-visibility query helpers and refactor feed queries`
-- Why now: Task 1 is complete and committed locally, so the next unblocked product-facing batch is extracting the shared feed visibility helper before boundary-side reuse.
+- Batch: `Task 3: Reuse the shared policy helpers in chat/social boundary authorization and verify Relay/auth safety`
+- Why now: Task 2 completed locally, so the next unblocked product-facing batch is reusing the shared visibility helper in boundary authorization without weakening Relay or viewer auth guarantees.
 
 ## Do This Now
 
-- Write the Task 2 feed baseline expectation first, then extract a shared read-policy helper for blocked, muted, and follow/public visibility.
-- Refactor `LC.Feed.home_feed_query/1`, `live_now_query/1`, and `replay_feed_query/1` to compose the helper without changing visible rows or ordering.
-- Run the focused Task 2 feed verification slice once the helper is wired through all three feed query builders.
+- Identify the remaining chat/social visibility checks that still reconstruct block, mute, and follow/public policy instead of calling `LC.ReadPolicy`.
+- Refactor `LC.Chat.authorize_visible_session_access/2` and the relevant `LC.Social` predicates so they reuse the shared helper without weakening viewer-scoped authorization.
+- Verify the boundary-side reuse with the focused chat/social Relay and auth slice, plus `mix typecheck` for any typed public API touched during the refactor.
 
 ## Verification Scope
 
 ```bash
-mix test test/live_canvas/feed_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/integration/feed_visibility_flow_test.exs
+mix compile
+mix test test/live_canvas/chat_test.exs test/live_canvas/social_test.exs test/live_canvas_gql/social/social_queries_test.exs test/live_canvas_gql/chat/chat_queries_test.exs
+mix typecheck
 ```
 
 ## Next Up
 
-- Start `docs/plans/2026-03-18-query-policy-composition-and-reuse.md` Task 3 once the shared feed read-policy helper is green and committed.
+- Once Task 3 is green and committed, repair `NOW.md` from `docs/plans/INDEX.md` to choose the next unblocked product-facing batch.
 
 ## Repair Conditions
 

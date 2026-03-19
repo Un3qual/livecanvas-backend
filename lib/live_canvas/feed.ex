@@ -3,15 +3,15 @@ defmodule LC.Feed do
   Read-side feed composition across content, social, and live data.
   """
 
-  use Boundary, deps: [LC.Infra, LCSchemas]
+  use Boundary, deps: [LC.Infra, LC.ReadPolicy, LCSchemas]
 
   import Ecto.Query, warn: false
 
   alias LC.Infra.Repo
+  alias LC.ReadPolicy
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.Post
   alias LCSchemas.Live.LiveSession
-  alias LCSchemas.Social.{Block, Follow, Mute}
 
   @default_limit 25
 
@@ -59,29 +59,10 @@ defmodule LC.Feed do
   Returns a deterministic query for the viewer's visible home feed.
   """
   @spec home_feed_query(User.t()) :: Ecto.Query.t()
-  def home_feed_query(%User{id: viewer_id}) when is_integer(viewer_id) do
-    from(post in Post,
-      join: author in User,
-      on: author.id == post.author_id,
-      left_join: follow in Follow,
-      on:
-        follow.follower_id == ^viewer_id and
-          follow.followed_id == post.author_id and
-          follow.state == :accepted,
-      left_join: mute in Mute,
-      on: mute.muter_id == ^viewer_id and mute.muted_id == post.author_id,
-      left_join: block in Block,
-      on:
-        (block.blocker_id == ^viewer_id and block.blocked_id == post.author_id) or
-          (block.blocker_id == post.author_id and block.blocked_id == ^viewer_id),
-      where: is_nil(author.suspended_at),
-      where: is_nil(block.id),
-      # Mute checks are directional: only the viewer muting the author
-      # suppresses feed visibility.
-      where: is_nil(mute.id),
-      where: post.author_id == ^viewer_id or post.visibility == :public or not is_nil(follow.id),
-      order_by: [desc: post.inserted_at, desc: post.id]
-    )
+  def home_feed_query(%User{} = viewer) do
+    Post
+    |> ReadPolicy.viewer_visible_query(viewer, owner_key: :author_id, visibility_key: :visibility)
+    |> order_by([post], desc: post.inserted_at, desc: post.id)
   end
 
   @doc """
@@ -99,35 +80,15 @@ defmodule LC.Feed do
   Returns a deterministic query for currently-live sessions visible to the viewer.
   """
   @spec live_now_query(User.t()) :: Ecto.Query.t()
-  def live_now_query(%User{id: viewer_id}) when is_integer(viewer_id) do
-    from(live_session in LiveSession,
-      join: host in User,
-      on: host.id == live_session.host_id,
-      left_join: follow in Follow,
-      on:
-        follow.follower_id == ^viewer_id and
-          follow.followed_id == live_session.host_id and
-          follow.state == :accepted,
-      left_join: mute in Mute,
-      on: mute.muter_id == ^viewer_id and mute.muted_id == live_session.host_id,
-      left_join: block in Block,
-      on:
-        (block.blocker_id == ^viewer_id and block.blocked_id == live_session.host_id) or
-          (block.blocker_id == live_session.host_id and block.blocked_id == ^viewer_id),
-      where: live_session.status == :live,
-      where: is_nil(host.suspended_at),
-      where: is_nil(block.id),
-      # Viewer-issued mutes hide matching hosts from live discovery surfaces.
-      where: is_nil(mute.id),
-      where:
-        live_session.host_id == ^viewer_id or
-          live_session.visibility == :public or
-          not is_nil(follow.id),
-      order_by: [
-        desc: live_session.started_at,
-        desc: live_session.inserted_at,
-        desc: live_session.id
-      ]
+  def live_now_query(%User{} = viewer) do
+    LiveSession
+    |> where([live_session], live_session.status == :live)
+    |> ReadPolicy.viewer_visible_query(viewer, owner_key: :host_id, visibility_key: :visibility)
+    |> order_by(
+      [live_session],
+      desc: live_session.started_at,
+      desc: live_session.inserted_at,
+      desc: live_session.id
     )
   end
 
@@ -146,37 +107,16 @@ defmodule LC.Feed do
   Returns a deterministic query for visible replay sessions with linked recordings.
   """
   @spec replay_feed_query(User.t()) :: Ecto.Query.t()
-  def replay_feed_query(%User{id: viewer_id}) when is_integer(viewer_id) do
-    from(live_session in LiveSession,
-      join: host in User,
-      on: host.id == live_session.host_id,
-      left_join: follow in Follow,
-      on:
-        follow.follower_id == ^viewer_id and
-          follow.followed_id == live_session.host_id and
-          follow.state == :accepted,
-      left_join: mute in Mute,
-      on: mute.muter_id == ^viewer_id and mute.muted_id == live_session.host_id,
-      left_join: block in Block,
-      on:
-        (block.blocker_id == ^viewer_id and block.blocked_id == live_session.host_id) or
-          (block.blocker_id == live_session.host_id and block.blocked_id == ^viewer_id),
-      where: live_session.status == :ended,
-      where: not is_nil(live_session.recording_media_asset_id),
-      where: is_nil(host.suspended_at),
-      where: is_nil(block.id),
-      # Replay discovery mirrors retained-history visibility, not live-only
-      # presence, so viewer-issued mutes still hide ended sessions.
-      where: is_nil(mute.id),
-      where:
-        live_session.host_id == ^viewer_id or
-          live_session.visibility == :public or
-          not is_nil(follow.id),
-      order_by: [
-        desc: live_session.ended_at,
-        desc: live_session.inserted_at,
-        desc: live_session.id
-      ]
+  def replay_feed_query(%User{} = viewer) do
+    LiveSession
+    |> where([live_session], live_session.status == :ended)
+    |> where([live_session], not is_nil(live_session.recording_media_asset_id))
+    |> ReadPolicy.viewer_visible_query(viewer, owner_key: :host_id, visibility_key: :visibility)
+    |> order_by(
+      [live_session],
+      desc: live_session.ended_at,
+      desc: live_session.inserted_at,
+      desc: live_session.id
     )
   end
 
