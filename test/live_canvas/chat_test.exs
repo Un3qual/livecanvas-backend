@@ -5,7 +5,7 @@ defmodule LC.ChatTest do
   import LC.SocialFixtures
   import Ecto.Query
 
-  alias LC.{Accounts, Chat, Live}
+  alias LC.{Accounts, Chat, Live, ReadPolicy}
   alias LCSchemas.Chat.ChatMessage
 
   describe "authorize_join/2" do
@@ -290,6 +290,26 @@ defmodule LC.ChatTest do
 
       assert {:error, :not_authorized} =
                Chat.authorize_history_access(muted_viewer, ended_session)
+    end
+
+    test "matches the shared read-policy session-visibility helper" do
+      viewer = user_fixture()
+      public_host = user_fixture(privacy_mode: :public)
+      followed_host = user_fixture()
+      blocked_host = user_fixture(privacy_mode: :public)
+      muted_host = user_fixture(privacy_mode: :public)
+      reverse_muter = user_fixture(privacy_mode: :public)
+
+      _follow = accepted_follow_fixture(viewer, followed_host)
+      _block = block_fixture(blocked_host, viewer)
+      _mute = mute_fixture(viewer, muted_host)
+      _reverse_mute = mute_fixture(reverse_muter, viewer)
+
+      assert ReadPolicy.viewer_can_read_owner?(viewer, public_host, :public)
+      assert ReadPolicy.viewer_can_read_owner?(viewer, followed_host, :followers)
+      refute ReadPolicy.viewer_can_read_owner?(viewer, blocked_host, :public)
+      refute ReadPolicy.viewer_can_read_owner?(viewer, muted_host, :public)
+      assert ReadPolicy.viewer_can_read_owner?(viewer, reverse_muter, :public)
     end
   end
 
