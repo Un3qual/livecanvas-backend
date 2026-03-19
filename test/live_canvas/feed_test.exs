@@ -158,11 +158,12 @@ defmodule LC.FeedTest do
           visibility: :public
         })
 
-      followed_inserted_at = ~U[2026-03-18 18:00:00.000000Z]
-      public_inserted_at = ~U[2026-03-18 19:00:00.000000Z]
-      expired_inserted_at = ~U[2026-03-18 20:00:00.000000Z]
-      active_expires_at = ~U[2026-03-19 18:00:00.000000Z]
-      expired_expires_at = ~U[2026-03-18 17:00:00.000000Z]
+      now = DateTime.utc_now()
+      followed_inserted_at = DateTime.add(now, -180, :second)
+      public_inserted_at = DateTime.add(now, -120, :second)
+      expired_inserted_at = DateTime.add(now, -60, :second)
+      active_expires_at = DateTime.add(now, 60, :second)
+      expired_expires_at = DateTime.add(now, -60, :second)
 
       {1, _rows} =
         Repo.update_all(from(post in Post, where: post.id == ^followed_story.id),
