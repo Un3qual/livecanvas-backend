@@ -33,7 +33,7 @@ Verified directly in the codebase before drafting this plan:
 
 - [x] Task 1: Add viewer-owned post media attachment primitives and story-kind foundation in `LC.Content`
 - [x] Task 2: Add story-aware feed queries and visibility rules in `LC.Feed`
-- [ ] Task 3: Publish Relay story/media GraphQL surfaces and verify node/auth behavior
+- [x] Task 3: Publish Relay story/media GraphQL surfaces and verify node/auth behavior
 
 ### Task 1: Add Viewer-Owned Post Media Attachment Primitives And Story-Kind Foundation In `LC.Content`
 
@@ -120,12 +120,12 @@ Expected: PASS.
 - Modify: `test/live_canvas_gql/relay/node_queries_test.exs`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for `createPost(kind: STORY, mediaAssetIds: ...)`, `Post.mediaAssets`, and a Relay `storyFeed` connection
-- [ ] Step 2: Extend the GraphQL enums/input handling so `createPost` can accept `STORY` plus `mediaAssetIds` while keeping author identity viewer-scoped
-- [ ] Step 3: Expose media attachments from the `Post` node in a Relay-safe way that can batch author/media lookups without bypassing ownership checks on raw media asset IDs
-- [ ] Step 4: Publish `storyFeed` through the Feed GraphQL surface and keep cursor ordering deterministic for active stories
-- [ ] Step 5: Re-apply node-level auth so expired stories or unauthorized story IDs resolve to `nil` instead of leaking through `node(id:)` or `post(id:)`
-- [ ] Step 6: Run `mix compile`, the focused GraphQL/content/feed slice, and `mix typecheck`, then commit the public API milestone
+- [x] Step 1: Add failing GraphQL tests for `createPost(kind: STORY, mediaAssetIds: ...)`, `Post.mediaAssets`, and a Relay `storyFeed` connection
+- [x] Step 2: Extend the GraphQL enums/input handling so `createPost` can accept `STORY` plus `mediaAssetIds` while keeping author identity viewer-scoped
+- [x] Step 3: Expose media attachments from the `Post` node in a Relay-safe way that can batch author/media lookups without bypassing ownership checks on raw media asset IDs
+- [x] Step 4: Publish `storyFeed` through the Feed GraphQL surface and keep cursor ordering deterministic for active stories
+- [x] Step 5: Re-apply node-level auth so expired stories or unauthorized story IDs resolve to `nil` instead of leaking through `node(id:)` or `post(id:)`
+- [x] Step 6: Run `mix compile`, the focused GraphQL/content/feed slice, and `mix typecheck`, then commit the public API milestone
 
 **Task 3 behavior targets:**
 

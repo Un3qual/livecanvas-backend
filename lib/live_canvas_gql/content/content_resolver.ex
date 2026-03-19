@@ -33,6 +33,7 @@ defmodule LCGQL.Content.Resolver do
             optional(:input) => map(),
             optional(:body_text) => String.t(),
             optional(:kind) => atom(),
+            optional(:media_asset_ids) => [term()],
             optional(:visibility) => atom()
           },
           Absinthe.Resolution.t()
@@ -40,15 +41,15 @@ defmodule LCGQL.Content.Resolver do
   def create_post(parent, %{input: input}, resolution), do: create_post(parent, input, resolution)
 
   def create_post(_parent, attrs, %{context: %{current_scope: %{user: %{id: _id} = author}}}) do
-    post_attrs =
-      attrs
-      |> Map.put_new(:visibility, :followers)
-
-    with {:ok, post} <- Content.create_post(author, post_attrs) do
+    with {:ok, post_attrs} <- create_post_attrs(attrs),
+         {:ok, post} <- Content.create_post(author, post_attrs) do
       {:ok, %{post: post, errors: []}}
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         {:ok, %{post: nil, errors: format_changeset_errors(changeset)}}
+
+      {:error, reason} when reason in [:invalid_id, :invalid_type] ->
+        {:ok, %{post: nil, errors: [post_mutation_error(:media_asset_ids, reason)]}}
     end
   end
 
@@ -202,6 +203,24 @@ defmodule LCGQL.Content.Resolver do
 
   def author(_post, _args, _resolution), do: {:ok, nil}
 
+  @spec media_assets(map(), map(), Absinthe.Resolution.t()) ::
+          LCGQL.Dataloader.dataloader_result()
+  def media_assets(%{id: post_id} = post, _args, %{context: %{loader: loader}})
+      when is_integer(post_id) and post_id > 0 do
+    # The parent post has already passed viewer visibility checks, so this
+    # child-field association load can safely expose the post-owned media list.
+    loader
+    |> Dataloader.load(Content, :media_assets, post)
+    |> Absinthe.Resolution.Helpers.on_load(fn loader ->
+      {:ok,
+       loader
+       |> Dataloader.get(Content, :media_assets, post)
+       |> normalize_post_media_assets()}
+    end)
+  end
+
+  def media_assets(_post, _args, _resolution), do: {:ok, []}
+
   @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
   defp format_changeset_errors(changeset) do
     changeset
@@ -238,6 +257,38 @@ defmodule LCGQL.Content.Resolver do
 
   defp decode_post_id(post_id), do: Relay.decode_global_id(post_id, :post, LCGQL.Schema)
 
+  @spec create_post_attrs(map()) ::
+          {:ok, %{optional(:body_text | :kind | :media_asset_ids | :visibility) => term()}}
+          | {:error, Relay.decode_error()}
+  defp create_post_attrs(attrs) when is_map(attrs) do
+    with {:ok, media_asset_ids} <- decode_media_asset_ids(Map.get(attrs, :media_asset_ids)) do
+      {:ok,
+       attrs
+       |> Map.put_new(:visibility, :followers)
+       |> maybe_put_media_asset_ids(media_asset_ids)}
+    end
+  end
+
+  @spec decode_media_asset_ids(nil | [term()]) ::
+          {:ok, nil | [pos_integer()]} | {:error, Relay.decode_error()}
+  defp decode_media_asset_ids(nil), do: {:ok, nil}
+
+  defp decode_media_asset_ids(media_asset_ids) when is_list(media_asset_ids) do
+    media_asset_ids
+    |> Enum.reduce_while({:ok, []}, fn media_asset_id, {:ok, decoded_ids} ->
+      case Relay.decode_global_id(media_asset_id, :media_asset, LCGQL.Schema) do
+        {:ok, decoded_id} -> {:cont, {:ok, [decoded_id | decoded_ids]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, decoded_ids} -> {:ok, Enum.reverse(decoded_ids)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp decode_media_asset_ids(_media_asset_ids), do: {:error, :invalid_id}
+
   @spec visible_post(pos_integer(), Absinthe.Resolution.t()) :: Post.t() | nil
   defp visible_post(id, %{context: %{current_scope: %{user: %{id: _id} = viewer}}})
        when is_integer(id) and id > 0 do
@@ -255,7 +306,21 @@ defmodule LCGQL.Content.Resolver do
     Map.take(attrs, [:body_text, :visibility])
   end
 
-  @spec post_mutation_error(:post_id | nil, post_mutation_reason()) :: mutation_error()
+  @spec maybe_put_media_asset_ids(map(), nil | [pos_integer()]) :: map()
+  defp maybe_put_media_asset_ids(attrs, nil), do: Map.delete(attrs, :media_asset_ids)
+  defp maybe_put_media_asset_ids(attrs, media_asset_ids), do: Map.put(attrs, :media_asset_ids, media_asset_ids)
+
+  @spec normalize_post_media_assets([MediaAsset.t()] | term()) :: [MediaAsset.t()]
+  defp normalize_post_media_assets(media_assets) when is_list(media_assets) do
+    Enum.sort_by(media_assets, fn media_asset ->
+      {media_asset.inserted_at, media_asset.id}
+    end)
+  end
+
+  defp normalize_post_media_assets(_media_assets), do: []
+
+  @spec post_mutation_error(:media_asset_ids | :post_id | nil, post_mutation_reason()) ::
+          mutation_error()
   defp post_mutation_error(field, reason) do
     %{
       field: format_post_field(field),
@@ -263,7 +328,8 @@ defmodule LCGQL.Content.Resolver do
     }
   end
 
-  @spec format_post_field(:post_id | nil) :: String.t() | nil
+  @spec format_post_field(:media_asset_ids | :post_id | nil) :: String.t() | nil
   defp format_post_field(nil), do: nil
+  defp format_post_field(:media_asset_ids), do: "mediaAssetIds"
   defp format_post_field(:post_id), do: "postId"
 end
