@@ -5,6 +5,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
   import LC.SocialFixtures
 
   alias LC.{Accounts, Chat, Content, Live}
+  alias LCSchemas.Content.Post
 
   defmodule CaptureExecutionContextPhase do
     use Absinthe.Phase
@@ -117,6 +118,41 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                   }
                 }
               }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => post_id},
+                 context: context
+               )
+    end
+
+    test "returns nil for expired story node lookups even when the relay ID is valid" do
+      author = user_fixture()
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      {:ok, story_post} =
+        Content.create_post(author, %{kind: :story, body_text: "expired node story", visibility: :public})
+
+      expired_at = ~U[2026-03-18 17:00:00.000000Z]
+
+      {1, _rows} =
+        Repo.update_all(from(post in Post, where: post.id == ^story_post.id),
+          set: [expires_at: expired_at, updated_at: expired_at]
+        )
+
+      post_id = Absinthe.Relay.Node.to_global_id(:post, story_post.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => post_id})
+
+      assert {:ok, %{data: %{"node" => nil}}} =
                Absinthe.run(query, LCGQL.Schema,
                  variables: %{"id" => post_id},
                  context: context

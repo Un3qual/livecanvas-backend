@@ -32,7 +32,7 @@ Verified directly in the codebase before drafting this plan:
 ## Progress
 
 - [x] Task 1: Add viewer-owned post media attachment primitives and story-kind foundation in `LC.Content`
-- [ ] Task 2: Add story-aware feed queries and visibility rules in `LC.Feed`
+- [x] Task 2: Add story-aware feed queries and visibility rules in `LC.Feed`
 - [ ] Task 3: Publish Relay story/media GraphQL surfaces and verify node/auth behavior
 
 ### Task 1: Add Viewer-Owned Post Media Attachment Primitives And Story-Kind Foundation In `LC.Content`
@@ -82,12 +82,12 @@ Expected: PASS.
 - Modify: `test/live_canvas_gql/relay/node_queries_test.exs`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing feed tests proving `home_feed` excludes `:story` rows while a new `story_feed` surface returns only active visible stories ordered newest-first
-- [ ] Step 2: Add failing query tests proving expired stories disappear from direct post lookups and Relay node refetch even when the ID is otherwise valid
-- [ ] Step 3: Implement `LC.Feed.story_feed/2` and `LC.Feed.story_feed_query/1` by composing the existing read-policy helper with an active-story filter
-- [ ] Step 4: Tighten `LC.Feed.home_feed_query/1` and `LC.Feed.get_visible_post/2` so standard posts and active stories follow the intended split without changing block/mute/follow visibility semantics
-- [ ] Step 5: Keep anonymous post lookups limited to active public content from non-suspended authors so expired/public story IDs cannot bypass viewer-scoped feed rules
-- [ ] Step 6: Run the focused feed and Relay visibility slice, then commit the story-read-model refactor
+- [x] Step 1: Add failing feed tests proving `home_feed` excludes `:story` rows while a new `story_feed` surface returns only active visible stories ordered newest-first
+- [x] Step 2: Add failing query tests proving expired stories disappear from direct post lookups and Relay node refetch even when the ID is otherwise valid
+- [x] Step 3: Implement `LC.Feed.story_feed/2` and `LC.Feed.story_feed_query/1` by composing the existing read-policy helper with an active-story filter
+- [x] Step 4: Tighten `LC.Feed.home_feed_query/1` and `LC.Feed.get_visible_post/2` so standard posts and active stories follow the intended split without changing block/mute/follow visibility semantics
+- [x] Step 5: Keep anonymous post lookups limited to active public content from non-suspended authors so expired/public story IDs cannot bypass viewer-scoped feed rules
+- [x] Step 6: Run the focused feed and Relay visibility slice, then commit the story-read-model refactor
 
 **Task 2 behavior targets:**
 

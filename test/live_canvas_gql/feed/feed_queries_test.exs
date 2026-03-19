@@ -7,6 +7,56 @@ defmodule LCGQL.Feed.FeedQueriesTest do
   alias LC.{Accounts, Content, Live, Social}
 
   describe "homeFeed" do
+    test "excludes visible story posts from the timeline connection" do
+      viewer = user_fixture()
+      creator = user_fixture(privacy_mode: :public)
+
+      {:ok, _story_post} =
+        Content.create_post(creator, %{kind: :story, body_text: "story", visibility: :public})
+
+      {:ok, standard_post} =
+        Content.create_post(creator, %{
+          kind: :standard,
+          body_text: "timeline",
+          visibility: :public
+        })
+
+      query = """
+      query($first: Int!) {
+        homeFeed(first: $first) {
+          edges {
+            node {
+              id
+              bodyText
+              kind
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      standard_post_id = Absinthe.Relay.Node.to_global_id(:post, standard_post.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "homeFeed" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^standard_post_id,
+                          "bodyText" => "timeline",
+                          "kind" => "STANDARD"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+    end
+
     test "excludes posts from suspended creators" do
       viewer = user_fixture()
       suspended_creator = user_fixture(privacy_mode: :public)
