@@ -145,6 +145,46 @@ defmodule LCGQL.Content.ContentQueriesTest do
            ]
   end
 
+  test "post query does not expose owner-scoped media fields through mediaAssets" do
+    author = user_fixture()
+
+    assert {:ok, uploaded_asset} =
+             Content.create_media_asset(author, %{
+               storage_key: "uploads/users/#{author.id}/story-private.jpg",
+               mime_type: "image/jpeg",
+               processing_state: :uploaded
+             })
+
+    {:ok, post} =
+      Content.create_post(author, %{
+        kind: :story,
+        body_text: "story post",
+        visibility: :public,
+        media_asset_ids: [uploaded_asset.id]
+      })
+
+    post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+    query = """
+    query($id: ID!) {
+      post(id: $id) {
+        mediaAssets {
+          ownerId
+          storageKey
+        }
+      }
+    }
+    """
+
+    assert {:ok, %{errors: errors}} =
+             Absinthe.run(query, LCGQL.Schema, variables: %{"id" => post_id})
+
+    assert Enum.sort(Enum.map(errors, & &1.message)) == [
+             "Cannot query field \"ownerId\" on type \"PostMediaAsset\".",
+             "Cannot query field \"storageKey\" on type \"PostMediaAsset\"."
+           ]
+  end
+
   test "post query returns null for expired story posts even with a valid public ID" do
     author = user_fixture()
     viewer = user_fixture()

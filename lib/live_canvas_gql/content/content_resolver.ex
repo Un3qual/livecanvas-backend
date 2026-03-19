@@ -179,6 +179,14 @@ defmodule LCGQL.Content.Resolver do
 
   def media_asset(_parent, _args, _resolution), do: {:ok, nil}
 
+  @spec media_asset_id(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
+  def media_asset_id(%{id: media_asset_id}, _args, _resolution)
+      when is_integer(media_asset_id) and media_asset_id > 0 do
+    {:ok, Absinthe.Relay.Node.to_global_id(:media_asset, media_asset_id, LCGQL.Schema)}
+  end
+
+  def media_asset_id(_media_asset, _args, _resolution), do: {:ok, nil}
+
   @spec media_asset_public_url(map(), map(), Absinthe.Resolution.t()) ::
           {:ok, String.t() | nil}
   def media_asset_public_url(%{storage_key: _storage_key} = media_asset, _args, _resolution) do
