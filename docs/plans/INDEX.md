@@ -20,7 +20,11 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 ## Queued Candidate Work
 
-- No additional queued candidate work is currently staged ahead of the active read-policy track.
+### Mobile Expo Frontend Planning Track
+
+- Source: `docs/plans/mobile/TRACK.md`
+- Status: planning-only
+- Notes: approved overview exists for the future Expo + Relay mobile app; write detailed slice plans here when frontend execution is explicitly scheduled
 
 ## Paused Or Deferred
 
