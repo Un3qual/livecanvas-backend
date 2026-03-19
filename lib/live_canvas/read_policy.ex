@@ -3,15 +3,73 @@ defmodule LC.ReadPolicy do
   Shared viewer-scoped query helpers for read surfaces.
   """
 
-  use Boundary, deps: [LCSchemas]
+  use Boundary, deps: [LC.Infra, LCSchemas]
 
   import Ecto.Query, warn: false
 
+  alias LC.Infra.Repo
   alias LCSchemas.Accounts.User
   alias LCSchemas.Social.{Block, Follow, Mute}
 
+  @type owner_visibility :: :followers | :private | :public
+  @type relationship_state :: :accepted | :blocked | :none | :public | :requested
   @type visible_resource_opt :: {:owner_key, atom()} | {:visibility_key, atom()}
   @type visible_resource_opts :: [visible_resource_opt]
+
+  @doc """
+  Returns whether the viewer has muted the owner.
+  """
+  @spec viewer_muted_owner?(User.t(), User.t()) :: boolean()
+  def viewer_muted_owner?(%User{id: viewer_id}, %User{id: owner_id})
+      when is_integer(viewer_id) and is_integer(owner_id) do
+    Repo.exists?(
+      from mute in Mute,
+        where: mute.muter_id == ^viewer_id and mute.muted_id == ^owner_id
+    )
+  end
+
+  @doc """
+  Returns the shared viewer-scoped relationship state for an owner visibility mode.
+  """
+  @spec relationship_state(User.t(), User.t(), owner_visibility()) :: relationship_state()
+  def relationship_state(%User{id: viewer_id}, %User{id: owner_id}, visibility)
+      when visibility in [:followers, :private, :public] and is_integer(viewer_id) and
+             is_integer(owner_id) do
+    cond do
+      viewer_id == owner_id ->
+        :accepted
+
+      blocked_between?(viewer_id, owner_id) ->
+        :blocked
+
+      follow_state = follow_state(viewer_id, owner_id) ->
+        follow_state
+
+      visibility == :public ->
+        :public
+
+      true ->
+        :none
+    end
+  end
+
+  @doc """
+  Returns whether the viewer can read owner-scoped content for the given visibility.
+  """
+  @spec viewer_can_read_owner?(User.t(), User.t(), owner_visibility()) :: boolean()
+  def viewer_can_read_owner?(%User{} = viewer, %User{} = owner, visibility)
+      when visibility in [:followers, :private, :public] do
+    relationship_state = relationship_state(viewer, owner, visibility)
+
+    # Directional mutes hide owner-scoped reads even when the owner remains
+    # public or followed from the viewer's perspective.
+    #
+    # Public visibility stays readable even if a stale `:requested` follow row
+    # remains after the owner switches privacy modes.
+    not viewer_muted_owner?(viewer, owner) and
+      relationship_state != :blocked and
+      (visibility == :public or relationship_state == :accepted)
+  end
 
   @doc """
   Applies the shared blocked, muted, and follow/public visibility policy for a viewer.
@@ -160,5 +218,27 @@ defmodule LC.ReadPolicy do
                block.blocked_id == ^viewer_id)
       )
     end
+  end
+
+  @spec blocked_between?(pos_integer(), pos_integer()) :: boolean()
+  defp blocked_between?(left_user_id, right_user_id)
+       when is_integer(left_user_id) and is_integer(right_user_id) do
+    Repo.exists?(
+      from block in Block,
+        where:
+          (block.blocker_id == ^left_user_id and block.blocked_id == ^right_user_id) or
+            (block.blocker_id == ^right_user_id and block.blocked_id == ^left_user_id)
+    )
+  end
+
+  @spec follow_state(pos_integer(), pos_integer()) :: :accepted | :requested | nil
+  defp follow_state(follower_id, followed_id)
+       when is_integer(follower_id) and is_integer(followed_id) do
+    from(follow in Follow,
+      where: follow.follower_id == ^follower_id and follow.followed_id == ^followed_id,
+      select: follow.state,
+      limit: 1
+    )
+    |> Repo.one()
   end
 end

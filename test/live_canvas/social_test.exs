@@ -3,7 +3,7 @@ defmodule LC.SocialTest do
 
   import LC.AccountsFixtures
 
-  alias LC.Social
+  alias LC.{Accounts, ReadPolicy, Social}
 
   test "private accounts start as requested" do
     follower = user_fixture()
@@ -95,6 +95,61 @@ defmodule LC.SocialTest do
       refute Social.muted?(muted_creator, viewer)
       refute Social.muted?(viewer, reverse_muter)
       assert Social.muted?(reverse_muter, viewer)
+    end
+
+    test "matches the shared read-policy relationship and mute helpers" do
+      viewer = user_fixture()
+      public_creator = user_fixture(privacy_mode: :public)
+      private_creator = user_fixture(privacy_mode: :private)
+      followed_private_creator = user_fixture(privacy_mode: :private)
+      blocked_creator = user_fixture(privacy_mode: :public)
+      muted_creator = user_fixture(privacy_mode: :public)
+      reverse_muter = user_fixture(privacy_mode: :public)
+
+      assert {:ok, follow} = Social.follow_user(viewer, followed_private_creator)
+
+      assert {:ok, _accepted_follow} =
+               Social.accept_follow_request(follow, followed_private_creator)
+
+      assert {:ok, _block} = Social.block_user(blocked_creator, viewer)
+      assert {:ok, _mute} = Social.mute_user(viewer, muted_creator)
+      assert {:ok, _reverse_mute} = Social.mute_user(reverse_muter, viewer)
+
+      assert ReadPolicy.relationship_state(viewer, public_creator, public_creator.privacy_mode) ==
+               Social.relationship_state(viewer, public_creator)
+
+      assert ReadPolicy.relationship_state(viewer, private_creator, private_creator.privacy_mode) ==
+               Social.relationship_state(viewer, private_creator)
+
+      assert ReadPolicy.relationship_state(
+               viewer,
+               followed_private_creator,
+               followed_private_creator.privacy_mode
+             ) == Social.relationship_state(viewer, followed_private_creator)
+
+      assert ReadPolicy.relationship_state(viewer, blocked_creator, blocked_creator.privacy_mode) ==
+               Social.relationship_state(viewer, blocked_creator)
+
+      assert ReadPolicy.relationship_state(viewer, muted_creator, muted_creator.privacy_mode) ==
+               Social.relationship_state(viewer, muted_creator)
+
+      assert ReadPolicy.relationship_state(viewer, reverse_muter, reverse_muter.privacy_mode) ==
+               Social.relationship_state(viewer, reverse_muter)
+
+      assert ReadPolicy.viewer_muted_owner?(viewer, muted_creator)
+      refute ReadPolicy.viewer_muted_owner?(viewer, reverse_muter)
+      assert ReadPolicy.viewer_muted_owner?(reverse_muter, viewer)
+    end
+
+    test "keeps pending follow state while allowing public reads" do
+      viewer = user_fixture()
+      creator = user_fixture()
+
+      assert {:ok, _follow} = Social.follow_user(viewer, creator)
+      assert {:ok, public_creator} = Accounts.update_user_privacy_mode(creator, :public)
+
+      assert ReadPolicy.relationship_state(viewer, public_creator, :public) == :requested
+      assert ReadPolicy.viewer_can_read_owner?(viewer, public_creator, :public)
     end
   end
 

@@ -5,7 +5,7 @@ defmodule LC.ChatTest do
   import LC.SocialFixtures
   import Ecto.Query
 
-  alias LC.{Accounts, Chat, Live}
+  alias LC.{Accounts, Chat, Live, ReadPolicy}
   alias LCSchemas.Chat.ChatMessage
 
   describe "authorize_join/2" do
@@ -59,6 +59,17 @@ defmodule LC.ChatTest do
       viewer = user_fixture()
       _mute = mute_fixture(host, viewer)
       {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert :ok = Chat.authorize_join(viewer, session)
+    end
+
+    test "allows join for public sessions when a pending follow request is still present" do
+      host = user_fixture()
+      viewer = user_fixture()
+
+      assert {:ok, _follow} = LC.Social.follow_user(viewer, host)
+      assert {:ok, public_host} = Accounts.update_user_privacy_mode(host, :public)
+      {:ok, session} = Live.start_live_session(public_host, %{visibility: :public})
 
       assert :ok = Chat.authorize_join(viewer, session)
     end
@@ -290,6 +301,26 @@ defmodule LC.ChatTest do
 
       assert {:error, :not_authorized} =
                Chat.authorize_history_access(muted_viewer, ended_session)
+    end
+
+    test "matches the shared read-policy session-visibility helper" do
+      viewer = user_fixture()
+      public_host = user_fixture(privacy_mode: :public)
+      followed_host = user_fixture()
+      blocked_host = user_fixture(privacy_mode: :public)
+      muted_host = user_fixture(privacy_mode: :public)
+      reverse_muter = user_fixture(privacy_mode: :public)
+
+      _follow = accepted_follow_fixture(viewer, followed_host)
+      _block = block_fixture(blocked_host, viewer)
+      _mute = mute_fixture(viewer, muted_host)
+      _reverse_mute = mute_fixture(reverse_muter, viewer)
+
+      assert ReadPolicy.viewer_can_read_owner?(viewer, public_host, :public)
+      assert ReadPolicy.viewer_can_read_owner?(viewer, followed_host, :followers)
+      refute ReadPolicy.viewer_can_read_owner?(viewer, blocked_host, :public)
+      refute ReadPolicy.viewer_can_read_owner?(viewer, muted_host, :public)
+      assert ReadPolicy.viewer_can_read_owner?(viewer, reverse_muter, :public)
     end
   end
 

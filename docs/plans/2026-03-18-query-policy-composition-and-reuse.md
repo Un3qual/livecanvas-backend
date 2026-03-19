@@ -32,7 +32,7 @@ Verified directly in the codebase before drafting this plan:
 
 - [x] Task 1: Baseline the repeated policy matrix and lock behavior with focused tests
 - [x] Task 2: Extract reusable viewer-visibility query helpers and refactor feed queries
-- [ ] Task 3: Reuse the shared policy helpers in chat/social boundary authorization and verify Relay/auth safety
+- [x] Task 3: Reuse the shared policy helpers in chat/social boundary authorization and verify Relay/auth safety
 
 ### Task 1: Baseline The Repeated Policy Matrix And Lock Behavior With Focused Tests
 
@@ -133,12 +133,12 @@ Expected: PASS with identical visible rows, ordering, and Relay pagination behav
 - Modify: `test/live_canvas_gql/chat/chat_queries_test.exs`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Identify the remaining auth/read paths that still reconstruct the same visibility policy in boundary code instead of calling the shared helper
-- [ ] Step 2: Refactor `LC.Chat.authorize_visible_session_access/2` and the relevant `LC.Social` predicates so they reuse the shared policy module without loosening session or user visibility rules
-- [ ] Step 3: Keep GraphQL node fetchers and child field resolvers viewer-scoped, with no shortcut that lets a global ID or raw foreign key bypass ownership or visibility checks
-- [ ] Step 4: Update the chat/social GraphQL tests to confirm the Relay contract and the auth fallback behavior remain unchanged
-- [ ] Step 5: Run `mix compile`, `mix typecheck`, and the focused chat/social GraphQL suite to verify the refactor is safe for typed code and Relay edges
-- [ ] Step 6: Commit the policy-reuse milestone once both the query-side and boundary-side reuse is green
+- [x] Step 1: Identify the remaining auth/read paths that still reconstruct the same visibility policy in boundary code instead of calling the shared helper
+- [x] Step 2: Refactor `LC.Chat.authorize_visible_session_access/2` and the relevant `LC.Social` predicates so they reuse the shared policy module without loosening session or user visibility rules
+- [x] Step 3: Keep GraphQL node fetchers and child field resolvers viewer-scoped, with no shortcut that lets a global ID or raw foreign key bypass ownership or visibility checks
+- [x] Step 4: Confirm the chat/social GraphQL tests preserve the Relay contract and the auth fallback behavior
+- [x] Step 5: Run `mix compile`, `mix typecheck`, and the focused chat/social GraphQL suite to verify the refactor is safe for typed code and Relay edges
+- [x] Step 6: Commit the policy-reuse milestone once both the query-side and boundary-side reuse is green
 
 **Task 3 behavior targets:**
 

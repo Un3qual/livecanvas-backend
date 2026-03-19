@@ -5,28 +5,26 @@ Status: active
 
 ## Current Batch
 
-- Track: `read_policy`
-- Plan: `docs/plans/2026-03-18-query-policy-composition-and-reuse.md`
-- Batch: `Task 3: Reuse the shared policy helpers in chat/social boundary authorization and verify Relay/auth safety`
-- Why now: Task 2 completed locally, so the next unblocked product-facing batch is reusing the shared visibility helper in boundary authorization without weakening Relay or viewer auth guarantees.
+- Track: `content_story_surface`
+- Plan: `docs/plans/content/2026-03-18-post-media-attachments-and-story-feed.md`
+- Batch: `Task 1: Add viewer-owned post media attachment primitives and story-kind foundation in LC.Content`
+- Why now: The read-policy track is complete, and `ARCHITECTURE.md` still names stories as missing product-facing scope. The next unblocked batch is the content foundation that story feed and media-backed posts depend on.
 
 ## Do This Now
 
-- Identify the remaining chat/social visibility checks that still reconstruct block, mute, and follow/public policy instead of calling `LC.ReadPolicy`.
-- Refactor `LC.Chat.authorize_visible_session_access/2` and the relevant `LC.Social` predicates so they reuse the shared helper without weakening viewer-scoped authorization.
-- Verify the boundary-side reuse with the focused chat/social Relay and auth slice, plus `mix typecheck` for any typed public API touched during the refactor.
+- Add focused `LC.Content` tests for viewer-owned post media attachment and story expiry validation.
+- Extend the content boundary so `create_post/2` can safely attach viewer-owned durable media assets and support `kind: :story` with bounded expiry defaults.
+- Add the supporting schema/type updates and story-query index migration, then verify only the focused content foundation slice.
 
 ## Verification Scope
 
 ```bash
-mix compile
-mix test test/live_canvas/chat_test.exs test/live_canvas/social_test.exs test/live_canvas_gql/social/social_queries_test.exs test/live_canvas_gql/chat/chat_queries_test.exs
-mix typecheck
+mix test test/live_canvas/content_test.exs
 ```
 
 ## Next Up
 
-- Once Task 3 is green and committed, repair `NOW.md` from `docs/plans/INDEX.md` to choose the next unblocked product-facing batch.
+- Once Task 1 is green and committed, advance to `docs/plans/content/2026-03-18-post-media-attachments-and-story-feed.md` -> `Task 2`.
 
 ## Repair Conditions
 

@@ -3,12 +3,13 @@ defmodule LC.Social do
   The Social context.
   """
 
-  use Boundary, deps: [LC.Infra, LCSchemas]
+  use Boundary, deps: [LC.Infra, LC.ReadPolicy, LCSchemas]
 
   import Ecto.Query, warn: false
   import Ecto.Changeset, only: [change: 2]
 
   alias LC.Infra.Repo
+  alias LC.ReadPolicy
   alias LC.Social.RelationshipPolicy
   alias LCSchemas.Accounts.User
   alias LCSchemas.Social.{Block, Follow, Mute}
@@ -116,46 +117,22 @@ defmodule LC.Social do
   Returns whether a directional mute relationship exists.
   """
   @spec muted?(struct(), struct()) :: boolean()
-  def muted?(%User{id: muter_id}, %User{id: muted_id}) do
-    Repo.exists?(
-      from mute in Mute,
-        where: mute.muter_id == ^muter_id and mute.muted_id == ^muted_id
-    )
-  end
+  def muted?(%User{} = muter, %User{} = muted), do: ReadPolicy.viewer_muted_owner?(muter, muted)
 
   @doc """
   Returns the effective relationship state from a viewer to a creator.
   """
   @spec relationship_state(struct(), struct()) :: relationship_state()
-  def relationship_state(%User{id: viewer_id}, %User{id: creator_id} = creator) do
-    cond do
-      viewer_id == creator_id ->
-        :accepted
-
-      blocked_between?(viewer_id, creator_id) ->
-        :blocked
-
-      follow_state = follow_state(viewer_id, creator_id) ->
-        follow_state
-
-      creator.privacy_mode == :public ->
-        :public
-
-      true ->
-        :none
-    end
+  def relationship_state(%User{} = viewer, %User{} = creator) do
+    ReadPolicy.relationship_state(viewer, creator, creator.privacy_mode)
   end
 
   @doc """
   Returns whether the viewer can see the creator's content.
   """
   @spec can_view_user?(struct(), struct()) :: boolean()
-  def can_view_user?(%User{id: viewer_id}, %User{id: creator_id})
-      when viewer_id == creator_id,
-      do: true
-
   def can_view_user?(%User{} = viewer, %User{} = creator) do
-    relationship_state(viewer, creator) in [:accepted, :public]
+    ReadPolicy.relationship_state(viewer, creator, creator.privacy_mode) in [:accepted, :public]
   end
 
   @doc """
@@ -264,15 +241,6 @@ defmodule LC.Social do
           (block.blocker_id == ^left_user_id and block.blocked_id == ^right_user_id) or
             (block.blocker_id == ^right_user_id and block.blocked_id == ^left_user_id)
     )
-  end
-
-  defp follow_state(follower_id, followed_id) do
-    from(follow in Follow,
-      where: follow.follower_id == ^follower_id and follow.followed_id == ^followed_id,
-      select: follow.state,
-      limit: 1
-    )
-    |> Repo.one()
   end
 
   @spec normalize_mute_insert({:ok, Mute.t()} | {:error, term()}, pos_integer(), pos_integer()) ::

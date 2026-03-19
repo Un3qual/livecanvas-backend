@@ -3,13 +3,13 @@ defmodule LC.Chat do
   The Chat context.
   """
 
-  use Boundary, deps: [LC.Infra, LC.Social, LCSchemas]
+  use Boundary, deps: [LC.Infra, LC.ReadPolicy, LCSchemas]
   import Ecto.Query, warn: false
 
   alias LC.Chat.{Broadcasts, History, SystemEvents}
   alias LC.Chat.ChatMessage, as: ChatMessageChanges
   alias LC.Infra.Repo
-  alias LC.Social
+  alias LC.ReadPolicy
   alias LCSchemas.Accounts.User
   alias LCSchemas.Chat.ChatMessage
   alias LCSchemas.Live.LiveSession
@@ -99,23 +99,9 @@ defmodule LC.Chat do
     # Always re-check moderation state in the database before evaluating social
     # policy so suspended users cannot use stale socket identity data.
     with true <- active_user?(viewer_id),
-         %User{} = host <- active_host(host_id) do
-      # Mute checks are directional: a viewer muting the host prevents joining
-      # that host's chat even when the session is otherwise visible.
-      if Social.muted?(viewer, host) do
-        {:error, :not_authorized}
-      else
-        relationship_state = Social.relationship_state(viewer, host)
-
-        # Session visibility is evaluated after block policy so public sessions
-        # cannot bypass an explicit block.
-        case {visibility, relationship_state} do
-          {_visibility, :blocked} -> {:error, :not_authorized}
-          {:public, _state} -> :ok
-          {:followers, :accepted} -> :ok
-          _other -> {:error, :not_authorized}
-        end
-      end
+         %User{} = host <- active_host(host_id),
+         true <- ReadPolicy.viewer_can_read_owner?(viewer, host, visibility) do
+      :ok
     else
       _other -> {:error, :not_authorized}
     end
