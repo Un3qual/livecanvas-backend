@@ -1,32 +1,30 @@
 # Current Execution
 
-Last reviewed: 2026-03-18
+Last reviewed: 2026-03-19
 Status: active
 
 ## Current Batch
 
-- Track: `content_story_surface`
-- Plan: `docs/plans/content/2026-03-18-post-media-attachments-and-story-feed.md`
-- Batch: `Task 3: Publish Relay story/media GraphQL surfaces and verify node/auth behavior`
-- Why now: Task 2 is complete and verified, so the next unblocked batch is the GraphQL publication slice that exposes story/media surfaces without weakening Relay node authorization.
+- Track: `profile_content_live_entry`
+- Plan: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md`
+- Batch: `Task 1: Add viewer-scoped profile read models in LC.Feed`
+- Why now: The story/media publication track is complete, and the next product-facing gap from `ARCHITECTURE.md` is profile/live entry on the existing Relay `User` node without introducing a separate profile type.
 
 ## Do This Now
 
-- Add failing GraphQL tests for `createPost(kind: STORY, mediaAssetIds: ...)`, `Post.mediaAssets`, and a Relay `storyFeed` connection.
-- Extend the GraphQL content/feed surface so story creation, post media attachments, and the `storyFeed` connection are Relay-first and viewer-scoped.
-- Re-apply node and child-field authorization so expired or unauthorized story IDs still resolve to `nil`, then run only the Task 3 verification slice.
+- Add failing `LC.Feed` tests for viewer-scoped profile posts, active stories, current live session, and replay queries on a specific profile owner.
+- Extend `LC.Feed` with author/host-scoped read models that reuse the existing follow/public/block/mute/suspension visibility rules and deterministic ordering.
+- Verify only the Task 1 boundary slice with `mix test test/live_canvas/feed_test.exs`.
 
 ## Verification Scope
 
 ```bash
-mix compile
-mix test test/live_canvas/content_test.exs test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/content/content_queries_test.exs test/live_canvas/feed_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs
-mix typecheck
+mix test test/live_canvas/feed_test.exs
 ```
 
 ## Next Up
 
-- Once Task 3 is green and committed, move this track to its next planned milestone or repair `NOW.md` from `docs/plans/INDEX.md` if priorities changed.
+- Once Task 1 is green and committed, move to Task 2 in `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` for the Relay `User` profile fields.
 
 ## Repair Conditions
 

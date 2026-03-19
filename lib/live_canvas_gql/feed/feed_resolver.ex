@@ -14,6 +14,17 @@ defmodule LCGQL.Feed.Resolver do
     end
   end
 
+  @spec story_feed(term(), map(), Absinthe.Resolution.t()) :: connection_result()
+  def story_feed(_parent, args, resolution) do
+    with {:ok, viewer} <- viewer_from_resolution(resolution) do
+      viewer
+      |> Feed.story_feed_query()
+      |> Absinthe.Relay.Connection.from_query(&Feed.run_query/1, args)
+    else
+      _ -> Absinthe.Relay.Connection.from_list([], args)
+    end
+  end
+
   @spec live_now(term(), map(), Absinthe.Resolution.t()) :: connection_result()
   def live_now(_parent, args, resolution) do
     with {:ok, viewer} <- viewer_from_resolution(resolution) do

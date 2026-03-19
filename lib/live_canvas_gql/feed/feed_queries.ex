@@ -9,6 +9,10 @@ defmodule LCGQL.Feed.Queries do
       resolve(&Resolver.home_feed/3)
     end
 
+    connection field :story_feed, node_type: :post, paginate: :forward do
+      resolve(&Resolver.story_feed/3)
+    end
+
     connection field :live_now, node_type: :live_session, paginate: :forward do
       resolve(&Resolver.live_now/3)
     end

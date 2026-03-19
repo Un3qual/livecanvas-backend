@@ -271,6 +271,102 @@ defmodule LCGQL.Feed.FeedQueriesTest do
     end
   end
 
+  describe "storyFeed" do
+    test "returns active visible stories through a Relay connection" do
+      viewer = user_fixture()
+      followed_creator = user_fixture()
+      public_creator = user_fixture(privacy_mode: :public)
+      _follow = accepted_follow_fixture(viewer, followed_creator)
+
+      {:ok, followed_story} =
+        Content.create_post(followed_creator, %{kind: :story, body_text: "followers story"})
+
+      {:ok, public_story} =
+        Content.create_post(public_creator, %{
+          kind: :story,
+          body_text: "public story",
+          visibility: :public
+        })
+
+      {:ok, _timeline_post} =
+        Content.create_post(public_creator, %{
+          kind: :standard,
+          body_text: "timeline post",
+          visibility: :public
+        })
+
+      now = DateTime.utc_now()
+      followed_inserted_at = DateTime.add(now, -180, :second)
+      public_inserted_at = DateTime.add(now, -60, :second)
+      active_expires_at = DateTime.add(now, 60, :second)
+
+      {1, _rows} =
+        Repo.update_all(from(post in LCSchemas.Content.Post, where: post.id == ^followed_story.id),
+          set: [
+            inserted_at: followed_inserted_at,
+            updated_at: followed_inserted_at,
+            expires_at: active_expires_at
+          ]
+        )
+
+      {1, _rows} =
+        Repo.update_all(from(post in LCSchemas.Content.Post, where: post.id == ^public_story.id),
+          set: [
+            inserted_at: public_inserted_at,
+            updated_at: public_inserted_at,
+            expires_at: active_expires_at
+          ]
+        )
+
+      query = """
+      query($first: Int!) {
+        storyFeed(first: $first) {
+          edges {
+            node {
+              id
+              kind
+              bodyText
+            }
+          }
+          pageInfo {
+            hasNextPage
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      followed_story_id = Absinthe.Relay.Node.to_global_id(:post, followed_story.id, LCGQL.Schema)
+      public_story_id = Absinthe.Relay.Node.to_global_id(:post, public_story.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "storyFeed" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^public_story_id,
+                          "kind" => "STORY",
+                          "bodyText" => "public story"
+                        }
+                      },
+                      %{
+                        "node" => %{
+                          "id" => ^followed_story_id,
+                          "kind" => "STORY",
+                          "bodyText" => "followers story"
+                        }
+                      }
+                    ],
+                    "pageInfo" => %{"hasNextPage" => false}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+    end
+  end
+
   describe "liveNow" do
     test "excludes sessions hosted by suspended users" do
       viewer = user_fixture()

@@ -52,6 +52,80 @@ defmodule LCGQL.Content.ContentMutationsTest do
     assert returned_author_id == viewer_id
   end
 
+  test "createPost creates a story with viewer-owned media attachments" do
+    viewer = user_fixture()
+    viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    assert {:ok, first_asset} =
+             Content.create_media_asset(viewer, %{
+               storage_key: "uploads/users/#{viewer.id}/story-first.jpg",
+               mime_type: "image/jpeg",
+               processing_state: :uploaded
+             })
+
+    assert {:ok, second_asset} =
+             Content.create_media_asset(viewer, %{
+               storage_key: "uploads/users/#{viewer.id}/story-second.jpg",
+               mime_type: "image/jpeg",
+               processing_state: :processed
+             })
+
+    first_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, first_asset.id, LCGQL.Schema)
+    second_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, second_asset.id, LCGQL.Schema)
+
+    mutation = """
+    mutation($mediaAssetIds: [ID!]!) {
+      createPost(input: {kind: STORY, bodyText: "story post", visibility: PUBLIC, mediaAssetIds: $mediaAssetIds}) {
+        post {
+          id
+          kind
+          bodyText
+          author {
+            id
+          }
+          mediaAssets {
+            id
+            mimeType
+          }
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "createPost" => %{
+                  "post" => %{
+                    "id" => post_id,
+                    "kind" => "STORY",
+                    "bodyText" => "story post",
+                    "author" => %{"id" => returned_author_id},
+                    "mediaAssets" => media_assets
+                  },
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"mediaAssetIds" => [first_asset_id, second_asset_id]},
+               context: context
+             )
+
+    assert is_binary(post_id)
+    assert returned_author_id == viewer_id
+
+    assert Enum.sort_by(media_assets, & &1["id"]) == [
+             %{"id" => first_asset_id, "mimeType" => "image/jpeg"},
+             %{"id" => second_asset_id, "mimeType" => "image/jpeg"}
+           ]
+  end
+
   test "createPost returns unauthenticated errors without a viewer scope" do
     mutation = """
     mutation($bodyText: String!) {

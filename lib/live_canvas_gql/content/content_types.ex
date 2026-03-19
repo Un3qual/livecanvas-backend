@@ -10,9 +10,8 @@ defmodule LCGQL.Content.Types do
   end
 
   enum :create_post_kind do
-    # Keep createPost launch-scoped until the dedicated story mutation inputs
-    # land with attachment support in the later GraphQL batch.
     value(:standard)
+    value(:story)
   end
 
   enum :post_visibility do
@@ -44,6 +43,21 @@ defmodule LCGQL.Content.Types do
     field :headers, non_null(list_of(non_null(:signed_upload_header)))
   end
 
+  object :post_media_asset do
+    field :id, non_null(:id) do
+      resolve(&Resolver.media_asset_id/3)
+    end
+
+    field :mime_type, non_null(:string)
+    field :processing_state, non_null(:media_processing_state)
+
+    field :public_url, :string do
+      resolve(&Resolver.media_asset_public_url/3)
+    end
+
+    field :inserted_at, non_null(:string)
+  end
+
   node object(:post) do
     field :kind, non_null(:post_kind)
     field :body_text, :string
@@ -53,6 +67,10 @@ defmodule LCGQL.Content.Types do
 
     field :author, non_null(:user) do
       resolve(&Resolver.author/3)
+    end
+
+    field :media_assets, non_null(list_of(non_null(:post_media_asset))) do
+      resolve(&Resolver.media_assets/3)
     end
   end
 
