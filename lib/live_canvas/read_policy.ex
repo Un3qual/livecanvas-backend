@@ -59,10 +59,16 @@ defmodule LC.ReadPolicy do
   @spec viewer_can_read_owner?(User.t(), User.t(), owner_visibility()) :: boolean()
   def viewer_can_read_owner?(%User{} = viewer, %User{} = owner, visibility)
       when visibility in [:followers, :private, :public] do
+    relationship_state = relationship_state(viewer, owner, visibility)
+
     # Directional mutes hide owner-scoped reads even when the owner remains
     # public or followed from the viewer's perspective.
+    #
+    # Public visibility stays readable even if a stale `:requested` follow row
+    # remains after the owner switches privacy modes.
     not viewer_muted_owner?(viewer, owner) and
-      relationship_state(viewer, owner, visibility) in [:accepted, :public]
+      relationship_state != :blocked and
+      (visibility == :public or relationship_state == :accepted)
   end
 
   @doc """

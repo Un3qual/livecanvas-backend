@@ -3,7 +3,7 @@ defmodule LC.SocialTest do
 
   import LC.AccountsFixtures
 
-  alias LC.{ReadPolicy, Social}
+  alias LC.{Accounts, ReadPolicy, Social}
 
   test "private accounts start as requested" do
     follower = user_fixture()
@@ -139,6 +139,17 @@ defmodule LC.SocialTest do
       assert ReadPolicy.viewer_muted_owner?(viewer, muted_creator)
       refute ReadPolicy.viewer_muted_owner?(viewer, reverse_muter)
       assert ReadPolicy.viewer_muted_owner?(reverse_muter, viewer)
+    end
+
+    test "keeps pending follow state while allowing public reads" do
+      viewer = user_fixture()
+      creator = user_fixture()
+
+      assert {:ok, _follow} = Social.follow_user(viewer, creator)
+      assert {:ok, public_creator} = Accounts.update_user_privacy_mode(creator, :public)
+
+      assert ReadPolicy.relationship_state(viewer, public_creator, :public) == :requested
+      assert ReadPolicy.viewer_can_read_owner?(viewer, public_creator, :public)
     end
   end
 

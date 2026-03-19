@@ -62,6 +62,17 @@ defmodule LC.ChatTest do
 
       assert :ok = Chat.authorize_join(viewer, session)
     end
+
+    test "allows join for public sessions when a pending follow request is still present" do
+      host = user_fixture()
+      viewer = user_fixture()
+
+      assert {:ok, _follow} = LC.Social.follow_user(viewer, host)
+      assert {:ok, public_host} = Accounts.update_user_privacy_mode(host, :public)
+      {:ok, session} = Live.start_live_session(public_host, %{visibility: :public})
+
+      assert :ok = Chat.authorize_join(viewer, session)
+    end
   end
 
   describe "create_message/3" do
