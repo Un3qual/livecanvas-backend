@@ -12,6 +12,13 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 - Next queued batch: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` -> `Task 2`
 - Notes: closes the next product-facing gap from `ARCHITECTURE.md` by making the existing Relay `User` node a viewer-scoped profile/live entry surface without adding a parallel profile type
 
+### Mobile Expo Frontend Track
+
+- Source: `docs/plans/mobile/TRACK.md`
+- Status: bootstrap complete, otherwise unscheduled
+- Notes: the standalone Expo app now exists in `mobile/` with a local Nix shell;
+  write the next detailed mobile plan before resuming mobile execution
+
 ### Release Roadmap And Planning Holes
 
 - Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
@@ -22,12 +29,6 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 - No additional queued candidate work is currently staged ahead of the active profile/live-entry track.
 
-
-### Mobile Expo Frontend Planning Track
-
-- Source: `docs/plans/mobile/TRACK.md`
-- Status: planning-only
-- Notes: approved overview exists for the future Expo + Relay mobile app; write detailed slice plans here when frontend execution is explicitly scheduled
 
 ## Paused Or Deferred
 
