@@ -5,29 +5,27 @@ Status: active
 
 ## Current Batch
 
-- Track: `profile_content_live_entry`
-- Plan: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md`
-- Batch: `Task 3: Verify the profile surface slice and refresh plan tracking`
-- Why now: Task 2 is complete, so the next unblocked batch is the slice-level compile/test/typecheck pass plus plan tracking updates for the finished Relay user profile fields.
+- Track: `live_session_channel_state_and_presence`
+- Plan: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
+- Batch: `Task 1: Add aggregate live-session state snapshot helpers in LC.Live`
+- Why now: `ARCHITECTURE.md` still calls for WebSockets to carry live-session state and presence, but the current `live_session:<id>` topic remains chat-only. The next unblocked product batch is the aggregate `LC.Live` snapshot helper that lets channels and GraphQL broadcast bounded realtime state without leaking participant rosters.
 
 ## Do This Now
 
-- Run `mix compile`.
-- Run `mix test test/live_canvas/feed_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`.
-- Run `mix typecheck`.
-- Update `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md`, `docs/plans/INDEX.md`, and `docs/plans/NOW.md` for the next milestone.
+- Add failing `LC.Live` tests for the aggregate session-state helper.
+- Add distributed-runtime coverage for the remote-owner snapshot path.
+- Implement the public aggregate snapshot helper in `LC.Live`.
+- Run the focused live tests and update the new plan checklist.
 
 ## Verification Scope
 
 ```bash
-mix compile
-mix test test/live_canvas/feed_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs
-mix typecheck
+mix test test/live_canvas/live_test.exs test/live_canvas/live/distributed_runtime_test.exs
 ```
 
 ## Next Up
 
-- Once Task 3 is green and committed, advance `docs/plans/NOW.md` from `docs/plans/INDEX.md` to the next unblocked track/batch.
+- Once Task 1 is green and committed, advance `docs/plans/NOW.md` to `Task 2` in `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`.
 
 ## Repair Conditions
 

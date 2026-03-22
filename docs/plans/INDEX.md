@@ -4,13 +4,13 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 ## Active Tracks
 
-### User Profile Content And Live Entry
+### Live Session Channel State And Presence
 
-- Plan: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md`
+- Plan: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
 - Status: active
-- Current batch: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` -> `Task 1`
-- Next queued batch: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` -> `Task 2`
-- Notes: closes the next product-facing gap from `ARCHITECTURE.md` by making the existing Relay `User` node a viewer-scoped profile/live entry surface without adding a parallel profile type
+- Current batch: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 1`
+- Next queued batch: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 2`
+- Notes: closes the remaining architecture gap around channel-level live-room state by publishing bounded aggregate status/viewer-count updates on the existing `live_session:<id>` topic
 
 ### Release Roadmap And Planning Holes
 
@@ -20,7 +20,7 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 ## Queued Candidate Work
 
-- No additional queued candidate work is currently staged ahead of the active profile/live-entry track.
+- No additional queued candidate work is currently staged ahead of the active live-session state/presence track.
 
 
 ### Mobile Expo Frontend Planning Track
@@ -35,6 +35,7 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 ## Completed Work
 
+- User Profile Content And Live Entry is complete through `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` -> `Task 3`.
 - Post Media Attachments And Story Feed is complete through `docs/plans/content/2026-03-18-post-media-attachments-and-story-feed.md` -> `Task 3`.
 - Shared Read-Policy Query Composition is complete through `docs/plans/2026-03-18-query-policy-composition-and-reuse.md` -> `Task 3`.
 - GraphQL batching and N+1 reduction is complete through `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 3`.
