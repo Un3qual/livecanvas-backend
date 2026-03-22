@@ -30,7 +30,7 @@ Verified directly in the codebase before drafting this plan:
 
 - [x] Task 1: Add aggregate live-session state snapshot helpers in `LC.Live`
 - [x] Task 2: Publish join/leave state updates on `LCWeb.LiveSessionChannel`
-- [ ] Task 3: Broadcast lifecycle state transitions and refresh plan tracking
+- [x] Task 3: Broadcast lifecycle state transitions and refresh plan tracking
 
 ### Task 1: Add Aggregate Live-Session State Snapshot Helpers In `LC.Live`
 
@@ -96,16 +96,15 @@ Expected: PASS.
 - Modify: `test/live_canvas_gql/live/live_mutations_test.exs`
 - Modify: `test/live_canvas_web/channels/live_session_channel_test.exs`
 - Modify: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
-- Modify: `docs/plans/INDEX.md`
-- Modify: `docs/plans/NOW.md`
+- Modify: `docs/plans/backend/NOW.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing GraphQL/channel coverage proving `goLiveSession` and `endLiveSession` rebroadcast aggregate state changes to already-joined viewers
-- [ ] Step 2: Implement resolver-level state broadcasts after successful lifecycle transitions, keeping the end-of-session state update ahead of the existing disconnect fanout
-- [ ] Step 3: Run `mix compile`
-- [ ] Step 4: Run `mix test test/live_canvas/live_test.exs test/live_canvas/live/distributed_runtime_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/live/live_mutations_test.exs`
-- [ ] Step 5: Run `mix typecheck`
-- [ ] Step 6: Update this checklist plus `docs/plans/INDEX.md` / `docs/plans/NOW.md`, then commit the realtime state milestone
+- [x] Step 1: Add failing GraphQL/channel coverage proving `goLiveSession` and `endLiveSession` rebroadcast aggregate state changes to already-joined viewers
+- [x] Step 2: Implement resolver-level state broadcasts after successful lifecycle transitions, keeping the end-of-session state update ahead of the existing disconnect fanout
+- [x] Step 3: Run `mix compile`
+- [x] Step 4: Run `mix test test/live_canvas/live_test.exs test/live_canvas/live/distributed_runtime_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/live/live_mutations_test.exs`
+- [x] Step 5: Run `mix typecheck`
+- [x] Step 6: Update this checklist plus `docs/plans/backend/NOW.md`, then report any required coordinator updates to `docs/plans/INDEX.md` / `docs/plans/NOW.md`
 
 **Task 3 behavior targets:**
 

@@ -65,11 +65,12 @@ defmodule LCGQL.Live.Resolver do
          {:ok, live_session} <- fetch_live_session(decoded_id),
          :ok <- ensure_host_owned(live_session, viewer),
          :ok <- ensure_joinable_state(live_session),
-         {:ok, updated_live_session, transitioned?} <-
+      {:ok, updated_live_session, transitioned?} <-
            Live.mark_session_live_with_transition(live_session) do
       # Emit from the adapter after the Live boundary succeeds so `LC.Live`
       # stays decoupled from durable chat history and channel transport details.
       :ok = maybe_emit_lifecycle_system_event(updated_live_session, :session_live, transitioned?, viewer)
+      :ok = maybe_broadcast_lifecycle_state(updated_live_session, transitioned?)
       {:ok, %{live_session: updated_live_session, errors: []}}
     else
       {:error, reason}
@@ -198,6 +199,8 @@ defmodule LCGQL.Live.Resolver do
               transitioned?,
               viewer
             )
+
+          :ok = maybe_broadcast_lifecycle_state(ended_live_session, transitioned?)
 
           :ok =
             maybe_disconnect_live_session_channels(
@@ -351,6 +354,32 @@ defmodule LCGQL.Live.Resolver do
 
   defp broadcast_system_event({:ok, system_event}), do: Chat.broadcast_message(system_event)
   defp broadcast_system_event({:error, _reason}), do: :ok
+
+  defp maybe_broadcast_lifecycle_state(live_session, true) when is_map(live_session) do
+    broadcast_live_session_state(live_session)
+  end
+
+  defp maybe_broadcast_lifecycle_state(_live_session, _transitioned?), do: :ok
+
+  @spec broadcast_live_session_state(map()) :: :ok
+  defp broadcast_live_session_state(%{id: session_id} = live_session)
+       when is_integer(session_id) and is_map(live_session) do
+    topic = live_session_topic(session_id)
+
+    Phoenix.PubSub.broadcast(
+      LC.PubSub,
+      topic,
+      %Broadcast{
+        topic: topic,
+        event: "session:state",
+        payload: %{session_state: Live.live_session_state_snapshot(live_session)}
+      }
+    )
+  end
+
+  @spec live_session_topic(pos_integer()) :: String.t()
+  defp live_session_topic(session_id) when is_integer(session_id),
+    do: "live_session:#{session_id}"
 
   @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
   defp format_changeset_errors(changeset) do
