@@ -256,7 +256,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
 
       configure_runtime_rpc([
-        {:ok, %{status: :live, visibility: :public, viewer_count: 3}}
+        {:ok, {:ok, %{status: :live, visibility: :public, viewer_count: 3}}}
       ])
 
       assert Live.live_session_state_snapshot(session, runtime_rpc: FakeRuntimeRPC) == %{

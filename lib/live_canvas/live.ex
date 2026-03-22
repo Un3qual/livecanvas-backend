@@ -763,8 +763,22 @@ defmodule LC.Live do
   end
 
   @spec normalize_remote_live_session_state_response(
-          {:ok, live_session_state() | {:error, :not_found}} | {:error, RuntimeRPC.error_reason()}
+          {:ok, {:ok, live_session_state()} | {:error, :not_found} | live_session_state()}
+          | {:error, RuntimeRPC.error_reason()}
         ) :: {:ok, live_session_state()} | {:error, runtime_rpc_error()}
+  defp normalize_remote_live_session_state_response(
+         {:ok, {:ok, %{status: status, visibility: visibility, viewer_count: viewer_count}}}
+       )
+       when status in [:starting, :live, :ended] and visibility in [:followers, :public] and
+              is_integer(viewer_count) and viewer_count >= 0 do
+    {:ok,
+     %{
+       status: status,
+       visibility: visibility,
+       viewer_count: viewer_count
+     }}
+  end
+
   defp normalize_remote_live_session_state_response(
          {:ok, %{status: status, visibility: visibility, viewer_count: viewer_count}}
        )
