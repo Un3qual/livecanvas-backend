@@ -28,7 +28,7 @@ Verified directly in the codebase before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Add aggregate live-session state snapshot helpers in `LC.Live`
+- [x] Task 1: Add aggregate live-session state snapshot helpers in `LC.Live`
 - [ ] Task 2: Publish join/leave state updates on `LCWeb.LiveSessionChannel`
 - [ ] Task 3: Broadcast lifecycle state transitions and refresh plan tracking
 
@@ -40,11 +40,11 @@ Verified directly in the codebase before drafting this plan:
 - Modify: `test/live_canvas/live/distributed_runtime_test.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing `LC.Live` tests for a public aggregate state helper that reports persisted `status` / `visibility` plus runtime `viewer_count` for a live session
-- [ ] Step 2: Add failing distributed-runtime coverage proving remote-owner lookup still returns a bounded aggregate snapshot instead of leaking runtime-routing details to adapters
-- [ ] Step 3: Implement the public helper and any remote-call shim needed to read aggregate participant counts through the existing runtime ownership path
-- [ ] Step 4: Keep ended-session and missing-runtime cases deterministic by falling back to zero viewers or active durable participant counts only where the runtime race requires it
-- [ ] Step 5: Run `mix test test/live_canvas/live_test.exs test/live_canvas/live/distributed_runtime_test.exs` and commit the aggregate snapshot slice
+- [x] Step 1: Add failing `LC.Live` tests for a public aggregate state helper that reports persisted `status` / `visibility` plus runtime `viewer_count` for a live session
+- [x] Step 2: Add failing distributed-runtime coverage proving remote-owner lookup still returns a bounded aggregate snapshot instead of leaking runtime-routing details to adapters
+- [x] Step 3: Implement the public helper and any remote-call shim needed to read aggregate participant counts through the existing runtime ownership path
+- [x] Step 4: Keep ended-session and missing-runtime cases deterministic by falling back to zero viewers or active durable participant counts only where the runtime race requires it
+- [x] Step 5: Run `mix test test/live_canvas/live_test.exs test/live_canvas/live/distributed_runtime_test.exs` and commit the aggregate snapshot slice
 
 **Task 1 behavior targets:**
 

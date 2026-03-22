@@ -7,25 +7,25 @@ Status: active
 
 - Track: `live_session_channel_state_and_presence`
 - Plan: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
-- Batch: `Task 1: Add aggregate live-session state snapshot helpers in LC.Live`
-- Why now: `ARCHITECTURE.md` still calls for WebSockets to carry live-session state and presence, but the current `live_session:<id>` topic remains chat-only. The next unblocked product batch is the aggregate `LC.Live` snapshot helper that lets channels and GraphQL broadcast bounded realtime state without leaking participant rosters.
+- Batch: `Task 2: Publish join/leave state updates on LCWeb.LiveSessionChannel`
+- Why now: `LC.Live` now exposes a bounded aggregate session snapshot, so the next unblocked product batch is wiring that state into the existing `live_session:<id>` topic for join acks and participation rebroadcasts.
 
 ## Do This Now
 
-- Add failing `LC.Live` tests for the aggregate session-state helper.
-- Add distributed-runtime coverage for the remote-owner snapshot path.
-- Implement the public aggregate snapshot helper in `LC.Live`.
-- Run the focused live tests and update the new plan checklist.
+- Add failing channel tests that the join ack includes the current aggregate session state for an authorized viewer.
+- Add failing channel tests proving additional joins and disconnect-driven leaves rebroadcast refreshed aggregate state on the same topic.
+- Implement channel helpers that fetch `LC.Live.live_session_state_snapshot/1`, include it in the join response, and rebroadcast the additive state payload after successful joins and leaves.
+- Run the focused channel tests and update the plan checklist.
 
 ## Verification Scope
 
 ```bash
-mix test test/live_canvas/live_test.exs test/live_canvas/live/distributed_runtime_test.exs
+mix test test/live_canvas_web/channels/live_session_channel_test.exs
 ```
 
 ## Next Up
 
-- Once Task 1 is green and committed, advance `docs/plans/NOW.md` to `Task 2` in `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`.
+- Once Task 2 is green and committed, advance `docs/plans/NOW.md` to `Task 3` in `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`.
 
 ## Repair Conditions
 

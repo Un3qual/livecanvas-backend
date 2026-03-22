@@ -247,6 +247,31 @@ defmodule LC.Live.DistributedRuntimeTest do
     end
   end
 
+  describe "live_session_state_snapshot/2 with remote runtime ownership" do
+    test "returns a bounded aggregate snapshot through runtime RPC" do
+      host = user_fixture()
+      session = live_session_fixture(host.id)
+      remote_owner = "remote-owner@127.0.0.1"
+
+      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+
+      configure_runtime_rpc([
+        {:ok, %{status: :live, visibility: :public, viewer_count: 3}}
+      ])
+
+      assert Live.live_session_state_snapshot(session, runtime_rpc: FakeRuntimeRPC) == %{
+               status: :live,
+               visibility: :public,
+               viewer_count: 3
+             }
+
+      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_live_session_state_snapshot,
+                      [remote_session_id], _opts}
+
+      assert remote_session_id == session.id
+    end
+  end
+
   defp live_session_fixture(host_id \\ nil) do
     host_id = host_id || user_fixture().id
 
