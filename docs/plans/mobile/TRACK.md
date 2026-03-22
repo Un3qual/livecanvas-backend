@@ -18,7 +18,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
   `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`
 - Lane execution pointer: `docs/plans/mobile/NOW.md`
 - Coordinator dashboard: `docs/plans/NOW.md`
-- Next lane batch: implement `Task 1: Choose the routing model and define the top-level route groups` from the current mobile shell plan.
+- Next lane batch: implement `Task 3: Add shell-level layout primitives and entry screens` from the current mobile shell plan.
 
 ## Recommended Detailed Plan Order
 

@@ -13,13 +13,13 @@ Status: active for execution
 - Track: `mobile_foundations`
 - Source: `docs/plans/mobile/TRACK.md`
 - Plan: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`
-- Batch: `Task 2: Build the global provider stack and startup flow`
-- Why now: the routing shell is in place, and the next unblocked mobile task is to add the root provider seam before auth, Relay, or realtime work lands.
+- Batch: `Task 3: Add shell-level layout primitives and entry screens`
+- Why now: the provider stack and startup boundary are in place, so the next unblocked shell slice is to give the route groups shared layout primitives and intentional entry screens.
 
 ## Do This Now
 
 - Review `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` and the current `mobile/` workspace state.
-- Implement `Task 2` from the current mobile shell plan.
+- Implement `Task 3` from the current mobile shell plan.
 - Keep the work inside `mobile/` and `docs/plans/mobile/**`.
 - Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
 - If the next slice requires backend contract or schema changes, stop and report the dependency instead of editing backend code from the mobile lane.
@@ -33,7 +33,7 @@ XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command
 
 ## Next Up
 
-- Once Task 2 is green and committed, advance this lane pointer to `Task 3` in `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`.
+- Once Task 3 is green and committed, advance this lane pointer to `Task 4` in `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`.
 
 ## Repair Conditions
 
