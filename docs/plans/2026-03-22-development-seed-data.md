@@ -29,7 +29,7 @@ Verified directly in the codebase before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Add a tested, idempotent development seed foundation
+- [x] Task 1: Add a tested, idempotent development seed foundation
 - [ ] Task 2: Seed a product-shaped local dataset and document the workflow
 
 ### Task 1: Add A Tested, Idempotent Development Seed Foundation
@@ -40,11 +40,11 @@ Verified directly in the codebase before drafting this plan:
 - Create: `test/live_canvas/dev/seed_data_test.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing tests that `LC.Dev.SeedData.seed!/0` creates the expected stable users on the first run and does not duplicate them on a second run
-- [ ] Step 2: Implement `LC.Dev.SeedData.seed!/0` with a public `@spec`, stable seed descriptors, and helper functions that upsert or reuse users by known email address before normalizing password and privacy state
-- [ ] Step 3: Wire `priv/repo/seeds.exs` to call the module for `Mix.env() == :dev` and print a concise summary of the seeded accounts instead of leaving the script empty
-- [ ] Step 4: Run `mix test test/live_canvas/dev/seed_data_test.exs`
-- [ ] Step 5: Commit the seed-foundation slice
+- [x] Step 1: Add failing tests that `LC.Dev.SeedData.seed!/0` creates the expected stable users on the first run and does not duplicate them on a second run
+- [x] Step 2: Implement `LC.Dev.SeedData.seed!/0` with a public `@spec`, stable seed descriptors, and helper functions that upsert or reuse users by known email address before normalizing password and privacy state
+- [x] Step 3: Wire `priv/repo/seeds.exs` to call the module for `Mix.env() == :dev` and print a concise summary of the seeded accounts instead of leaving the script empty
+- [x] Step 4: Run `mix test test/live_canvas/dev/seed_data_test.exs`
+- [x] Step 5: Commit the seed-foundation slice
 
 **Task 1 behavior targets:**
 
