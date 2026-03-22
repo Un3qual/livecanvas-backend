@@ -49,6 +49,28 @@ export async function bootstrapRuntime(
   };
 }
 
+export function fallbackStartupSnapshot(): StartupSnapshot {
+  return {
+    initialUrl: null,
+    initialHref: null,
+    landingHref: '/sign-in',
+    defaultHref: '/sign-in',
+    bootSessionState: 'signed_out',
+    resetReason: null,
+  };
+}
+
+export function settleForcedLogoutSnapshot(
+  snapshot: StartupSnapshot,
+): StartupSnapshot {
+  return {
+    ...snapshot,
+    landingHref: '/sign-in',
+    defaultHref: '/sign-in',
+    bootSessionState: 'signed_out',
+  };
+}
+
 export function routeHrefFromUrl(initialUrl: string | null): string | null {
   if (!initialUrl) {
     return null;

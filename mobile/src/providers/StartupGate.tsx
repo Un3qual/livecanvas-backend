@@ -16,14 +16,23 @@ import {
 import type { AppEnvironment } from '../config/environment';
 import {
   bootstrapRuntime,
+  fallbackStartupSnapshot,
+  settleForcedLogoutSnapshot,
   type StartupSnapshot,
 } from '../config/runtime';
 import { useAppTheme } from './ThemeProvider';
 
+type StartupTransition =
+  | { href: '/sign-in'; reason: 'forced_logout' }
+  | { href: '/sign-in'; reason: 'bootstrap_failure' };
+
 type StartupState =
   | { status: 'booting' }
-  | { status: 'resetting'; snapshot: StartupSnapshot }
-  | { status: 'ready'; snapshot: StartupSnapshot };
+  | {
+      status: 'ready';
+      snapshot: StartupSnapshot;
+      transition: StartupTransition | null;
+    };
 
 type StartupContextValue = {
   environment: AppEnvironment;
@@ -47,12 +56,25 @@ export function StartupGate({
         return;
       }
 
-      if (snapshot.bootSessionState === 'forced_logout') {
-        setState({ status: 'resetting', snapshot });
+      setState({
+        status: 'ready',
+        snapshot,
+        transition:
+          snapshot.bootSessionState === 'forced_logout'
+            ? { href: '/sign-in', reason: 'forced_logout' }
+            : null,
+      });
+    }).catch(() => {
+      if (!isActive) {
         return;
       }
 
-      setState({ status: 'ready', snapshot });
+      // If runtime introspection fails, fall back to the signed-out shell.
+      setState({
+        status: 'ready',
+        snapshot: fallbackStartupSnapshot(),
+        transition: { href: '/sign-in', reason: 'bootstrap_failure' },
+      });
     });
 
     return () => {
@@ -60,29 +82,36 @@ export function StartupGate({
     };
   }, [environment]);
 
+  const transition = state.status === 'ready' ? state.transition : null;
+
   useEffect(() => {
-    if (state.status !== 'resetting') {
+    if (!transition) {
       return;
     }
 
-    router.replace('/sign-in');
+    router.replace(transition.href);
 
     const timer = setTimeout(() => {
-      setState({
-        status: 'ready',
-        snapshot: {
-          ...state.snapshot,
-          bootSessionState: 'signed_out',
-          defaultHref: '/sign-in',
-          landingHref: '/sign-in',
-        },
+      setState((currentState) => {
+        if (currentState.status !== 'ready' || !currentState.transition) {
+          return currentState;
+        }
+
+        return {
+          status: 'ready',
+          snapshot:
+            currentState.transition.reason === 'forced_logout'
+              ? settleForcedLogoutSnapshot(currentState.snapshot)
+              : currentState.snapshot,
+          transition: null,
+        };
       });
     }, 160);
 
     return () => {
       clearTimeout(timer);
     };
-  }, [router, state]);
+  }, [router, transition]);
 
   if (state.status === 'booting') {
     return (
@@ -94,21 +123,31 @@ export function StartupGate({
     );
   }
 
-  if (state.status === 'resetting') {
-    return (
-      <StartupScreen
-        eyebrow="Session reset"
-        title="Clearing the local shell"
-        body="A forced logout placeholder routed the startup flow back through the signed-out entry seam."
-      />
-    );
-  }
-
   return (
     <StartupContext.Provider
       value={{ environment, snapshot: state.snapshot }}
     >
       {children}
+      {state.transition ? (
+        <StartupScreen
+          eyebrow={
+            state.transition.reason === 'forced_logout'
+              ? 'Session reset'
+              : 'Startup fallback'
+          }
+          title={
+            state.transition.reason === 'forced_logout'
+              ? 'Clearing the local shell'
+              : 'Recovering startup state'
+          }
+          body={
+            state.transition.reason === 'forced_logout'
+              ? 'The navigator is mounted now, so the forced logout can safely route back through sign-in.'
+              : 'Startup introspection failed, so the shell is falling back to the signed-out entry route instead of staying on the boot screen.'
+          }
+          overlay
+        />
+      ) : null}
     </StartupContext.Provider>
   );
 }
@@ -117,10 +156,12 @@ function StartupScreen({
   eyebrow,
   title,
   body,
+  overlay = false,
 }: {
   eyebrow: string;
   title: string;
   body: string;
+  overlay?: boolean;
 }) {
   const theme = useAppTheme();
 
@@ -128,6 +169,7 @@ function StartupScreen({
     <View
       style={[
         styles.screen,
+        overlay ? styles.overlay : null,
         { backgroundColor: theme.colors.background },
       ]}
     >
@@ -181,6 +223,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
   },
   panel: {
     width: '100%',
