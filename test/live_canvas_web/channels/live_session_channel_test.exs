@@ -60,6 +60,33 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
   end
 
+  test "published session state is re-read from persistence before broadcasting" do
+    host = user_fixture(privacy_mode: :public)
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    updated_session =
+      session
+      |> Ecto.Changeset.change(visibility: :followers)
+      |> Repo.update!()
+
+    assert LCWeb.LiveSessionChannel.published_session_state(session.id, session) == %{
+             session_state: %{
+               status: :starting,
+               visibility: :followers,
+               viewer_count: 0
+             }
+           }
+
+    assert LCWeb.LiveSessionChannel.published_session_state(updated_session.id, updated_session) ==
+             %{
+               session_state: %{
+                 status: :starting,
+                 visibility: :followers,
+                 viewer_count: 0
+               }
+             }
+  end
+
   test "joins and disconnect-driven leaves rebroadcast session state on the same topic" do
     Process.flag(:trap_exit, true)
 

@@ -43,7 +43,8 @@ defmodule LCWeb.LiveSessionChannel do
             {:ok, :joined}
           )
 
-        {:ok, session_state_payload(joined_socket.assigns.live_session), joined_socket}
+        {:ok, published_session_state(session_id, joined_socket.assigns.live_session),
+         joined_socket}
 
       {:error, reason} ->
         :ok =
@@ -206,34 +207,36 @@ defmodule LCWeb.LiveSessionChannel do
 
   defp maybe_broadcast_session_state(_live_session), do: :ok
 
-  @spec broadcast_session_state(pos_integer(), map()) :: :ok
-  defp broadcast_session_state(session_id, live_session)
-       when is_integer(session_id) and is_map(live_session) do
-    if live_session_status_ended?(live_session) do
-      :ok
-    else
-      topic = live_session_topic(session_id)
-
-      Phoenix.PubSub.broadcast(
-        LC.PubSub,
-        topic,
-        %Broadcast{
-          topic: topic,
-          event: "session:state",
-          payload: session_state_payload(live_session)
+  @doc false
+  @spec published_session_state(pos_integer(), LCSchemas.Live.LiveSession.t()) :: %{
+          session_state: Live.live_session_state()
         }
-      )
-    end
-  end
+  def published_session_state(session_id, fallback_live_session)
+      when is_integer(session_id) and is_map(fallback_live_session) do
+    live_session =
+      case Live.get_live_session(session_id) do
+        %{} = persisted_live_session -> persisted_live_session
+        nil -> fallback_live_session
+      end
 
-  @spec session_state_payload(map()) :: %{session_state: map()}
-  defp session_state_payload(live_session) when is_map(live_session) do
     %{session_state: Live.live_session_state_snapshot(live_session)}
   end
 
-  @spec live_session_status_ended?(map()) :: boolean()
-  defp live_session_status_ended?(%{status: :ended}), do: true
-  defp live_session_status_ended?(_live_session), do: false
+  @spec broadcast_session_state(pos_integer(), map()) :: :ok
+  defp broadcast_session_state(session_id, live_session)
+       when is_integer(session_id) and is_map(live_session) do
+    topic = live_session_topic(session_id)
+
+    Phoenix.PubSub.broadcast(
+      LC.PubSub,
+      topic,
+      %Broadcast{
+        topic: topic,
+        event: "session:state",
+        payload: published_session_state(session_id, live_session)
+      }
+    )
+  end
 
   @spec live_session_topic(pos_integer()) :: String.t()
   defp live_session_topic(session_id) when is_integer(session_id),
