@@ -838,6 +838,18 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     assert is_binary(go_live_inserted_at)
 
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "session:state",
+      payload: %{
+        session_state: %{
+          status: :live,
+          visibility: :public,
+          viewer_count: 1
+        }
+      }
+    }
+
     assert {:ok,
             %{
               data: %{
@@ -871,6 +883,19 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
 
     assert is_binary(end_inserted_at)
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "session:state",
+      payload: %{
+        session_state: %{
+          status: :ended,
+          visibility: :public,
+          viewer_count: 0
+        }
+      }
+    }
+
     assert_receive {:DOWN, ^monitor_ref, :process, _, _}
     assert :ok = wait_for_participant_left(session.id, viewer.id)
   end

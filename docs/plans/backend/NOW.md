@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
 Last reviewed: 2026-03-22
-Status: active
+Status: active for planning
 
 ## Lane Scope
 
@@ -10,31 +10,27 @@ Status: active
 
 ## Current Batch
 
-- Track: `live_session_channel_state_and_presence`
-- Plan: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
-- Batch: `Task 3: Broadcast lifecycle state transitions and refresh plan tracking`
-- Why now: `Task 2 is complete, so the next unblocked backend batch is wiring lifecycle broadcasts into the same `live_session:<id>` topic and then advancing the plan tracking once verification is done.
+- Track: `release_roadmap_and_planning_holes`
+- Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
+- Batch: `Create the next detailed backend implementation plan`
+- Why now: the live-session channel state/presence plan is complete, and `docs/plans/INDEX.md` does not queue another backend execution batch yet.
 
 ## Do This Now
 
-- Add failing GraphQL/channel coverage proving `goLiveSession` and `endLiveSession` rebroadcast aggregate state changes to already-joined viewers.
-- Implement resolver-level state broadcasts after successful lifecycle transitions, keeping the end-of-session state update ahead of the existing disconnect fanout.
-- Run `mix compile`.
-- Run `mix test test/live_canvas/live_test.exs test/live_canvas/live/distributed_runtime_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/live/live_mutations_test.exs`.
-- Run `mix typecheck`.
-- Update `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`, then report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
+- Review `docs/plans/2026-03-03-backend-release-readiness-roadmap.md` and any directly related backend planning docs needed to pick the next product-facing slice.
+- Create the next detailed backend implementation plan and point this lane at its first executable batch.
+- Keep the work inside backend code and backend planning docs only.
+- Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
 
 ## Verification Scope
 
 ```bash
-mix compile
-mix test test/live_canvas/live_test.exs test/live_canvas/live/distributed_runtime_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/live/live_mutations_test.exs
-mix typecheck
+test -f docs/plans/2026-03-03-backend-release-readiness-roadmap.md
 ```
 
 ## Next Up
 
-- Once Task 3 is green and committed, advance this lane pointer to the next unblocked backend batch in `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`.
+- Once the next backend plan is written and committed, point this lane at its first executable batch.
 
 ## Repair Conditions
 

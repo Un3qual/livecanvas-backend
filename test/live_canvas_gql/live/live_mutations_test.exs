@@ -251,6 +251,18 @@ defmodule LCGQL.Live.LiveMutationsTest do
         }
       }
 
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "session:state",
+        payload: %{
+          session_state: %{
+            status: :live,
+            visibility: :public,
+            viewer_count: 0
+          }
+        }
+      }
+
       assert is_integer(go_live_message_id)
       assert sender_id == host.id
       assert is_binary(go_live_inserted_at)
@@ -284,6 +296,18 @@ defmodule LCGQL.Live.LiveMutationsTest do
             status: "active",
             moderated_at: nil,
             metadata: %{"details" => %{}, "event_type" => "session_ended"}
+          }
+        }
+      }
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "session:state",
+        payload: %{
+          session_state: %{
+            status: :ended,
+            visibility: :public,
+            viewer_count: 0
           }
         }
       }
