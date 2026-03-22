@@ -18,7 +18,7 @@ Use this directory for active execution docs and detailed implementation plans.
 
 ## Active Lanes
 
-- Backend lane: `docs/plans/backend/NOW.md` currently points at `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` -> `Task 3`.
+- Backend lane: `docs/plans/backend/NOW.md` currently points at `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 2`.
 - Mobile lane: `docs/plans/mobile/NOW.md` currently points at the first post-bootstrap planning batch.
 - Release roadmap and planning-hole tracker: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md` remains reference-only until a lane needs it.
 

@@ -15,7 +15,7 @@ Status: active
 ### Backend Lane
 
 - Status: active
-- Current batch: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` -> `Task 3: Verify the profile surface slice and refresh plan tracking`
+- Current batch: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 2: Publish join/leave state updates on LCWeb.LiveSessionChannel`
 - Lane write scope: backend code and backend planning docs only
 
 ### Mobile Lane
@@ -31,7 +31,8 @@ Status: active
 
 ## Next Up
 
-- Once a lane finishes its current batch, update that lane's `NOW.md` first and then refresh this dashboard from `docs/plans/INDEX.md` only if the lane lineup or summary changed.
+- Once the backend lane finishes `Task 2`, advance `docs/plans/backend/NOW.md` to `Task 3` in `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`, then refresh this dashboard only if the lane summary changed.
+- Once the mobile lane finishes its planning batch, point `docs/plans/mobile/NOW.md` at the first executable mobile implementation task and refresh this dashboard only if the lane summary changed.
 
 ## Repair Conditions
 

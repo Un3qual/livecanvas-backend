@@ -31,6 +31,11 @@ defmodule LC.Live do
           {:ok, ended_live_session(), boolean()} | {:error, changeset()}
   @type live_participant_result :: {:ok, LiveParticipant.t()} | {:error, changeset() | term()}
   @type leave_live_session_result :: :ok
+  @type live_session_state :: %{
+          status: LCSchemas.Live.live_session_status(),
+          visibility: LCSchemas.Live.live_session_visibility(),
+          viewer_count: non_neg_integer()
+        }
   @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type runtime_rpc_error :: :remote_not_found | :remote_timeout | :remote_unreachable
   @type runtime_target :: {:local, pid()} | {:remote, String.t()}
@@ -290,6 +295,28 @@ defmodule LC.Live do
     do: Repo.get!(LiveSession, session_id)
 
   @doc """
+  Returns a bounded aggregate snapshot for a persisted live session.
+  """
+  @spec live_session_state_snapshot(LiveSession.t()) :: live_session_state()
+  @spec live_session_state_snapshot(LiveSession.t(), keyword()) :: live_session_state()
+  def live_session_state_snapshot(
+        %LiveSession{status: status, visibility: visibility} = live_session,
+        opts \\ []
+      )
+      when status in [:starting, :live, :ended] and visibility in [:followers, :public] and
+             is_list(opts) do
+    runtime_rpc = runtime_rpc_module(opts)
+
+    case status do
+      :ended ->
+        bounded_live_session_state(live_session, 0)
+
+      _other ->
+        live_session_state_snapshot_from_runtime(live_session, runtime_rpc)
+    end
+  end
+
+  @doc """
   Fetches a session that can still accept channel joins.
   """
   @spec fetch_joinable_session(pos_integer()) :: fetch_joinable_session_result()
@@ -298,6 +325,22 @@ defmodule LC.Live do
       %LiveSession{status: :ended} -> {:error, :ended}
       %LiveSession{} = live_session -> {:ok, live_session}
       nil -> {:error, :not_found}
+    end
+  end
+
+  @doc false
+  @spec remote_live_session_state_snapshot(pos_integer()) ::
+          {:ok, live_session_state()} | {:error, :not_found}
+  def remote_live_session_state_snapshot(session_id) when is_integer(session_id) do
+    case Repo.get(LiveSession, session_id) do
+      nil ->
+        {:error, :not_found}
+
+      %LiveSession{status: :ended} = live_session ->
+        {:ok, bounded_live_session_state(live_session, 0)}
+
+      %LiveSession{} = live_session ->
+        {:ok, live_session_state_snapshot_from_local_runtime(live_session)}
     end
   end
 
@@ -616,6 +659,149 @@ defmodule LC.Live do
     |> Keyword.get(:runtime_rpc_timeout_ms, 5_000)
   end
 
+  @spec live_session_state_snapshot_from_runtime(LiveSession.t(), runtime_rpc_module()) ::
+          live_session_state()
+  defp live_session_state_snapshot_from_runtime(
+         %LiveSession{id: session_id} = live_session,
+         runtime_rpc
+       )
+       when is_integer(session_id) and is_atom(runtime_rpc) do
+    case SessionSupervisor.lookup_session_server(session_id) do
+      {:ok, pid} ->
+        viewer_count =
+          case local_runtime_viewer_count(pid) do
+            {:ok, count} -> count
+            {:error, :not_found} -> active_viewer_count(session_id)
+          end
+
+        bounded_live_session_state(live_session, viewer_count)
+
+      {:error, :not_found} ->
+        bounded_live_session_state(live_session, active_viewer_count(session_id))
+
+      {:error, {:owned_by_remote, owner_node}} ->
+        case remote_live_session_state_snapshot(owner_node, session_id, runtime_rpc) do
+          {:ok, snapshot} ->
+            snapshot
+
+          {:error, :remote_not_found} ->
+            bounded_live_session_state(live_session, active_viewer_count(session_id))
+
+          {:error, _reason} ->
+            # Transport failures cannot prove current presence, so return a
+            # deterministic zero rather than durable counts that may be stale.
+            bounded_live_session_state(live_session, 0)
+        end
+    end
+  end
+
+  @spec live_session_state_snapshot_from_local_runtime(LiveSession.t()) :: live_session_state()
+  defp live_session_state_snapshot_from_local_runtime(%LiveSession{id: session_id} = live_session)
+       when is_integer(session_id) do
+    viewer_count =
+      case SessionSupervisor.lookup_session_server(session_id) do
+        {:ok, pid} ->
+          case local_runtime_viewer_count(pid) do
+            {:ok, count} -> count
+            {:error, :not_found} -> active_viewer_count(session_id)
+          end
+
+        {:error, :not_found} ->
+          active_viewer_count(session_id)
+
+        {:error, {:owned_by_remote, _owner_node}} ->
+          # Ownership can change between the caller's lease read and this RPC,
+          # so fall back to durable state instead of exposing routing details.
+          active_viewer_count(session_id)
+      end
+
+    bounded_live_session_state(live_session, viewer_count)
+  end
+
+  @spec bounded_live_session_state(LiveSession.t(), non_neg_integer()) :: live_session_state()
+  defp bounded_live_session_state(
+         %LiveSession{status: status, visibility: visibility},
+         viewer_count
+       )
+       when status in [:starting, :live, :ended] and visibility in [:followers, :public] and
+              is_integer(viewer_count) and viewer_count >= 0 do
+    %{
+      status: status,
+      visibility: visibility,
+      viewer_count: viewer_count
+    }
+  end
+
+  @spec local_runtime_viewer_count(pid()) :: {:ok, non_neg_integer()} | {:error, :not_found}
+  defp local_runtime_viewer_count(pid) when is_pid(pid) do
+    {:ok, pid |> SessionServer.snapshot() |> snapshot_viewer_count()}
+  catch
+    :exit, _reason ->
+      {:error, :not_found}
+  end
+
+  @spec snapshot_viewer_count(SessionServer.state()) :: non_neg_integer()
+  defp snapshot_viewer_count(%{participants: participants}) when is_map(participants) do
+    Enum.count(participants, fn
+      {_user_id, %{role: :viewer}} -> true
+      _other -> false
+    end)
+  end
+
+  @spec remote_live_session_state_snapshot(String.t(), pos_integer(), runtime_rpc_module()) ::
+          {:ok, live_session_state()} | {:error, runtime_rpc_error()}
+  defp remote_live_session_state_snapshot(owner_node, session_id, runtime_rpc)
+       when is_binary(owner_node) and is_integer(session_id) and is_atom(runtime_rpc) do
+    owner_node
+    |> runtime_rpc.call(
+      __MODULE__,
+      :remote_live_session_state_snapshot,
+      [session_id],
+      timeout: runtime_rpc_timeout_ms()
+    )
+    |> normalize_remote_live_session_state_response()
+  end
+
+  @spec normalize_remote_live_session_state_response(
+          {:ok, {:ok, live_session_state()} | {:error, :not_found} | live_session_state()}
+          | {:error, RuntimeRPC.error_reason()}
+        ) :: {:ok, live_session_state()} | {:error, runtime_rpc_error()}
+  defp normalize_remote_live_session_state_response(
+         {:ok, {:ok, %{status: status, visibility: visibility, viewer_count: viewer_count}}}
+       )
+       when status in [:starting, :live, :ended] and visibility in [:followers, :public] and
+              is_integer(viewer_count) and viewer_count >= 0 do
+    {:ok,
+     %{
+       status: status,
+       visibility: visibility,
+       viewer_count: viewer_count
+     }}
+  end
+
+  defp normalize_remote_live_session_state_response(
+         {:ok, %{status: status, visibility: visibility, viewer_count: viewer_count}}
+       )
+       when status in [:starting, :live, :ended] and visibility in [:followers, :public] and
+              is_integer(viewer_count) and viewer_count >= 0 do
+    {:ok,
+     %{
+       status: status,
+       visibility: visibility,
+       viewer_count: viewer_count
+     }}
+  end
+
+  defp normalize_remote_live_session_state_response({:ok, {:error, :not_found}}),
+    do: {:error, :remote_not_found}
+
+  defp normalize_remote_live_session_state_response({:error, reason})
+       when reason in [:remote_not_found, :remote_timeout, :remote_unreachable] do
+    {:error, reason}
+  end
+
+  defp normalize_remote_live_session_state_response(_response), do: {:error, :remote_not_found}
+
   @type live_session_event :: :end | :join | :start
   @type live_session_event_result ::
           {:ok, LiveParticipant.t() | LiveSession.t()} | {:error, term()}
@@ -680,6 +866,17 @@ defmodule LC.Live do
     |> Map.new(fn {user_id, role, joined_at} ->
       {user_id, %{user_id: user_id, role: role, joined_at: joined_at}}
     end)
+  end
+
+  @spec active_viewer_count(pos_integer()) :: non_neg_integer()
+  defp active_viewer_count(session_id) when is_integer(session_id) do
+    from(live_participant in LiveParticipant,
+      where:
+        live_participant.live_session_id == ^session_id and
+          live_participant.role == :viewer and
+          is_nil(live_participant.left_at)
+    )
+    |> Repo.aggregate(:count, :id)
   end
 
   @spec active_user?(pos_integer()) :: boolean()

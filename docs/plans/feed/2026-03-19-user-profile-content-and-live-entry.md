@@ -30,7 +30,7 @@ Verified directly in the codebase before drafting this plan:
 
 - [x] Task 1: Add viewer-scoped profile read models in `LC.Feed`
 - [x] Task 2: Publish Relay user profile content/live fields in `LCGQL.Accounts`
-- [ ] Task 3: Verify the profile surface slice and refresh plan tracking
+- [x] Task 3: Verify the profile surface slice and refresh plan tracking
 
 ### Task 1: Add Viewer-Scoped Profile Read Models In `LC.Feed`
 
@@ -94,15 +94,15 @@ Expected: PASS.
 
 **Files:**
 - Modify: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md`
-- Modify: `docs/plans/backend/NOW.md`
+- Lane follow-up: `docs/plans/backend/NOW.md`
 - Coordinator follow-up: `docs/plans/INDEX.md`
 - Coordinator follow-up: `docs/plans/NOW.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Run `mix compile`
-- [ ] Step 2: Run `mix test test/live_canvas/feed_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
-- [ ] Step 3: Run `mix typecheck`
-- [ ] Step 4: Update this checklist plus `docs/plans/backend/NOW.md`, then hand the required coordinator updates for `docs/plans/INDEX.md` / `docs/plans/NOW.md` back with the commit summary
+- [x] Step 1: Run `mix compile`
+- [x] Step 2: Run `mix test test/live_canvas/feed_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
+- [x] Step 3: Run `mix typecheck`
+- [x] Step 4: Update this checklist plus the lane/coordinator tracking docs, then commit the profile surface milestone
 
 **Task 3 behavior targets:**
 
@@ -119,3 +119,9 @@ mix typecheck
 ```
 
 Expected: PASS.
+
+Verification evidence (2026-03-22):
+
+- `mix compile` -> PASS
+- `mix test test/live_canvas/feed_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs` -> PASS (`57 tests, 0 failures`)
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`)

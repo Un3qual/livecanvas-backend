@@ -10,30 +10,29 @@ Status: active
 
 ## Current Batch
 
-- Track: `profile_content_live_entry`
-- Plan: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md`
-- Batch: `Task 3: Verify the profile surface slice and refresh plan tracking`
-- Why now: Task 2 is complete, so the next unblocked backend batch is the slice-level compile/test/typecheck pass plus lane-local plan tracking for the finished Relay user profile fields.
+- Track: `live_session_channel_state_and_presence`
+- Plan: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
+- Batch: `Task 2: Publish join/leave state updates on LCWeb.LiveSessionChannel`
+- Why now: `LC.Live` now exposes a bounded aggregate session snapshot, so the next unblocked backend batch is wiring that state into the existing `live_session:<id>` topic for join acks and participation rebroadcasts.
 
 ## Do This Now
 
-- Run `mix compile`.
-- Run `mix test test/live_canvas/feed_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`.
-- Run `mix typecheck`.
-- Update `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` and `docs/plans/backend/NOW.md` for the next backend milestone.
+- Add failing channel tests that the join ack includes the current aggregate session state for an authorized viewer.
+- Add failing channel tests proving additional joins and disconnect-driven leaves rebroadcast a bounded aggregate state update to subscribed viewers on the same topic.
+- Implement channel helpers that fetch the aggregate state from `LC.Live`, include it in the join response, and rebroadcast it after successful join/leave transitions.
+- Run `mix test test/live_canvas_web/channels/live_session_channel_test.exs`.
+- Update `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` and `docs/plans/backend/NOW.md` for the next backend milestone.
 - Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
 
 ## Verification Scope
 
 ```bash
-mix compile
-mix test test/live_canvas/feed_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs
-mix typecheck
+mix test test/live_canvas_web/channels/live_session_channel_test.exs
 ```
 
 ## Next Up
 
-- Once Task 3 is green and committed, choose the next unblocked backend batch from `docs/plans/INDEX.md` and the relevant `TRACK.md`, then update this lane pointer.
+- Once Task 2 is green and committed, advance this lane pointer to `Task 3` in `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`.
 
 ## Repair Conditions
 
