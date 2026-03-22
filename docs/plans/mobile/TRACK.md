@@ -8,9 +8,16 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Track Status
 
-- Status: planning-only
+- Status: bootstrap complete; detailed implementation can proceed when
+  explicitly prioritized
 - Approved overview: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
-- Current global execution pointer remains `docs/plans/NOW.md` until frontend work is explicitly prioritized for implementation.
+- Approved bootstrap design:
+  `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
+- Bootstrap plan:
+  `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap.md`
+- Current global execution pointer remains `docs/plans/NOW.md`; the backend feed
+  batch stays the default next slice unless mobile work is explicitly
+  reprioritized again.
 
 ## Recommended Detailed Plan Order
 
@@ -24,7 +31,8 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Shared Constraints
 
-- The mobile code will live in `mobile/`, but the current task is planning-only; no frontend file structure needs to exist yet.
+- The mobile code now exists in `mobile/` with an Expo `blank-typescript`
+  scaffold plus a local `flake.nix`.
 - Expo is the required app framework, but live media may require a custom dev client or `expo prebuild`.
 - Durable client reads and writes should use the Relay-first GraphQL contract already documented by the backend.
 - Realtime live-session and chat behavior should integrate with Phoenix Channels rather than inventing a parallel transport.

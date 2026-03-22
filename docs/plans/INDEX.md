@@ -26,8 +26,8 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 ### Mobile Expo Frontend Planning Track
 
 - Source: `docs/plans/mobile/TRACK.md`
-- Status: planning-only
-- Notes: approved overview exists for the future Expo + Relay mobile app; write detailed slice plans here when frontend execution is explicitly scheduled
+- Status: bootstrap complete
+- Notes: the initial Expo `blank-typescript` scaffold and isolated `mobile/flake.nix` now exist; continue with detailed mobile slices here when frontend work is explicitly reprioritized
 
 ## Paused Or Deferred
 
