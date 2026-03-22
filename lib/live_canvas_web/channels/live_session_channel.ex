@@ -25,7 +25,11 @@ defmodule LCWeb.LiveSessionChannel do
            :ok <- Chat.authorize_join(current_user, live_session),
            {:ok, _participant} <- Live.join_live_session(live_session, current_user, :viewer),
            :ok <- subscribe_to_control_topics(session_id, user_id) do
-        {:ok, assign(socket, :live_session, live_session), session_id}
+        joined_socket = assign(socket, :live_session, live_session)
+
+        :ok = broadcast_session_state(session_id, live_session)
+
+        {:ok, joined_socket, session_id}
       else
         {:error, reason} -> {:error, reason}
       end
@@ -39,7 +43,7 @@ defmodule LCWeb.LiveSessionChannel do
             {:ok, :joined}
           )
 
-        {:ok, %{}, joined_socket}
+        {:ok, session_state_payload(joined_socket.assigns.live_session), joined_socket}
 
       {:error, reason} ->
         :ok =
@@ -140,6 +144,7 @@ defmodule LCWeb.LiveSessionChannel do
     # Disconnect cleanup is best-effort because channel termination can race
     # against session shutdown; `LC.Live` handles idempotent reconciliation.
     safe_leave_live_session(live_session, current_user)
+    :ok = maybe_broadcast_session_state(live_session)
     :ok
   end
 
@@ -186,6 +191,53 @@ defmodule LCWeb.LiveSessionChannel do
     :exit, _reason ->
       :ok
   end
+
+  @spec maybe_broadcast_session_state(map()) :: :ok
+  defp maybe_broadcast_session_state(%{id: session_id})
+       when is_integer(session_id) do
+    case Live.get_live_session(session_id) do
+      %{} = live_session ->
+        broadcast_session_state(session_id, live_session)
+
+      nil ->
+        :ok
+    end
+  end
+
+  defp maybe_broadcast_session_state(_live_session), do: :ok
+
+  @spec broadcast_session_state(pos_integer(), map()) :: :ok
+  defp broadcast_session_state(session_id, live_session)
+       when is_integer(session_id) and is_map(live_session) do
+    if live_session_status_ended?(live_session) do
+      :ok
+    else
+      topic = live_session_topic(session_id)
+
+      Phoenix.PubSub.broadcast(
+        LC.PubSub,
+        topic,
+        %Broadcast{
+          topic: topic,
+          event: "session:state",
+          payload: session_state_payload(live_session)
+        }
+      )
+    end
+  end
+
+  @spec session_state_payload(map()) :: %{session_state: map()}
+  defp session_state_payload(live_session) when is_map(live_session) do
+    %{session_state: Live.live_session_state_snapshot(live_session)}
+  end
+
+  @spec live_session_status_ended?(map()) :: boolean()
+  defp live_session_status_ended?(%{status: :ended}), do: true
+  defp live_session_status_ended?(_live_session), do: false
+
+  @spec live_session_topic(pos_integer()) :: String.t()
+  defp live_session_topic(session_id) when is_integer(session_id),
+    do: "live_session:#{session_id}"
 
   @type channel_event :: :chat_send | :join
   @type channel_result :: {:ok, term()} | {:error, term()}

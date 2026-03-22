@@ -12,27 +12,29 @@ Status: active
 
 - Track: `live_session_channel_state_and_presence`
 - Plan: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
-- Batch: `Task 2: Publish join/leave state updates on LCWeb.LiveSessionChannel`
-- Why now: `LC.Live` now exposes a bounded aggregate session snapshot, so the next unblocked backend batch is wiring that state into the existing `live_session:<id>` topic for join acks and participation rebroadcasts.
+- Batch: `Task 3: Broadcast lifecycle state transitions and refresh plan tracking`
+- Why now: `Task 2 is complete, so the next unblocked backend batch is wiring lifecycle broadcasts into the same `live_session:<id>` topic and then advancing the plan tracking once verification is done.
 
 ## Do This Now
 
-- Add failing channel tests that the join ack includes the current aggregate session state for an authorized viewer.
-- Add failing channel tests proving additional joins and disconnect-driven leaves rebroadcast a bounded aggregate state update to subscribed viewers on the same topic.
-- Implement channel helpers that fetch the aggregate state from `LC.Live`, include it in the join response, and rebroadcast it after successful join/leave transitions.
-- Run `mix test test/live_canvas_web/channels/live_session_channel_test.exs`.
-- Update `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` and `docs/plans/backend/NOW.md` for the next backend milestone.
-- Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
+- Add failing GraphQL/channel coverage proving `goLiveSession` and `endLiveSession` rebroadcast aggregate state changes to already-joined viewers.
+- Implement resolver-level state broadcasts after successful lifecycle transitions, keeping the end-of-session state update ahead of the existing disconnect fanout.
+- Run `mix compile`.
+- Run `mix test test/live_canvas/live_test.exs test/live_canvas/live/distributed_runtime_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/live/live_mutations_test.exs`.
+- Run `mix typecheck`.
+- Update `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`, then report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
 
 ## Verification Scope
 
 ```bash
-mix test test/live_canvas_web/channels/live_session_channel_test.exs
+mix compile
+mix test test/live_canvas/live_test.exs test/live_canvas/live/distributed_runtime_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/live/live_mutations_test.exs
+mix typecheck
 ```
 
 ## Next Up
 
-- Once Task 2 is green and committed, advance this lane pointer to `Task 3` in `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`.
+- Once Task 3 is green and committed, advance this lane pointer to the next unblocked backend batch in `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`.
 
 ## Repair Conditions
 
