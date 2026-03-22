@@ -29,7 +29,7 @@ Verified directly in the codebase before drafting this plan:
 ## Progress
 
 - [x] Task 1: Add viewer-scoped profile read models in `LC.Feed`
-- [ ] Task 2: Publish Relay user profile content/live fields in `LCGQL.Accounts`
+- [x] Task 2: Publish Relay user profile content/live fields in `LCGQL.Accounts`
 - [ ] Task 3: Verify the profile surface slice and refresh plan tracking
 
 ### Task 1: Add Viewer-Scoped Profile Read Models In `LC.Feed`
@@ -69,11 +69,11 @@ Expected: PASS.
 - Modify: `test/live_canvas_gql/relay/node_queries_test.exs`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing GraphQL tests for `viewer` and other-user profile reads that request `posts`, `storyFeed`, `currentLiveSession`, and `replayFeed` from the Relay `User` node
-- [ ] Step 2: Add the new `User` child fields as Relay-first connections/fields without introducing a separate profile query type or raw foreign-key arguments
-- [ ] Step 3: Implement the resolvers by delegating into the new `LC.Feed` profile read models and preserving deterministic pagination order
-- [ ] Step 4: Re-apply child-field authorization so `viewer`, `post`, or `node(id:)` access to a user cannot leak private/follower-only content or live sessions through globally refetchable user IDs (`CWE-639` / IDOR)
-- [ ] Step 5: Run `mix test test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs` and commit the GraphQL profile surface slice
+- [x] Step 1: Add failing GraphQL tests for `viewer` and other-user profile reads that request `posts`, `storyFeed`, `currentLiveSession`, and `replayFeed` from the Relay `User` node
+- [x] Step 2: Add the new `User` child fields as Relay-first connections/fields without introducing a separate profile query type or raw foreign-key arguments
+- [x] Step 3: Implement the resolvers by delegating into the new `LC.Feed` profile read models and preserving deterministic pagination order
+- [x] Step 4: Re-apply child-field authorization so `viewer`, `post`, or `node(id:)` access to a user cannot leak private/follower-only content or live sessions through globally refetchable user IDs (`CWE-639` / IDOR)
+- [x] Step 5: Run `mix test test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs` and commit the GraphQL profile surface slice
 
 **Task 2 behavior targets:**
 

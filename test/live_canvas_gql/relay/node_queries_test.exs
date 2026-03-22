@@ -39,6 +39,220 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       assert user_email == user.email
     end
 
+    test "refetches visible profile posts, stories, current live session, and replays from a user relay id" do
+      owner = user_fixture()
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      _follow = accepted_follow_fixture(viewer, owner)
+
+      {:ok, profile_post} =
+        Content.create_post(owner, %{kind: :standard, body_text: "node profile post"})
+
+      {:ok, profile_story} =
+        Content.create_post(owner, %{kind: :story, body_text: "node profile story"})
+
+      {:ok, current_live_session} = Live.start_live_session(owner, %{visibility: :followers})
+      {:ok, current_live_session} = Live.mark_session_live(current_live_session)
+
+      assert {:ok, replay_asset} =
+               Content.create_media_asset(owner, %{
+                 storage_key: "uploads/users/#{owner.id}/node-profile-replay.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :processed
+               })
+
+      {:ok, replay_session} = Live.start_live_session(owner, %{visibility: :followers})
+
+      {:ok, replay_session} =
+        Live.end_live_session(replay_session, %{recording_media_asset_id: replay_asset.id})
+
+      user_id = Absinthe.Relay.Node.to_global_id(:user, owner.id, LCGQL.Schema)
+      profile_post_id = Absinthe.Relay.Node.to_global_id(:post, profile_post.id, LCGQL.Schema)
+      profile_story_id = Absinthe.Relay.Node.to_global_id(:post, profile_story.id, LCGQL.Schema)
+
+      current_live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, current_live_session.id, LCGQL.Schema)
+
+      replay_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, replay_session.id, LCGQL.Schema)
+
+      replay_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, replay_asset.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!, $first: Int!) {
+        node(id: $id) {
+          id
+          ... on User {
+            posts(first: $first) {
+              edges {
+                node {
+                  id
+                  bodyText
+                }
+              }
+            }
+            storyFeed(first: $first) {
+              edges {
+                node {
+                  id
+                  bodyText
+                }
+              }
+            }
+            currentLiveSession {
+              id
+              status
+            }
+            replayFeed(first: $first) {
+              edges {
+                node {
+                  id
+                  status
+                  recordingMediaAsset {
+                    id
+                    processingState
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^user_id,
+                    "posts" => %{
+                      "edges" => [
+                        %{
+                          "node" => %{
+                            "id" => ^profile_post_id,
+                            "bodyText" => "node profile post"
+                          }
+                        }
+                      ]
+                    },
+                    "storyFeed" => %{
+                      "edges" => [
+                        %{
+                          "node" => %{
+                            "id" => ^profile_story_id,
+                            "bodyText" => "node profile story"
+                          }
+                        }
+                      ]
+                    },
+                    "currentLiveSession" => %{
+                      "id" => ^current_live_session_id,
+                      "status" => "LIVE"
+                    },
+                    "replayFeed" => %{
+                      "edges" => [
+                        %{
+                          "node" => %{
+                            "id" => ^replay_session_id,
+                            "status" => "ENDED",
+                            "recordingMediaAsset" => %{
+                              "id" => ^replay_asset_id,
+                              "processingState" => "PROCESSED"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => user_id, "first" => 10},
+                 context: context
+               )
+    end
+
+    test "returns empty profile child fields for unauthorized user node refetches" do
+      owner = user_fixture()
+      outsider = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(outsider)}
+
+      {:ok, _profile_post} =
+        Content.create_post(owner, %{kind: :standard, body_text: "hidden node profile post"})
+
+      {:ok, _profile_story} =
+        Content.create_post(owner, %{kind: :story, body_text: "hidden node profile story"})
+
+      {:ok, current_live_session} = Live.start_live_session(owner, %{visibility: :followers})
+      {:ok, _current_live_session} = Live.mark_session_live(current_live_session)
+
+      assert {:ok, replay_asset} =
+               Content.create_media_asset(owner, %{
+                 storage_key: "uploads/users/#{owner.id}/hidden-node-profile-replay.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :processed
+               })
+
+      {:ok, replay_session} = Live.start_live_session(owner, %{visibility: :followers})
+
+      {:ok, _replay_session} =
+        Live.end_live_session(replay_session, %{recording_media_asset_id: replay_asset.id})
+
+      user_id = Absinthe.Relay.Node.to_global_id(:user, owner.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!, $first: Int!) {
+        node(id: $id) {
+          id
+          ... on User {
+            posts(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+            storyFeed(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+            currentLiveSession {
+              id
+            }
+            replayFeed(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^user_id,
+                    "posts" => %{"edges" => []},
+                    "storyFeed" => %{"edges" => []},
+                    "currentLiveSession" => nil,
+                    "replayFeed" => %{"edges" => []}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => user_id, "first" => 10},
+                 context: context
+               )
+    end
+
     test "rejects a raw numeric id that is not a relay global id" do
       query = """
       query($id: ID!) {
@@ -130,7 +344,11 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
       {:ok, story_post} =
-        Content.create_post(author, %{kind: :story, body_text: "expired node story", visibility: :public})
+        Content.create_post(author, %{
+          kind: :story,
+          body_text: "expired node story",
+          visibility: :public
+        })
 
       expired_at = ~U[2026-03-18 17:00:00.000000Z]
 
