@@ -8,8 +8,8 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 - Plan: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
 - Status: active
-- Current batch: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 1`
-- Next queued batch: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 2`
+- Current batch: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 2`
+- Next queued batch: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 3`
 - Notes: closes the remaining architecture gap around channel-level live-room state by publishing bounded aggregate status/viewer-count updates on the existing `live_session:<id>` topic
 
 ### Release Roadmap And Planning Holes

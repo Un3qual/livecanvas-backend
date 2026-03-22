@@ -158,6 +158,82 @@ defmodule LC.LiveTest do
     end
   end
 
+  describe "live_session_state_snapshot/1" do
+    test "returns persisted lifecycle fields with zero viewers for a fresh session" do
+      host = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+
+      assert Live.live_session_state_snapshot(session) == %{
+               status: :starting,
+               visibility: :followers,
+               viewer_count: 0
+             }
+    end
+
+    test "updates viewer_count across joins and leaves without exposing participant identities" do
+      host = user_fixture()
+      first_viewer = user_fixture()
+      second_viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, _participant} = Live.join_live_session(session, first_viewer, :viewer)
+      assert {:ok, _participant} = Live.join_live_session(session, second_viewer, :viewer)
+
+      assert Live.live_session_state_snapshot(session) == %{
+               status: :starting,
+               visibility: :public,
+               viewer_count: 2
+             }
+
+      assert :ok = Live.leave_live_session(session, first_viewer)
+
+      assert Live.live_session_state_snapshot(session) == %{
+               status: :starting,
+               visibility: :public,
+               viewer_count: 1
+             }
+    end
+
+    test "falls back to durable viewer rows when the runtime is missing" do
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+      assert {:ok, pid} = Live.lookup_session_server(session.id)
+      monitor_ref = Process.monitor(pid)
+
+      Process.exit(pid, :kill)
+
+      assert_receive {:DOWN, ^monitor_ref, :process, ^pid, _reason}
+      assert :ok = wait_for_session_server_down(session.id)
+
+      assert Live.live_session_state_snapshot(session) == %{
+               status: :starting,
+               visibility: :public,
+               viewer_count: 1
+             }
+    end
+
+    test "returns zero viewers for ended sessions even when participant rows remain active" do
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+      assert {:ok, ended_session} = Live.end_live_session(session, %{ended_reason: :host_ended})
+
+      assert %LiveParticipant{left_at: nil} =
+               Repo.get_by!(LiveParticipant, live_session_id: session.id, user_id: viewer.id)
+
+      assert Live.live_session_state_snapshot(ended_session) == %{
+               status: :ended,
+               visibility: :public,
+               viewer_count: 0
+             }
+    end
+  end
+
   describe "join_live_session/3 and end_live_session/2" do
     test "emits telemetry for join success and authorization failure" do
       host = user_fixture(privacy_mode: :public)
