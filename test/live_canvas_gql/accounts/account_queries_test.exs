@@ -2,7 +2,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
-  alias LC.Accounts
+  alias LC.{Accounts, Content, Live}
 
   describe "viewer" do
     test "returns the current scoped user without requiring a userId argument" do
@@ -38,6 +38,130 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
 
       assert {:ok, %{data: %{"viewer" => %{"privacyMode" => "PUBLIC"}}}} =
                Absinthe.run(query, LCGQL.Schema, context: context)
+    end
+
+    test "returns profile posts, stories, the current live session, and replays on the relay user node" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      {:ok, profile_post} =
+        Content.create_post(viewer, %{kind: :standard, body_text: "viewer profile post"})
+
+      {:ok, profile_story} =
+        Content.create_post(viewer, %{kind: :story, body_text: "viewer profile story"})
+
+      {:ok, current_live_session} = Live.start_live_session(viewer, %{visibility: :followers})
+      {:ok, current_live_session} = Live.mark_session_live(current_live_session)
+
+      assert {:ok, replay_asset} =
+               Content.create_media_asset(viewer, %{
+                 storage_key: "uploads/users/#{viewer.id}/viewer-profile-replay.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :processed
+               })
+
+      {:ok, replay_session} = Live.start_live_session(viewer, %{visibility: :followers})
+
+      {:ok, replay_session} =
+        Live.end_live_session(replay_session, %{recording_media_asset_id: replay_asset.id})
+
+      profile_post_id = Absinthe.Relay.Node.to_global_id(:post, profile_post.id, LCGQL.Schema)
+      profile_story_id = Absinthe.Relay.Node.to_global_id(:post, profile_story.id, LCGQL.Schema)
+
+      current_live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, current_live_session.id, LCGQL.Schema)
+
+      replay_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, replay_session.id, LCGQL.Schema)
+
+      replay_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, replay_asset.id, LCGQL.Schema)
+
+      query = """
+      query($first: Int!) {
+        viewer {
+          posts(first: $first) {
+            edges {
+              node {
+                id
+                bodyText
+              }
+            }
+          }
+          storyFeed(first: $first) {
+            edges {
+              node {
+                id
+                bodyText
+              }
+            }
+          }
+          currentLiveSession {
+            id
+            status
+          }
+          replayFeed(first: $first) {
+            edges {
+              node {
+                id
+                status
+                recordingMediaAsset {
+                  id
+                  processingState
+                }
+              }
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "viewer" => %{
+                    "posts" => %{
+                      "edges" => [
+                        %{
+                          "node" => %{
+                            "id" => ^profile_post_id,
+                            "bodyText" => "viewer profile post"
+                          }
+                        }
+                      ]
+                    },
+                    "storyFeed" => %{
+                      "edges" => [
+                        %{
+                          "node" => %{
+                            "id" => ^profile_story_id,
+                            "bodyText" => "viewer profile story"
+                          }
+                        }
+                      ]
+                    },
+                    "currentLiveSession" => %{
+                      "id" => ^current_live_session_id,
+                      "status" => "LIVE"
+                    },
+                    "replayFeed" => %{
+                      "edges" => [
+                        %{
+                          "node" => %{
+                            "id" => ^replay_session_id,
+                            "status" => "ENDED",
+                            "recordingMediaAsset" => %{
+                              "id" => ^replay_asset_id,
+                              "processingState" => "PROCESSED"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
     end
   end
 

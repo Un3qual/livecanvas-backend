@@ -1,9 +1,10 @@
 defmodule LCGQL.Accounts.Resolver do
   import Ecto.Changeset, only: [traverse_errors: 2]
 
-  alias LC.Accounts
+  alias LC.{Accounts, Feed}
   alias LCGQL.Relay
   alias LCSchemas.Accounts.{User, UserIdentity}
+  alias LCSchemas.Live.LiveSession
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
   @type auth_error_code ::
@@ -62,6 +63,7 @@ defmodule LCGQL.Accounts.Resolver do
           errors: [auth_error()]
         }
   @type auth_entry_result :: {:ok, auth_entry_payload()}
+  @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
   @type revoke_refresh_payload :: %{revoked: boolean(), errors: [mutation_error()]}
   @type revoke_refresh_result :: {:ok, revoke_refresh_payload()}
   @type contact_upsert_error_reason ::
@@ -936,6 +938,50 @@ defmodule LCGQL.Accounts.Resolver do
 
   def viewer(_parent, _args, _resolution), do: {:ok, nil}
 
+  @spec user_posts(map(), map(), Absinthe.Resolution.t()) :: connection_result()
+  def user_posts(%{id: owner_id} = owner, args, resolution) when is_integer(owner_id) do
+    visible_profile_connection(args, resolution, fn viewer ->
+      Feed.profile_posts_query(viewer, owner)
+    end)
+  end
+
+  def user_posts(_owner, args, _resolution), do: Absinthe.Relay.Connection.from_list([], args)
+
+  @spec user_story_feed(map(), map(), Absinthe.Resolution.t()) :: connection_result()
+  def user_story_feed(%{id: owner_id} = owner, args, resolution) when is_integer(owner_id) do
+    visible_profile_connection(args, resolution, fn viewer ->
+      Feed.profile_story_feed_query(viewer, owner)
+    end)
+  end
+
+  def user_story_feed(_owner, args, _resolution),
+    do: Absinthe.Relay.Connection.from_list([], args)
+
+  @spec user_current_live_session(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, LiveSession.t() | nil}
+  def user_current_live_session(%{id: owner_id} = owner, _args, resolution)
+      when is_integer(owner_id) do
+    with {:ok, viewer} <- viewer_from_resolution(resolution) do
+      # `User` nodes are globally refetchable, so child fields must reuse the
+      # viewer-scoped feed policy instead of trusting the parent node shape.
+      {:ok, Feed.profile_current_live_session(viewer, owner)}
+    else
+      _other -> {:ok, nil}
+    end
+  end
+
+  def user_current_live_session(_owner, _args, _resolution), do: {:ok, nil}
+
+  @spec user_replay_feed(map(), map(), Absinthe.Resolution.t()) :: connection_result()
+  def user_replay_feed(%{id: owner_id} = owner, args, resolution) when is_integer(owner_id) do
+    visible_profile_connection(args, resolution, fn viewer ->
+      Feed.profile_replay_feed_query(viewer, owner)
+    end)
+  end
+
+  def user_replay_feed(_owner, args, _resolution),
+    do: Absinthe.Relay.Connection.from_list([], args)
+
   @spec user_identity_user(map(), map(), Absinthe.Resolution.t()) ::
           LCGQL.Dataloader.dataloader_result()
   def user_identity_user(%{user: %{id: user_id} = user}, _args, resolution)
@@ -986,6 +1032,34 @@ defmodule LCGQL.Accounts.Resolver do
        do: {:ok, user_id}
 
   defp viewer_id_from_resolution(_resolution), do: :error
+
+  @spec viewer_from_resolution(Absinthe.Resolution.t()) :: {:ok, map()} | :error
+  defp viewer_from_resolution(%Absinthe.Resolution{
+         context: %{current_scope: %{user: %{id: user_id} = user}}
+       })
+       when is_integer(user_id),
+       do: {:ok, user}
+
+  defp viewer_from_resolution(_resolution), do: :error
+
+  @spec visible_profile_connection(
+          map(),
+          Absinthe.Resolution.t(),
+          (map() -> Ecto.Query.t())
+        ) :: connection_result()
+  defp visible_profile_connection(args, resolution, query_builder)
+       when is_map(args) and is_function(query_builder, 1) do
+    with {:ok, viewer} <- viewer_from_resolution(resolution) do
+      # Relay user IDs can be reached from `viewer`, `post.author`, `host`, or
+      # `node(id:)`, so each child connection rebuilds the feed query from the
+      # current viewer instead of assuming parent ownership implies access.
+      viewer
+      |> query_builder.()
+      |> Absinthe.Relay.Connection.from_query(&Feed.run_query/1, args)
+    else
+      _other -> Absinthe.Relay.Connection.from_list([], args)
+    end
+  end
 
   @spec viewer_data_export_requests(term(), map(), Absinthe.Resolution.t()) ::
           {:ok, map()} | {:error, term()}

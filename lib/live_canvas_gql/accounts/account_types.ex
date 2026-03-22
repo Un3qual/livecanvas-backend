@@ -76,6 +76,22 @@ defmodule LCGQL.Accounts.Types do
     field :privacy_mode, non_null(:user_privacy_mode)
     field :inserted_at, non_null(:string)
 
+    connection field :posts, node_type: :post, paginate: :forward do
+      resolve(&Resolver.user_posts/3)
+    end
+
+    connection field :story_feed, node_type: :post, paginate: :forward do
+      resolve(&Resolver.user_story_feed/3)
+    end
+
+    field :current_live_session, :live_session do
+      resolve(&Resolver.user_current_live_session/3)
+    end
+
+    connection field :replay_feed, node_type: :live_session, paginate: :forward do
+      resolve(&Resolver.user_replay_feed/3)
+    end
+
     connection field :user_identities, node_type: :user_identity, paginate: :forward do
       resolve(&Resolver.user_identities/3)
     end
