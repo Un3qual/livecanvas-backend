@@ -7,6 +7,8 @@ export default function RootLayout() {
         headerShown: false,
         contentStyle: { backgroundColor: '#ffffff' },
       }}
-    />
+    >
+      <Stack.Screen name="(modals)" options={{ presentation: 'modal' }} />
+    </Stack>
   );
 }
