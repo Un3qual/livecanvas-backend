@@ -14,14 +14,14 @@ Status: active
 
 ### Backend Lane
 
-- Status: active
-- Current batch: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 2: Publish join/leave state updates on LCWeb.LiveSessionChannel`
+- Status: active for planning
+- Current batch: `docs/plans/backend/NOW.md` -> `Create the next detailed backend implementation plan`
 - Lane write scope: backend code and backend planning docs only
 
 ### Mobile Lane
 
-- Status: active for planning
-- Current batch: `docs/plans/mobile/NOW.md` -> `Create the next detailed mobile implementation plan`
+- Status: active for execution
+- Current batch: `docs/plans/mobile/NOW.md` -> `Task 1: Choose the routing model and define the top-level route groups`
 - Lane write scope: `mobile/` plus `docs/plans/mobile/**` only
 
 ## Shared File Policy
@@ -31,8 +31,8 @@ Status: active
 
 ## Next Up
 
-- Once the backend lane finishes `Task 2`, advance `docs/plans/backend/NOW.md` to `Task 3` in `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`, then refresh this dashboard only if the lane summary changed.
-- Once the mobile lane finishes its planning batch, point `docs/plans/mobile/NOW.md` at the first executable mobile implementation task and refresh this dashboard only if the lane summary changed.
+- Once the backend lane finishes its planning batch, refresh this dashboard only if `docs/plans/backend/NOW.md` advances to a new executable batch or status.
+- Once the mobile lane finishes `Task 1`, refresh the mobile lane summary here only if `docs/plans/mobile/NOW.md` advances to a new batch or status.
 
 ## Repair Conditions
 
