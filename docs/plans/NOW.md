@@ -20,8 +20,8 @@ Status: active
 
 ### Mobile Lane
 
-- Status: active for execution
-- Current batch: `docs/plans/mobile/NOW.md` -> `Task 2: Build the global provider stack and startup flow`
+- Status: active for planning
+- Current batch: `docs/plans/mobile/NOW.md` -> `Task 1: Choose the routing model and define the top-level route groups`
 - Lane write scope: `mobile/` plus `docs/plans/mobile/**` only
 
 ## Shared File Policy
@@ -32,7 +32,7 @@ Status: active
 ## Next Up
 
 - Once the backend lane finishes its planning batch, refresh this dashboard only if `docs/plans/backend/NOW.md` advances to a new executable batch or status.
-- Once the mobile lane finishes `Task 2`, refresh the mobile lane summary here only if `docs/plans/mobile/NOW.md` advances to a new batch or status.
+- Once the mobile lane finishes `Task 1`, refresh the mobile lane summary here only if `docs/plans/mobile/NOW.md` advances to a new batch or status.
 
 ## Repair Conditions
 

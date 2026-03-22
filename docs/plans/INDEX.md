@@ -16,10 +16,10 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Mobile Lane
 
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Status: active for execution
+- Status: active for planning
 - Current track: `docs/plans/mobile/TRACK.md`
-- Current batch: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` -> `Task 2`
-- Next queued batch: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` -> `Task 3`
+- Current batch: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` -> `Task 1`
+- Next queued batch: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` -> `Task 2`
 - Notes: mobile lane owns `mobile/` and `docs/plans/mobile/**` only; report backend contract dependencies instead of editing backend code directly
 
 ## Track Status
@@ -45,8 +45,8 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Mobile Expo Frontend Planning Track
 
 - Source: `docs/plans/mobile/TRACK.md`
-- Status: bootstrap complete; `Task 1` is complete and `Task 2` is the active mobile lane batch
-- Notes: the Expo scaffold now routes through Expo Router with initial auth/app/modal groups; the next mobile step is building the root provider seam
+- Status: bootstrap complete; the mobile lane is executing the next post-bootstrap shell batch
+- Notes: the initial Expo `blank-typescript` scaffold and isolated `mobile/flake.nix` now exist; the next mobile step is to lock the app shell topology before auth, Relay, or realtime work lands
 
 ## Paused Or Deferred
 

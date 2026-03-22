@@ -8,7 +8,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Track Status
 
-- Status: bootstrap complete; Task 1 is complete and Task 2 is the active mobile lane batch
+- Status: bootstrap complete; the mobile lane is executing the next post-bootstrap shell batch
 - Approved overview: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
 - Approved bootstrap design:
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
@@ -18,7 +18,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
   `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`
 - Lane execution pointer: `docs/plans/mobile/NOW.md`
 - Coordinator dashboard: `docs/plans/NOW.md`
-- Next lane batch: implement `Task 2: Build the global provider stack and startup flow` from the current mobile shell plan.
+- Next lane batch: implement `Task 1: Choose the routing model and define the top-level route groups` from the current mobile shell plan.
 
 ## Recommended Detailed Plan Order
 
