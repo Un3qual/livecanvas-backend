@@ -10,7 +10,7 @@ Deliver durable live-session recording linkage first, then layer any replay disc
 
 - Status: completed
 - Completed on: `2026-03-18`
-- Next global batch: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 1`
+- Next backend batch at track close: `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 1`
 
 ## Ordered Plans
 
@@ -32,4 +32,4 @@ Deliver durable live-session recording linkage first, then layer any replay disc
 ## Source Rationale
 
 - Architecture: `ARCHITECTURE.md`
-- Current global pointer after track close: `docs/plans/NOW.md`
+- Coordinator dashboard after track close: `docs/plans/NOW.md`

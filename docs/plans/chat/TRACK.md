@@ -30,4 +30,4 @@ Deliver durable chat history first, then host-owned moderation, then typed syste
 ## Source Rationale
 
 - Design: `docs/plans/chat/2026-03-17-chat-product-surface-design.md`
-- Current pointer: `docs/plans/NOW.md`
+- Coordinator dashboard: `docs/plans/NOW.md`

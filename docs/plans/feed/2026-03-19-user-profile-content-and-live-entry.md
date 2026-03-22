@@ -94,20 +94,21 @@ Expected: PASS.
 
 **Files:**
 - Modify: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md`
-- Modify: `docs/plans/INDEX.md`
-- Modify: `docs/plans/NOW.md`
+- Modify: `docs/plans/backend/NOW.md`
+- Coordinator follow-up: `docs/plans/INDEX.md`
+- Coordinator follow-up: `docs/plans/NOW.md`
 
 **Task 3 Step Progress:**
 - [ ] Step 1: Run `mix compile`
 - [ ] Step 2: Run `mix test test/live_canvas/feed_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
 - [ ] Step 3: Run `mix typecheck`
-- [ ] Step 4: Update this checklist plus `docs/plans/INDEX.md` / `docs/plans/NOW.md`, then commit the profile surface milestone
+- [ ] Step 4: Update this checklist plus `docs/plans/backend/NOW.md`, then hand the required coordinator updates for `docs/plans/INDEX.md` / `docs/plans/NOW.md` back with the commit summary
 
 **Task 3 behavior targets:**
 
 - The new profile child fields compile cleanly and stay aligned with repo type/spec expectations.
 - Boundary tests and GraphQL tests cover both positive profile reads and unauthorized/private fallbacks.
-- Tracking docs move cleanly to the next unblocked batch once the slice is complete.
+- Tracking docs move cleanly to the next backend batch, and the coordinator has the information needed to refresh shared dashboard docs once the slice is complete.
 
 **Suggested verification command:**
 

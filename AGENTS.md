@@ -11,17 +11,19 @@
 
 ## Batching And Commit Policy
 
-- Start ordinary execution turns from `docs/plans/NOW.md`; treat it as the authoritative pointer for the next batch.
-- Use `docs/plans/INDEX.md` only when `NOW.md` is stale, blocked, or empty.
+- Treat `docs/plans/NOW.md` as the coordinator dashboard for multi-lane execution rather than the only executable pointer.
+- In ordinary execution turns, open the lane-specific pointer listed in `docs/plans/NOW.md`: backend work starts from `docs/plans/backend/NOW.md`, and mobile work starts from `docs/plans/mobile/NOW.md`.
+- Use `docs/plans/INDEX.md` only when a lane `NOW.md` is stale, blocked, or empty, or when the coordinator dashboard needs repair.
 - If the selected work belongs to a multi-plan track, consult that track's `TRACK.md` before opening unrelated plan files.
 - Verify implementation status before acting; do not assume an unchecked plan item is unimplemented.
 - Prefer the next meaningful batch over a single micro-step: execute one full task section or 3-5 related steps when safe.
-- If `NOW.md` has no current batch, review `ARCHITECTURE.md` and create the next implementation plan, then update `INDEX.md` and `NOW.md`.
+- If a lane `NOW.md` has no current batch, review the relevant track plus `ARCHITECTURE.md` when needed, create the next implementation plan for that lane, then update that lane's `NOW.md`; reserve shared dashboard/index edits for the coordinator.
 - Keep progress checkboxes up to date as work proceeds.
 - Do not create standalone checkbox-only or docs-only progress commits; bundle progress updates with related code/test changes in the same commit.
 - Commit at milestone boundaries: completed task section, user-visible behavior change, or required verification checkpoint.
 - Favor more frequent milestone commits during execution (avoid long stretches without a commit) while still keeping each commit scoped to meaningful completed work.
-- Dispatch subagents only when there are 2+ substantial independent tracks; avoid subagents for simple plan reading or tiny edits.
+- Dispatch subagents only when there are 2+ substantial independent tracks; when parallelizing, give each lane its own worktree, branch, and disjoint write scope. Do not send multiple agents into the same write scope.
+- Worker agents do not edit coordinator-owned shared files such as `docs/plans/NOW.md`, `docs/plans/INDEX.md`, `AGENTS.md`, `ARCHITECTURE.md`, or shared contract/schema docs unless the user explicitly assigns a shared coordination task.
 - Run the minimum verification needed for each batch; avoid verbose command flags unless diagnosing failures.
 - Once the requested work is complete, open a PR unless the user explicitly asks for a direct local merge/remove-worktree flow.
 
