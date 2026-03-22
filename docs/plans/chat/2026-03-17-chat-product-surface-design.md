@@ -2,7 +2,7 @@
 
 Approved on 2026-03-17.
 
-Day-to-day execution ordering now lives in `docs/plans/chat/TRACK.md` and `docs/plans/NOW.md`; use this document for rationale and approved design decisions.
+Day-to-day execution ordering now lives in the lane-specific `NOW.md` files plus `docs/plans/chat/TRACK.md`, with `docs/plans/NOW.md` acting as the coordinator dashboard. Use this document for rationale and approved design decisions.
 
 This document captures the approved design for the next Chat planning set:
 

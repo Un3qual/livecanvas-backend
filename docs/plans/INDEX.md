@@ -1,6 +1,26 @@
 # Plans Index
 
-Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
+Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or when `docs/plans/NOW.md` needs coordinator repair.
+
+## Execution Lanes
+
+### Backend Lane
+
+- Lane pointer: `docs/plans/backend/NOW.md`
+- Status: active
+- Current track: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
+- Current batch: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 2`
+- Next queued batch: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 3`
+- Notes: backend lane owns backend code and backend planning docs only; shared dashboard/index updates stay with the coordinator
+
+### Mobile Lane
+
+- Lane pointer: `docs/plans/mobile/NOW.md`
+- Status: active for planning
+- Current track: `docs/plans/mobile/TRACK.md`
+- Current batch: draft the first post-bootstrap mobile implementation plan
+- Next queued batch: first executable mobile foundations slice from the new plan
+- Notes: mobile lane owns `mobile/` and `docs/plans/mobile/**` only; report backend contract dependencies instead of editing backend code directly
 
 ## Active Tracks
 
@@ -16,18 +36,17 @@ Use this file only when `docs/plans/NOW.md` is stale, blocked, or empty.
 
 - Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 - Status: reference-only for now
-- Notes: use this roadmap when there is no runnable product track or queued implementation batch in `NOW.md`; it is not the per-turn execution pointer
+- Notes: use this roadmap when there is no runnable product track or queued implementation batch in a lane `NOW.md`; it is not the per-turn execution pointer
 
 ## Queued Candidate Work
 
 - No additional queued candidate work is currently staged ahead of the active live-session state/presence track.
 
-
 ### Mobile Expo Frontend Planning Track
 
 - Source: `docs/plans/mobile/TRACK.md`
-- Status: bootstrap complete
-- Notes: the initial Expo `blank-typescript` scaffold and isolated `mobile/flake.nix` now exist; continue with detailed mobile slices here when frontend work is explicitly reprioritized
+- Status: bootstrap complete; next detailed plan is now the active mobile lane batch
+- Notes: the initial Expo `blank-typescript` scaffold and isolated `mobile/flake.nix` now exist; the next mobile step is to write the first post-bootstrap implementation plan before parallel implementation starts
 
 ## Paused Or Deferred
 

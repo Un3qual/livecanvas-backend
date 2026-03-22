@@ -2,7 +2,7 @@
 
 Approved on 2026-03-18.
 
-Day-to-day execution ordering for any future mobile work should live in `docs/plans/mobile/TRACK.md` and, when explicitly reprioritized, in `docs/plans/NOW.md`. Use this document for scope, architecture direction, and the top-level planning breakdown.
+Day-to-day mobile execution ordering should live in `docs/plans/mobile/TRACK.md` and `docs/plans/mobile/NOW.md`, with `docs/plans/NOW.md` acting as the coordinator dashboard. Use this document for scope, architecture direction, and the top-level planning breakdown.
 
 This document captures the approved overview for the LiveCanvas mobile frontend planning set:
 
