@@ -11,10 +11,15 @@ async function assertRuntimeContract() {
   const snapshot = await bootstrapRuntime(environment, {
     getInitialUrl: async () => 'livecanvas-mobile://profile',
   });
+  const recoveredSnapshot = await bootstrapRuntime(environment, {
+    getInitialUrl: async () => {
+      throw new Error('initial URL unavailable');
+    },
+  });
 
   const deepLinkHref = routeHrefFromUrl('livecanvas-mobile://live-session');
 
-  return { snapshot, deepLinkHref };
+  return { snapshot, recoveredSnapshot, deepLinkHref };
 }
 
 void assertRuntimeContract;

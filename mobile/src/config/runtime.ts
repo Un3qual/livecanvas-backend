@@ -27,7 +27,21 @@ export async function bootstrapRuntime(
   options: BootstrapOptions = {},
 ): Promise<StartupSnapshot> {
   const getInitialUrl = options.getInitialUrl ?? Linking.getInitialURL;
-  const initialUrl = await getInitialUrl();
+  let initialUrl: string | null;
+
+  try {
+    initialUrl = await getInitialUrl();
+  } catch {
+    initialUrl = null;
+  }
+
+  return deriveStartupSnapshot(environment, initialUrl);
+}
+
+function deriveStartupSnapshot(
+  environment: AppEnvironment,
+  initialUrl: string | null,
+): StartupSnapshot {
   const initialHref = routeHrefFromUrl(initialUrl);
   const defaultHref =
     environment.bootSessionState === 'authenticated' ? '/home' : '/sign-in';
@@ -46,17 +60,6 @@ export async function bootstrapRuntime(
       environment.bootSessionState === 'forced_logout'
         ? 'forced_logout'
         : null,
-  };
-}
-
-export function fallbackStartupSnapshot(): StartupSnapshot {
-  return {
-    initialUrl: null,
-    initialHref: null,
-    landingHref: '/sign-in',
-    defaultHref: '/sign-in',
-    bootSessionState: 'signed_out',
-    resetReason: null,
   };
 }
 

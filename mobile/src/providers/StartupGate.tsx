@@ -16,15 +16,12 @@ import {
 import type { AppEnvironment } from '../config/environment';
 import {
   bootstrapRuntime,
-  fallbackStartupSnapshot,
   settleForcedLogoutSnapshot,
   type StartupSnapshot,
 } from '../config/runtime';
 import { useAppTheme } from './ThemeProvider';
 
-type StartupTransition =
-  | { href: '/sign-in'; reason: 'forced_logout' }
-  | { href: '/sign-in'; reason: 'bootstrap_failure' };
+type StartupTransition = { href: '/sign-in'; reason: 'forced_logout' };
 
 type StartupState =
   | { status: 'booting' }
@@ -63,17 +60,6 @@ export function StartupGate({
           snapshot.bootSessionState === 'forced_logout'
             ? { href: '/sign-in', reason: 'forced_logout' }
             : null,
-      });
-    }).catch(() => {
-      if (!isActive) {
-        return;
-      }
-
-      // If runtime introspection fails, fall back to the signed-out shell.
-      setState({
-        status: 'ready',
-        snapshot: fallbackStartupSnapshot(),
-        transition: { href: '/sign-in', reason: 'bootstrap_failure' },
       });
     });
 
@@ -130,21 +116,9 @@ export function StartupGate({
       {children}
       {state.transition ? (
         <StartupScreen
-          eyebrow={
-            state.transition.reason === 'forced_logout'
-              ? 'Session reset'
-              : 'Startup fallback'
-          }
-          title={
-            state.transition.reason === 'forced_logout'
-              ? 'Clearing the local shell'
-              : 'Recovering startup state'
-          }
-          body={
-            state.transition.reason === 'forced_logout'
-              ? 'The navigator is mounted now, so the forced logout can safely route back through sign-in.'
-              : 'Startup introspection failed, so the shell is falling back to the signed-out entry route instead of staying on the boot screen.'
-          }
+          eyebrow="Session reset"
+          title="Clearing the local shell"
+          body="The navigator is mounted now, so the forced logout can safely route back through sign-in."
           overlay
         />
       ) : null}
