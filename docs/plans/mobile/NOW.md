@@ -1,7 +1,7 @@
 # Mobile Lane Execution
 
 Last reviewed: 2026-03-22
-Status: active for planning
+Status: active for execution
 
 ## Lane Scope
 
@@ -12,14 +12,15 @@ Status: active for planning
 
 - Track: `mobile_foundations`
 - Source: `docs/plans/mobile/TRACK.md`
-- Batch: `Create the next detailed mobile implementation plan`
-- Why now: the Expo bootstrap slice is complete, but there is no post-bootstrap mobile implementation plan yet. The next unblocked mobile task is to turn the approved overview into a concrete plan that a dedicated mobile worker can execute without rediscovering scope.
+- Plan: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`
+- Batch: `Task 1: Choose the routing model and define the top-level route groups`
+- Why now: the Expo bootstrap slice is complete, and the next unblocked mobile task is to lock the app shell topology before auth, Relay, or realtime work lands.
 
 ## Do This Now
 
-- Review `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`, `docs/plans/mobile/TRACK.md`, and the current `mobile/` workspace state.
-- Create the next detailed plan file under `docs/plans/mobile/` for the highest-priority post-bootstrap mobile foundations slice.
-- Update `docs/plans/mobile/TRACK.md` so it points at the new plan and its first executable batch.
+- Review `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` and the current `mobile/` workspace state.
+- Implement `Task 1` from the current mobile shell plan.
+- Keep the work inside `mobile/` and `docs/plans/mobile/**`.
 - Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
 - If the next slice requires backend contract or schema changes, stop and report the dependency instead of editing backend code from the mobile lane.
 
