@@ -20,7 +20,7 @@ Status: active
 
 ### Mobile Lane
 
-- Status: active for planning
+- Status: active for execution
 - Current batch: `docs/plans/mobile/NOW.md` -> `Task 1: Choose the routing model and define the top-level route groups`
 - Lane write scope: `mobile/` plus `docs/plans/mobile/**` only
 

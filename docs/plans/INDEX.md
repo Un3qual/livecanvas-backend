@@ -16,7 +16,7 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Mobile Lane
 
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Status: active for planning
+- Status: active for execution
 - Current track: `docs/plans/mobile/TRACK.md`
 - Current batch: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` -> `Task 1`
 - Next queued batch: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` -> `Task 2`
