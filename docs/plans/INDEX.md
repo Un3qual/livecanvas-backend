@@ -40,7 +40,13 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 
 ## Queued Candidate Work
 
-- No additional queued backend execution batch is currently staged ahead of the active backend planning batch.
+- The active backend lane remains on the live-session state/presence track unless another slice is explicitly reprioritized.
+
+### Development Seed Data
+
+- Plan: `docs/plans/2026-03-22-development-seed-data.md`
+- Status: queued
+- Notes: add deterministic development-only seed accounts, social graph edges, feed posts, and a local live-session fixture through `priv/repo/seeds.exs` so backend and mobile work stop depending on manual data setup.
 
 ### Mobile Expo Frontend Planning Track
 

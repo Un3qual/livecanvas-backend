@@ -27,7 +27,7 @@ Verified directly in the codebase before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Choose the routing model and define the top-level route groups
+- [x] Task 1: Choose the routing model and define the top-level route groups
 - [ ] Task 2: Build the global provider stack and startup flow
 - [ ] Task 3: Add shell-level layout primitives and entry screens
 - [ ] Task 4: Verify the shell slice and advance the mobile planning pointers
@@ -39,17 +39,22 @@ Verified directly in the codebase before drafting this plan:
 - Modify: `mobile/app.json`
 - Modify: `mobile/index.ts`
 - Modify: `mobile/App.tsx`
+- Create: `mobile/babel.config.js`
 - Create: `mobile/app/_layout.tsx`
 - Create: `mobile/app/index.tsx`
 - Create: `mobile/app/(auth)/_layout.tsx`
+- Create: `mobile/app/(auth)/sign-in.tsx`
 - Create: `mobile/app/(app)/_layout.tsx`
+- Create: `mobile/app/(app)/home.tsx`
+- Create: `mobile/app/(app)/profile.tsx`
 - Create: `mobile/app/(modals)/_layout.tsx`
+- Create: `mobile/app/(modals)/live-session.tsx`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Compare Expo Router versus plain React Navigation against the current scaffold and choose the route model that minimizes glue code and future migration cost
-- [ ] Step 2: Update the app entrypoint and package scripts for the chosen router model so the shell boots from the intended root rather than the generated starter entry
-- [ ] Step 3: Create the initial route-group topology for unauthenticated entry, authenticated shell, live-session modal/screen entry, and profile entry
-- [ ] Step 4: Run the flake-managed `pnpm`/Expo sanity command for the chosen routing setup and confirm the app still boots from the mobile worktree
+- [x] Step 1: Compare Expo Router versus plain React Navigation against the current scaffold and choose the route model that minimizes glue code and future migration cost
+- [x] Step 2: Update the app entrypoint and package scripts for the chosen router model so the shell boots from the intended root rather than the generated starter entry
+- [x] Step 3: Create the initial route-group topology for unauthenticated entry, authenticated shell, live-session modal/screen entry, and profile entry
+- [x] Step 4: Run the flake-managed `pnpm`/Expo sanity command for the chosen routing setup and confirm the app still boots from the mobile worktree
 
 **Task 1 behavior targets:**
 
