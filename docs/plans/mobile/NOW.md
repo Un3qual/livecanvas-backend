@@ -1,7 +1,7 @@
 # Mobile Lane Execution
 
 Last reviewed: 2026-03-22
-Status: active for planning
+Status: active for execution
 
 ## Lane Scope
 
