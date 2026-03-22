@@ -29,7 +29,7 @@ Verified directly in the codebase before drafting this plan:
 ## Progress
 
 - [x] Task 1: Add aggregate live-session state snapshot helpers in `LC.Live`
-- [ ] Task 2: Publish join/leave state updates on `LCWeb.LiveSessionChannel`
+- [x] Task 2: Publish join/leave state updates on `LCWeb.LiveSessionChannel`
 - [ ] Task 3: Broadcast lifecycle state transitions and refresh plan tracking
 
 ### Task 1: Add Aggregate Live-Session State Snapshot Helpers In `LC.Live`
@@ -68,11 +68,11 @@ Expected: PASS.
 - Modify: `test/live_canvas_web/channels/live_session_channel_test.exs`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing channel tests that the join ack includes the current aggregate session state for an authorized viewer
-- [ ] Step 2: Add failing channel tests proving additional joins and disconnect-driven leaves broadcast a bounded aggregate state update to subscribed viewers on the same topic
-- [ ] Step 3: Implement channel helpers that fetch the aggregate state from `LC.Live`, include it in the join response, and rebroadcast it after successful join/leave transitions
-- [ ] Step 4: Preserve existing auth, rate-limit, chat-send, and disconnect cleanup semantics while keeping the new state payload contract additive
-- [ ] Step 5: Run `mix test test/live_canvas_web/channels/live_session_channel_test.exs` and commit the channel state slice
+- [x] Step 1: Add failing channel tests that the join ack includes the current aggregate session state for an authorized viewer
+- [x] Step 2: Add failing channel tests proving additional joins and disconnect-driven leaves broadcast a bounded aggregate state update to subscribed viewers on the same topic
+- [x] Step 3: Implement channel helpers that fetch the aggregate state from `LC.Live`, include it in the join response, and rebroadcast it after successful join/leave transitions
+- [x] Step 4: Preserve existing auth, rate-limit, chat-send, and disconnect cleanup semantics while keeping the new state payload contract additive
+- [x] Step 5: Run `mix test test/live_canvas_web/channels/live_session_channel_test.exs` and commit the channel state slice
 
 **Task 2 behavior targets:**
 

@@ -40,17 +40,142 @@ defmodule LCWeb.LiveSessionChannelTest do
     :ok
   end
 
-  test "authorized viewer can join a live session topic" do
+  test "authorized viewer receives the current aggregate session state in the join ack" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
 
-    assert {:ok, _join_payload, _socket} =
+    assert {:ok,
+            %{
+              session_state: %{
+                status: :starting,
+                visibility: :public,
+                viewer_count: 1
+              }
+            }, _socket} =
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
                "live_session:#{session.id}"
              )
+  end
+
+  test "published session state is re-read from persistence before broadcasting" do
+    host = user_fixture(privacy_mode: :public)
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    updated_session =
+      session
+      |> Ecto.Changeset.change(visibility: :followers)
+      |> Repo.update!()
+
+    assert LCWeb.LiveSessionChannel.published_session_state(session.id, session) == %{
+             session_state: %{
+               status: :starting,
+               visibility: :followers,
+               viewer_count: 0
+             }
+           }
+
+    assert LCWeb.LiveSessionChannel.published_session_state(updated_session.id, updated_session) ==
+             %{
+               session_state: %{
+                 status: :starting,
+                 visibility: :followers,
+                 viewer_count: 0
+               }
+             }
+  end
+
+  test "joins and disconnect-driven leaves rebroadcast session state on the same topic" do
+    Process.flag(:trap_exit, true)
+
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    second_viewer = user_fixture()
+    other_host = user_fixture(privacy_mode: :public)
+    other_viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    {:ok, other_session} = Live.start_live_session(other_host, %{visibility: :public})
+    session_topic = "live_session:#{session.id}"
+    other_session_topic = "live_session:#{other_session.id}"
+
+    assert {:ok, _join_payload, _first_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    assert {:ok, _other_join_payload, _other_socket} =
+             subscribe_and_join(
+               socket_for(other_viewer),
+               LiveSessionChannel,
+               "live_session:#{other_session.id}"
+             )
+
+    assert_receive %Phoenix.Socket.Broadcast{
+      topic: ^other_session_topic,
+      event: "session:state",
+      payload: %{
+        session_state: %{
+          status: :starting,
+          visibility: :public,
+          viewer_count: 1
+        }
+      }
+    }
+
+    assert {:ok,
+            %{
+              session_state: %{
+                status: :starting,
+                visibility: :public,
+                viewer_count: 2
+              }
+            }, second_socket} =
+             subscribe_and_join(
+               socket_for(second_viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    assert_receive %Phoenix.Socket.Broadcast{
+      topic: ^session_topic,
+      event: "session:state",
+      payload: %{
+        session_state: %{
+          status: :starting,
+          visibility: :public,
+          viewer_count: 2
+        }
+      }
+    }
+
+    refute_receive %Phoenix.Socket.Broadcast{
+      topic: ^other_session_topic,
+      event: "session:state"
+    }
+
+    assert :ok = close(second_socket)
+    assert :ok = wait_for_participant_left(session.id, second_viewer.id)
+
+    assert_receive %Phoenix.Socket.Broadcast{
+      topic: ^session_topic,
+      event: "session:state",
+      payload: %{
+        session_state: %{
+          status: :starting,
+          visibility: :public,
+          viewer_count: 1
+        }
+      }
+    }
+
+    refute_receive %Phoenix.Socket.Broadcast{
+      topic: ^other_session_topic,
+      event: "session:state"
+    }
   end
 
   test "sending chat:send persists and broadcasts the message" do
@@ -97,15 +222,14 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     send_ref = push(viewer_socket, "chat:send", %{"body" => "abusive message"})
 
-    assert_reply send_ref, :ok,
-                 %{
-                   message: %{
-                     body: "abusive message",
-                     id: message_id,
-                     inserted_at: inserted_at,
-                     sender_id: sender_id
-                   }
-                 }
+    assert_reply send_ref, :ok, %{
+      message: %{
+        body: "abusive message",
+        id: message_id,
+        inserted_at: inserted_at,
+        sender_id: sender_id
+      }
+    }
 
     assert sender_id == viewer.id
     assert_broadcast "chat:message", %{message: %{body: "abusive message", id: ^message_id}}
@@ -206,18 +330,18 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     send_ref = push(viewer_socket, "chat:send", %{"body" => "remove once"})
 
-    assert_reply send_ref, :ok,
-                 %{
-                   message: %{
-                     id: message_id,
-                     inserted_at: inserted_at,
-                     sender_id: sender_id
-                   }
-                 }
+    assert_reply send_ref, :ok, %{
+      message: %{
+        id: message_id,
+        inserted_at: inserted_at,
+        sender_id: sender_id
+      }
+    }
 
     assert sender_id == viewer.id
     session_topic = "live_session:#{session.id}"
     assert_broadcast "chat:message", %{message: %{body: "remove once", id: ^message_id}}
+
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
       event: "chat:message",
@@ -606,7 +730,22 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert %{participants: participants_before_leave} = SessionServer.snapshot(pid)
     assert Map.has_key?(participants_before_leave, viewer.id)
 
+    session_topic = "live_session:#{session.id}"
+
     assert :ok = close(socket)
+
+    assert_receive %Phoenix.Socket.Broadcast{
+      topic: ^session_topic,
+      event: "session:state",
+      payload: %{
+        session_state: %{
+          status: :starting,
+          visibility: :public,
+          viewer_count: 0
+        }
+      }
+    }
+
     assert :ok = wait_for_participant_left(session.id, viewer.id)
 
     assert %LiveParticipant{left_at: %DateTime{}} =
