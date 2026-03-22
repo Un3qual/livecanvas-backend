@@ -13,13 +13,13 @@ Status: active for execution
 - Track: `mobile_foundations`
 - Source: `docs/plans/mobile/TRACK.md`
 - Plan: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`
-- Batch: `Task 1: Choose the routing model and define the top-level route groups`
-- Why now: the Expo bootstrap slice is complete, and the next unblocked mobile task is to lock the app shell topology before auth, Relay, or realtime work lands.
+- Batch: `Task 2: Build the global provider stack and startup flow`
+- Why now: the routing shell is in place, and the next unblocked mobile task is to add the root provider seam before auth, Relay, or realtime work lands.
 
 ## Do This Now
 
 - Review `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` and the current `mobile/` workspace state.
-- Implement `Task 1` from the current mobile shell plan.
+- Implement `Task 2` from the current mobile shell plan.
 - Keep the work inside `mobile/` and `docs/plans/mobile/**`.
 - Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
 - If the next slice requires backend contract or schema changes, stop and report the dependency instead of editing backend code from the mobile lane.
@@ -27,14 +27,13 @@ Status: active for execution
 ## Verification Scope
 
 ```bash
-test -d mobile
-test -f mobile/package.json
-test -f mobile/flake.nix
+cd mobile
+XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec tsc --noEmit
 ```
 
 ## Next Up
 
-- Once the new mobile plan is committed, point this lane at its first executable task so the coordinator can dispatch a separate mobile implementation worker.
+- Once Task 2 is green and committed, advance this lane pointer to `Task 3` in `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`.
 
 ## Repair Conditions
 
