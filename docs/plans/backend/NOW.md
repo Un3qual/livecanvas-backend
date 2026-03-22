@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
 Last reviewed: 2026-03-22
-Status: active for planning
+Status: active for execution
 
 ## Lane Scope
 
@@ -10,27 +10,27 @@ Status: active for planning
 
 ## Current Batch
 
-- Track: `release_roadmap_and_planning_holes`
-- Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Batch: `Create the next detailed backend implementation plan`
-- Why now: the live-session channel state/presence plan is complete, and `docs/plans/INDEX.md` does not queue another backend execution batch yet.
+- Track: `development_seed_data`
+- Source: `docs/plans/2026-03-22-development-seed-data.md`
+- Batch: `Task 1: Add a tested, idempotent development seed foundation`
+- Why now: the development seed-data slice is the next unimplemented backend product plan, and its first batch still needs the seed module, seed script wiring, and test coverage.
 
 ## Do This Now
 
-- Review `docs/plans/2026-03-03-backend-release-readiness-roadmap.md` and any directly related backend planning docs needed to pick the next product-facing slice.
-- Create the next detailed backend implementation plan and point this lane at its first executable batch.
+- Review `docs/plans/2026-03-22-development-seed-data.md` and any directly related backend planning docs needed to execute Task 1.
+- Implement `Task 1: Add a tested, idempotent development seed foundation` from that plan.
 - Keep the work inside backend code and backend planning docs only.
 - Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
 
 ## Verification Scope
 
 ```bash
-test -f docs/plans/2026-03-03-backend-release-readiness-roadmap.md
+test -f docs/plans/2026-03-22-development-seed-data.md
 ```
 
 ## Next Up
 
-- Once the next backend plan is written and committed, point this lane at its first executable batch.
+- Once Task 1 is complete, advance this lane to Task 2 in `docs/plans/2026-03-22-development-seed-data.md`.
 
 ## Repair Conditions
 
