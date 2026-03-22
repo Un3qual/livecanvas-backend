@@ -1,30 +1,31 @@
 # Current Execution
 
-Last reviewed: 2026-03-19
+Last reviewed: 2026-03-22
 Status: active
 
 ## Current Batch
 
 - Track: `profile_content_live_entry`
 - Plan: `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md`
-- Batch: `Task 1: Add viewer-scoped profile read models in LC.Feed`
-- Why now: The story/media publication track is complete, and the next product-facing gap from `ARCHITECTURE.md` is profile/live entry on the existing Relay `User` node without introducing a separate profile type.
+- Batch: `Task 2: Publish Relay user profile content/live fields in LCGQL.Accounts`
+- Why now: Task 1 is complete in `LC.Feed`, so the next unblocked product-facing gap is exposing those viewer-scoped profile content/live read models on the existing Relay `User` node.
 
 ## Do This Now
 
-- Add failing `LC.Feed` tests for viewer-scoped profile posts, active stories, current live session, and replay queries on a specific profile owner.
-- Extend `LC.Feed` with author/host-scoped read models that reuse the existing follow/public/block/mute/suspension visibility rules and deterministic ordering.
-- Verify only the Task 1 boundary slice with `mix test test/live_canvas/feed_test.exs`.
+- Add failing GraphQL tests for `viewer` and `node(id:)` profile reads that request `posts`, `storyFeed`, `currentLiveSession`, and `replayFeed` from the Relay `User` node.
+- Extend `LCGQL.Accounts` to publish those fields on the existing Relay `User` type and delegate into the new `LC.Feed` profile read models.
+- Re-apply child-field authorization so globally refetchable `User` IDs cannot bypass private/follower-only visibility.
+- Verify only the Task 2 boundary slice with `mix test test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`.
 
 ## Verification Scope
 
 ```bash
-mix test test/live_canvas/feed_test.exs
+mix test test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs
 ```
 
 ## Next Up
 
-- Once Task 1 is green and committed, move to Task 2 in `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` for the Relay `User` profile fields.
+- Once Task 2 is green and committed, move to Task 3 in `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` for slice verification and plan tracking updates.
 
 ## Repair Conditions
 

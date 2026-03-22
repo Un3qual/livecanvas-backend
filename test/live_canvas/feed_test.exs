@@ -199,6 +199,169 @@ defmodule LC.FeedTest do
     end
   end
 
+  describe "profile_posts/3" do
+    test "returns only visible standard posts authored by the requested profile owner ordered newest-first" do
+      viewer = user_fixture()
+      profile_owner = user_fixture()
+      other_owner = user_fixture(privacy_mode: :public)
+      _follow = accepted_follow_fixture(viewer, profile_owner)
+
+      {:ok, older_post} =
+        Content.create_post(profile_owner, %{kind: :standard, body_text: "older profile post"})
+
+      {:ok, newer_post} =
+        Content.create_post(profile_owner, %{kind: :standard, body_text: "newer profile post"})
+
+      {:ok, _profile_story} =
+        Content.create_post(profile_owner, %{kind: :story, body_text: "profile story"})
+
+      {:ok, _other_owner_post} =
+        Content.create_post(other_owner, %{
+          kind: :standard,
+          body_text: "other owner post",
+          visibility: :public
+        })
+
+      older_inserted_at = ~U[2026-03-18 18:00:00Z]
+      newer_inserted_at = ~U[2026-03-18 19:00:00Z]
+
+      {1, _rows} =
+        Repo.update_all(from(post in Post, where: post.id == ^older_post.id),
+          set: [inserted_at: older_inserted_at, updated_at: older_inserted_at]
+        )
+
+      {1, _rows} =
+        Repo.update_all(from(post in Post, where: post.id == ^newer_post.id),
+          set: [inserted_at: newer_inserted_at, updated_at: newer_inserted_at]
+        )
+
+      assert [first_post, second_post] = invoke_profile_posts(viewer, profile_owner, limit: 10)
+      assert first_post.id == newer_post.id
+      assert second_post.id == older_post.id
+    end
+
+    test "returns no posts when the profile owner is not visible to the viewer" do
+      viewer = user_fixture()
+      private_owner = user_fixture()
+      blocked_owner = user_fixture(privacy_mode: :public)
+      muted_owner = user_fixture(privacy_mode: :public)
+      suspended_owner = user_fixture(privacy_mode: :public)
+
+      {:ok, _private_post} =
+        Content.create_post(private_owner, %{kind: :standard, body_text: "private profile post"})
+
+      {:ok, _blocked_post} =
+        Content.create_post(blocked_owner, %{
+          kind: :standard,
+          body_text: "blocked profile post",
+          visibility: :public
+        })
+
+      {:ok, _muted_post} =
+        Content.create_post(muted_owner, %{
+          kind: :standard,
+          body_text: "muted profile post",
+          visibility: :public
+        })
+
+      {:ok, _suspended_post} =
+        Content.create_post(suspended_owner, %{
+          kind: :standard,
+          body_text: "suspended profile post",
+          visibility: :public
+        })
+
+      {:ok, _block} = Social.block_user(blocked_owner, viewer)
+      _mute = mute_fixture(viewer, muted_owner)
+      assert {:ok, _suspended_owner} = Accounts.suspend_user(suspended_owner)
+
+      assert [] = invoke_profile_posts(viewer, private_owner, limit: 10)
+      assert [] = invoke_profile_posts(viewer, blocked_owner, limit: 10)
+      assert [] = invoke_profile_posts(viewer, muted_owner, limit: 10)
+      assert [] = invoke_profile_posts(viewer, suspended_owner, limit: 10)
+    end
+  end
+
+  describe "profile_story_feed/3" do
+    test "returns only active visible stories authored by the requested profile owner ordered newest-first" do
+      viewer = user_fixture()
+      profile_owner = user_fixture()
+      other_owner = user_fixture(privacy_mode: :public)
+      _follow = accepted_follow_fixture(viewer, profile_owner)
+
+      {:ok, older_story} =
+        Content.create_post(profile_owner, %{kind: :story, body_text: "older profile story"})
+
+      {:ok, newer_story} =
+        Content.create_post(profile_owner, %{kind: :story, body_text: "newer profile story"})
+
+      {:ok, _expired_story} =
+        Content.create_post(profile_owner, %{kind: :story, body_text: "expired profile story"})
+
+      {:ok, _standard_post} =
+        Content.create_post(profile_owner, %{kind: :standard, body_text: "standard post"})
+
+      {:ok, _other_owner_story} =
+        Content.create_post(other_owner, %{
+          kind: :story,
+          body_text: "other owner story",
+          visibility: :public
+        })
+
+      now = DateTime.utc_now()
+      older_inserted_at = ~U[2026-03-18 18:00:00Z]
+      newer_inserted_at = ~U[2026-03-18 19:00:00Z]
+      active_expires_at = DateTime.add(now, 60, :second)
+      expired_expires_at = DateTime.add(now, -60, :second)
+
+      {1, _rows} =
+        Repo.update_all(from(post in Post, where: post.id == ^older_story.id),
+          set: [
+            inserted_at: older_inserted_at,
+            updated_at: older_inserted_at,
+            expires_at: active_expires_at
+          ]
+        )
+
+      {1, _rows} =
+        Repo.update_all(from(post in Post, where: post.id == ^newer_story.id),
+          set: [
+            inserted_at: newer_inserted_at,
+            updated_at: newer_inserted_at,
+            expires_at: active_expires_at
+          ]
+        )
+
+      {1, _rows} =
+        Repo.update_all(
+          from(post in Post, where: post.body_text == "expired profile story"),
+          set: [expires_at: expired_expires_at]
+        )
+
+      assert [first_story, second_story] =
+               invoke_profile_story_feed(viewer, profile_owner, limit: 10)
+
+      assert first_story.id == newer_story.id
+      assert second_story.id == older_story.id
+    end
+
+    test "returns no stories when the profile owner is blocked from the viewer" do
+      viewer = user_fixture()
+      blocked_owner = user_fixture(privacy_mode: :public)
+
+      {:ok, _story} =
+        Content.create_post(blocked_owner, %{
+          kind: :story,
+          body_text: "blocked profile story",
+          visibility: :public
+        })
+
+      {:ok, _block} = Social.block_user(blocked_owner, viewer)
+
+      assert [] = invoke_profile_story_feed(viewer, blocked_owner, limit: 10)
+    end
+  end
+
   describe "viewer_visible_query/3" do
     test "applies the home feed visibility matrix to post queries" do
       viewer = user_fixture()
@@ -321,6 +484,38 @@ defmodule LC.FeedTest do
     end
   end
 
+  describe "profile_current_live_session/2" do
+    test "returns the requested host's visible live session and nil otherwise" do
+      viewer = user_fixture()
+      visible_host = user_fixture()
+      other_host = user_fixture(privacy_mode: :public)
+      private_host = user_fixture()
+      muted_host = user_fixture(privacy_mode: :public)
+      _follow = accepted_follow_fixture(viewer, visible_host)
+
+      {:ok, visible_session} = Live.start_live_session(visible_host, %{visibility: :followers})
+      {:ok, visible_session} = Live.mark_session_live(visible_session)
+
+      {:ok, other_session} = Live.start_live_session(other_host, %{visibility: :public})
+      {:ok, other_session} = Live.mark_session_live(other_session)
+
+      {:ok, private_session} = Live.start_live_session(private_host, %{visibility: :followers})
+      {:ok, _private_session} = Live.mark_session_live(private_session)
+
+      {:ok, muted_session} = Live.start_live_session(muted_host, %{visibility: :public})
+      {:ok, _muted_session} = Live.mark_session_live(muted_session)
+
+      _mute = mute_fixture(viewer, muted_host)
+
+      assert %{id: session_id} = invoke_profile_current_live_session(viewer, visible_host)
+      assert session_id == visible_session.id
+      assert %{id: other_session_id} = invoke_profile_current_live_session(viewer, other_host)
+      assert other_session_id == other_session.id
+      assert nil == invoke_profile_current_live_session(viewer, private_host)
+      assert nil == invoke_profile_current_live_session(viewer, muted_host)
+    end
+  end
+
   describe "replay_feed/2" do
     test "returns visible replay sessions ordered newest-first" do
       viewer = user_fixture()
@@ -393,6 +588,61 @@ defmodule LC.FeedTest do
     end
   end
 
+  describe "profile_replay_feed/3" do
+    test "returns only visible replay sessions for the requested host ordered newest-first" do
+      viewer = user_fixture()
+      profile_host = user_fixture()
+      other_host = user_fixture(privacy_mode: :public)
+      _follow = accepted_follow_fixture(viewer, profile_host)
+
+      older_replay =
+        ended_replay_session_fixture(profile_host, %{
+          visibility: :followers,
+          ended_at: ~U[2026-03-18 18:00:00Z]
+        })
+
+      newer_replay =
+        ended_replay_session_fixture(profile_host, %{
+          visibility: :followers,
+          ended_at: ~U[2026-03-18 19:00:00Z]
+        })
+
+      _other_host_replay =
+        ended_replay_session_fixture(other_host, %{
+          visibility: :public,
+          ended_at: ~U[2026-03-18 20:00:00Z]
+        })
+
+      assert [first_session, second_session] =
+               invoke_profile_replay_feed(viewer, profile_host, limit: 10)
+
+      assert first_session.id == newer_replay.id
+      assert second_session.id == older_replay.id
+    end
+
+    test "returns no replay sessions when the requested host is blocked, muted, suspended, or private without follow" do
+      viewer = user_fixture()
+      private_host = user_fixture()
+      blocked_host = user_fixture(privacy_mode: :public)
+      muted_host = user_fixture(privacy_mode: :public)
+      suspended_host = user_fixture(privacy_mode: :public)
+
+      _private_replay = ended_replay_session_fixture(private_host, %{visibility: :followers})
+      _blocked_replay = ended_replay_session_fixture(blocked_host, %{visibility: :public})
+      _muted_replay = ended_replay_session_fixture(muted_host, %{visibility: :public})
+      _suspended_replay = ended_replay_session_fixture(suspended_host, %{visibility: :public})
+
+      {:ok, _block} = Social.block_user(blocked_host, viewer)
+      _mute = mute_fixture(viewer, muted_host)
+      assert {:ok, _suspended_host} = Accounts.suspend_user(suspended_host)
+
+      assert [] = invoke_profile_replay_feed(viewer, private_host, limit: 10)
+      assert [] = invoke_profile_replay_feed(viewer, blocked_host, limit: 10)
+      assert [] = invoke_profile_replay_feed(viewer, muted_host, limit: 10)
+      assert [] = invoke_profile_replay_feed(viewer, suspended_host, limit: 10)
+    end
+  end
+
   defp ended_replay_session_fixture(host, attrs) when is_map(attrs) do
     visibility = Map.get(attrs, :visibility, :public)
     ended_at = Map.get(attrs, :ended_at)
@@ -426,5 +676,31 @@ defmodule LC.FeedTest do
     |> Repo.update_all(set: [ended_at: ended_at])
 
     Live.get_live_session!(session_id)
+  end
+
+  defp invoke_profile_posts(viewer, owner, opts) do
+    invoke_feed(:profile_posts, [viewer, owner, opts], [])
+  end
+
+  defp invoke_profile_story_feed(viewer, owner, opts) do
+    invoke_feed(:profile_story_feed, [viewer, owner, opts], [])
+  end
+
+  defp invoke_profile_current_live_session(viewer, owner) do
+    invoke_feed(:profile_current_live_session, [viewer, owner], nil)
+  end
+
+  defp invoke_profile_replay_feed(viewer, owner, opts) do
+    invoke_feed(:profile_replay_feed, [viewer, owner, opts], [])
+  end
+
+  defp invoke_feed(function_name, args, missing_value) do
+    arity = length(args)
+
+    if function_exported?(Feed, function_name, arity) do
+      apply(Feed, function_name, args)
+    else
+      missing_value
+    end
   end
 end

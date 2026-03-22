@@ -16,8 +16,11 @@ defmodule LC.Feed do
   @default_limit 25
 
   @type home_feed_opts :: [limit: pos_integer()]
+  @type profile_posts_opts :: [limit: pos_integer()]
+  @type profile_story_feed_opts :: [limit: pos_integer()]
   @type story_feed_opts :: [limit: pos_integer()]
   @type live_now_opts :: [limit: pos_integer()]
+  @type profile_replay_feed_opts :: [limit: pos_integer()]
   @type replay_feed_opts :: [limit: pos_integer()]
 
   @doc """
@@ -38,6 +41,28 @@ defmodule LC.Feed do
   def story_feed(%User{} = viewer, opts \\ []) do
     viewer
     |> story_feed_query()
+    |> limit(^normalize_limit(opts))
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns visible standard posts authored by the requested profile owner.
+  """
+  @spec profile_posts(User.t(), User.t(), profile_posts_opts()) :: [Post.t()]
+  def profile_posts(%User{} = viewer, %User{} = owner, opts \\ []) do
+    viewer
+    |> profile_posts_query(owner)
+    |> limit(^normalize_limit(opts))
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns visible active stories authored by the requested profile owner.
+  """
+  @spec profile_story_feed(User.t(), User.t(), profile_story_feed_opts()) :: [Post.t()]
+  def profile_story_feed(%User{} = viewer, %User{} = owner, opts \\ []) do
+    viewer
+    |> profile_story_feed_query(owner)
     |> limit(^normalize_limit(opts))
     |> Repo.all()
   end
@@ -64,7 +89,8 @@ defmodule LC.Feed do
         post.id == ^post_id and
           is_nil(author.suspended_at) and
           post.visibility == :public and
-          (post.kind == :standard or (post.kind == :story and post.expires_at > ^DateTime.utc_now()))
+          (post.kind == :standard or
+             (post.kind == :story and post.expires_at > ^DateTime.utc_now()))
     )
     |> Repo.one()
   end
@@ -94,6 +120,28 @@ defmodule LC.Feed do
   end
 
   @doc """
+  Returns a deterministic query for visible standard posts authored by the requested profile owner.
+  """
+  @spec profile_posts_query(User.t(), User.t()) :: Ecto.Query.t()
+  def profile_posts_query(%User{} = viewer, %User{id: owner_id}) do
+    Post
+    |> visible_post_query(viewer)
+    |> where([post], post.author_id == ^owner_id and post.kind == :standard)
+    |> order_by([post], desc: post.inserted_at, desc: post.id)
+  end
+
+  @doc """
+  Returns a deterministic query for visible active stories authored by the requested profile owner.
+  """
+  @spec profile_story_feed_query(User.t(), User.t()) :: Ecto.Query.t()
+  def profile_story_feed_query(%User{} = viewer, %User{id: owner_id}) do
+    Post
+    |> visible_post_query(viewer)
+    |> where([post], post.author_id == ^owner_id and post.kind == :story)
+    |> order_by([post], desc: post.inserted_at, desc: post.id)
+  end
+
+  @doc """
   Returns currently-live sessions visible to the viewer, newest-first.
   """
   @spec live_now(User.t(), live_now_opts()) :: [LiveSession.t()]
@@ -102,6 +150,17 @@ defmodule LC.Feed do
     |> live_now_query()
     |> limit(^normalize_limit(opts))
     |> Repo.all()
+  end
+
+  @doc """
+  Returns one currently-live session for the requested host when it is visible to the viewer.
+  """
+  @spec profile_current_live_session(User.t(), User.t()) :: LiveSession.t() | nil
+  def profile_current_live_session(%User{} = viewer, %User{} = host) do
+    viewer
+    |> profile_current_live_session_query(host)
+    |> limit(1)
+    |> Repo.one()
   end
 
   @doc """
@@ -121,12 +180,35 @@ defmodule LC.Feed do
   end
 
   @doc """
+  Returns a deterministic query for the requested host's currently-live visible sessions.
+  """
+  @spec profile_current_live_session_query(User.t(), User.t()) :: Ecto.Query.t()
+  def profile_current_live_session_query(%User{} = viewer, %User{id: host_id}) do
+    # Keep profile live-entry lookups on the same visibility pipeline as the
+    # discovery feed so user-node child resolvers cannot drift from feed policy.
+    viewer
+    |> live_now_query()
+    |> where([live_session], live_session.host_id == ^host_id)
+  end
+
+  @doc """
   Returns visible replay sessions with linked recordings, newest-ended first.
   """
   @spec replay_feed(User.t(), replay_feed_opts()) :: [LiveSession.t()]
   def replay_feed(%User{} = viewer, opts \\ []) do
     viewer
     |> replay_feed_query()
+    |> limit(^normalize_limit(opts))
+    |> Repo.all()
+  end
+
+  @doc """
+  Returns visible replay sessions for the requested host, newest-ended first.
+  """
+  @spec profile_replay_feed(User.t(), User.t(), profile_replay_feed_opts()) :: [LiveSession.t()]
+  def profile_replay_feed(%User{} = viewer, %User{} = host, opts \\ []) do
+    viewer
+    |> profile_replay_feed_query(host)
     |> limit(^normalize_limit(opts))
     |> Repo.all()
   end
@@ -146,6 +228,18 @@ defmodule LC.Feed do
       desc: live_session.inserted_at,
       desc: live_session.id
     )
+  end
+
+  @doc """
+  Returns a deterministic query for visible replay sessions owned by the requested host.
+  """
+  @spec profile_replay_feed_query(User.t(), User.t()) :: Ecto.Query.t()
+  def profile_replay_feed_query(%User{} = viewer, %User{id: host_id}) do
+    # Reuse replay discovery visibility verbatim so profile replays never bypass
+    # block, mute, suspension, or follower/public gating.
+    viewer
+    |> replay_feed_query()
+    |> where([live_session], live_session.host_id == ^host_id)
   end
 
   @doc false

@@ -28,7 +28,7 @@ Verified directly in the codebase before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Add viewer-scoped profile read models in `LC.Feed`
+- [x] Task 1: Add viewer-scoped profile read models in `LC.Feed`
 - [ ] Task 2: Publish Relay user profile content/live fields in `LCGQL.Accounts`
 - [ ] Task 3: Verify the profile surface slice and refresh plan tracking
 
@@ -39,11 +39,11 @@ Verified directly in the codebase before drafting this plan:
 - Modify: `test/live_canvas/feed_test.exs`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing `LC.Feed` tests proving a viewer can only see profile standard posts, active stories, current live session, and replay rows when the same follow/public/block/mute/suspension rules already allow them
-- [ ] Step 2: Implement author-scoped post/story queries in `LC.Feed` by reusing the existing `visible_post_query/2` helper with explicit author filters and deterministic ordering
-- [ ] Step 3: Implement host-scoped current-live-session and replay queries in `LC.Feed` by composing the existing live/replay visibility rules with explicit host filters
-- [ ] Step 4: Keep private-account, blocked, muted, suspended, expired-story, and ended-session edge cases aligned with the existing discovery surfaces instead of adding profile-only policy branches
-- [ ] Step 5: Run `mix test test/live_canvas/feed_test.exs` and commit the profile read-model slice
+- [x] Step 1: Add failing `LC.Feed` tests proving a viewer can only see profile standard posts, active stories, current live session, and replay rows when the same follow/public/block/mute/suspension rules already allow them
+- [x] Step 2: Implement author-scoped post/story queries in `LC.Feed` by reusing the existing `visible_post_query/2` helper with explicit author filters and deterministic ordering
+- [x] Step 3: Implement host-scoped current-live-session and replay queries in `LC.Feed` by composing the existing live/replay visibility rules with explicit host filters
+- [x] Step 4: Keep private-account, blocked, muted, suspended, expired-story, and ended-session edge cases aligned with the existing discovery surfaces instead of adding profile-only policy branches
+- [x] Step 5: Run `mix test test/live_canvas/feed_test.exs` and commit the profile read-model slice
 
 **Task 1 behavior targets:**
 
