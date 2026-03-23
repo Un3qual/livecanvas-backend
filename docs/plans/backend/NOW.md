@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
 Last reviewed: 2026-03-22
-Status: active for execution
+Status: active for planning
 
 ## Lane Scope
 
@@ -10,27 +10,27 @@ Status: active for execution
 
 ## Current Batch
 
-- Track: `development_seed_data`
-- Source: `docs/plans/2026-03-22-development-seed-data.md`
-- Batch: `Task 2: Seed a product-shaped local dataset and document the workflow`
-- Why now: Task 1 landed the reusable seed foundation, so the next unblocked backend batch is wiring that foundation into a small social/feed/live dataset and documenting the local workflow.
+- Track: `release_roadmap_planning`
+- Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
+- Batch: `Create the next detailed backend implementation plan`
+- Why now: The development-seed-data batch is complete, and the backend lane now returns to roadmap-driven planning until the next executable backend slice is written.
 
 ## Do This Now
 
-- Review `docs/plans/2026-03-22-development-seed-data.md` and any directly related backend planning docs needed to execute Task 2.
-- Implement `Task 2: Seed a product-shaped local dataset and document the workflow` from that plan.
-- Keep the work inside backend code and backend planning docs only.
-- Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
+- Review `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`, especially the planning-hole section and any directly related backend plan docs it references.
+- Verify the most promising roadmap candidate is still unimplemented before drafting a new backend execution plan.
+- Write the next detailed backend implementation plan in the appropriate backend plans subfolder, then update this lane pointer to the new executable batch.
+- Keep the work inside backend code and backend planning docs only, and report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` instead of editing those shared files directly.
 
 ## Verification Scope
 
 ```bash
-test -f docs/plans/2026-03-22-development-seed-data.md && test -f lib/live_canvas/dev/seed_data.ex && test -f test/live_canvas/dev/seed_data_test.exs
+test -f docs/plans/2026-03-03-backend-release-readiness-roadmap.md
 ```
 
 ## Next Up
 
-- Once Task 2 is complete, report any required coordinator updates to `docs/plans/NOW.md` and `docs/plans/INDEX.md`, then select the next unblocked backend batch.
+- Once the next backend execution plan is written, refresh this lane pointer to that plan's first unblocked executable batch and report any required coordinator updates to `docs/plans/NOW.md` and `docs/plans/INDEX.md`.
 
 ## Repair Conditions
 
