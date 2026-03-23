@@ -1,14 +1,27 @@
 import { Stack } from 'expo-router';
 
-export default function RootLayout() {
+import { AppProviders } from '../src/providers/AppProviders';
+import { useAppTheme } from '../src/providers/ThemeProvider';
+
+function RootNavigator() {
+  const theme = useAppTheme();
+
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#ffffff' },
+        contentStyle: { backgroundColor: theme.colors.background },
       }}
     >
       <Stack.Screen name="(modals)" options={{ presentation: 'modal' }} />
     </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AppProviders>
+      <RootNavigator />
+    </AppProviders>
   );
 }

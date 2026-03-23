@@ -28,7 +28,7 @@ Verified directly in the codebase before drafting this plan:
 ## Progress
 
 - [x] Task 1: Choose the routing model and define the top-level route groups
-- [ ] Task 2: Build the global provider stack and startup flow
+- [x] Task 2: Build the global provider stack and startup flow
 - [ ] Task 3: Add shell-level layout primitives and entry screens
 - [ ] Task 4: Verify the shell slice and advance the mobile planning pointers
 
@@ -82,10 +82,10 @@ Expected: PASS with an Expo version string from the isolated shell.
 - Create: `mobile/src/config/runtime.ts`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Define the provider order for safe area, theme, shell error boundary, and startup gating without wiring in backend clients yet
-- [ ] Step 2: Add startup states for splash, stored-session hydration placeholder, forced logout shell reset, and deep-link handoff into the route groups
-- [ ] Step 3: Keep the provider seam ready for later Relay and Phoenix integration without adding those network clients in this batch
-- [ ] Step 4: Run the TypeScript and shell-boot checks for the provider tree
+- [x] Step 1: Define the provider order for safe area, theme, shell error boundary, and startup gating without wiring in backend clients yet
+- [x] Step 2: Add startup states for splash, stored-session hydration placeholder, forced logout shell reset, and deep-link handoff into the route groups
+- [x] Step 3: Keep the provider seam ready for later Relay and Phoenix integration without adding those network clients in this batch
+- [x] Step 4: Run the TypeScript and shell-boot checks for the provider tree
 
 **Task 2 behavior targets:**
 
