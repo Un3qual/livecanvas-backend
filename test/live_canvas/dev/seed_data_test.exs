@@ -1,7 +1,7 @@
 defmodule LC.Dev.SeedDataTest do
   use LC.DataCase, async: true
 
-  alias LC.{Accounts, Content, Feed, Social}
+  alias LC.{Accounts, Content, Feed, Live, Social}
   alias LC.Dev.SeedData
   alias LCSchemas.Accounts.User
   alias LCSchemas.Live.LiveSession
@@ -94,6 +94,9 @@ defmodule LC.Dev.SeedDataTest do
       |> change(%{visibility: :public})
       |> Repo.update()
 
+    assert {:ok, %LiveSession{id: ad_hoc_session_id} = ad_hoc_session} =
+             Live.start_live_session(host, %{visibility: :public})
+
     first_ids = seeded_user_ids()
 
     summary = SeedData.seed!()
@@ -116,6 +119,8 @@ defmodule LC.Dev.SeedDataTest do
 
     assert [%{host_id: host_id, status: :live, visibility: :followers}] = Feed.live_now(viewer)
     assert host_id == host.id
+    assert %LiveSession{id: ^ad_hoc_session_id, status: :starting, visibility: :public} =
+             Repo.get!(LiveSession, ad_hoc_session.id)
   end
 
   defp seeded_user_ids do

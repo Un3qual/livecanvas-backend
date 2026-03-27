@@ -48,7 +48,11 @@ defmodule LC.Dev.SeedData do
     }
   ]
 
-  @live_session_descriptor %{host_key: :host, visibility: :followers}
+  @live_session_descriptor %{
+    host_key: :host,
+    entropy_id: "0195df10-88b8-7d07-8dd9-000000000004",
+    visibility: :followers
+  }
 
   @type account_key :: :viewer | :creator | :host
   @type seeded_user_summary :: %{
@@ -225,38 +229,68 @@ defmodule LC.Dev.SeedData do
     _live_session =
       users_by_key
       |> Map.fetch!(descriptor.host_key)
-      |> ensure_live_session!(descriptor.visibility)
+      |> ensure_live_session!(descriptor)
 
     :ok
   end
 
-  defp ensure_live_session!(%User{} = host, visibility) do
+  defp ensure_live_session!(%User{} = host, descriptor) do
+    visibility = descriptor.visibility
+
     host
-    |> find_live_session()
+    |> find_live_session(descriptor)
     |> case do
       nil ->
         case Live.start_live_session(host, %{visibility: visibility}) do
           {:ok, %LiveSession{} = session} ->
-            session
+            ensure_live_session_entropy_id!(session, descriptor.entropy_id)
 
           {:error, reason} ->
             raise "failed to seed live session for #{host.email}: #{inspect(reason)}"
         end
 
       %LiveSession{} = session ->
-        session
+        ensure_live_session_entropy_id!(session, descriptor.entropy_id)
     end
     |> normalize_live_session_visibility!(visibility)
     |> ensure_live_session_live!()
   end
 
-  defp find_live_session(%User{id: host_id}) do
+  defp find_live_session(%User{id: host_id}, %{entropy_id: entropy_id}) do
+    case Repo.get_by(LiveSession, host_id: host_id, entropy_id: entropy_id) do
+      %LiveSession{} = session ->
+        session
+
+      nil ->
+        find_legacy_live_session(host_id)
+    end
+  end
+
+  # Backfill the pre-review seeded session onto a deterministic entropy ID so
+  # reruns keep reusing the same fixture instead of newer ad-hoc sessions.
+  defp find_legacy_live_session(host_id) do
     from(live_session in LiveSession,
       where: live_session.host_id == ^host_id and live_session.status in [:starting, :live],
-      order_by: [desc: live_session.inserted_at, desc: live_session.id],
+      order_by: [asc: live_session.inserted_at, asc: live_session.id],
       limit: 1
     )
     |> Repo.one()
+  end
+
+  defp ensure_live_session_entropy_id!(%LiveSession{entropy_id: entropy_id} = session, entropy_id),
+    do: session
+
+  defp ensure_live_session_entropy_id!(%LiveSession{} = session, entropy_id) do
+    session
+    |> Ecto.Changeset.change(%{entropy_id: entropy_id})
+    |> Repo.update()
+    |> case do
+      {:ok, %LiveSession{} = updated_session} ->
+        updated_session
+
+      {:error, reason} ->
+        raise "failed to assign seeded live session entropy_id for #{session.id}: #{inspect(reason)}"
+    end
   end
 
   defp normalize_live_session_visibility!(%LiveSession{visibility: visibility} = session, visibility),
