@@ -4,7 +4,6 @@ defmodule LC.Dev.SeedData do
   """
 
   import Ecto.Query, warn: false
-
   alias LC.{Accounts, Content, Live, Social}
   alias LC.Infra.Repo
   alias LCSchemas.Accounts.User
@@ -240,6 +239,9 @@ defmodule LC.Dev.SeedData do
     host
     |> find_live_session(descriptor)
     |> case do
+      %LiveSession{status: :ended} = ended_session ->
+        replace_seeded_live_session!(host, ended_session, descriptor)
+
       nil ->
         case Live.start_live_session(host, %{visibility: visibility}) do
           {:ok, %LiveSession{} = session} ->
@@ -290,6 +292,37 @@ defmodule LC.Dev.SeedData do
 
       {:error, reason} ->
         raise "failed to assign seeded live session entropy_id for #{session.id}: #{inspect(reason)}"
+    end
+  end
+
+  # Ended live sessions are terminal, so rotate the old fixture key away
+  # before creating the replacement seeded session with the deterministic ID.
+  defp replace_seeded_live_session!(%User{} = host, %LiveSession{} = session, descriptor) do
+    _rotated_session = rotate_live_session_entropy_id!(session)
+
+    case Live.start_live_session(host, %{visibility: descriptor.visibility}) do
+      {:ok, %LiveSession{} = replacement_session} ->
+        ensure_live_session_entropy_id!(replacement_session, descriptor.entropy_id)
+
+      {:error, reason} ->
+        raise "failed to recreate seeded live session for #{host.email}: #{inspect(reason)}"
+    end
+  end
+
+  defp rotate_live_session_entropy_id!(%LiveSession{id: session_id}) when is_integer(session_id) do
+    {updated_count, _rows} =
+      from(live_session in LiveSession,
+        where: live_session.id == ^session_id,
+        update: [set: [entropy_id: fragment("uuidv7()")]]
+      )
+      |> Repo.update_all([])
+
+    case {updated_count, Repo.get(LiveSession, session_id)} do
+      {1, %LiveSession{} = updated_session} ->
+        updated_session
+
+      {_updated_count, _session} ->
+        raise "failed to rotate seeded live session entropy_id for #{session_id}"
     end
   end
 

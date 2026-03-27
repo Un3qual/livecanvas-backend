@@ -123,6 +123,29 @@ defmodule LC.Dev.SeedDataTest do
              Repo.get!(LiveSession, ad_hoc_session.id)
   end
 
+  test "seed!/0 recreates the seeded live session after the fixture is ended" do
+    SeedData.seed!()
+
+    assert %User{} = viewer = Accounts.get_user_by_email("dev-viewer@example.com")
+    assert %User{} = host = Accounts.get_user_by_email("dev-host@example.com")
+    assert [%LiveSession{} = seeded_live_session] = Feed.live_now(viewer)
+
+    assert {:ok, %LiveSession{id: ended_live_session_id} = ended_live_session} =
+             Live.end_live_session(seeded_live_session, %{ended_reason: :host_ended})
+
+    summary = SeedData.seed!()
+
+    assert summary.shared_password == @shared_password
+    assert [%LiveSession{id: replacement_live_session_id, host_id: host_id, status: :live}] =
+             Feed.live_now(viewer)
+
+    assert host_id == host.id
+    assert replacement_live_session_id != ended_live_session.id
+    assert seeded_live_session_ids(host) == [replacement_live_session_id]
+    assert %LiveSession{id: ^ended_live_session_id, status: :ended, ended_reason: :host_ended} =
+             Repo.get!(LiveSession, ended_live_session.id)
+  end
+
   defp seeded_user_ids do
     from(user in User,
       join: user_email in assoc(user, :user_email_addresses),
