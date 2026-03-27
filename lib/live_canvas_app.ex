@@ -7,11 +7,14 @@ defmodule LCApp do
     top_level?: true,
     deps: [LC, LCWeb, LCGQL]
 
+  alias Telemetry.Metrics.Summary
+
   @spec start(Application.start_type(), [term()]) :: Supervisor.on_start()
   @impl true
   def start(_type, _args) do
     base_children = [
       LCWeb.Telemetry,
+      metrics_reporter_child(),
       LC.repo_module(),
       {LC.Accounts.ProviderAuth.JwksCache, []},
       {DNSCluster, query: Application.get_env(:live_canvas, :dns_cluster_query) || :ignore},
@@ -48,5 +51,21 @@ defmodule LCApp do
     else
       children
     end
+  end
+
+  defp metrics_reporter_child do
+    metrics_config = Application.get_env(:live_canvas, LCWeb.Plugs.MetricsAuth, [])
+
+    # Register metrics synchronously so startup telemetry from later children is
+    # visible on the first authorized scrape after rollout enablement.
+    {TelemetryMetricsPrometheus.Core,
+     name: Keyword.get(metrics_config, :reporter_name, :live_canvas_prometheus_metrics),
+     metrics: prometheus_metrics(),
+     start_async: false}
+  end
+
+  defp prometheus_metrics do
+    LCWeb.Telemetry.metrics()
+    |> Enum.reject(&match?(%Summary{}, &1))
   end
 end

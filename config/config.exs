@@ -52,6 +52,11 @@ config :live_canvas, LC.Infra.DataGovernance.Retention,
 
 config :live_canvas, LC.Live.SessionSupervisor, lease_heartbeat_interval_ms: 10_000
 
+config :live_canvas, LCWeb.Plugs.MetricsAuth,
+  enabled: false,
+  token: nil,
+  reporter_name: :live_canvas_prometheus_metrics
+
 config :live_canvas, :scopes,
   user: [
     default: true,

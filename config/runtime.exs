@@ -23,6 +23,37 @@ end
 config :live_canvas, LCWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+parse_boolean_env = fn env_name, default ->
+  case System.get_env(env_name) do
+    nil ->
+      default
+
+    value when value in ~w(1 true TRUE yes YES on ON) ->
+      true
+
+    value when value in ~w(0 false FALSE no NO off OFF) ->
+      false
+
+    _other ->
+      raise """
+      environment variable #{env_name} must be one of true/false, 1/0, yes/no, or on/off.
+      """
+  end
+end
+
+metrics_endpoint_enabled = parse_boolean_env.("METRICS_ENDPOINT_ENABLED", false)
+metrics_endpoint_token = System.get_env("METRICS_ENDPOINT_TOKEN")
+
+if metrics_endpoint_enabled and not (is_binary(metrics_endpoint_token) and String.trim(metrics_endpoint_token) != "") do
+  raise """
+  environment variable METRICS_ENDPOINT_TOKEN is required when METRICS_ENDPOINT_ENABLED is true.
+  """
+end
+
+config :live_canvas, LCWeb.Plugs.MetricsAuth,
+  enabled: metrics_endpoint_enabled,
+  token: metrics_endpoint_token
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

@@ -34,7 +34,7 @@ Verified directly in the current codebase before drafting this plan:
 ## Progress
 
 - [x] Task 1: Add app-specific Telemetry metric definitions and focused tests
-- [ ] Task 2: Add a gated metrics scrape surface and runtime configuration
+- [x] Task 2: Add a gated metrics scrape surface and runtime configuration
 - [ ] Task 3: Add HTTP/GraphQL/channel correlation context plumbing
 - [ ] Task 4: Publish the observability contract, refresh roadmap tracking, and run final verification
 
@@ -82,11 +82,11 @@ Expected: RED first, then GREEN once the metric catalog exists.
 - Modify: `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add the exporter dependency/config scaffolding plus failing endpoint tests covering disabled-by-default behavior and enabled authorized scrapes
-- [ ] Step 2: Run `mix deps.get` and the focused endpoint tests to verify RED
-- [ ] Step 3: Implement a disabled-by-default, token-gated scrape path that exports the `LCWeb.Telemetry.metrics/0` catalog without relying on `dev_routes`
-- [ ] Step 4: Run focused endpoint tests to verify GREEN
-- [ ] Step 5: Run `mix compile`, update checklist progress, and commit the scrape-surface milestone
+- [x] Step 1: Add the exporter dependency/config scaffolding plus failing endpoint tests covering disabled-by-default behavior and enabled authorized scrapes
+- [x] Step 2: Run `mix deps.get` and the focused endpoint tests to verify RED
+- [x] Step 3: Implement a disabled-by-default, token-gated scrape path that exports the `LCWeb.Telemetry.metrics/0` catalog without relying on `dev_routes`
+- [x] Step 4: Run focused endpoint tests to verify GREEN
+- [x] Step 5: Run `mix compile`, update checklist progress, and commit the scrape-surface milestone
 
 **Task 2 behavior targets:**
 

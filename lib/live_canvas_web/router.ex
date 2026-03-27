@@ -29,6 +29,10 @@ defmodule LCWeb.Router do
     post "/webhooks/media-processing", WebhookController, :media_processing
   end
 
+  scope "/" do
+    forward "/ops/metrics", LCWeb.Plugs.MetricsAuth
+  end
+
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:live_canvas, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put
