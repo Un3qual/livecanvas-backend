@@ -507,12 +507,17 @@ defmodule LC.FeedTest do
 
       _mute = mute_fixture(viewer, muted_host)
 
-      assert %{id: session_id} = invoke_profile_current_live_session(viewer, visible_host)
+      assert %{id: session_id} =
+               Feed.profile_current_live_session_query(viewer, visible_host) |> Repo.one()
+
       assert session_id == visible_session.id
-      assert %{id: other_session_id} = invoke_profile_current_live_session(viewer, other_host)
+
+      assert %{id: other_session_id} =
+               Feed.profile_current_live_session_query(viewer, other_host) |> Repo.one()
+
       assert other_session_id == other_session.id
-      assert nil == invoke_profile_current_live_session(viewer, private_host)
-      assert nil == invoke_profile_current_live_session(viewer, muted_host)
+      assert nil == (Feed.profile_current_live_session_query(viewer, private_host) |> Repo.one())
+      assert nil == (Feed.profile_current_live_session_query(viewer, muted_host) |> Repo.one())
     end
   end
 
@@ -614,7 +619,9 @@ defmodule LC.FeedTest do
         })
 
       assert [first_session, second_session] =
-               invoke_profile_replay_feed(viewer, profile_host, limit: 10)
+               Feed.profile_replay_feed_query(viewer, profile_host)
+               |> limit(10)
+               |> Repo.all()
 
       assert first_session.id == newer_replay.id
       assert second_session.id == older_replay.id
@@ -636,10 +643,10 @@ defmodule LC.FeedTest do
       _mute = mute_fixture(viewer, muted_host)
       assert {:ok, _suspended_host} = Accounts.suspend_user(suspended_host)
 
-      assert [] = invoke_profile_replay_feed(viewer, private_host, limit: 10)
-      assert [] = invoke_profile_replay_feed(viewer, blocked_host, limit: 10)
-      assert [] = invoke_profile_replay_feed(viewer, muted_host, limit: 10)
-      assert [] = invoke_profile_replay_feed(viewer, suspended_host, limit: 10)
+      assert [] = Feed.profile_replay_feed_query(viewer, private_host) |> limit(10) |> Repo.all()
+      assert [] = Feed.profile_replay_feed_query(viewer, blocked_host) |> limit(10) |> Repo.all()
+      assert [] = Feed.profile_replay_feed_query(viewer, muted_host) |> limit(10) |> Repo.all()
+      assert [] = Feed.profile_replay_feed_query(viewer, suspended_host) |> limit(10) |> Repo.all()
     end
   end
 
@@ -684,14 +691,6 @@ defmodule LC.FeedTest do
 
   defp invoke_profile_story_feed(viewer, owner, opts) do
     invoke_feed(:profile_story_feed, [viewer, owner, opts], [])
-  end
-
-  defp invoke_profile_current_live_session(viewer, owner) do
-    invoke_feed(:profile_current_live_session, [viewer, owner], nil)
-  end
-
-  defp invoke_profile_replay_feed(viewer, owner, opts) do
-    invoke_feed(:profile_replay_feed, [viewer, owner, opts], [])
   end
 
   defp invoke_feed(function_name, args, missing_value) do
