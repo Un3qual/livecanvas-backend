@@ -30,7 +30,7 @@ Verified directly in the codebase before drafting this plan:
 - [x] Task 1: Choose the routing model and define the top-level route groups
 - [x] Task 2: Build the global provider stack and startup flow
 - [x] Task 3: Add shell-level layout primitives and entry screens
-- [ ] Task 4: Verify the shell slice and advance the mobile planning pointers
+- [x] Task 4: Verify the shell slice and advance the mobile planning pointers
 
 ### Task 1: Choose The Routing Model And Define The Top-Level Route Groups
 
@@ -142,10 +142,10 @@ Expected: PASS or a clean Metro startup without route/runtime errors.
 - Modify: `docs/plans/mobile/NOW.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Re-read the plan and confirm the shell slice is complete without leaking auth, Relay, or channel work
-- [ ] Step 2: Run the lane verification command and any shell sanity check needed to confirm the mobile workspace still exists and resolves
-- [ ] Step 3: Update the mobile track and lane pointer to the next post-shell foundations batch
-- [ ] Step 4: Commit the shell slice with the planning updates bundled alongside the implementation
+- [x] Step 1: Re-read the plan and confirm the shell slice is complete without leaking auth, Relay, or channel work
+- [x] Step 2: Run the lane verification command and any shell sanity check needed to confirm the mobile workspace still exists and resolves
+- [x] Step 3: Update the mobile track and lane pointer to the next post-shell foundations batch
+- [x] Step 4: Commit the shell slice with the planning updates bundled alongside the implementation
 
 **Suggested verification command:**
 
