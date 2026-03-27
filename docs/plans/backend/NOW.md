@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
-Last reviewed: 2026-03-22
-Status: active for planning
+Last reviewed: 2026-03-27
+Status: active for execution
 
 ## Lane Scope
 
@@ -10,31 +10,31 @@ Status: active for planning
 
 ## Current Batch
 
-- Track: `release_roadmap_planning`
-- Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Batch: `Create the next detailed backend implementation plan`
-- Why now: The development-seed-data batch is complete, and the backend lane now returns to roadmap-driven planning until the next executable backend slice is written.
+- Track: `release_observability_metrics_and_correlation`
+- Source: `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md`
+- Batch: `Task 1: Add app-specific Telemetry metric definitions and focused tests`
+- Why now: The roadmap's explicit planning holes are closed or paused, release rollout docs already exist, and the clearest remaining unpaused release gap is that emitted live/auth Telemetry is still not surfaced as exportable metrics with concrete operational coverage.
 
 ## Do This Now
 
-- Review `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`, especially the planning-hole section and any directly related backend plan docs it references.
-- Verify the most promising roadmap candidate is still unimplemented before drafting a new backend execution plan.
-- Write the next detailed backend implementation plan in the appropriate backend plans subfolder, then update this lane pointer to the new executable batch.
-- Keep the work inside backend code and backend planning docs only, and report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` instead of editing those shared files directly.
+- Re-open `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md` and execute `Task 1` exactly as written.
+- Verify the immediate prerequisite still holds before editing: `LCWeb.Telemetry.metrics/0` has no app-specific `live_canvas` metrics yet.
+- Keep the work inside backend code and backend planning/release docs only.
+- Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` instead of editing those shared files directly.
 
 ## Verification Scope
 
 ```bash
-test -f docs/plans/2026-03-03-backend-release-readiness-roadmap.md
+mix test test/live_canvas_web/telemetry_test.exs
 ```
 
 ## Next Up
 
-- Once the next backend execution plan is written, refresh this lane pointer to that plan's first unblocked executable batch and report any required coordinator updates to `docs/plans/NOW.md` and `docs/plans/INDEX.md`.
+- `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md` -> `Task 2: Add a gated metrics scrape surface and runtime configuration`
 
 ## Repair Conditions
 
-Repair this lane pointer from `docs/plans/INDEX.md` and the relevant `TRACK.md` when:
+Repair this lane pointer from `docs/plans/INDEX.md` and the relevant source plan when:
 
 - the current batch is already complete
 - the current batch is blocked
