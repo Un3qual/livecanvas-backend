@@ -8,17 +8,17 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Track Status
 
-- Status: bootstrap complete; the mobile lane is executing the next post-bootstrap shell batch
+- Status: app shell complete; the mobile lane needs to plan the next slice (Relay data layer and auth/session lifecycle)
 - Approved overview: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
 - Approved bootstrap design:
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
 - Bootstrap plan:
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap.md`
-- Current detailed plan:
+- Completed detailed plan:
   `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`
 - Lane execution pointer: `docs/plans/mobile/NOW.md`
 - Coordinator dashboard: `docs/plans/NOW.md`
-- Next lane batch: implement `Task 3: Add shell-level layout primitives and entry screens` from the current mobile shell plan.
+- Next lane batch: create the next detailed plan for Relay data layer, auth, and session lifecycle (overview sections 2.1–2.2 and 3.1–3.3).
 
 ## Recommended Detailed Plan Order
 

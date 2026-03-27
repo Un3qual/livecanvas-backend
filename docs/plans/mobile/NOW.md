@@ -1,7 +1,7 @@
 # Mobile Lane Execution
 
 Last reviewed: 2026-03-27
-Status: active for execution
+Status: active for planning
 
 ## Lane Scope
 
@@ -12,28 +12,26 @@ Status: active for execution
 
 - Track: `mobile_foundations`
 - Source: `docs/plans/mobile/TRACK.md`
-- Plan: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`
-- Batch: `Task 4: Verify the shell slice and advance the mobile planning pointers`
-- Why now: Tasks 1-3 are complete and tsc passes. The final task closes out this plan by verifying the full shell slice and advancing the mobile track/lane pointers to the next post-shell foundations batch.
+- Plan: none yet — create the next detailed plan
+- Batch: `Create the next detailed plan for Relay data layer, auth, and session lifecycle`
+- Why now: The app shell plan is fully complete (all four tasks green, tsc passes, no auth/Relay/channel leakage). The next slice in the recommended delivery order is Relay data layer and auth/session lifecycle (overview sections 2.1–2.2 and 3.1–3.3).
 
 ## Do This Now
 
-- Review `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` and confirm all four tasks are green.
-- Implement `Task 4` from the current mobile shell plan.
-- Keep the work inside `mobile/` and `docs/plans/mobile/**`.
-- Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` in the completion summary instead of editing those shared files directly.
-- If the next slice requires backend contract or schema changes, stop and report the dependency instead of editing backend code from the mobile lane.
+- Review `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md` sections 2 and 3 for scope.
+- Review the backend GraphQL contracts in `docs/contracts/mobile-graphql-phase2.md` and `ARCHITECTURE.md` for the auth and data layer surfaces the mobile app will consume.
+- Create a new detailed implementation plan at `docs/plans/mobile/` covering Relay environment setup, authenticated network layer, auth provider integration, and session lifecycle.
+- Update this file to point at the new plan once it is written.
+- Keep the work inside `docs/plans/mobile/**`.
+- If the plan requires backend contract or schema changes not yet implemented, note them as dependencies rather than editing backend code.
 
 ## Verification Scope
 
-```bash
-cd mobile
-XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec tsc --noEmit
-```
+Planning batch — no code verification needed until the plan is approved and execution begins.
 
 ## Next Up
 
-- Once Task 4 is green and committed, advance this lane pointer to the next post-shell foundations batch from `docs/plans/mobile/TRACK.md`.
+- Once the Relay/auth plan is written, advance this lane pointer to the first executable batch from that plan.
 
 ## Repair Conditions
 
