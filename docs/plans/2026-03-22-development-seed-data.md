@@ -30,7 +30,7 @@ Verified directly in the codebase before drafting this plan:
 ## Progress
 
 - [x] Task 1: Add a tested, idempotent development seed foundation
-- [ ] Task 2: Seed a product-shaped local dataset and document the workflow
+- [x] Task 2: Seed a product-shaped local dataset and document the workflow
 
 ### Task 1: Add A Tested, Idempotent Development Seed Foundation
 
@@ -69,12 +69,12 @@ Expected: PASS.
 - Create: `docs/development/seeds.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing tests that the primary seeded viewer receives non-empty social, feed, and live-discovery data from the seeded graph
-- [ ] Step 2: Extend `LC.Dev.SeedData` to create a small stable graph with known accounts, accepted follow edges, several posts, and one persisted live-session fixture that local clients can discover without depending on ad hoc manual setup
-- [ ] Step 3: Document the local workflow in `docs/development/seeds.md`, including reset commands, seeded account credentials, and which seeded users are intended to exercise which product surfaces
-- [ ] Step 4: Run `mix test test/live_canvas/dev/seed_data_test.exs`
-- [ ] Step 5: Run `mix ecto.reset`
-- [ ] Step 6: Commit the verified development-dataset slice
+- [x] Step 1: Add failing tests that the primary seeded viewer receives non-empty social, feed, and live-discovery data from the seeded graph
+- [x] Step 2: Extend `LC.Dev.SeedData` to create a small stable graph with known accounts, accepted follow edges, several posts, and one persisted live-session fixture that local clients can discover without depending on ad hoc manual setup
+- [x] Step 3: Document the local workflow in `docs/development/seeds.md`, including reset commands, seeded account credentials, and which seeded users are intended to exercise which product surfaces
+- [x] Step 4: Run `mix test test/live_canvas/dev/seed_data_test.exs`
+- [x] Step 5: Run `mix ecto.reset`
+- [x] Step 6: Commit the verified development-dataset slice
 
 **Task 2 behavior targets:**
 

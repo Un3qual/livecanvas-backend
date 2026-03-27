@@ -1,10 +1,14 @@
 defmodule LC.Dev.SeedData do
   @moduledoc """
-  Seeds deterministic development accounts with stable credentials.
+  Seeds deterministic development accounts and a small product-shaped dataset.
   """
 
-  alias LC.Accounts
+  import Ecto.Query, warn: false
+  alias LC.{Accounts, Content, Live, Social}
+  alias LC.Infra.Repo
   alias LCSchemas.Accounts.User
+  alias LCSchemas.Content.Post
+  alias LCSchemas.Live.LiveSession
 
   @shared_password "dev-password-123"
 
@@ -13,6 +17,41 @@ defmodule LC.Dev.SeedData do
     %{key: :creator, email: "dev-creator@example.com", privacy_mode: :public},
     %{key: :host, email: "dev-host@example.com", privacy_mode: :public}
   ]
+
+  @follow_descriptors [
+    %{follower_key: :viewer, followed_key: :creator},
+    %{follower_key: :viewer, followed_key: :host}
+  ]
+
+  @post_descriptors [
+    %{
+      author_key: :creator,
+      entropy_id: "0195df10-88b8-7d07-8dd9-000000000001",
+      body_text: "Public studio check-in from the seeded creator account.",
+      kind: :standard,
+      visibility: :public
+    },
+    %{
+      author_key: :creator,
+      entropy_id: "0195df10-88b8-7d07-8dd9-000000000002",
+      body_text: "Followers-only lighting notes from the seeded creator account.",
+      kind: :standard,
+      visibility: :followers
+    },
+    %{
+      author_key: :host,
+      entropy_id: "0195df10-88b8-7d07-8dd9-000000000003",
+      body_text: "Host is warming up the camera rig for the seeded live session.",
+      kind: :standard,
+      visibility: :public
+    }
+  ]
+
+  @live_session_descriptor %{
+    host_key: :host,
+    entropy_id: "0195df10-88b8-7d07-8dd9-000000000004",
+    visibility: :followers
+  }
 
   @type account_key :: :viewer | :creator | :host
   @type seeded_user_summary :: %{
@@ -25,19 +64,41 @@ defmodule LC.Dev.SeedData do
 
   @spec seed!() :: summary()
   def seed! do
-    users =
-      Enum.map(seed_descriptors(), fn descriptor ->
+    users_by_key = seed_users!()
+
+    seed_follows!(users_by_key)
+    seed_posts!(users_by_key)
+    seed_live_session!(users_by_key)
+
+    %{
+      shared_password: @shared_password,
+      users:
+        Enum.map(seed_descriptors(), fn descriptor ->
+          users_by_key
+          |> Map.fetch!(descriptor.key)
+          |> summarize_user(descriptor)
+        end)
+    }
+  end
+
+  defp seed_descriptors, do: @seed_descriptors
+  defp follow_descriptors, do: @follow_descriptors
+  defp post_descriptors, do: @post_descriptors
+  defp live_session_descriptor, do: @live_session_descriptor
+
+  defp seed_users! do
+    seed_descriptors()
+    |> Enum.map(fn descriptor ->
+      user =
         descriptor
         |> find_or_create_user!()
         |> normalize_password!()
         |> normalize_privacy_mode!(descriptor.privacy_mode)
-        |> summarize_user(descriptor)
-      end)
 
-    %{shared_password: @shared_password, users: users}
+      {descriptor.key, user}
+    end)
+    |> Map.new()
   end
-
-  defp seed_descriptors, do: @seed_descriptors
 
   defp find_or_create_user!(%{email: email}) do
     case Accounts.get_user_by_email(email) do
@@ -48,7 +109,248 @@ defmodule LC.Dev.SeedData do
         case Accounts.register_user_with_email(%{email: email}) do
           {:ok, %User{} = user} -> user
           {:error, reason} -> raise "failed to seed development user #{email}: #{inspect(reason)}"
+      end
+    end
+  end
+
+  defp seed_follows!(users_by_key) do
+    Enum.each(follow_descriptors(), fn descriptor ->
+      follower = Map.fetch!(users_by_key, descriptor.follower_key)
+      followed = Map.fetch!(users_by_key, descriptor.followed_key)
+
+      follower
+      |> ensure_follow!(followed)
+      |> normalize_follow_state!(followed)
+    end)
+  end
+
+  defp ensure_follow!(%User{} = follower, %User{} = followed) do
+    case Social.follow_user(follower, followed) do
+      {:ok, follow} ->
+        follow
+
+      {:error, reason} ->
+        raise """
+        failed to seed follow #{follower.email} -> #{followed.email}: #{inspect(reason)}
+        """
+    end
+  end
+
+  defp normalize_follow_state!(%{state: :accepted} = follow, _followed), do: follow
+
+  defp normalize_follow_state!(follow, %User{} = followed) do
+    case Social.accept_follow_request(follow, followed) do
+      {:ok, accepted_follow} ->
+        accepted_follow
+
+      {:error, reason} ->
+        raise "failed to accept seeded follow for #{followed.email}: #{inspect(reason)}"
+    end
+  end
+
+  defp seed_posts!(users_by_key) do
+    Enum.each(post_descriptors(), fn descriptor ->
+      users_by_key
+      |> Map.fetch!(descriptor.author_key)
+      |> ensure_post!(descriptor)
+    end)
+  end
+
+  defp ensure_post!(%User{} = author, descriptor) do
+    case find_post(author, descriptor) do
+      nil ->
+        case Content.create_post(author, Map.take(descriptor, [:body_text, :kind, :visibility])) do
+          {:ok, %Post{} = post} ->
+            ensure_post_entropy_id!(post, descriptor.entropy_id)
+
+          {:error, reason} ->
+            raise "failed to seed post for #{author.email}: #{inspect(reason)}"
         end
+
+      %Post{} = post ->
+        post
+        |> ensure_post_entropy_id!(descriptor.entropy_id)
+        |> normalize_post!(author, descriptor)
+    end
+  end
+
+  defp normalize_post!(%Post{} = post, %User{} = author, descriptor) do
+    case Content.update_user_post(author, post.id, %{
+           body_text: descriptor.body_text,
+           visibility: descriptor.visibility
+         }) do
+      {:ok, %Post{} = updated_post} ->
+        updated_post
+
+      {:error, reason} ->
+        raise "failed to normalize seeded post for #{author.email}: #{inspect(reason)}"
+    end
+  end
+
+  defp find_post(%User{id: author_id}, %{entropy_id: entropy_id} = descriptor) do
+    case Repo.get_by(Post, author_id: author_id, entropy_id: entropy_id) do
+      %Post{} = post ->
+        post
+
+      nil ->
+        find_legacy_post(author_id, descriptor)
+    end
+  end
+
+  # Backfill pre-review seeded rows onto deterministic entropy IDs so future
+  # reruns can find them even after local body-text edits.
+  defp find_legacy_post(author_id, %{body_text: body_text, kind: kind}) do
+    from(post in Post,
+      where: post.author_id == ^author_id and post.body_text == ^body_text and post.kind == ^kind,
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  defp ensure_post_entropy_id!(%Post{entropy_id: entropy_id} = post, entropy_id), do: post
+
+  defp ensure_post_entropy_id!(%Post{} = post, entropy_id) do
+    post
+    |> Ecto.Changeset.change(%{entropy_id: entropy_id})
+    |> Repo.update()
+    |> case do
+      {:ok, %Post{} = updated_post} ->
+        updated_post
+
+      {:error, reason} ->
+        raise "failed to assign seeded post entropy_id for post #{post.id}: #{inspect(reason)}"
+    end
+  end
+
+  defp seed_live_session!(users_by_key) do
+    descriptor = live_session_descriptor()
+
+    _live_session =
+      users_by_key
+      |> Map.fetch!(descriptor.host_key)
+      |> ensure_live_session!(descriptor)
+
+    :ok
+  end
+
+  defp ensure_live_session!(%User{} = host, descriptor) do
+    visibility = descriptor.visibility
+
+    host
+    |> find_live_session(descriptor)
+    |> case do
+      %LiveSession{status: :ended} = ended_session ->
+        replace_seeded_live_session!(host, ended_session, descriptor)
+
+      nil ->
+        case Live.start_live_session(host, %{visibility: visibility}) do
+          {:ok, %LiveSession{} = session} ->
+            ensure_live_session_entropy_id!(session, descriptor.entropy_id)
+
+          {:error, reason} ->
+            raise "failed to seed live session for #{host.email}: #{inspect(reason)}"
+        end
+
+      %LiveSession{} = session ->
+        ensure_live_session_entropy_id!(session, descriptor.entropy_id)
+    end
+    |> normalize_live_session_visibility!(visibility)
+    |> ensure_live_session_live!()
+  end
+
+  defp find_live_session(%User{id: host_id}, %{entropy_id: entropy_id}) do
+    case Repo.get_by(LiveSession, host_id: host_id, entropy_id: entropy_id) do
+      %LiveSession{} = session ->
+        session
+
+      nil ->
+        find_legacy_live_session(host_id)
+    end
+  end
+
+  # Backfill the pre-review seeded session onto a deterministic entropy ID so
+  # reruns keep reusing the same fixture instead of newer ad-hoc sessions.
+  defp find_legacy_live_session(host_id) do
+    from(live_session in LiveSession,
+      where: live_session.host_id == ^host_id and live_session.status in [:starting, :live],
+      order_by: [asc: live_session.inserted_at, asc: live_session.id],
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  defp ensure_live_session_entropy_id!(%LiveSession{entropy_id: entropy_id} = session, entropy_id),
+    do: session
+
+  defp ensure_live_session_entropy_id!(%LiveSession{} = session, entropy_id) do
+    session
+    |> Ecto.Changeset.change(%{entropy_id: entropy_id})
+    |> Repo.update()
+    |> case do
+      {:ok, %LiveSession{} = updated_session} ->
+        updated_session
+
+      {:error, reason} ->
+        raise "failed to assign seeded live session entropy_id for #{session.id}: #{inspect(reason)}"
+    end
+  end
+
+  # Ended live sessions are terminal, so rotate the old fixture key away
+  # before creating the replacement seeded session with the deterministic ID.
+  defp replace_seeded_live_session!(%User{} = host, %LiveSession{} = session, descriptor) do
+    _rotated_session = rotate_live_session_entropy_id!(session)
+
+    case Live.start_live_session(host, %{visibility: descriptor.visibility}) do
+      {:ok, %LiveSession{} = replacement_session} ->
+        ensure_live_session_entropy_id!(replacement_session, descriptor.entropy_id)
+
+      {:error, reason} ->
+        raise "failed to recreate seeded live session for #{host.email}: #{inspect(reason)}"
+    end
+  end
+
+  defp rotate_live_session_entropy_id!(%LiveSession{id: session_id}) when is_integer(session_id) do
+    {updated_count, _rows} =
+      from(live_session in LiveSession,
+        where: live_session.id == ^session_id,
+        update: [set: [entropy_id: fragment("uuidv7()")]]
+      )
+      |> Repo.update_all([])
+
+    case {updated_count, Repo.get(LiveSession, session_id)} do
+      {1, %LiveSession{} = updated_session} ->
+        updated_session
+
+      {_updated_count, _session} ->
+        raise "failed to rotate seeded live session entropy_id for #{session_id}"
+    end
+  end
+
+  defp normalize_live_session_visibility!(%LiveSession{visibility: visibility} = session, visibility),
+    do: session
+
+  defp normalize_live_session_visibility!(%LiveSession{} = session, visibility) do
+    session
+    |> Ecto.Changeset.change(%{visibility: visibility})
+    |> Repo.update()
+    |> case do
+      {:ok, %LiveSession{} = updated_session} ->
+        updated_session
+
+      {:error, reason} ->
+        raise "failed to normalize seeded live session #{session.id}: #{inspect(reason)}"
+    end
+  end
+
+  defp ensure_live_session_live!(%LiveSession{status: :live} = session), do: session
+
+  defp ensure_live_session_live!(%LiveSession{} = session) do
+    case Live.mark_session_live(session) do
+      {:ok, %LiveSession{} = live_session} ->
+        live_session
+
+      {:error, reason} ->
+        raise "failed to mark seeded live session #{session.id} live: #{inspect(reason)}"
     end
   end
 
