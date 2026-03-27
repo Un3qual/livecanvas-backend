@@ -288,8 +288,13 @@ defmodule LCWeb.LiveSessionChannel do
     viewer_id = socket_viewer_id(socket)
 
     observability_context =
-      socket.assigns
-      |> Map.get(:observability_context, ObservabilityContext.build_socket_context(%{}, viewer_id))
+      case socket.assigns do
+        %{observability_context: existing_context} ->
+          existing_context
+
+        _assigns ->
+          ObservabilityContext.build_socket_context(%{}, viewer_id)
+      end
       |> ObservabilityContext.put_viewer_context(viewer_id)
 
     Logger.metadata(ObservabilityContext.logger_metadata(observability_context))

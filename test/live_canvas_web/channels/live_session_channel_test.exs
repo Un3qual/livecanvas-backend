@@ -764,6 +764,44 @@ defmodule LCWeb.LiveSessionChannelTest do
                     }}
   end
 
+  test "chat send does not regenerate correlation ids when the socket already has observability context" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    socket =
+      connected_socket_for(viewer, %{
+        "request_id" => "socket-request-id-1234567890",
+        "trace_id" => String.duplicate("d", 32)
+      })
+
+    assert {:ok, _join_payload, joined_socket} =
+             subscribe_and_join(
+               socket,
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    channel_pid = joined_socket.channel_pid
+
+    :erlang.trace_pattern({:crypto, :strong_rand_bytes, 1}, true, [:local])
+    :erlang.trace(channel_pid, true, [:call])
+
+    on_exit(fn ->
+      if Process.alive?(channel_pid) do
+        :erlang.trace(channel_pid, false, [:call])
+      end
+
+      :erlang.trace_pattern({:crypto, :strong_rand_bytes, 1}, false, [:local])
+    end)
+
+    ref = push(joined_socket, "chat:send", %{"body" => "no new ids"})
+
+    assert_reply ref, :ok, %{message: %{body: "no new ids"}}
+
+    refute_receive {:trace, ^channel_pid, :call, {:crypto, :strong_rand_bytes, [_]}}, 50
+  end
+
   test "disconnect marks participant left and prunes runtime membership" do
     Process.flag(:trap_exit, true)
 
