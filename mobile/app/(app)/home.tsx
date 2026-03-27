@@ -1,20 +1,35 @@
-import { Link } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
+
+import { AppButton } from '../../src/components/AppButton';
+import { AppHeader } from '../../src/components/AppHeader';
+import { useAppTheme } from '../../src/providers/ThemeProvider';
+import { spacing } from '../../src/theme/tokens';
 
 export default function HomeScreen() {
+  const theme = useAppTheme();
+  const router = useRouter();
+
   return (
-    <View style={styles.screen}>
-      <Text style={styles.kicker}>Authenticated shell</Text>
-      <Text style={styles.title}>Home</Text>
-      <Text style={styles.body}>
-        The app group will hold the durable signed-in experience.
-      </Text>
-      <Link href="/profile" style={styles.link}>
-        Open profile
-      </Link>
-      <Link href="/live-session" style={styles.link}>
-        Open live session modal
-      </Link>
+    <View
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+    >
+      <AppHeader
+        eyebrow="Authenticated shell"
+        title="Home"
+        subtitle="The app group will hold the durable signed-in experience."
+      />
+      <View style={styles.actions}>
+        <AppButton
+          label="Open profile"
+          onPress={() => router.push('/profile')}
+        />
+        <AppButton
+          label="Open live session modal"
+          variant="secondary"
+          onPress={() => router.push('/live-session')}
+        />
+      </View>
     </View>
   );
 }
@@ -24,32 +39,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    gap: 12,
-    backgroundColor: '#f8fafc',
+    padding: spacing.lg,
+    gap: spacing.lg,
   },
-  kicker: {
-    fontSize: 12,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-    color: '#6b7280',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  body: {
+  actions: {
+    gap: spacing.sm,
+    width: '100%',
     maxWidth: 320,
-    textAlign: 'center',
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#374151',
-  },
-  link: {
-    marginTop: 8,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2563eb',
   },
 });

@@ -5,6 +5,9 @@ import {
   type PropsWithChildren,
 } from 'react';
 
+import { colors } from '../theme/colors';
+import { spacing, radius } from '../theme/tokens';
+
 export type AppTheme = {
   colors: {
     background: string;
@@ -13,7 +16,10 @@ export type AppTheme = {
     text: string;
     textMuted: string;
     accent: string;
+    accentText: string;
     border: string;
+    error: string;
+    errorMuted: string;
   };
   spacing: {
     xs: number;
@@ -23,6 +29,7 @@ export type AppTheme = {
     xl: number;
   };
   radius: {
+    sm: number;
     md: number;
     lg: number;
     pill: number;
@@ -30,27 +37,9 @@ export type AppTheme = {
 };
 
 const defaultTheme: AppTheme = {
-  colors: {
-    background: '#f4f7fb',
-    surface: '#ffffff',
-    surfaceMuted: '#e6eef8',
-    text: '#112033',
-    textMuted: '#5f7188',
-    accent: '#2563eb',
-    border: '#d7e1ee',
-  },
-  spacing: {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
-  },
-  radius: {
-    md: 14,
-    lg: 24,
-    pill: 999,
-  },
+  colors,
+  spacing,
+  radius,
 };
 
 const ThemeContext = createContext<AppTheme>(defaultTheme);
