@@ -9,13 +9,15 @@ defmodule LCGQL.Dataloader do
   @type request_context :: %{
           optional(:current_scope) => Accounts.Scope.t() | nil,
           optional(:auth_transport) => LCGQL.Context.auth_transport(),
-          optional(:auth_error) => LCGQL.Context.auth_error()
+          optional(:auth_error) => LCGQL.Context.auth_error(),
+          optional(:observability_context) => LCGQL.Context.observability_context()
         }
 
   @type source_context :: %{
           required(:current_scope) => Accounts.Scope.t() | nil,
           required(:auth_transport) => LCGQL.Context.auth_transport(),
           required(:auth_error) => LCGQL.Context.auth_error(),
+          required(:observability_context) => LCGQL.Context.observability_context(),
           required(:request_ref) => reference()
         }
   @type dataloader_result :: {:ok, term() | nil} | Absinthe.Resolution.Helpers.dataloader_tuple()
@@ -26,6 +28,7 @@ defmodule LCGQL.Dataloader do
       current_scope: Map.get(context, :current_scope),
       auth_transport: Map.get(context, :auth_transport, :none),
       auth_error: Map.get(context, :auth_error),
+      observability_context: Map.get(context, :observability_context),
       request_ref: make_ref()
     }
 

@@ -35,7 +35,7 @@ Verified directly in the current codebase before drafting this plan:
 
 - [x] Task 1: Add app-specific Telemetry metric definitions and focused tests
 - [x] Task 2: Add a gated metrics scrape surface and runtime configuration
-- [ ] Task 3: Add HTTP/GraphQL/channel correlation context plumbing
+- [x] Task 3: Add HTTP/GraphQL/channel correlation context plumbing
 - [ ] Task 4: Publish the observability contract, refresh roadmap tracking, and run final verification
 
 ### Task 1: Add App-Specific Telemetry Metric Definitions And Focused Tests
@@ -117,11 +117,11 @@ Expected: RED first, then GREEN after the route/auth/export wiring is in place.
 - Modify: `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add failing plug/context/channel tests proving requests and socket joins carry stable `request_id`/`trace_id` correlation data without leaking auth secrets
-- [ ] Step 2: Run focused observability-context tests to verify RED
-- [ ] Step 3: Implement correlation-ID generation/normalization, Logger metadata wiring, GraphQL context passthrough, and channel trace propagation
-- [ ] Step 4: Run focused observability-context tests to verify GREEN
-- [ ] Step 5: Run `mix compile` + `mix typecheck`, update checklist progress, and commit the correlation milestone
+- [x] Step 1: Add failing plug/context/channel tests proving requests and socket joins carry stable `request_id`/`trace_id` correlation data without leaking auth secrets
+- [x] Step 2: Run focused observability-context tests to verify RED
+- [x] Step 3: Implement correlation-ID generation/normalization, Logger metadata wiring, GraphQL context passthrough, and channel trace propagation
+- [x] Step 4: Run focused observability-context tests to verify GREEN
+- [x] Step 5: Run `mix compile` + `mix typecheck`, update checklist progress, and commit the correlation milestone
 
 **Task 3 behavior targets:**
 
