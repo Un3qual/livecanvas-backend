@@ -50,6 +50,31 @@ defmodule LCWeb.MetricsEndpointTest do
       assert response(conn, 200) =~ "live_canvas_live_session_start_count{"
       assert hd(get_resp_header(conn, "content-type")) =~ "text/plain"
     end
+
+    test "exports Prometheus-safe series for summary metrics", %{conn: conn} do
+      put_metrics_config(enabled: true, token: @valid_token)
+
+      _page_conn = get(conn, "/")
+
+      :telemetry.execute(
+        [:live_canvas, :live, :session, :start],
+        %{count: 1},
+        %{result: :ok, reason: :none}
+      )
+
+      conn =
+        conn
+        |> recycle()
+        |> put_req_header("authorization", "Bearer #{@valid_token}")
+        |> get("/ops/metrics")
+
+      metrics_body = response(conn, 200)
+
+      assert metrics_body =~ "phoenix_router_dispatch_stop_duration_bucket"
+
+      assert metrics_body =~
+               "live_canvas_live_session_start_count_summary_bucket"
+    end
   end
 
   defp put_metrics_config(overrides) do
