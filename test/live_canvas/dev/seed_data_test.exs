@@ -82,7 +82,10 @@ defmodule LC.Dev.SeedDataTest do
              |> Enum.filter(&(&1.visibility == :followers))
 
     {:ok, _updated_post} =
-      Content.update_user_post(creator, followers_only_post.id, %{visibility: :public})
+      Content.update_user_post(creator, followers_only_post.id, %{
+        body_text: "Locally edited seeded post body.",
+        visibility: :public
+      })
 
     assert [%LiveSession{} = live_session] = Feed.live_now(viewer)
 

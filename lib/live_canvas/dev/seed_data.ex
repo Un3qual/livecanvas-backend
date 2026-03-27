@@ -27,18 +27,21 @@ defmodule LC.Dev.SeedData do
   @post_descriptors [
     %{
       author_key: :creator,
+      entropy_id: "0195df10-88b8-7d07-8dd9-000000000001",
       body_text: "Public studio check-in from the seeded creator account.",
       kind: :standard,
       visibility: :public
     },
     %{
       author_key: :creator,
+      entropy_id: "0195df10-88b8-7d07-8dd9-000000000002",
       body_text: "Followers-only lighting notes from the seeded creator account.",
       kind: :standard,
       visibility: :followers
     },
     %{
       author_key: :host,
+      entropy_id: "0195df10-88b8-7d07-8dd9-000000000003",
       body_text: "Host is warming up the camera rig for the seeded live session.",
       kind: :standard,
       visibility: :public
@@ -155,32 +158,65 @@ defmodule LC.Dev.SeedData do
       nil ->
         case Content.create_post(author, Map.take(descriptor, [:body_text, :kind, :visibility])) do
           {:ok, %Post{} = post} ->
-            post
+            ensure_post_entropy_id!(post, descriptor.entropy_id)
 
           {:error, reason} ->
             raise "failed to seed post for #{author.email}: #{inspect(reason)}"
         end
 
       %Post{} = post ->
-        case Content.update_user_post(author, post.id, %{
-               body_text: descriptor.body_text,
-               visibility: descriptor.visibility
-             }) do
-          {:ok, %Post{} = updated_post} ->
-            updated_post
-
-          {:error, reason} ->
-            raise "failed to normalize seeded post for #{author.email}: #{inspect(reason)}"
-        end
+        post
+        |> ensure_post_entropy_id!(descriptor.entropy_id)
+        |> normalize_post!(author, descriptor)
     end
   end
 
-  defp find_post(%User{id: author_id}, %{body_text: body_text, kind: kind}) do
+  defp normalize_post!(%Post{} = post, %User{} = author, descriptor) do
+    case Content.update_user_post(author, post.id, %{
+           body_text: descriptor.body_text,
+           visibility: descriptor.visibility
+         }) do
+      {:ok, %Post{} = updated_post} ->
+        updated_post
+
+      {:error, reason} ->
+        raise "failed to normalize seeded post for #{author.email}: #{inspect(reason)}"
+    end
+  end
+
+  defp find_post(%User{id: author_id}, %{entropy_id: entropy_id} = descriptor) do
+    case Repo.get_by(Post, author_id: author_id, entropy_id: entropy_id) do
+      %Post{} = post ->
+        post
+
+      nil ->
+        find_legacy_post(author_id, descriptor)
+    end
+  end
+
+  # Backfill pre-review seeded rows onto deterministic entropy IDs so future
+  # reruns can find them even after local body-text edits.
+  defp find_legacy_post(author_id, %{body_text: body_text, kind: kind}) do
     from(post in Post,
       where: post.author_id == ^author_id and post.body_text == ^body_text and post.kind == ^kind,
       limit: 1
     )
     |> Repo.one()
+  end
+
+  defp ensure_post_entropy_id!(%Post{entropy_id: entropy_id} = post, entropy_id), do: post
+
+  defp ensure_post_entropy_id!(%Post{} = post, entropy_id) do
+    post
+    |> Ecto.Changeset.change(%{entropy_id: entropy_id})
+    |> Repo.update()
+    |> case do
+      {:ok, %Post{} = updated_post} ->
+        updated_post
+
+      {:error, reason} ->
+        raise "failed to assign seeded post entropy_id for post #{post.id}: #{inspect(reason)}"
+    end
   end
 
   defp seed_live_session!(users_by_key) do
