@@ -12,25 +12,25 @@ Status: active for execution
 
 - Track: `release_observability_metrics_and_correlation`
 - Source: `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md`
-- Batch: `Task 1: Add app-specific Telemetry metric definitions and focused tests`
-- Why now: The roadmap's explicit planning holes are closed or paused, release rollout docs already exist, and the clearest remaining unpaused release gap is that emitted live/auth Telemetry is still not surfaced as exportable metrics with concrete operational coverage.
+- Batch: `Task 2: Add a gated metrics scrape surface and runtime configuration`
+- Why now: Task 1's metric catalog now exists with focused coverage, so the next unblocked release gap is exposing that shared catalog through an explicitly gated scrape surface operators can enable during rollout.
 
 ## Do This Now
 
-- Re-open `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md` and execute `Task 1` exactly as written.
-- Verify the immediate prerequisite still holds before editing: `LCWeb.Telemetry.metrics/0` has no app-specific `live_canvas` metrics yet.
+- Re-open `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md` and execute `Task 2` exactly as written.
+- Verify the immediate prerequisites still hold before editing: `mix.exs` still lacks a Prometheus-compatible telemetry exporter dependency, and `lib/live_canvas_web/router.ex` still exposes no gated `/metrics` or `/ops/metrics` scrape route.
 - Keep the work inside backend code and backend planning/release docs only.
 - Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` instead of editing those shared files directly.
 
 ## Verification Scope
 
 ```bash
-mix test test/live_canvas_web/telemetry_test.exs
+mix test test/live_canvas_web/controllers/metrics_endpoint_test.exs
 ```
 
 ## Next Up
 
-- `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md` -> `Task 2: Add a gated metrics scrape surface and runtime configuration`
+- `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md` -> `Task 3: Add HTTP/GraphQL/channel correlation context plumbing`
 
 ## Repair Conditions
 

@@ -2,6 +2,27 @@ defmodule LCWeb.Telemetry do
   use Supervisor
   import Telemetry.Metrics
 
+  @live_session_events [:start, :join, :end]
+  @live_channel_events [:join, :chat_send]
+  @auth_events [
+    :password_login_succeeded,
+    :password_login_failed,
+    :magic_link_login_succeeded,
+    :magic_link_login_failed,
+    :refresh_token_revoked,
+    :refresh_token_rotation_succeeded,
+    :refresh_token_rotation_failed,
+    :password_change_succeeded,
+    :password_change_failed,
+    :email_change_succeeded,
+    :email_change_failed,
+    :account_recovery_requested,
+    :account_recovery_succeeded,
+    :account_recovery_failed,
+    :provider_identity_unlink_succeeded,
+    :provider_identity_unlink_failed
+  ]
+
   @spec start_link(term()) :: Supervisor.on_start()
   def start_link(arg) do
     Supervisor.start_link(__MODULE__, arg, name: __MODULE__)
@@ -23,8 +44,14 @@ defmodule LCWeb.Telemetry do
 
   @spec metrics() :: [Telemetry.Metrics.t()]
   def metrics do
+    phoenix_metrics() ++
+      repo_metrics() ++
+      app_metrics() ++
+      vm_metrics()
+  end
+
+  defp phoenix_metrics do
     [
-      # Phoenix Metrics
       summary("phoenix.endpoint.start.system_time",
         unit: {:native, :millisecond}
       ),
@@ -53,9 +80,12 @@ defmodule LCWeb.Telemetry do
       summary("phoenix.channel_handled_in.duration",
         tags: [:event],
         unit: {:native, :millisecond}
-      ),
+      )
+    ]
+  end
 
-      # Database Metrics
+  defp repo_metrics do
+    [
       summary("live_canvas.repo.query.total_time",
         unit: {:native, :millisecond},
         description: "The sum of the other measurements"
@@ -76,15 +106,113 @@ defmodule LCWeb.Telemetry do
         unit: {:native, :millisecond},
         description:
           "The time the connection spent waiting before being checked out for the query"
-      ),
+      )
+    ]
+  end
 
-      # VM Metrics
+  defp app_metrics do
+    live_session_metrics() ++
+      live_channel_metrics() ++
+      auth_metrics()
+  end
+
+  defp live_session_metrics do
+    Enum.flat_map(@live_session_events, fn event_type ->
+      event_name = [:live_canvas, :live, :session, event_type]
+      metric_name = [:live_canvas, :live, :session, event_type, :count]
+      tags = [:event_type, :result, :reason]
+      tag_values = fn metadata -> live_result_tag_values(event_type, metadata) end
+
+      counter_and_summary_metrics(metric_name, event_name, tags, tag_values)
+    end)
+  end
+
+  defp live_channel_metrics do
+    Enum.flat_map(@live_channel_events, fn event_type ->
+      event_name = [:live_canvas, :live, :channel, event_type]
+      metric_name = [:live_canvas, :live, :channel, event_type, :count]
+      tags = [:event_type, :result, :reason]
+      tag_values = fn metadata -> live_result_tag_values(event_type, metadata) end
+
+      counter_and_summary_metrics(metric_name, event_name, tags, tag_values)
+    end)
+  end
+
+  defp auth_metrics do
+    Enum.flat_map(@auth_events, fn event_type ->
+      event_name = [:live_canvas, :accounts, :auth, event_type]
+      metric_name = [:live_canvas, :accounts, :auth, event_type, :count]
+      tags = [:event_type, :result, :reason, :audit_persisted]
+      tag_values = fn metadata -> auth_tag_values(event_type, metadata) end
+
+      counter_and_summary_metrics(metric_name, event_name, tags, tag_values)
+    end)
+  end
+
+  defp vm_metrics do
+    [
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
       summary("vm.total_run_queue_lengths.total"),
       summary("vm.total_run_queue_lengths.cpu"),
       summary("vm.total_run_queue_lengths.io")
     ]
   end
+
+  defp counter_and_summary_metrics(metric_name, event_name, tags, tag_values) do
+    [
+      counter(metric_name,
+        event_name: event_name,
+        measurement: :count,
+        tags: tags,
+        tag_values: tag_values
+      ),
+      summary(metric_name ++ [:summary],
+        event_name: event_name,
+        measurement: :count,
+        tags: tags,
+        tag_values: tag_values
+      )
+    ]
+  end
+
+  # Metric tag values stay intentionally low-cardinality so the Task 2 exporter
+  # can expose them safely without leaking request payloads or identifiers.
+  defp live_result_tag_values(event_type, metadata) when is_atom(event_type) and is_map(metadata) do
+    %{
+      event_type: event_type,
+      result: Map.get(metadata, :result, :unknown),
+      reason: Map.get(metadata, :reason, :none)
+    }
+  end
+
+  defp auth_tag_values(event_type, metadata) when is_atom(event_type) and is_map(metadata) do
+    result = auth_result_tag(event_type)
+
+    %{
+      event_type: event_type,
+      result: result,
+      reason: auth_reason_tag(result, metadata),
+      audit_persisted: Map.get(metadata, :audit_persisted, :unknown)
+    }
+  end
+
+  defp auth_result_tag(event_type) when is_atom(event_type) do
+    event_type
+    |> Atom.to_string()
+    |> String.ends_with?("_failed")
+    |> case do
+      true -> :error
+      false -> :ok
+    end
+  end
+
+  defp auth_reason_tag(:ok, _metadata), do: :none
+
+  defp auth_reason_tag(:error, %{metadata: %{"reason" => reason}})
+       when is_binary(reason) and byte_size(reason) > 0,
+       do: reason
+
+  defp auth_reason_tag(:error, _metadata), do: :unknown
 
   defp periodic_measurements do
     [
