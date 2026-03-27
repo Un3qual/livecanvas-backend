@@ -29,7 +29,7 @@ Verified directly in the codebase before drafting this plan:
 
 - [x] Task 1: Choose the routing model and define the top-level route groups
 - [x] Task 2: Build the global provider stack and startup flow
-- [ ] Task 3: Add shell-level layout primitives and entry screens
+- [x] Task 3: Add shell-level layout primitives and entry screens
 - [ ] Task 4: Verify the shell slice and advance the mobile planning pointers
 
 ### Task 1: Choose The Routing Model And Define The Top-Level Route Groups
@@ -115,10 +115,10 @@ Expected: PASS.
 - Modify: `mobile/app/(app)/index.tsx`
 
 **Task 3 Step Progress:**
-- [ ] Step 1: Add the minimal shared shell components needed by the root routes, keeping them intentionally generic
-- [ ] Step 2: Define a small visual baseline for light theme, spacing, and touch targets that matches the media-heavy product direction
-- [ ] Step 3: Wire the initial entry screens to the shell primitives so the route topology is visible and testable
-- [ ] Step 4: Verify the generated structure renders cleanly from the flake-managed Expo shell
+- [x] Step 1: Add the minimal shared shell components needed by the root routes, keeping them intentionally generic
+- [x] Step 2: Define a small visual baseline for light theme, spacing, and touch targets that matches the media-heavy product direction
+- [x] Step 3: Wire the initial entry screens to the shell primitives so the route topology is visible and testable
+- [x] Step 4: Verify the generated structure renders cleanly from the flake-managed Expo shell
 
 **Task 3 behavior targets:**
 

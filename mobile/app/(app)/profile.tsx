@@ -1,13 +1,24 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+
+import { AppCard } from '../../src/components/AppCard';
+import { AppHeader } from '../../src/components/AppHeader';
+import { useAppTheme } from '../../src/providers/ThemeProvider';
+import { spacing } from '../../src/theme/tokens';
 
 export default function ProfileScreen() {
+  const theme = useAppTheme();
+
   return (
-    <View style={styles.screen}>
-      <Text style={styles.kicker}>Profile entry</Text>
-      <Text style={styles.title}>Profile</Text>
-      <Text style={styles.body}>
-        This route will become the signed-in profile surface.
-      </Text>
+    <View
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+    >
+      <AppCard>
+        <AppHeader
+          eyebrow="Profile entry"
+          title="Profile"
+          subtitle="This route will become the signed-in profile surface."
+        />
+      </AppCard>
     </View>
   );
 }
@@ -17,26 +28,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    gap: 12,
-    backgroundColor: '#f8fafc',
-  },
-  kicker: {
-    fontSize: 12,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-    color: '#6b7280',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  body: {
-    maxWidth: 320,
-    textAlign: 'center',
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#374151',
+    padding: spacing.lg,
   },
 });

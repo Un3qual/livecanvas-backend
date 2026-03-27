@@ -1,17 +1,31 @@
-import { Link } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
+
+import { AppButton } from '../../src/components/AppButton';
+import { AppCard } from '../../src/components/AppCard';
+import { AppHeader } from '../../src/components/AppHeader';
+import { useAppTheme } from '../../src/providers/ThemeProvider';
+import { spacing } from '../../src/theme/tokens';
 
 export default function SignInScreen() {
+  const theme = useAppTheme();
+  const router = useRouter();
+
   return (
-    <View style={styles.screen}>
-      <Text style={styles.kicker}>Unauthenticated entry</Text>
-      <Text style={styles.title}>Sign in</Text>
-      <Text style={styles.body}>
-        This route group is the entry point for future auth flows.
-      </Text>
-      <Link href="/home" style={styles.link}>
-        Continue to the app shell
-      </Link>
+    <View style={[styles.screen, { backgroundColor: theme.colors.surface }]}>
+      <AppCard>
+        <AppHeader
+          eyebrow="Unauthenticated entry"
+          title="Sign in"
+          subtitle="This route group is the entry point for future auth flows."
+        />
+        <View style={styles.actions}>
+          <AppButton
+            label="Continue to the app shell"
+            onPress={() => router.push('/home')}
+          />
+        </View>
+      </AppCard>
     </View>
   );
 }
@@ -21,32 +35,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    gap: 12,
-    backgroundColor: '#ffffff',
+    padding: spacing.lg,
   },
-  kicker: {
-    fontSize: 12,
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
-    color: '#6b7280',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  body: {
-    maxWidth: 320,
-    textAlign: 'center',
-    fontSize: 16,
-    lineHeight: 22,
-    color: '#374151',
-  },
-  link: {
-    marginTop: 8,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2563eb',
+  actions: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
   },
 });
