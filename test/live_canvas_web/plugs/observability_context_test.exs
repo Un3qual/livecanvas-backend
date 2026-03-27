@@ -49,4 +49,23 @@ defmodule LCWeb.Plugs.ObservabilityContextTest do
       assert get_resp_header(conn, "x-trace-id") == [@trace_id]
     end
   end
+
+  describe "build_socket_context/2" do
+    test "replaces unsafe client-provided request ids before they reach logger metadata" do
+      malicious_request_id = "socket-request-id-123\nmalicious"
+
+      context =
+        ObservabilityContext.build_socket_context(
+          %{"request_id" => malicious_request_id, "trace_id" => @trace_id},
+          42
+        )
+
+      assert context.trace_id == @trace_id
+      assert context.viewer_id == 42
+      assert context.live_session_id == nil
+      assert context.request_id =~ ~r/\A[A-Za-z0-9_-]{20,200}\z/
+      refute context.request_id == malicious_request_id
+      refute context.request_id =~ "\n"
+    end
+  end
 end

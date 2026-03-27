@@ -11,6 +11,7 @@ defmodule LCWeb.Plugs.ObservabilityContext do
   @trace_id_header "x-trace-id"
   @generated_request_id_bytes 15
   @generated_trace_id_bytes 16
+  @safe_request_id ~r/\A[A-Za-z0-9_-]{20,200}\z/
 
   @type context :: %{
           request_id: String.t(),
@@ -122,7 +123,7 @@ defmodule LCWeb.Plugs.ObservabilityContext do
   defp normalize_request_id(value) when is_binary(value) do
     normalized = String.trim(value)
 
-    if byte_size(normalized) in 20..200 do
+    if Regex.match?(@safe_request_id, normalized) do
       {:ok, normalized}
     else
       :error
