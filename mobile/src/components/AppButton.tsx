@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useAppTheme } from '../providers/ThemeProvider';
 import { typography, spacing, radius, touchTarget } from '../theme/tokens';
@@ -7,7 +7,7 @@ type AppButtonProps = {
   label: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary';
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 };
 
 /**
