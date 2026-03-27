@@ -48,6 +48,24 @@ defmodule LCWeb.Plugs.ObservabilityContextTest do
 
       assert get_resp_header(conn, "x-trace-id") == [@trace_id]
     end
+
+    test "replaces unsafe canonical request ids on the conn and response header" do
+      invalid_request_id = "invalid+request+id+123"
+
+      conn =
+        :get
+        |> conn("/")
+        |> put_req_header("x-request-id", invalid_request_id)
+        |> Plug.RequestId.call(Plug.RequestId.init(assign_as: :request_id))
+        |> ObservabilityContext.call([])
+
+      sanitized_request_id = conn.assigns.request_id
+
+      assert sanitized_request_id =~ ~r/\A[A-Za-z0-9_-]{20,200}\z/
+      refute sanitized_request_id == invalid_request_id
+      assert conn.assigns.observability_context.request_id == sanitized_request_id
+      assert get_resp_header(conn, "x-request-id") == [sanitized_request_id]
+    end
   end
 
   describe "build_socket_context/2" do

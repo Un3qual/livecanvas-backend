@@ -32,7 +32,9 @@ defmodule LCWeb.Plugs.ObservabilityContext do
     Logger.metadata(logger_metadata(context))
 
     conn
+    |> assign(:request_id, context.request_id)
     |> assign(:observability_context, context)
+    |> put_resp_header(@request_id_header, context.request_id)
     |> put_resp_header(@trace_id_header, context.trace_id)
   end
 
