@@ -3,7 +3,9 @@ defmodule LCGQL.Context do
 
   @behaviour Plug
 
-  import Plug.Conn, only: [fetch_session: 1, get_req_header: 2, get_session: 2]
+  import Plug.Conn, only: [assign: 3, fetch_session: 1, get_req_header: 2, get_session: 2]
+
+  require Logger
 
   alias LC.Accounts
   alias LCGQL.Dataloader
@@ -11,6 +13,12 @@ defmodule LCGQL.Context do
   @type conn :: Plug.Conn.t()
   @type auth_transport :: :bearer | :session | :none
   @type auth_error :: Accounts.access_token_auth_error() | nil
+  @type observability_context :: %{
+          request_id: String.t(),
+          trace_id: String.t(),
+          viewer_id: pos_integer() | nil,
+          live_session_id: pos_integer() | nil
+        }
   @type auth_metadata :: %{transport: auth_transport(), error: auth_error()}
   @type scope_auth_result :: {Accounts.Scope.t() | nil, auth_metadata()}
 
@@ -23,19 +31,26 @@ defmodule LCGQL.Context do
   def call(conn, _opts) do
     conn = fetch_session(conn)
     {scope, auth_metadata} = scope_from_request(conn)
+    observability_context = observability_context(conn, scope)
 
     loader =
       Dataloader.new(%{
         current_scope: scope,
         auth_transport: auth_metadata.transport,
-        auth_error: auth_metadata.error
+        auth_error: auth_metadata.error,
+        observability_context: observability_context
       })
 
-    Absinthe.Plug.put_options(conn,
+    Logger.metadata(observability_logger_metadata(observability_context))
+
+    conn
+    |> assign(:observability_context, observability_context)
+    |> Absinthe.Plug.put_options(
       context: %{
         current_scope: scope,
         auth_transport: auth_metadata.transport,
         auth_error: auth_metadata.error,
+        observability_context: observability_context,
         loader: loader
       }
     )
@@ -105,5 +120,34 @@ defmodule LCGQL.Context do
       _ ->
         :malformed
     end
+  end
+
+  @spec observability_context(conn(), Accounts.Scope.t() | nil) :: observability_context()
+  defp observability_context(conn, scope) do
+    conn.assigns
+    |> Map.get(:observability_context, base_observability_context(conn))
+    |> Map.put(:viewer_id, viewer_id_from_scope(scope))
+  end
+
+  @spec base_observability_context(conn()) :: observability_context()
+  defp base_observability_context(conn) do
+    %{
+      request_id: conn.assigns[:request_id],
+      trace_id: List.first(Plug.Conn.get_resp_header(conn, "x-trace-id")),
+      viewer_id: nil,
+      live_session_id: nil
+    }
+  end
+
+  @spec viewer_id_from_scope(Accounts.Scope.t() | nil) :: pos_integer() | nil
+  defp viewer_id_from_scope(%{user: %{id: user_id}}) when is_integer(user_id), do: user_id
+
+  defp viewer_id_from_scope(_scope), do: nil
+
+  @spec observability_logger_metadata(observability_context()) :: keyword()
+  defp observability_logger_metadata(observability_context) when is_map(observability_context) do
+    observability_context
+    |> Map.take([:request_id, :trace_id, :viewer_id, :live_session_id])
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
   end
 end

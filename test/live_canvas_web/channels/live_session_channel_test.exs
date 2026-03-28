@@ -712,6 +712,96 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert user_id == viewer.id
   end
 
+  test "join and chat telemetry include request and trace correlation metadata from the socket" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    request_id = "socket-request-id-1234567890"
+    trace_id = String.duplicate("c", 32)
+    viewer_id = viewer.id
+    session_id = session.id
+
+    socket =
+      connected_socket_for(viewer, %{
+        "request_id" => request_id,
+        "trace_id" => trace_id
+      })
+
+    assert %{request_id: ^request_id, trace_id: ^trace_id, viewer_id: ^viewer_id} =
+             socket.assigns.observability_context
+
+    refute Map.has_key?(socket.assigns.observability_context, :token)
+
+    assert {:ok, _join_payload, joined_socket} =
+             subscribe_and_join(
+               socket,
+               LiveSessionChannel,
+               "live_session:#{session_id}"
+             )
+
+    assert %{live_session_id: ^session_id} = joined_socket.assigns.observability_context
+
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
+                    %{
+                      request_id: ^request_id,
+                      trace_id: ^trace_id,
+                      session_id: ^session_id,
+                      user_id: ^viewer_id,
+                      result: :ok
+                    }}
+
+    ref = push(joined_socket, "chat:send", %{"body" => "hello with trace"})
+
+    assert_reply ref, :ok, %{message: %{body: "hello with trace"}}
+
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
+                    %{
+                      request_id: ^request_id,
+                      trace_id: ^trace_id,
+                      session_id: ^session_id,
+                      user_id: ^viewer_id,
+                      result: :ok
+                    }}
+  end
+
+  test "chat send does not regenerate correlation ids when the socket already has observability context" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    socket =
+      connected_socket_for(viewer, %{
+        "request_id" => "socket-request-id-1234567890",
+        "trace_id" => String.duplicate("d", 32)
+      })
+
+    assert {:ok, _join_payload, joined_socket} =
+             subscribe_and_join(
+               socket,
+               LiveSessionChannel,
+               "live_session:#{session.id}"
+             )
+
+    channel_pid = joined_socket.channel_pid
+
+    :erlang.trace_pattern({:crypto, :strong_rand_bytes, 1}, true, [:local])
+    :erlang.trace(channel_pid, true, [:call])
+
+    on_exit(fn ->
+      if Process.alive?(channel_pid) do
+        :erlang.trace(channel_pid, false, [:call])
+      end
+
+      :erlang.trace_pattern({:crypto, :strong_rand_bytes, 1}, false, [:local])
+    end)
+
+    ref = push(joined_socket, "chat:send", %{"body" => "no new ids"})
+
+    assert_reply ref, :ok, %{message: %{body: "no new ids"}}
+
+    refute_receive {:trace, ^channel_pid, :call, {:crypto, :strong_rand_bytes, [_]}}, 50
+  end
+
   test "disconnect marks participant left and prunes runtime membership" do
     Process.flag(:trap_exit, true)
 
@@ -990,6 +1080,16 @@ defmodule LCWeb.LiveSessionChannelTest do
 
   defp socket_for(user) do
     socket(UserSocket, "user_socket:#{user.id}", %{current_user: user})
+  end
+
+  defp connected_socket_for(user, params) when is_map(params) do
+    token = Accounts.generate_user_session_token(user)
+    connect_params = Map.put(params, "token", token)
+
+    case UserSocket.connect(connect_params, socket(UserSocket, "user_socket:#{user.id}", %{}), %{}) do
+      {:ok, socket} -> socket
+      :error -> flunk("expected socket authentication to succeed")
+    end
   end
 
   defp configure_live_runtime_rpc(mode) when is_atom(mode) do

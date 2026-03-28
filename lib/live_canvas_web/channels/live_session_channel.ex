@@ -1,8 +1,11 @@
 defmodule LCWeb.LiveSessionChannel do
   use LCWeb, :channel
 
+  require Logger
+
   alias LC.{Chat, Live}
   alias LC.RateLimiter
+  alias LCWeb.Plugs.ObservabilityContext
   alias Phoenix.Socket.Broadcast
 
   @disconnect_event "disconnect"
@@ -15,6 +18,7 @@ defmodule LCWeb.LiveSessionChannel do
         _params,
         %Phoenix.Socket{assigns: %{current_user: %{id: user_id} = current_user}} = socket
       ) do
+    socket = ensure_observability_context(socket)
     session_id_hint = parse_session_id_hint(raw_session_id)
 
     result =
@@ -25,7 +29,10 @@ defmodule LCWeb.LiveSessionChannel do
            :ok <- Chat.authorize_join(current_user, live_session),
            {:ok, _participant} <- Live.join_live_session(live_session, current_user, :viewer),
            :ok <- subscribe_to_control_topics(session_id, user_id) do
-        joined_socket = assign(socket, :live_session, live_session)
+        joined_socket =
+          socket
+          |> assign(:live_session, live_session)
+          |> put_live_session_observability_context(session_id)
 
         :ok = broadcast_session_state(session_id, live_session)
 
@@ -39,7 +46,7 @@ defmodule LCWeb.LiveSessionChannel do
         :ok =
           emit_channel_telemetry(
             :join,
-            %{session_id: session_id, user_id: user_id},
+            socket_telemetry_metadata(joined_socket),
             {:ok, :joined}
           )
 
@@ -50,7 +57,7 @@ defmodule LCWeb.LiveSessionChannel do
         :ok =
           emit_channel_telemetry(
             :join,
-            %{session_id: session_id_hint, user_id: user_id},
+            Map.put(socket_telemetry_metadata(socket), :session_id, session_id_hint),
             {:error, reason}
           )
 
@@ -58,11 +65,13 @@ defmodule LCWeb.LiveSessionChannel do
     end
   end
 
-  def join("live_session:" <> raw_session_id, _params, _socket) do
+  def join("live_session:" <> raw_session_id, _params, socket) do
+    socket = ensure_observability_context(socket)
+
     :ok =
       emit_channel_telemetry(
         :join,
-        %{session_id: parse_session_id_hint(raw_session_id), user_id: nil},
+        Map.put(socket_telemetry_metadata(socket), :session_id, parse_session_id_hint(raw_session_id)),
         {:error, :not_authorized}
       )
 
@@ -96,6 +105,8 @@ defmodule LCWeb.LiveSessionChannel do
         } = socket
       )
       when is_binary(body) do
+    socket = ensure_observability_context(socket)
+
     result =
       with true <-
              (is_integer(user_id) && is_integer(live_session_id)) || {:error, :not_authorized},
@@ -110,7 +121,7 @@ defmodule LCWeb.LiveSessionChannel do
     :ok =
       emit_channel_telemetry(
         :chat_send,
-        %{session_id: live_session_id, user_id: user_id},
+        socket_telemetry_metadata(socket),
         result
       )
 
@@ -125,10 +136,12 @@ defmodule LCWeb.LiveSessionChannel do
   end
 
   def handle_in("chat:send", _payload, socket) do
+    socket = ensure_observability_context(socket)
+
     :ok =
       emit_channel_telemetry(
         :chat_send,
-        socket_identity_metadata(socket),
+        socket_telemetry_metadata(socket),
         {:error, :invalid_body}
       )
 
@@ -270,6 +283,45 @@ defmodule LCWeb.LiveSessionChannel do
   defp channel_reason(reason) when is_atom(reason), do: reason
   defp channel_reason(_reason), do: :unknown
 
+  @spec ensure_observability_context(Phoenix.Socket.t()) :: Phoenix.Socket.t()
+  defp ensure_observability_context(%Phoenix.Socket{} = socket) do
+    viewer_id = socket_viewer_id(socket)
+
+    observability_context =
+      case socket.assigns do
+        %{observability_context: existing_context} ->
+          existing_context
+
+        _assigns ->
+          ObservabilityContext.build_socket_context(%{}, viewer_id)
+      end
+      |> ObservabilityContext.put_viewer_context(viewer_id)
+
+    Logger.metadata(ObservabilityContext.logger_metadata(observability_context))
+
+    assign(socket, :observability_context, observability_context)
+  end
+
+  @spec put_live_session_observability_context(Phoenix.Socket.t(), pos_integer()) :: Phoenix.Socket.t()
+  defp put_live_session_observability_context(%Phoenix.Socket{} = socket, session_id)
+       when is_integer(session_id) do
+    observability_context =
+      socket.assigns
+      |> Map.fetch!(:observability_context)
+      |> ObservabilityContext.put_live_session_context(session_id)
+
+    Logger.metadata(ObservabilityContext.logger_metadata(observability_context))
+
+    assign(socket, :observability_context, observability_context)
+  end
+
+  @spec socket_viewer_id(Phoenix.Socket.t()) :: pos_integer() | nil
+  defp socket_viewer_id(%Phoenix.Socket{assigns: %{current_user: %{id: user_id}}})
+       when is_integer(user_id),
+       do: user_id
+
+  defp socket_viewer_id(_socket), do: nil
+
   @spec socket_identity_metadata(Phoenix.Socket.t()) :: %{
           session_id: pos_integer() | nil,
           user_id: pos_integer() | nil
@@ -281,7 +333,35 @@ defmodule LCWeb.LiveSessionChannel do
     %{session_id: live_session_id, user_id: user_id}
   end
 
+  defp socket_identity_metadata(%Phoenix.Socket{assigns: %{current_user: %{id: user_id}}})
+       when is_integer(user_id) do
+    %{session_id: nil, user_id: user_id}
+  end
+
   defp socket_identity_metadata(_socket), do: %{session_id: nil, user_id: nil}
+
+  @spec socket_telemetry_metadata(Phoenix.Socket.t()) :: %{
+          session_id: pos_integer() | nil,
+          user_id: pos_integer() | nil,
+          request_id: String.t() | nil,
+          trace_id: String.t() | nil
+        }
+  defp socket_telemetry_metadata(socket) do
+    Map.merge(socket_identity_metadata(socket), socket_observability_metadata(socket))
+  end
+
+  @spec socket_observability_metadata(Phoenix.Socket.t()) :: %{
+          request_id: String.t() | nil,
+          trace_id: String.t() | nil
+        }
+  defp socket_observability_metadata(%Phoenix.Socket{
+         assigns: %{observability_context: %{request_id: request_id, trace_id: trace_id}}
+       })
+       when is_binary(request_id) and is_binary(trace_id) do
+    %{request_id: request_id, trace_id: trace_id}
+  end
+
+  defp socket_observability_metadata(_socket), do: %{request_id: nil, trace_id: nil}
 
   @spec rate_limit_join(pos_integer()) :: :ok | {:error, :rate_limited}
   defp rate_limit_join(user_id) when is_integer(user_id) do
