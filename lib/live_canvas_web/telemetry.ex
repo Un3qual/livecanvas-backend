@@ -119,33 +119,33 @@ defmodule LCWeb.Telemetry do
   defp live_session_metrics do
     Enum.flat_map(@live_session_events, fn event_type ->
       event_name = [:live_canvas, :live, :session, event_type]
-      metric_name = [:live_canvas, :live, :session, event_type, :count]
+      metric_name = [:live_canvas, :live, :session, event_type, :total]
       tags = [:event_type, :result, :reason]
       tag_values = fn metadata -> live_result_tag_values(event_type, metadata) end
 
-      counter_and_summary_metrics(metric_name, event_name, tags, tag_values)
+      [counter_metric(metric_name, event_name, tags, tag_values)]
     end)
   end
 
   defp live_channel_metrics do
     Enum.flat_map(@live_channel_events, fn event_type ->
       event_name = [:live_canvas, :live, :channel, event_type]
-      metric_name = [:live_canvas, :live, :channel, event_type, :count]
+      metric_name = [:live_canvas, :live, :channel, event_type, :total]
       tags = [:event_type, :result, :reason]
       tag_values = fn metadata -> live_result_tag_values(event_type, metadata) end
 
-      counter_and_summary_metrics(metric_name, event_name, tags, tag_values)
+      [counter_metric(metric_name, event_name, tags, tag_values)]
     end)
   end
 
   defp auth_metrics do
     Enum.flat_map(@auth_events, fn event_type ->
       event_name = [:live_canvas, :accounts, :auth, event_type]
-      metric_name = [:live_canvas, :accounts, :auth, event_type, :count]
+      metric_name = [:live_canvas, :accounts, :auth, event_type, :total]
       tags = [:event_type, :result, :reason, :audit_persisted]
       tag_values = fn metadata -> auth_tag_values(event_type, metadata) end
 
-      counter_and_summary_metrics(metric_name, event_name, tags, tag_values)
+      [counter_metric(metric_name, event_name, tags, tag_values)]
     end)
   end
 
@@ -158,21 +158,13 @@ defmodule LCWeb.Telemetry do
     ]
   end
 
-  defp counter_and_summary_metrics(metric_name, event_name, tags, tag_values) do
-    [
-      counter(metric_name,
-        event_name: event_name,
-        measurement: :count,
-        tags: tags,
-        tag_values: tag_values
-      ),
-      summary(metric_name ++ [:summary],
-        event_name: event_name,
-        measurement: :count,
-        tags: tags,
-        tag_values: tag_values
-      )
-    ]
+  defp counter_metric(metric_name, event_name, tags, tag_values) do
+    counter(metric_name,
+      event_name: event_name,
+      measurement: :count,
+      tags: tags,
+      tag_values: tag_values
+    )
   end
 
   # Metric tag values stay intentionally low-cardinality so the Task 2 exporter
@@ -206,11 +198,25 @@ defmodule LCWeb.Telemetry do
     end
   end
 
+  @known_auth_reasons MapSet.new([
+    "already_revoked",
+    "expired_token",
+    "invalid_credentials",
+    "invalid_token",
+    "not_found",
+    "revoked_token",
+    "transaction_aborted",
+    "validation_failed"
+  ])
+
   defp auth_reason_tag(:ok, _metadata), do: :none
 
   defp auth_reason_tag(:error, %{metadata: %{"reason" => reason}})
-       when is_binary(reason) and byte_size(reason) > 0,
-       do: reason
+       when is_binary(reason) and byte_size(reason) > 0 do
+    if MapSet.member?(@known_auth_reasons, reason),
+      do: String.to_existing_atom(reason),
+      else: :other
+  end
 
   defp auth_reason_tag(:error, _metadata), do: :unknown
 

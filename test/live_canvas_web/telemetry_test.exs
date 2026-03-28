@@ -2,7 +2,7 @@ defmodule LCWeb.TelemetryTest do
   use ExUnit.Case, async: true
 
   alias LCWeb.Telemetry, as: WebTelemetry
-  alias Telemetry.Metrics.{Counter, Summary}
+  alias Telemetry.Metrics.Counter
 
   @existing_metric_names [
     [:phoenix, :endpoint, :start, :system_time],
@@ -39,11 +39,11 @@ defmodule LCWeb.TelemetryTest do
       assert Enum.all?(@existing_metric_names, &(&1 in metric_names))
     end
 
-    test "adds live session lifecycle counters and summaries with bounded tags" do
+    test "adds live session lifecycle counters with bounded tags" do
       metrics = WebTelemetry.metrics()
 
       for event_type <- @session_events do
-        metric_name = [:live_canvas, :live, :session, event_type, :count]
+        metric_name = [:live_canvas, :live, :session, event_type, :total]
         event_name = [:live_canvas, :live, :session, event_type]
         expected_tag_keys = [:event_type, :result, :reason]
         expected_tags = %{event_type: event_type, result: :ok, reason: :none}
@@ -57,20 +57,10 @@ defmodule LCWeb.TelemetryTest do
           expected_tags,
           %{result: :ok}
         )
-
-        assert_metric(
-          metrics,
-          Summary,
-          metric_name ++ [:summary],
-          event_name,
-          expected_tag_keys,
-          expected_tags,
-          %{result: :ok}
-        )
       end
     end
 
-    test "adds live channel counters and summaries with bounded tags" do
+    test "adds live channel counters with bounded tags" do
       metrics = WebTelemetry.metrics()
 
       for {event_type, sample_metadata, expected_tags} <- [
@@ -79,7 +69,7 @@ defmodule LCWeb.TelemetryTest do
             {:chat_send, %{result: :ok},
              %{event_type: :chat_send, result: :ok, reason: :none}}
           ] do
-        metric_name = [:live_canvas, :live, :channel, event_type, :count]
+        metric_name = [:live_canvas, :live, :channel, event_type, :total]
         event_name = [:live_canvas, :live, :channel, event_type]
         expected_tag_keys = [:event_type, :result, :reason]
 
@@ -92,24 +82,14 @@ defmodule LCWeb.TelemetryTest do
           expected_tags,
           sample_metadata
         )
-
-        assert_metric(
-          metrics,
-          Summary,
-          metric_name ++ [:summary],
-          event_name,
-          expected_tag_keys,
-          expected_tags,
-          sample_metadata
-        )
       end
     end
 
-    test "adds auth lifecycle counters and summaries with bounded tags" do
+    test "adds auth lifecycle counters with bounded tags" do
       metrics = WebTelemetry.metrics()
 
       for {event_type, result} <- @auth_events do
-        metric_name = [:live_canvas, :accounts, :auth, event_type, :count]
+        metric_name = [:live_canvas, :accounts, :auth, event_type, :total]
         event_name = [:live_canvas, :accounts, :auth, event_type]
 
         sample_metadata =
@@ -136,26 +116,12 @@ defmodule LCWeb.TelemetryTest do
           expected_tags,
           sample_metadata
         )
-
-        assert_metric(
-          metrics,
-          Summary,
-          metric_name ++ [:summary],
-          event_name,
-          expected_tag_keys,
-          expected_tags,
-          sample_metadata
-        )
       end
     end
   end
 
   defp auth_reason(:ok, _metadata), do: :none
-
-  defp auth_reason(:error, %{metadata: %{"reason" => reason}})
-       when is_binary(reason) and byte_size(reason) > 0,
-       do: reason
-
+  defp auth_reason(:error, %{metadata: %{"reason" => "invalid_credentials"}}), do: :invalid_credentials
   defp auth_reason(:error, _metadata), do: :unknown
 
   defp assert_metric(
