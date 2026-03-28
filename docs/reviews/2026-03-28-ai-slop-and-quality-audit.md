@@ -15,7 +15,7 @@ Repository audited: `Un3qual/livecanvas-backend`.
 ## Method
 
 - Read representative high-signal code and plan files.
-- Prioritized files with known risk factors (large modules, stubs, generated templates, plan-heavy docs).
+- Prioritize files with known risk factors (large modules, stubs, generated templates, plan-heavy docs).
 - Flagged only issues with concrete path+line evidence.
 - Distinguished true quality issues from acceptable scaffolding.
 
@@ -127,9 +127,13 @@ Repository audited: `Un3qual/livecanvas-backend`.
 
 4. **Reference docs with stale lane summaries**
    - Evidence:
-     - `docs/plans/README.md:21-23` does not match current backend lane pointer in `docs/plans/backend/NOW.md`.
+      - `docs/plans/README.md:21-23` does not match current backend lane pointer in `docs/plans/backend/NOW.md`.
+      - `docs/plans/README.md` still says the backend lane points to
+        `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 2`,
+        while `docs/plans/backend/NOW.md` points to
+        `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` -> `Task 1`.
    - Issue:
-     - Summary mismatch indicates plan-index drift.
+      - Summary mismatch indicates plan-index drift.
    - Risk:
      - New contributors may follow outdated pointers.
 
@@ -171,4 +175,3 @@ Repository audited: `Un3qual/livecanvas-backend`.
 - Reject plan content that includes model/tool invocation instructions.
 - Prefer one high-signal decision log over repeated “verification/progress” sections.
 - Treat repeated private helper patterns as refactor candidates once behavior is stable.
-
