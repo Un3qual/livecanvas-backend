@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
 Last reviewed: 2026-03-27
-Status: active for planning
+Status: active for execution
 
 ## Lane Scope
 
@@ -10,26 +10,28 @@ Status: active for planning
 
 ## Current Batch
 
-- Track: `release_roadmap_and_planning_holes`
-- Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Batch: `Create the next detailed backend implementation plan`
-- Why now: The observability metrics/correlation track is complete, so the backend lane returns to roadmap-driven planning to select and scope the next unblocked backend slice.
+- Track: `live_session_client_contract_stabilization`
+- Source: `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md`
+- Batch: `Task 1: Freeze the live-session GraphQL contract`
+- Why now: The codebase already exposes live-session GraphQL writes plus realtime channel events, but only auth/social and chat-history flows are published backend contracts. The next unblocked backend slice is to publish and pin the live-session contract that upcoming mobile live/realtime work will depend on.
 
 ## Do This Now
 
-- Review `docs/plans/2026-03-03-backend-release-readiness-roadmap.md` and the active backlog notes in `docs/plans/INDEX.md`.
-- Verify the highest-priority unblocked backend gap directly in code/docs before writing the next plan.
-- Create the next detailed backend implementation plan in the most specific backend docs folder that fits the work.
-- Point this lane file at the first executable batch from that new plan once the plan is ready.
-- Report any required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` instead of editing those shared files directly.
+- Use `docs/contracts/mobile-graphql-phase2.md`, `docs/contracts/mobile-graphql-chat-history.md`, and the live-session tests/code as the baseline for the missing live contract.
+- Add focused GraphQL coverage that freezes the supported live-session mobile surface before writing the new contract doc.
+- Write `docs/contracts/mobile-live-session-graphql.md` for the supported live-session reads and lifecycle mutations.
+- Keep any implementation drift fixes confined to the GraphQL adapter layer unless the tests prove a deeper bug.
+- Report required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` instead of editing those shared files directly.
 
 ## Verification Scope
 
-- Verify the candidate gap against the codebase before drafting the next plan; no fixed command set applies until the new batch is selected.
+- `mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
+- `mix compile`
+- `mix typecheck`
 
 ## Next Up
 
-- Once the next backend implementation plan is written, update this file to the first executable batch from that plan and tell the coordinator only if the shared dashboard/index no longer match.
+- `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` -> `Task 2: Publish the live-session realtime channel contract`
 
 ## Repair Conditions
 
