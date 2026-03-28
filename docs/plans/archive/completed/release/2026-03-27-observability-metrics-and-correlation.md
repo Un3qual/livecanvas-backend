@@ -36,7 +36,7 @@ Verified directly in the current codebase before drafting this plan:
 - [x] Task 1: Add app-specific Telemetry metric definitions and focused tests
 - [x] Task 2: Add a gated metrics scrape surface and runtime configuration
 - [x] Task 3: Add HTTP/GraphQL/channel correlation context plumbing
-- [ ] Task 4: Publish the observability contract, refresh roadmap tracking, and run final verification
+- [x] Task 4: Publish the observability contract, refresh roadmap tracking, and run final verification
 
 ### Task 1: Add App-Specific Telemetry Metric Definitions And Focused Tests
 
@@ -148,11 +148,24 @@ Expected: RED first, then GREEN after the new plug/context/channel plumbing land
 - Modify: `docs/plans/release/2026-03-27-observability-metrics-and-correlation.md`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Document the exported metric names, tag policy, enablement knobs, auth expectations, and correlation fields in a dedicated release runbook
-- [ ] Step 2: Update rollout/gate docs so dashboard and SLO checks reference concrete metrics and correlation fields instead of generic placeholders
-- [ ] Step 3: Update the release roadmap evidence notes so this Phase 5 gap is tracked accurately
-- [ ] Step 4: Run final verification (`mix compile`, focused observability tests, `mix typecheck`, and `mix release.gates --dry-run`)
-- [ ] Step 5: Mark tasks complete and commit the final observability milestone
+- [x] Step 1: Document the exported metric names, tag policy, enablement knobs, auth expectations, and correlation fields in a dedicated release runbook
+- [x] Step 2: Update rollout/gate docs so dashboard and SLO checks reference concrete metrics and correlation fields instead of generic placeholders
+- [x] Step 3: Update the release roadmap evidence notes so this Phase 5 gap is tracked accurately
+- [x] Step 4: Run final verification (`mix compile`, focused observability tests, `mix typecheck`, and `mix release.gates --dry-run`)
+- [x] Step 5: Mark tasks complete and commit the final observability milestone
+
+**Step 1-3 implementation notes (completed):**
+
+- Added `docs/release/observability-metrics.md` to publish the scrape endpoint contract, concrete metric families, label policy, rollout queries, and correlation-field expectations.
+- Updated `docs/release/deployment-gates.md` and `docs/release/staged-rollout.md` so release checks now cite explicit HTTP/live/auth metric families plus required correlation metadata instead of generic dashboard placeholders.
+- Refreshed `docs/plans/2026-03-03-backend-release-readiness-roadmap.md` so the Phase 5 observability gap is tracked as delivered with direct evidence links into the code, tests, and runbooks.
+
+**Step 4-5 verification run (2026-03-27):**
+
+- `mix test test/live_canvas_web/telemetry_test.exs test/live_canvas_web/controllers/metrics_endpoint_test.exs test/live_canvas_web/plugs/observability_context_test.exs test/live_canvas_gql/context_test.exs test/live_canvas_web/channels/live_session_channel_test.exs` -> PASS (`33 tests, 0 failures`)
+- `mix compile` -> PASS
+- `mix typecheck` -> PASS
+- `mix release.gates --dry-run` -> PASS
 
 **Task 4 verification command:**
 
