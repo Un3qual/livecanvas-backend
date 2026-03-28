@@ -1,7 +1,7 @@
 # Mobile Lane Execution
 
 Last reviewed: 2026-03-27
-Status: active for planning
+Status: active for execution
 
 ## Lane Scope
 
@@ -10,28 +10,34 @@ Status: active for planning
 
 ## Current Batch
 
-- Track: `mobile_foundations`
+- Track: `relay_auth_session`
 - Source: `docs/plans/mobile/TRACK.md`
-- Plan: none yet — create the next detailed plan
-- Batch: `Create the next detailed plan for Relay data layer, auth, and session lifecycle`
-- Why now: The app shell plan is fully complete (all four tasks green, tsc passes, no auth/Relay/channel leakage). The next slice in the recommended delivery order is Relay data layer and auth/session lifecycle (overview sections 2.1–2.2 and 3.1–3.3).
+- Plan: `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`
+- Batch: `Task 1: Add Relay dependencies, configure codegen, and wire the environment provider`
+- Why now: The Relay/auth/session plan is written and verified against backend contracts. Task 1 sets up the Relay codegen pipeline and environment provider — the foundation every subsequent task depends on.
 
 ## Do This Now
 
-- Review `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md` sections 2 and 3 for scope.
-- Review the backend GraphQL contracts in `docs/contracts/mobile-graphql-phase2.md` and `ARCHITECTURE.md` for the auth and data layer surfaces the mobile app will consume.
-- Create a new detailed implementation plan at `docs/plans/mobile/` covering Relay environment setup, authenticated network layer, auth provider integration, and session lifecycle.
-- Update this file to point at the new plan once it is written.
-- Keep the work inside `docs/plans/mobile/**`.
-- If the plan requires backend contract or schema changes not yet implemented, note them as dependencies rather than editing backend code.
+- Implement `Task 1` from `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`.
+- Install relay-runtime, react-relay, relay-compiler, graphql, and babel-plugin-relay.
+- Create `relay.config.js`, `src/relay/environment.ts`, and `src/relay/RelayEnvironmentProvider.tsx`.
+- Wire `RelayEnvironmentProvider` into `AppProviders` inside `StartupGate`.
+- Run the Relay compiler and `tsc --noEmit` to verify the pipeline works.
+- Keep the work inside `mobile/` and `docs/plans/mobile/**`.
+- Report any required coordinator updates in the completion summary.
 
 ## Verification Scope
 
-Planning batch — no code verification needed until the plan is approved and execution begins.
+```bash
+cd mobile
+XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec relay-compiler
+XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec tsc --noEmit
+```
 
 ## Next Up
 
-- Once the Relay/auth plan is written, advance this lane pointer to the first executable batch from that plan.
+- Task 2: Build secure token storage and the auth state provider.
+- Task 3: Build the authenticated network layer with token refresh and forced logout.
 
 ## Repair Conditions
 

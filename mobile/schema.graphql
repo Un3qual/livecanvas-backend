@@ -1,0 +1,900 @@
+schema {
+  mutation: RootMutationType
+  query: RootQueryType
+}
+
+type RootQueryType {
+  viewer: User
+  viewerDataExportRequests(after: String, first: Int!): DataExportRequestConnection
+  viewerContactMatches(after: String, first: Int!): ContactMatchConnection
+  post(id: ID!): Post
+  mediaAsset(id: ID!): MediaAsset
+  homeFeed(after: String, first: Int!): PostConnection
+  storyFeed(after: String, first: Int!): PostConnection
+  liveNow(after: String, first: Int!): LiveSessionConnection
+  replayFeed(after: String, first: Int!): LiveSessionConnection
+  relationshipState(creatorId: ID!): RelationshipState!
+  isMuted(creatorId: ID!): Boolean!
+  viewerPendingFollowRequests(after: String, first: Int!): FollowRequestConnection
+  node(
+    "The ID of an object."
+    id: ID!
+  ): Node
+}
+
+interface Node {
+  "The ID of the object."
+  id: ID!
+}
+
+type RootMutationType {
+  beginAuthChallenge(input: BeginAuthChallengeInput!): BeginAuthChallengePayload
+  signUp(input: SignUpInput!): SignUpPayload
+  logIn(input: LogInInput!): LogInPayload
+  registerWithEmail(input: RegisterWithEmailInput!): RegisterWithEmailPayload
+  attachUserPhoneNumber(input: AttachUserPhoneNumberInput!): AttachUserPhoneNumberPayload
+  updateViewerPrivacyMode(input: UpdateViewerPrivacyModeInput!): UpdateViewerPrivacyModePayload
+  requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload
+  resetPassword(input: ResetPasswordInput!): ResetPasswordPayload
+  unlinkViewerIdentity(input: UnlinkViewerIdentityInput!): UnlinkViewerIdentityPayload
+  requestViewerDataExport(input: RequestViewerDataExportInput!): RequestViewerDataExportPayload
+  requestViewerAccountDeletion(input: RequestViewerAccountDeletionInput!): RequestViewerAccountDeletionPayload
+  cancelViewerAccountDeletionRequest(input: CancelViewerAccountDeletionRequestInput!): CancelViewerAccountDeletionRequestPayload
+  upsertViewerContactEntry(input: UpsertViewerContactEntryInput!): UpsertViewerContactEntryPayload
+  deliverViewerContactInvite(input: DeliverViewerContactInviteInput!): DeliverViewerContactInvitePayload
+  issueViewerAuthTokens(input: IssueViewerAuthTokensInput!): IssueViewerAuthTokensPayload
+  refreshAuthTokens(input: RefreshAuthTokensInput!): RefreshAuthTokensPayload
+  revokeRefreshToken(input: RevokeRefreshTokenInput!): RevokeRefreshTokenPayload
+  removeLiveChatMessage(input: RemoveLiveChatMessageInput!): RemoveLiveChatMessagePayload
+  createPost(input: CreatePostInput!): CreatePostPayload
+  requestMediaUpload(input: RequestMediaUploadInput!): RequestMediaUploadPayload
+  updatePost(input: UpdatePostInput!): UpdatePostPayload
+  deletePost(input: DeletePostInput!): DeletePostPayload
+  startLiveSession(input: StartLiveSessionInput!): StartLiveSessionPayload
+  goLiveSession(input: GoLiveSessionInput!): GoLiveSessionPayload
+  joinLiveSession(input: JoinLiveSessionInput!): JoinLiveSessionPayload
+  leaveLiveSession(input: LeaveLiveSessionInput!): LeaveLiveSessionPayload
+  endLiveSession(input: EndLiveSessionInput!): EndLiveSessionPayload
+  followUser(input: FollowUserInput!): FollowUserPayload
+  acceptFollowRequest(input: AcceptFollowRequestInput!): AcceptFollowRequestPayload
+  declineFollowRequest(input: DeclineFollowRequestInput!): DeclineFollowRequestPayload
+  blockUser(input: BlockUserInput!): BlockUserPayload
+  muteUser(input: MuteUserInput!): MuteUserPayload
+  unmuteUser(input: UnmuteUserInput!): UnmuteUserPayload
+}
+
+input FollowUserInput {
+  followedId: ID!
+}
+
+type FollowUserPayload {
+  follow: SocialFollowPayload
+  errors: [SocialError!]!
+}
+
+input AcceptFollowRequestInput {
+  followerId: ID!
+}
+
+type AcceptFollowRequestPayload {
+  follow: SocialFollowPayload
+  errors: [SocialError!]!
+}
+
+input DeclineFollowRequestInput {
+  followerId: ID!
+}
+
+type DeclineFollowRequestPayload {
+  errors: [SocialError!]!
+}
+
+input BlockUserInput {
+  blockedId: ID!
+}
+
+type BlockUserPayload {
+  errors: [SocialError!]!
+}
+
+input MuteUserInput {
+  mutedId: ID!
+}
+
+type MuteUserPayload {
+  errors: [SocialError!]!
+}
+
+input UnmuteUserInput {
+  mutedId: ID!
+}
+
+type UnmuteUserPayload {
+  errors: [SocialError!]!
+}
+
+input StartLiveSessionInput {
+  visibility: LiveSessionVisibility
+}
+
+type StartLiveSessionPayload {
+  liveSession: LiveSession
+  errors: [UserError!]!
+}
+
+input GoLiveSessionInput {
+  liveSessionId: ID!
+}
+
+type GoLiveSessionPayload {
+  liveSession: LiveSession
+  errors: [UserError!]!
+}
+
+input JoinLiveSessionInput {
+  liveSessionId: ID!
+}
+
+type JoinLiveSessionPayload {
+  liveSession: LiveSession
+  errors: [UserError!]!
+}
+
+input LeaveLiveSessionInput {
+  liveSessionId: ID!
+}
+
+type LeaveLiveSessionPayload {
+  left: Boolean!
+  errors: [UserError!]!
+}
+
+input EndLiveSessionInput {
+  liveSessionId: ID!
+  recordingMediaAssetId: ID
+}
+
+type EndLiveSessionPayload {
+  liveSession: LiveSession
+  errors: [UserError!]!
+}
+
+input CreatePostInput {
+  kind: CreatePostKind!
+  bodyText: String
+  visibility: PostVisibility
+  mediaAssetIds: [ID!]
+}
+
+type CreatePostPayload {
+  post: Post
+  errors: [ContentError!]!
+}
+
+input RequestMediaUploadInput {
+  mimeType: String!
+}
+
+type RequestMediaUploadPayload {
+  mediaAsset: MediaAsset
+  signedUpload: SignedUpload
+  errors: [ContentError!]!
+}
+
+input UpdatePostInput {
+  postId: ID!
+  bodyText: String
+  visibility: PostVisibility
+}
+
+type UpdatePostPayload {
+  post: Post
+  errors: [ContentError!]!
+}
+
+input DeletePostInput {
+  postId: ID!
+}
+
+type DeletePostPayload {
+  deletedPostId: ID
+  errors: [ContentError!]!
+}
+
+input RemoveLiveChatMessageInput {
+  chatMessageId: ID!
+}
+
+type RemoveLiveChatMessagePayload {
+  chatMessage: ChatMessage
+  errors: [UserError!]!
+}
+
+input BeginAuthChallengeInput {
+  provider: AuthProvider!
+  purpose: AuthChallengePurpose!
+  magicLink: MagicLinkAuthInput
+  passkey: PasskeyAuthInput
+}
+
+type BeginAuthChallengePayload {
+  challenge: AuthChallenge
+  errors: [AuthError!]!
+}
+
+input SignUpInput {
+  provider: AuthProvider!
+  password: PasswordAuthInput
+  magicLink: MagicLinkAuthInput
+  oauth: OauthAuthInput
+  passkey: PasskeyAuthInput
+}
+
+type SignUpPayload {
+  accessToken: Token
+  refreshToken: Token
+  errors: [AuthError!]!
+}
+
+input LogInInput {
+  provider: AuthProvider!
+  password: PasswordAuthInput
+  magicLink: MagicLinkAuthInput
+  oauth: OauthAuthInput
+  passkey: PasskeyAuthInput
+}
+
+type LogInPayload {
+  accessToken: Token
+  refreshToken: Token
+  errors: [AuthError!]!
+}
+
+input RegisterWithEmailInput {
+  email: String!
+}
+
+type RegisterWithEmailPayload {
+  user: User
+  errors: [UserError!]!
+}
+
+input AttachUserPhoneNumberInput {
+  phoneNumber: String!
+}
+
+type AttachUserPhoneNumberPayload {
+  user: User
+  errors: [UserError!]!
+}
+
+input UpdateViewerPrivacyModeInput {
+  privacyMode: UserPrivacyMode!
+}
+
+type UpdateViewerPrivacyModePayload {
+  user: User
+  errors: [UserError!]!
+}
+
+input RequestPasswordResetInput {
+  email: String!
+}
+
+type RequestPasswordResetPayload {
+  errors: [UserError!]!
+}
+
+input ResetPasswordInput {
+  token: String!
+  password: String!
+  passwordConfirmation: String!
+}
+
+type ResetPasswordPayload {
+  reset: Boolean!
+  errors: [UserError!]!
+}
+
+input UnlinkViewerIdentityInput {
+  userIdentityId: ID!
+}
+
+type UnlinkViewerIdentityPayload {
+  userIdentity: UserIdentity
+  errors: [UserError!]!
+}
+
+input RequestViewerDataExportInput {
+  format: DataExportRequestFormat
+}
+
+type RequestViewerDataExportPayload {
+  dataExportRequest: DataExportRequest
+  errors: [UserError!]!
+}
+
+input RequestViewerAccountDeletionInput {
+  gracePeriodSeconds: Int
+}
+
+type RequestViewerAccountDeletionPayload {
+  accountDeletionRequest: AccountDeletionRequest
+  errors: [UserError!]!
+}
+
+input CancelViewerAccountDeletionRequestInput {
+  accountDeletionRequestId: ID!
+}
+
+type CancelViewerAccountDeletionRequestPayload {
+  accountDeletionRequest: AccountDeletionRequest
+  errors: [UserError!]!
+}
+
+input UpsertViewerContactEntryInput {
+  contactClientId: String!
+  contactName: String
+  birthday: String
+  emails: [String!]
+  phoneNumbers: [String!]
+}
+
+type UpsertViewerContactEntryPayload {
+  contactMatch: ContactMatch
+  errors: [UserError!]!
+}
+
+input DeliverViewerContactInviteInput {
+  recipient: String!
+}
+
+type DeliverViewerContactInvitePayload {
+  errors: [UserError!]!
+}
+
+input IssueViewerAuthTokensInput {
+  deviceInfo: DeviceInfoInput
+}
+
+type IssueViewerAuthTokensPayload {
+  accessToken: Token
+  refreshToken: Token
+  errors: [UserError!]!
+}
+
+input RefreshAuthTokensInput {
+  refreshToken: String!
+}
+
+type RefreshAuthTokensPayload {
+  accessToken: Token
+  refreshToken: Token
+  errors: [UserError!]!
+}
+
+input RevokeRefreshTokenInput {
+  refreshToken: String!
+}
+
+type RevokeRefreshTokenPayload {
+  revoked: Boolean!
+  errors: [UserError!]!
+}
+
+type FollowRequestConnection {
+  pageInfo: PageInfo!
+  edges: [FollowRequestEdge]
+}
+
+enum RelationshipState {
+  ACCEPTED
+  BLOCKED
+  NONE
+  PUBLIC
+  REQUESTED
+}
+
+enum FollowState {
+  REQUESTED
+  ACCEPTED
+}
+
+type SocialFollowPayload {
+  id: ID!
+  state: FollowState!
+}
+
+type FollowRequest implements Node {
+  "The ID of an object"
+  id: ID!
+
+  state: FollowState!
+
+  requestedAt: String!
+
+  follower: User!
+}
+
+type SocialError {
+  field: String
+  message: String!
+}
+
+type LiveSessionConnection {
+  pageInfo: PageInfo!
+  edges: [LiveSessionEdge]
+}
+
+type PostConnection {
+  pageInfo: PageInfo!
+  edges: [PostEdge]
+}
+
+enum LiveSessionStatus {
+  STARTING
+  LIVE
+  ENDED
+}
+
+enum LiveSessionVisibility {
+  FOLLOWERS
+  PUBLIC
+}
+
+type LiveSessionRecordingMediaAsset {
+  id: ID!
+  processingState: MediaProcessingState!
+  publicUrl: String
+}
+
+type LiveSession implements Node {
+  "The ID of an object"
+  id: ID!
+
+  status: LiveSessionStatus!
+
+  visibility: LiveSessionVisibility!
+
+  startedAt: String
+
+  endedAt: String
+
+  insertedAt: String!
+
+  host: User!
+
+  recordingMediaAsset: LiveSessionRecordingMediaAsset
+
+  chatMessages(after: String, first: Int, before: String, last: Int): ChatMessageConnection
+}
+
+enum PostKind {
+  STANDARD
+  STORY
+}
+
+enum CreatePostKind {
+  STANDARD
+  STORY
+}
+
+enum PostVisibility {
+  FOLLOWERS
+  PUBLIC
+}
+
+enum MediaProcessingState {
+  PENDING_UPLOAD
+  UPLOADED
+  PROCESSED
+  FAILED
+}
+
+enum UploadHttpMethod {
+  PUT
+  POST
+}
+
+type SignedUploadHeader {
+  name: String!
+  value: String!
+}
+
+type SignedUpload {
+  method: UploadHttpMethod!
+  url: String!
+  expiresAt: String!
+  headers: [SignedUploadHeader!]!
+}
+
+type PostMediaAsset {
+  id: ID!
+  mimeType: String!
+  processingState: MediaProcessingState!
+  publicUrl: String
+  insertedAt: String!
+}
+
+type Post implements Node {
+  "The ID of an object"
+  id: ID!
+
+  kind: PostKind!
+
+  bodyText: String
+
+  visibility: PostVisibility!
+
+  expiresAt: String
+
+  insertedAt: String!
+
+  author: User!
+
+  mediaAssets: [PostMediaAsset!]!
+}
+
+type MediaAsset implements Node {
+  "The ID of an object"
+  id: ID!
+
+  ownerId: ID!
+
+  storageKey: String!
+
+  mimeType: String!
+
+  processingState: MediaProcessingState!
+
+  publicUrl: String
+
+  insertedAt: String!
+}
+
+type ContentError {
+  field: String
+  message: String!
+}
+
+type ChatMessageConnection {
+  pageInfo: PageInfo!
+  edges: [ChatMessageEdge]
+}
+
+enum ChatMessageKind {
+  USER_MESSAGE
+  SYSTEM_EVENT
+}
+
+enum ChatMessageStatus {
+  ACTIVE
+  REMOVED
+}
+
+enum ChatSystemEventType {
+  MESSAGE_REMOVED
+  SESSION_ENDED
+  SESSION_LIVE
+}
+
+type ChatSystemEventDetails {
+  chatMessageId: ID
+  chatMessageEntropyId: String
+}
+
+type ChatMessage implements Node {
+  "The ID of an object"
+  id: ID!
+
+  body: String
+
+  kind: ChatMessageKind!
+
+  status: ChatMessageStatus!
+
+  systemEventType: ChatSystemEventType
+
+  systemEventDetails: ChatSystemEventDetails
+
+  moderatedAt: String
+
+  insertedAt: String!
+
+  sender: User
+}
+
+type UserConnection {
+  pageInfo: PageInfo!
+  edges: [UserEdge]
+}
+
+type UserIdentityConnection {
+  pageInfo: PageInfo!
+  edges: [UserIdentityEdge]
+}
+
+type ContactMatchConnection {
+  pageInfo: PageInfo!
+  edges: [ContactMatchEdge]
+}
+
+type DataExportRequestConnection {
+  pageInfo: PageInfo!
+  edges: [DataExportRequestEdge]
+}
+
+"Supported auth providers for generic signup, login, and challenge flows."
+enum AuthProvider {
+  PASSWORD
+  MAGIC_LINK
+  GOOGLE
+  APPLE
+  PASSKEY
+}
+
+enum AuthChallengePurpose {
+  SIGN_UP
+  LOG_IN
+}
+
+enum AuthErrorCode {
+  UNAUTHENTICATED
+  INVALID_INPUT
+  INVALID_CREDENTIALS
+  EMAIL_TAKEN
+  TOKEN_EXPIRED
+  TOKEN_REVOKED
+  UNSUPPORTED_PROVIDER
+  PROVIDER_VERIFICATION_FAILED
+  PASSKEY_VERIFICATION_FAILED
+}
+
+"List of supported OAuth providers for logging in."
+enum OauthProvider {
+  "Sign in with Apple"
+  APPLE
+
+  "Sign in with Google"
+  GOOGLE
+
+  "Log in with Instagram (not currently supported)"
+  INSTAGRAM
+
+  "Log in with Facebook (not currently supported)"
+  FACEBOOK
+
+  "Log in with Twitter (not currently supported)"
+  TWITTER
+}
+
+enum DataExportRequestStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum DataExportRequestFormat {
+  JSON
+}
+
+enum AccountDeletionRequestStatus {
+  PENDING
+  SCHEDULED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+enum UserPrivacyMode {
+  PRIVATE
+  PUBLIC
+}
+
+type User implements Node {
+  "The ID of an object"
+  id: ID!
+
+  email: String
+
+  privacyMode: UserPrivacyMode!
+
+  insertedAt: String!
+
+  posts(after: String, first: Int!): PostConnection
+
+  storyFeed(after: String, first: Int!): PostConnection
+
+  currentLiveSession: LiveSession
+
+  replayFeed(after: String, first: Int!): LiveSessionConnection
+
+  userIdentities(after: String, first: Int!): UserIdentityConnection
+
+  followers(after: String, first: Int!): UserConnection
+
+  following(after: String, first: Int!): UserConnection
+
+  freshAccessToken: Token
+
+  refreshToken: Token
+}
+
+type UserIdentity implements Node {
+  "The ID of an object"
+  id: ID!
+
+  provider: String!
+
+  authProvider: AuthProvider
+
+  oauthProvider: OauthProvider @deprecated(reason: "Use authProvider instead.")
+
+  uid: String!
+
+  user: User!
+
+  insertedAt: String!
+}
+
+type ContactMatch implements Node {
+  "The ID of an object"
+  id: ID!
+
+  contactName: String
+
+  birthday: String
+
+  matchedUsers: [User!]!
+}
+
+type DataExportRequest implements Node {
+  "The ID of an object"
+  id: ID!
+
+  status: DataExportRequestStatus!
+
+  format: DataExportRequestFormat!
+
+  requestedAt: String!
+
+  completedAt: String
+
+  failureReason: String
+}
+
+type AccountDeletionRequest implements Node {
+  "The ID of an object"
+  id: ID!
+
+  status: AccountDeletionRequestStatus!
+
+  requestedAt: String!
+
+  scheduledPurgeAt: String!
+
+  completedAt: String
+
+  failureReason: String
+}
+
+type Token {
+  serializedValue: String!
+  tokenVersion: Int!
+  expiresAt: String
+  insertedAt: String
+  updatedAt: String
+}
+
+type AuthChallenge {
+  provider: AuthProvider!
+  purpose: AuthChallengePurpose!
+  dispatched: Boolean!
+  challengeToken: String
+  payloadJson: String
+}
+
+input PasswordAuthInput {
+  email: String
+  password: String
+  passwordConfirmation: String
+}
+
+input MagicLinkAuthInput {
+  email: String
+  token: String
+}
+
+input OauthAuthInput {
+  idToken: String
+}
+
+input PasskeyAuthInput {
+  email: String
+  challengeToken: String
+  credentialId: String
+  clientDataJson: String
+  authenticatorData: String
+  signature: String
+  attestationObject: String
+  userHandle: String
+}
+
+input DeviceInfoInput {
+  deviceUniqueId: String
+  appVersion: String
+  systemVersion: String
+  carrier: String
+  deviceMfg: String
+  deviceModel: String
+  deviceName: String
+  systemName: String
+  clientLaunchCount: Int
+}
+
+type UserError {
+  field: String
+  message: String!
+}
+
+type AuthError {
+  field: String
+  code: AuthErrorCode!
+  message: String!
+}
+
+type PageInfo {
+  "When paginating backwards, are there more items?"
+  hasPreviousPage: Boolean!
+
+  "When paginating forwards, are there more items?"
+  hasNextPage: Boolean!
+
+  "When paginating backwards, the cursor to continue."
+  startCursor: String
+
+  "When paginating forwards, the cursor to continue."
+  endCursor: String
+}
+
+type DataExportRequestEdge {
+  node: DataExportRequest
+  cursor: String
+}
+
+type ContactMatchEdge {
+  node: ContactMatch
+  cursor: String
+}
+
+type UserIdentityEdge {
+  node: UserIdentity
+  cursor: String
+}
+
+type UserEdge {
+  node: User
+  cursor: String
+}
+
+type ChatMessageEdge {
+  node: ChatMessage
+  cursor: String
+}
+
+type PostEdge {
+  node: Post
+  cursor: String
+}
+
+type LiveSessionEdge {
+  node: LiveSession
+  cursor: String
+}
+
+type FollowRequestEdge {
+  node: FollowRequest
+  cursor: String
+}
