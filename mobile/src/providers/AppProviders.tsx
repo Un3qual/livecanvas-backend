@@ -5,6 +5,7 @@ import {
   resolveEnvironment,
   type AppEnvironment,
 } from '../config/environment';
+import { AuthProvider } from '../auth/AuthProvider';
 import { RelayEnvironmentProvider } from '../relay/RelayEnvironmentProvider';
 import { StartupGate } from './StartupGate';
 import { ThemeProvider } from './ThemeProvider';
@@ -16,8 +17,10 @@ export function AppProviders({ children }: PropsWithChildren) {
     <SafeAreaProvider>
       <ThemeProvider>
         <StartupGate environment={environment}>
-          {/* Keep future auth/channel providers outside the router tree seam. */}
-          <RelayEnvironmentProvider>{children}</RelayEnvironmentProvider>
+          {/* Keep future channel providers outside the router tree seam. */}
+          <AuthProvider>
+            <RelayEnvironmentProvider>{children}</RelayEnvironmentProvider>
+          </AuthProvider>
         </StartupGate>
       </ThemeProvider>
     </SafeAreaProvider>
