@@ -76,7 +76,7 @@ defmodule Mix.Tasks.Release.RetentionSweep do
     end)
 
     if Map.get(report, :deletion_stubbed?, false) and
-         not Map.get(report, :hard_delete_executed?, true) do
+         not Map.get(report, :hard_delete_executed?, false) do
       Mix.shell().info("NOTE: hard deletion is currently stubbed; no rows were deleted.")
     end
 
