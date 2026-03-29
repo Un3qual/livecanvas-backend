@@ -3,30 +3,30 @@ import {
   Network,
   RecordSource,
   Store,
-  FetchFunction,
+  type FetchFunction,
 } from 'relay-runtime';
 
 /**
- * Build a basic fetch function that posts to the GraphQL endpoint.
- * Task 3 will replace this with an authenticated version.
+ * Build a basic (unauthenticated) fetch function for the GraphQL endpoint.
+ * Used as fallback when no authenticated fetch is provided.
  */
-export function createFetchFunction(apiBaseUrl: string): FetchFunction {
+export function createBasicFetch(apiBaseUrl: string): FetchFunction {
   return async (operation, variables) => {
     const response = await fetch(`${apiBaseUrl}/graphql`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: operation.text,
-        variables,
-      }),
+      body: JSON.stringify({ query: operation.text, variables }),
     });
     return response.json();
   };
 }
 
-export function createRelayEnvironment(apiBaseUrl: string): Environment {
+export function createRelayEnvironment(
+  apiBaseUrl: string,
+  fetchFn?: FetchFunction,
+): Environment {
   return new Environment({
-    network: Network.create(createFetchFunction(apiBaseUrl)),
+    network: Network.create(fetchFn ?? createBasicFetch(apiBaseUrl)),
     store: new Store(new RecordSource()),
   });
 }
