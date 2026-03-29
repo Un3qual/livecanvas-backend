@@ -160,9 +160,10 @@ defmodule LC.Infra.DataGovernanceDeletionTest do
       assert :account_deletion_completed in auth_event_types
 
       assert Enum.any?(auth_events, fn auth_event ->
-               auth_event.event_type == :account_deletion_completed and
-                 auth_event.metadata["purge_mode"] == "stubbed"
-             end)
+                auth_event.event_type == :account_deletion_completed and
+                  auth_event.metadata["purge_mode"] == "stubbed" and
+                  auth_event.metadata["hard_delete_executed"] == false
+              end)
     end
   end
 

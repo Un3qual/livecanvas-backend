@@ -1,7 +1,5 @@
 # Chat History Query API Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Deliver a Relay-first, viewer-scoped chat-history API for retained live-session messages with bidirectional pagination so clients can infinite scroll both older and newer messages.
 
 **Architecture:** Extend `LC.Chat` with explicit history-access and ordered-query APIs instead of reusing live-only socket join semantics. Expose `ChatMessage` as a Relay node plus a `LiveSession.chatMessages` connection in GraphQL using `paginate: :both`, deterministic cursor ordering (`inserted_at`, then `id`), and ownership-safe node resolution.

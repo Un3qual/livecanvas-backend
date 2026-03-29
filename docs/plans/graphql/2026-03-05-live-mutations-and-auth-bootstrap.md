@@ -1,7 +1,5 @@
 # GraphQL Live Mutations And Auth Bootstrap Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Deliver missing GraphQL product APIs for live session lifecycle mutations and first-party auth bootstrap flows for API-only clients.
 
 **Architecture:** Extend the existing GraphQL boundary using viewer-scoped Relay payload mutations that map directly into current `LC.Live` and `LC.Accounts` domain APIs. Keep transport-layer behavior explicit at resolver boundaries (ID decoding, ownership checks, and error contract mapping) while leaving core auth/live state transitions in context modules.

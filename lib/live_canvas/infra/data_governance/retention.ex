@@ -35,7 +35,8 @@ defmodule LC.Infra.DataGovernance.Retention do
           cutoff_days: pos_integer(),
           cutoff_at: DateTime.t(),
           eligible_count: non_neg_integer(),
-          action: action()
+          action: action(),
+          hard_delete_executed?: false
         }
   @type report :: %{
           mode: mode(),
@@ -44,6 +45,7 @@ defmodule LC.Infra.DataGovernance.Retention do
           cutoff_at: DateTime.t() | nil,
           evaluated_at: DateTime.t(),
           deletion_stubbed?: true,
+          hard_delete_executed?: false,
           families: [family_report()]
         }
   @type run_error ::
@@ -80,8 +82,9 @@ defmodule LC.Infra.DataGovernance.Retention do
          cutoff_at: cutoff_at,
          evaluated_at: evaluated_at,
          deletion_stubbed?: true,
+         hard_delete_executed?: false,
          families: families
-       }}
+        }}
     end
   end
 
@@ -166,7 +169,8 @@ defmodule LC.Infra.DataGovernance.Retention do
         cutoff_days: cutoff_days,
         cutoff_at: cutoff_at,
         eligible_count: count_candidates(family, cutoff_at),
-        action: action
+        action: action,
+        hard_delete_executed?: false
       }
     end)
   end

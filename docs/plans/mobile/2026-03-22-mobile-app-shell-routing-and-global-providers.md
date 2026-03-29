@@ -1,7 +1,5 @@
 # Mobile App Shell, Routing, And Global Providers Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Replace the default single-screen Expo entrypoint with a structured mobile app shell that has explicit route groups, provider boundaries, startup handling, and deep-link entry points for future auth and product surfaces.
 
 **Architecture:** Keep the Expo scaffold isolated inside `mobile/`, adopt Expo Router unless a concrete native constraint makes plain React Navigation safer, and layer a small shell around theme, safe-area, startup, and error handling without pulling in backend data or channel logic yet. This slice should make the app ready for later Relay, auth, and live-session work while keeping runtime decisions explicit and reversible.

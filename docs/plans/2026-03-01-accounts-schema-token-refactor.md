@@ -1,7 +1,5 @@
 # Accounts Schema And Token Refactor Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Refine the in-progress Accounts persistence refactor so schema modules sit under an Accounts schema namespace, timestamps use microseconds everywhere, tokens use enum-backed contexts plus explicit serialization helpers, and lookup paths validate secrets by token id instead of querying by secret hash.
 
 **Architecture:** Keep `LiveCanvasSchemas` as the schema-only top-level boundary, but move account-specific schemas under `LiveCanvasSchemas.Accounts.*` and re-export those nested modules. Update the auth boundary so token serialization/validation lives in `LiveCanvas.Accounts.Tokens`, with transport-visible token strings decoded into `%{id, raw_secret}` before database lookup and secret verification. Apply the schema changes coherently across migrations, schemas, fixtures, and tests in one pass to avoid intermediate broken states.

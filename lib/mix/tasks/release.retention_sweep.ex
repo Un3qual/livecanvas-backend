@@ -71,11 +71,12 @@ defmodule Mix.Tasks.Release.RetentionSweep do
 
     Enum.each(report.families, fn family ->
       Mix.shell().info(
-        "- #{family.table}: #{family.eligible_count} eligible rows (#{format_action(family.action)}, cutoff_days=#{family.cutoff_days}, cutoff_at=#{DateTime.to_iso8601(family.cutoff_at)})"
+        "- #{family.table}: #{family.eligible_count} eligible rows (#{format_action(family.action)}, hard_delete_executed=#{family.hard_delete_executed?}, cutoff_days=#{family.cutoff_days}, cutoff_at=#{DateTime.to_iso8601(family.cutoff_at)})"
       )
     end)
 
-    if Map.get(report, :deletion_stubbed?, false) do
+    if Map.get(report, :deletion_stubbed?, false) and
+         not Map.get(report, :hard_delete_executed?, true) do
       Mix.shell().info("NOTE: hard deletion is currently stubbed; no rows were deleted.")
     end
 

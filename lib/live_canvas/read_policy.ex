@@ -164,22 +164,18 @@ defmodule LC.ReadPolicy do
 
   @spec maybe_join_owner(Ecto.Query.t(), atom()) :: Ecto.Query.t()
   defp maybe_join_owner(query, owner_key) when is_atom(owner_key) do
-    if has_named_binding?(query, :read_policy_owner) do
-      query
-    else
+    maybe_join_once(query, :read_policy_owner, fn query ->
       join(query, :inner, [read_policy_resource: resource], owner in User,
         as: :read_policy_owner,
         on: owner.id == field(resource, ^owner_key)
       )
-    end
+    end)
   end
 
   @spec maybe_join_accepted_follow(Ecto.Query.t(), pos_integer(), atom()) :: Ecto.Query.t()
   defp maybe_join_accepted_follow(query, viewer_id, owner_key)
        when is_integer(viewer_id) and is_atom(owner_key) do
-    if has_named_binding?(query, :read_policy_follow) do
-      query
-    else
+    maybe_join_once(query, :read_policy_follow, fn query ->
       join(query, :left, [read_policy_resource: resource], follow in Follow,
         as: :read_policy_follow,
         on:
@@ -187,28 +183,24 @@ defmodule LC.ReadPolicy do
             follow.followed_id == field(resource, ^owner_key) and
             follow.state == :accepted
       )
-    end
+    end)
   end
 
   @spec maybe_join_mute(Ecto.Query.t(), pos_integer(), atom()) :: Ecto.Query.t()
   defp maybe_join_mute(query, viewer_id, owner_key)
        when is_integer(viewer_id) and is_atom(owner_key) do
-    if has_named_binding?(query, :read_policy_mute) do
-      query
-    else
+    maybe_join_once(query, :read_policy_mute, fn query ->
       join(query, :left, [read_policy_resource: resource], mute in Mute,
         as: :read_policy_mute,
         on: mute.muter_id == ^viewer_id and mute.muted_id == field(resource, ^owner_key)
       )
-    end
+    end)
   end
 
   @spec maybe_join_block(Ecto.Query.t(), pos_integer(), atom()) :: Ecto.Query.t()
   defp maybe_join_block(query, viewer_id, owner_key)
        when is_integer(viewer_id) and is_atom(owner_key) do
-    if has_named_binding?(query, :read_policy_block) do
-      query
-    else
+    maybe_join_once(query, :read_policy_block, fn query ->
       join(query, :left, [read_policy_resource: resource], block in Block,
         as: :read_policy_block,
         on:
@@ -217,6 +209,17 @@ defmodule LC.ReadPolicy do
             (block.blocker_id == field(resource, ^owner_key) and
                block.blocked_id == ^viewer_id)
       )
+    end)
+  end
+
+  @spec maybe_join_once(Ecto.Query.t(), atom(), (Ecto.Query.t() -> Ecto.Query.t())) ::
+          Ecto.Query.t()
+  defp maybe_join_once(query, binding_name, joiner)
+       when is_atom(binding_name) and is_function(joiner, 1) do
+    if has_named_binding?(query, binding_name) do
+      query
+    else
+      joiner.(query)
     end
   end
 

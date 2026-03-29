@@ -1,7 +1,5 @@
 # LCGQL Dataloader And N+1 Reduction Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Introduce request-scoped dataloader support in LCGQL and migrate the highest-fanout field resolvers so repeated child lookups collapse into batched queries without weakening viewer authorization.
 
 **Architecture:** Build one dataloader instance per GraphQL request and expose it through Absinthe context so resolver modules can batch pure entity fetches. Keep authorization checks in resolvers and node fetchers; dataloader should only replace repeated data fetches, never visibility policy. Start with the child fields that currently fan out across user, media, and live-session lookups, then expand to any remaining resolver paths once the request-scoped loader is proven in tests.

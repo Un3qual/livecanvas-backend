@@ -1,7 +1,5 @@
 # Private Account Completion Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Deliver the missing GraphQL product surface for account privacy settings and pending follow-request management, including accept and decline flows.
 
 **Architecture:** Reuse the existing `LC.Accounts` privacy API and extend `LC.Social` with viewer-owned follow-request query helpers so GraphQL can expose Relay-first inbox and mutation flows without pushing transport logic into the domain layer. Keep privacy behavior explicit at the GraphQL boundary: privacy mode is exposed on `User`, pending follow requests are viewer-scoped, and accepted `followers` / `following` connections become privacy-aware according to Social policy.

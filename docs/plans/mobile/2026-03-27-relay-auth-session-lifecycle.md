@@ -1,7 +1,5 @@
 # Relay Data Layer, Auth, And Session Lifecycle Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Wire the mobile app to the backend GraphQL API through Relay, implement authenticated network transport with secure token storage and rotation, build the auth provider and sign-in/sign-up screens for password and OAuth entry, and implement viewer bootstrap with session restoration on cold start.
 
 **Architecture:** The Relay environment plugs into the existing provider stack inside StartupGate. An AuthProvider manages token lifecycle, session state, and auth-gated routing. The network layer injects bearer tokens, handles transparent refresh, and triggers forced logout on unrecoverable failures. Auth screens replace the current placeholders with real sign-in/sign-up flows for password, Google, and Apple. Viewer bootstrap runs after successful auth to hydrate the signed-in shell.

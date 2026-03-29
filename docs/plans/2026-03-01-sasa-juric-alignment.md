@@ -1,7 +1,5 @@
 # LiveCanvas Sasa Juric Alignment Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Update the LiveCanvas architecture guidance and the existing v1 backend plan so implementation follows explicit boundaries, compile-time boundary enforcement via the `boundary` library, functional-core/coordinator splits, process-oriented OTP design, and test discipline drawn from Sasa Juric's writing.
 
 **Architecture:** Keep the approved modular monolith, context map, and core platform choices intact. Change how those contexts are implemented: public context modules become interface boundaries enforced by `boundary`, reusable business rules move into pure internal modules, and stateful OTP processes are reserved for explicit runtime entities such as live sessions and async fanout. The result should be the same product scope with a tighter internal design and clearer execution rules.

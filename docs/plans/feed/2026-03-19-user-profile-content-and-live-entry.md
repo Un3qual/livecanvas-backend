@@ -1,7 +1,5 @@
 # User Profile Content And Live Entry Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Expose viewer-scoped user profile content and live-entry surfaces from the existing Relay `User` node so clients can load authored posts, active stories, the current live session, and recent replays without inventing a parallel profile type.
 
 **Architecture:** Keep `LC.Feed` as the read-side owner for profile posts, stories, live-session entry, and replay lookups by extending the existing visibility-aware feed queries with author/host filters. Keep `LCGQL.Accounts` adapter-thin by publishing these surfaces as child fields on the existing `User` Relay node and re-applying visibility in every child resolver so globally refetchable user IDs cannot bypass private/follower-only rules.

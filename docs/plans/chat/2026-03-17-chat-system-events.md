@@ -1,7 +1,5 @@
 # Chat System Events Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add a bounded, durable system-event layer to live chat so important session lifecycle and moderation changes appear consistently in both realtime delivery and retained chat history.
 
 **Architecture:** Reuse the existing `chat_messages.kind = :system_event` seam instead of creating a second event store. Keep `LC.Chat` as the owner of event persistence and payload normalization, but avoid a `LC.Live -> LC.Chat` dependency cycle by emitting system events from adapter boundaries that already observe successful session transitions (`LCGQL.Live`, `LCWeb.LiveSessionChannel`, and chat moderation adapters).

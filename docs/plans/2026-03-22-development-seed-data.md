@@ -1,7 +1,5 @@
 # Development Seed Data Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add deterministic, idempotent development seed data so `mix ecto.setup` and `mix ecto.reset` produce a usable local dataset with stable accounts, social graph edges, feed content, and a live-session fixture for day-to-day backend and mobile development.
 
 **Architecture:** Move development seeding out of the placeholder `priv/repo/seeds.exs` script into a small `LC.Dev.SeedData` module that can be exercised directly in tests. Use stable natural keys such as known email addresses and fixed content identifiers so rerunning seeds reuses or updates the same records instead of duplicating them, and keep the `priv/repo/seeds.exs` entrypoint explicitly focused on the development environment. Seed durable product data through the public contexts where possible, and fall back to narrowly scoped repo lookups only when a context does not expose the idempotent read path the seed workflow needs.
@@ -39,12 +37,6 @@ Verified directly in the codebase before drafting this plan:
 - Modify: `priv/repo/seeds.exs`
 - Create: `test/live_canvas/dev/seed_data_test.exs`
 
-**Task 1 Step Progress:**
-- [x] Step 1: Add failing tests that `LC.Dev.SeedData.seed!/0` creates the expected stable users on the first run and does not duplicate them on a second run
-- [x] Step 2: Implement `LC.Dev.SeedData.seed!/0` with a public `@spec`, stable seed descriptors, and helper functions that upsert or reuse users by known email address before normalizing password and privacy state
-- [x] Step 3: Wire `priv/repo/seeds.exs` to call the module for `Mix.env() == :dev` and print a concise summary of the seeded accounts instead of leaving the script empty
-- [x] Step 4: Run `mix test test/live_canvas/dev/seed_data_test.exs`
-- [x] Step 5: Commit the seed-foundation slice
 
 **Task 1 behavior targets:**
 
@@ -52,12 +44,6 @@ Verified directly in the codebase before drafting this plan:
 - Seeded users have stable emails and a documented shared password suitable for local login flows.
 - The seed module stays outside `test/support` and is safe to call from `priv/repo/seeds.exs`.
 - Non-development invocation of the script is explicit and unsurprising.
-
-**Suggested verification command:**
-
-```bash
-mix test test/live_canvas/dev/seed_data_test.exs
-```
 
 Expected: PASS.
 
@@ -68,13 +54,6 @@ Expected: PASS.
 - Modify: `test/live_canvas/dev/seed_data_test.exs`
 - Create: `docs/development/seeds.md`
 
-**Task 2 Step Progress:**
-- [x] Step 1: Add failing tests that the primary seeded viewer receives non-empty social, feed, and live-discovery data from the seeded graph
-- [x] Step 2: Extend `LC.Dev.SeedData` to create a small stable graph with known accounts, accepted follow edges, several posts, and one persisted live-session fixture that local clients can discover without depending on ad hoc manual setup
-- [x] Step 3: Document the local workflow in `docs/development/seeds.md`, including reset commands, seeded account credentials, and which seeded users are intended to exercise which product surfaces
-- [x] Step 4: Run `mix test test/live_canvas/dev/seed_data_test.exs`
-- [x] Step 5: Run `mix ecto.reset`
-- [x] Step 6: Commit the verified development-dataset slice
 
 **Task 2 behavior targets:**
 
@@ -82,12 +61,5 @@ Expected: PASS.
 - Seed reruns remain idempotent and preserve the same natural-key identities.
 - Local developers have one obvious command path (`mix ecto.reset`) and one short doc describing the seeded dataset.
 - The first slice stays intentionally small and understandable instead of becoming an unbounded fixture dump.
-
-**Suggested verification commands:**
-
-```bash
-mix test test/live_canvas/dev/seed_data_test.exs
-mix ecto.reset
-```
 
 Expected: PASS, with the reset command recreating the documented seeded dataset.

@@ -1,7 +1,5 @@
 # Live Session Channel State And Presence Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Deliver the missing realtime live-room state surface so authorized clients can join a `live_session:<id>` topic, receive an initial aggregate session snapshot, and stay updated as viewer participation and lifecycle state change.
 
 **Architecture:** Keep `LC.Live` as the owner of runtime live-session state by exposing a small aggregate snapshot API that derives viewer counts from the existing session runtime instead of inventing a second source of truth. Reuse the existing Phoenix channel topic for live rooms and broadcast bounded aggregate state payloads from the adapters that already observe successful join, leave, go-live, and end transitions. Preserve authorization and privacy by publishing only aggregate counts and status, not participant rosters or raw user IDs.

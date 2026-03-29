@@ -1,7 +1,5 @@
 # Post Media Attachments And Story Feed Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Deliver viewer-owned post media attachments and the first story feed surface by reusing the existing `posts` and `media_assets` model instead of inventing a separate story table.
 
 **Architecture:** Extend `Post` so `kind: :story` is a first-class content row with a bounded `expires_at`, and attach already-uploaded viewer-owned `media_assets` through `post_id`. Keep `LC.Content` responsible for ownership-safe attachment and story validation, `LC.Feed` responsible for active story read queries, and `LCGQL` responsible for Relay-first story/media publication without weakening node-level visibility checks.

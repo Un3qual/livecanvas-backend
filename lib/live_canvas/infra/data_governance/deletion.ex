@@ -280,6 +280,7 @@ defmodule LC.Infra.DataGovernance.Deletion do
         persist_auth_event(:account_deletion_completed, processing_request.user_id, %{
           "account_deletion_request_id" => processing_request.id,
           "purge_mode" => "stubbed",
+          "hard_delete_executed" => false,
           "purge_order" => Enum.map(@stubbed_purge_order, &Atom.to_string/1)
         })
 

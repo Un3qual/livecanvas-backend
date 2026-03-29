@@ -165,6 +165,7 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
       assert {:ok, report} = Retention.run(cutoff_days: 30, now: now)
       assert report.mode == :dry_run
       assert report.deletion_stubbed?
+      refute report.hard_delete_executed?
       assert report.cutoff_at == ~U[2026-02-02 20:00:00.000000Z]
 
       assert Enum.map(report.families, & &1.family) == [
@@ -177,6 +178,7 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
 
       assert Enum.map(report.families, & &1.eligible_count) == [1, 1, 1, 1, 1]
       assert Enum.all?(report.families, &(&1.action == :count_only))
+      assert Enum.all?(report.families, &(Map.get(&1, :hard_delete_executed?) == false))
       assert Enum.uniq(Enum.map(report.families, &Map.fetch!(&1, :cutoff_days))) == [30]
 
       assert Enum.uniq(Enum.map(report.families, &Map.fetch!(&1, :cutoff_at))) == [
@@ -391,7 +393,9 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
 
       assert report.mode == :apply
       assert report.deletion_stubbed?
+      refute report.hard_delete_executed?
       assert Enum.all?(report.families, &(&1.action == :stubbed_delete))
+      assert Enum.all?(report.families, &(Map.get(&1, :hard_delete_executed?) == false))
       assert Repo.aggregate(AuthEvent, :count, :id) == before_count
     end
 

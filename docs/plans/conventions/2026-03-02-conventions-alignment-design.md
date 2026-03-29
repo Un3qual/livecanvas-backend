@@ -1,7 +1,5 @@
 # Conventions Alignment Design
 
-> **For Claude:** This design was approved before implementation. Use it as the decision record for the March 2, 2026 conventions pass.
-
 **Goal:** Align the current backend with the requested security, schema, typing, and API conventions while separating immediate low-risk changes from larger refactors that need dedicated plans.
 
 **Architecture:** Apply narrow, low-risk baseline changes in-place now: stronger token hashing, stricter type-checking hooks, and concise repository guidance. Treat schema-wide identity changes, namespace renames, phone OTP delivery scaffolding, and Relay-first GraphQL reshaping as planned migrations because they cross many files and require phased rollout.

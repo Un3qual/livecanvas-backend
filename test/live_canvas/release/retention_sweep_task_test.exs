@@ -30,6 +30,7 @@ defmodule Mix.Tasks.Release.RetentionSweepTest do
       assert output =~ "Retention sweep mode: dry_run"
       assert output =~ "Cutoff strategy: policy_defaults"
       assert output =~ "- auth_events: 1 eligible rows"
+      assert output =~ "hard_delete_executed=false"
       assert output =~ "cutoff_days=365"
       assert output =~ "- async_jobs: 0 eligible rows"
       assert output =~ "cutoff_days=30"
@@ -49,6 +50,7 @@ defmodule Mix.Tasks.Release.RetentionSweepTest do
 
       assert output =~ "Cutoff days override: 45"
       assert output =~ "- auth_events: 0 eligible rows (count_only, cutoff_days=45"
+      assert output =~ "hard_delete_executed=false"
       assert output =~ "- async_jobs: 0 eligible rows (count_only, cutoff_days=45"
       assert output =~ "- webhook_events: 0 eligible rows (count_only, cutoff_days=45"
       assert output =~ "- chat_messages: 0 eligible rows (count_only, cutoff_days=45"
@@ -78,6 +80,7 @@ defmodule Mix.Tasks.Release.RetentionSweepTest do
         end)
 
       assert output =~ "Retention sweep mode: apply"
+      assert output =~ "hard_delete_executed=false"
       assert output =~ "NOTE: hard deletion is currently stubbed; no rows were deleted."
       assert Repo.aggregate(AuthEvent, :count, :id) == before_count
     end

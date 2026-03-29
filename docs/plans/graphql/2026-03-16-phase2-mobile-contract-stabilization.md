@@ -1,7 +1,5 @@
 # Phase 2 Mobile GraphQL Contract Stabilization Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Stabilize the mobile-facing GraphQL contract by viewer-scoping social read-state, removing legacy auth mutations, and publishing the supported contract snapshot.
 
 **Architecture:** Keep the GraphQL layer adapter-thin: social read-state should derive the viewer from auth scope, not caller-supplied IDs, and schema cleanup should remove legacy entrypoints rather than rework domain behavior. Publish the resulting contract explicitly so mobile consumes one supported surface instead of inferring it from mixed schema history.

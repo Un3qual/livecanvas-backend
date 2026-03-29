@@ -1,7 +1,5 @@
 # Mobile Expo Bootstrap Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Create the initial Expo mobile workspace in `mobile/` with an isolated
 `flake.nix`-managed toolchain and the `blank-typescript` template generated via
 `pnpm dlx create-expo-app`.

@@ -1,7 +1,5 @@
 # Unified Auth Entry Points And Cluster Rate Limits Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Deliver generic GraphQL signup/login/challenge entry points for password, magic-link, Google, Apple, and passkey auth while replacing per-node abuse throttles with cluster-aware OTP coordination.
 
 **Architecture:** Keep terminal auth orchestration in `LC.Accounts`, keep GraphQL resolver layers adapter-thin, and split reusable challenge issuance from signup/login entry points. Reuse the existing `DNSCluster` + `:erpc` stack for cluster-aware rate-limit ownership, and persist passkey-specific data in dedicated relational storage instead of overloading `user_identities`.
@@ -56,13 +54,6 @@ Verified directly in active docs, code, and tests before writing this plan:
 - Modify: `test/live_canvas_gql/accounts/account_queries_test.exs`
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
-**Task 1 Step Progress:**
-- [x] Step 1: Add failing GraphQL tests for `beginAuthChallenge`, `signUp`, and `logIn` payload shape, `AUTH_PROVIDER` enum validation, and auth error `code` output
-- [x] Step 2: Run focused GraphQL auth tests to verify RED
-- [x] Step 3: Implement `auth_provider`, `auth_challenge_purpose`, and `auth_error_code` types plus mutation scaffolding and resolver error helpers
-- [x] Step 4: Add `authProvider` output on `UserIdentity` and deprecate the mismatched `oauthProvider` shape in the GraphQL layer
-- [x] Step 5: Run focused GraphQL tests to verify GREEN
-- [x] Step 6: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 1 behavior targets:**
 
@@ -95,14 +86,6 @@ Verification evidence (2026-03-16):
 - Modify: `test/integration/accounts_login_flow_test.exs`
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
-**Task 2 Step Progress:**
-- [x] Step 1: Add failing Accounts and GraphQL tests for password signup/login and magic-link challenge issuance plus signup/login redemption
-- [x] Step 2: Run focused Accounts/GraphQL auth tests to verify RED
-- [x] Step 3: Implement Accounts entry points for password signup/login and magic-link challenge/signup/login, returning access + refresh token pairs on success
-- [x] Step 4: Keep email confirmation separate from password signup while treating successful magic-link redemption as email ownership proof
-- [x] Step 5: Wire GraphQL resolvers to the new Accounts APIs and keep browser routes untouched
-- [x] Step 6: Run focused Accounts/GraphQL/integration auth tests to verify GREEN
-- [x] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 2 behavior targets:**
 
@@ -133,14 +116,6 @@ Verification evidence (2026-03-16):
 - Modify: `test/live_canvas_gql/accounts/account_mutations_test.exs`
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
-**Task 3 Step Progress:**
-- [x] Step 1: Add failing tests for Google/Apple provider-token verification, existing-identity login, and new-account signup semantics
-- [x] Step 2: Run focused provider-auth tests to verify RED
-- [x] Step 3: Implement a verifier behaviour plus Google/Apple verifier modules with injected HTTP/JWKS/config seams
-- [x] Step 4: Implement Accounts signup/login entry points that create or resolve linked `user_identities` for Google and Apple
-- [x] Step 5: Add runtime configuration for provider audiences/issuers/JWKS URLs and keep failure reasons deterministic
-- [x] Step 6: Run focused Accounts/GraphQL provider-auth tests to verify GREEN
-- [x] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 3 behavior targets:**
 
@@ -172,14 +147,6 @@ Verification evidence (2026-03-16):
 - Modify: `test/live_canvas_gql/accounts/account_mutations_test.exs`
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
-**Task 4 Step Progress:**
-- [x] Step 1: Add failing schema, Accounts, and GraphQL tests for passkey challenge issuance, signup attestation completion, and login assertion completion
-- [x] Step 2: Run focused passkey tests to verify RED
-- [x] Step 3: Implement persisted passkey challenge-token contexts and the `user_passkeys` relational table using bigint + `entropy_id`
-- [x] Step 4: Implement passkey challenge issuance and attestation/assertion verification in Accounts-owned modules
-- [x] Step 5: Link passkey credentials to `user_identities` with `provider: :passkey_provider` while keeping credential-specific state in `user_passkeys`
-- [x] Step 6: Run focused schema/Accounts/GraphQL passkey tests to verify GREEN
-- [x] Step 7: Run `MIX_ENV=test mix ecto.migrate --quiet`, touched passkey tests, `mix compile`, and `mix typecheck`; then update checklist progress and commit milestone
 
 **Task 4 persistence targets:**
 
@@ -219,14 +186,6 @@ Verification evidence (2026-03-16):
 - Modify: `test/live_canvas_web/channels/live_session_channel_test.exs`
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
-**Task 5 Step Progress:**
-- [x] Step 1: Add failing limiter tests for deterministic owner-node selection, remote-owner forwarding, and local fallback when owner routing fails
-- [x] Step 2: Run focused limiter tests to verify RED
-- [x] Step 3: Implement deterministic node selection using the connected cluster membership and `:erpc` forwarding to an owner-node local ETS counter path
-- [x] Step 4: Preserve the existing public `allow/2`, `conn_subject/1`, and `reset!/0` API so current plugs/channels/controllers do not change
-- [x] Step 5: Keep unhealthy-cluster behavior fail-open to local enforcement rather than rejecting traffic on transport errors
-- [x] Step 6: Run focused limiter/controller/channel/GraphQL rate-limit tests to verify GREEN
-- [x] Step 7: Run `mix compile` + `mix typecheck`, update checklist progress, and commit milestone
 
 **Task 5 behavior targets:**
 
@@ -248,11 +207,6 @@ Verification evidence (2026-03-16):
 - Modify: `docs/plans/README.md`
 - Modify: `docs/plans/2026-03-16-auth-entrypoints-and-cluster-rate-limits.md`
 
-**Task 6 Step Progress:**
-- [x] Step 1: Run final verification (`mix compile`, `mix test`, `mix typecheck`, `mix precommit`)
-- [x] Step 2: Update the roadmap/index to record delivered auth entry points, provider rollout status, and cluster-aware limiter behavior
-- [x] Step 3: Archive or relabel older active-plan references only if their scope is now superseded by this delivered work
-- [x] Step 4: Mark all completed checklist items and commit the final milestone
 
 Verification evidence (2026-03-16):
 

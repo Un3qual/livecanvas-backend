@@ -1,7 +1,5 @@
 # Live Session Client Contract Stabilization Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Publish and lock the mobile-facing live-session GraphQL and Phoenix Channel contracts so the mobile app can build watch, join, and host flows against one documented backend surface.
 
 **Architecture:** Keep the existing live-session behavior and authorization model intact, then turn the currently implicit contract in tests into explicit docs plus focused regression coverage. Freeze the durable GraphQL surface (`liveNow`, `LiveSession`, `User.currentLiveSession`, `User.replayFeed`, and the live mutations) separately from the ephemeral `live_session:<id>` channel topic so mobile can combine Relay-managed state with bounded realtime updates without reverse-engineering backend tests.

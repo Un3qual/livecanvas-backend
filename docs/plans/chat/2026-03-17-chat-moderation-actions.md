@@ -1,7 +1,5 @@
 # Chat Moderation Actions Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
-
 **Goal:** Add bounded message-level moderation for retained live chat so session hosts can remove abusive messages and active clients can reconcile the change consistently.
 
 **Architecture:** Keep moderation authority inside the existing Live/Chat ownership model: the acting user must be the host of the message's live session, while `LC.Chat` owns message state changes and `LCGQL.Chat` stays adapter-thin. Persist moderation state directly on `chat_messages`, expose it through the Relay `ChatMessage` node/connection, and broadcast a stable channel update event so realtime clients can remove or redact moderated messages without polling.
