@@ -72,7 +72,24 @@ export function createAuthenticatedFetch(
 
     // Attempt refresh (serialize concurrent attempts)
     if (!refreshPromise) {
-      refreshPromise = attemptRefresh(apiBaseUrl, tokens.refreshToken).finally(() => {
+      // Re-read storage so a sibling request that already refreshed the session
+      // can supply the latest token pair instead of reusing a rotated refresh token.
+      const latestTokens = await loadTokens();
+      if (latestTokens?.accessToken && latestTokens.accessToken !== tokens.accessToken) {
+        const retryResponse = await rawFetch(
+          apiBaseUrl,
+          operation.text ?? '',
+          variables,
+          latestTokens.accessToken,
+        );
+
+        if (!hasUnauthenticatedError(retryResponse)) {
+          return retryResponse;
+        }
+      }
+
+      const refreshToken = latestTokens?.refreshToken ?? tokens.refreshToken;
+      refreshPromise = attemptRefresh(apiBaseUrl, refreshToken).finally(() => {
         refreshPromise = null;
       });
     }
