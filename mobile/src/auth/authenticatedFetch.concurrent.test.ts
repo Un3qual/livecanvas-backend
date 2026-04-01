@@ -23,6 +23,100 @@ afterEach(() => {
 });
 
 describe('createAuthenticatedFetch', () => {
+  test('serializes refresh attempts while token storage is still loading', async () => {
+    const initialTokens = {
+      accessToken: 'expired-access-token',
+      refreshToken: 'refresh-token-v1',
+      expiresAt: '2026-04-01T00:00:00.000Z',
+    };
+    const refreshedTokens = {
+      accessToken: 'fresh-access-token',
+      refreshToken: 'refresh-token-v2',
+      expiresAt: '2026-04-15T00:00:00.000Z',
+    };
+
+    const loadTokensDeferred = Promise.withResolvers<typeof initialTokens | null>();
+    let storedTokens = initialTokens;
+    const loadTokens = mock(async () => loadTokensDeferred.promise);
+    const storeTokens = mock(async (pair) => {
+      storedTokens = pair;
+    });
+    const clearTokens = mock(async () => {
+      storedTokens = null as typeof storedTokens;
+    });
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await import('./authenticatedFetch');
+
+    const refreshResponse = Promise.withResolvers<Response>();
+    let refreshCalls = 0;
+
+    globalThis.fetch = mock(async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      if (String(request.query).includes('mutation RefreshAuthTokens')) {
+        refreshCalls += 1;
+        if (refreshCalls > 1) {
+          throw new Error(`unexpected second refresh attempt ${refreshCalls}`);
+        }
+
+        return refreshResponse.promise;
+      }
+
+      if (authHeader === `Bearer ${initialTokens.accessToken}`) {
+        return jsonResponse({ errors: [{ message: 'unauthenticated' }] });
+      }
+
+      if (authHeader === `Bearer ${refreshedTokens.accessToken}`) {
+        return jsonResponse({ data: { viewer: { id: 'viewer-1' } } });
+      }
+
+      throw new Error(`unexpected auth header ${authHeader}`);
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const fetchFn = createAuthenticatedFetch('https://api.example.com', onForcedLogout);
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    const firstRequest = fetchFn(operation, {});
+    const secondRequest = fetchFn(operation, {});
+
+    loadTokensDeferred.resolve(storedTokens);
+
+    await waitFor(() => refreshCalls === 1, 'one refresh attempt');
+
+    refreshResponse.resolve(
+      jsonResponse({
+        data: {
+          refreshAuthTokens: {
+            accessToken: { serializedValue: refreshedTokens.accessToken },
+            refreshToken: { serializedValue: refreshedTokens.refreshToken },
+            errors: [],
+          },
+        },
+      }),
+    );
+
+    await expect(firstRequest).resolves.toEqual({
+      data: { viewer: { id: 'viewer-1' } },
+    });
+    await expect(secondRequest).resolves.toEqual({
+      data: { viewer: { id: 'viewer-1' } },
+    });
+
+    expect(refreshCalls).toBe(1);
+    expect(onForcedLogout).not.toHaveBeenCalled();
+    expect(clearTokens).not.toHaveBeenCalled();
+  });
+
   test('reuses the latest stored session after a sibling request rotates tokens', async () => {
     const initialTokens = {
       accessToken: 'expired-access-token',

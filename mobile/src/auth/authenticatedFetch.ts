@@ -70,28 +70,42 @@ export function createAuthenticatedFetch(
       return response;
     }
 
-    // Attempt refresh (serialize concurrent attempts)
+    // Claim the refresh lock before any await so concurrent failures cannot
+    // race past the guard and start multiple refresh attempts.
     if (!refreshPromise) {
-      // Re-read storage so a sibling request that already refreshed the session
-      // can supply the latest token pair instead of reusing a rotated refresh token.
-      const latestTokens = await loadTokens();
-      if (latestTokens?.accessToken && latestTokens.accessToken !== tokens.accessToken) {
-        const retryResponse = await rawFetch(
-          apiBaseUrl,
-          operation.text ?? '',
-          variables,
-          latestTokens.accessToken,
-        );
-
-        if (!hasUnauthenticatedError(retryResponse)) {
-          return retryResponse;
-        }
-      }
-
-      const refreshToken = latestTokens?.refreshToken ?? tokens.refreshToken;
-      refreshPromise = attemptRefresh(apiBaseUrl, refreshToken).finally(() => {
+      // Resolve the shared promise with the latest usable token pair once the
+      // refresh path finishes, while the first caller can still return a sibling
+      // retry response directly when it succeeds.
+      let resolveRefreshPromise!: (value: AuthTokenPair | null) => void;
+      refreshPromise = new Promise<AuthTokenPair | null>((resolve) => {
+        resolveRefreshPromise = resolve;
+      }).finally(() => {
         refreshPromise = null;
       });
+
+      try {
+        // Re-read storage so a sibling request that already refreshed the session
+        // can supply the latest token pair instead of reusing a rotated refresh token.
+        const latestTokens = await loadTokens();
+        if (latestTokens?.accessToken && latestTokens.accessToken !== tokens.accessToken) {
+          const retryResponse = await rawFetch(
+            apiBaseUrl,
+            operation.text ?? '',
+            variables,
+            latestTokens.accessToken,
+          );
+
+          if (!hasUnauthenticatedError(retryResponse)) {
+            resolveRefreshPromise(latestTokens);
+            return retryResponse;
+          }
+        }
+
+        const refreshToken = latestTokens?.refreshToken ?? tokens.refreshToken;
+        resolveRefreshPromise(await attemptRefresh(apiBaseUrl, refreshToken));
+      } catch {
+        resolveRefreshPromise(null);
+      }
     }
     const newTokens = await refreshPromise;
 
