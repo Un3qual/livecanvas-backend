@@ -1,19 +1,15 @@
 import type { FetchFunction, GraphQLResponse } from 'relay-runtime';
 import { loadTokens, storeTokens, clearTokens } from './tokenStorage';
 import type { AuthTokenPair } from './types';
+import {
+  REFRESH_MUTATION,
+  buildTokenPair,
+  extractRefreshedAuthTokens,
+  hasUnauthenticatedError,
+} from './authenticatedFetchHelpers';
 
 /** Callback invoked when auth is unrecoverably invalid (expired/revoked refresh). */
 export type OnForcedLogout = () => void;
-
-const REFRESH_MUTATION = `
-  mutation RefreshAuthTokens($input: RefreshAuthTokensInput!) {
-    refreshAuthTokens(input: $input) {
-      accessToken
-      refreshToken
-      errors { field code message }
-    }
-  }
-`;
 
 async function rawFetch(
   apiBaseUrl: string,
@@ -38,25 +34,13 @@ async function attemptRefresh(
   const res = await rawFetch(apiBaseUrl, REFRESH_MUTATION, {
     input: { refreshToken },
   });
-  const data = (res as any)?.data?.refreshAuthTokens;
-  if (!data?.accessToken || !data?.refreshToken) return null;
+  const tokens = extractRefreshedAuthTokens(res);
+  if (!tokens) return null;
   // Backend returns serialized token strings; compute expiresAt as 14 days from now
   const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
-  const pair: AuthTokenPair = {
-    accessToken: data.accessToken,
-    refreshToken: data.refreshToken,
-    expiresAt,
-  };
+  const pair = buildTokenPair(tokens.accessToken, tokens.refreshToken, expiresAt);
   await storeTokens(pair);
   return pair;
-}
-
-function isAuthError(response: GraphQLResponse): boolean {
-  const errors = (response as any)?.errors;
-  if (!Array.isArray(errors)) return false;
-  return errors.some(
-    (e: any) => e?.extensions?.code === 'unauthenticated' || e?.message === 'unauthenticated',
-  );
 }
 
 /**
@@ -75,10 +59,11 @@ export function createAuthenticatedFetch(
   return async (operation, variables) => {
     const tokens = await loadTokens();
     const response = await rawFetch(apiBaseUrl, operation.text ?? '', variables, tokens?.accessToken);
+    const authError = hasUnauthenticatedError(response);
 
-    if (!isAuthError(response) || !tokens?.refreshToken) {
+    if (!authError || !tokens?.refreshToken) {
       // If auth error with no refresh token, force logout
-      if (isAuthError(response)) {
+      if (authError) {
         await clearTokens();
         onForcedLogout();
       }
