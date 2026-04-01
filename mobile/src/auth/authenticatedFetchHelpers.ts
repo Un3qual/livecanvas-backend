@@ -5,6 +5,12 @@ export interface GraphQLResponseLike {
   errors?: unknown;
 }
 
+export type GraphQLResponseInput =
+  | GraphQLResponseLike
+  | readonly GraphQLResponseLike[]
+  | null
+  | undefined;
+
 export interface RefreshedAuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -28,6 +34,12 @@ export const REFRESH_MUTATION = `
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+function isGraphQLResponseObject(
+  value: GraphQLResponseInput,
+): value is GraphQLResponseLike {
+  return !Array.isArray(value) && isObject(value);
 }
 
 function normalizeGraphQLErrorValue(value: unknown): string | null {
@@ -63,7 +75,13 @@ function hasUnauthenticatedPayloadError(value: unknown): boolean {
   return Object.values(value).some(hasUnauthenticatedPayloadError);
 }
 
-export function hasUnauthenticatedError(response: GraphQLResponseLike): boolean {
+export function hasUnauthenticatedError(response: GraphQLResponseInput): boolean {
+  if (Array.isArray(response)) {
+    return response.some(hasUnauthenticatedError);
+  }
+
+  if (!isGraphQLResponseObject(response)) return false;
+
   if (Array.isArray(response.errors) && response.errors.some(isUnauthenticatedErrorEntry)) {
     return true;
   }
@@ -77,9 +95,9 @@ function getTokenValue(value: unknown): string | null {
 }
 
 export function extractRefreshedAuthTokens(
-  response: GraphQLResponseLike,
+  response: GraphQLResponseInput,
 ): RefreshedAuthTokens | null {
-  if (!isObject(response.data)) return null;
+  if (!isGraphQLResponseObject(response) || !isObject(response.data)) return null;
 
   const payload = response.data.refreshAuthTokens;
   if (!isObject(payload)) return null;
