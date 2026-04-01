@@ -3,9 +3,18 @@ import { afterEach, describe, expect, mock, test } from 'bun:test';
 const originalFetch = globalThis.fetch;
 
 function jsonResponse(payload: unknown) {
-  return {
-    json: async () => payload,
-  } as Response;
+  return new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function textResponse(body: string, init: ResponseInit) {
+  return new Response(body, init);
+}
+
+async function importAuthenticatedFetchModule() {
+  return import(`./authenticatedFetch?test=${crypto.randomUUID()}`);
 }
 
 async function waitFor(predicate: () => boolean, label: string): Promise<void> {
@@ -51,7 +60,7 @@ describe('createAuthenticatedFetch', () => {
       clearTokens,
     }));
 
-    const { createAuthenticatedFetch } = await import('./authenticatedFetch');
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
     const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
@@ -128,11 +137,6 @@ describe('createAuthenticatedFetch', () => {
       refreshToken: 'refresh-token-v2',
       expiresAt: '2026-04-15T00:00:00.000Z',
     };
-    const rotatedAgainTokens = {
-      accessToken: 'fresh-access-token-v2',
-      refreshToken: 'refresh-token-v3',
-      expiresAt: '2026-04-29T00:00:00.000Z',
-    };
 
     let storedTokens = initialTokens;
     const loadTokens = mock(async () => storedTokens);
@@ -149,7 +153,7 @@ describe('createAuthenticatedFetch', () => {
       clearTokens,
     }));
 
-    const { createAuthenticatedFetch } = await import('./authenticatedFetch');
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
     const deferredRefresh = Promise.withResolvers<Response>();
     const deferredSecondOriginal = Promise.withResolvers<Response>();
@@ -181,18 +185,6 @@ describe('createAuthenticatedFetch', () => {
           });
         }
 
-        if (refreshToken === rotatedTokens.refreshToken) {
-          return jsonResponse({
-            data: {
-              refreshAuthTokens: {
-                accessToken: { serializedValue: rotatedAgainTokens.accessToken },
-                refreshToken: { serializedValue: rotatedAgainTokens.refreshToken },
-                errors: [],
-              },
-            },
-          });
-        }
-
         throw new Error(`unexpected refresh token ${refreshToken}`);
       }
 
@@ -207,8 +199,7 @@ describe('createAuthenticatedFetch', () => {
       }
 
       if (
-        authHeader === `Bearer ${rotatedTokens.accessToken}` ||
-        authHeader === `Bearer ${rotatedAgainTokens.accessToken}`
+        authHeader === `Bearer ${rotatedTokens.accessToken}`
       ) {
         return jsonResponse({ data: { viewer: { id: 'viewer-1' } } });
       }
@@ -251,9 +242,85 @@ describe('createAuthenticatedFetch', () => {
     });
     expect(onForcedLogout).not.toHaveBeenCalled();
     expect(clearTokens).not.toHaveBeenCalled();
-    expect(refreshTokensUsed).not.toEqual([
-      initialTokens.refreshToken,
-      initialTokens.refreshToken,
-    ]);
+    expect(refreshTokensUsed).toEqual([initialTokens.refreshToken]);
+  });
+
+  test('returns the original auth response when refresh fails for transient transport reasons', async () => {
+    const initialTokens = {
+      accessToken: 'expired-access-token',
+      refreshToken: 'refresh-token-v1',
+      expiresAt: '2026-04-01T00:00:00.000Z',
+    };
+
+    const loadTokens = mock(async () => initialTokens);
+    const storeTokens = mock(async () => {});
+    const clearTokens = mock(async () => {});
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    globalThis.fetch = mock(async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      if (String(request.query).includes('mutation RefreshAuthTokens')) {
+        return textResponse('bad gateway', { status: 502, statusText: 'Bad Gateway' });
+      }
+
+      if (authHeader === `Bearer ${initialTokens.accessToken}`) {
+        return jsonResponse({ errors: [{ message: 'unauthenticated' }] });
+      }
+
+      throw new Error(`unexpected auth header ${authHeader}`);
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const fetchFn = createAuthenticatedFetch('https://api.example.com', onForcedLogout);
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    await expect(fetchFn(operation, {})).resolves.toEqual({
+      errors: [{ message: 'unauthenticated' }],
+    });
+    expect(storeTokens).not.toHaveBeenCalled();
+    expect(clearTokens).not.toHaveBeenCalled();
+    expect(onForcedLogout).not.toHaveBeenCalled();
+  });
+
+  test('throws an HTTP error instead of a JSON parse error for non-JSON failures', async () => {
+    const loadTokens = mock(async () => null);
+    const storeTokens = mock(async () => {});
+    const clearTokens = mock(async () => {});
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    globalThis.fetch = mock(async () => {
+      return textResponse('<html>bad gateway</html>', {
+        status: 502,
+        statusText: 'Bad Gateway',
+        headers: { 'Content-Type': 'text/html' },
+      });
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const fetchFn = createAuthenticatedFetch('https://api.example.com', onForcedLogout);
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    await expect(fetchFn(operation, {})).rejects.toThrow('GraphQL request failed with 502 Bad Gateway');
+    expect(onForcedLogout).not.toHaveBeenCalled();
   });
 });

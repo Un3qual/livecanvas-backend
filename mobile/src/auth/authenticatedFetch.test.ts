@@ -10,6 +10,7 @@ describe('authenticated fetch helpers', () => {
   test('refresh mutation selects token subfields', () => {
     expect(REFRESH_MUTATION).toContain('accessToken {');
     expect(REFRESH_MUTATION).toContain('serializedValue');
+    expect(REFRESH_MUTATION).toContain('expiresAt');
     expect(REFRESH_MUTATION).toContain('refreshToken {');
     expect(REFRESH_MUTATION).not.toContain('accessToken\n      refreshToken');
   });
@@ -22,6 +23,7 @@ describe('authenticated fetch helpers', () => {
             accessToken: {
               serializedValue: 'access-token',
               tokenVersion: 3,
+              expiresAt: '2026-04-15T00:00:00.000Z',
             },
             refreshToken: {
               serializedValue: 'refresh-token',
@@ -34,6 +36,7 @@ describe('authenticated fetch helpers', () => {
     ).toEqual({
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
+      expiresAt: '2026-04-15T00:00:00.000Z',
     });
   });
 
@@ -66,5 +69,25 @@ describe('authenticated fetch helpers', () => {
         },
       }),
     ).toBe(true);
+  });
+
+  test('ignores deeply nested data errors that are outside the mutation payload layer', () => {
+    expect(
+      hasUnauthenticatedError({
+        data: {
+          viewer: {
+            profile: {
+              auditTrail: {
+                errors: [
+                  {
+                    message: 'unauthenticated',
+                  },
+                ],
+              },
+            },
+          },
+        },
+      }),
+    ).toBe(false);
   });
 });

@@ -14,6 +14,7 @@ export type GraphQLResponseInput =
 export interface RefreshedAuthTokens {
   accessToken: string;
   refreshToken: string;
+  expiresAt: string | null;
 }
 
 export const REFRESH_MUTATION = `
@@ -22,10 +23,12 @@ export const REFRESH_MUTATION = `
       accessToken {
         serializedValue
         tokenVersion
+        expiresAt
       }
       refreshToken {
         serializedValue
         tokenVersion
+        expiresAt
       }
       errors { field code message }
     }
@@ -60,19 +63,21 @@ function isUnauthenticatedErrorEntry(entry: unknown): boolean {
   return normalizeGraphQLErrorValue(entry.code) === 'unauthenticated';
 }
 
-function hasUnauthenticatedPayloadError(value: unknown): boolean {
+function hasUnauthenticatedPayloadErrorsList(value: unknown): boolean {
   if (Array.isArray(value)) {
-    return value.some(hasUnauthenticatedPayloadError);
+    return value.some(hasUnauthenticatedPayloadErrorsList);
   }
 
   if (!isObject(value)) return false;
 
   const errors = value.errors;
-  if (Array.isArray(errors) && errors.some(isUnauthenticatedErrorEntry)) {
-    return true;
-  }
+  return Array.isArray(errors) && errors.some(isUnauthenticatedErrorEntry);
+}
 
-  return Object.values(value).some(hasUnauthenticatedPayloadError);
+function hasUnauthenticatedPayloadError(value: unknown): boolean {
+  if (!isObject(value)) return false;
+
+  return Object.values(value).some(hasUnauthenticatedPayloadErrorsList);
 }
 
 export function hasUnauthenticatedError(response: GraphQLResponseInput): boolean {
@@ -94,6 +99,11 @@ function getTokenValue(value: unknown): string | null {
   return typeof value.serializedValue === 'string' ? value.serializedValue : null;
 }
 
+function getTokenExpiry(value: unknown): string | null {
+  if (!isObject(value)) return null;
+  return typeof value.expiresAt === 'string' ? value.expiresAt : null;
+}
+
 export function extractRefreshedAuthTokens(
   response: GraphQLResponseInput,
 ): RefreshedAuthTokens | null {
@@ -104,10 +114,11 @@ export function extractRefreshedAuthTokens(
 
   const accessToken = getTokenValue(payload.accessToken);
   const refreshToken = getTokenValue(payload.refreshToken);
+  const expiresAt = getTokenExpiry(payload.accessToken);
 
   if (!accessToken || !refreshToken) return null;
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, expiresAt };
 }
 
 export function buildTokenPair(

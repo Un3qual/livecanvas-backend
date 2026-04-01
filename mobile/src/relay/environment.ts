@@ -15,7 +15,7 @@ export function createBasicFetch(apiBaseUrl: string): FetchFunction {
     const response = await fetch(`${apiBaseUrl}/graphql`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: operation.text, variables }),
+      body: JSON.stringify({ query: operation.text ?? '', variables }),
     });
     return response.json();
   };

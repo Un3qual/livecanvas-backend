@@ -9,7 +9,29 @@ import {
 } from './authenticatedFetchHelpers';
 
 /** Callback invoked when auth is unrecoverably invalid (expired/revoked refresh). */
-export type OnForcedLogout = () => void;
+export type OnForcedLogout = () => void | Promise<void>;
+export type OnTokensChanged = (tokens: AuthTokenPair) => void | Promise<void>;
+
+const ACCESS_TOKEN_TTL_DAYS = 14;
+const TRANSIENT_REFRESH_FAILURE = Symbol('transient_refresh_failure');
+
+type RefreshResult = AuthTokenPair | null | typeof TRANSIENT_REFRESH_FAILURE;
+
+function fallbackAccessTokenExpiresAt(): string {
+  // The current backend contract does not populate Token.expiresAt yet, so
+  // mirror the documented 14-day access-token TTL until it does.
+  return new Date(Date.now() + ACCESS_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function summarizeResponseBody(bodyText: string): string {
+  const normalized = bodyText.trim().replace(/\s+/g, ' ');
+
+  if (!normalized) {
+    return '';
+  }
+
+  return normalized.length > 200 ? `${normalized.slice(0, 197)}...` : normalized;
+}
 
 async function rawFetch(
   apiBaseUrl: string,
@@ -24,7 +46,23 @@ async function rawFetch(
     headers,
     body: JSON.stringify({ query, variables }),
   });
-  return res.json();
+  const bodyText = await res.text();
+
+  if (!res.ok) {
+    const bodySummary = summarizeResponseBody(bodyText);
+    const details = bodySummary ? `: ${bodySummary}` : '';
+    throw new Error(`GraphQL request failed with ${res.status} ${res.statusText}${details}`);
+  }
+
+  if (!bodyText.trim()) {
+    throw new Error('GraphQL response body was empty');
+  }
+
+  try {
+    return JSON.parse(bodyText) as GraphQLResponse;
+  } catch {
+    throw new Error(`GraphQL response was not valid JSON (${res.status} ${res.statusText})`);
+  }
 }
 
 async function attemptRefresh(
@@ -36,8 +74,7 @@ async function attemptRefresh(
   });
   const tokens = extractRefreshedAuthTokens(res);
   if (!tokens) return null;
-  // Backend returns serialized token strings; compute expiresAt as 14 days from now
-  const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = tokens.expiresAt ?? fallbackAccessTokenExpiresAt();
   const pair = buildTokenPair(tokens.accessToken, tokens.refreshToken, expiresAt);
   await storeTokens(pair);
   return pair;
@@ -52,9 +89,10 @@ async function attemptRefresh(
 export function createAuthenticatedFetch(
   apiBaseUrl: string,
   onForcedLogout: OnForcedLogout,
+  onTokensChanged?: OnTokensChanged,
 ): FetchFunction {
   // Serialize concurrent refresh attempts to avoid race conditions
-  let refreshPromise: Promise<AuthTokenPair | null> | null = null;
+  let refreshPromise: Promise<RefreshResult> | null = null;
 
   return async (operation, variables) => {
     const tokens = await loadTokens();
@@ -65,7 +103,7 @@ export function createAuthenticatedFetch(
       // If auth error with no refresh token, force logout
       if (authError) {
         await clearTokens();
-        onForcedLogout();
+        await onForcedLogout();
       }
       return response;
     }
@@ -76,8 +114,8 @@ export function createAuthenticatedFetch(
       // Resolve the shared promise with the latest usable token pair once the
       // refresh path finishes, while the first caller can still return a sibling
       // retry response directly when it succeeds.
-      let resolveRefreshPromise!: (value: AuthTokenPair | null) => void;
-      refreshPromise = new Promise<AuthTokenPair | null>((resolve) => {
+      let resolveRefreshPromise!: (value: RefreshResult) => void;
+      refreshPromise = new Promise<RefreshResult>((resolve) => {
         resolveRefreshPromise = resolve;
       }).finally(() => {
         refreshPromise = null;
@@ -96,22 +134,32 @@ export function createAuthenticatedFetch(
           );
 
           if (!hasUnauthenticatedError(retryResponse)) {
+            await onTokensChanged?.(latestTokens);
             resolveRefreshPromise(latestTokens);
             return retryResponse;
           }
         }
 
         const refreshToken = latestTokens?.refreshToken ?? tokens.refreshToken;
-        resolveRefreshPromise(await attemptRefresh(apiBaseUrl, refreshToken));
+        const refreshedTokens = await attemptRefresh(apiBaseUrl, refreshToken);
+        if (refreshedTokens) {
+          await onTokensChanged?.(refreshedTokens);
+        }
+        resolveRefreshPromise(refreshedTokens);
       } catch {
-        resolveRefreshPromise(null);
+        resolveRefreshPromise(TRANSIENT_REFRESH_FAILURE);
+        return response;
       }
     }
     const newTokens = await refreshPromise;
 
+    if (newTokens === TRANSIENT_REFRESH_FAILURE) {
+      return response;
+    }
+
     if (!newTokens) {
       await clearTokens();
-      onForcedLogout();
+      await onForcedLogout();
       return response;
     }
 

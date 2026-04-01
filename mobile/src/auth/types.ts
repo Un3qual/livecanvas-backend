@@ -16,6 +16,10 @@ export interface AuthContextValue {
   signIn: (tokens: AuthTokenPair) => Promise<void>;
   /** Clear tokens and transition to unauthenticated */
   signOut: () => Promise<void>;
+  /** Sync in-memory auth state after background token rotation */
+  syncTokens: (tokens: AuthTokenPair) => void;
+  /** Transition to unauthenticated after the network layer already cleared storage */
+  onForcedLogout: () => void;
   /** Get the current access token, or null if unauthenticated */
   getAccessToken: () => string | null;
 }

@@ -7,14 +7,16 @@ import { createRelayEnvironment } from './environment';
 
 export function RelayEnvironmentProvider({ children }: { children: React.ReactNode }) {
   const { environment } = useStartupState();
-  const { signOut } = useAuth();
+  const { onForcedLogout, syncTokens } = useAuth();
 
   const relayEnvironment = useMemo(() => {
-    const fetchFn = createAuthenticatedFetch(environment.apiBaseUrl, () => {
-      signOut();
-    });
+    const fetchFn = createAuthenticatedFetch(
+      environment.apiBaseUrl,
+      onForcedLogout,
+      syncTokens,
+    );
     return createRelayEnvironment(environment.apiBaseUrl, fetchFn);
-  }, [environment.apiBaseUrl, signOut]);
+  }, [environment.apiBaseUrl, onForcedLogout, syncTokens]);
 
   return <RelayProvider environment={relayEnvironment}>{children}</RelayProvider>;
 }
