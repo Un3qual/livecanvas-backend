@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { AuthContextValue, AuthState, AuthTokenPair } from './types';
 import { clearTokens, loadTokens, storeTokens } from './tokenStorage';
-import { resolveSessionBootstrapState } from './sessionBootstrap';
+import { resolveAuthBootstrapState } from './authBootstrap';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -16,15 +16,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const tokensRef = useRef<AuthTokenPair | null>(null);
 
   useEffect(() => {
-    loadTokens().then((stored) => {
-      const nextState = resolveSessionBootstrapState(stored);
-      if (nextState.status === 'authenticated') {
-        tokensRef.current = nextState.tokens;
-      } else {
-        tokensRef.current = null;
-      }
+    let cancelled = false;
+
+    void resolveAuthBootstrapState(loadTokens).then((nextState) => {
+      if (cancelled) return;
+      tokensRef.current = nextState.status === 'authenticated' ? nextState.tokens : null;
       setState(nextState);
     });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const signIn = useCallback(async (tokens: AuthTokenPair) => {
