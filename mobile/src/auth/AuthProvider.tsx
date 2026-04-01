@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { AuthContextValue, AuthState, AuthTokenPair } from './types';
 import { clearTokens, loadTokens, storeTokens } from './tokenStorage';
+import { resolveSessionBootstrapState } from './sessionBootstrap';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -16,13 +17,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     loadTokens().then((stored) => {
-      if (stored && new Date(stored.expiresAt) > new Date()) {
-        tokensRef.current = stored;
-        setState({ status: 'authenticated', tokens: stored });
+      const nextState = resolveSessionBootstrapState(stored);
+      if (nextState.status === 'authenticated') {
+        tokensRef.current = nextState.tokens;
       } else {
-        if (stored) clearTokens();
-        setState({ status: 'unauthenticated' });
+        tokensRef.current = null;
       }
+      setState(nextState);
     });
   }, []);
 
