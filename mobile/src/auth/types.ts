@@ -20,6 +20,8 @@ export interface AuthContextValue {
   syncTokens: (tokens: AuthTokenPair) => void;
   /** Transition to unauthenticated after the network layer already cleared storage */
   onForcedLogout: () => void;
+  /** Read the latest auth status without waiting for a re-render */
+  getAuthStatus: () => AuthState['status'];
   /** Get the current access token, or null if unauthenticated */
   getAccessToken: () => string | null;
 }

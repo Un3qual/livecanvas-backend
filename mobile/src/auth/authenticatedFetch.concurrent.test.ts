@@ -639,6 +639,56 @@ describe('createAuthenticatedFetch', () => {
     expect(onTokensChanged).not.toHaveBeenCalled();
   });
 
+  test('ignores persisted tokens after local logout if storage deletion failed', async () => {
+    const staleTokens = {
+      accessToken: 'stale-access-token',
+      refreshToken: 'stale-refresh-token',
+      expiresAt: '2026-04-15T00:00:00.000Z',
+    };
+
+    let authStatus: 'authenticated' | 'unauthenticated' = 'unauthenticated';
+    const loadTokens = mock(async () => staleTokens);
+    const storeTokens = mock(async () => {});
+    const clearTokens = mock(async () => {});
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    globalThis.fetch = mock(async (_url, init) => {
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      expect(authHeader).toBeNull();
+
+      return jsonResponse({ data: { viewer: null } });
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+      () => authStatus,
+    );
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    await expect(fetchFn(operation, {})).resolves.toEqual({
+      data: { viewer: null },
+    });
+    expect(loadTokens).not.toHaveBeenCalled();
+    expect(storeTokens).not.toHaveBeenCalled();
+    expect(clearTokens).not.toHaveBeenCalled();
+    expect(onForcedLogout).not.toHaveBeenCalled();
+    expect(onTokensChanged).not.toHaveBeenCalled();
+  });
+
   test('throws an HTTP error instead of a JSON parse error for non-JSON failures', async () => {
     const loadTokens = mock(async () => null);
     const storeTokens = mock(async () => {});

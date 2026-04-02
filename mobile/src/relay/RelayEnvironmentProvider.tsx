@@ -7,7 +7,7 @@ import { createRelayEnvironment } from './environment';
 
 export function RelayEnvironmentProvider({ children }: { children: React.ReactNode }) {
   const { environment } = useStartupState();
-  const { state, onForcedLogout, syncTokens } = useAuth();
+  const { state, onForcedLogout, syncTokens, getAuthStatus } = useAuth();
 
   const relayEnvironment = useMemo(() => {
     // Rebuild the Relay store when auth transitions between loading,
@@ -17,9 +17,10 @@ export function RelayEnvironmentProvider({ children }: { children: React.ReactNo
       environment.apiBaseUrl,
       onForcedLogout,
       syncTokens,
+      getAuthStatus,
     );
     return createRelayEnvironment(environment.apiBaseUrl, fetchFn);
-  }, [environment.apiBaseUrl, onForcedLogout, state.status, syncTokens]);
+  }, [environment.apiBaseUrl, getAuthStatus, onForcedLogout, state.status, syncTokens]);
 
   return <RelayProvider environment={relayEnvironment}>{children}</RelayProvider>;
 }

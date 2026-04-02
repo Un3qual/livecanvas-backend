@@ -97,13 +97,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await forceUnauthenticated(clearTokens, commitUnauthenticated);
   }, [commitUnauthenticated]);
 
+  const getAuthStatus = useCallback(() => {
+    return stateRef.current.status;
+  }, []);
+
   const getAccessToken = useCallback(() => {
     return tokensRef.current?.accessToken ?? null;
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ state, signIn, signOut, syncTokens, onForcedLogout, getAccessToken }),
-    [state, signIn, signOut, syncTokens, onForcedLogout, getAccessToken],
+    () => ({
+      state,
+      signIn,
+      signOut,
+      syncTokens,
+      onForcedLogout,
+      getAuthStatus,
+      getAccessToken,
+    }),
+    [state, signIn, signOut, syncTokens, onForcedLogout, getAuthStatus, getAccessToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
