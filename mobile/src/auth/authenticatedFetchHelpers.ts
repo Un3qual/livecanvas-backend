@@ -65,7 +65,12 @@ function isUnauthenticatedErrorEntry(entry: unknown): boolean {
 
 function hasUnauthenticatedPayloadErrorsList(value: unknown): boolean {
   if (Array.isArray(value)) {
-    return value.some(hasUnauthenticatedPayloadErrorsList);
+    return value.some((entry) => {
+      if (!isObject(entry)) return false;
+
+      const errors = entry.errors;
+      return Array.isArray(errors) && errors.some(isUnauthenticatedErrorEntry);
+    });
   }
 
   if (!isObject(value)) return false;

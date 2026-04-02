@@ -90,7 +90,12 @@ describe('createAuthenticatedFetch', () => {
     }) as typeof globalThis.fetch;
 
     const onForcedLogout = mock(() => {});
-    const fetchFn = createAuthenticatedFetch('https://api.example.com', onForcedLogout);
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
     const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
@@ -106,7 +111,10 @@ describe('createAuthenticatedFetch', () => {
       jsonResponse({
         data: {
           refreshAuthTokens: {
-            accessToken: { serializedValue: refreshedTokens.accessToken },
+            accessToken: {
+              serializedValue: refreshedTokens.accessToken,
+              expiresAt: refreshedTokens.expiresAt,
+            },
             refreshToken: { serializedValue: refreshedTokens.refreshToken },
             errors: [],
           },
@@ -124,6 +132,8 @@ describe('createAuthenticatedFetch', () => {
     expect(refreshCalls).toBe(1);
     expect(onForcedLogout).not.toHaveBeenCalled();
     expect(clearTokens).not.toHaveBeenCalled();
+    expect(onTokensChanged).toHaveBeenCalledTimes(1);
+    expect(onTokensChanged).toHaveBeenCalledWith(refreshedTokens);
   });
 
   test('reuses the latest stored session after a sibling request rotates tokens', async () => {
@@ -170,19 +180,11 @@ describe('createAuthenticatedFetch', () => {
         refreshTokensUsed.push(refreshToken);
 
         if (refreshToken === initialTokens.refreshToken) {
-          if (refreshTokensUsed.length === 1) {
-            return deferredRefresh.promise;
+          if (refreshTokensUsed.length > 1) {
+            throw new Error(`unexpected second refresh attempt ${refreshTokensUsed.length}`);
           }
 
-          return jsonResponse({
-            data: {
-              refreshAuthTokens: {
-                accessToken: null,
-                refreshToken: null,
-                errors: [{ field: 'refreshToken', message: 'revoked_token' }],
-              },
-            },
-          });
+          return deferredRefresh.promise;
         }
 
         throw new Error(`unexpected refresh token ${refreshToken}`);
@@ -208,7 +210,12 @@ describe('createAuthenticatedFetch', () => {
     }) as typeof globalThis.fetch;
 
     const onForcedLogout = mock(() => {});
-    const fetchFn = createAuthenticatedFetch('https://api.example.com', onForcedLogout);
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
     const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
@@ -223,7 +230,10 @@ describe('createAuthenticatedFetch', () => {
       jsonResponse({
         data: {
           refreshAuthTokens: {
-            accessToken: { serializedValue: rotatedTokens.accessToken },
+            accessToken: {
+              serializedValue: rotatedTokens.accessToken,
+              expiresAt: rotatedTokens.expiresAt,
+            },
             refreshToken: { serializedValue: rotatedTokens.refreshToken },
             errors: [],
           },
@@ -243,6 +253,8 @@ describe('createAuthenticatedFetch', () => {
     expect(onForcedLogout).not.toHaveBeenCalled();
     expect(clearTokens).not.toHaveBeenCalled();
     expect(refreshTokensUsed).toEqual([initialTokens.refreshToken]);
+    expect(onTokensChanged).toHaveBeenCalledTimes(2);
+    expect(onTokensChanged).toHaveBeenCalledWith(rotatedTokens);
   });
 
   test('returns the original auth response when refresh fails for transient transport reasons', async () => {
@@ -280,7 +292,12 @@ describe('createAuthenticatedFetch', () => {
     }) as typeof globalThis.fetch;
 
     const onForcedLogout = mock(() => {});
-    const fetchFn = createAuthenticatedFetch('https://api.example.com', onForcedLogout);
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
     const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
@@ -291,6 +308,69 @@ describe('createAuthenticatedFetch', () => {
     expect(storeTokens).not.toHaveBeenCalled();
     expect(clearTokens).not.toHaveBeenCalled();
     expect(onForcedLogout).not.toHaveBeenCalled();
+    expect(onTokensChanged).not.toHaveBeenCalled();
+  });
+
+  test('forces logout when refresh returns a revoked-token payload error', async () => {
+    const initialTokens = {
+      accessToken: 'expired-access-token',
+      refreshToken: 'refresh-token-v1',
+      expiresAt: '2026-04-01T00:00:00.000Z',
+    };
+
+    const loadTokens = mock(async () => initialTokens);
+    const storeTokens = mock(async () => {});
+    const clearTokens = mock(async () => {});
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    globalThis.fetch = mock(async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      if (String(request.query).includes('mutation RefreshAuthTokens')) {
+        return jsonResponse({
+          data: {
+            refreshAuthTokens: {
+              accessToken: null,
+              refreshToken: null,
+              errors: [{ field: 'refreshToken', message: 'revoked_token' }],
+            },
+          },
+        });
+      }
+
+      if (authHeader === `Bearer ${initialTokens.accessToken}`) {
+        return jsonResponse({ errors: [{ message: 'unauthenticated' }] });
+      }
+
+      throw new Error(`unexpected auth header ${authHeader}`);
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    await expect(fetchFn(operation, {})).resolves.toEqual({
+      errors: [{ message: 'unauthenticated' }],
+    });
+    expect(storeTokens).not.toHaveBeenCalled();
+    expect(clearTokens).toHaveBeenCalledTimes(1);
+    expect(onForcedLogout).toHaveBeenCalledTimes(1);
+    expect(onTokensChanged).not.toHaveBeenCalled();
   });
 
   test('throws an HTTP error instead of a JSON parse error for non-JSON failures', async () => {
