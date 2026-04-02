@@ -20,19 +20,29 @@ function summarizeResponseBody(bodyText: string): string {
 async function parseGraphQLResponse(response: Response): Promise<GraphQLResponse> {
   const bodyText = await response.text();
 
-  if (!response.ok) {
-    const bodySummary = summarizeResponseBody(bodyText);
-    const details = bodySummary ? `: ${bodySummary}` : '';
-    throw new Error(`GraphQL request failed with ${response.status} ${response.statusText}${details}`);
-  }
-
   if (!bodyText.trim()) {
+    if (!response.ok) {
+      throw new Error(`GraphQL request failed with ${response.status} ${response.statusText}`);
+    }
+
     throw new Error('GraphQL response body was empty');
   }
 
   try {
-    return JSON.parse(bodyText) as GraphQLResponse;
+    const parsed = JSON.parse(bodyText) as GraphQLResponse;
+
+    if (!response.ok) {
+      return parsed;
+    }
+
+    return parsed;
   } catch {
+    if (!response.ok) {
+      const bodySummary = summarizeResponseBody(bodyText);
+      const details = bodySummary ? `: ${bodySummary}` : '';
+      throw new Error(`GraphQL request failed with ${response.status} ${response.statusText}${details}`);
+    }
+
     throw new Error(`GraphQL response was not valid JSON (${response.status} ${response.statusText})`);
   }
 }

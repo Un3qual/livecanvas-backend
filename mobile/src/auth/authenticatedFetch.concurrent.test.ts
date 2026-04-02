@@ -346,6 +346,279 @@ describe('createAuthenticatedFetch', () => {
     expect(onTokensChanged).not.toHaveBeenCalled();
   });
 
+  test('does not refresh with a stale pre-sign-out token after storage is cleared', async () => {
+    const initialTokens = {
+      accessToken: 'expired-access-token',
+      refreshToken: 'refresh-token-v1',
+      expiresAt: '2026-04-01T00:00:00.000Z',
+    };
+    const refreshedTokens = {
+      accessToken: 'fresh-access-token',
+      refreshToken: 'refresh-token-v2',
+      expiresAt: '2026-04-15T00:00:00.000Z',
+    };
+
+    let loadCount = 0;
+    const loadTokens = mock(async () => {
+      loadCount += 1;
+      return loadCount === 1 ? initialTokens : null;
+    });
+    const storeTokens = mock(async () => {});
+    const clearTokens = mock(async () => {});
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    let refreshCalls = 0;
+    globalThis.fetch = mock(async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      if (String(request.query).includes('mutation RefreshAuthTokens')) {
+        refreshCalls += 1;
+        return jsonResponse({
+          data: {
+            refreshAuthTokens: {
+              accessToken: {
+                serializedValue: refreshedTokens.accessToken,
+                expiresAt: refreshedTokens.expiresAt,
+              },
+              refreshToken: { serializedValue: refreshedTokens.refreshToken },
+              errors: [],
+            },
+          },
+        });
+      }
+
+      if (authHeader === `Bearer ${initialTokens.accessToken}`) {
+        return jsonResponse({ errors: [{ message: 'unauthenticated' }] });
+      }
+
+      if (authHeader === `Bearer ${refreshedTokens.accessToken}`) {
+        return jsonResponse({ data: { viewer: { id: 'viewer-1' } } });
+      }
+
+      throw new Error(`unexpected auth header ${authHeader}`);
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    await expect(fetchFn(operation, {})).resolves.toEqual({
+      errors: [{ message: 'unauthenticated' }],
+    });
+    expect(refreshCalls).toBe(0);
+    expect(storeTokens).not.toHaveBeenCalled();
+    expect(clearTokens).not.toHaveBeenCalled();
+    expect(onForcedLogout).not.toHaveBeenCalled();
+    expect(onTokensChanged).not.toHaveBeenCalled();
+  });
+
+  test('does not overwrite a newer session when a stale refresh succeeds late', async () => {
+    const sessionATokens = {
+      accessToken: 'expired-access-token-a',
+      refreshToken: 'refresh-token-a',
+      expiresAt: '2026-04-01T00:00:00.000Z',
+    };
+    const refreshedSessionATokens = {
+      accessToken: 'fresh-access-token-a',
+      refreshToken: 'refresh-token-a2',
+      expiresAt: '2026-04-15T00:00:00.000Z',
+    };
+    const sessionBTokens = {
+      accessToken: 'fresh-access-token-b',
+      refreshToken: 'refresh-token-b',
+      expiresAt: '2026-04-20T00:00:00.000Z',
+    };
+
+    let storedTokens = sessionATokens;
+    const loadTokens = mock(async () => storedTokens);
+    const storeTokens = mock(async (pair) => {
+      storedTokens = pair;
+    });
+    const clearTokens = mock(async () => {
+      storedTokens = null as typeof storedTokens;
+    });
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    const refreshResponse = Promise.withResolvers<Response>();
+    let refreshCalls = 0;
+
+    globalThis.fetch = mock(async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      if (String(request.query).includes('mutation RefreshAuthTokens')) {
+        refreshCalls += 1;
+        return refreshResponse.promise;
+      }
+
+      if (authHeader === `Bearer ${sessionATokens.accessToken}`) {
+        return jsonResponse({ errors: [{ message: 'unauthenticated' }] });
+      }
+
+      if (authHeader === `Bearer ${refreshedSessionATokens.accessToken}`) {
+        return jsonResponse({ data: { viewer: { id: 'viewer-1' } } });
+      }
+
+      if (authHeader === `Bearer ${sessionBTokens.accessToken}`) {
+        return jsonResponse({ data: { viewer: { id: 'viewer-2' } } });
+      }
+
+      throw new Error(`unexpected auth header ${authHeader}`);
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    const request = fetchFn(operation, {});
+    await waitFor(() => refreshCalls === 1, 'stale refresh attempt');
+
+    storedTokens = sessionBTokens;
+
+    refreshResponse.resolve(
+      jsonResponse({
+        data: {
+          refreshAuthTokens: {
+            accessToken: {
+              serializedValue: refreshedSessionATokens.accessToken,
+              expiresAt: refreshedSessionATokens.expiresAt,
+            },
+            refreshToken: { serializedValue: refreshedSessionATokens.refreshToken },
+            errors: [],
+          },
+        },
+      }),
+    );
+
+    await expect(request).resolves.toEqual({
+      errors: [{ message: 'unauthenticated' }],
+    });
+    expect(storedTokens).toEqual(sessionBTokens);
+    expect(storeTokens).not.toHaveBeenCalled();
+    expect(clearTokens).not.toHaveBeenCalled();
+    expect(onForcedLogout).not.toHaveBeenCalled();
+    expect(onTokensChanged).not.toHaveBeenCalled();
+  });
+
+  test('does not force logout a newer session when a stale refresh fails late', async () => {
+    const sessionATokens = {
+      accessToken: 'expired-access-token-a',
+      refreshToken: 'refresh-token-a',
+      expiresAt: '2026-04-01T00:00:00.000Z',
+    };
+    const sessionBTokens = {
+      accessToken: 'fresh-access-token-b',
+      refreshToken: 'refresh-token-b',
+      expiresAt: '2026-04-20T00:00:00.000Z',
+    };
+
+    let storedTokens = sessionATokens;
+    const loadTokens = mock(async () => storedTokens);
+    const storeTokens = mock(async (pair) => {
+      storedTokens = pair;
+    });
+    const clearTokens = mock(async () => {
+      storedTokens = null as typeof storedTokens;
+    });
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    const refreshResponse = Promise.withResolvers<Response>();
+    let refreshCalls = 0;
+
+    globalThis.fetch = mock(async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      if (String(request.query).includes('mutation RefreshAuthTokens')) {
+        refreshCalls += 1;
+        return refreshResponse.promise;
+      }
+
+      if (authHeader === `Bearer ${sessionATokens.accessToken}`) {
+        return jsonResponse({ errors: [{ message: 'unauthenticated' }] });
+      }
+
+      if (authHeader === `Bearer ${sessionBTokens.accessToken}`) {
+        return jsonResponse({ data: { viewer: { id: 'viewer-2' } } });
+      }
+
+      throw new Error(`unexpected auth header ${authHeader}`);
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    const request = fetchFn(operation, {});
+    await waitFor(() => refreshCalls === 1, 'stale refresh attempt');
+
+    storedTokens = sessionBTokens;
+
+    refreshResponse.resolve(
+      jsonResponse({
+        data: {
+          refreshAuthTokens: {
+            accessToken: null,
+            refreshToken: null,
+            errors: [{ field: 'refreshToken', message: 'revoked_token' }],
+          },
+        },
+      }),
+    );
+
+    await expect(request).resolves.toEqual({
+      errors: [{ message: 'unauthenticated' }],
+    });
+    expect(storedTokens).toEqual(sessionBTokens);
+    expect(storeTokens).not.toHaveBeenCalled();
+    expect(clearTokens).not.toHaveBeenCalled();
+    expect(onForcedLogout).not.toHaveBeenCalled();
+    expect(onTokensChanged).not.toHaveBeenCalled();
+  });
+
   test('returns the original auth response when refresh fails for transient transport reasons', async () => {
     const initialTokens = {
       accessToken: 'expired-access-token',

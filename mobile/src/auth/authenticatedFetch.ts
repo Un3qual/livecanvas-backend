@@ -15,12 +15,14 @@ export type OnTokensChanged = (tokens: AuthTokenPair) => void | Promise<void>;
 const ACCESS_TOKEN_TTL_DAYS = 14;
 const TRANSIENT_REFRESH_FAILURE = Symbol('transient_refresh_failure');
 const SESSION_INACTIVE = Symbol('session_inactive');
+const SESSION_CHANGED = Symbol('session_changed');
 
 type GetAuthStatus = () => AuthState['status'];
 type RefreshResult =
   | AuthTokenPair
   | null
   | typeof SESSION_INACTIVE
+  | typeof SESSION_CHANGED
   | typeof TRANSIENT_REFRESH_FAILURE;
 
 async function loadTokensOrNull(): Promise<AuthTokenPair | null> {
@@ -82,14 +84,17 @@ async function rawFetch(
 async function attemptRefresh(
   apiBaseUrl: string,
   refreshToken: string,
-): Promise<AuthTokenPair | null> {
+): Promise<AuthTokenPair | null | typeof SESSION_CHANGED> {
   const res = await rawFetch(apiBaseUrl, REFRESH_MUTATION, {
     input: { refreshToken },
   });
+  const currentTokens = await loadTokensOrNull();
+  // Only apply refresh results to the same session that initiated them.
+  if (!currentTokens || currentTokens.refreshToken !== refreshToken) {
+    return SESSION_CHANGED;
+  }
   const tokens = extractRefreshedAuthTokens(res);
   if (!tokens) return null;
-  const currentTokens = await loadTokensOrNull();
-  if (!currentTokens) return null;
   const expiresAt = tokens.expiresAt ?? fallbackAccessTokenExpiresAt();
   const pair = buildTokenPair(tokens.accessToken, tokens.refreshToken, expiresAt);
   await storeTokens(pair);
@@ -194,6 +199,11 @@ export function createAuthenticatedFetch(
           return response;
         }
 
+        if (!latestTokens?.refreshToken) {
+          resolveRefreshPromise(SESSION_CHANGED);
+          return response;
+        }
+
         if (latestTokens?.accessToken && latestTokens.accessToken !== tokens.accessToken) {
           const retryResponse = await rawFetch(
             apiBaseUrl,
@@ -209,14 +219,16 @@ export function createAuthenticatedFetch(
           }
         }
 
-        const refreshToken = latestTokens?.refreshToken ?? tokens.refreshToken;
+        const refreshToken = latestTokens.refreshToken;
         const refreshedTokens = await attemptRefresh(apiBaseUrl, refreshToken);
         if (isSessionInactive()) {
           resolveRefreshPromise(SESSION_INACTIVE);
           return response;
         }
 
-        if (refreshedTokens) {
+        if (refreshedTokens === SESSION_CHANGED) {
+          resolveRefreshPromise(SESSION_CHANGED);
+        } else if (refreshedTokens) {
           await onTokensChanged?.(refreshedTokens);
           resolveRefreshPromise(refreshedTokens);
         } else {
@@ -229,7 +241,11 @@ export function createAuthenticatedFetch(
     }
     const newTokens = await currentRefreshPromise;
 
-    if (newTokens === SESSION_INACTIVE || newTokens === TRANSIENT_REFRESH_FAILURE) {
+    if (
+      newTokens === SESSION_INACTIVE ||
+      newTokens === SESSION_CHANGED ||
+      newTokens === TRANSIENT_REFRESH_FAILURE
+    ) {
       return response;
     }
 

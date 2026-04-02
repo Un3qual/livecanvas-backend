@@ -65,4 +65,31 @@ describe('createBasicFetch', () => {
       >[0], {}),
     ).rejects.toThrow('GraphQL request failed with 502 Bad Gateway');
   });
+
+  test('returns JSON GraphQL errors from non-2xx responses', async () => {
+    mock.module('relay-runtime', () => ({
+      Environment: class Environment {},
+      Network: { create: (fetchFn: unknown) => fetchFn },
+      RecordSource: class RecordSource {},
+      Store: class Store {},
+    }));
+
+    const { createBasicFetch } = await import('./environment');
+
+    globalThis.fetch = mock(async () => {
+      return new Response(JSON.stringify({ errors: [{ message: 'unauthenticated' }] }), {
+        status: 401,
+        statusText: 'Unauthorized',
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }) as typeof globalThis.fetch;
+
+    const fetchFn = createBasicFetch('https://api.example.com');
+
+    await expect(
+      fetchFn({ text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+        ReturnType<typeof createBasicFetch>
+      >[0], {}),
+    ).resolves.toEqual({ errors: [{ message: 'unauthenticated' }] });
+  });
 });
