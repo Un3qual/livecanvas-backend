@@ -373,6 +373,140 @@ describe('createAuthenticatedFetch', () => {
     expect(onTokensChanged).not.toHaveBeenCalled();
   });
 
+  test('coalesces forced logout side effects for concurrent revoked refreshes', async () => {
+    const initialTokens = {
+      accessToken: 'expired-access-token',
+      refreshToken: 'refresh-token-v1',
+      expiresAt: '2026-04-01T00:00:00.000Z',
+    };
+
+    const loadTokens = mock(async () => initialTokens);
+    const storeTokens = mock(async () => {});
+    const clearTokens = mock(async () => {});
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    globalThis.fetch = mock(async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      if (String(request.query).includes('mutation RefreshAuthTokens')) {
+        return jsonResponse({
+          data: {
+            refreshAuthTokens: {
+              accessToken: null,
+              refreshToken: null,
+              errors: [{ field: 'refreshToken', message: 'revoked_token' }],
+            },
+          },
+        });
+      }
+
+      if (authHeader === `Bearer ${initialTokens.accessToken}`) {
+        return jsonResponse({ errors: [{ message: 'unauthenticated' }] });
+      }
+
+      throw new Error(`unexpected auth header ${authHeader}`);
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    const firstRequest = fetchFn(operation, {});
+    const secondRequest = fetchFn(operation, {});
+
+    await expect(firstRequest).resolves.toEqual({
+      errors: [{ message: 'unauthenticated' }],
+    });
+    await expect(secondRequest).resolves.toEqual({
+      errors: [{ message: 'unauthenticated' }],
+    });
+
+    expect(storeTokens).not.toHaveBeenCalled();
+    expect(clearTokens).toHaveBeenCalledTimes(1);
+    expect(onForcedLogout).toHaveBeenCalledTimes(1);
+    expect(onTokensChanged).not.toHaveBeenCalled();
+  });
+
+  test('still transitions to forced logout when secure storage deletion fails', async () => {
+    const initialTokens = {
+      accessToken: 'expired-access-token',
+      refreshToken: 'refresh-token-v1',
+      expiresAt: '2026-04-01T00:00:00.000Z',
+    };
+
+    const loadTokens = mock(async () => initialTokens);
+    const storeTokens = mock(async () => {});
+    const clearTokens = mock(async () => {
+      throw new Error('secure store unavailable');
+    });
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    globalThis.fetch = mock(async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      if (String(request.query).includes('mutation RefreshAuthTokens')) {
+        return jsonResponse({
+          data: {
+            refreshAuthTokens: {
+              accessToken: null,
+              refreshToken: null,
+              errors: [{ field: 'refreshToken', message: 'revoked_token' }],
+            },
+          },
+        });
+      }
+
+      if (authHeader === `Bearer ${initialTokens.accessToken}`) {
+        return jsonResponse({ errors: [{ message: 'unauthenticated' }] });
+      }
+
+      throw new Error(`unexpected auth header ${authHeader}`);
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    await expect(fetchFn(operation, {})).resolves.toEqual({
+      errors: [{ message: 'unauthenticated' }],
+    });
+
+    expect(storeTokens).not.toHaveBeenCalled();
+    expect(clearTokens).toHaveBeenCalledTimes(1);
+    expect(onForcedLogout).toHaveBeenCalledTimes(1);
+    expect(onTokensChanged).not.toHaveBeenCalled();
+  });
+
   test('throws an HTTP error instead of a JSON parse error for non-JSON failures', async () => {
     const loadTokens = mock(async () => null);
     const storeTokens = mock(async () => {});

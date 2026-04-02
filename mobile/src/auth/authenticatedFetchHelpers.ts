@@ -30,7 +30,7 @@ export const REFRESH_MUTATION = `
         tokenVersion
         expiresAt
       }
-      errors { field code message }
+      errors { field message }
     }
   }
 `;

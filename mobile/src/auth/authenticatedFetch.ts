@@ -93,6 +93,37 @@ export function createAuthenticatedFetch(
 ): FetchFunction {
   // Serialize concurrent refresh attempts to avoid race conditions
   let refreshPromise: Promise<RefreshResult> | null = null;
+  let forcedLogoutPromise: Promise<void> | null = null;
+
+  const performForcedLogout = async (skipWhenTokensAlreadyCleared: boolean) => {
+    if (forcedLogoutPromise) {
+      await forcedLogoutPromise;
+      return;
+    }
+
+    forcedLogoutPromise = (async () => {
+      if (skipWhenTokensAlreadyCleared) {
+        try {
+          const remainingTokens = await loadTokens();
+          if (!remainingTokens) return;
+        } catch {
+          // Fall through and still force the in-memory logout state if storage reads fail.
+        }
+      }
+
+      try {
+        await clearTokens();
+      } catch {
+        // Keep the app in an unauthenticated state even if SecureStore deletion fails.
+      } finally {
+        await onForcedLogout();
+      }
+    })().finally(() => {
+      forcedLogoutPromise = null;
+    });
+
+    await forcedLogoutPromise;
+  };
 
   return async (operation, variables) => {
     const tokens = await loadTokens();
@@ -102,8 +133,7 @@ export function createAuthenticatedFetch(
     if (!authError || !tokens?.refreshToken) {
       // If auth error with no refresh token, force logout
       if (authError) {
-        await clearTokens();
-        await onForcedLogout();
+        await performForcedLogout(false);
       }
       return response;
     }
@@ -158,8 +188,7 @@ export function createAuthenticatedFetch(
     }
 
     if (!newTokens) {
-      await clearTokens();
-      await onForcedLogout();
+      await performForcedLogout(true);
       return response;
     }
 

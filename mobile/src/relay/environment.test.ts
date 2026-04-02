@@ -38,4 +38,31 @@ describe('createBasicFetch', () => {
       }),
     ).resolves.toEqual({ data: { viewer: null } });
   });
+
+  test('throws a descriptive HTTP error for non-JSON transport failures', async () => {
+    mock.module('relay-runtime', () => ({
+      Environment: class Environment {},
+      Network: { create: (fetchFn: unknown) => fetchFn },
+      RecordSource: class RecordSource {},
+      Store: class Store {},
+    }));
+
+    const { createBasicFetch } = await import('./environment');
+
+    globalThis.fetch = mock(async () => {
+      return new Response('<html>bad gateway</html>', {
+        status: 502,
+        statusText: 'Bad Gateway',
+        headers: { 'Content-Type': 'text/html' },
+      });
+    }) as typeof globalThis.fetch;
+
+    const fetchFn = createBasicFetch('https://api.example.com');
+
+    await expect(
+      fetchFn({ text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+        ReturnType<typeof createBasicFetch>
+      >[0], {}),
+    ).rejects.toThrow('GraphQL request failed with 502 Bad Gateway');
+  });
 });

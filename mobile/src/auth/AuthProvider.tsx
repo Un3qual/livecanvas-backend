@@ -45,18 +45,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void resolveAuthBootstrapState(loadTokens).then((nextState) => {
       if (cancelled) return;
 
-      if (nextState.status === 'authenticated') {
-        syncTokens(nextState.tokens);
-        return;
-      }
+      setState((current) => {
+        if (current.status !== 'loading') {
+          return current;
+        }
 
-      onForcedLogout();
+        if (nextState.status === 'authenticated') {
+          tokensRef.current = nextState.tokens;
+          return { status: 'authenticated', tokens: nextState.tokens };
+        }
+
+        tokensRef.current = null;
+        return { status: 'unauthenticated' };
+      });
     });
 
     return () => {
       cancelled = true;
     };
-  }, [onForcedLogout, syncTokens]);
+  }, []);
 
   const signIn = useCallback(async (tokens: AuthTokenPair) => {
     await storeTokens(tokens);
