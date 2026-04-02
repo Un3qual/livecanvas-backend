@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const commitAuthenticatedTokens = useCallback((tokens: AuthTokenPair) => {
     tokensRef.current = tokens;
+    stateRef.current = { status: 'authenticated', tokens };
     setState((current) => {
       if (current.status === 'authenticated' && sameTokenPair(current.tokens, tokens)) {
         return current;
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const commitUnauthenticated = useCallback(() => {
     tokensRef.current = null;
+    stateRef.current = { status: 'unauthenticated' };
     setState({ status: 'unauthenticated' });
   }, []);
 
