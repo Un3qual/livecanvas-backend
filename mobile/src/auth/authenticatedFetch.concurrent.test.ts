@@ -257,6 +257,95 @@ describe('createAuthenticatedFetch', () => {
     expect(onTokensChanged).toHaveBeenCalledWith(rotatedTokens);
   });
 
+  test('does not repopulate auth after local sign-out clears storage mid-refresh', async () => {
+    const initialTokens = {
+      accessToken: 'expired-access-token',
+      refreshToken: 'refresh-token-v1',
+      expiresAt: '2026-04-01T00:00:00.000Z',
+    };
+    const refreshedTokens = {
+      accessToken: 'fresh-access-token',
+      refreshToken: 'refresh-token-v2',
+      expiresAt: '2026-04-15T00:00:00.000Z',
+    };
+
+    let storageCleared = false;
+    const loadTokens = mock(async () => (storageCleared ? null : initialTokens));
+    const storeTokens = mock(async () => {});
+    const clearTokens = mock(async () => {});
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    const refreshResponse = Promise.withResolvers<Response>();
+    let refreshCalls = 0;
+
+    globalThis.fetch = mock(async (_url, init) => {
+      const request = JSON.parse(String(init?.body));
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      if (String(request.query).includes('mutation RefreshAuthTokens')) {
+        refreshCalls += 1;
+        return refreshResponse.promise;
+      }
+
+      if (authHeader === `Bearer ${initialTokens.accessToken}`) {
+        return jsonResponse({ errors: [{ message: 'unauthenticated' }] });
+      }
+
+      if (authHeader === `Bearer ${refreshedTokens.accessToken}`) {
+        return jsonResponse({ data: { viewer: { id: 'viewer-1' } } });
+      }
+
+      throw new Error(`unexpected auth header ${authHeader}`);
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    const request = fetchFn(operation, {});
+    await waitFor(() => refreshCalls === 1, 'refresh attempt');
+
+    storageCleared = true;
+
+    refreshResponse.resolve(
+      jsonResponse({
+        data: {
+          refreshAuthTokens: {
+            accessToken: {
+              serializedValue: refreshedTokens.accessToken,
+              expiresAt: refreshedTokens.expiresAt,
+            },
+            refreshToken: { serializedValue: refreshedTokens.refreshToken },
+            errors: [],
+          },
+        },
+      }),
+    );
+
+    await expect(request).resolves.toEqual({
+      errors: [{ message: 'unauthenticated' }],
+    });
+    expect(refreshCalls).toBe(1);
+    expect(storeTokens).not.toHaveBeenCalled();
+    expect(clearTokens).not.toHaveBeenCalled();
+    expect(onForcedLogout).not.toHaveBeenCalled();
+    expect(onTokensChanged).not.toHaveBeenCalled();
+  });
+
   test('returns the original auth response when refresh fails for transient transport reasons', async () => {
     const initialTokens = {
       accessToken: 'expired-access-token',
@@ -504,6 +593,49 @@ describe('createAuthenticatedFetch', () => {
     expect(storeTokens).not.toHaveBeenCalled();
     expect(clearTokens).toHaveBeenCalledTimes(1);
     expect(onForcedLogout).toHaveBeenCalledTimes(1);
+    expect(onTokensChanged).not.toHaveBeenCalled();
+  });
+
+  test('continues without auth headers when token storage reads fail', async () => {
+    const loadTokens = mock(async () => {
+      throw new Error('secure store unavailable');
+    });
+    const storeTokens = mock(async () => {});
+    const clearTokens = mock(async () => {});
+
+    mock.module('./tokenStorage', () => ({
+      loadTokens,
+      storeTokens,
+      clearTokens,
+    }));
+
+    const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
+
+    globalThis.fetch = mock(async (_url, init) => {
+      const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
+
+      expect(authHeader).toBeNull();
+
+      return jsonResponse({ data: { viewer: null } });
+    }) as typeof globalThis.fetch;
+
+    const onForcedLogout = mock(() => {});
+    const onTokensChanged = mock(() => {});
+    const fetchFn = createAuthenticatedFetch(
+      'https://api.example.com',
+      onForcedLogout,
+      onTokensChanged,
+    );
+    const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
+      ReturnType<typeof createAuthenticatedFetch>
+    >[0];
+
+    await expect(fetchFn(operation, {})).resolves.toEqual({
+      data: { viewer: null },
+    });
+    expect(storeTokens).not.toHaveBeenCalled();
+    expect(clearTokens).not.toHaveBeenCalled();
+    expect(onForcedLogout).not.toHaveBeenCalled();
     expect(onTokensChanged).not.toHaveBeenCalled();
   });
 

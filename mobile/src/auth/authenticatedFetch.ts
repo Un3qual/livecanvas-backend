@@ -17,6 +17,14 @@ const TRANSIENT_REFRESH_FAILURE = Symbol('transient_refresh_failure');
 
 type RefreshResult = AuthTokenPair | null | typeof TRANSIENT_REFRESH_FAILURE;
 
+async function loadTokensOrNull(): Promise<AuthTokenPair | null> {
+  try {
+    return await loadTokens();
+  } catch {
+    return null;
+  }
+}
+
 function fallbackAccessTokenExpiresAt(): string {
   // The current backend contract does not populate Token.expiresAt yet, so
   // mirror the documented 14-day access-token TTL until it does.
@@ -74,6 +82,8 @@ async function attemptRefresh(
   });
   const tokens = extractRefreshedAuthTokens(res);
   if (!tokens) return null;
+  const currentTokens = await loadTokensOrNull();
+  if (!currentTokens) return null;
   const expiresAt = tokens.expiresAt ?? fallbackAccessTokenExpiresAt();
   const pair = buildTokenPair(tokens.accessToken, tokens.refreshToken, expiresAt);
   await storeTokens(pair);
@@ -126,7 +136,7 @@ export function createAuthenticatedFetch(
   };
 
   return async (operation, variables) => {
-    const tokens = await loadTokens();
+    const tokens = await loadTokensOrNull();
     const response = await rawFetch(apiBaseUrl, operation.text ?? '', variables, tokens?.accessToken);
     const authError = hasUnauthenticatedError(response);
 
@@ -140,16 +150,21 @@ export function createAuthenticatedFetch(
 
     // Claim the refresh lock before any await so concurrent failures cannot
     // race past the guard and start multiple refresh attempts.
-    if (!refreshPromise) {
+    let currentRefreshPromise = refreshPromise;
+
+    if (!currentRefreshPromise) {
       // Resolve the shared promise with the latest usable token pair once the
       // refresh path finishes, while the first caller can still return a sibling
       // retry response directly when it succeeds.
       let resolveRefreshPromise!: (value: RefreshResult) => void;
-      refreshPromise = new Promise<RefreshResult>((resolve) => {
+      currentRefreshPromise = new Promise<RefreshResult>((resolve) => {
         resolveRefreshPromise = resolve;
       }).finally(() => {
-        refreshPromise = null;
+        if (refreshPromise === currentRefreshPromise) {
+          refreshPromise = null;
+        }
       });
+      refreshPromise = currentRefreshPromise;
 
       try {
         // Re-read storage so a sibling request that already refreshed the session
@@ -174,14 +189,16 @@ export function createAuthenticatedFetch(
         const refreshedTokens = await attemptRefresh(apiBaseUrl, refreshToken);
         if (refreshedTokens) {
           await onTokensChanged?.(refreshedTokens);
+          resolveRefreshPromise(refreshedTokens);
+        } else {
+          resolveRefreshPromise(refreshedTokens);
         }
-        resolveRefreshPromise(refreshedTokens);
       } catch {
         resolveRefreshPromise(TRANSIENT_REFRESH_FAILURE);
         return response;
       }
     }
-    const newTokens = await refreshPromise;
+    const newTokens = await currentRefreshPromise;
 
     if (newTokens === TRANSIENT_REFRESH_FAILURE) {
       return response;
