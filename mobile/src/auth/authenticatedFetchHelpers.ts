@@ -55,12 +55,10 @@ function isUnauthenticatedErrorEntry(entry: unknown): boolean {
   const message = normalizeGraphQLErrorValue(entry.message);
   if (message === 'unauthenticated') return true;
 
+  // Check extensions.code for standard GraphQL errors (e.g. top-level response.errors).
+  // Mutation payload errors use UserError { field message } which has no code field.
   const extensions = entry.extensions;
-  if (isObject(extensions) && normalizeGraphQLErrorValue(extensions.code) === 'unauthenticated') {
-    return true;
-  }
-
-  return normalizeGraphQLErrorValue(entry.code) === 'unauthenticated';
+  return isObject(extensions) && normalizeGraphQLErrorValue(extensions.code) === 'unauthenticated';
 }
 
 function hasUnauthenticatedPayloadErrorsList(value: unknown): boolean {

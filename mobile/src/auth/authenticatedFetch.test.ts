@@ -12,7 +12,7 @@ describe('authenticated fetch helpers', () => {
     expect(REFRESH_MUTATION).toContain('serializedValue');
     expect(REFRESH_MUTATION).toContain('expiresAt');
     expect(REFRESH_MUTATION).toContain('refreshToken {');
-    expect(REFRESH_MUTATION).not.toMatch(/errors\s*\{\s*field\s+code\b[\s\S]*\}/);
+    expect(REFRESH_MUTATION).not.toMatch(/errors\s*\{[^}]*\bcode\b[^}]*\}/);
     expect(REFRESH_MUTATION).not.toContain('accessToken\n      refreshToken');
   });
 

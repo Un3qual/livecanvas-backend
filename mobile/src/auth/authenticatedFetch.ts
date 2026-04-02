@@ -17,10 +17,24 @@ const TRANSIENT_REFRESH_FAILURE = Symbol('transient_refresh_failure');
 const SESSION_INACTIVE = Symbol('session_inactive');
 const SESSION_CHANGED = Symbol('session_changed');
 
+/** Refresh failed for a specific session (revoked or expired refresh token). */
+interface RefreshFailed {
+  readonly _tag: 'RefreshFailed';
+  readonly refreshToken: string;
+}
+
+function makeRefreshFailed(refreshToken: string): RefreshFailed {
+  return { _tag: 'RefreshFailed', refreshToken };
+}
+
+function isRefreshFailed(result: RefreshResult): result is RefreshFailed {
+  return typeof result === 'object' && result !== null && (result as RefreshFailed)._tag === 'RefreshFailed';
+}
+
 type GetAuthStatus = () => AuthState['status'];
 type RefreshResult =
   | AuthTokenPair
-  | null
+  | RefreshFailed
   | typeof SESSION_INACTIVE
   | typeof SESSION_CHANGED
   | typeof TRANSIENT_REFRESH_FAILURE;
@@ -118,17 +132,23 @@ export function createAuthenticatedFetch(
   let forcedLogoutPromise: Promise<void> | null = null;
   const isSessionInactive = () => getAuthStatus?.() === 'unauthenticated';
 
-  const performForcedLogout = async (skipWhenTokensAlreadyCleared: boolean) => {
+  const performForcedLogout = async (failedRefreshToken: string | null) => {
     if (forcedLogoutPromise) {
       await forcedLogoutPromise;
       return;
     }
 
     forcedLogoutPromise = (async () => {
-      if (skipWhenTokensAlreadyCleared) {
+      if (failedRefreshToken !== null) {
+        // Only force logout if storage still holds the same refresh token that
+        // failed — a newer session that signed in while the old refresh was in
+        // flight must not be cleared.
         try {
           const remainingTokens = await loadTokens();
-          if (!remainingTokens) return;
+          // Skip if: (a) tokens were already cleared by a concurrent logout, or
+          // (b) the stored refresh token belongs to a newer session that signed
+          //     in while this stale refresh was still in flight.
+          if (!remainingTokens || remainingTokens.refreshToken !== failedRefreshToken) return;
         } catch {
           // Fall through and still force the in-memory logout state if storage reads fail.
         }
@@ -160,9 +180,9 @@ export function createAuthenticatedFetch(
     }
 
     if (!authError || !tokens?.refreshToken) {
-      // If auth error with no refresh token, force logout
+      // If auth error with no refresh token, force logout unconditionally
       if (authError) {
-        await performForcedLogout(false);
+        await performForcedLogout(null);
       }
       return response;
     }
@@ -232,7 +252,9 @@ export function createAuthenticatedFetch(
           await onTokensChanged?.(refreshedTokens);
           resolveRefreshPromise(refreshedTokens);
         } else {
-          resolveRefreshPromise(refreshedTokens);
+          // Refresh token was rejected by the server — record which token failed
+          // so that performForcedLogout can scope the logout to this session only.
+          resolveRefreshPromise(makeRefreshFailed(refreshToken));
         }
       } catch {
         resolveRefreshPromise(TRANSIENT_REFRESH_FAILURE);
@@ -249,8 +271,10 @@ export function createAuthenticatedFetch(
       return response;
     }
 
-    if (!newTokens) {
-      await performForcedLogout(true);
+    if (isRefreshFailed(newTokens)) {
+      // Pass the refresh token that failed so logout is scoped to this session
+      // and cannot clear a newer session that signed in while this refresh was failing.
+      await performForcedLogout(newTokens.refreshToken);
       return response;
     }
 
