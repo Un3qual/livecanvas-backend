@@ -14,6 +14,7 @@ import { AppCard } from '../../src/components/AppCard';
 import { AuthField } from '../../src/components/AuthField';
 import { AppHeader } from '../../src/components/AppHeader';
 import { authScreenStyles as styles } from '../../src/components/authScreenStyles';
+import { resolveAuthEntryUiState } from '../../src/auth/authEntryUiState';
 import { useAppleAuth } from '../../src/auth/useAppleAuth';
 import { useGoogleAuth } from '../../src/auth/useGoogleAuth';
 import { usePasswordAuth } from '../../src/auth/usePasswordAuth';
@@ -34,6 +35,11 @@ export default function SignInScreen() {
     passwordAuth.isSubmitting ||
     googleAuth.isSubmitting ||
     appleAuth.isSubmitting;
+  const uiState = resolveAuthEntryUiState({
+    hasAppleAuthOption: appleAuth.isAvailable,
+    hasGoogleAuthOption: googleAuth.isSupported,
+    isBusy,
+  });
 
   const clearTransientErrors = () => {
     passwordAuth.clearErrors();
@@ -157,13 +163,15 @@ export default function SignInScreen() {
                 onPress={handlePasswordSignIn}
               />
 
-              <View style={styles.dividerRow}>
-                <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
-                <Text style={[styles.dividerLabel, { color: theme.colors.textMuted }]}>
-                  or continue with
-                </Text>
-                <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
-              </View>
+              {uiState.showOauthDivider ? (
+                <View style={styles.dividerRow}>
+                  <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
+                  <Text style={[styles.dividerLabel, { color: theme.colors.textMuted }]}>
+                    or continue with
+                  </Text>
+                  <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
+                </View>
+              ) : null}
 
               {googleAuth.isSupported ? (
                 <AppButton
@@ -192,7 +200,16 @@ export default function SignInScreen() {
               <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
                 Need an account?
               </Text>
-              <Pressable onPress={() => router.replace('/sign-up')}>
+              <Pressable
+                disabled={!uiState.canSwitchScreens}
+                onPress={() => {
+                  if (!uiState.canSwitchScreens) {
+                    return;
+                  }
+
+                  router.replace('/sign-up');
+                }}
+              >
                 <Text style={[styles.footerAction, { color: theme.colors.accent }]}>
                   Sign up
                 </Text>

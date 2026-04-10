@@ -212,4 +212,29 @@ describe('authMutationClient', () => {
       formError: 'The email or password was incorrect.',
     });
   });
+
+  test('normalizes prefixed password field paths into field errors', () => {
+    expect(
+      normalizeAuthErrors([
+        {
+          field: 'password.email',
+          message: 'Email has already been taken.',
+        },
+        {
+          field: 'password.passwordConfirmation',
+          message: 'Passwords must match.',
+        },
+        {
+          code: 'INVALID_CREDENTIALS',
+          message: 'The email or password was incorrect.',
+        },
+      ]),
+    ).toEqual({
+      fieldErrors: {
+        email: 'Email has already been taken.',
+        passwordConfirmation: 'Passwords must match.',
+      },
+      formError: 'The email or password was incorrect.',
+    });
+  });
 });

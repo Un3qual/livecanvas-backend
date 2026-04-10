@@ -365,13 +365,22 @@ export function normalizeAuthErrors(errors: AuthMutationError[]): {
   let formError: string | null = null;
 
   for (const error of errors) {
+    const field =
+      error.field === 'password.email'
+        ? 'email'
+        : error.field === 'password.password'
+          ? 'password'
+          : error.field === 'password.passwordConfirmation'
+            ? 'passwordConfirmation'
+            : error.field;
+
     if (
-      (error.field === 'email' ||
-        error.field === 'password' ||
-        error.field === 'passwordConfirmation') &&
-      !fieldErrors[error.field]
+      (field === 'email' ||
+        field === 'password' ||
+        field === 'passwordConfirmation') &&
+      !fieldErrors[field]
     ) {
-      fieldErrors[error.field] = error.message;
+      fieldErrors[field] = error.message;
       continue;
     }
 
