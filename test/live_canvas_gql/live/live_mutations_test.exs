@@ -1283,8 +1283,62 @@ defmodule LCGQL.Live.LiveMutationsTest do
                  leave_mutation,
                  LCGQL.Schema,
                  context: context,
+               variables: %{"liveSessionId" => session_id}
+               )
+    end
+
+    test "leaveLiveSession broadcasts a viewer-scoped disconnect control message" do
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, live_session} = Live.mark_session_live(started_session)
+      assert {:ok, _participant} = Live.join_live_session(live_session, viewer, :viewer)
+
+      session_id = Absinthe.Relay.Node.to_global_id(:live_session, live_session.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      control_topic = "live_session_control:#{live_session.id}:user:#{viewer.id}"
+      session_control_topic = "live_session_control:#{live_session.id}"
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, session_control_topic)
+
+      leave_mutation = """
+      mutation LeaveLiveSession($liveSessionId: ID!) {
+        leaveLiveSession(input: {liveSessionId: $liveSessionId}) {
+          left
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "leaveLiveSession" => %{
+                    "left" => true,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 leave_mutation,
+                 LCGQL.Schema,
+                 context: context,
                  variables: %{"liveSessionId" => session_id}
                )
+
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^control_topic,
+        event: "disconnect",
+        payload: %{reason: "viewer_left"}
+      }
+
+      refute_receive %Phoenix.Socket.Broadcast{
+                       topic: ^session_control_topic,
+                       event: "disconnect"
+                     }
     end
 
     test "applies the channel join rate limit to joinLiveSession" do
