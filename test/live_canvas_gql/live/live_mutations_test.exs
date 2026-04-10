@@ -85,6 +85,263 @@ defmodule LCGQL.Live.LiveMutationsTest do
     end
   end
 
+  describe "mobile live-session mutation contract" do
+    test "returns the documented lifecycle payload fields across start, go-live, join, leave, and end" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      host_context = %{current_scope: Accounts.scope_for_user(host)}
+      viewer_context = %{current_scope: Accounts.scope_for_user(viewer)}
+      host_id = Absinthe.Relay.Node.to_global_id(:user, host.id, LCGQL.Schema)
+
+      assert {:ok, recording_asset} =
+               Content.create_media_asset(host, %{
+                 storage_key: "uploads/users/#{host.id}/mobile-live-contract.mp4",
+                 mime_type: "video/mp4",
+                 processing_state: :processed
+               })
+
+      recording_media_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, recording_asset.id, LCGQL.Schema)
+
+      start_mutation = """
+      mutation StartLiveSession($visibility: LiveSessionVisibility) {
+        startLiveSession(input: {visibility: $visibility}) {
+          liveSession {
+            id
+            status
+            visibility
+            insertedAt
+            startedAt
+            endedAt
+            host {
+              id
+            }
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      go_live_mutation = """
+      mutation GoLiveSession($liveSessionId: ID!) {
+        goLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+            visibility
+            insertedAt
+            startedAt
+            endedAt
+            host {
+              id
+            }
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      join_mutation = """
+      mutation JoinLiveSession($liveSessionId: ID!) {
+        joinLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+            visibility
+            host {
+              id
+            }
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      leave_mutation = """
+      mutation LeaveLiveSession($liveSessionId: ID!) {
+        leaveLiveSession(input: {liveSessionId: $liveSessionId}) {
+          left
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      end_mutation = """
+      mutation EndLiveSession($liveSessionId: ID!, $recordingMediaAssetId: ID) {
+        endLiveSession(
+          input: {
+            liveSessionId: $liveSessionId
+            recordingMediaAssetId: $recordingMediaAssetId
+          }
+        ) {
+          liveSession {
+            id
+            status
+            visibility
+            insertedAt
+            startedAt
+            endedAt
+            host {
+              id
+            }
+            recordingMediaAsset {
+              id
+              processingState
+            }
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "startLiveSession" => %{
+                    "liveSession" => %{
+                      "id" => live_session_id,
+                      "status" => "STARTING",
+                      "visibility" => "PUBLIC",
+                      "insertedAt" => inserted_at,
+                      "startedAt" => nil,
+                      "endedAt" => nil,
+                      "host" => %{"id" => ^host_id}
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 start_mutation,
+                 LCGQL.Schema,
+                 context: host_context,
+                 variables: %{"visibility" => "PUBLIC"}
+               )
+
+      assert {:ok, %{id: local_id, type: :live_session}} =
+               Absinthe.Relay.Node.from_global_id(live_session_id, LCGQL.Schema)
+
+      local_id = String.to_integer(local_id)
+      assert {:ok, _, 0} = DateTime.from_iso8601(inserted_at)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "goLiveSession" => %{
+                    "liveSession" => %{
+                      "id" => ^live_session_id,
+                      "status" => "LIVE",
+                      "visibility" => "PUBLIC",
+                      "insertedAt" => ^inserted_at,
+                      "startedAt" => started_at,
+                      "endedAt" => nil,
+                      "host" => %{"id" => ^host_id}
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 go_live_mutation,
+                 LCGQL.Schema,
+                 context: host_context,
+                 variables: %{"liveSessionId" => live_session_id}
+               )
+
+      assert {:ok, _, 0} = DateTime.from_iso8601(started_at)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "joinLiveSession" => %{
+                    "liveSession" => %{
+                      "id" => ^live_session_id,
+                      "status" => "LIVE",
+                      "visibility" => "PUBLIC",
+                      "host" => %{"id" => ^host_id}
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 join_mutation,
+                 LCGQL.Schema,
+                 context: viewer_context,
+                 variables: %{"liveSessionId" => live_session_id}
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "leaveLiveSession" => %{
+                    "left" => true,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 leave_mutation,
+                 LCGQL.Schema,
+                 context: viewer_context,
+                 variables: %{"liveSessionId" => live_session_id}
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => %{
+                      "id" => ^live_session_id,
+                      "status" => "ENDED",
+                      "visibility" => "PUBLIC",
+                      "insertedAt" => ^inserted_at,
+                      "startedAt" => ^started_at,
+                      "endedAt" => ended_at,
+                      "host" => %{"id" => ^host_id},
+                      "recordingMediaAsset" => %{
+                        "id" => ^recording_media_asset_id,
+                        "processingState" => "PROCESSED"
+                      }
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 end_mutation,
+                 LCGQL.Schema,
+                 context: host_context,
+                 variables: %{
+                   "liveSessionId" => live_session_id,
+                   "recordingMediaAssetId" => recording_media_asset_id
+                 }
+               )
+
+      assert {:ok, _, 0} = DateTime.from_iso8601(ended_at)
+
+      assert %{id: ^local_id, recording_media_asset_id: recording_media_asset_local_id} =
+               Live.get_live_session!(local_id)
+
+      assert recording_media_asset_local_id == recording_asset.id
+    end
+  end
+
   describe "goLiveSession and endLiveSession" do
     test "allows only the host to transition lifecycle states" do
       host = user_fixture()
@@ -348,7 +605,10 @@ defmodule LCGQL.Live.LiveMutationsTest do
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
       topic = "live_session:#{started_session.id}"
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
-      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
       context = %{current_scope: Accounts.scope_for_user(host)}
       test_pid = self()
 
@@ -459,11 +719,11 @@ defmodule LCGQL.Live.LiveMutationsTest do
       }
 
       refute_receive %Phoenix.Socket.Broadcast{
-        topic: ^topic,
-        event: "chat:message",
-        payload: %{message: %{metadata: %{"event_type" => "session_live"}}}
-      },
-      200
+                       topic: ^topic,
+                       event: "chat:message",
+                       payload: %{message: %{metadata: %{"event_type" => "session_live"}}}
+                     },
+                     200
     end
 
     test "rejects repeated end transitions once a session is already ended" do
@@ -519,7 +779,8 @@ defmodule LCGQL.Live.LiveMutationsTest do
                  processing_state: :uploaded
                })
 
-      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
 
       recording_media_asset_id =
         Absinthe.Relay.Node.to_global_id(:media_asset, recording_asset.id, LCGQL.Schema)
@@ -593,7 +854,10 @@ defmodule LCGQL.Live.LiveMutationsTest do
       host = user_fixture()
       other_user = user_fixture()
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
-      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
       invalid_recording_id = Absinthe.Relay.Node.to_global_id(:user, other_user.id, LCGQL.Schema)
       context = %{current_scope: Accounts.scope_for_user(host)}
 
@@ -648,7 +912,8 @@ defmodule LCGQL.Live.LiveMutationsTest do
                  processing_state: :uploaded
                })
 
-      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
 
       recording_media_asset_id =
         Absinthe.Relay.Node.to_global_id(:media_asset, recording_asset.id, LCGQL.Schema)
@@ -706,7 +971,8 @@ defmodule LCGQL.Live.LiveMutationsTest do
       assert {:ok, %{media_asset: recording_asset}} =
                Content.request_media_upload(host, %{mime_type: "video/mp4"})
 
-      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
 
       recording_media_asset_id =
         Absinthe.Relay.Node.to_global_id(:media_asset, recording_asset.id, LCGQL.Schema)
@@ -820,11 +1086,11 @@ defmodule LCGQL.Live.LiveMutationsTest do
       }
 
       refute_receive %Phoenix.Socket.Broadcast{
-        topic: ^session_topic,
-        event: "chat:message",
-        payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
-      },
-      200
+                       topic: ^session_topic,
+                       event: "chat:message",
+                       payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
+                     },
+                     200
 
       assert_receive %Phoenix.Socket.Broadcast{
         topic: ^control_topic,
@@ -833,17 +1099,20 @@ defmodule LCGQL.Live.LiveMutationsTest do
       }
 
       refute_receive %Phoenix.Socket.Broadcast{
-        topic: ^control_topic,
-        event: "disconnect",
-        payload: %{reason: "session_ended"}
-      },
-      200
+                       topic: ^control_topic,
+                       event: "disconnect",
+                       payload: %{reason: "session_ended"}
+                     },
+                     200
     end
 
     test "returns ended when go-live loses a concurrent end race after joinable-state checks" do
       host = user_fixture()
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
-      session_id = Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
       context = %{current_scope: Accounts.scope_for_user(host)}
       test_pid = self()
 

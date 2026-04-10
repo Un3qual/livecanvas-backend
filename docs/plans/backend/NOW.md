@@ -1,6 +1,6 @@
 # Backend Lane Execution
 
-Last reviewed: 2026-03-27
+Last reviewed: 2026-04-10
 Status: active for execution
 
 ## Lane Scope
@@ -12,26 +12,26 @@ Status: active for execution
 
 - Track: `live_session_client_contract_stabilization`
 - Source: `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md`
-- Batch: `Task 1: Freeze the live-session GraphQL contract`
-- Why now: The codebase already exposes live-session GraphQL writes plus realtime channel events, but only auth/social and chat-history flows are published backend contracts. The next unblocked backend slice is to publish and pin the live-session contract that upcoming mobile live/realtime work will depend on.
+- Batch: `Task 2: Publish the live-session realtime channel contract`
+- Why now: The GraphQL contract slice is now published and covered by focused tests, so the next unblocked backend dependency for mobile live work is to freeze the Phoenix Channel topic, join ack, and event payload contract on top of the already-stable transport behavior.
 
 ## Do This Now
 
-- Use `docs/contracts/mobile-graphql-phase2.md`, `docs/contracts/mobile-graphql-chat-history.md`, and the live-session tests/code as the baseline for the missing live contract.
-- Add focused GraphQL coverage that freezes the supported live-session mobile surface before writing the new contract doc.
-- Write `docs/contracts/mobile-live-session-graphql.md` for the supported live-session reads and lifecycle mutations.
-- Keep any implementation drift fixes confined to the GraphQL adapter layer unless the tests prove a deeper bug.
+- Use `docs/contracts/mobile-live-session-graphql.md`, `docs/contracts/mobile-graphql-chat-history.md`, and `test/live_canvas_web/channels/live_session_channel_test.exs` as the baseline for the missing realtime contract.
+- Add focused channel/integration coverage that pins the mobile-facing topic contract for join success payloads, `session:state`, `chat:message`, `chat:message_updated`, `disconnect`, and the documented join failure reasons.
+- Write `docs/contracts/mobile-live-session-realtime.md` describing topic naming, join prerequisites, join ack shape, event payloads, ordering guarantees that already exist, and client-safe failure reasons such as `session_unavailable`.
+- Keep any implementation drift fixes confined to the transport layer unless the tests prove a deeper bug.
 - Report required coordinator updates to `docs/plans/INDEX.md` and `docs/plans/NOW.md` instead of editing those shared files directly.
 
 ## Verification Scope
 
-- `mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
+- `mix test test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/live/live_mutations_test.exs`
 - `mix compile`
 - `mix typecheck`
 
 ## Next Up
 
-- `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` -> `Task 2: Publish the live-session realtime channel contract`
+- `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` -> `Task 3: Verify the contract slice and refresh backend lane tracking`
 
 ## Repair Conditions
 

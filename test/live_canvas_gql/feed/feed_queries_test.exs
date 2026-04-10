@@ -301,7 +301,8 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       active_expires_at = DateTime.add(now, 60, :second)
 
       {1, _rows} =
-        Repo.update_all(from(post in LCSchemas.Content.Post, where: post.id == ^followed_story.id),
+        Repo.update_all(
+          from(post in LCSchemas.Content.Post, where: post.id == ^followed_story.id),
           set: [
             inserted_at: followed_inserted_at,
             updated_at: followed_inserted_at,
@@ -368,6 +369,92 @@ defmodule LCGQL.Feed.FeedQueriesTest do
   end
 
   describe "liveNow" do
+    test "returns the documented live-session fields for visible sessions" do
+      viewer = user_fixture()
+      followed_host = user_fixture()
+      public_host = user_fixture(privacy_mode: :public)
+      _follow = accepted_follow_fixture(viewer, followed_host)
+
+      {:ok, followed_session} = Live.start_live_session(followed_host, %{visibility: :followers})
+      {:ok, followed_session} = Live.mark_session_live(followed_session)
+
+      {:ok, public_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, public_session} = Live.mark_session_live(public_session)
+
+      query = """
+      query($first: Int!) {
+        liveNow(first: $first) {
+          edges {
+            node {
+              id
+              status
+              visibility
+              insertedAt
+              startedAt
+              endedAt
+              host {
+                id
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      followed_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, followed_session.id, LCGQL.Schema)
+
+      public_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, public_session.id, LCGQL.Schema)
+
+      followed_host_id = Absinthe.Relay.Node.to_global_id(:user, followed_host.id, LCGQL.Schema)
+      public_host_id = Absinthe.Relay.Node.to_global_id(:user, public_host.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "liveNow" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^public_session_id,
+                          "status" => "LIVE",
+                          "visibility" => "PUBLIC",
+                          "insertedAt" => public_inserted_at,
+                          "startedAt" => public_started_at,
+                          "endedAt" => nil,
+                          "host" => %{"id" => ^public_host_id}
+                        }
+                      },
+                      %{
+                        "node" => %{
+                          "id" => ^followed_session_id,
+                          "status" => "LIVE",
+                          "visibility" => "FOLLOWERS",
+                          "insertedAt" => followed_inserted_at,
+                          "startedAt" => followed_started_at,
+                          "endedAt" => nil,
+                          "host" => %{"id" => ^followed_host_id}
+                        }
+                      }
+                    ],
+                    "pageInfo" => %{"hasNextPage" => false}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+
+      assert {:ok, _, 0} = DateTime.from_iso8601(public_inserted_at)
+      assert {:ok, _, 0} = DateTime.from_iso8601(public_started_at)
+      assert {:ok, _, 0} = DateTime.from_iso8601(followed_inserted_at)
+      assert {:ok, _, 0} = DateTime.from_iso8601(followed_started_at)
+    end
+
     test "excludes sessions hosted by suspended users" do
       viewer = user_fixture()
       suspended_host = user_fixture(privacy_mode: :public)

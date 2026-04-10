@@ -721,6 +721,63 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       assert returned_public_url == expected_public_url
     end
 
+    test "refetches an authorized active live session node with the documented fields" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, active_session} = Live.mark_session_live(live_session)
+
+      live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, active_session.id, LCGQL.Schema)
+
+      host_id = Absinthe.Relay.Node.to_global_id(:user, host.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on LiveSession {
+            status
+            visibility
+            insertedAt
+            startedAt
+            endedAt
+            host {
+              id
+            }
+            recordingMediaAsset {
+              id
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^live_session_id,
+                    "status" => "LIVE",
+                    "visibility" => "PUBLIC",
+                    "insertedAt" => inserted_at,
+                    "startedAt" => started_at,
+                    "endedAt" => nil,
+                    "host" => %{"id" => ^host_id},
+                    "recordingMediaAsset" => nil
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => live_session_id},
+                 context: context
+               )
+
+      assert {:ok, _, 0} = DateTime.from_iso8601(inserted_at)
+      assert {:ok, _, 0} = DateTime.from_iso8601(started_at)
+    end
+
     test "does not expose owner-only media fields on recordingMediaAsset" do
       host = user_fixture(privacy_mode: :public)
       viewer = user_fixture()
