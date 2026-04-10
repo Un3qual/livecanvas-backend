@@ -40,7 +40,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     :ok
   end
 
-  test "authorized viewer receives the current aggregate session state in the join ack" do
+  test "authorized viewer receives the bounded aggregate session state in the join ack" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
@@ -178,7 +178,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
   end
 
-  test "sending chat:send persists and broadcasts the message" do
+  test "sending chat:send persists and broadcasts the documented message payload" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
@@ -192,9 +192,37 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     ref = push(socket, "chat:send", %{"body" => "hello"})
 
-    assert_reply ref, :ok, %{message: %{body: "hello", id: message_id}}
-    assert_broadcast "chat:message", %{message: %{body: "hello", id: ^message_id}}
-    assert %ChatMessage{id: ^message_id, body: "hello"} = Repo.get!(ChatMessage, message_id)
+    assert_reply ref, :ok, %{
+      message: %{
+        body: "hello",
+        id: message_id,
+        sender_id: sender_id,
+        inserted_at: inserted_at,
+        kind: "user_message",
+        status: "active",
+        moderated_at: nil,
+        metadata: %{}
+      }
+    }
+
+    assert sender_id == viewer.id
+    assert {:ok, _, 0} = DateTime.from_iso8601(inserted_at)
+
+    assert_broadcast "chat:message", %{
+      message: %{
+        body: "hello",
+        id: ^message_id,
+        sender_id: ^sender_id,
+        inserted_at: ^inserted_at,
+        kind: "user_message",
+        status: "active",
+        moderated_at: nil,
+        metadata: %{}
+      }
+    }
+
+    assert %ChatMessage{id: ^message_id, body: "hello", sender_id: ^sender_id} =
+             Repo.get!(ChatMessage, message_id)
   end
 
   test "removeLiveChatMessage broadcasts a redacted update only to the owning live session" do
@@ -273,8 +301,10 @@ defmodule LCWeb.LiveSessionChannelTest do
           body: nil,
           sender_id: ^sender_id,
           inserted_at: ^inserted_at,
+          kind: "user_message",
           status: "removed",
-          moderated_at: ^moderated_at
+          moderated_at: ^moderated_at,
+          metadata: %{}
         }
       }
     }
@@ -479,6 +509,35 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     assert session_id == session.id
     assert user_id == viewer.id
+  end
+
+  test "join returns the documented client-safe failure reasons" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    {:ok, ended_session} = Live.start_live_session(host, %{visibility: :public})
+    {:ok, _ended_session} = Live.end_live_session(ended_session)
+
+    assert {:error, %{reason: "invalid_session_id"}} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:not-a-session-id"
+             )
+
+    assert {:error, %{reason: "session_not_found"}} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{session.id + ended_session.id + 10_000}"
+             )
+
+    assert {:error, %{reason: "session_ended"}} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               "live_session:#{ended_session.id}"
+             )
   end
 
   test "remote-owned session returns session_unavailable and emits remote_unreachable telemetry" do
@@ -865,6 +924,8 @@ defmodule LCWeb.LiveSessionChannelTest do
     session_id = Absinthe.Relay.Node.to_global_id(:live_session, session.id, LCGQL.Schema)
     context = %{current_scope: Accounts.scope_for_user(host)}
     session_topic = "live_session:#{session.id}"
+    control_topic = "live_session_control:#{session.id}"
+    :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
 
     go_live_mutation = """
     mutation GoLiveSession($liveSessionId: ID!) {
@@ -986,6 +1047,14 @@ defmodule LCWeb.LiveSessionChannelTest do
       }
     }
 
+    assert_receive %Phoenix.Socket.Broadcast{
+      topic: ^control_topic,
+      event: "disconnect",
+      payload: %{reason: "session_ended"}
+    }
+
+    assert_push "disconnect", %{reason: "session_ended"}
+
     assert_receive {:DOWN, ^monitor_ref, :process, _, _}
     assert :ok = wait_for_participant_left(session.id, viewer.id)
   end
@@ -1008,6 +1077,8 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     session_id = Absinthe.Relay.Node.to_global_id(:live_session, session.id, LCGQL.Schema)
     context = %{current_scope: Accounts.scope_for_user(viewer)}
+    control_topic = "live_session_control:#{session.id}:user:#{viewer.id}"
+    :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
 
     mutation = """
     mutation LeaveLiveSession($liveSessionId: ID!) {
@@ -1035,6 +1106,14 @@ defmodule LCWeb.LiveSessionChannelTest do
                context: context,
                variables: %{"liveSessionId" => session_id}
              )
+
+    assert_receive %Phoenix.Socket.Broadcast{
+      topic: ^control_topic,
+      event: "disconnect",
+      payload: %{reason: "viewer_left"}
+    }
+
+    assert_push "disconnect", %{reason: "viewer_left"}
 
     assert_receive {:DOWN, ^monitor_ref, :process, _, _}
     assert :ok = wait_for_participant_left(session.id, viewer.id)

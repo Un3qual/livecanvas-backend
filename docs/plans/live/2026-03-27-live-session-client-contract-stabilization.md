@@ -30,7 +30,7 @@ Verified directly in the codebase before drafting this plan:
 ## Progress
 
 - [x] Task 1: Freeze the live-session GraphQL contract
-- [ ] Task 2: Publish the live-session realtime channel contract
+- [x] Task 2: Publish the live-session realtime channel contract
 - [ ] Task 3: Verify the contract slice and refresh backend lane tracking
 
 ### Task 1: Freeze The Live-Session GraphQL Contract
@@ -78,12 +78,12 @@ Expected: PASS.
 - Modify if contract drift is uncovered: `lib/live_canvas_gql/live/live_resolver.ex`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Add failing channel/integration coverage that pins the mobile-facing topic contract for join success payloads, `session:state`, `chat:message`, `chat:message_updated`, `disconnect`, and the documented join failure reasons
-- [ ] Step 2: Write `docs/contracts/mobile-live-session-realtime.md` describing topic naming, join prerequisites, join ack shape, event payloads, event ordering guarantees that already exist, and client-safe failure reasons such as `session_unavailable`
-- [ ] Step 3: Reconcile any doc/test drift with additive transport-only fixes while keeping participant rosters, remote owner-node names, and other internal runtime details out of the public contract
-- [ ] Step 4: Run `mix test test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/live/live_mutations_test.exs`
-- [ ] Step 5: Run `mix compile` and `mix typecheck`
-- [ ] Step 6: Update checklist progress and commit the realtime-contract slice
+- [x] Step 1: Add failing channel/integration coverage that pins the mobile-facing topic contract for join success payloads, `session:state`, `chat:message`, `chat:message_updated`, `disconnect`, and the documented join failure reasons
+- [x] Step 2: Write `docs/contracts/mobile-live-session-realtime.md` describing topic naming, join prerequisites, join ack shape, event payloads, event ordering guarantees that already exist, and client-safe failure reasons such as `session_unavailable`
+- [x] Step 3: Reconcile any doc/test drift with additive transport-only fixes while keeping participant rosters, remote owner-node names, and other internal runtime details out of the public contract
+- [x] Step 4: Run `mix test test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/live/live_mutations_test.exs`
+- [x] Step 5: Run `mix compile` and `mix typecheck`
+- [x] Step 6: Update checklist progress and commit the realtime-contract slice
 
 **Task 2 behavior targets:**
 
