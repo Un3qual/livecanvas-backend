@@ -1053,6 +1053,8 @@ defmodule LCWeb.LiveSessionChannelTest do
       payload: %{reason: "session_ended"}
     }
 
+    assert_push "disconnect", %{reason: "session_ended"}
+
     assert_receive {:DOWN, ^monitor_ref, :process, _, _}
     assert :ok = wait_for_participant_left(session.id, viewer.id)
   end
@@ -1110,6 +1112,8 @@ defmodule LCWeb.LiveSessionChannelTest do
       event: "disconnect",
       payload: %{reason: "viewer_left"}
     }
+
+    assert_push "disconnect", %{reason: "viewer_left"}
 
     assert_receive {:DOWN, ^monitor_ref, :process, _, _}
     assert :ok = wait_for_participant_left(session.id, viewer.id)

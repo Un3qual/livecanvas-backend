@@ -80,7 +80,9 @@ defmodule LCWeb.LiveSessionChannel do
 
   @impl true
   @spec handle_info(Broadcast.t(), Phoenix.Socket.t()) :: {:stop, term(), Phoenix.Socket.t()}
-  def handle_info(%Broadcast{event: @disconnect_event}, socket) do
+  def handle_info(%Broadcast{event: @disconnect_event, payload: payload}, socket)
+      when is_map(payload) do
+    push(socket, @disconnect_event, payload)
     {:stop, :session_disconnected, socket}
   end
 
