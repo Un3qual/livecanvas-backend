@@ -1,6 +1,7 @@
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { useStartupState } from '../providers/StartupGate';
 import { useAuth } from './AuthProvider';
@@ -35,12 +36,23 @@ function resolveGoogleClientConfig(): GoogleClientConfig {
 }
 
 function hasGoogleClientConfig(config: GoogleClientConfig): boolean {
-  return Boolean(
-    config.clientId ||
-      config.iosClientId ||
-      config.androidClientId ||
-      config.webClientId,
-  );
+  if (config.clientId) {
+    return true;
+  }
+
+  if (Platform.OS === 'ios') {
+    return Boolean(config.iosClientId);
+  }
+
+  if (Platform.OS === 'android') {
+    return Boolean(config.androidClientId);
+  }
+
+  if (Platform.OS === 'web') {
+    return Boolean(config.webClientId);
+  }
+
+  return false;
 }
 
 function fallbackErrorMessage(error: unknown): string {
