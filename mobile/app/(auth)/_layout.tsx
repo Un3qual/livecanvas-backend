@@ -7,6 +7,9 @@ export default function AuthLayout() {
         headerShown: false,
       }}
       initialRouteName="sign-in"
-    />
+    >
+      <Stack.Screen name="sign-in" />
+      <Stack.Screen name="sign-up" />
+    </Stack>
   );
 }

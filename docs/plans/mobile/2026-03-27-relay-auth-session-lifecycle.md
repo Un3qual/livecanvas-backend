@@ -40,7 +40,7 @@ Verified directly in the codebase before drafting this plan:
 - [x] Task 1: Add Relay dependencies, configure codegen, and wire the environment provider
 - [x] Task 2: Build secure token storage and the auth state provider
 - [x] Task 3: Build the authenticated network layer with token refresh and forced logout
-- [ ] Task 4: Implement sign-in and sign-up screens with password and OAuth flows
+- [x] Task 4: Implement sign-in and sign-up screens with password and OAuth flows
 - [ ] Task 5: Implement viewer bootstrap, session restoration, and auth-gated routing
 - [ ] Task 6: Verify the Relay/auth slice and advance the mobile planning pointers
 
@@ -159,14 +159,14 @@ Expected: PASS.
 - Modify: `mobile/app/(auth)/_layout.tsx`
 
 **Task 4 Step Progress:**
-- [ ] Step 1: Install `expo-auth-session` and `expo-apple-authentication` for OAuth flows, and `expo-crypto` if needed for PKCE/nonce
-- [ ] Step 2: Create `src/auth/usePasswordAuth.ts` — a hook that wraps the `logIn(provider: PASSWORD)` and `signUp(provider: PASSWORD)` mutations, handles validation, and calls `useAuth().signIn` / `useAuth().signUp` on success
-- [ ] Step 3: Create `src/auth/useGoogleAuth.ts` — a hook that initiates Google OAuth via `expo-auth-session`, receives the `idToken`, and calls `logIn(provider: GOOGLE, oauth: {idToken})` or `signUp` as appropriate
-- [ ] Step 4: Create `src/auth/useAppleAuth.ts` — a hook that initiates Apple Sign In via `expo-apple-authentication`, receives the `identityToken`, and calls `logIn(provider: APPLE, oauth: {idToken})` or `signUp`
-- [ ] Step 5: Replace the placeholder sign-in screen with a real form: email/password fields, "Sign In" button, OAuth buttons for Google and Apple, link to sign-up screen, and error display for `invalid_credentials`, `email_taken`, etc.
-- [ ] Step 6: Create the sign-up screen with email/password/confirmation fields, OAuth buttons, link back to sign-in, and validation error display
-- [ ] Step 7: Add the `sign-up` route to the `(auth)/_layout.tsx` stack
-- [ ] Step 8: Run `tsc --noEmit` to verify
+- [x] Step 1: Install `expo-auth-session` and `expo-apple-authentication` for OAuth flows, and `expo-crypto` if needed for PKCE/nonce
+- [x] Step 2: Create `src/auth/usePasswordAuth.ts` — a hook that wraps the `logIn(provider: PASSWORD)` and `signUp(provider: PASSWORD)` mutations, handles validation, and calls `useAuth().signIn` / `useAuth().signUp` on success
+- [x] Step 3: Create `src/auth/useGoogleAuth.ts` — a hook that initiates Google OAuth via `expo-auth-session`, receives the `idToken`, and calls `logIn(provider: GOOGLE, oauth: {idToken})` or `signUp` as appropriate
+- [x] Step 4: Create `src/auth/useAppleAuth.ts` — a hook that initiates Apple Sign In via `expo-apple-authentication`, receives the `identityToken`, and calls `logIn(provider: APPLE, oauth: {idToken})` or `signUp`
+- [x] Step 5: Replace the placeholder sign-in screen with a real form: email/password fields, "Sign In" button, OAuth buttons for Google and Apple, link to sign-up screen, and error display for `invalid_credentials`, `email_taken`, etc.
+- [x] Step 6: Create the sign-up screen with email/password/confirmation fields, OAuth buttons, link back to sign-in, and validation error display
+- [x] Step 7: Add the `sign-up` route to the `(auth)/_layout.tsx` stack
+- [x] Step 8: Run `tsc --noEmit` to verify
 
 **Task 4 behavior targets:**
 

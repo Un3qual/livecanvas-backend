@@ -35,7 +35,7 @@ type AuthFieldProps = {
   onChangeText: (value: string) => void;
   placeholder: string;
   secureTextEntry?: boolean;
-  textContentType?: 'emailAddress' | 'password' | 'username';
+  textContentType?: 'emailAddress' | 'password' | 'username' | 'newPassword';
   value: string;
 };
 
@@ -82,7 +82,7 @@ function AuthField({
   );
 }
 
-export default function SignInScreen() {
+export default function SignUpScreen() {
   const router = useRouter();
   const theme = useAppTheme();
   const passwordAuth = usePasswordAuth();
@@ -90,6 +90,7 @@ export default function SignInScreen() {
   const appleAuth = useAppleAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
 
   const formError =
     passwordAuth.formError ?? googleAuth.error ?? appleAuth.error;
@@ -104,14 +105,15 @@ export default function SignInScreen() {
     appleAuth.clearError();
   };
 
-  const handlePasswordSignIn = async () => {
+  const handlePasswordSignUp = async () => {
     if (isBusy) {
       return;
     }
 
-    const success = await passwordAuth.signInWithPassword({
+    const success = await passwordAuth.signUpWithPassword({
       email,
       password,
+      passwordConfirmation,
     });
 
     if (success) {
@@ -119,24 +121,24 @@ export default function SignInScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignUp = async () => {
     if (isBusy) {
       return;
     }
 
-    const success = await googleAuth.signInWithGoogle();
+    const success = await googleAuth.signUpWithGoogle();
 
     if (success) {
       router.replace('/home');
     }
   };
 
-  const handleAppleSignIn = async () => {
+  const handleAppleSignUp = async () => {
     if (isBusy) {
       return;
     }
 
-    const success = await appleAuth.signInWithApple();
+    const success = await appleAuth.signUpWithApple();
 
     if (success) {
       router.replace('/home');
@@ -156,9 +158,9 @@ export default function SignInScreen() {
         >
           <AppCard>
             <AppHeader
-              eyebrow="Relay auth"
-              subtitle="Use your LiveCanvas password or continue with a linked provider."
-              title="Sign in"
+              eyebrow="Account setup"
+              subtitle="Create a LiveCanvas account with password or a supported provider."
+              title="Sign up"
             />
 
             <View style={styles.form}>
@@ -177,17 +179,31 @@ export default function SignInScreen() {
               />
 
               <AuthField
-                autoComplete="current-password"
+                autoComplete="new-password"
                 error={passwordAuth.fieldErrors.password}
                 label="Password"
                 onChangeText={(value) => {
                   clearTransientErrors();
                   setPassword(value);
                 }}
-                placeholder="Enter your password"
+                placeholder="Choose a password"
                 secureTextEntry
-                textContentType="password"
+                textContentType="newPassword"
                 value={password}
+              />
+
+              <AuthField
+                autoComplete="new-password"
+                error={passwordAuth.fieldErrors.passwordConfirmation}
+                label="Confirm password"
+                onChangeText={(value) => {
+                  clearTransientErrors();
+                  setPasswordConfirmation(value);
+                }}
+                placeholder="Re-enter your password"
+                secureTextEntry
+                textContentType="newPassword"
+                value={passwordConfirmation}
               />
 
               {formError ? (
@@ -208,9 +224,9 @@ export default function SignInScreen() {
 
               <AppButton
                 label={
-                  passwordAuth.isSubmitting ? 'Signing in...' : 'Sign in'
+                  passwordAuth.isSubmitting ? 'Creating account...' : 'Create account'
                 }
-                onPress={handlePasswordSignIn}
+                onPress={handlePasswordSignUp}
               />
 
               <View style={styles.dividerRow}>
@@ -225,7 +241,7 @@ export default function SignInScreen() {
                 label={
                   googleAuth.isSubmitting ? 'Opening Google...' : 'Continue with Google'
                 }
-                onPress={handleGoogleSignIn}
+                onPress={handleGoogleSignUp}
                 variant="secondary"
               />
 
@@ -234,7 +250,7 @@ export default function SignInScreen() {
                   label={
                     appleAuth.isSubmitting ? 'Opening Apple...' : 'Continue with Apple'
                   }
-                  onPress={handleAppleSignIn}
+                  onPress={handleAppleSignUp}
                   variant="secondary"
                 />
               ) : null}
@@ -242,11 +258,11 @@ export default function SignInScreen() {
 
             <View style={styles.footerRow}>
               <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
-                Need an account?
+                Already have an account?
               </Text>
-              <Pressable onPress={() => router.push('/sign-up')}>
+              <Pressable onPress={() => router.replace('/sign-in')}>
                 <Text style={[styles.footerAction, { color: theme.colors.accent }]}>
-                  Sign up
+                  Sign in
                 </Text>
               </Pressable>
             </View>

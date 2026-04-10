@@ -8,7 +8,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Track Status
 
-- Status: executing Relay/auth/session plan — Task 1 (Relay codegen and environment provider)
+- Status: executing Relay/auth/session plan — Task 5 (viewer bootstrap and auth-gated routing)
 - Approved overview: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
 - Approved bootstrap design:
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
@@ -20,7 +20,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
   `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`
 - Lane execution pointer: `docs/plans/mobile/NOW.md`
 - Coordinator dashboard: `docs/plans/NOW.md`
-- Next lane batch: implement `Task 1: Add Relay dependencies, configure codegen, and wire the environment provider` from the Relay/auth plan.
+- Next lane batch: implement `Task 5: Implement viewer bootstrap, session restoration, and auth-gated routing` from the Relay/auth plan.
 
 ## Recommended Detailed Plan Order
 
