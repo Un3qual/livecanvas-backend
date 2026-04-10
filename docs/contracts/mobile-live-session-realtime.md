@@ -15,7 +15,7 @@ Join prerequisites:
 - The socket must authenticate as an active viewer.
 - The topic suffix must parse as a positive integer, or the join fails with `reason: "invalid_session_id"`.
 - The session must exist and still be joinable. Missing sessions fail with `reason: "session_not_found"`. Ended sessions fail with `reason: "session_ended"`.
-- Audience, mute, block, and suspension policy must allow the viewer to join, or the join fails with `reason: "not_authorized"`.
+- Audience, mute, block, and suspension policies must allow the viewer to join, or the join fails with `reason: "not_authorized"`.
 - Join attempts are rate-limited per viewer and fail with `reason: "rate_limited"` when exceeded.
 - Remote-runtime lookup or handoff failures collapse to `reason: "session_unavailable"` instead of leaking runtime routing details.
 

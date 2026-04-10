@@ -8,6 +8,18 @@ defmodule LCGQL.Live.LiveMutationsTest do
   alias LC.Infra.Repo
   alias LCSchemas.{Chat.ChatMessage, Live.LiveParticipant, Live.LiveSession}
 
+  @leave_live_session_mutation """
+  mutation LeaveLiveSession($liveSessionId: ID!) {
+    leaveLiveSession(input: {liveSessionId: $liveSessionId}) {
+      left
+      errors {
+        field
+        message
+      }
+    }
+  }
+  """
+
   describe "startLiveSession" do
     test "starts a live session for the authenticated viewer" do
       viewer = user_fixture()
@@ -166,18 +178,6 @@ defmodule LCGQL.Live.LiveMutationsTest do
       }
       """
 
-      leave_mutation = """
-      mutation LeaveLiveSession($liveSessionId: ID!) {
-        leaveLiveSession(input: {liveSessionId: $liveSessionId}) {
-          left
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
       end_mutation = """
       mutation EndLiveSession($liveSessionId: ID!, $recordingMediaAssetId: ID) {
         endLiveSession(
@@ -295,12 +295,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                   }
                 }
               }} =
-               Absinthe.run(
-                 leave_mutation,
-                 LCGQL.Schema,
-                 context: viewer_context,
-                 variables: %{"liveSessionId" => live_session_id}
-               )
+               run_leave_live_session(viewer_context, live_session_id)
 
       assert {:ok,
               %{
@@ -1242,18 +1237,6 @@ defmodule LCGQL.Live.LiveMutationsTest do
       }
       """
 
-      leave_mutation = """
-      mutation LeaveLiveSession($liveSessionId: ID!) {
-        leaveLiveSession(input: {liveSessionId: $liveSessionId}) {
-          left
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
       assert {:ok,
               %{
                 data: %{
@@ -1279,12 +1262,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                   }
                 }
               }} =
-               Absinthe.run(
-                 leave_mutation,
-                 LCGQL.Schema,
-                 context: context,
-               variables: %{"liveSessionId" => session_id}
-               )
+               run_leave_live_session(context, session_id)
     end
 
     test "leaveLiveSession broadcasts a viewer-scoped disconnect control message" do
@@ -1301,18 +1279,6 @@ defmodule LCGQL.Live.LiveMutationsTest do
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, session_control_topic)
 
-      leave_mutation = """
-      mutation LeaveLiveSession($liveSessionId: ID!) {
-        leaveLiveSession(input: {liveSessionId: $liveSessionId}) {
-          left
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
       assert {:ok,
               %{
                 data: %{
@@ -1322,12 +1288,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                   }
                 }
               }} =
-               Absinthe.run(
-                 leave_mutation,
-                 LCGQL.Schema,
-                 context: context,
-                 variables: %{"liveSessionId" => session_id}
-               )
+               run_leave_live_session(context, session_id)
 
       assert_receive %Phoenix.Socket.Broadcast{
         topic: ^control_topic,
@@ -1336,9 +1297,9 @@ defmodule LCGQL.Live.LiveMutationsTest do
       }
 
       refute_receive %Phoenix.Socket.Broadcast{
-                       topic: ^session_control_topic,
-                       event: "disconnect"
-                     }
+        topic: ^session_control_topic,
+        event: "disconnect"
+      }
     end
 
     test "applies the channel join rate limit to joinLiveSession" do
@@ -1471,18 +1432,6 @@ defmodule LCGQL.Live.LiveMutationsTest do
       session_id = Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
-      leave_mutation = """
-      mutation LeaveLiveSession($liveSessionId: ID!) {
-        leaveLiveSession(input: {liveSessionId: $liveSessionId}) {
-          left
-          errors {
-            field
-            message
-          }
-        }
-      }
-      """
-
       assert {:ok,
               %{
                 data: %{
@@ -1492,12 +1441,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                   }
                 }
               }} =
-               Absinthe.run(
-                 leave_mutation,
-                 LCGQL.Schema,
-                 context: context,
-                 variables: %{"liveSessionId" => session_id}
-               )
+               run_leave_live_session(context, session_id)
 
       assert left_at =
                from(participant in LiveParticipant,
@@ -1557,5 +1501,14 @@ defmodule LCGQL.Live.LiveMutationsTest do
       {:already, _owner} -> :ok
       :not_found -> :ok
     end
+  end
+
+  defp run_leave_live_session(context, session_id) when is_map(context) do
+    Absinthe.run(
+      @leave_live_session_mutation,
+      LCGQL.Schema,
+      context: context,
+      variables: %{"liveSessionId" => session_id}
+    )
   end
 end
