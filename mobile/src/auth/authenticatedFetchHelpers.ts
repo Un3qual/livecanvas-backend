@@ -55,8 +55,11 @@ function isUnauthenticatedErrorEntry(entry: unknown): boolean {
   const message = normalizeGraphQLErrorValue(entry.message);
   if (message === 'unauthenticated') return true;
 
-  // Check extensions.code for standard GraphQL errors (e.g. top-level response.errors).
-  // Mutation payload errors use UserError { field message } which has no code field.
+  const code = normalizeGraphQLErrorValue(entry.code);
+  if (code === 'unauthenticated') return true;
+
+  // Auth payload errors can expose code directly (AuthError.code), while
+  // top-level GraphQL errors commonly use extensions.code.
   const extensions = entry.extensions;
   return isObject(extensions) && normalizeGraphQLErrorValue(extensions.code) === 'unauthenticated';
 }

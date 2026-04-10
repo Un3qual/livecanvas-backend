@@ -72,6 +72,25 @@ describe('authenticated fetch helpers', () => {
     ).toBe(true);
   });
 
+  test('detects unauthenticated payload errors with a direct code field', () => {
+    expect(
+      hasUnauthenticatedError({
+        data: {
+          refreshAuthTokens: {
+            accessToken: null,
+            refreshToken: null,
+            errors: [
+              {
+                field: 'refreshToken',
+                code: 'UNAUTHENTICATED',
+              },
+            ],
+          },
+        },
+      }),
+    ).toBe(true);
+  });
+
   test('ignores deeply nested data errors that are outside the mutation payload layer', () => {
     expect(
       hasUnauthenticatedError({

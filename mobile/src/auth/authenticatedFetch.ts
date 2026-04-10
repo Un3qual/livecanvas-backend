@@ -130,7 +130,18 @@ export function createAuthenticatedFetch(
   // Serialize concurrent refresh attempts to avoid race conditions
   let refreshPromise: Promise<RefreshResult> | null = null;
   let forcedLogoutPromise: Promise<void> | null = null;
+  // Track the newest token pair this fetcher has already accepted so stale
+  // requests can reuse same-session rotations without replaying under a newer session.
+  let knownTokens: AuthTokenPair | null = null;
   const isSessionInactive = () => getAuthStatus?.() === 'unauthenticated';
+
+  const rememberTokens = (tokens: AuthTokenPair | null) => {
+    if (tokens) {
+      knownTokens = tokens;
+    } else {
+      knownTokens = null;
+    }
+  };
 
   const performForcedLogout = async (failedRefreshToken: string | null) => {
     if (forcedLogoutPromise) {
@@ -159,6 +170,7 @@ export function createAuthenticatedFetch(
       } catch {
         // Keep the app in an unauthenticated state even if SecureStore deletion fails.
       } finally {
+        rememberTokens(null);
         await onForcedLogout();
       }
     })().finally(() => {
@@ -172,6 +184,9 @@ export function createAuthenticatedFetch(
     // Once the app has transitioned to a local signed-out state, ignore any
     // persisted tokens that may still be present after a failed storage clear.
     const tokens = isSessionInactive() ? null : await loadTokensOrNull();
+    if (tokens && !knownTokens) {
+      rememberTokens(tokens);
+    }
     const response = await rawFetch(apiBaseUrl, operation.text ?? '', variables, tokens?.accessToken);
     const authError = hasUnauthenticatedError(response);
 
@@ -180,10 +195,6 @@ export function createAuthenticatedFetch(
     }
 
     if (!authError || !tokens?.refreshToken) {
-      // If auth error with no refresh token, force logout unconditionally
-      if (authError) {
-        await performForcedLogout(null);
-      }
       return response;
     }
 
@@ -225,6 +236,11 @@ export function createAuthenticatedFetch(
         }
 
         if (latestTokens?.accessToken && latestTokens.accessToken !== tokens.accessToken) {
+          if (!knownTokens || knownTokens.accessToken !== latestTokens.accessToken) {
+            resolveRefreshPromise(SESSION_CHANGED);
+            return response;
+          }
+
           const retryResponse = await rawFetch(
             apiBaseUrl,
             operation.text ?? '',
@@ -233,6 +249,7 @@ export function createAuthenticatedFetch(
           );
 
           if (!hasUnauthenticatedError(retryResponse)) {
+            rememberTokens(latestTokens);
             await onTokensChanged?.(latestTokens);
             resolveRefreshPromise(latestTokens);
             return retryResponse;
@@ -249,6 +266,7 @@ export function createAuthenticatedFetch(
         if (refreshedTokens === SESSION_CHANGED) {
           resolveRefreshPromise(SESSION_CHANGED);
         } else if (refreshedTokens) {
+          rememberTokens(refreshedTokens);
           await onTokensChanged?.(refreshedTokens);
           resolveRefreshPromise(refreshedTokens);
         } else {
