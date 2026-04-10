@@ -29,7 +29,7 @@ Verified directly in the codebase before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Freeze the live-session GraphQL contract
+- [x] Task 1: Freeze the live-session GraphQL contract
 - [ ] Task 2: Publish the live-session realtime channel contract
 - [ ] Task 3: Verify the contract slice and refresh backend lane tracking
 
@@ -46,12 +46,12 @@ Verified directly in the codebase before drafting this plan:
 - Modify if contract drift is uncovered: `lib/live_canvas_gql/feed/feed_queries.ex`
 
 **Task 1 Step Progress:**
-- [ ] Step 1: Add failing GraphQL coverage that pins the supported mobile live surface in one place: `startLiveSession`, `goLiveSession`, `joinLiveSession`, `leaveLiveSession`, `endLiveSession(recordingMediaAssetId:)`, `liveNow`, `User.currentLiveSession`, `User.replayFeed`, and Relay `LiveSession` node reads
-- [ ] Step 2: Write `docs/contracts/mobile-live-session-graphql.md` describing the supported inputs, payload fields, Relay ID requirements, viewer/host authorization semantics, and stable user-error outcomes
-- [ ] Step 3: Reconcile any test/doc drift with the smallest GraphQL-layer change needed so the published contract matches the actual supported surface without changing `LC.Live` ownership boundaries
-- [ ] Step 4: Run `mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
-- [ ] Step 5: Run `mix compile` and `mix typecheck`
-- [ ] Step 6: Update checklist progress and commit the GraphQL-contract slice
+- [x] Step 1: Add failing GraphQL coverage that pins the supported mobile live surface in one place: `startLiveSession`, `goLiveSession`, `joinLiveSession`, `leaveLiveSession`, `endLiveSession(recordingMediaAssetId:)`, `liveNow`, `User.currentLiveSession`, `User.replayFeed`, and Relay `LiveSession` node reads
+- [x] Step 2: Write `docs/contracts/mobile-live-session-graphql.md` describing the supported inputs, payload fields, Relay ID requirements, viewer/host authorization semantics, and stable user-error outcomes
+- [x] Step 3: Reconcile any test/doc drift with the smallest GraphQL-layer change needed so the published contract matches the actual supported surface without changing `LC.Live` ownership boundaries
+- [x] Step 4: Run `mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
+- [x] Step 5: Run `mix compile` and `mix typecheck`
+- [x] Step 6: Update checklist progress and commit the GraphQL-contract slice
 
 **Task 1 behavior targets:**
 
