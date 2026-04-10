@@ -126,11 +126,11 @@ mutation StartLiveSession($visibility: LiveSessionVisibility) {
 - Accepts optional `recordingMediaAssetId` to link a durable recording asset owned by the host.
 - On success, `endedAt` is populated and the response may include `recordingMediaAsset`.
 
-Stable recording-link validation outcomes:
+Stable recording-link validation outcomes use the standard `errors { field, message }` shape:
 
-- A non-`MediaAsset` Relay ID returns `recordingMediaAssetId: "is invalid"`.
-- An asset owned by another user returns `recordingMediaAssetId: "must belong to the session host"`.
-- An asset that is not yet durable returns `recordingMediaAssetId: "must be uploaded or processed"`.
+- A non-`MediaAsset` Relay ID returns `errors: [{field: "recordingMediaAssetId", message: "is invalid"}]`.
+- An asset owned by another user returns `errors: [{field: "recordingMediaAssetId", message: "must belong to the session host"}]`.
+- An asset that is not yet durable returns `errors: [{field: "recordingMediaAssetId", message: "must be uploaded or processed"}]`.
 - Repeating `endLiveSession` after the session is already terminal returns `errors: [{field: null, message: "ended"}]`.
 
 ## Access Model
