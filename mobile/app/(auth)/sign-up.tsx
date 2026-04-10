@@ -4,83 +4,20 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useState } from 'react';
 
 import { AppButton } from '../../src/components/AppButton';
 import { AppCard } from '../../src/components/AppCard';
+import { AuthField } from '../../src/components/AuthField';
 import { AppHeader } from '../../src/components/AppHeader';
+import { authScreenStyles as styles } from '../../src/components/authScreenStyles';
 import { useAppleAuth } from '../../src/auth/useAppleAuth';
 import { useGoogleAuth } from '../../src/auth/useGoogleAuth';
 import { usePasswordAuth } from '../../src/auth/usePasswordAuth';
 import { useAppTheme } from '../../src/providers/ThemeProvider';
-import { radius, spacing, typography } from '../../src/theme/tokens';
-
-type AuthFieldProps = {
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  autoComplete?:
-    | 'email'
-    | 'password'
-    | 'username'
-    | 'new-password'
-    | 'current-password'
-    | 'off';
-  error?: string;
-  keyboardType?: 'default' | 'email-address';
-  label: string;
-  onChangeText: (value: string) => void;
-  placeholder: string;
-  secureTextEntry?: boolean;
-  textContentType?: 'emailAddress' | 'password' | 'username' | 'newPassword';
-  value: string;
-};
-
-function AuthField({
-  autoCapitalize = 'none',
-  autoComplete,
-  error,
-  keyboardType = 'default',
-  label,
-  onChangeText,
-  placeholder,
-  secureTextEntry = false,
-  textContentType,
-  value,
-}: AuthFieldProps) {
-  const theme = useAppTheme();
-
-  return (
-    <View style={styles.fieldGroup}>
-      <Text style={[styles.fieldLabel, { color: theme.colors.text }]}>{label}</Text>
-      <TextInput
-        autoCapitalize={autoCapitalize}
-        autoComplete={autoComplete}
-        keyboardType={keyboardType}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={theme.colors.textMuted}
-        secureTextEntry={secureTextEntry}
-        style={[
-          styles.input,
-          {
-            backgroundColor: theme.colors.surfaceMuted,
-            borderColor: error ? theme.colors.error : theme.colors.border,
-            color: theme.colors.text,
-          },
-        ]}
-        textContentType={textContentType}
-        value={value}
-      />
-      {error ? (
-        <Text style={[styles.fieldError, { color: theme.colors.error }]}>{error}</Text>
-      ) : null}
-    </View>
-  );
-}
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -110,6 +47,8 @@ export default function SignUpScreen() {
       return;
     }
 
+    clearTransientErrors();
+
     const success = await passwordAuth.signUpWithPassword({
       email,
       password,
@@ -126,6 +65,8 @@ export default function SignUpScreen() {
       return;
     }
 
+    clearTransientErrors();
+
     const success = await googleAuth.signUpWithGoogle();
 
     if (success) {
@@ -137,6 +78,8 @@ export default function SignUpScreen() {
     if (isBusy) {
       return;
     }
+
+    clearTransientErrors();
 
     const success = await appleAuth.signUpWithApple();
 
@@ -226,6 +169,7 @@ export default function SignUpScreen() {
                 label={
                   passwordAuth.isSubmitting ? 'Creating account...' : 'Create account'
                 }
+                disabled={isBusy}
                 onPress={handlePasswordSignUp}
               />
 
@@ -237,16 +181,20 @@ export default function SignUpScreen() {
                 <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
               </View>
 
-              <AppButton
-                label={
-                  googleAuth.isSubmitting ? 'Opening Google...' : 'Continue with Google'
-                }
-                onPress={handleGoogleSignUp}
-                variant="secondary"
-              />
+              {googleAuth.isSupported ? (
+                <AppButton
+                  disabled={isBusy}
+                  label={
+                    googleAuth.isSubmitting ? 'Opening Google...' : 'Continue with Google'
+                  }
+                  onPress={handleGoogleSignUp}
+                  variant="secondary"
+                />
+              ) : null}
 
               {appleAuth.isAvailable ? (
                 <AppButton
+                  disabled={isBusy}
                   label={
                     appleAuth.isSubmitting ? 'Opening Apple...' : 'Continue with Apple'
                   }
@@ -272,75 +220,3 @@ export default function SignUpScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  flex: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  form: {
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  fieldGroup: {
-    gap: spacing.xs,
-  },
-  fieldLabel: {
-    ...typography.label,
-  },
-  input: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    fontSize: 16,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  fieldError: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  errorBanner: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  errorText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  dividerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  footerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-    justifyContent: 'center',
-    marginTop: spacing.lg,
-  },
-  footerText: {
-    fontSize: 14,
-  },
-  footerAction: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});

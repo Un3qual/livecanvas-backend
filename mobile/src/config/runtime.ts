@@ -4,6 +4,7 @@ import type { AppEnvironment, BootSessionState } from './environment';
 
 const KNOWN_ROUTE_HREFS = new Set([
   '/sign-in',
+  '/sign-up',
   '/home',
   '/profile',
   '/live-session',

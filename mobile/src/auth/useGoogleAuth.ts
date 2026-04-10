@@ -1,6 +1,6 @@
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 import { useStartupState } from '../providers/StartupGate';
 import { useAuth } from './AuthProvider';
@@ -17,14 +17,6 @@ type GoogleClientConfig = {
   webClientId?: string;
 };
 
-function readProcessEnvironment(): Record<string, string | undefined> {
-  const maybeProcess = globalThis as {
-    process?: { env?: Record<string, string | undefined> };
-  };
-
-  return maybeProcess.process?.env ?? {};
-}
-
 function normalizeOptionalValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
 
@@ -32,15 +24,13 @@ function normalizeOptionalValue(value: string | undefined): string | undefined {
 }
 
 function resolveGoogleClientConfig(): GoogleClientConfig {
-  const env = readProcessEnvironment();
-
   return {
-    clientId: normalizeOptionalValue(env.EXPO_PUBLIC_GOOGLE_CLIENT_ID),
-    iosClientId: normalizeOptionalValue(env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID),
+    clientId: normalizeOptionalValue(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID),
+    iosClientId: normalizeOptionalValue(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID),
     androidClientId: normalizeOptionalValue(
-      env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     ),
-    webClientId: normalizeOptionalValue(env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID),
+    webClientId: normalizeOptionalValue(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID),
   };
 }
 
@@ -66,8 +56,11 @@ export function useGoogleAuth() {
   const { environment } = useStartupState();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const config = useMemo(resolveGoogleClientConfig, []);
   const isConfigured = hasGoogleClientConfig(config);
+  // The Expo hook must run on every render, so keep it mounted with a sentinel
+  // client ID and block the user action before promptAsync when config is absent.
   const [request, , promptAsync] = Google.useIdTokenAuthRequest(
     {
       clientId: config.clientId ?? 'missing-google-client-id',
@@ -89,7 +82,7 @@ export function useGoogleAuth() {
 
   const authenticate = useCallback(
     async (mode: AuthMode) => {
-      if (isSubmitting) {
+      if (isSubmittingRef.current) {
         return false;
       }
 
@@ -107,6 +100,7 @@ export function useGoogleAuth() {
         return false;
       }
 
+      isSubmittingRef.current = true;
       setIsSubmitting(true);
 
       try {
@@ -139,17 +133,19 @@ export function useGoogleAuth() {
         setError(fallbackErrorMessage(nextError));
         return false;
       } finally {
+        isSubmittingRef.current = false;
         setIsSubmitting(false);
       }
     },
-    [auth, clearError, environment.apiBaseUrl, isConfigured, isSubmitting, promptAsync, request],
+    [auth, clearError, environment.apiBaseUrl, isConfigured, promptAsync, request],
   );
 
   return {
     clearError,
     error,
+    isConfigured,
     isSubmitting,
-    isSupported: true,
+    isSupported: isConfigured,
     signInWithGoogle: () => authenticate('signIn'),
     signUpWithGoogle: () => authenticate('signUp'),
   };
