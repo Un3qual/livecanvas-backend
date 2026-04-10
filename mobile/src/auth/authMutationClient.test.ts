@@ -33,6 +33,64 @@ describe('authMutationClient', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(0);
   });
 
+  test('preserves matching password confirmation spacing during sign-up', async () => {
+    const fetchImpl = mock(async () =>
+      new Response(
+        JSON.stringify({
+          data: {
+            signUp: {
+              accessToken: {
+                serializedValue: 'access-token',
+                expiresAt: '2026-05-01T00:00:00.000Z',
+              },
+              refreshToken: {
+                serializedValue: 'refresh-token',
+              },
+              errors: [],
+            },
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+
+    const result = await submitPasswordAuthMutation({
+      apiBaseUrl: 'http://localhost:4000',
+      mode: 'signUp',
+      email: 'user@example.com',
+      password: 'hunter2 ',
+      passwordConfirmation: 'hunter2 ',
+      fetchImpl,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      tokens: {
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        expiresAt: '2026-05-01T00:00:00.000Z',
+      },
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    const [, init] = fetchImpl.mock.calls[0] ?? [];
+    const request = JSON.parse((init as RequestInit).body as string);
+
+    expect(request.variables).toEqual({
+      input: {
+        provider: 'PASSWORD',
+        password: {
+          email: 'user@example.com',
+          password: 'hunter2 ',
+          passwordConfirmation: 'hunter2 ',
+        },
+      },
+    });
+  });
+
   test('posts password sign-in variables and returns the issued tokens', async () => {
     const fetchImpl = mock(async () =>
       new Response(

@@ -298,7 +298,7 @@ export async function submitPasswordAuthMutation(
 ): Promise<AuthMutationResult> {
   const email = params.email.trim();
   const password = params.password;
-  const passwordConfirmation = params.passwordConfirmation?.trim();
+  const passwordConfirmation = params.passwordConfirmation;
   const validationErrors = validatePasswordInput(
     params.mode,
     email,

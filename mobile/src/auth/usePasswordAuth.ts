@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { useStartupState } from '../providers/StartupGate';
 import { useAuth } from './AuthProvider';
@@ -32,6 +32,7 @@ export function usePasswordAuth() {
   >({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingMode, setPendingMode] = useState<AuthMode | null>(null);
+  const pendingModeRef = useRef<AuthMode | null>(null);
 
   const clearErrors = useCallback(() => {
     setFieldErrors({});
@@ -40,10 +41,11 @@ export function usePasswordAuth() {
 
   const submit = useCallback(
     async (mode: AuthMode, fields: PasswordAuthFields) => {
-      if (pendingMode) {
+      if (pendingModeRef.current) {
         return false;
       }
 
+      pendingModeRef.current = mode;
       clearErrors();
       setPendingMode(mode);
 
@@ -69,10 +71,11 @@ export function usePasswordAuth() {
         setFormError(fallbackErrorMessage(error));
         return false;
       } finally {
+        pendingModeRef.current = null;
         setPendingMode(null);
       }
     },
-    [auth, clearErrors, environment.apiBaseUrl, pendingMode],
+    [auth, clearErrors, environment.apiBaseUrl],
   );
 
   return {
