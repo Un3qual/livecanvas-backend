@@ -37,9 +37,9 @@ Verified directly in the codebase before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Add Relay dependencies, configure codegen, and wire the environment provider
-- [ ] Task 2: Build secure token storage and the auth state provider
-- [ ] Task 3: Build the authenticated network layer with token refresh and forced logout
+- [x] Task 1: Add Relay dependencies, configure codegen, and wire the environment provider
+- [x] Task 2: Build secure token storage and the auth state provider
+- [x] Task 3: Build the authenticated network layer with token refresh and forced logout
 - [ ] Task 4: Implement sign-in and sign-up screens with password and OAuth flows
 - [ ] Task 5: Implement viewer bootstrap, session restoration, and auth-gated routing
 - [ ] Task 6: Verify the Relay/auth slice and advance the mobile planning pointers

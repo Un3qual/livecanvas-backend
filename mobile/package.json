@@ -6,17 +6,26 @@
     "start": "expo start --clear",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "relay": "relay-compiler"
   },
   "dependencies": {
     "expo": "~55.0.8",
     "expo-router": "^55.0.7",
+    "expo-secure-store": "~55.0.9",
     "expo-status-bar": "~55.0.4",
+    "graphql": "^16.13.2",
     "react": "19.2.0",
-    "react-native": "0.83.2"
+    "react-native": "0.83.2",
+    "react-relay": "^20.1.1",
+    "relay-runtime": "^20.1.1"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "@types/react-relay": "^18.2.1",
+    "@types/relay-runtime": "^20.1.1",
+    "babel-plugin-relay": "^20.1.1",
+    "relay-compiler": "^20.1.1",
     "typescript": "~5.9.2"
   },
   "private": true,

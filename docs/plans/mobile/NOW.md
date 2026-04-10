@@ -1,6 +1,6 @@
 # Mobile Lane Execution
 
-Last reviewed: 2026-03-27
+Last reviewed: 2026-03-29
 Status: active for execution
 
 ## Lane Scope
@@ -13,31 +13,28 @@ Status: active for execution
 - Track: `relay_auth_session`
 - Source: `docs/plans/mobile/TRACK.md`
 - Plan: `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`
-- Batch: `Task 1: Add Relay dependencies, configure codegen, and wire the environment provider`
-- Why now: The Relay/auth/session plan is written and verified against backend contracts. Task 1 sets up the Relay codegen pipeline and environment provider — the foundation every subsequent task depends on.
+- Batch: `Task 4: Implement sign-in and sign-up screens with password and OAuth flows`
+- Why now: Tasks 1–3 are green (Relay pipeline, auth state, authenticated network layer). Task 4 builds the user-facing auth screens.
 
 ## Do This Now
 
-- Implement `Task 1` from `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`.
-- Install relay-runtime, react-relay, relay-compiler, graphql, and babel-plugin-relay.
-- Create `relay.config.js`, `src/relay/environment.ts`, and `src/relay/RelayEnvironmentProvider.tsx`.
-- Wire `RelayEnvironmentProvider` into `AppProviders` inside `StartupGate`.
-- Run the Relay compiler and `tsc --noEmit` to verify the pipeline works.
-- Keep the work inside `mobile/` and `docs/plans/mobile/**`.
-- Report any required coordinator updates in the completion summary.
+- Implement `Task 4` from `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`.
+- Install expo-auth-session and expo-apple-authentication.
+- Create password auth, Google OAuth, and Apple OAuth hooks.
+- Replace the placeholder sign-in screen and add a sign-up screen.
+- Run `tsc --noEmit` to verify.
 
 ## Verification Scope
 
 ```bash
 cd mobile
-XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec relay-compiler
 XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec tsc --noEmit
 ```
 
 ## Next Up
 
-- Task 2: Build secure token storage and the auth state provider.
-- Task 3: Build the authenticated network layer with token refresh and forced logout.
+- Task 5: Implement viewer bootstrap, session restoration, and auth-gated routing.
+- Task 6: Verify the Relay/auth slice and advance the mobile planning pointers.
 
 ## Repair Conditions
 
