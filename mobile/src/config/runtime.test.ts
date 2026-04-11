@@ -4,9 +4,13 @@ mock.module('react-native', () => ({
   Linking: {
     getInitialURL: async () => null,
   },
+  Platform: {
+    OS: 'ios',
+  },
 }));
 
 const { routeHrefFromUrl } = await import('./runtime');
+mock.restore();
 
 describe('routeHrefFromUrl', () => {
   test('accepts the sign-up deep link route', () => {
