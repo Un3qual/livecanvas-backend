@@ -66,17 +66,6 @@ mock.module('./AuthProvider', () => ({
   }),
 }));
 
-mock.module('./authMutationClient', () => ({
-  submitOauthAuthMutation: async () => ({
-    ok: true,
-    tokens: {
-      accessToken: 'access-token',
-      refreshToken: 'refresh-token',
-      expiresAt: '2026-05-01T00:00:00.000Z',
-    },
-  }),
-}));
-
 describe('useGoogleAuth', () => {
   test('only reports support for Google config that works on the current platform', async () => {
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-client-id';
