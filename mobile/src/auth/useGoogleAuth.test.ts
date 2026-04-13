@@ -1,39 +1,32 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 
 import {
   hasGoogleClientConfig,
   resolveGoogleClientConfig,
 } from './googleClientConfig';
 
-const googleEnvKeys = [
-  'EXPO_PUBLIC_GOOGLE_CLIENT_ID',
-  'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID',
-  'EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID',
-  'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
-] as const;
-
-const originalGoogleEnv = Object.fromEntries(
-  googleEnvKeys.map((key) => [key, process.env[key]]),
-) as Record<(typeof googleEnvKeys)[number], string | undefined>;
-
-afterEach(() => {
-  for (const key of googleEnvKeys) {
-    const originalValue = originalGoogleEnv[key];
-
-    if (originalValue === undefined) {
-      delete process.env[key];
-    } else {
-      process.env[key] = originalValue;
-    }
-  }
-});
+function googleEnv(
+  overrides: Partial<Record<string, string | undefined>> = {},
+): Record<string, string | undefined> {
+  return {
+    EXPO_PUBLIC_GOOGLE_CLIENT_ID: undefined,
+    EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: undefined,
+    EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: undefined,
+    EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: undefined,
+    ...overrides,
+  };
+}
 
 describe('resolveGoogleClientConfig', () => {
   test('trims blank environment values to undefined', () => {
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = '  ';
-    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID = ' android-client-id ';
-
-    expect(resolveGoogleClientConfig()).toEqual({
+    expect(
+      resolveGoogleClientConfig(
+        googleEnv({
+          EXPO_PUBLIC_GOOGLE_CLIENT_ID: '  ',
+          EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: ' android-client-id ',
+        }),
+      ),
+    ).toEqual({
       clientId: undefined,
       iosClientId: undefined,
       androidClientId: 'android-client-id',
@@ -44,9 +37,11 @@ describe('resolveGoogleClientConfig', () => {
 
 describe('hasGoogleClientConfig', () => {
   test('requires a matching platform-specific client when the generic ID is absent', () => {
-    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = 'ios-client-id';
-
-    const iosOnlyConfig = resolveGoogleClientConfig();
+    const iosOnlyConfig = resolveGoogleClientConfig(
+      googleEnv({
+        EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: 'ios-client-id',
+      }),
+    );
 
     expect(hasGoogleClientConfig(iosOnlyConfig, 'ios')).toBe(true);
     expect(hasGoogleClientConfig(iosOnlyConfig, 'android')).toBe(false);
@@ -54,9 +49,11 @@ describe('hasGoogleClientConfig', () => {
   });
 
   test('accepts the generic client ID on every supported platform', () => {
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID = 'generic-client-id';
-
-    const genericConfig = resolveGoogleClientConfig();
+    const genericConfig = resolveGoogleClientConfig(
+      googleEnv({
+        EXPO_PUBLIC_GOOGLE_CLIENT_ID: 'generic-client-id',
+      }),
+    );
 
     expect(hasGoogleClientConfig(genericConfig, 'ios')).toBe(true);
     expect(hasGoogleClientConfig(genericConfig, 'android')).toBe(true);
