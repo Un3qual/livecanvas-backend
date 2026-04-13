@@ -6,54 +6,11 @@ import { Platform } from 'react-native';
 import { useStartupState } from '../providers/StartupGate';
 import { useAuth } from './AuthProvider';
 import { submitOauthAuthMutation } from './authMutationClient';
+import { hasGoogleClientConfig, resolveGoogleClientConfig } from './googleClientConfig';
 
 WebBrowser.maybeCompleteAuthSession();
 
 type AuthMode = 'signIn' | 'signUp';
-
-type GoogleClientConfig = {
-  clientId?: string;
-  iosClientId?: string;
-  androidClientId?: string;
-  webClientId?: string;
-};
-
-function normalizeOptionalValue(value: string | undefined): string | undefined {
-  const trimmed = value?.trim();
-
-  return trimmed && trimmed.length > 0 ? trimmed : undefined;
-}
-
-function resolveGoogleClientConfig(): GoogleClientConfig {
-  return {
-    clientId: normalizeOptionalValue(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID),
-    iosClientId: normalizeOptionalValue(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID),
-    androidClientId: normalizeOptionalValue(
-      process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    ),
-    webClientId: normalizeOptionalValue(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID),
-  };
-}
-
-function hasGoogleClientConfig(config: GoogleClientConfig): boolean {
-  if (config.clientId) {
-    return true;
-  }
-
-  if (Platform.OS === 'ios') {
-    return Boolean(config.iosClientId);
-  }
-
-  if (Platform.OS === 'android') {
-    return Boolean(config.androidClientId);
-  }
-
-  if (Platform.OS === 'web') {
-    return Boolean(config.webClientId);
-  }
-
-  return false;
-}
 
 function fallbackErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -71,7 +28,7 @@ export function useGoogleAuth() {
   // local re-entry guard around the provider-specific OAuth flow.
   const isSubmittingRef = useRef(false);
   const config = useMemo(resolveGoogleClientConfig, []);
-  const isConfigured = hasGoogleClientConfig(config);
+  const isConfigured = hasGoogleClientConfig(config, Platform.OS);
   // The Expo hook must run on every render, so keep it mounted with a sentinel
   // client ID and block the user action before promptAsync when config is absent.
   const [request, , promptAsync] = Google.useIdTokenAuthRequest(
