@@ -7,13 +7,14 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { AppButton } from '../../src/components/AppButton';
 import { AppCard } from '../../src/components/AppCard';
 import { AuthField } from '../../src/components/AuthField';
 import { AppHeader } from '../../src/components/AppHeader';
 import { authScreenStyles as styles } from '../../src/components/authScreenStyles';
+import { createAuthActionLock } from '../../src/auth/authActionLock';
 import { resolveAuthEntryUiState } from '../../src/auth/authEntryUiState';
 import { useAppleAuth } from '../../src/auth/useAppleAuth';
 import { useGoogleAuth } from '../../src/auth/useGoogleAuth';
@@ -28,6 +29,9 @@ export default function SignInScreen() {
   const appleAuth = useAppleAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Hook-level guards only cover one provider at a time; this lock blocks cross-provider
+  // taps and route switches until the active auth attempt settles.
+  const actionLockRef = useRef(createAuthActionLock());
 
   const formError =
     passwordAuth.formError ?? googleAuth.error ?? appleAuth.error;
@@ -48,15 +52,17 @@ export default function SignInScreen() {
   };
 
   const handlePasswordSignIn = async () => {
-    if (isBusy) {
-      return;
-    }
+    const success = await actionLockRef.current.run(async () => {
+      if (isBusy) {
+        return false;
+      }
 
-    clearTransientErrors();
+      clearTransientErrors();
 
-    const success = await passwordAuth.signInWithPassword({
-      email,
-      password,
+      return passwordAuth.signInWithPassword({
+        email,
+        password,
+      });
     });
 
     if (success) {
@@ -65,13 +71,15 @@ export default function SignInScreen() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (isBusy) {
-      return;
-    }
+    const success = await actionLockRef.current.run(async () => {
+      if (isBusy) {
+        return false;
+      }
 
-    clearTransientErrors();
+      clearTransientErrors();
 
-    const success = await googleAuth.signInWithGoogle();
+      return googleAuth.signInWithGoogle();
+    });
 
     if (success) {
       router.replace('/home');
@@ -79,13 +87,15 @@ export default function SignInScreen() {
   };
 
   const handleAppleSignIn = async () => {
-    if (isBusy) {
-      return;
-    }
+    const success = await actionLockRef.current.run(async () => {
+      if (isBusy) {
+        return false;
+      }
 
-    clearTransientErrors();
+      clearTransientErrors();
 
-    const success = await appleAuth.signInWithApple();
+      return appleAuth.signInWithApple();
+    });
 
     if (success) {
       router.replace('/home');
@@ -203,7 +213,10 @@ export default function SignInScreen() {
               <Pressable
                 disabled={!uiState.canSwitchScreens}
                 onPress={() => {
-                  if (!uiState.canSwitchScreens) {
+                  if (
+                    !uiState.canSwitchScreens ||
+                    actionLockRef.current.isLocked()
+                  ) {
                     return;
                   }
 
