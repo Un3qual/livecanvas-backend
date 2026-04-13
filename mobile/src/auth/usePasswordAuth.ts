@@ -31,7 +31,6 @@ export function usePasswordAuth() {
     Partial<Record<AuthFieldName, string>>
   >({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [pendingMode, setPendingMode] = useState<AuthMode | null>(null);
 
   const clearErrors = useCallback(() => {
     setFieldErrors({});
@@ -40,12 +39,7 @@ export function usePasswordAuth() {
 
   const submit = useCallback(
     async (mode: AuthMode, fields: PasswordAuthFields) => {
-      if (!auth.beginAuthSubmission()) {
-        return false;
-      }
-
       clearErrors();
-      setPendingMode(mode);
 
       try {
         const result = await submitPasswordAuthMutation({
@@ -68,9 +62,6 @@ export function usePasswordAuth() {
       } catch (error) {
         setFormError(fallbackErrorMessage(error));
         return false;
-      } finally {
-        auth.endAuthSubmission();
-        setPendingMode(null);
       }
     },
     [auth, clearErrors, environment.apiBaseUrl],
@@ -80,7 +71,6 @@ export function usePasswordAuth() {
     clearErrors,
     fieldErrors,
     formError,
-    isSubmitting: pendingMode !== null,
     signInWithPassword: (fields: PasswordAuthFields) => submit('signIn', fields),
     signUpWithPassword: (fields: PasswordAuthFields) => submit('signUp', fields),
   };

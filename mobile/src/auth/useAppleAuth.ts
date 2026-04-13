@@ -1,6 +1,6 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useStartupState } from '../providers/StartupGate';
 import { useAuth } from './AuthProvider';
@@ -30,7 +30,9 @@ export function useAppleAuth() {
   const { environment } = useStartupState();
   const [error, setError] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // This hook can still be reused outside the auth-entry controller, so keep a
+  // local re-entry guard around the provider-specific OAuth flow.
+  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -58,7 +60,7 @@ export function useAppleAuth() {
 
   const authenticate = useCallback(
     async (mode: AuthMode) => {
-      if (!auth.beginAuthSubmission()) {
+      if (isSubmittingRef.current) {
         return false;
       }
 
@@ -69,7 +71,7 @@ export function useAppleAuth() {
         return false;
       }
 
-      setIsSubmitting(true);
+      isSubmittingRef.current = true;
 
       try {
         const credential = await AppleAuthentication.signInAsync({
@@ -103,8 +105,7 @@ export function useAppleAuth() {
         setError(fallbackErrorMessage(nextError));
         return false;
       } finally {
-        auth.endAuthSubmission();
-        setIsSubmitting(false);
+        isSubmittingRef.current = false;
       }
     },
     [auth, clearError, environment.apiBaseUrl, isAvailable],
@@ -114,7 +115,6 @@ export function useAppleAuth() {
     clearError,
     error,
     isAvailable,
-    isSubmitting,
     signInWithApple: () => authenticate('signIn'),
     signUpWithApple: () => authenticate('signUp'),
   };

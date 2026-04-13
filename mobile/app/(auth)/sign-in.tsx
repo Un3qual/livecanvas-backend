@@ -14,49 +14,18 @@ import { AppCard } from '../../src/components/AppCard';
 import { AuthField } from '../../src/components/AuthField';
 import { AppHeader } from '../../src/components/AppHeader';
 import { authScreenStyles as styles } from '../../src/components/authScreenStyles';
-import { useAuth } from '../../src/auth/AuthProvider';
-import { resolveAuthEntryUiState } from '../../src/auth/authEntryUiState';
-import { useAppleAuth } from '../../src/auth/useAppleAuth';
-import { useGoogleAuth } from '../../src/auth/useGoogleAuth';
-import { usePasswordAuth } from '../../src/auth/usePasswordAuth';
+import { useAuthEntryController } from '../../src/auth/useAuthEntryController';
 import { useAppTheme } from '../../src/providers/ThemeProvider';
 
 export default function SignInScreen() {
   const router = useRouter();
   const theme = useAppTheme();
-  const auth = useAuth();
-  const passwordAuth = usePasswordAuth();
-  const googleAuth = useGoogleAuth();
-  const appleAuth = useAppleAuth();
+  const controller = useAuthEntryController('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const formError =
-    passwordAuth.formError ?? googleAuth.error ?? appleAuth.error;
-  const isBusy =
-    passwordAuth.isSubmitting ||
-    googleAuth.isSubmitting ||
-    appleAuth.isSubmitting;
-  const uiState = resolveAuthEntryUiState({
-    hasAppleAuthOption: appleAuth.isAvailable,
-    hasGoogleAuthOption: googleAuth.isSupported,
-    isBusy,
-  });
-
-  const clearTransientErrors = () => {
-    passwordAuth.clearErrors();
-    googleAuth.clearError();
-    appleAuth.clearError();
-  };
-
   const handlePasswordSignIn = async () => {
-    if (isBusy) {
-      return;
-    }
-
-    clearTransientErrors();
-
-    const success = await passwordAuth.signInWithPassword({
+    const success = await controller.submitPassword({
       email,
       password,
     });
@@ -67,13 +36,7 @@ export default function SignInScreen() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (isBusy) {
-      return;
-    }
-
-    clearTransientErrors();
-
-    const success = await googleAuth.signInWithGoogle();
+    const success = await controller.submitGoogle();
 
     if (success) {
       router.replace('/home');
@@ -81,13 +44,7 @@ export default function SignInScreen() {
   };
 
   const handleAppleSignIn = async () => {
-    if (isBusy) {
-      return;
-    }
-
-    clearTransientErrors();
-
-    const success = await appleAuth.signInWithApple();
+    const success = await controller.submitApple();
 
     if (success) {
       router.replace('/home');
@@ -115,11 +72,11 @@ export default function SignInScreen() {
             <View style={styles.form}>
               <AuthField
                 autoComplete="email"
-                error={passwordAuth.fieldErrors.email}
+                error={controller.fieldErrors.email}
                 keyboardType="email-address"
                 label="Email"
                 onChangeText={(value) => {
-                  clearTransientErrors();
+                  controller.clearTransientErrors();
                   setEmail(value);
                 }}
                 placeholder="you@example.com"
@@ -129,10 +86,10 @@ export default function SignInScreen() {
 
               <AuthField
                 autoComplete="current-password"
-                error={passwordAuth.fieldErrors.password}
+                error={controller.fieldErrors.password}
                 label="Password"
                 onChangeText={(value) => {
-                  clearTransientErrors();
+                  controller.clearTransientErrors();
                   setPassword(value);
                 }}
                 placeholder="Enter your password"
@@ -141,7 +98,7 @@ export default function SignInScreen() {
                 value={password}
               />
 
-              {formError ? (
+              {controller.formError ? (
                 <View
                   style={[
                     styles.errorBanner,
@@ -152,20 +109,20 @@ export default function SignInScreen() {
                   ]}
                 >
                   <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                    {formError}
+                    {controller.formError}
                   </Text>
                 </View>
               ) : null}
 
               <AppButton
                 label={
-                  passwordAuth.isSubmitting ? 'Signing in...' : 'Sign in'
+                  controller.isPasswordSubmitting ? 'Signing in...' : 'Sign in'
                 }
-                disabled={isBusy}
+                disabled={controller.isBusy}
                 onPress={handlePasswordSignIn}
               />
 
-              {uiState.showOauthDivider ? (
+              {controller.showOauthDivider ? (
                 <View style={styles.dividerRow}>
                   <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
                   <Text style={[styles.dividerLabel, { color: theme.colors.textMuted }]}>
@@ -175,22 +132,22 @@ export default function SignInScreen() {
                 </View>
               ) : null}
 
-              {googleAuth.isSupported ? (
+              {controller.hasGoogleAuthOption ? (
                 <AppButton
-                  disabled={isBusy}
+                  disabled={controller.isBusy}
                   label={
-                    googleAuth.isSubmitting ? 'Opening Google...' : 'Continue with Google'
+                    controller.isGoogleSubmitting ? 'Opening Google...' : 'Continue with Google'
                   }
                   onPress={handleGoogleSignIn}
                   variant="secondary"
                 />
               ) : null}
 
-              {appleAuth.isAvailable ? (
+              {controller.hasAppleAuthOption ? (
                 <AppButton
-                  disabled={isBusy}
+                  disabled={controller.isBusy}
                   label={
-                    appleAuth.isSubmitting ? 'Opening Apple...' : 'Continue with Apple'
+                    controller.isAppleSubmitting ? 'Opening Apple...' : 'Continue with Apple'
                   }
                   onPress={handleAppleSignIn}
                   variant="secondary"
@@ -203,16 +160,11 @@ export default function SignInScreen() {
                 Need an account?
               </Text>
               <Pressable
-                disabled={!uiState.canSwitchScreens}
+                disabled={!controller.canSwitchScreens}
                 onPress={() => {
-                  if (
-                    !uiState.canSwitchScreens ||
-                    auth.isAuthSubmissionActive()
-                  ) {
-                    return;
-                  }
-
-                  router.replace('/sign-up');
+                  controller.handleAlternateScreenPress(() => {
+                    router.replace('/sign-up');
+                  });
                 }}
               >
                 <Text style={[styles.footerAction, { color: theme.colors.accent }]}>

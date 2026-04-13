@@ -1,6 +1,6 @@
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { useStartupState } from '../providers/StartupGate';
@@ -67,7 +67,9 @@ export function useGoogleAuth() {
   const auth = useAuth();
   const { environment } = useStartupState();
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // This hook can still be reused outside the auth-entry controller, so keep a
+  // local re-entry guard around the provider-specific OAuth flow.
+  const isSubmittingRef = useRef(false);
   const config = useMemo(resolveGoogleClientConfig, []);
   const isConfigured = hasGoogleClientConfig(config);
   // The Expo hook must run on every render, so keep it mounted with a sentinel
@@ -93,7 +95,7 @@ export function useGoogleAuth() {
 
   const authenticate = useCallback(
     async (mode: AuthMode) => {
-      if (!auth.beginAuthSubmission()) {
+      if (isSubmittingRef.current) {
         return false;
       }
 
@@ -111,7 +113,7 @@ export function useGoogleAuth() {
         return false;
       }
 
-      setIsSubmitting(true);
+      isSubmittingRef.current = true;
 
       try {
         const response = await promptAsync();
@@ -143,8 +145,7 @@ export function useGoogleAuth() {
         setError(fallbackErrorMessage(nextError));
         return false;
       } finally {
-        auth.endAuthSubmission();
-        setIsSubmitting(false);
+        isSubmittingRef.current = false;
       }
     },
     [auth, clearError, environment.apiBaseUrl, isConfigured, promptAsync, request],
@@ -154,7 +155,6 @@ export function useGoogleAuth() {
     clearError,
     error,
     isConfigured,
-    isSubmitting,
     isSupported: isConfigured,
     signInWithGoogle: () => authenticate('signIn'),
     signUpWithGoogle: () => authenticate('signUp'),

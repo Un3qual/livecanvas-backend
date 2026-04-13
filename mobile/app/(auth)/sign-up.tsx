@@ -14,50 +14,19 @@ import { AppCard } from '../../src/components/AppCard';
 import { AuthField } from '../../src/components/AuthField';
 import { AppHeader } from '../../src/components/AppHeader';
 import { authScreenStyles as styles } from '../../src/components/authScreenStyles';
-import { useAuth } from '../../src/auth/AuthProvider';
-import { resolveAuthEntryUiState } from '../../src/auth/authEntryUiState';
-import { useAppleAuth } from '../../src/auth/useAppleAuth';
-import { useGoogleAuth } from '../../src/auth/useGoogleAuth';
-import { usePasswordAuth } from '../../src/auth/usePasswordAuth';
+import { useAuthEntryController } from '../../src/auth/useAuthEntryController';
 import { useAppTheme } from '../../src/providers/ThemeProvider';
 
 export default function SignUpScreen() {
   const router = useRouter();
   const theme = useAppTheme();
-  const auth = useAuth();
-  const passwordAuth = usePasswordAuth();
-  const googleAuth = useGoogleAuth();
-  const appleAuth = useAppleAuth();
+  const controller = useAuthEntryController('signUp');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
 
-  const formError =
-    passwordAuth.formError ?? googleAuth.error ?? appleAuth.error;
-  const isBusy =
-    passwordAuth.isSubmitting ||
-    googleAuth.isSubmitting ||
-    appleAuth.isSubmitting;
-  const uiState = resolveAuthEntryUiState({
-    hasAppleAuthOption: appleAuth.isAvailable,
-    hasGoogleAuthOption: googleAuth.isSupported,
-    isBusy,
-  });
-
-  const clearTransientErrors = () => {
-    passwordAuth.clearErrors();
-    googleAuth.clearError();
-    appleAuth.clearError();
-  };
-
   const handlePasswordSignUp = async () => {
-    if (isBusy) {
-      return;
-    }
-
-    clearTransientErrors();
-
-    const success = await passwordAuth.signUpWithPassword({
+    const success = await controller.submitPassword({
       email,
       password,
       passwordConfirmation,
@@ -69,13 +38,7 @@ export default function SignUpScreen() {
   };
 
   const handleGoogleSignUp = async () => {
-    if (isBusy) {
-      return;
-    }
-
-    clearTransientErrors();
-
-    const success = await googleAuth.signUpWithGoogle();
+    const success = await controller.submitGoogle();
 
     if (success) {
       router.replace('/home');
@@ -83,13 +46,7 @@ export default function SignUpScreen() {
   };
 
   const handleAppleSignUp = async () => {
-    if (isBusy) {
-      return;
-    }
-
-    clearTransientErrors();
-
-    const success = await appleAuth.signUpWithApple();
+    const success = await controller.submitApple();
 
     if (success) {
       router.replace('/home');
@@ -117,11 +74,11 @@ export default function SignUpScreen() {
             <View style={styles.form}>
               <AuthField
                 autoComplete="email"
-                error={passwordAuth.fieldErrors.email}
+                error={controller.fieldErrors.email}
                 keyboardType="email-address"
                 label="Email"
                 onChangeText={(value) => {
-                  clearTransientErrors();
+                  controller.clearTransientErrors();
                   setEmail(value);
                 }}
                 placeholder="you@example.com"
@@ -131,10 +88,10 @@ export default function SignUpScreen() {
 
               <AuthField
                 autoComplete="new-password"
-                error={passwordAuth.fieldErrors.password}
+                error={controller.fieldErrors.password}
                 label="Password"
                 onChangeText={(value) => {
-                  clearTransientErrors();
+                  controller.clearTransientErrors();
                   setPassword(value);
                 }}
                 placeholder="Choose a password"
@@ -145,10 +102,10 @@ export default function SignUpScreen() {
 
               <AuthField
                 autoComplete="new-password"
-                error={passwordAuth.fieldErrors.passwordConfirmation}
+                error={controller.fieldErrors.passwordConfirmation}
                 label="Confirm password"
                 onChangeText={(value) => {
-                  clearTransientErrors();
+                  controller.clearTransientErrors();
                   setPasswordConfirmation(value);
                 }}
                 placeholder="Re-enter your password"
@@ -157,7 +114,7 @@ export default function SignUpScreen() {
                 value={passwordConfirmation}
               />
 
-              {formError ? (
+              {controller.formError ? (
                 <View
                   style={[
                     styles.errorBanner,
@@ -168,20 +125,20 @@ export default function SignUpScreen() {
                   ]}
                 >
                   <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                    {formError}
+                    {controller.formError}
                   </Text>
                 </View>
               ) : null}
 
               <AppButton
                 label={
-                  passwordAuth.isSubmitting ? 'Creating account...' : 'Create account'
+                  controller.isPasswordSubmitting ? 'Creating account...' : 'Create account'
                 }
-                disabled={isBusy}
+                disabled={controller.isBusy}
                 onPress={handlePasswordSignUp}
               />
 
-              {uiState.showOauthDivider ? (
+              {controller.showOauthDivider ? (
                 <View style={styles.dividerRow}>
                   <View style={[styles.dividerLine, { backgroundColor: theme.colors.border }]} />
                   <Text style={[styles.dividerLabel, { color: theme.colors.textMuted }]}>
@@ -191,22 +148,22 @@ export default function SignUpScreen() {
                 </View>
               ) : null}
 
-              {googleAuth.isSupported ? (
+              {controller.hasGoogleAuthOption ? (
                 <AppButton
-                  disabled={isBusy}
+                  disabled={controller.isBusy}
                   label={
-                    googleAuth.isSubmitting ? 'Opening Google...' : 'Continue with Google'
+                    controller.isGoogleSubmitting ? 'Opening Google...' : 'Continue with Google'
                   }
                   onPress={handleGoogleSignUp}
                   variant="secondary"
                 />
               ) : null}
 
-              {appleAuth.isAvailable ? (
+              {controller.hasAppleAuthOption ? (
                 <AppButton
-                  disabled={isBusy}
+                  disabled={controller.isBusy}
                   label={
-                    appleAuth.isSubmitting ? 'Opening Apple...' : 'Continue with Apple'
+                    controller.isAppleSubmitting ? 'Opening Apple...' : 'Continue with Apple'
                   }
                   onPress={handleAppleSignUp}
                   variant="secondary"
@@ -219,16 +176,11 @@ export default function SignUpScreen() {
                 Already have an account?
               </Text>
               <Pressable
-                disabled={!uiState.canSwitchScreens}
+                disabled={!controller.canSwitchScreens}
                 onPress={() => {
-                  if (
-                    !uiState.canSwitchScreens ||
-                    auth.isAuthSubmissionActive()
-                  ) {
-                    return;
-                  }
-
-                  router.replace('/sign-in');
+                  controller.handleAlternateScreenPress(() => {
+                    router.replace('/sign-in');
+                  });
                 }}
               >
                 <Text style={[styles.footerAction, { color: theme.colors.accent }]}>

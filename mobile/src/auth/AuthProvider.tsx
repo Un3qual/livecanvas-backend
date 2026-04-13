@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { AuthContextValue, AuthState, AuthTokenPair } from './types';
-import { createAuthSubmissionGate } from './authSubmissionGate';
 import { clearTokens, loadTokens, storeTokens } from './tokenStorage';
 import { resolveAuthBootstrapState } from './authBootstrap';
 import { forceUnauthenticated, shouldApplyBootstrapState } from './authProviderLifecycle';
@@ -26,7 +25,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const stateRef = useRef<AuthState>(state);
   const bootstrapRanRef = useRef(false);
   const tokensRef = useRef<AuthTokenPair | null>(null);
-  const authSubmissionGateRef = useRef(createAuthSubmissionGate());
 
   useEffect(() => {
     stateRef.current = state;
@@ -109,18 +107,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return tokensRef.current?.accessToken ?? null;
   }, []);
 
-  const beginAuthSubmission = useCallback(() => {
-    return authSubmissionGateRef.current.begin();
-  }, []);
-
-  const endAuthSubmission = useCallback(() => {
-    authSubmissionGateRef.current.end();
-  }, []);
-
-  const isAuthSubmissionActive = useCallback(() => {
-    return authSubmissionGateRef.current.isActive();
-  }, []);
-
   const value = useMemo<AuthContextValue>(
     () => ({
       state,
@@ -130,22 +116,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       onForcedLogout,
       getAuthStatus,
       getAccessToken,
-      beginAuthSubmission,
-      endAuthSubmission,
-      isAuthSubmissionActive,
     }),
-    [
-      state,
-      signIn,
-      signOut,
-      syncTokens,
-      onForcedLogout,
-      getAuthStatus,
-      getAccessToken,
-      beginAuthSubmission,
-      endAuthSubmission,
-      isAuthSubmissionActive,
-    ],
+    [state, signIn, signOut, syncTokens, onForcedLogout, getAuthStatus, getAccessToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
