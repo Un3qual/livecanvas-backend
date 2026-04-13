@@ -1,6 +1,6 @@
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { useStartupState } from '../providers/StartupGate';
@@ -68,7 +68,6 @@ export function useGoogleAuth() {
   const { environment } = useStartupState();
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isSubmittingRef = useRef(false);
   const config = useMemo(resolveGoogleClientConfig, []);
   const isConfigured = hasGoogleClientConfig(config);
   // The Expo hook must run on every render, so keep it mounted with a sentinel
@@ -94,7 +93,7 @@ export function useGoogleAuth() {
 
   const authenticate = useCallback(
     async (mode: AuthMode) => {
-      if (isSubmittingRef.current) {
+      if (!auth.beginAuthSubmission()) {
         return false;
       }
 
@@ -112,7 +111,6 @@ export function useGoogleAuth() {
         return false;
       }
 
-      isSubmittingRef.current = true;
       setIsSubmitting(true);
 
       try {
@@ -145,7 +143,7 @@ export function useGoogleAuth() {
         setError(fallbackErrorMessage(nextError));
         return false;
       } finally {
-        isSubmittingRef.current = false;
+        auth.endAuthSubmission();
         setIsSubmitting(false);
       }
     },

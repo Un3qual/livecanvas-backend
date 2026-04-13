@@ -7,14 +7,14 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 
 import { AppButton } from '../../src/components/AppButton';
 import { AppCard } from '../../src/components/AppCard';
 import { AuthField } from '../../src/components/AuthField';
 import { AppHeader } from '../../src/components/AppHeader';
 import { authScreenStyles as styles } from '../../src/components/authScreenStyles';
-import { createAuthActionLock } from '../../src/auth/authActionLock';
+import { useAuth } from '../../src/auth/AuthProvider';
 import { resolveAuthEntryUiState } from '../../src/auth/authEntryUiState';
 import { useAppleAuth } from '../../src/auth/useAppleAuth';
 import { useGoogleAuth } from '../../src/auth/useGoogleAuth';
@@ -24,15 +24,13 @@ import { useAppTheme } from '../../src/providers/ThemeProvider';
 export default function SignUpScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const auth = useAuth();
   const passwordAuth = usePasswordAuth();
   const googleAuth = useGoogleAuth();
   const appleAuth = useAppleAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
-  // Hook-level guards only cover one provider at a time; this lock blocks cross-provider
-  // taps and route switches until the active auth attempt settles.
-  const actionLockRef = useRef(createAuthActionLock());
 
   const formError =
     passwordAuth.formError ?? googleAuth.error ?? appleAuth.error;
@@ -53,18 +51,16 @@ export default function SignUpScreen() {
   };
 
   const handlePasswordSignUp = async () => {
-    const success = await actionLockRef.current.run(async () => {
-      if (isBusy) {
-        return false;
-      }
+    if (isBusy) {
+      return;
+    }
 
-      clearTransientErrors();
+    clearTransientErrors();
 
-      return passwordAuth.signUpWithPassword({
-        email,
-        password,
-        passwordConfirmation,
-      });
+    const success = await passwordAuth.signUpWithPassword({
+      email,
+      password,
+      passwordConfirmation,
     });
 
     if (success) {
@@ -73,15 +69,13 @@ export default function SignUpScreen() {
   };
 
   const handleGoogleSignUp = async () => {
-    const success = await actionLockRef.current.run(async () => {
-      if (isBusy) {
-        return false;
-      }
+    if (isBusy) {
+      return;
+    }
 
-      clearTransientErrors();
+    clearTransientErrors();
 
-      return googleAuth.signUpWithGoogle();
-    });
+    const success = await googleAuth.signUpWithGoogle();
 
     if (success) {
       router.replace('/home');
@@ -89,15 +83,13 @@ export default function SignUpScreen() {
   };
 
   const handleAppleSignUp = async () => {
-    const success = await actionLockRef.current.run(async () => {
-      if (isBusy) {
-        return false;
-      }
+    if (isBusy) {
+      return;
+    }
 
-      clearTransientErrors();
+    clearTransientErrors();
 
-      return appleAuth.signUpWithApple();
-    });
+    const success = await appleAuth.signUpWithApple();
 
     if (success) {
       router.replace('/home');
@@ -231,7 +223,7 @@ export default function SignUpScreen() {
                 onPress={() => {
                   if (
                     !uiState.canSwitchScreens ||
-                    actionLockRef.current.isLocked()
+                    auth.isAuthSubmissionActive()
                   ) {
                     return;
                   }

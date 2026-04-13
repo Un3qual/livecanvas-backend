@@ -1,6 +1,6 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useStartupState } from '../providers/StartupGate';
 import { useAuth } from './AuthProvider';
@@ -31,7 +31,6 @@ export function useAppleAuth() {
   const [error, setError] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const isSubmittingRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -59,7 +58,7 @@ export function useAppleAuth() {
 
   const authenticate = useCallback(
     async (mode: AuthMode) => {
-      if (isSubmittingRef.current) {
+      if (!auth.beginAuthSubmission()) {
         return false;
       }
 
@@ -70,7 +69,6 @@ export function useAppleAuth() {
         return false;
       }
 
-      isSubmittingRef.current = true;
       setIsSubmitting(true);
 
       try {
@@ -105,7 +103,7 @@ export function useAppleAuth() {
         setError(fallbackErrorMessage(nextError));
         return false;
       } finally {
-        isSubmittingRef.current = false;
+        auth.endAuthSubmission();
         setIsSubmitting(false);
       }
     },

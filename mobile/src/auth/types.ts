@@ -24,4 +24,10 @@ export interface AuthContextValue {
   getAuthStatus: () => AuthState['status'];
   /** Get the current access token, or null if unauthenticated */
   getAccessToken: () => string | null;
+  /** Start an auth submission if no other provider is already in flight */
+  beginAuthSubmission: () => boolean;
+  /** Release the shared auth submission gate after an attempt settles */
+  endAuthSubmission: () => void;
+  /** Read the shared auth submission gate without waiting for a re-render */
+  isAuthSubmissionActive: () => boolean;
 }
