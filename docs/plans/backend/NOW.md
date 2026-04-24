@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
 Last reviewed: 2026-04-24
-Status: active for execution
+Status: active for planning
 
 ## Lane Scope
 
@@ -10,22 +10,23 @@ Status: active for execution
 
 ## Current Batch
 
-- Track: `post_reporting`
-- Source: `docs/plans/content/2026-04-24-post-reporting.md`
-- Batch: `Task 2: Publish the post-reporting mobile contract and refresh lane tracking`
-- Why now: Task 1 added the product-facing `reportPost` persistence, Relay node, GraphQL mutation, and moderation rate-limit classification. The remaining backend-owned step is to publish the mobile contract/tracking documentation for that new content-reporting surface.
+- Track: `backend_release_readiness_roadmap`
+- Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
+- Batch: `Create the next detailed backend implementation plan`
+- Why now: `docs/plans/content/2026-04-24-post-reporting.md` is complete through Task 2. The backend lane now returns to roadmap-driven planning so the next execution turn can select a product-focused backend slice and write its detailed implementation plan.
 
 ## Do This Now
 
-- Use `docs/plans/content/2026-04-24-post-reporting.md` as the source plan.
-- Document `reportPost`, supported report reasons, idempotency, visibility rules, and stable user errors in the mobile GraphQL contract only if this lane is explicitly allowed to touch shared contract docs; otherwise report that coordinator/shared-contract update as required follow-up.
-- Run the focused Task 2 verification from the source plan after any docs changes.
-- Update `docs/plans/content/2026-04-24-post-reporting.md` and this lane file with the outcome.
+- Verify remaining backend product gaps from the roadmap and current code before drafting a plan.
+- Prefer product feature completeness over observability, automation, or reusable starter-kit extraction unless explicitly redirected.
+- Treat completed plans as historical context. Do not restart `docs/plans/2026-03-22-development-seed-data.md`; it is checklist-complete and should be cleaned up from shared queued-candidate tracking by the coordinator.
+- Create the next detailed backend implementation plan under the appropriate backend planning docs path, then update this lane file to the first executable batch from that new plan.
 - Report shared dashboard/index repairs instead of editing `docs/plans/NOW.md` or `docs/plans/INDEX.md` from the backend lane.
 
 ## Verification Scope
 
-- `mix test test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
+- Planning/status verification only until the next implementation plan is selected.
+- The new plan must define focused verification commands for each executable task.
 
 ## Completed Batch Evidence
 
@@ -35,16 +36,18 @@ Status: active for execution
 - `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`).
 - `docs/plans/content/2026-04-24-post-reporting.md` Task 1 passed on 2026-04-24.
 - `mix test test/live_canvas/content_test.exs test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs` -> PASS (`81 tests, 0 failures`).
+- `docs/plans/content/2026-04-24-post-reporting.md` Task 2 passed on 2026-04-24.
+- `mix test test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs` -> PASS (`40 tests, 0 failures`).
 
 ## Next Up
 
-- After Task 2, return to roadmap-driven backend planning unless another product-focused backend slice is explicitly prioritized.
+- Execute the first batch from the newly created backend implementation plan after this lane pointer is advanced.
 
 ## Required Shared Coordinator Repairs
 
-- `docs/plans/NOW.md`: keep the backend lane aligned to `docs/plans/backend/NOW.md` -> `Task 2: Publish the post-reporting mobile contract and refresh lane tracking` and refresh review metadata if desired.
+- `docs/plans/NOW.md`: keep the backend lane aligned to `docs/plans/backend/NOW.md` -> `Create the next detailed backend implementation plan` and refresh review metadata if desired.
 - `docs/plans/INDEX.md`: add `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` to completed backend work through Task 3.
-- `docs/plans/INDEX.md`: add `docs/plans/content/2026-04-24-post-reporting.md` as active backend work completed through Task 1, with Task 2 as the next queued backend batch.
+- `docs/plans/INDEX.md`: add `docs/plans/content/2026-04-24-post-reporting.md` to completed backend work through Task 2.
 - `docs/plans/INDEX.md`: remove or update stale queued-candidate notes for `docs/plans/2026-03-22-development-seed-data.md`, because that plan is already checklist-complete.
 - `docs/plans/INDEX.md`: remove the stale note that the active backend lane remains on the live-session state/presence track.
 
