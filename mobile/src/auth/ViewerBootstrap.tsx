@@ -3,6 +3,7 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useReducer,
   type PropsWithChildren,
 } from 'react';
 import { graphql, useLazyLoadQuery } from 'react-relay';
@@ -27,20 +28,65 @@ export function useViewer(): ViewerBootstrapViewer {
 
 export function ViewerBootstrap({ children }: PropsWithChildren) {
   const { state } = useAuth();
+  const [queryRetryKey, retryViewerBootstrap] = useReducer(
+    (key: number) => key + 1,
+    0,
+  );
 
   if (state.status !== 'authenticated') {
     return <>{children}</>;
   }
 
   return (
-    <Suspense
-      fallback={
-        <ScreenState state="loading" message="Restoring your session..." />
-      }
+    <ViewerBootstrapErrorBoundary
+      key={queryRetryKey}
+      onRetry={retryViewerBootstrap}
     >
-      <ViewerBootstrapQueryLoader>{children}</ViewerBootstrapQueryLoader>
-    </Suspense>
+      <Suspense
+        fallback={
+          <ScreenState state="loading" message="Restoring your session..." />
+        }
+      >
+        <ViewerBootstrapQueryLoader key={queryRetryKey}>
+          {children}
+        </ViewerBootstrapQueryLoader>
+      </Suspense>
+    </ViewerBootstrapErrorBoundary>
   );
+}
+
+type ViewerBootstrapErrorBoundaryProps = PropsWithChildren<{
+  onRetry: () => void;
+}>;
+
+type ViewerBootstrapErrorBoundaryState = {
+  hasError: boolean;
+};
+
+// Relay query errors are thrown during render; Suspense only handles pending loads.
+class ViewerBootstrapErrorBoundary extends React.Component<
+  ViewerBootstrapErrorBoundaryProps,
+  ViewerBootstrapErrorBoundaryState
+> {
+  state: ViewerBootstrapErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): ViewerBootstrapErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <ScreenState
+          state="error"
+          message="We couldn't restore your session. Check your connection and try again."
+          onRetry={this.props.onRetry}
+        />
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 function ViewerBootstrapQueryLoader({ children }: PropsWithChildren) {

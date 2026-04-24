@@ -1,8 +1,8 @@
 import { describe, expect, mock, test } from 'bun:test';
 
 import type { AuthTokenPair } from './types';
+import { REFRESH_MUTATION } from './authenticatedFetchHelpers';
 import {
-  ISSUE_VIEWER_AUTH_TOKENS_MUTATION,
   resolveSessionBootstrapState,
   restoreStoredSession,
 } from './sessionBootstrap';
@@ -27,28 +27,28 @@ describe('resolveSessionBootstrapState', () => {
     });
   });
 
-  test('validates stored tokens with issueViewerAuthTokens and stores the rotated pair', async () => {
+  test('refreshes stored tokens with refreshAuthTokens and stores the rotated pair', async () => {
     const storedTokens: AuthTokenPair = {
-      accessToken: 'stored-access-token',
+      accessToken: 'expired-access-token',
       refreshToken: 'stored-refresh-token',
-      expiresAt: '2026-05-01T00:00:00.000Z',
+      expiresAt: '2000-01-01T00:00:00.000Z',
     };
-    const issuedTokens: AuthTokenPair = {
-      accessToken: 'issued-access-token',
-      refreshToken: 'issued-refresh-token',
+    const refreshedTokens: AuthTokenPair = {
+      accessToken: 'refreshed-access-token',
+      refreshToken: 'refreshed-refresh-token',
       expiresAt: '2026-05-02T00:00:00.000Z',
     };
     const fetchImpl = mock(async () =>
       new Response(
         JSON.stringify({
           data: {
-            issueViewerAuthTokens: {
+            refreshAuthTokens: {
               accessToken: {
-                serializedValue: issuedTokens.accessToken,
-                expiresAt: issuedTokens.expiresAt,
+                serializedValue: refreshedTokens.accessToken,
+                expiresAt: refreshedTokens.expiresAt,
               },
               refreshToken: {
-                serializedValue: issuedTokens.refreshToken,
+                serializedValue: refreshedTokens.refreshToken,
               },
               errors: [],
             },
@@ -69,35 +69,34 @@ describe('resolveSessionBootstrapState', () => {
 
     expect(state).toEqual({
       status: 'authenticated',
-      tokens: issuedTokens,
+      tokens: refreshedTokens,
     });
-    expect(storeTokens).toHaveBeenCalledWith(issuedTokens);
+    expect(storeTokens).toHaveBeenCalledWith(refreshedTokens);
     expect(clearTokens).toHaveBeenCalledTimes(0);
 
     const [url, init] = fetchImpl.mock.calls[0] ?? [];
     expect(url).toBe('http://localhost:4000/graphql');
     expect((init as RequestInit).headers).toEqual({
       'Content-Type': 'application/json',
-      Authorization: 'Bearer stored-access-token',
     });
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({
-      query: ISSUE_VIEWER_AUTH_TOKENS_MUTATION,
-      variables: { input: {} },
+      query: REFRESH_MUTATION,
+      variables: { input: { refreshToken: storedTokens.refreshToken } },
     });
   });
 
-  test('clears stored tokens when issueViewerAuthTokens rejects the session', async () => {
+  test('clears stored tokens when refreshAuthTokens rejects the session', async () => {
     const fetchImpl = mock(async () =>
       new Response(
         JSON.stringify({
           data: {
-            issueViewerAuthTokens: {
+            refreshAuthTokens: {
               accessToken: null,
               refreshToken: null,
               errors: [
                 {
-                  field: null,
-                  message: 'unauthenticated',
+                  field: 'refreshToken',
+                  message: 'revoked_token',
                 },
               ],
             },
@@ -123,6 +122,68 @@ describe('resolveSessionBootstrapState', () => {
 
     expect(state).toEqual({ status: 'unauthenticated' });
     expect(clearTokens).toHaveBeenCalledTimes(1);
+  });
+
+  test('preserves stored tokens when refreshAuthTokens fails transiently', async () => {
+    const storedTokens: AuthTokenPair = {
+      accessToken: 'expired-access-token',
+      refreshToken: 'stored-refresh-token',
+      expiresAt: '2000-01-01T00:00:00.000Z',
+    };
+    const cases: Array<{
+      name: string;
+      fetchImpl: typeof fetch;
+    }> = [
+      {
+        name: 'transport error',
+        fetchImpl: mock(async () => {
+          throw new Error('offline');
+        }),
+      },
+      {
+        name: 'HTTP 503',
+        fetchImpl: mock(async () => new Response('unavailable', { status: 503 })),
+      },
+      {
+        name: 'invalid JSON',
+        fetchImpl: mock(
+          async () =>
+            new Response('not json', {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+        ),
+      },
+      {
+        name: 'malformed response',
+        fetchImpl: mock(
+          async () =>
+            new Response(JSON.stringify({ data: { refreshAuthTokens: null } }), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            }),
+        ),
+      },
+    ];
+
+    for (const { name, fetchImpl } of cases) {
+      const storeTokens = mock(async (_tokens: AuthTokenPair) => {});
+      const clearTokens = mock(async () => {});
+
+      const state = await restoreStoredSession('http://localhost:4000', {
+        readTokens: async () => storedTokens,
+        storeTokens,
+        clearTokens,
+        fetchImpl,
+      });
+
+      expect(state, name).toEqual({
+        status: 'authenticated',
+        tokens: storedTokens,
+      });
+      expect(storeTokens, name).toHaveBeenCalledTimes(0);
+      expect(clearTokens, name).toHaveBeenCalledTimes(0);
+    }
   });
 
   test('does not call the network when no stored tokens exist', async () => {
