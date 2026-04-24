@@ -4,15 +4,21 @@ import React, {
   useContext,
   useEffect,
   useReducer,
+  useState,
   type PropsWithChildren,
 } from 'react';
 import { graphql, useLazyLoadQuery } from 'react-relay';
 
 import { ScreenState } from '../components/ScreenState';
 import { useAuth } from './AuthProvider';
+import type { AuthTokenPair } from './types';
 import type { ViewerBootstrapQuery } from './__generated__/ViewerBootstrapQuery.graphql';
 
 type ViewerBootstrapViewer = NonNullable<ViewerBootstrapQuery['response']['viewer']>;
+type ResolvedViewerBootstrap = {
+  tokens: AuthTokenPair;
+  viewer: ViewerBootstrapViewer;
+};
 
 const ViewerContext = createContext<ViewerBootstrapViewer | null>(null);
 
@@ -32,9 +38,22 @@ export function ViewerBootstrap({ children }: PropsWithChildren) {
     (key: number) => key + 1,
     0,
   );
+  const [resolvedBootstrap, setResolvedBootstrap] =
+    useState<ResolvedViewerBootstrap | null>(null);
 
   if (state.status !== 'authenticated') {
     return <>{children}</>;
+  }
+
+  const resolvedViewer =
+    resolvedBootstrap?.tokens === state.tokens ? resolvedBootstrap.viewer : null;
+
+  if (resolvedViewer) {
+    return (
+      <ViewerContext.Provider value={resolvedViewer}>
+        {children}
+      </ViewerContext.Provider>
+    );
   }
 
   return (
@@ -47,9 +66,12 @@ export function ViewerBootstrap({ children }: PropsWithChildren) {
           <ScreenState state="loading" message="Restoring your session..." />
         }
       >
-        <ViewerBootstrapQueryLoader key={queryRetryKey}>
-          {children}
-        </ViewerBootstrapQueryLoader>
+        <ViewerBootstrapQueryLoader
+          key={queryRetryKey}
+          onResolved={(viewer) =>
+            setResolvedBootstrap({ tokens: state.tokens, viewer })
+          }
+        />
       </Suspense>
     </ViewerBootstrapErrorBoundary>
   );
@@ -89,7 +111,11 @@ class ViewerBootstrapErrorBoundary extends React.Component<
   }
 }
 
-function ViewerBootstrapQueryLoader({ children }: PropsWithChildren) {
+function ViewerBootstrapQueryLoader({
+  onResolved,
+}: {
+  onResolved: (viewer: ViewerBootstrapViewer) => void;
+}) {
   const { signOut } = useAuth();
   const data = useLazyLoadQuery<ViewerBootstrapQuery>(
     graphql`
@@ -110,14 +136,15 @@ function ViewerBootstrapQueryLoader({ children }: PropsWithChildren) {
   useEffect(() => {
     if (!viewer) {
       void signOut();
+      return;
     }
-  }, [signOut, viewer]);
+
+    onResolved(viewer);
+  }, [onResolved, signOut, viewer]);
 
   if (!viewer) {
     return <ScreenState state="loading" message="Resetting your session..." />;
   }
 
-  return (
-    <ViewerContext.Provider value={viewer}>{children}</ViewerContext.Provider>
-  );
+  return null;
 }

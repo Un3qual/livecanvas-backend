@@ -87,6 +87,10 @@ export function resolveLandingHrefForAuth(
     return null;
   }
 
+  if (snapshot.bootSessionState === 'forced_logout') {
+    return '/sign-in';
+  }
+
   if (authStatus === 'unauthenticated') {
     return snapshot.initialHref && AUTH_ROUTE_HREFS.has(snapshot.initialHref)
       ? snapshot.initialHref

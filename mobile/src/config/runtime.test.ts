@@ -66,4 +66,36 @@ describe('resolveLandingHrefForAuth', () => {
       ),
     ).toBe('/home');
   });
+
+  test('sends forced logout snapshots to sign-in after authenticated auth settles', () => {
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          initialUrl: 'livecanvas-mobile://profile',
+          initialHref: '/profile',
+          landingHref: '/sign-in',
+          defaultHref: '/home',
+          bootSessionState: 'forced_logout',
+          resetReason: 'forced_logout',
+        },
+        'authenticated',
+      ),
+    ).toBe('/sign-in');
+  });
+
+  test('keeps forced logout snapshots loading until auth settles', () => {
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          initialUrl: 'livecanvas-mobile://profile',
+          initialHref: '/profile',
+          landingHref: '/sign-in',
+          defaultHref: '/home',
+          bootSessionState: 'forced_logout',
+          resetReason: 'forced_logout',
+        },
+        'loading',
+      ),
+    ).toBeNull();
+  });
 });
