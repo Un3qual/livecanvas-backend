@@ -12,26 +12,31 @@ Status: active for execution
 
 - Track: `content_post_report_review_and_actioning`
 - Source: `docs/plans/content/2026-04-24-post-report-review-and-actioning.md`
-- Batch: `Task 1: Add a fresh staff-role authorization gate`
-- Why now: The roadmap's remaining product-facing content gap is that `reportPost` is now queued but not actionable. The current code has persisted `post_reports` rows and status values, but no staff role gate, review queue, status-transition workflow, or post-removal read filtering.
+- Batch: `Task 2: Add post moderation state and hide removed posts from reads`
+- Why now: Task 1 added the fresh staff-role authorization gate needed by the moderation workflow. The next prerequisite is durable post moderation state so actioned reports can hide posts from feed, profile, top-level query, and Relay node reads without hard deletion.
 
 ## Do This Now
 
-- Execute Task 1 from `docs/plans/content/2026-04-24-post-report-review-and-actioning.md`.
+- Execute Task 2 from `docs/plans/content/2026-04-24-post-report-review-and-actioning.md`.
 - Stay in backend code and backend planning docs only.
-- Use TDD for the role-gate implementation: write the account-role tests, verify the expected failure, implement the migration/schema/context changes, then verify green.
+- Use TDD for the post moderation read model: write removed-post visibility tests, verify the expected failure, implement the migration/schema/context/feed changes, then verify green.
 - Do not edit `docs/plans/NOW.md`, `docs/plans/INDEX.md`, `mobile/`, `docs/plans/mobile/**`, or shared contract/schema docs from this backend lane.
 
 ## Verification Scope
 
-- Task 1 focused verification:
-  - `mix test test/live_canvas/accounts_test.exs`
+- Task 2 focused verification:
+  - `mix test test/live_canvas/content_test.exs test/live_canvas/feed_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
   - `mix compile`
   - `mix typecheck`
-- Broaden verification only if Task 1 touches additional shared behavior unexpectedly.
+- Broaden verification only if Task 2 touches additional shared behavior unexpectedly.
 
 ## Completed Batch Evidence
 
+- `docs/plans/content/2026-04-24-post-report-review-and-actioning.md` Task 1 passed on 2026-04-24.
+- RED verification: `mix test test/live_canvas/accounts_test.exs` failed with 2 expected failures for missing `LC.Accounts.update_user_role/2` and role schema support.
+- `mix test test/live_canvas/accounts_test.exs` -> PASS (`85 tests, 0 failures`; existing telemetry handler error logs were emitted by unrelated account password/reset tests).
+- `mix compile` -> PASS.
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`).
 - `docs/plans/content/2026-04-24-post-report-review-and-actioning.md` planning batch completed on 2026-04-24.
 - Planning verification inspected:
   - `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
@@ -51,11 +56,11 @@ Status: active for execution
 
 ## Next Up
 
-- After Task 1 passes and is committed, continue with Task 2 from `docs/plans/content/2026-04-24-post-report-review-and-actioning.md`: add post moderation state and hide removed posts from reads.
+- After Task 2 passes and is committed, continue with Task 3 from `docs/plans/content/2026-04-24-post-report-review-and-actioning.md`: add the moderation context report-review workflow.
 
 ## Required Shared Coordinator Repairs
 
-- `docs/plans/NOW.md`: update the backend lane to `docs/plans/backend/NOW.md` -> `Task 1: Add a fresh staff-role authorization gate` and refresh review metadata if desired.
+- `docs/plans/NOW.md`: update the backend lane to `docs/plans/backend/NOW.md` -> `Task 2: Add post moderation state and hide removed posts from reads` and refresh review metadata if desired.
 - `docs/plans/INDEX.md`: add `docs/plans/content/2026-04-24-post-report-review-and-actioning.md` as the active backend product plan.
 - `docs/plans/INDEX.md`: add `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` to completed backend work through Task 3.
 - `docs/plans/INDEX.md`: add `docs/plans/content/2026-04-24-post-reporting.md` to completed backend work through Task 2.

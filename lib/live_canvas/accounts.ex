@@ -149,6 +149,7 @@ defmodule LC.Accounts do
   @type password_change_attrs :: %{
           optional(:password | :password_confirmation | String.t()) => String.t()
         }
+  @type role_result :: user_result()
   @type suspension_result :: user_result()
   @type unlink_user_identity_error :: :not_found | :already_revoked
   @type unlink_user_identity_result ::
@@ -721,6 +722,20 @@ defmodule LC.Accounts do
   end
 
   @doc """
+  Updates the user's account-level role.
+  """
+  @spec update_user_role(User.t(), LCSchemas.Accounts.user_role()) :: role_result()
+  def update_user_role(%User{} = user, role) do
+    case user
+         |> fresh_user!()
+         |> UserChanges.role_changeset(%{role: role})
+         |> Repo.update() do
+      {:ok, updated_user} -> {:ok, hydrate_loaded_user(updated_user)}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  @doc """
   Applies a moderation suspension timestamp to the user.
   """
   @spec suspend_user(User.t()) :: suspension_result()
@@ -761,6 +776,23 @@ defmodule LC.Accounts do
     )
     |> Repo.exists?()
   end
+
+  @doc """
+  Returns whether the user has active staff moderation privileges.
+  """
+  @spec staff?(User.t()) :: boolean()
+  def staff?(%User{id: user_id}) when is_integer(user_id) do
+    from(user in User,
+      where:
+        user.id == ^user_id and
+          is_nil(user.suspended_at) and
+          user.role in [:moderator, :admin],
+      select: 1
+    )
+    |> Repo.exists?()
+  end
+
+  def staff?(_user), do: false
 
   @doc """
   Updates the user's primary email using the given verification token.

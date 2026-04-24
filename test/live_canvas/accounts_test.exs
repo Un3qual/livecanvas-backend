@@ -359,6 +359,33 @@ defmodule LC.AccountsTest do
     end
   end
 
+  describe "user roles and staff authorization" do
+    test "staff?/1 is true only for active moderator and admin users" do
+      viewer = user_fixture()
+      moderator = user_fixture(role: :moderator)
+      admin = user_fixture(role: :admin)
+
+      refute Accounts.staff?(viewer)
+      assert Accounts.staff?(moderator)
+      assert Accounts.staff?(admin)
+
+      assert {:ok, suspended_moderator} = Accounts.suspend_user(moderator)
+      refute Accounts.staff?(suspended_moderator)
+      refute Accounts.staff?(moderator)
+    end
+
+    test "update_user_role/2 persists supported roles and rejects invalid values" do
+      user = user_fixture()
+
+      assert {:ok, moderator} = Accounts.update_user_role(user, :moderator)
+      assert moderator.role == :moderator
+      assert Accounts.get_user!(user.id).role == :moderator
+
+      assert {:error, changeset} = Accounts.update_user_role(user, :owner)
+      assert %{role: ["is invalid"]} = errors_on(changeset)
+    end
+  end
+
   describe "suspend_user/1, unsuspend_user/1, and suspended?/1" do
     test "suspend_user/1 sets suspended_at with microsecond precision" do
       user = user_fixture()

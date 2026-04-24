@@ -29,7 +29,7 @@
 
 ## Progress
 
-- [ ] Task 1: Add a fresh staff-role authorization gate
+- [x] Task 1: Add a fresh staff-role authorization gate
 - [ ] Task 2: Add post moderation state and hide removed posts from reads
 - [ ] Task 3: Add the moderation context report-review workflow
 - [ ] Task 4: Expose staff-scoped report review through Relay GraphQL
@@ -209,6 +209,13 @@ Run:
 git add priv/repo/migrations/20260424130000_add_user_roles.exs lib/live_canvas_schemas/accounts/user_role.ex lib/live_canvas_schemas/accounts.ex lib/live_canvas_schemas/accounts/user.ex lib/live_canvas/accounts/user_changes.ex lib/live_canvas/accounts.ex test/support/fixtures/accounts_fixtures.ex test/live_canvas/accounts_test.exs
 git commit -m "feat: add moderator role gate"
 ```
+
+**Verification outcome (2026-04-24):**
+
+- RED: `mix test test/live_canvas/accounts_test.exs` initially failed with 2 expected failures because `LC.Accounts.update_user_role/2` was undefined and the user role field did not exist.
+- GREEN: `mix test test/live_canvas/accounts_test.exs` -> PASS (`85 tests, 0 failures`; existing telemetry handler error logs were emitted by unrelated account password/reset tests).
+- `mix compile` -> PASS.
+- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`).
 
 ### Task 2: Add Post Moderation State And Hide Removed Posts From Reads
 

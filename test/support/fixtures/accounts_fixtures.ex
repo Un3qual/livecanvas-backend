@@ -31,6 +31,7 @@ defmodule LC.AccountsFixtures do
   def user_fixture(attrs \\ %{}) do
     attrs = Enum.into(attrs, %{})
     {privacy_mode, attrs} = Map.pop(attrs, :privacy_mode, :private)
+    {role, attrs} = Map.pop(attrs, :role, :user)
     user = unconfirmed_user_fixture(attrs)
 
     token =
@@ -41,7 +42,9 @@ defmodule LC.AccountsFixtures do
     {:ok, {user, _expired_tokens}} =
       Accounts.login_user_by_magic_link(token)
 
-    maybe_update_user_privacy_mode(user, privacy_mode)
+    user
+    |> maybe_update_user_privacy_mode(privacy_mode)
+    |> maybe_update_user_role(role)
   end
 
   def user_scope_fixture do
@@ -93,6 +96,13 @@ defmodule LC.AccountsFixtures do
 
   defp maybe_update_user_privacy_mode(user, privacy_mode) do
     {:ok, updated_user} = Accounts.update_user_privacy_mode(user, privacy_mode)
+    updated_user
+  end
+
+  defp maybe_update_user_role(user, :user), do: user
+
+  defp maybe_update_user_role(user, role) do
+    {:ok, updated_user} = Accounts.update_user_role(user, role)
     updated_user
   end
 

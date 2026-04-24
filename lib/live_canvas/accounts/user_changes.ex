@@ -10,6 +10,9 @@ defmodule LC.Accounts.UserChanges do
           optional(:privacy_mode | String.t()) =>
             LCSchemas.Accounts.user_privacy_mode() | String.t()
         }
+  @type role_attrs :: %{
+          optional(:role | String.t()) => LCSchemas.Accounts.user_role() | String.t()
+        }
   @type suspension_attrs :: %{
           optional(:suspended_at | String.t()) => DateTime.t() | nil
         }
@@ -54,6 +57,16 @@ defmodule LC.Accounts.UserChanges do
     user
     |> cast(attrs, [:privacy_mode])
     |> validate_required([:privacy_mode])
+  end
+
+  @doc """
+  A user changeset for updating account-level staff role.
+  """
+  @spec role_changeset(User.t(), role_attrs()) :: Ecto.Changeset.t()
+  def role_changeset(user, attrs) when is_map(attrs) do
+    user
+    |> cast(attrs, [:role])
+    |> validate_required([:role])
   end
 
   @doc """
