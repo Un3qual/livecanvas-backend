@@ -35,9 +35,6 @@ defmodule LCGQL.Schema do
         %{type: :media_asset, id: id}, resolution ->
           fetch_media_asset_node(id, resolution)
 
-        %{type: :post_report, id: id}, resolution ->
-          fetch_post_report_node(id, resolution)
-
         %{type: :live_session, id: id}, resolution ->
           fetch_live_session_node(id, resolution)
 
@@ -87,9 +84,6 @@ defmodule LCGQL.Schema do
       %{mime_type: _mime_type, processing_state: _processing_state, owner_id: _owner_id},
       _resolution ->
         :media_asset
-
-      %{reason: _reason, reporter_id: _reporter_id, post_id: _post_id}, _resolution ->
-        :post_report
 
       %{status: _status, format: _format, requested_at: _requested_at, user_id: _user_id},
       _resolution ->
@@ -207,20 +201,6 @@ defmodule LCGQL.Schema do
   end
 
   defp fetch_media_asset_node(_id, _resolution), do: {:ok, nil}
-
-  # Post-report nodes are reporter-scoped because they describe moderation
-  # complaints submitted by a specific viewer.
-  defp fetch_post_report_node(id, %{context: %{current_scope: %{user: %{id: _id} = viewer}}}) do
-    case Ecto.Type.cast(:id, id) do
-      {:ok, local_id} when is_integer(local_id) and local_id > 0 ->
-        {:ok, Content.get_user_post_report(viewer, local_id)}
-
-      _ ->
-        {:ok, nil}
-    end
-  end
-
-  defp fetch_post_report_node(_id, _resolution), do: {:ok, nil}
 
   # Globally refetchable live-session IDs must re-apply viewer visibility so
   # replay/history surfaces cannot bypass ownership checks via `node(id:)`

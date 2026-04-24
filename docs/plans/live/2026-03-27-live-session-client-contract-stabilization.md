@@ -31,7 +31,7 @@ Verified directly in the codebase before drafting this plan:
 
 - [x] Task 1: Freeze the live-session GraphQL contract
 - [x] Task 2: Publish the live-session realtime channel contract
-- [x] Task 3: Verify the contract slice and refresh backend lane tracking
+- [ ] Task 3: Verify the contract slice and refresh backend lane tracking
 
 ### Task 1: Freeze The Live-Session GraphQL Contract
 
@@ -109,17 +109,17 @@ Expected: PASS.
 - Coordinator follow-up only: `docs/plans/NOW.md`
 
 **Task 3 Step Progress:**
-- [x] Step 1: Run `mix compile`
-- [x] Step 2: Run `mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_web/channels/live_session_channel_test.exs`
-- [x] Step 3: Run `mix typecheck`
-- [x] Step 4: Update this checklist and `docs/plans/backend/NOW.md` to the next unblocked backend batch
-- [x] Step 5: Report required coordinator updates for shared dashboard/index docs without editing them from the backend lane
-- [x] Step 6: Commit the verified contract-stabilization milestone
+- [ ] Step 1: Run `mix compile`
+- [ ] Step 2: Run `mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_web/channels/live_session_channel_test.exs`
+- [ ] Step 3: Run `mix typecheck`
+- [ ] Step 4: Update this checklist and `docs/plans/backend/NOW.md` to the next unblocked backend batch
+- [ ] Step 5: Report required coordinator updates for shared dashboard/index docs without editing them from the backend lane
+- [ ] Step 6: Commit the verified contract-stabilization milestone
 
 **Task 3 behavior targets:**
 
 - The new contract docs and focused tests stay green together.
-- Backend lane tracking moves cleanly back to roadmap-driven planning.
+- Backend lane tracking moves cleanly from planning back into execution.
 - Shared dashboard/index docs receive an explicit repair note instead of silent drift.
 
 **Suggested verification command:**
@@ -131,10 +131,3 @@ mix typecheck
 ```
 
 Expected: PASS.
-
-**Verification outcome (2026-04-24):**
-
-- `mix compile` -> PASS.
-- `mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_web/channels/live_session_channel_test.exs` -> PASS (`82 tests, 0 failures`).
-- `mix typecheck` -> PASS (`Total errors: 0, Skipped: 0, Unnecessary Skips: 0`).
-- Required shared coordinator repairs: mark this live-session client contract stabilization plan complete in `docs/plans/INDEX.md`, keep `docs/plans/NOW.md` aligned with the backend lane's roadmap-driven planning batch, and clean up stale queued/index notes that still list already-completed backend plans.
