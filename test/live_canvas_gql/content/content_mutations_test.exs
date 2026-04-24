@@ -72,7 +72,9 @@ defmodule LCGQL.Content.ContentMutationsTest do
              })
 
     first_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, first_asset.id, LCGQL.Schema)
-    second_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, second_asset.id, LCGQL.Schema)
+
+    second_asset_id =
+      Absinthe.Relay.Node.to_global_id(:media_asset, second_asset.id, LCGQL.Schema)
 
     mutation = """
     mutation($mediaAssetIds: [ID!]!) {
@@ -120,10 +122,13 @@ defmodule LCGQL.Content.ContentMutationsTest do
     assert is_binary(post_id)
     assert returned_author_id == viewer_id
 
-    assert Enum.sort_by(media_assets, & &1["id"]) == [
-             %{"id" => first_asset_id, "mimeType" => "image/jpeg"},
-             %{"id" => second_asset_id, "mimeType" => "image/jpeg"}
-           ]
+    expected_media_assets = [
+      %{"id" => first_asset_id, "mimeType" => "image/jpeg"},
+      %{"id" => second_asset_id, "mimeType" => "image/jpeg"}
+    ]
+
+    assert Enum.sort_by(media_assets, & &1["id"]) ==
+             Enum.sort_by(expected_media_assets, & &1["id"])
   end
 
   test "createPost returns unauthenticated errors without a viewer scope" do
@@ -517,5 +522,164 @@ defmodule LCGQL.Content.ContentMutationsTest do
                 }
               }
             }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"postId" => post_id})
+  end
+
+  describe "reportPost" do
+    test "creates an idempotent viewer-owned report for a visible post" do
+      author = user_fixture()
+      reporter = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(reporter)}
+
+      {:ok, post} =
+        Content.create_post(author, %{
+          kind: :standard,
+          body_text: "public abuse",
+          visibility: :public
+        })
+
+      post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+      reporter_id = Absinthe.Relay.Node.to_global_id(:user, reporter.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($postId: ID!, $reason: PostReportReason!, $details: String) {
+        reportPost(input: {postId: $postId, reason: $reason, details: $details}) {
+          report {
+            id
+            postId
+            reporterId
+            reason
+            status
+            details
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "reportPost" => %{
+                    "report" => %{
+                      "id" => report_id,
+                      "postId" => ^post_id,
+                      "reporterId" => ^reporter_id,
+                      "reason" => "SPAM",
+                      "status" => "OPEN",
+                      "details" => "spammy post"
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{
+                   "postId" => post_id,
+                   "reason" => "SPAM",
+                   "details" => "spammy post"
+                 },
+                 context: context
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "reportPost" => %{
+                    "report" => %{
+                      "id" => ^report_id,
+                      "reason" => "SPAM",
+                      "details" => "spammy post"
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{
+                   "postId" => post_id,
+                   "reason" => "HARASSMENT",
+                   "details" => "duplicate"
+                 },
+                 context: context
+               )
+    end
+
+    test "returns stable errors for hidden, self-owned, invalid, and unauthenticated reports" do
+      author = user_fixture()
+      outsider = user_fixture()
+      {:ok, hidden_post} = Content.create_post(author, %{kind: :standard, body_text: "hidden"})
+      hidden_post_id = Absinthe.Relay.Node.to_global_id(:post, hidden_post.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($postId: ID!) {
+        reportPost(input: {postId: $postId, reason: OTHER}) {
+          report {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "reportPost" => %{
+                    "report" => nil,
+                    "errors" => [%{"field" => "postId", "message" => "not_found"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"postId" => hidden_post_id},
+                 context: %{current_scope: Accounts.scope_for_user(outsider)}
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "reportPost" => %{
+                    "report" => nil,
+                    "errors" => [%{"field" => "postId", "message" => "own_post"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"postId" => hidden_post_id},
+                 context: %{current_scope: Accounts.scope_for_user(author)}
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "reportPost" => %{
+                    "report" => nil,
+                    "errors" => [%{"field" => "postId", "message" => invalid_id_message}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"postId" => "123"},
+                 context: %{current_scope: Accounts.scope_for_user(outsider)}
+               )
+
+      assert invalid_id_message =~ "invalid_id"
+
+      assert {:ok,
+              %{
+                data: %{
+                  "reportPost" => %{
+                    "report" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"postId" => hidden_post_id})
+    end
   end
 end

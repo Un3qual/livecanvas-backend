@@ -26,6 +26,24 @@ defmodule LCGQL.Content.Types do
     value(:failed)
   end
 
+  enum :post_report_reason do
+    value(:spam)
+    value(:harassment)
+    value(:hate)
+    value(:violence)
+    value(:sexual_content)
+    value(:self_harm)
+    value(:illegal)
+    value(:other)
+  end
+
+  enum :post_report_status do
+    value(:open)
+    value(:reviewed)
+    value(:dismissed)
+    value(:actioned)
+  end
+
   enum :upload_http_method do
     value(:put)
     value(:post)
@@ -84,6 +102,21 @@ defmodule LCGQL.Content.Types do
       resolve(&Resolver.media_asset_public_url/3)
     end
 
+    field :inserted_at, non_null(:string)
+  end
+
+  node object(:post_report) do
+    field :post_id, non_null(:id) do
+      resolve(&Resolver.post_report_post_id/3)
+    end
+
+    field :reporter_id, non_null(:id) do
+      resolve(&Resolver.post_report_reporter_id/3)
+    end
+
+    field :reason, non_null(:post_report_reason)
+    field :details, :string
+    field :status, non_null(:post_report_status)
     field :inserted_at, non_null(:string)
   end
 

@@ -3,7 +3,7 @@ defmodule LCGQL.Content.Resolver do
 
   alias LC.{Accounts, Content, Feed}
   alias LCGQL.Relay
-  alias LCSchemas.Content.{MediaAsset, Post}
+  alias LCSchemas.Content.{MediaAsset, Post, PostReport}
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
   @type create_post_payload :: %{post: Post.t() | nil, errors: [mutation_error()]}
@@ -25,7 +25,10 @@ defmodule LCGQL.Content.Resolver do
   @type update_post_result :: {:ok, update_post_payload()}
   @type delete_post_payload :: %{deleted_post_id: String.t() | nil, errors: [mutation_error()]}
   @type delete_post_result :: {:ok, delete_post_payload()}
-  @type post_mutation_reason :: :invalid_id | :invalid_type | :not_found | :unauthenticated
+  @type report_post_payload :: %{report: PostReport.t() | nil, errors: [mutation_error()]}
+  @type report_post_result :: {:ok, report_post_payload()}
+  @type post_mutation_reason ::
+          :invalid_id | :invalid_type | :not_found | :own_post | :unauthenticated
 
   @spec create_post(
           term(),
@@ -157,6 +160,44 @@ defmodule LCGQL.Content.Resolver do
     {:ok, %{deleted_post_id: nil, errors: [post_mutation_error(nil, :unauthenticated)]}}
   end
 
+  @spec report_post(
+          term(),
+          %{
+            optional(:input) => map(),
+            optional(:post_id) => term(),
+            optional(:reason) => atom(),
+            optional(:details) => String.t()
+          },
+          Absinthe.Resolution.t()
+        ) :: report_post_result()
+  def report_post(parent, %{input: input}, resolution), do: report_post(parent, input, resolution)
+
+  def report_post(_parent, %{post_id: post_id} = attrs, %{
+        context: %{current_scope: %{user: %{id: _id} = viewer}}
+      }) do
+    with {:ok, id} <- decode_post_id(post_id),
+         %{id: post_id, author_id: author_id} = post
+         when is_integer(post_id) and is_integer(author_id) <- Feed.get_visible_post(viewer, id),
+         {:ok, report} <- Content.report_post(viewer, post, report_post_attrs(attrs)) do
+      {:ok, %{report: report, errors: []}}
+    else
+      nil ->
+        {:ok, %{report: nil, errors: [post_mutation_error(:post_id, :not_found)]}}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok, %{report: nil, errors: format_changeset_errors(changeset)}}
+
+      {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found, :own_post] ->
+        {:ok, %{report: nil, errors: [post_mutation_error(:post_id, reason)]}}
+    end
+  end
+
+  # Report creation is viewer-scoped so clients cannot submit reports on behalf
+  # of another account or bypass post visibility through arbitrary Relay IDs.
+  def report_post(_parent, _attrs, _resolution) do
+    {:ok, %{report: nil, errors: [post_mutation_error(nil, :unauthenticated)]}}
+  end
+
   @spec post(term(), %{id: term()}, term()) :: {:ok, Post.t() | nil}
   def post(_parent, %{id: post_id}, resolution) do
     with {:ok, id} <- Relay.decode_global_id(post_id, :post, LCGQL.Schema) do
@@ -186,6 +227,22 @@ defmodule LCGQL.Content.Resolver do
   end
 
   def media_asset_id(_media_asset, _args, _resolution), do: {:ok, nil}
+
+  @spec post_report_post_id(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
+  def post_report_post_id(%{post_id: post_id}, _args, _resolution)
+      when is_integer(post_id) and post_id > 0 do
+    {:ok, Absinthe.Relay.Node.to_global_id(:post, post_id, LCGQL.Schema)}
+  end
+
+  def post_report_post_id(_post_report, _args, _resolution), do: {:ok, nil}
+
+  @spec post_report_reporter_id(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
+  def post_report_reporter_id(%{reporter_id: reporter_id}, _args, _resolution)
+      when is_integer(reporter_id) and reporter_id > 0 do
+    {:ok, Absinthe.Relay.Node.to_global_id(:user, reporter_id, LCGQL.Schema)}
+  end
+
+  def post_report_reporter_id(_post_report, _args, _resolution), do: {:ok, nil}
 
   @spec media_asset_public_url(map(), map(), Absinthe.Resolution.t()) ::
           {:ok, String.t() | nil}
@@ -314,9 +371,16 @@ defmodule LCGQL.Content.Resolver do
     Map.take(attrs, [:body_text, :visibility])
   end
 
+  @spec report_post_attrs(map()) :: %{optional(:details | :reason) => term()}
+  defp report_post_attrs(attrs) when is_map(attrs) do
+    Map.take(attrs, [:details, :reason])
+  end
+
   @spec maybe_put_media_asset_ids(map(), nil | [pos_integer()]) :: map()
   defp maybe_put_media_asset_ids(attrs, nil), do: Map.delete(attrs, :media_asset_ids)
-  defp maybe_put_media_asset_ids(attrs, media_asset_ids), do: Map.put(attrs, :media_asset_ids, media_asset_ids)
+
+  defp maybe_put_media_asset_ids(attrs, media_asset_ids),
+    do: Map.put(attrs, :media_asset_ids, media_asset_ids)
 
   @spec normalize_post_media_assets([MediaAsset.t()] | term()) :: [MediaAsset.t()]
   defp normalize_post_media_assets(media_assets) when is_list(media_assets) do

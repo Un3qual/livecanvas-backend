@@ -536,6 +536,55 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                )
     end
 
+    test "refetches post report nodes only for the reporter" do
+      author = user_fixture()
+      reporter = user_fixture()
+      other_user = user_fixture()
+      {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "reported post"})
+      {:ok, report} = Content.report_post(reporter, post, %{reason: :spam})
+
+      report_id = Absinthe.Relay.Node.to_global_id(:post_report, report.id, LCGQL.Schema)
+      post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+      reporter_id = Absinthe.Relay.Node.to_global_id(:user, reporter.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on PostReport {
+            postId
+            reporterId
+            reason
+            status
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^report_id,
+                    "postId" => ^post_id,
+                    "reporterId" => ^reporter_id,
+                    "reason" => "SPAM",
+                    "status" => "OPEN"
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => report_id},
+                 context: %{current_scope: Accounts.scope_for_user(reporter)}
+               )
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => report_id},
+                 context: %{current_scope: Accounts.scope_for_user(other_user)}
+               )
+    end
+
     test "refetches a viewer-owned pending follow request from a relay global id" do
       viewer = user_fixture(privacy_mode: :private)
       follower = user_fixture()
