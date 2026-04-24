@@ -21,7 +21,7 @@
 ## Progress
 
 - [x] Task 1: Add viewer-scoped post reporting persistence and GraphQL mutation
-- [ ] Task 2: Publish the post-reporting mobile contract and refresh lane tracking
+- [x] Task 2: Publish the post-reporting mobile contract and refresh lane tracking
 
 ### Task 1: Add Viewer-Scoped Post Reporting Persistence And GraphQL Mutation
 
@@ -72,10 +72,10 @@ Expected: PASS.
 - Modify: `docs/plans/backend/NOW.md`
 
 **Task 2 Step Progress:**
-- [ ] Step 1: Document `reportPost`, supported report reasons, idempotency, visibility rules, and stable user errors in the mobile GraphQL contract
-- [ ] Step 2: Run the focused post-reporting verification set from Task 1
-- [ ] Step 3: Update this checklist and advance `docs/plans/backend/NOW.md`
-- [ ] Step 4: Commit the verified contract/tracking slice
+- [x] Step 1: Document `reportPost`, supported report reasons, idempotency, visibility rules, and stable user errors in the mobile GraphQL contract
+- [x] Step 2: Run the focused post-reporting verification set from Task 1
+- [x] Step 3: Update this checklist and advance `docs/plans/backend/NOW.md`
+- [x] Step 4: Commit the verified contract/tracking slice
 
 **Suggested verification command:**
 
@@ -84,3 +84,7 @@ mix test test/live_canvas_gql/content/content_mutations_test.exs test/live_canva
 ```
 
 Expected: PASS.
+
+**Verification outcome (2026-04-24):**
+
+- `mix test test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs` -> PASS (`40 tests, 0 failures`).
