@@ -41,8 +41,8 @@ Verified directly in the codebase before drafting this plan:
 - [x] Task 2: Build secure token storage and the auth state provider
 - [x] Task 3: Build the authenticated network layer with token refresh and forced logout
 - [x] Task 4: Implement sign-in and sign-up screens with password and OAuth flows
-- [ ] Task 5: Implement viewer bootstrap, session restoration, and auth-gated routing
-- [ ] Task 6: Verify the Relay/auth slice and advance the mobile planning pointers
+- [x] Task 5: Implement viewer bootstrap, session restoration, and auth-gated routing
+- [x] Task 6: Verify the Relay/auth slice and advance the mobile planning pointers
 
 ### Task 1: Add Relay Dependencies, Configure Codegen, And Wire The Environment Provider
 
@@ -196,13 +196,13 @@ Expected: PASS.
 - Modify: `mobile/app/(app)/_layout.tsx`
 
 **Task 5 Step Progress:**
-- [ ] Step 1: Define the `ViewerBootstrapQuery` GraphQL query fetching `viewer { id email privacyMode insertedAt }` and run the Relay compiler to generate artifacts
-- [ ] Step 2: Create `ViewerBootstrap.tsx` — a component that runs the bootstrap query after auth succeeds, hydrates viewer context, and handles the case where `viewer` returns `null` (treat as forced logout)
-- [ ] Step 3: Update `AuthProvider` to run session restoration on mount: load stored tokens, attempt `issueViewerAuthTokens` to validate the session, and set state to `authenticated` or `signed_out` based on the result
-- [ ] Step 4: Update `StartupGate` to integrate with the auth provider's loading state — show the splash/loading screen until both boot snapshot and auth state are resolved
-- [ ] Step 5: Add an auth guard to `(app)/_layout.tsx` that redirects to `/sign-in` if the auth state is `unauthenticated`, using `useAuth()` and `<Redirect>`
-- [ ] Step 6: Update root `index.tsx` to derive `landingHref` from the auth provider's resolved state rather than the static environment config
-- [ ] Step 7: Run Relay compiler and `tsc --noEmit` to verify
+- [x] Step 1: Define the `ViewerBootstrapQuery` GraphQL query fetching `viewer { id email privacyMode insertedAt }` and run the Relay compiler to generate artifacts
+- [x] Step 2: Create `ViewerBootstrap.tsx` — a component that runs the bootstrap query after auth succeeds, hydrates viewer context, and handles the case where `viewer` returns `null` (treat as forced logout)
+- [x] Step 3: Update `AuthProvider` to run session restoration on mount: load stored tokens, attempt `issueViewerAuthTokens` to validate the session, and set state to `authenticated` or `signed_out` based on the result
+- [x] Step 4: Update `StartupGate` to integrate with the auth provider's loading state — show the splash/loading screen until both boot snapshot and auth state are resolved
+- [x] Step 5: Add an auth guard to `(app)/_layout.tsx` that redirects to `/sign-in` if the auth state is `unauthenticated`, using `useAuth()` and `<Redirect>`
+- [x] Step 6: Update root `index.tsx` to derive `landingHref` from the auth provider's resolved state rather than the static environment config
+- [x] Step 7: Run Relay compiler and `tsc --noEmit` to verify
 
 **Task 5 behavior targets:**
 
@@ -230,10 +230,10 @@ Expected: PASS for both.
 - Modify: `docs/plans/mobile/NOW.md`
 
 **Task 6 Step Progress:**
-- [ ] Step 1: Re-read this plan and confirm the Relay/auth slice is complete without leaking channel, chat, or live-session implementation
-- [ ] Step 2: Run the Relay compiler, tsc, and workspace sanity checks
-- [ ] Step 3: Update the mobile track and lane pointer to the next batch (profiles and social basics, or the next unblocked slice)
-- [ ] Step 4: Commit the Relay/auth slice with the planning updates
+- [x] Step 1: Re-read this plan and confirm the Relay/auth slice is complete without leaking channel, chat, or live-session implementation
+- [x] Step 2: Run the Relay compiler, tsc, and workspace sanity checks
+- [x] Step 3: Update the mobile track and lane pointer to the next batch (profiles and social basics, or the next unblocked slice)
+- [x] Step 4: Commit the Relay/auth slice with the planning updates
 
 **Suggested verification command:**
 
@@ -241,6 +241,7 @@ Expected: PASS for both.
 cd mobile
 XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec relay-compiler
 XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec tsc --noEmit
+cd ..
 test -d mobile
 test -f mobile/package.json
 ```

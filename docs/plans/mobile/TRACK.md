@@ -8,7 +8,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Track Status
 
-- Status: executing Relay/auth/session plan — Task 5 (viewer bootstrap and auth-gated routing)
+- Status: executing profiles/social basics plan — Task 1 (Relay-backed viewer profile surface)
 - Approved overview: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
 - Approved bootstrap design:
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
@@ -16,11 +16,12 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap.md`
 - Completed detailed plans:
   - `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`
+  - `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`
 - Current detailed plan:
-  `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`
+  `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
 - Lane execution pointer: `docs/plans/mobile/NOW.md`
 - Coordinator dashboard: `docs/plans/NOW.md`
-- Next lane batch: implement `Task 5: Implement viewer bootstrap, session restoration, and auth-gated routing` from the Relay/auth plan.
+- Next lane batch: implement `Task 1: Build the Relay-backed viewer profile surface` from the profiles/social basics plan.
 
 ## Recommended Detailed Plan Order
 

@@ -1,15 +1,23 @@
 import type { AuthState, AuthTokenPair } from './types';
-import { resolveSessionBootstrapState } from './sessionBootstrap';
+import { restoreStoredSession } from './sessionBootstrap';
+
+type AuthBootstrapDependencies = {
+  apiBaseUrl: string;
+  readTokens: () => Promise<AuthTokenPair | null>;
+  storeTokens: (tokens: AuthTokenPair) => Promise<void>;
+  clearTokens: () => Promise<void>;
+  fetchImpl?: typeof fetch;
+};
 
 /**
  * Load the initial auth state for provider bootstrap.
  * Storage read failures are treated as an unauthenticated session so the UI can continue.
  */
 export async function resolveAuthBootstrapState(
-  readTokens: () => Promise<AuthTokenPair | null>,
+  dependencies: AuthBootstrapDependencies,
 ): Promise<AuthState> {
   try {
-    return resolveSessionBootstrapState(await readTokens());
+    return await restoreStoredSession(dependencies.apiBaseUrl, dependencies);
   } catch {
     return { status: 'unauthenticated' };
   }
