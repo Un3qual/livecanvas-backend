@@ -62,5 +62,20 @@ defmodule LCGQL.Content.Mutations do
 
       resolve(&Resolver.delete_post/3)
     end
+
+    payload field :report_post do
+      input do
+        field :post_id, non_null(:id)
+        field :reason, non_null(:post_report_reason)
+        field :details, :string
+      end
+
+      output do
+        field :report, :post_report
+        field :errors, non_null(list_of(non_null(:content_error)))
+      end
+
+      resolve(&Resolver.report_post/3)
+    end
   end
 end

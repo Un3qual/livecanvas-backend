@@ -6,17 +6,20 @@ defmodule LC.Content do
   use Boundary, deps: [LC.Infra, LCSchemas]
   import Ecto.Query, warn: false
 
-  alias LC.Content.{MediaAsset, Post}
+  alias LC.Content.{MediaAsset, Post, PostReport}
   alias LC.Infra.{AsyncJobs, ObjectStorage, Repo, WebhookEvent}
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema
+  alias LCSchemas.Content.PostReport, as: PostReportSchema
   alias LCSchemas.Infra.WebhookEvent, as: WebhookEventSchema
 
   @type changeset :: Ecto.Changeset.t()
   @type post_result :: {:ok, PostSchema.t()} | {:error, changeset()}
   @type post_update_result :: {:ok, PostSchema.t()} | {:error, changeset() | :not_found}
   @type post_delete_result :: {:ok, PostSchema.t()} | {:error, changeset() | :not_found}
+  @type post_report_result ::
+          {:ok, PostReportSchema.t()} | {:error, changeset() | :not_found | :own_post}
   @type media_asset_result :: {:ok, MediaAssetSchema.t()} | {:error, changeset()}
   @type live_recording_media_asset_opts :: [lock: :for_update]
   @type live_recording_media_asset_result ::
@@ -95,6 +98,42 @@ defmodule LC.Content do
   def delete_user_post(%User{}, _post_id), do: {:error, :not_found}
 
   @doc """
+  Reports a visible post on behalf of the viewer.
+  """
+  @spec report_post(User.t(), PostSchema.t() | nil, map()) :: post_report_result()
+  def report_post(%User{id: reporter_id}, %PostSchema{author_id: reporter_id}, _attrs) do
+    {:error, :own_post}
+  end
+
+  def report_post(%User{id: reporter_id}, %PostSchema{id: post_id}, attrs)
+      when is_integer(reporter_id) and is_integer(post_id) and post_id > 0 and is_map(attrs) do
+    changeset =
+      %PostReportSchema{}
+      |> PostReport.changeset(PostReport.attrs_for_insert(reporter_id, post_id, attrs))
+
+    case Repo.insert(changeset) do
+      {:ok, report} ->
+        {:ok, report}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        handle_post_report_insert_error(changeset, reporter_id, post_id)
+    end
+  end
+
+  def report_post(%User{}, _post, _attrs), do: {:error, :not_found}
+
+  @doc """
+  Gets a post report by ID when it belongs to the viewer.
+  """
+  @spec get_user_post_report(User.t(), pos_integer()) :: PostReportSchema.t() | nil
+  def get_user_post_report(%User{id: reporter_id}, report_id)
+      when is_integer(report_id) and report_id > 0 do
+    Repo.get_by(PostReportSchema, id: report_id, reporter_id: reporter_id)
+  end
+
+  def get_user_post_report(%User{}, _report_id), do: nil
+
+  @doc """
   Persists media metadata owned by the given user.
   """
   @spec create_media_asset(User.t(), map()) :: media_asset_result()
@@ -166,6 +205,29 @@ defmodule LC.Content do
     Repo.get_by(PostSchema, id: post_id, author_id: author_id)
   end
 
+  @spec handle_post_report_insert_error(Ecto.Changeset.t(), pos_integer(), pos_integer()) ::
+          post_report_result()
+  defp handle_post_report_insert_error(changeset, reporter_id, post_id)
+       when is_integer(reporter_id) and is_integer(post_id) do
+    if unique_post_report_conflict?(changeset) do
+      {:ok, Repo.get_by!(PostReportSchema, reporter_id: reporter_id, post_id: post_id)}
+    else
+      {:error, changeset}
+    end
+  end
+
+  @spec unique_post_report_conflict?(Ecto.Changeset.t()) :: boolean()
+  defp unique_post_report_conflict?(%Ecto.Changeset{errors: errors}) do
+    Enum.any?(errors, fn
+      {:reporter_id,
+       {_message, constraint: :unique, constraint_name: "post_reports_reporter_id_post_id_index"}} ->
+        true
+
+      _error ->
+        false
+    end)
+  end
+
   @doc """
   Gets a media asset by ID when owned by the provided viewer.
   """
@@ -194,12 +256,16 @@ defmodule LC.Content do
   @doc """
   Fetches an owner-owned media asset that is durable enough to link as a live recording.
   """
-  @spec fetch_live_recording_media_asset(pos_integer(), pos_integer(), live_recording_media_asset_opts()) ::
+  @spec fetch_live_recording_media_asset(
+          pos_integer(),
+          pos_integer(),
+          live_recording_media_asset_opts()
+        ) ::
           live_recording_media_asset_result()
   def fetch_live_recording_media_asset(owner_id, media_asset_id, opts \\ [])
 
   def fetch_live_recording_media_asset(owner_id, media_asset_id, opts)
-       when is_integer(owner_id) and owner_id > 0 and is_integer(media_asset_id) and
+      when is_integer(owner_id) and owner_id > 0 and is_integer(media_asset_id) and
              media_asset_id > 0 and is_list(opts) do
     query =
       from(media_asset in MediaAssetSchema,
@@ -222,7 +288,8 @@ defmodule LC.Content do
     end
   end
 
-  def fetch_live_recording_media_asset(_owner_id, _media_asset_id, _opts), do: {:error, :not_found}
+  def fetch_live_recording_media_asset(_owner_id, _media_asset_id, _opts),
+    do: {:error, :not_found}
 
   @doc """
   Returns the canonical public serving URL for a persisted media asset.
@@ -292,7 +359,7 @@ defmodule LC.Content do
         {:ok, []}
 
       media_asset_ids when is_list(media_asset_ids) ->
-        if Enum.all?(media_asset_ids, &is_integer(&1) and &1 > 0) do
+        if Enum.all?(media_asset_ids, &(is_integer(&1) and &1 > 0)) do
           {:ok, Enum.uniq(media_asset_ids)}
         else
           {:error,
@@ -305,7 +372,11 @@ defmodule LC.Content do
 
       _invalid_media_asset_ids ->
         {:error,
-         Ecto.Changeset.add_error(post_changeset, :media_asset_ids, "must be a list of positive ids")}
+         Ecto.Changeset.add_error(
+           post_changeset,
+           :media_asset_ids,
+           "must be a list of positive ids"
+         )}
     end
   end
 
@@ -329,7 +400,8 @@ defmodule LC.Content do
     if attachable_post_media_assets?(media_assets, media_asset_ids) do
       {:ok, media_assets}
     else
-      {:error, Ecto.Changeset.add_error(post_changeset, :media_asset_ids, @post_media_asset_error)}
+      {:error,
+       Ecto.Changeset.add_error(post_changeset, :media_asset_ids, @post_media_asset_error)}
     end
   end
 
@@ -344,9 +416,10 @@ defmodule LC.Content do
   end
 
   @spec attachable_post_media_asset?(MediaAssetSchema.t()) :: boolean()
-  defp attachable_post_media_asset?(
-         %MediaAssetSchema{post_id: nil, processing_state: processing_state}
-       )
+  defp attachable_post_media_asset?(%MediaAssetSchema{
+         post_id: nil,
+         processing_state: processing_state
+       })
        when processing_state in [:uploaded, :processed],
        do: true
 
@@ -374,7 +447,9 @@ defmodule LC.Content do
   @spec normalize_create_post_result({:ok, PostSchema.t()} | {:error, Ecto.Changeset.t()}) ::
           post_result()
   defp normalize_create_post_result({:ok, %PostSchema{} = post}), do: {:ok, post}
-  defp normalize_create_post_result({:error, %Ecto.Changeset{} = changeset}), do: {:error, changeset}
+
+  defp normalize_create_post_result({:error, %Ecto.Changeset{} = changeset}),
+    do: {:error, changeset}
 
   @spec update_media_asset(MediaAssetSchema.t(), map()) ::
           {:ok, MediaAssetSchema.t()} | {:error, changeset()}

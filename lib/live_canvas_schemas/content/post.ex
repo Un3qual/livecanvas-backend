@@ -2,7 +2,7 @@ defmodule LCSchemas.Content.Post do
   use LCSchemas.Schema, :relational
 
   alias LCSchemas.Accounts.User
-  alias LCSchemas.Content.MediaAsset
+  alias LCSchemas.Content.{MediaAsset, PostReport}
 
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
@@ -27,6 +27,7 @@ defmodule LCSchemas.Content.Post do
 
     belongs_to :author, User
     has_many :media_assets, MediaAsset
+    has_many :post_reports, PostReport
 
     timestamps()
   end

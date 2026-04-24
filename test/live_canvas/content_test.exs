@@ -270,14 +270,12 @@ defmodule LC.ContentTest do
       assert Map.get(ended_session, :recording_media_asset_id) == media_asset.id
 
       constraint_rows =
-        Repo.query!(
-          """
-          SELECT rc.delete_rule
-          FROM information_schema.referential_constraints AS rc
-          WHERE rc.constraint_schema = current_schema()
-            AND rc.constraint_name = 'live_sessions_recording_media_asset_id_fkey'
-          """
-        ).rows
+        Repo.query!("""
+        SELECT rc.delete_rule
+        FROM information_schema.referential_constraints AS rc
+        WHERE rc.constraint_schema = current_schema()
+          AND rc.constraint_name = 'live_sessions_recording_media_asset_id_fkey'
+        """).rows
 
       assert [["SET NULL"]] = constraint_rows
 
@@ -286,6 +284,66 @@ defmodule LC.ContentTest do
       refute Repo.get(MediaAssetSchema, media_asset.id)
 
       assert %LiveSession{recording_media_asset_id: nil} = Live.get_live_session!(session.id)
+    end
+  end
+
+  describe "report_post/3" do
+    test "creates one reporter-owned post report per viewer and post" do
+      author = user_fixture()
+      reporter = user_fixture()
+      {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "report me"})
+
+      assert {:ok, report} =
+               Content.report_post(reporter, post, %{
+                 reason: :spam,
+                 details: "repeated promotional content"
+               })
+
+      assert report.reporter_id == reporter.id
+      assert report.post_id == post.id
+      assert report.reason == :spam
+      assert report.details == "repeated promotional content"
+      assert report.status == :open
+      assert is_binary(report.entropy_id)
+
+      assert {:ok, duplicate_report} =
+               Content.report_post(reporter, post, %{
+                 reason: :harassment,
+                 details: "later duplicate"
+               })
+
+      assert duplicate_report.id == report.id
+      assert duplicate_report.reason == :spam
+      assert duplicate_report.details == "repeated promotional content"
+    end
+
+    test "rejects self reports and invalid report details" do
+      author = user_fixture()
+      {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "own post"})
+
+      assert {:error, :own_post} = Content.report_post(author, post, %{reason: :spam})
+
+      other_reporter = user_fixture()
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Content.report_post(other_reporter, post, %{
+                 reason: :spam,
+                 details: String.duplicate("x", 2001)
+               })
+
+      assert %{details: ["should be at most 2000 character(s)"]} = errors_on(changeset)
+    end
+
+    test "fetches reports only for the owning reporter" do
+      author = user_fixture()
+      reporter = user_fixture()
+      other_user = user_fixture()
+      {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "reported"})
+      {:ok, report} = Content.report_post(reporter, post, %{reason: :other})
+
+      assert %{id: report_id} = Content.get_user_post_report(reporter, report.id)
+      assert report_id == report.id
+      refute Content.get_user_post_report(other_user, report.id)
     end
   end
 
