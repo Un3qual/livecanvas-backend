@@ -17,17 +17,19 @@ import { authScreenStyles as styles } from '../../src/components/authScreenStyle
 import { useAuthEntryController } from '../../src/auth/useAuthEntryController';
 import { useAppTheme } from '../../src/providers/ThemeProvider';
 
-export default function SignInScreen() {
+export default function SignUpScreen() {
   const router = useRouter();
   const theme = useAppTheme();
-  const controller = useAuthEntryController('signIn');
+  const controller = useAuthEntryController('signUp');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
 
-  const handlePasswordSignIn = async () => {
+  const handlePasswordSignUp = async () => {
     const success = await controller.submitPassword({
       email,
       password,
+      passwordConfirmation,
     });
 
     if (success) {
@@ -35,7 +37,7 @@ export default function SignInScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignUp = async () => {
     const success = await controller.submitGoogle();
 
     if (success) {
@@ -43,7 +45,7 @@ export default function SignInScreen() {
     }
   };
 
-  const handleAppleSignIn = async () => {
+  const handleAppleSignUp = async () => {
     const success = await controller.submitApple();
 
     if (success) {
@@ -64,9 +66,9 @@ export default function SignInScreen() {
         >
           <AppCard>
             <AppHeader
-              eyebrow="Relay auth"
-              subtitle="Use your LiveCanvas password or continue with a linked provider."
-              title="Sign in"
+              eyebrow="Account setup"
+              subtitle="Create a LiveCanvas account with password or a supported provider."
+              title="Sign up"
             />
 
             <View style={styles.form}>
@@ -85,17 +87,31 @@ export default function SignInScreen() {
               />
 
               <AuthField
-                autoComplete="current-password"
+                autoComplete="new-password"
                 error={controller.fieldErrors.password}
                 label="Password"
                 onChangeText={(value) => {
                   controller.clearTransientErrors();
                   setPassword(value);
                 }}
-                placeholder="Enter your password"
+                placeholder="Choose a password"
                 secureTextEntry
-                textContentType="password"
+                textContentType="newPassword"
                 value={password}
+              />
+
+              <AuthField
+                autoComplete="new-password"
+                error={controller.fieldErrors.passwordConfirmation}
+                label="Confirm password"
+                onChangeText={(value) => {
+                  controller.clearTransientErrors();
+                  setPasswordConfirmation(value);
+                }}
+                placeholder="Re-enter your password"
+                secureTextEntry
+                textContentType="newPassword"
+                value={passwordConfirmation}
               />
 
               {controller.formError ? (
@@ -116,10 +132,10 @@ export default function SignInScreen() {
 
               <AppButton
                 label={
-                  controller.isPasswordSubmitting ? 'Signing in...' : 'Sign in'
+                  controller.isPasswordSubmitting ? 'Creating account...' : 'Create account'
                 }
                 disabled={controller.isBusy}
-                onPress={handlePasswordSignIn}
+                onPress={handlePasswordSignUp}
               />
 
               {controller.showOauthDivider ? (
@@ -138,7 +154,7 @@ export default function SignInScreen() {
                   label={
                     controller.isGoogleSubmitting ? 'Opening Google...' : 'Continue with Google'
                   }
-                  onPress={handleGoogleSignIn}
+                  onPress={handleGoogleSignUp}
                   variant="secondary"
                 />
               ) : null}
@@ -149,7 +165,7 @@ export default function SignInScreen() {
                   label={
                     controller.isAppleSubmitting ? 'Opening Apple...' : 'Continue with Apple'
                   }
-                  onPress={handleAppleSignIn}
+                  onPress={handleAppleSignUp}
                   variant="secondary"
                 />
               ) : null}
@@ -157,18 +173,18 @@ export default function SignInScreen() {
 
             <View style={styles.footerRow}>
               <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
-                Need an account?
+                Already have an account?
               </Text>
               <Pressable
                 disabled={!controller.canSwitchScreens}
                 onPress={() => {
                   controller.handleAlternateScreenPress(() => {
-                    router.replace('/sign-up');
+                    router.replace('/sign-in');
                   });
                 }}
               >
                 <Text style={[styles.footerAction, { color: theme.colors.accent }]}>
-                  Sign up
+                  Sign in
                 </Text>
               </Pressable>
             </View>

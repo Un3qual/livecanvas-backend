@@ -4,6 +4,7 @@ import { useAppTheme } from '../providers/ThemeProvider';
 import { typography, spacing, radius, touchTarget } from '../theme/tokens';
 
 type AppButtonProps = {
+  disabled?: boolean;
   label: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary';
@@ -15,6 +16,7 @@ type AppButtonProps = {
  * Sized to meet Apple HIG touch-target minimums.
  */
 export function AppButton({
+  disabled = false,
   label,
   onPress,
   variant = 'primary',
@@ -26,6 +28,7 @@ export function AppButton({
 
   return (
     <Pressable
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
@@ -33,7 +36,7 @@ export function AppButton({
           backgroundColor: isPrimary
             ? theme.colors.accent
             : theme.colors.surfaceMuted,
-          opacity: pressed ? 0.85 : 1,
+          opacity: disabled ? 0.55 : pressed ? 0.85 : 1,
         },
         style,
       ]}
