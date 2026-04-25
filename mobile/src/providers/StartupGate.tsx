@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import {
   createContext,
   useContext,
@@ -13,22 +12,19 @@ import {
   View,
 } from 'react-native';
 
+import { useAuth } from '../auth/AuthProvider';
 import type { AppEnvironment } from '../config/environment';
 import {
   bootstrapRuntime,
-  settleForcedLogoutSnapshot,
   type StartupSnapshot,
 } from '../config/runtime';
 import { useAppTheme } from './ThemeProvider';
-
-type StartupTransition = { href: '/sign-in'; reason: 'forced_logout' };
 
 type StartupState =
   | { status: 'booting' }
   | {
       status: 'ready';
       snapshot: StartupSnapshot;
-      transition: StartupTransition | null;
     };
 
 type StartupContextValue = {
@@ -42,7 +38,7 @@ export function StartupGate({
   children,
   environment,
 }: PropsWithChildren<{ environment: AppEnvironment }>) {
-  const router = useRouter();
+  const { state: authState } = useAuth();
   const [state, setState] = useState<StartupState>({ status: 'booting' });
 
   useEffect(() => {
@@ -56,10 +52,6 @@ export function StartupGate({
       setState({
         status: 'ready',
         snapshot,
-        transition:
-          snapshot.bootSessionState === 'forced_logout'
-            ? { href: '/sign-in', reason: 'forced_logout' }
-            : null,
       });
     });
 
@@ -68,43 +60,12 @@ export function StartupGate({
     };
   }, [environment]);
 
-  const transition = state.status === 'ready' ? state.transition : null;
-
-  useEffect(() => {
-    if (!transition) {
-      return;
-    }
-
-    router.replace(transition.href);
-
-    const timer = setTimeout(() => {
-      setState((currentState) => {
-        if (currentState.status !== 'ready' || !currentState.transition) {
-          return currentState;
-        }
-
-        return {
-          status: 'ready',
-          snapshot:
-            currentState.transition.reason === 'forced_logout'
-              ? settleForcedLogoutSnapshot(currentState.snapshot)
-              : currentState.snapshot,
-          transition: null,
-        };
-      });
-    }, 160);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [router, transition]);
-
-  if (state.status === 'booting') {
+  if (state.status === 'booting' || authState.status === 'loading') {
     return (
       <StartupScreen
         eyebrow="Startup gate"
         title="Preparing LiveCanvas"
-        body="Hydrating the local session placeholder and holding the route tree until the shell is ready."
+        body="Hydrating the local session and holding the route tree until the shell is ready."
       />
     );
   }
@@ -114,14 +75,6 @@ export function StartupGate({
       value={{ environment, snapshot: state.snapshot }}
     >
       {children}
-      {state.transition ? (
-        <StartupScreen
-          eyebrow="Session reset"
-          title="Clearing the local shell"
-          body="The navigator is mounted now, so the forced logout can safely route back through sign-in."
-          overlay
-        />
-      ) : null}
     </StartupContext.Provider>
   );
 }
@@ -130,12 +83,10 @@ function StartupScreen({
   eyebrow,
   title,
   body,
-  overlay = false,
 }: {
   eyebrow: string;
   title: string;
   body: string;
-  overlay?: boolean;
 }) {
   const theme = useAppTheme();
 
@@ -143,7 +94,6 @@ function StartupScreen({
     <View
       style={[
         styles.screen,
-        overlay ? styles.overlay : null,
         { backgroundColor: theme.colors.background },
       ]}
     >
@@ -197,10 +147,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
   },
   panel: {
     width: '100%',

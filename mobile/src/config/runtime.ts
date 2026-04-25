@@ -10,6 +10,10 @@ const KNOWN_ROUTE_HREFS = new Set([
   '/live-session',
 ]);
 
+const AUTH_ROUTE_HREFS = new Set(['/sign-in', '/sign-up']);
+
+type ResolvedAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
+
 export type StartupSnapshot = {
   initialUrl: string | null;
   initialHref: string | null;
@@ -73,6 +77,29 @@ export function settleForcedLogoutSnapshot(
     defaultHref: '/sign-in',
     bootSessionState: 'signed_out',
   };
+}
+
+export function resolveLandingHrefForAuth(
+  snapshot: StartupSnapshot,
+  authStatus: ResolvedAuthStatus,
+): string | null {
+  if (authStatus === 'loading') {
+    return null;
+  }
+
+  if (snapshot.bootSessionState === 'forced_logout') {
+    return '/sign-in';
+  }
+
+  if (authStatus === 'unauthenticated') {
+    return snapshot.initialHref && AUTH_ROUTE_HREFS.has(snapshot.initialHref)
+      ? snapshot.initialHref
+      : '/sign-in';
+  }
+
+  return snapshot.initialHref && !AUTH_ROUTE_HREFS.has(snapshot.initialHref)
+    ? snapshot.initialHref
+    : '/home';
 }
 
 export function routeHrefFromUrl(initialUrl: string | null): string | null {

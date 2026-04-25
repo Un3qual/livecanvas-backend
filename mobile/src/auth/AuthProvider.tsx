@@ -20,7 +20,13 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({
+  apiBaseUrl,
+  children,
+}: {
+  apiBaseUrl: string;
+  children: React.ReactNode;
+}) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
   const stateRef = useRef<AuthState>(state);
   const bootstrapRanRef = useRef(false);
@@ -61,7 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    void resolveAuthBootstrapState(loadTokens).then((nextState) => {
+    void resolveAuthBootstrapState({
+      apiBaseUrl,
+      readTokens: loadTokens,
+      storeTokens,
+      clearTokens,
+    }).then((nextState) => {
       if (cancelled || !shouldApplyBootstrapState(stateRef.current, bootstrapRanRef.current)) {
         return;
       }
@@ -79,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [commitAuthenticatedTokens, commitUnauthenticated]);
+  }, [apiBaseUrl, commitAuthenticatedTokens, commitUnauthenticated]);
 
   const signIn = useCallback(async (tokens: AuthTokenPair) => {
     bootstrapRanRef.current = true;

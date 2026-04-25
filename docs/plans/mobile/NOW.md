@@ -1,6 +1,6 @@
 # Mobile Lane Execution
 
-Last reviewed: 2026-04-10
+Last reviewed: 2026-04-24
 Status: active for execution
 
 ## Lane Scope
@@ -10,32 +10,32 @@ Status: active for execution
 
 ## Current Batch
 
-- Track: `relay_auth_session`
+- Track: `profiles_social_basics`
 - Source: `docs/plans/mobile/TRACK.md`
-- Plan: `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`
-- Batch: `Task 5: Implement viewer bootstrap, session restoration, and auth-gated routing`
-- Why now: Task 4 is green (password auth hooks, Google/Apple OAuth hooks, and real sign-in/sign-up screens). Task 5 completes the signed-in bootstrap and route protection.
+- Plan: `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
+- Batch: `Task 1: Build the Relay-backed viewer profile surface`
+- Why now: Relay/auth/session is complete and verified. Profiles and relationship-aware social basics are the next recommended mobile slice before live discovery, watch flows, host flows, and chat.
 
 ## Do This Now
 
-- Implement `Task 5` from `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`.
-- Create `ViewerBootstrap` and the viewer query artifact.
-- Restore sessions against `issueViewerAuthTokens` on cold start.
-- Gate `(app)` routes behind the auth provider and move landing redirects onto resolved auth state.
-- Run Relay compiler and `tsc --noEmit` to verify.
+- Implement `Task 1` from `docs/plans/mobile/2026-04-24-profiles-social-basics.md`.
+- Create the viewer profile presentation helpers and tests.
+- Replace the placeholder profile route with a Relay-backed viewer profile query and sparse-data fallbacks.
+- Run the focused profile tests, Relay compiler, and `tsc --noEmit`.
 
 ## Verification Scope
 
 ```bash
 cd mobile
+bun test src/profile/profilePresentation.test.ts
 XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec relay-compiler
 XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec tsc --noEmit
 ```
 
 ## Next Up
 
-- Task 6: Verify the Relay/auth slice and advance the mobile planning pointers.
-- Profiles/social planning or the next unblocked mobile slice after Relay/auth closes.
+- Task 2: Add viewer privacy mode updates.
+- Task 3: Add pending follow requests and accept/decline actions.
 
 ## Repair Conditions
 

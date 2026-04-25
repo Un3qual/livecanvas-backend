@@ -6,6 +6,7 @@ import {
   type AppEnvironment,
 } from '../config/environment';
 import { AuthProvider } from '../auth/AuthProvider';
+import { ViewerBootstrap } from '../auth/ViewerBootstrap';
 import { RelayEnvironmentProvider } from '../relay/RelayEnvironmentProvider';
 import { StartupGate } from './StartupGate';
 import { ThemeProvider } from './ThemeProvider';
@@ -16,12 +17,14 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <StartupGate environment={environment}>
-          {/* Keep future channel providers outside the router tree seam. */}
-          <AuthProvider>
-            <RelayEnvironmentProvider>{children}</RelayEnvironmentProvider>
-          </AuthProvider>
-        </StartupGate>
+        <AuthProvider apiBaseUrl={environment.apiBaseUrl}>
+          <StartupGate environment={environment}>
+            {/* Keep future channel providers outside the router tree seam. */}
+            <RelayEnvironmentProvider>
+              <ViewerBootstrap>{children}</ViewerBootstrap>
+            </RelayEnvironmentProvider>
+          </StartupGate>
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
