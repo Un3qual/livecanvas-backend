@@ -8,7 +8,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Track Status
 
-- Status: executing profiles/social basics plan — Task 1 (Relay-backed viewer profile surface)
+- Status: executing profiles/social basics plan - Task 2 (viewer privacy mode updates)
 - Approved overview: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
 - Approved bootstrap design:
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
@@ -21,7 +21,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
   `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
 - Lane execution pointer: `docs/plans/mobile/NOW.md`
 - Coordinator dashboard: `docs/plans/NOW.md`
-- Next lane batch: implement `Task 1: Build the Relay-backed viewer profile surface` from the profiles/social basics plan.
+- Next lane batch: implement `Task 2: Add viewer privacy mode updates` from the profiles/social basics plan.
 
 ## Recommended Detailed Plan Order
 
