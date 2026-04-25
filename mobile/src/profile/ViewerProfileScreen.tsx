@@ -9,34 +9,29 @@ import { useAppTheme } from '../providers/ThemeProvider';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
   countConnectionEdges,
+  formatFollowRequestPreview,
   formatPrivacyModeLabel,
   formatProfileIdentity,
 } from './profilePresentation';
 import type { ViewerProfileScreenQuery } from './__generated__/ViewerProfileScreenQuery.graphql';
 
-type ProfileUser = {
-  readonly id: string;
-  readonly email?: string | null;
-  readonly privacyMode: string;
-};
+type ViewerProfileData = ViewerProfileScreenQuery['response'];
+type ViewerProfileViewer = NonNullable<ViewerProfileData['viewer']>;
+type ProfileUserEdge = NonNullable<
+  NonNullable<ViewerProfileViewer['followers']>['edges']
+>[number];
+type ProfileUser = NonNullable<NonNullable<ProfileUserEdge>['node']>;
+type PendingFollowRequestEdge = NonNullable<
+  NonNullable<ViewerProfileData['viewerPendingFollowRequests']>['edges']
+>[number];
+type PendingFollowRequest = NonNullable<
+  NonNullable<PendingFollowRequestEdge>['node']
+>;
 
-type UserConnection = {
-  readonly edges?: ReadonlyArray<
-    { readonly node?: ProfileUser | null } | null | undefined
-  > | null;
-} | null | undefined;
-
-type PendingFollowRequest = {
-  readonly id: string;
-  readonly state: string;
-  readonly requestedAt: string;
-  readonly follower: ProfileUser;
-};
-
-type FollowRequestConnection = {
-  readonly edges?: ReadonlyArray<{
-    readonly node?: PendingFollowRequest | null;
-  } | null | undefined> | null;
+type ConnectionLike<TNode> = {
+  readonly edges?:
+    | ReadonlyArray<{ readonly node?: TNode | null } | null | undefined>
+    | null;
 } | null | undefined;
 
 export function ViewerProfileScreen() {
@@ -97,7 +92,6 @@ function ViewerProfileContent() {
           id
           email
           privacyMode
-          insertedAt
           followers(first: 10) {
             edges {
               node {
@@ -150,9 +144,9 @@ function ViewerProfileContent() {
 
   const identity = formatProfileIdentity(viewer);
   const privacy = formatPrivacyModeLabel(viewer.privacyMode);
-  const followers = readUserNodes(viewer.followers);
-  const following = readUserNodes(viewer.following);
-  const pendingRequests = readPendingRequests(data.viewerPendingFollowRequests);
+  const followers = readConnectionNodes(viewer.followers);
+  const following = readConnectionNodes(viewer.following);
+  const pendingRequests = readConnectionNodes(data.viewerPendingFollowRequests);
 
   return (
     <ScrollView
@@ -356,6 +350,7 @@ function PendingRequestPreviewRow({
 }) {
   const theme = useAppTheme();
   const identity = formatProfileIdentity(request.follower);
+  const requestPreview = formatFollowRequestPreview(request);
 
   return (
     <View style={[styles.row, { borderColor: theme.colors.border }]}>
@@ -374,7 +369,7 @@ function PendingRequestPreviewRow({
           {identity.title}
         </Text>
         <Text style={[styles.rowSubtitle, { color: theme.colors.textMuted }]}>
-          {request.state} - {request.requestedAt}
+          {requestPreview.stateLabel} - {requestPreview.requestedAtLabel}
         </Text>
       </View>
     </View>
@@ -391,21 +386,13 @@ function EmptyCardMessage({ message }: { message: string }) {
   );
 }
 
-function readUserNodes(connection: UserConnection): ProfileUser[] {
+function readConnectionNodes<TNode>(
+  connection: ConnectionLike<TNode>,
+): Array<NonNullable<TNode>> {
   return (
     connection?.edges
       ?.map((edge) => edge?.node)
-      .filter((node): node is ProfileUser => node != null) ?? []
-  );
-}
-
-function readPendingRequests(
-  connection: FollowRequestConnection,
-): PendingFollowRequest[] {
-  return (
-    connection?.edges
-      ?.map((edge) => edge?.node)
-      .filter((node): node is PendingFollowRequest => node != null) ?? []
+      .filter((node): node is NonNullable<TNode> => node != null) ?? []
   );
 }
 

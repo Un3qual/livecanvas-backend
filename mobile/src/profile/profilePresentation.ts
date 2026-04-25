@@ -14,6 +14,16 @@ type PrivacyModeLabel = {
   description: string;
 };
 
+type FollowRequestPreviewInput = {
+  state: string;
+  requestedAt: string;
+};
+
+type FollowRequestPreview = {
+  stateLabel: string;
+  requestedAtLabel: string;
+};
+
 type NullableConnection = {
   edges?: ReadonlyArray<{ node?: unknown | null } | null | undefined> | null;
 } | null | undefined;
@@ -27,7 +37,7 @@ export function formatProfileIdentity(
     return {
       title: email,
       subtitle: 'Signed in with email',
-      initials: email.charAt(0).toLocaleUpperCase(),
+      initials: email.charAt(0).toUpperCase(),
     };
   }
 
@@ -67,4 +77,41 @@ export function countConnectionEdges(connection: NullableConnection): number {
   return (
     connection?.edges?.filter((edge) => edge?.node != null).length ?? 0
   );
+}
+
+export function formatFollowRequestPreview(
+  input: FollowRequestPreviewInput,
+): FollowRequestPreview {
+  return {
+    stateLabel: formatFollowRequestState(input.state),
+    requestedAtLabel: formatRequestedAt(input.requestedAt),
+  };
+}
+
+function formatFollowRequestState(state: string): string {
+  switch (state) {
+    case 'REQUESTED':
+      return 'Requested';
+
+    case 'ACCEPTED':
+      return 'Accepted';
+
+    default:
+      return 'Pending';
+  }
+}
+
+function formatRequestedAt(value: string): string {
+  const requestedAt = new Date(value);
+
+  if (Number.isNaN(requestedAt.getTime())) {
+    return 'Date unavailable';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+    year: 'numeric',
+  }).format(requestedAt);
 }

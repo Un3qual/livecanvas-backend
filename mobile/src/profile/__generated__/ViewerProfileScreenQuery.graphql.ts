@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3ecc46d7ef4607774182d142fa8e3473>>
+ * @generated SignedSource<<db0700b69e45225c26ae42b5fcecd5c6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -34,7 +34,6 @@ export type ViewerProfileScreenQuery$data = {
       } | null | undefined> | null | undefined;
     } | null | undefined;
     readonly id: string;
-    readonly insertedAt: string;
     readonly privacyMode: UserPrivacyMode;
   } | null | undefined;
   readonly viewerPendingFollowRequests: {
@@ -126,13 +125,6 @@ v6 = [
       (v0/*: any*/),
       (v1/*: any*/),
       (v2/*: any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "insertedAt",
-        "storageKey": null
-      },
       {
         "alias": null,
         "args": (v3/*: any*/),
@@ -239,16 +231,16 @@ return {
     "selections": (v6/*: any*/)
   },
   "params": {
-    "cacheID": "79ec9f23a47819fd7460fc5db3951e42",
+    "cacheID": "830c745f5d1bb82bef0a82ce8d1d166a",
     "id": null,
     "metadata": {},
     "name": "ViewerProfileScreenQuery",
     "operationKind": "query",
-    "text": "query ViewerProfileScreenQuery {\n  viewer {\n    id\n    email\n    privacyMode\n    insertedAt\n    followers(first: 10) {\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    following(first: 10) {\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n  viewerPendingFollowRequests(first: 3) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ViewerProfileScreenQuery {\n  viewer {\n    id\n    email\n    privacyMode\n    followers(first: 10) {\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    following(first: 10) {\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n  viewerPendingFollowRequests(first: 3) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ef887e574edd04674181083692867820";
+(node as any).hash = "21eba4bfc41bd273e7bd8234cf369507";
 
 export default node;

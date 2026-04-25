@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   countConnectionEdges,
+  formatFollowRequestPreview,
   formatPrivacyModeLabel,
   formatProfileIdentity,
 } from './profilePresentation';
@@ -18,6 +19,30 @@ describe('profilePresentation', () => {
       subtitle: 'Signed in with email',
       initials: 'V',
     });
+  });
+
+  test('keeps email initials independent from device locale transforms', () => {
+    const originalToLocaleUpperCase = String.prototype.toLocaleUpperCase;
+    Object.defineProperty(String.prototype, 'toLocaleUpperCase', {
+      configurable: true,
+      value: () => 'locale-specific',
+      writable: true,
+    });
+
+    try {
+      expect(
+        formatProfileIdentity({
+          id: 'VXNlcjoxMjM=',
+          email: 'i@example.com',
+        }).initials,
+      ).toBe('I');
+    } finally {
+      Object.defineProperty(String.prototype, 'toLocaleUpperCase', {
+        configurable: true,
+        value: originalToLocaleUpperCase,
+        writable: true,
+      });
+    }
   });
 
   test('falls back to an opaque profile label when email is unavailable', () => {
@@ -61,5 +86,27 @@ describe('profilePresentation', () => {
     ).toBe(2);
 
     expect(countConnectionEdges(null)).toBe(0);
+  });
+
+  test('formats follow request state and requested date for display', () => {
+    expect(
+      formatFollowRequestPreview({
+        state: 'REQUESTED',
+        requestedAt: '2026-04-25T17:44:38Z',
+      }),
+    ).toEqual({
+      stateLabel: 'Requested',
+      requestedAtLabel: 'Apr 25, 2026',
+    });
+
+    expect(
+      formatFollowRequestPreview({
+        state: '%future added value',
+        requestedAt: 'not-a-date',
+      }),
+    ).toEqual({
+      stateLabel: 'Pending',
+      requestedAtLabel: 'Date unavailable',
+    });
   });
 });
