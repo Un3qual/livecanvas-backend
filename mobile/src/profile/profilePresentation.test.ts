@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   countConnectionEdges,
+  formatConnectionPreviewCount,
   formatFollowRequestPreview,
   formatPrivacyModeLabel,
   formatProfileIdentity,
@@ -86,6 +87,22 @@ describe('profilePresentation', () => {
     ).toBe(2);
 
     expect(countConnectionEdges(null)).toBe(0);
+  });
+
+  test('formats preview connection counts without implying full totals', () => {
+    expect(
+      formatConnectionPreviewCount({
+        hasNextPage: false,
+        visibleCount: 2,
+      }),
+    ).toBe('2');
+
+    expect(
+      formatConnectionPreviewCount({
+        hasNextPage: true,
+        visibleCount: 10,
+      }),
+    ).toBe('10+');
   });
 
   test('formats follow request state and requested date for display', () => {

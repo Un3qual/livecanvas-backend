@@ -24,6 +24,11 @@ type FollowRequestPreview = {
   requestedAtLabel: string;
 };
 
+type ConnectionPreviewCountInput = {
+  hasNextPage?: boolean | null;
+  visibleCount: number;
+};
+
 type NullableConnection = {
   edges?: ReadonlyArray<{ node?: unknown | null } | null | undefined> | null;
 } | null | undefined;
@@ -77,6 +82,14 @@ export function countConnectionEdges(connection: NullableConnection): number {
   return (
     connection?.edges?.filter((edge) => edge?.node != null).length ?? 0
   );
+}
+
+export function formatConnectionPreviewCount(
+  input: ConnectionPreviewCountInput,
+): string {
+  return input.hasNextPage
+    ? `${input.visibleCount}+`
+    : String(input.visibleCount);
 }
 
 export function formatFollowRequestPreview(

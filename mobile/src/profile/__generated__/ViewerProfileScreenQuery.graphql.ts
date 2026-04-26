@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<db0700b69e45225c26ae42b5fcecd5c6>>
+ * @generated SignedSource<<a30d2d8cf44775f6dc0a0f0970ad2034>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,9 @@ export type ViewerProfileScreenQuery$data = {
           readonly privacyMode: UserPrivacyMode;
         } | null | undefined;
       } | null | undefined> | null | undefined;
+      readonly pageInfo: {
+        readonly hasNextPage: boolean;
+      };
     } | null | undefined;
     readonly following: {
       readonly edges: ReadonlyArray<{
@@ -32,6 +35,9 @@ export type ViewerProfileScreenQuery$data = {
           readonly privacyMode: UserPrivacyMode;
         } | null | undefined;
       } | null | undefined> | null | undefined;
+      readonly pageInfo: {
+        readonly hasNextPage: boolean;
+      };
     } | null | undefined;
     readonly id: string;
     readonly privacyMode: UserPrivacyMode;
@@ -91,6 +97,24 @@ v4 = [
   (v2/*: any*/)
 ],
 v5 = [
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "PageInfo",
+    "kind": "LinkedField",
+    "name": "pageInfo",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "hasNextPage",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  },
   {
     "alias": null,
     "args": null,
@@ -231,16 +255,16 @@ return {
     "selections": (v6/*: any*/)
   },
   "params": {
-    "cacheID": "830c745f5d1bb82bef0a82ce8d1d166a",
+    "cacheID": "ab282df3222262350439bcf597709749",
     "id": null,
     "metadata": {},
     "name": "ViewerProfileScreenQuery",
     "operationKind": "query",
-    "text": "query ViewerProfileScreenQuery {\n  viewer {\n    id\n    email\n    privacyMode\n    followers(first: 10) {\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    following(first: 10) {\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n  viewerPendingFollowRequests(first: 3) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ViewerProfileScreenQuery {\n  viewer {\n    id\n    email\n    privacyMode\n    followers(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    following(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n  viewerPendingFollowRequests(first: 3) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "21eba4bfc41bd273e7bd8234cf369507";
+(node as any).hash = "5f83d61b96476418f4c6f9e69276eb09";
 
 export default node;

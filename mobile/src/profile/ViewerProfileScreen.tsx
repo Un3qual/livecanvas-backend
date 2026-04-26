@@ -9,6 +9,7 @@ import { useAppTheme } from '../providers/ThemeProvider';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
   countConnectionEdges,
+  formatConnectionPreviewCount,
   formatFollowRequestPreview,
   formatPrivacyModeLabel,
   formatProfileIdentity,
@@ -93,6 +94,9 @@ function ViewerProfileContent() {
           email
           privacyMode
           followers(first: 10) {
+            pageInfo {
+              hasNextPage
+            }
             edges {
               node {
                 id
@@ -102,6 +106,9 @@ function ViewerProfileContent() {
             }
           }
           following(first: 10) {
+            pageInfo {
+              hasNextPage
+            }
             edges {
               node {
                 id
@@ -147,6 +154,8 @@ function ViewerProfileContent() {
   const followers = readConnectionNodes(viewer.followers);
   const following = readConnectionNodes(viewer.following);
   const pendingRequests = readConnectionNodes(data.viewerPendingFollowRequests);
+  const visibleFollowerCount = countConnectionEdges(viewer.followers);
+  const visibleFollowingCount = countConnectionEdges(viewer.following);
 
   return (
     <ScrollView
@@ -173,12 +182,18 @@ function ViewerProfileContent() {
         </View>
         <View style={styles.stats}>
           <SummaryStat
-            label="Followers"
-            value={countConnectionEdges(viewer.followers)}
+            label="Followers preview"
+            value={formatConnectionPreviewCount({
+              hasNextPage: viewer.followers?.pageInfo.hasNextPage,
+              visibleCount: visibleFollowerCount,
+            })}
           />
           <SummaryStat
-            label="Following"
-            value={countConnectionEdges(viewer.following)}
+            label="Following preview"
+            value={formatConnectionPreviewCount({
+              hasNextPage: viewer.following?.pageInfo.hasNextPage,
+              visibleCount: visibleFollowingCount,
+            })}
           />
         </View>
         <View
@@ -232,7 +247,7 @@ function ViewerProfileContent() {
   );
 }
 
-function SummaryStat({ label, value }: { label: string; value: number }) {
+function SummaryStat({ label, value }: { label: string; value: string }) {
   const theme = useAppTheme();
 
   return (
