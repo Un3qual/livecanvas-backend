@@ -2,6 +2,7 @@ defmodule LCSchemas.Accounts do
   @moduledoc false
 
   @type user_privacy_mode :: :private | :public
+  @type user_role :: :admin | :moderator | :user
 
   @type user_identity_provider ::
           :apple_provider

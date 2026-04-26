@@ -18,6 +18,7 @@ defmodule LCSchemas.Accounts.User do
           hashed_password: String.t() | nil,
           confirmed_at: DateTime.t() | nil,
           privacy_mode: LCSchemas.Accounts.user_privacy_mode() | nil,
+          role: LCSchemas.Accounts.user_role() | nil,
           suspended_at: DateTime.t() | nil,
           authenticated_at: DateTime.t() | nil,
           user_email_addresses: Ecto.Association.NotLoaded.t() | [UserEmailAddress.t()],
@@ -37,6 +38,7 @@ defmodule LCSchemas.Accounts.User do
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime_usec
     field :privacy_mode, LCSchemas.Accounts.UserPrivacyMode, default: :private
+    field :role, LCSchemas.Accounts.UserRole, default: :user
     field :suspended_at, :utc_datetime_usec
     field :authenticated_at, :utc_datetime_usec, virtual: true
 
