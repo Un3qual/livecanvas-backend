@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
-Last reviewed: 2026-04-24
-Status: active for planning
+Last reviewed: 2026-05-22
+Status: active for code-quality triage
 
 ## Lane Scope
 
@@ -10,26 +10,30 @@ Status: active for planning
 
 ## Current Batch
 
-- Track: `backend_release_readiness_roadmap`
-- Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Batch: `Create the next detailed backend implementation plan`
-- Why now: `docs/plans/content/2026-04-24-post-reporting.md` is complete through Task 2. The backend lane now returns to roadmap-driven planning so the next execution turn can select a product-focused backend slice and write its detailed implementation plan.
+- Track: `backend_code_quality_cleanup`
+- Source: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
+- Batch: `Stage 2: discuss user-reported code-quality issues one by one`
+- Why now: The user explicitly made sloppy code, code quality, and tech debt cleanup the new top backend priority. Stage 1 captured and initially analyzed the reported issues; the next run should validate each issue with the user before scans or code changes.
 
 ## Do This Now
 
-- Verify remaining backend product gaps from the roadmap and current code before drafting a plan.
-- Prefer product feature completeness over observability, automation, or reusable starter-kit extraction unless explicitly redirected.
-- Treat completed plans as historical context. Do not restart `docs/plans/2026-03-22-development-seed-data.md`; it is checklist-complete and should be cleaned up from shared queued-candidate tracking by the coordinator.
-- Create the next detailed backend implementation plan under the appropriate backend planning docs path, then update this lane file to the first executable batch from that new plan.
+- Open `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
+- Start at `GQL-001` unless its Stage 2 checkbox has already been completed.
+- Discuss only the next undecided issue with the user: validity, why the code may have been written that way, severity/blast radius, and practical options.
+- After the user decides, update that issue's Stage 2 status before moving on.
+- Do not scan for similar issues or edit implementation code until the issue is marked valid or partially valid.
 - Report shared dashboard/index repairs instead of editing `docs/plans/NOW.md` or `docs/plans/INDEX.md` from the backend lane.
 
 ## Verification Scope
 
-- Planning/status verification only until the next implementation plan is selected.
-- The new plan must define focused verification commands for each executable task.
+- Stage 2 is discussion and documentation only.
+- Stage 3 scans should use focused `rg` searches first, then code reads for matched areas.
+- Stage 8 implementation batches must define and run focused verification for each issue; if typed code is touched, run `mix typecheck`.
 
 ## Completed Batch Evidence
 
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 1 completed on 2026-05-22.
+- Initial checks: `git status --short --branch`, `docs/plans/NOW.md`, `docs/plans/backend/NOW.md`, source conventions doc, and targeted reads/searches across GraphQL resolvers/types, live channel/topic code, chat system events, runtime ownership, and schema files.
 - `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` Task 3 passed on 2026-04-24.
 - `mix compile` -> PASS.
 - `mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_web/channels/live_session_channel_test.exs` -> PASS (`82 tests, 0 failures`).
@@ -41,11 +45,11 @@ Status: active for planning
 
 ## Next Up
 
-- Execute the first batch from the newly created backend implementation plan after this lane pointer is advanced.
+- Continue Stage 2 in `docs/plans/backend/2026-05-22-code-quality-cleanup.md`, starting with the first issue whose Stage 2 checkbox is incomplete.
 
 ## Required Shared Coordinator Repairs
 
-- `docs/plans/NOW.md`: keep the backend lane aligned to `docs/plans/backend/NOW.md` -> `Create the next detailed backend implementation plan` and refresh review metadata if desired.
+- `docs/plans/NOW.md`: update the backend lane current batch to `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> `Stage 2: discuss user-reported code-quality issues one by one`.
 - `docs/plans/INDEX.md`: add `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` to completed backend work through Task 3.
 - `docs/plans/INDEX.md`: add `docs/plans/content/2026-04-24-post-reporting.md` to completed backend work through Task 2.
 - `docs/plans/INDEX.md`: remove or update stale queued-candidate notes for `docs/plans/2026-03-22-development-seed-data.md`, because that plan is already checklist-complete.
