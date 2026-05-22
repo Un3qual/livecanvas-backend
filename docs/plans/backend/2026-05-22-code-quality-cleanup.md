@@ -30,7 +30,7 @@ Initial repository checks performed on 2026-05-22:
 - `git status --short --branch` showed a detached `HEAD` and no listed local changes.
 - `docs/plans/backend/NOW.md` was in planning mode before this inventory.
 - `docs/plans/NOW.md` is coordinator-owned and should not be edited by backend-lane workers.
-- Source convention doc checked: `/Users/admin/Desktop/Programming/projects/LiveCanvas/backend/docs/architecture/conventions.md`.
+- Source convention doc checked: `docs/architecture/conventions.md`.
 
 ## Discussion Queue
 
@@ -274,7 +274,7 @@ Initial repository checks performed on 2026-05-22:
 - `lib/live_canvas_gql/schema.ex`
 - `lib/live_canvas_gql/relay.ex`
 - `test/live_canvas_gql/relay/node_queries_test.exs`
-- `/Users/admin/Desktop/Programming/projects/LiveCanvas/backend/docs/architecture/conventions.md`
+- `docs/architecture/conventions.md`
 
 **Progress:**
 
@@ -349,7 +349,7 @@ Initial repository checks performed on 2026-05-22:
 
 - `lib/live_canvas_schemas/**/*`
 - `priv/repo/migrations/**/*`
-- `/Users/admin/Desktop/Programming/projects/LiveCanvas/backend/docs/architecture/conventions.md`
+- `docs/architecture/conventions.md`
 
 **Progress:**
 
@@ -599,11 +599,11 @@ Initial repository checks performed on 2026-05-22:
 
 **User concern:** Remove task-specific info from general files like `conventions.md`.
 
-**Initial assessment:** Valid. The convention doc currently includes a `Progress` checklist and `Planned Refactors` section. Those are task/lane tracking concerns rather than durable conventions. However, the referenced source-of-truth convention file lives outside this worktree path, so edits may require a separate coordinator/shared-doc task or explicit approval depending on workspace permissions.
+**Initial assessment:** Valid. The convention doc currently includes a `Progress` checklist and `Planned Refactors` section. Those are task/lane tracking concerns rather than durable conventions. The conventions file exists in this repo at `docs/architecture/conventions.md`, but DOC-001 changes should still wait for Stage 2 validation before editing that general standards document.
 
 **Evidence seen:**
 
-- `/Users/admin/Desktop/Programming/projects/LiveCanvas/backend/docs/architecture/conventions.md` contains a progress checklist.
+- `docs/architecture/conventions.md` contains a progress checklist.
 - The same file has a `Planned Refactors` section pointing to remaining convention migrations.
 - Durable rules such as timestamp type, token hashing, Relay-first GraphQL, and GraphQL authz should remain in a conventions doc.
 
@@ -615,7 +615,7 @@ Initial repository checks performed on 2026-05-22:
 
 **Where to look first:**
 
-- `/Users/admin/Desktop/Programming/projects/LiveCanvas/backend/docs/architecture/conventions.md`
+- `docs/architecture/conventions.md`
 - `docs/plans/conventions/2026-03-02-conventions-alignment-design.md`
 - `docs/plans/backend/NOW.md`
 
@@ -635,7 +635,7 @@ Initial repository checks performed on 2026-05-22:
 Use this prompt to continue:
 
 ```text
-Continue the backend code quality cleanup from /Users/admin/.codex/worktrees/fd31/backend/docs/plans/backend/2026-05-22-code-quality-cleanup.md.
+Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
 Start at Stage 2. Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Do not edit implementation code yet. Discuss the next undecided issue in the Discussion Queue with me, starting with GQL-001 unless it is already marked discussed. For that one issue, explain whether you think it is valid, partially valid, or not valid, why the code was probably written that way, the severity/blast radius, and the practical options. After we decide, update the issue's Stage 2 status and move to the next issue only when I ask.
 ```
