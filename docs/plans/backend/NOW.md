@@ -13,7 +13,7 @@ Status: active for code-quality triage
 - Track: `backend_code_quality_cleanup`
 - Source: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
 - Batch: `Post-Stage-6 handoff: continue Stage 2 discussion or begin Stage 7 planning`
-- Why now: The user explicitly made sloppy code, code quality, and tech debt cleanup the new top backend priority. Stage 2 through Stage 6 are complete for the first discussed issue and the Stage 4 scan candidates, so the next run should either continue user-led discussion at the next undecided reported issue or start fix/prevention planning for the first valid or partially valid issue without a plan.
+- Why now: The user explicitly made sloppy code, code quality, and tech debt cleanup the new top backend priority. `GQL-001` is discussed and scanned through Stage 4, and Stage 5 through Stage 6 are complete for the Stage 4 scan candidates, so the next run should either continue user-led discussion at the next undecided reported issue or start fix/prevention planning for the first valid or partially valid issue without a plan.
 
 ## Do This Now
 
