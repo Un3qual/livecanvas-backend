@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
 Last reviewed: 2026-05-23
-Status: stage statuses audited after `GQL-005` Stage 7; awaiting next user direction
+Status: `GQL-006` Stage 7 complete; Stage 8 not started
 Owner lane: backend
 
 ## Purpose
@@ -25,7 +25,7 @@ Applicability note: Stages 1-3 apply to user-reported issues. Stage 4 is one glo
 
 ## Current Handoff
 
-Stage status was audited on 2026-05-23 after `GQL-005` Stage 7 planning. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, and `GQL-005` have Stage 2, Stage 3, and Stage 7 complete. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008` also has Stage 7 complete. No Stage 8 implementation has started for any cleanup issue. Continue next by entering Stage 8 implementation for a planned issue only if the user explicitly asks for that issue, by starting Stage 7 for `GEN-002` if the user asks for planning, or by resuming Stage 2 with `GQL-006` if the user asks for discussion. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
+Stage status was audited on 2026-05-23 after `GQL-006` Stage 7 planning. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-006` have Stage 2, Stage 3, and Stage 7 complete. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008`, `GEN-002`, and `WEB-001` also have Stage 7 complete. No Stage 8 implementation has started for any cleanup issue. Continue next by entering Stage 8 implementation for a planned issue only if the user explicitly asks for that issue, by resuming Stage 2 discussion with `GQL-007`, or by revisiting deferred `GQL-009` Stage 7 only if the user explicitly asks to plan that deferred structural cleanup. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -65,15 +65,14 @@ Stage 5 candidate issues discovered by the Stage 4 scan:
 
 User-reported issue status:
 
-- `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, and `GQL-005`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 not started.
-- `GQL-006`: Stage 1 complete; Stage 2 is the next undecided user-reported issue; Stages 3, 7, and 8 are blocked until Stage 2 marks it valid or partially valid and the follow-up scan/plan is written.
+- `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-006`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 not started.
 - `GQL-007`, `ECTO-001`, `GEN-001`, `CTX-001`, `SOCK-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`: Stage 1 complete; Stage 2 pending; Stages 3, 7, and 8 are blocked until each issue is discussed and marked valid or partially valid.
 
 Stage 4 candidate issue status:
 
 - `GQL-008`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 not started.
-- `GEN-002`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 pending, Stage 8 blocked until Stage 7 is written.
-- `WEB-001`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 pending, Stage 8 blocked until Stage 7 is written.
+- `GEN-002`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 not started.
+- `WEB-001`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 not started.
 - `GQL-009`: Stage 4 complete, Stage 5 complete with a deferred-valid decision, Stage 6 complete, Stage 7 deferred until narrower cleanup work is planned or fixed, Stage 8 blocked until Stage 7 is written and implementation is explicitly requested.
 
 ## Issues
@@ -718,6 +717,16 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Initial assessment:** Partially valid, but needs careful discussion because this intersects with the explicit backend convention that node fetchers must re-apply authorization to avoid IDOR. The map-key `resolve_type` clauses are fragile and should become struct-based where possible. The node fetch functions are verbose, but many intentionally route through context APIs like `Feed.get_visible_post/2`, `Content.get_user_media_asset/2`, and `Chat.get_history_message/2` to enforce visibility.
 
+**Stage 2 decision:** Marked partially valid on 2026-05-23. The `node interface` map-key type resolution is valid cleanup: Ecto-backed node values should resolve by concrete schema structs instead of by coincidental field shapes. The repeated node-fetch ID casting and `when is_integer(local_id) and local_id > 0` guards are also valid cleanup targets; Stage 8 should remove positive-ID guard checks from the node refetch path so zero and negative database IDs fall through to repo/query no-result behavior. The request to remove dedicated fetch functions or use direct repo lookups is only partially valid because most current fetchers re-apply viewer ownership or visibility and must not be replaced with unauthenticated `Repo.get/2`.
+
+Additional Stage 2 notes:
+
+- For Stage 3, scan `schema.ex` for every map-key `resolve_type` clause and classify Ecto-backed structs separately from synthetic GraphQL projection maps such as contact matches.
+- For Stage 3, scan every `fetch_*_node` helper for repeated `Ecto.Type.cast(:id, id)` plus `when is_integer(local_id) and local_id > 0` boilerplate. Treat positive-ID guards as removal targets in the schema fetchers and in any delegated context function clauses that would otherwise reject zero or negative integer IDs.
+- Keep type casting only where needed to turn Relay local IDs into the database ID type or avoid non-castable input errors. Do not preserve separate `local_id > 0` checks merely to pre-filter DB misses; zero and negative IDs can query normally and return no rows.
+- Preserve authorization-aware node fetches. `Feed.get_visible_post/2`, `Content.get_user_media_asset/2`, `Content.get_user_post_report/2`, `Chat.get_history_message/2`, `Social.get_pending_follow_request/2`, and account-scoped governance/contact helpers are intentional node refetch boundaries.
+- Direct repo lookup is acceptable only where Stage 3 proves the node is public or field-level authorization fully covers private data. `User` may remain globally refetchable while `GQL-005` handles private user fields through child resolvers.
+
 **Evidence seen:**
 
 - `lib/live_canvas_gql/schema.ex` `node interface` resolves types by map keys like `provider_uid`, `privacy_mode`, `mime_type`, and `contact_entry`.
@@ -725,11 +734,108 @@ Stage 3 watchpoints to carry into Stage 8:
 - Several fetchers cast IDs and re-apply viewer-specific access rules.
 - The convention doc explicitly says GraphQL node fetch and child field resolver layers must re-apply authz.
 
+**Stage 3 scan findings:**
+
+Commands run:
+
+- `rg -n "resolve_type|defp fetch_.*_node|Ecto.Type.cast\\(:id|when is_integer\\(local_id\\) and local_id > 0|when is_integer\\(id\\) and id > 0|global_id|node field" lib/live_canvas_gql/schema.ex`
+- `rg -n "when is_integer\\([^\\)]*\\) and [^\\n]*> 0|Ecto.Type.cast\\(:id|def get_.*\\(.*id|def .*_node|Repo\\.get|Repo\\.one" lib/live_canvas lib/live_canvas_gql`
+- `rg -n "node\\(|nodes\\(|resolve_type|global id|zero|negative|invalid|ContactMatch|FreshAccessToken|HistoryMessage|MediaAsset|Post|User" test/live_canvas_gql`
+- `rg -n "get_visible_post|get_user_media_asset|get_user_post_report|get_live_session|get_pending_follow_request|get_history_message|get_user_data_export_request|get_user_account_deletion_request|get_user_contact_match|get_active_user_identity" lib/live_canvas_gql/schema.ex lib/live_canvas lib/live_canvas_gql`
+- `rg -n "to_global_id\\([^\\n]*,\\s*(-?[0-9]+|\\$)|zero|negative|invalid.*global|missing node|nonexistent|not found" test/live_canvas_gql/relay test/live_canvas_gql/accounts test/live_canvas_gql/content test/live_canvas_gql/chat test/live_canvas_gql/social test/live_canvas_gql/live`
+
+Findings:
+
+- `lib/live_canvas_gql/schema.ex:77` has eleven map-key `resolve_type` clauses. Ten correspond to Ecto-backed structs and should become struct patterns: `%LCSchemas.Accounts.UserIdentity{}`, `%LCSchemas.Accounts.User{}`, `%LCSchemas.Content.Post{}`, `%LCSchemas.Content.MediaAsset{}`, `%LCSchemas.Content.PostReport{}`, `%LCSchemas.Infra.DataExportRequest{}`, `%LCSchemas.Infra.AccountDeletionRequest{}`, `%LCSchemas.Live.LiveSession{}`, `%LCSchemas.Social.Follow{state: :requested}`, and `%LCSchemas.Chat.ChatMessage{}`.
+- `contact_match` is the one non-struct node value in this block. `Accounts.get_user_contact_match/2` returns a synthetic map built by `build_contact_match/2` with `:id`, `:contact_entry`, and `:matched_users`, so Stage 7 should keep a map/projection-specific type-resolution clause for contact matches unless it plans a dedicated projection struct.
+- `lib/live_canvas_gql/schema.ex:163` through `lib/live_canvas_gql/schema.ex:313` repeat local-ID casting plus positive guards for `user_identity`, `post`, `media_asset`, `post_report`, `live_session`, `follow_request`, `chat_message`, `data_export_request`, `account_deletion_request`, and `contact_match` node fetchers. `fetch_user_node/1` is the only current node fetcher that does not use the repeated cast/positive-guard block.
+- Node-path delegated functions with positive guards that would still pre-filter zero or negative IDs after schema-level guards are removed: `Accounts.get_active_user_identity/2`, `Feed.get_visible_post/2`, `Content.get_user_media_asset/2`, `Content.get_user_post_report/2`, `Social.get_pending_follow_request/2`, `Chat.get_history_message/2`, `Chat.history_message_query/1`, `Accounts.get_user_data_export_request/2`, `Accounts.get_user_account_deletion_request/2`, `DataGovernance.get_data_export_request/2`, `DataGovernance.get_account_deletion_request/2`, `Export.get/2`, `Deletion.get/2`, and `Accounts.get_user_contact_match/2`.
+- `Live.get_live_session/1` already accepts any integer and delegates directly to `Repo.get/2`, so its delegated path does not need positive-guard removal beyond the schema fetcher.
+- `LCGQL.Relay.decode_global_id/3` and `cast_local_id/1` also enforce positive local IDs, but that helper is used by mutation/input resolvers for structured invalid-ID errors. It is not part of Absinthe's `node(id:)` refetch path and should stay out of the first `GQL-006` implementation unless Stage 7 explicitly widens scope.
+- `test/live_canvas_gql/relay/node_queries_test.exs` covers raw non-global IDs, unauthorized node lookups, valid refetches, and nil fallbacks for hidden resources, but the scan did not find coverage for zero or negative local IDs encoded inside otherwise valid Relay global IDs. Stage 7 should add focused node tests proving those IDs now return `node: nil` rather than decode or guard-filter errors.
+- Existing node tests in `test/live_canvas_gql/relay/node_queries_test.exs`, `test/live_canvas_gql/accounts/account_queries_test.exs`, `test/live_canvas_gql/chat/chat_queries_test.exs`, and `test/live_canvas_gql/social/social_queries_test.exs` are useful regression coverage for preserving viewer-scoped authorization while the node fetch boilerplate is reduced.
+
+Stage 3 watchpoints to carry into Stage 7:
+
+- Keep authorization-aware context calls in place. This cleanup can remove repeated casts and positive guards without converting viewer-scoped node fetches to unauthenticated `Repo.get/2`.
+- Do not remove the `is_integer/1` safety needed before interpolating IDs into Ecto queries. The requested change is to stop requiring `> 0` for database IDs on the node refetch path, not to allow non-castable values to reach query code.
+- If Stage 7 centralizes local-ID casting, keep it node-path-local and do not reuse `LCGQL.Relay.decode_global_id/3` unchanged, because that helper currently returns `{:error, :invalid_id}` for non-positive IDs and is used outside node refetch.
+- Update affected specs when implementations start: several delegated functions currently declare `pos_integer()` arguments even though the desired node-refetch behavior is to accept any integer and return no rows for missing IDs.
+- Preserve `contact_match` as a synthetic GraphQL projection boundary or introduce an explicit projection struct; do not accidentally pattern-match it as a raw `UserContactEntry` unless the node object resolvers are also updated for the changed value shape.
+
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- In `lib/live_canvas_gql/schema.ex`, convert `node interface` type resolution for Ecto-backed values from map-key clauses to schema struct clauses. Use explicit schema module names or aliases so the clauses are unambiguous:
+  - `%LCSchemas.Accounts.UserIdentity{}` -> `:user_identity`
+  - `%LCSchemas.Accounts.User{}` -> `:user`
+  - `%LCSchemas.Content.Post{}` -> `:post`
+  - `%LCSchemas.Content.MediaAsset{}` -> `:media_asset`
+  - `%LCSchemas.Content.PostReport{}` -> `:post_report`
+  - `%LCSchemas.Infra.DataExportRequest{}` -> `:data_export_request`
+  - `%LCSchemas.Infra.AccountDeletionRequest{}` -> `:account_deletion_request`
+  - `%LCSchemas.Live.LiveSession{}` -> `:live_session`
+  - `%LCSchemas.Social.Follow{state: :requested}` -> `:follow_request`
+  - `%LCSchemas.Chat.ChatMessage{}` -> `:chat_message`
+- Preserve the `contact_match` node as an explicit synthetic projection case. The first Stage 8 pass should keep a map-pattern clause for `%{id: id, contact_entry: %LCSchemas.Accounts.UserContactEntry{}, matched_users: matched_users}` and return `:contact_match`, unless the implementation deliberately introduces a small projection struct and updates the contact-match resolvers to consume it.
+- Add a private node-local ID cast helper inside `LCGQL.Schema`, for example `cast_node_local_id/1`, with this exact contract: `Ecto.Type.cast(:id, value)` returning an integer becomes `{:ok, local_id}` even when `local_id` is zero or negative; non-integer or non-castable values return `:error`.
+- Replace the repeated `case Ecto.Type.cast(:id, id)` blocks in every `fetch_*_node` helper with `cast_node_local_id/1` plus the existing authorization-aware fetch call. Do not preserve `local_id > 0` checks in `fetch_user_identity_node/2`, `fetch_post_node/2`, `fetch_media_asset_node/2`, `fetch_post_report_node/2`, `fetch_live_session_node/2`, `fetch_follow_request_node/2`, `fetch_chat_message_node/2`, `fetch_data_export_request_node/2`, `fetch_account_deletion_request_node/2`, or `fetch_contact_match_node/2`.
+- Route `fetch_user_node/1` through the same cast helper for consistency, but keep its public-refetch behavior aligned with `GQL-005`: user nodes may remain globally refetchable while private User fields are fixed at child-field resolution. Do not add viewer ownership checks to User node fetch in this issue.
+- Keep the node fetchers explicit. Do not replace viewer-scoped fetches with unauthenticated `Repo.get/2`; preserve calls to `Accounts.get_active_user_identity/2`, `Feed.get_visible_post/2`, `Content.get_user_media_asset/2`, `Content.get_user_post_report/2`, `Live.get_live_session/1` plus `authorize_live_session_node_refetch/2`, `Social.get_pending_follow_request/2`, `Chat.get_history_message/2`, account data-governance helpers, and `Accounts.get_user_contact_match/2`.
+- Remove positive-ID guards from delegated functions that are part of the node refetch path, so zero and negative IDs reach the query and naturally return no rows. Update these functions and their specs from `pos_integer()` to `integer()` where the changed argument is the node-refetch ID:
+  - `LC.Accounts.get_active_user_identity/2`
+  - `LC.Feed.get_visible_post/2`
+  - `LC.Content.get_user_media_asset/2`
+  - `LC.Content.get_user_post_report/2`
+  - `LC.Social.get_pending_follow_request/2`
+  - `LC.Chat.get_history_message/2` and private `history_message_query/1`
+  - `LC.Accounts.get_user_data_export_request/2`
+  - `LC.Accounts.get_user_account_deletion_request/2`
+  - `LC.Infra.DataGovernance.get_data_export_request/2`
+  - `LC.Infra.DataGovernance.get_account_deletion_request/2`
+  - `LC.Infra.DataGovernance.Export.get/2`
+  - `LC.Infra.DataGovernance.Deletion.get/2`
+  - `LC.Accounts.get_user_contact_match/2`
+- When touching `Export.get/2` and `Deletion.get/2`, remove the `> 0` checks from both `user_id` and `request_id` in the query function heads rather than adding replacement fallback clauses. These functions already constrain by both IDs in `Repo.get_by/2`, so non-positive values can return no rows through the database path.
+- Leave unrelated positive-integer validation alone. Do not change mutation/input global-ID decoders in `LCGQL.Relay`, async job payload validation, pagination limits, session ownership, data-governance request/cancel commands, media processing payload extraction, release drill validation, or any positive guard outside the node refetch path.
+- Do not change `LCGQL.Relay.decode_global_id/3` in this issue. It is used by mutation/input resolvers and should continue to return structured invalid-ID errors for non-positive local IDs until those APIs are discussed separately.
+
+Focused test updates:
+
+- In `test/live_canvas_gql/relay/node_queries_test.exs`, add a test that builds otherwise valid Relay global IDs with local ID `0` and `-1` for every node type handled by `LCGQL.Schema` and asserts `node(id:)` returns `nil` without GraphQL execution errors. Run the query with an authenticated viewer context so scoped fetchers execute their delegated lookup paths.
+- In the same test module, keep or extend valid node refetch coverage for struct-based `resolve_type`. Existing tests already cover User, Post, ContactMatch, MediaAsset, PostReport, FollowRequest, ChatMessage, and LiveSession. Add focused valid refetch coverage for `DataExportRequest` and `AccountDeletionRequest` if Stage 8 changes their type-resolution clauses and no existing test covers them through `node(id:)`.
+- Preserve existing unauthorized-node tests in `test/live_canvas_gql/relay/node_queries_test.exs`, `test/live_canvas_gql/accounts/account_queries_test.exs`, `test/live_canvas_gql/chat/chat_queries_test.exs`, and `test/live_canvas_gql/social/social_queries_test.exs`; those are the regression suite that proves explicit fetchers still enforce viewer authorization after boilerplate is reduced.
+- Add a small assertion for the synthetic contact-match path if implementation changes the map pattern: `node(id:) { ... on ContactMatch { contactName matchedUsers { id } } }` should still resolve as `ContactMatch` and use the viewer-owned projection shape, not a raw `UserContactEntry`.
+
+Prevention checks:
+
+- Add a durable note during Stage 8 under `docs/architecture/conventions.md`, preferably in the GraphQL/Relay section: Ecto-backed node type resolution should match schema structs, synthetic GraphQL projection nodes must be explicitly documented, and node refetch helpers must keep authorization-aware lookup boundaries rather than using raw repo fetches for scoped resources.
+- After editing, run `rg -n "%\\{provider_uid|%\\{privacy_mode|%\\{kind: _kind, visibility|%\\{mime_type|%\\{reason: _reason|%\\{status: _status|%\\{state: :requested|%\\{kind: _kind, metadata" lib/live_canvas_gql/schema.ex` and confirm old map-key type-resolution clauses are gone except the deliberate `contact_match` projection clause.
+- Run `rg -n "when is_integer\\(local_id\\) and local_id > 0|Ecto.Type.cast\\(:id" lib/live_canvas_gql/schema.ex` and confirm schema node fetchers use the new helper and no positive local-ID guard remains.
+- Run focused positive-guard searches on the delegated node-path functions and confirm only unrelated validation remains. Start with `rg -n "get_active_user_identity|get_visible_post|get_user_media_asset|get_user_post_report|get_pending_follow_request|get_history_message|get_user_data_export_request|get_user_account_deletion_request|get_data_export_request|get_account_deletion_request|get_user_contact_match|history_message_query" lib/live_canvas lib/live_canvas_gql`.
+- Run `rg -n "decode_global_id\\(|cast_local_id" lib/live_canvas_gql/relay.ex lib/live_canvas_gql` and confirm mutation/input decoder semantics were not changed as part of `GQL-006`.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/social/social_queries_test.exs`
+- Add `test/live_canvas_gql/accounts/account_mutations_test.exs` to the focused run if new data-governance node test setup reuses account mutation helpers or modifies data-governance GraphQL types.
+- `mix typecheck`
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Preserve explicit authorization-aware fetch boundaries for scoped nodes.
+- Remove positive-ID guards only from the node refetch path and its touched delegated query helpers; do not turn this into a repository-wide positive-integer validation cleanup.
+- Preserve non-castable local-ID handling at the schema edge so malformed Relay global IDs return `node: nil` or the current Absinthe decode error rather than raising an Ecto query cast error.
+- Keep synthetic contact-match projection behavior deliberate and tested.
+
 **What likely needs to change:**
 
 - Convert `resolve_type` to pattern match on schema structs for Ecto-backed nodes.
 - Keep or improve authz for globally refetchable IDs; do not replace all fetchers with unauthenticated `Repo.get/2`.
 - Consider a small shared node-fetch helper that decodes/casts IDs and delegates to explicit authorization-aware functions.
+- Remove repeated positive-ID guards from the node refetch path, including delegated context function heads touched by the cleanup, so zero and negative IDs fall through to repo/query no-result behavior instead of being pre-filtered.
 - Inline direct repo lookups only for node types that are truly public or already protected elsewhere.
 
 **Where to look first:**
@@ -742,13 +848,13 @@ Stage 3 watchpoints to carry into Stage 8:
 **Progress:**
 
 - Stage 1: Complete.
-- Stage 2: Pending; this is the next undecided user-reported issue.
-- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 2: Complete; marked partially valid.
+- Stage 3: Complete.
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Blocked until Stage 3 is complete.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### GQL-007 - Resolver Wrappers That Only Dataload Associations
 
@@ -1244,6 +1350,49 @@ Local attr normalization to keep out of the first fix unless Stage 7 proves iden
 - `lib/live_canvas/content.ex` and `lib/live_canvas/accounts/passkeys/wax_adapter.ex` have boundary-specific atom/string lookup variants.
 - `test/support/passkey_test_support.ex` has test-only adapter input lookup and should not drive production helper design.
 
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Add a small infrastructure helper module, preferably `lib/live_canvas/infra/payload.ex` as `LC.Infra.Payload`, to own fixed known-key lookup for boundary payload maps. Keep the helper intentionally narrow: it should accept an atom key, look up the atom key and `Atom.to_string(key)`, and never call `String.to_atom/1` on external input.
+- Give the helper public typespecs. Suggested API: `value_for/2` returning `term() | nil` and `positive_integer/2` returning `{:ok, pos_integer()} | {:error, :invalid_payload}`.
+- Implement `positive_integer/2` with the exact semantics shared by the current duplicate helpers: missing key, `nil`, zero, negative integers, binaries, floats, and other non-positive/non-integer values all return `{:error, :invalid_payload}`; positive integers under either atom or string key return `{:ok, value}`.
+- In `lib/live_canvas/content/media_processing_job.ex`, replace only the private `extract_payload_integer/2` implementation with a delegation to `LC.Infra.Payload.positive_integer/2`, or remove the private helper and call the shared helper directly from `handle_media_processing/1` and `handle_webhook_processing/1`. Preserve the current `:invalid_payload` error contract and the idempotent `nil -> :ok` behavior after `Repo.get/2`.
+- In `lib/live_canvas/infra/data_governance/export.ex`, replace the private `extract_payload_integer/2` with the shared positive-integer helper for `:data_export_request_id`. Preserve `handle/1` returning `{:error, :invalid_payload}` for malformed payloads and `:ok` for missing deleted requests.
+- In `lib/live_canvas/infra/data_governance/deletion.ex`, replace the private `extract_payload_integer/2` with the shared positive-integer helper for `:account_deletion_request_id`. Preserve the current request status transitions and stubbed deletion behavior.
+- In `lib/live_canvas_web/plugs/observability_context.ex`, consider replacing the private `value_for/2` with `LC.Infra.Payload.value_for(params, :request_id)` and `LC.Infra.Payload.value_for(params, :trace_id)` while leaving all request-id and trace-id normalization untouched. This is the only Stage 6 watchpoint that should be folded into the first fix, because it removes `String.to_atom/1` without changing accepted keys or broadening payload semantics.
+- Do not change `maybe_put_integer_attr/3`, `extract_event_payload/1`, `maybe_use_payload_as_event_payload/1`, or `extract_processing_state/1` in `LC.Content.MediaProcessingJob` unless the implementation only swaps their raw lookup expression for `LC.Infra.Payload.value_for/2` without changing validation/defaulting behavior. Their map/nested-payload and metadata semantics are not the exact positive-integer duplicate.
+- Do not change `LC.Chat.SystemEvents`, `LC.Chat.ChatMessage`, `LC.Live.LiveSession`, `LC.Accounts`, `LC.Content`, or `LC.Accounts.Passkeys.WaxAdapter` in the first `GEN-002` Stage 8 pass. Those helpers normalize context/schema or provider-specific attrs and have local defaulting/validation semantics.
+- Do not change test-only lookup helpers in `test/support/passkey_test_support.ex`.
+
+Focused test updates:
+
+- Add `test/live_canvas/infra/payload_test.exs` for `LC.Infra.Payload`. Cover `positive_integer/2` with atom-key payloads, string-key payloads, missing keys, `nil`, `0`, negative integers, string numbers, floats, non-map payloads, and non-atom keys. Cover `value_for/2` with atom and string payload keys so future code does not reintroduce ad hoc atom/string lookup.
+- Keep existing async/webhook integration coverage in `test/live_canvas/content_test.exs` and `test/integration/media_webhook_async_flow_test.exs`; add a small atom-key payload assertion only if it can exercise `LC.Content.MediaProcessingJob.handle/1` without making the test brittle around media-processing side effects.
+- In `test/live_canvas/infra/data_governance_export_test.exs`, add focused coverage that `LC.Infra.DataGovernance.Export.handle/1` accepts an `AsyncJob` payload with atom key `:data_export_request_id` and still completes the request.
+- In `test/live_canvas/infra/data_governance_deletion_test.exs`, add focused coverage that `LC.Infra.DataGovernance.Deletion.handle/1` accepts an `AsyncJob` payload with atom key `:account_deletion_request_id` and preserves the scheduled-request completion behavior.
+- If `LCWeb.Plugs.ObservabilityContext` is updated, keep or extend `test/live_canvas_web/plugs/observability_context_test.exs` so socket params with atom keys and string keys still produce the same request and trace context.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8 under `docs/architecture/conventions.md`, preferably near `Data And Security` or a new backend boundary-payload note: request/webhook/job payload helpers must use known atom keys plus `Atom.to_string/1`; do not convert external strings to atoms; keep context/schema attr normalization local unless semantics match the shared helper exactly.
+- After editing, run `rg -n "extract_payload_integer" lib/live_canvas/content/media_processing_job.ex lib/live_canvas/infra/data_governance/export.ex lib/live_canvas/infra/data_governance/deletion.ex` and expect no private duplicate helper implementations. If a private wrapper remains for readability, it should be a one-line delegation to `LC.Infra.Payload.positive_integer/2`.
+- Run `rg -n "String\\.to_atom\\(" lib/live_canvas lib/live_canvas_web test` and account for every remaining hit. The expected result is no `String.to_atom/1` in `LCWeb.Plugs.ObservabilityContext`; any remaining hit must be outside `GEN-002` scope and explicitly justified.
+- Run `rg -n "Map\\.get\\([^\\n]+Atom\\.to_string|Atom\\.to_string\\(key\\)" lib/live_canvas/content/media_processing_job.ex lib/live_canvas/infra/data_governance/export.ex lib/live_canvas/infra/data_governance/deletion.ex lib/live_canvas_web/plugs/observability_context.ex` and confirm the exact duplicate payload-boundary lookups were removed or replaced by the shared helper.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas/infra/payload_test.exs test/live_canvas/content_test.exs test/integration/media_webhook_async_flow_test.exs test/live_canvas/infra/data_governance_export_test.exs test/live_canvas/infra/data_governance_deletion_test.exs test/live_canvas_web/plugs/observability_context_test.exs`
+- `mix typecheck`
+
+Stage 6 watchpoints to carry into Stage 8:
+
+- Preserve the exact positive-integer validation contract for async job and webhook payload identifiers.
+- Do not introduce `String.to_atom/1`, `String.to_existing_atom/1`, or dynamic atom creation for external payload keys.
+- Keep local schema/context attr normalization out of the shared helper unless the caller needs the same fixed-key boundary payload semantics.
+- Keep the helper small enough that future agents do not treat it as a universal deep payload parser.
+
 **Progress:**
 
 - Stage 1: Not applicable; this issue was discovered during Stage 4.
@@ -1252,8 +1401,8 @@ Local attr normalization to keep out of the first fix unless Stage 7 proves iden
 - Stage 4: Complete; discovered and initially analyzed.
 - Stage 5: Complete; marked partially valid.
 - Stage 6: Complete.
-- Stage 7: Pending; this is the next valid or partially valid issue without a fix/prevention plan.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### WEB-001 - Duplicate Bearer Authorization Header Parsing In GraphQL And Metrics Plugs
 
@@ -1287,6 +1436,48 @@ Findings:
 - `test/live_canvas_gql/context_test.exs` and `test/live_canvas_web/plugs/observability_context_test.exs` use bearer headers for observability/leakage checks, but they do not add more parser implementations.
 - Stage 7 should plan shared-helper tests for parser edge cases because neither existing caller-focused test suite fully owns shared parsing semantics.
 
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Add a focused web helper module, preferably `lib/live_canvas_web/bearer_auth.ex` as `LCWeb.BearerAuth`, to own Authorization header extraction and Bearer parsing for HTTP plugs. Keep it web-specific rather than GraphQL-specific because metrics scraping and GraphQL request context both consume the same HTTP header contract.
+- Give the helper public typespecs. Suggested API: `token_from_conn/1` returning `{:ok, String.t()} | :missing | :malformed`, and `parse_authorization/1` returning `{:ok, String.t()} | :malformed`.
+- Preserve the current parser contract exactly: use the first `authorization` request header, accept case-insensitive `Bearer`, allow leading/trailing whitespace, trim the extracted token, return `:missing` only when the header is absent, and return `:malformed` when the header exists but is not a non-empty Bearer token after trimming.
+- In `lib/live_canvas_gql/context.ex`, replace the private `bearer_token_from_authorization_header/1` call with `LCWeb.BearerAuth.token_from_conn/1`. Remove the private `bearer_token_from_authorization_header/1` and `parse_bearer_authorization/1` helpers from `LCGQL.Context`.
+- Preserve GraphQL auth semantics: a valid parsed bearer token is authoritative and calls `Accounts.authenticate_access_token/1`; a missing header falls back to the session token; a malformed header returns `Accounts.empty_scope()` with `%{transport: :bearer, error: :invalid_token}` and must not fall back to session auth.
+- In `lib/live_canvas_web/plugs/metrics_auth.ex`, replace the private `bearer_token_from_authorization_header/1` call with `LCWeb.BearerAuth.token_from_conn/1`. Remove the private `bearer_token_from_authorization_header/1` and `parse_bearer_authorization/1` helpers from `LCWeb.Plugs.MetricsAuth`.
+- Preserve metrics semantics: endpoint enablement, configured-token normalization, `Plug.Crypto.secure_compare/2`, `cache-control`, content type, `401 invalid_metrics_token`, and `404 not_found` behavior stay local to `LCWeb.Plugs.MetricsAuth`. The shared helper must not know the configured metrics token or perform token comparison.
+- Do not change session auth, `LCWeb.UserAuth`, GraphQL dataloader context setup, request observability metadata, or any auth token storage/hashing code in this issue.
+
+Focused test updates:
+
+- Add `test/live_canvas_web/bearer_auth_test.exs` for `LCWeb.BearerAuth`. Cover `token_from_conn/1` with no Authorization header, a valid `Bearer token` header, multiple Authorization headers where the first one wins, lowercase/mixed-case `bearer`, leading/trailing whitespace, an empty Bearer token, a non-Bearer scheme such as `Basic token`, and a malformed bare token.
+- In the same test file, cover `parse_authorization/1` directly for parser edge cases that do not need a conn: `"Bearer abc"` -> `{:ok, "abc"}`, `"  bearer   abc  "` -> `{:ok, "abc"}`, `"Bearer   "` -> `:malformed`, `"Basic abc"` -> `:malformed`, and a non-binary value -> `:malformed`. Implement `parse_authorization(_other), do: :malformed` to make the public helper total.
+- Keep `test/live_canvas_gql/relay/request_context_test.exs` as the main GraphQL caller regression suite. Add a focused test where a logged-in session sends a malformed Authorization header such as `"Basic not-bearer"`; `viewer` must resolve to `nil` and the request must not fall back to the session user.
+- Keep `test/live_canvas_web/controllers/metrics_endpoint_test.exs` as the main metrics caller regression suite. Add focused assertions that a lower-case or whitespace-padded Bearer header still authorizes, and that a malformed non-Bearer Authorization header still returns `401`.
+- Keep `test/live_canvas_gql/context_test.exs` and `test/live_canvas_web/plugs/observability_context_test.exs` focused on observability/no-leak behavior; they should not duplicate parser edge-case coverage.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8 under `docs/architecture/conventions.md`, preferably near `GraphQL And Relay` or a new web-auth subsection: HTTP Authorization Bearer parsing must go through `LCWeb.BearerAuth`; callers own authorization decisions after parsing, and must not reimplement local regex/header parsing.
+- After editing, run `rg -n "bearer_token_from_authorization_header|parse_bearer_authorization" lib test` and expect no hits when the new helper uses the suggested `token_from_conn/1` and `parse_authorization/1` names.
+- Run `rg -n "get_req_header\\([^\\n]+authorization|~r/\\^\\\\s\\*bearer|bearer\\\\s\\+\\(\\.\\+\\)" lib test` and confirm Authorization header extraction and bearer regex logic are centralized in `LCWeb.BearerAuth` and its focused tests.
+- Run `rg -n "BearerAuth\\.token_from_conn" lib/live_canvas_gql/context.ex lib/live_canvas_web/plugs/metrics_auth.ex` and confirm both callers delegate to the shared helper.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_web/bearer_auth_test.exs test/live_canvas_gql/relay/request_context_test.exs test/live_canvas_gql/context_test.exs test/live_canvas_web/controllers/metrics_endpoint_test.exs`
+- `mix typecheck`
+
+Stage 6 watchpoints to carry into Stage 8:
+
+- Preserve first-header-wins behavior for duplicate Authorization headers.
+- Preserve case-insensitive Bearer parsing and token trimming.
+- Preserve GraphQL's no-session-fallback behavior when an Authorization header is present but malformed or invalid.
+- Preserve metrics token comparison inside `LCWeb.Plugs.MetricsAuth`; the shared helper only parses.
+- Do not broaden the accepted auth transports, add query-string tokens, or touch persisted token security.
+
 **Progress:**
 
 - Stage 1: Not applicable; this issue was discovered during Stage 4.
@@ -1295,8 +1486,8 @@ Findings:
 - Stage 4: Complete; discovered and initially analyzed.
 - Stage 5: Complete; marked valid.
 - Stage 6: Complete.
-- Stage 7: Pending.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### GQL-009 - Accounts GraphQL Resolver Has Accumulated Unrelated API Responsibilities
 
@@ -1356,9 +1547,9 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Current status: Stage 1 is complete for all user-reported issues; Stage 2 and Stage 3 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, and `GQL-005`; Stage 4 is complete; Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`; Stage 7 plans are written for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-008`; Stage 8 has not started for any issue. If continuing `GQL-005`, enter Stage 8 only if the user explicitly asks to implement `GQL-005`. If continuing Stage 7 planning generally, start with `GEN-002`, the next valid or partially valid issue without a fix/prevention plan. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, `GQL-006`. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
+Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Current status: Stage 1 is complete for all user-reported issues; Stage 2, Stage 3, and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-006`; Stage 4 is complete; Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`; Stage 7 plans are also written for `GQL-008`, `GEN-002`, and `WEB-001`; Stage 8 has not started for any issue. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests and follow that issue's Stage 7 plan. If continuing issue discussion instead, resume Stage 2 with the next undecided user-reported issue, `GQL-007`. If continuing Stage 7 planning, do not start `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
 ```
 
 ## Shared Coordinator Repair To Report
 
-The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-008` are discussed/scanned/planned where applicable, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 8 implementation for `GQL-005` if the user explicitly requests it, Stage 7 planning for `GEN-002`, Stage 2 discussion for `GQL-006`, or Stage 8 implementation for another explicitly requested planned issue.
+The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-006` Stage 7 is complete, `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-008`, `GEN-002`, and `WEB-001` are discussed/scanned/planned where applicable, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 8 implementation for a planned issue if the user explicitly requests it, Stage 2 discussion for `GQL-007`, or explicit deferred planning for `GQL-009`.
