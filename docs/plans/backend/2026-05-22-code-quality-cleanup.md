@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
 Last reviewed: 2026-05-23
-Status: `GQL-004` Stage 7 planned; awaiting next user direction
+Status: `GQL-005` Stage 7 planned; awaiting next user direction
 Owner lane: backend
 
 ## Purpose
@@ -23,7 +23,7 @@ Use this same stage language for every issue.
 
 ## Current Handoff
 
-Stage 2 has started and `GQL-001`, `GQL-002`, `GQL-003`, and `GQL-004` have been discussed. `GQL-001` Stage 3 and Stage 4 scans are complete, and its Stage 7 fix/prevention plan was written on 2026-05-23. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-002` was marked partially valid, scanned, and planned on 2026-05-23. `GQL-003` was marked valid, scanned, and planned on 2026-05-23. `GQL-004` was marked valid, scanned, and planned on 2026-05-23. Continue next by entering Stage 8 implementation for a planned issue only if the user explicitly asks for that issue, or switching issues only if the user asks. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
+Stage 2 has started and `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, and `GQL-005` have been discussed. `GQL-001` Stage 3 and Stage 4 scans are complete, and its Stage 7 fix/prevention plan was written on 2026-05-23. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-002` was marked partially valid, scanned, and planned on 2026-05-23. `GQL-003` was marked valid, scanned, and planned on 2026-05-23. `GQL-004` was marked valid, scanned, and planned on 2026-05-23. `GQL-008` was marked partially valid, scanned, and planned on 2026-05-23. `GQL-005` was marked partially valid, scanned, and planned on 2026-05-23. Continue next by entering Stage 8 implementation for a planned issue only if the user explicitly asks for that issue, or switching issues only if the user asks. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -561,18 +561,120 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Initial assessment:** Needs discussion because the exact symptom may be stale or indirect. Initial inspection did not find field names containing `viewer` inside `node object(:user)`. The User node does contain `fresh_access_token` and `refresh_token`, which are viewer/session-specific and therefore suspicious on a globally refetchable User node even though the field names do not include `viewer`. Viewer-named queries and mutations exist outside the User node, which may be acceptable.
 
+**Stage 2 decision:** Marked partially valid on 2026-05-23. The exact complaint that User-node fields are named `viewer...` appears stale: the current `node object(:user)` has no `viewer`-prefixed fields, and root `viewer` queries plus viewer-scoped mutations are legitimate API entry points. The underlying concern is valid, though: the globally refetchable User node still exposes session-specific token fields (`fresh_access_token`, `refresh_token`) that belong on auth/token mutation payloads, and private user data or child fields such as `email` and `user_identities` need explicit parent-user-plus-current-viewer authorization instead of direct field exposure. Profile/feed child fields already show the right pattern by using the parent user plus current viewer to enforce visibility.
+
+Additional Stage 2 notes:
+
+- `lib/live_canvas_gql/accounts/account_types.ex` exposes `fresh_access_token` and `refresh_token` directly on `node object(:user)`, while supported auth flows already return `access_token` and `refresh_token` on `signUp`, `logIn`, `issueViewerAuthTokens`, and `refreshAuthTokens` payloads.
+- `lib/live_canvas_gql/schema.ex` currently refetches User nodes through `fetch_user_node/1` without viewer context; that makes every direct User field globally reachable unless the field itself re-applies authorization.
+- `User.email` is currently a direct field, and `test/live_canvas_gql/relay/node_queries_test.exs` asserts anonymous `node(id:)` can read it. Stage 3 should verify whether that is still intended; if not, Stage 7 should plan a resolver that returns email only for the owning viewer.
+- `Resolver.user_identities/3` currently builds a connection for the parent user without checking the current viewer. Stage 3 should include User-node child fields and not stop at scalar fields.
+- `user_posts/3`, `user_story_feed/3`, `user_current_live_session/3`, and `user_replay_feed/3` already use the parent user plus current viewer visibility policy. They are examples to preserve, not targets just because they are viewer-sensitive.
+- Root fields such as `viewer`, `viewerDataExportRequests`, and `viewerContactMatches`, and viewer-scoped mutations such as `updateViewerPrivacyMode`, are outside the invalid part of this concern because their root operation name accurately describes current-viewer scope.
+
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-23:
+
+- `rg -n "viewer|fresh_access_token|refresh_token|field :.*viewer|node object\\(:user\\)|freshAccessToken|refreshToken" lib/live_canvas_gql/accounts test/live_canvas_gql/accounts test/live_canvas_gql/relay docs/architecture/conventions.md`
+- `rg -n "defp fetch_user_node|defp fetch_user_identity_node|fresh_access_token|freshAccessToken|refreshToken|:fresh_access_token|:refresh_token" lib/live_canvas_gql test/live_canvas_gql`
+- `rg -n "node_type: :user|field :[a-z_]+, (non_null\\()?:(user)|field :matched_users|:user\\) do|resolve\\(&.*user|author|host|follower|matched_users" lib/live_canvas_gql`
+- `rg -n "node\\(id|\\.\\.\\. on User|email|privacyMode|freshAccessToken|refreshToken|userIdentities|followers|following|currentLiveSession|replayFeed|storyFeed|posts" test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/social test/live_canvas_gql/accounts/account_mutations_test.exs`
+
+Exact `GQL-005` cleanup scope:
+
+- `lib/live_canvas_gql/accounts/account_types.ex`: `node object(:user)` exposes direct `email`, `fresh_access_token`, and `refresh_token` fields. Because `lib/live_canvas_gql/schema.ex` `fetch_user_node/1` accepts a User global ID without viewer context, any direct User field is globally reachable unless the field has its own resolver.
+- `lib/live_canvas/accounts.ex`: `Accounts.get_user!/1` hydrates the primary email before returning the User. This means `fetch_user_node/1` currently returns a User struct that has email loaded for direct GraphQL field exposure.
+- `test/live_canvas_gql/relay/node_queries_test.exs`: the `node` test currently asserts anonymous `node(id:) { ... on User { email } }` returns the user's email. Stage 7 should plan an intentional contract change if email becomes owner-only.
+- `lib/live_canvas_gql/accounts/account_resolver.ex`: `user_identities/3` builds a connection from the parent User through `Accounts.user_identities_query(user)` without checking the current viewer. That is inconsistent with `user_identity_user/3`, which only exposes an identity's User to the owning viewer.
+- `lib/live_canvas_gql/accounts/account_mutations.ex` and `lib/live_canvas_gql/accounts/account_resolver.ex`: auth/token mutations already return access and refresh tokens through `signUp`, `logIn`, `issueViewerAuthTokens`, and `refreshAuthTokens`. Those payloads are the appropriate token boundary; the User node token fields are redundant and unsafe even if normally nil on refetched users.
+
+Already-correct or mostly-correct User-node fields to preserve:
+
+- `lib/live_canvas_gql/accounts/account_resolver.ex`: `user_posts/3`, `user_story_feed/3`, `user_current_live_session/3`, and `user_replay_feed/3` already combine the parent User with the current viewer before returning data. Keep this parent-plus-viewer pattern.
+- `lib/live_canvas_gql/social/social_resolver.ex`: `followers/3` and `following/3` call `can_view_relationship_graph?/2`, allowing public users and using `Social.can_view_user?/2` for private users. Current tests cover private-account followers/following visibility for unauthenticated viewers, outsiders, owners, and accepted followers.
+- `lib/live_canvas_gql/accounts/account_types.ex`: `privacy_mode` and `inserted_at` are direct User fields. Stage 3 did not find evidence that these are session-specific or private under the current public profile model, so leave them out of the first `GQL-005` fix unless Stage 7 deliberately changes User profile visibility.
+
+Related paths affected by direct User field authorization:
+
+- User objects are returned from multiple GraphQL paths, not only `viewer` and `node(id:)`: post `author`, live-session `host`, chat-message `sender`, follow-request `follower`, social `followers`/`following`, contact-match `matched_users`, and several mutation payloads return `:user`.
+- Because these paths all resolve to the same `User` GraphQL object, a field-level `email` authorization fix on `User.email` is preferable to trying to patch each parent path separately.
+- `test/live_canvas_gql/accounts/account_queries_test.exs` currently covers `viewer.email` and viewer-owned `viewer.userIdentities`, but Stage 3 did not find coverage proving non-owner `node(id:)` or non-viewer User-returning paths cannot request `email` or `userIdentities`.
+- `test/live_canvas_gql/accounts/account_mutations_test.exs` uses `registerWithEmail { user { email } }`; Stage 7 should decide whether that legacy registration payload still returns a User with email or whether auth-entry payloads own private session/account data going forward.
+
+Stage 3 watchpoints to carry into Stage 7:
+
+- Preserve root `viewer` semantics: the current viewer should still be able to read their own email and identities through the viewer path.
+- Preserve public profile fields and visibility-controlled profile/feed/social connections; do not hide `privacy_mode`, `inserted_at`, public profile content, or relationship graphs just because the parent is a globally refetchable User.
+- Prefer field-level authorization for private User fields, because User objects can be reached through many parent paths.
+- Remove token fields from the User node unless Stage 7 finds a current client dependency that cannot be replaced by existing auth/token payloads.
+- Coordinate with `GQL-006` only where node fetch behavior matters. `GQL-005` should not redesign all node resolution or map-key type resolution.
+
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Apply the approved owner-only contract for private User fields. `User.email` should return the current viewer's email only when the parent User id matches `current_scope.user.id`; it should return `nil` for anonymous viewers and non-owner viewers from every User-returning path.
+- In `lib/live_canvas_gql/accounts/account_types.ex`, change `field :email, :string` to a resolver-backed field, for example `resolve(&Resolver.user_email/3)`.
+- In `lib/live_canvas_gql/accounts/account_resolver.ex`, add a public `user_email/3` resolver with a typespec. It should authorize by comparing the parent User id with `viewer_from_resolution/1` or `viewer_id_from_resolution/1`, and return the current viewer's hydrated `email` when authorized. Because `User.email` is virtual and only some parent paths hydrate it, do not rely on `parent.email` as the source of truth when the current viewer is available.
+- Keep the field nullable. Unauthorized, anonymous, malformed parent, or unhydrated-viewer cases should return `{:ok, nil}`, not a GraphQL execution error.
+- In `lib/live_canvas_gql/accounts/account_types.ex`, remove `field :fresh_access_token, :token` and `field :refresh_token, :token` from `node object(:user)`.
+- Do not remove the shared `object :token`, and do not remove token fields from auth/token mutation payloads. `signUp`, `logIn`, `issueViewerAuthTokens`, and `refreshAuthTokens` remain the supported token-returning GraphQL boundaries.
+- In `lib/live_canvas_gql/accounts/account_resolver.ex`, update `user_identities/3` so it returns a connection only when the parent User id matches the authenticated viewer id. For anonymous or non-owner viewers, return `Absinthe.Relay.Connection.from_list([], args)` just like other hidden connection fields.
+- Preserve `user_identity_user/3` ownership behavior. It already returns the identity's User only to the owning viewer and should not be weakened.
+- Preserve `user_posts/3`, `user_story_feed/3`, `user_current_live_session/3`, `user_replay_feed/3`, `SocialResolver.followers/3`, and `SocialResolver.following/3`. Those fields already enforce parent-plus-viewer visibility and should not be collapsed into owner-only behavior.
+- Preserve `privacy_mode` and `inserted_at` as direct User fields for now. They are not session-specific and are part of the current profile surface.
+- Do not alter `LCGQL.Schema.fetch_user_node/1` in this issue. User nodes may remain globally refetchable; `GQL-005` fixes private field exposure at child-field resolution. Broader node fetch/type-resolution cleanup belongs to `GQL-006`.
+- Treat `registerWithEmail { user { email } }`, contact-match `matchedUsers { email }`, post `author { email }`, live-session `host { email }`, chat-message `sender { email }`, follow-request `follower { email }`, and followers/following `node { email }` as covered by the same field-level resolver: only the owner sees email.
+
+Focused test updates:
+
+- Keep `test/live_canvas_gql/accounts/account_queries_test.exs` and `test/live_canvas_gql/relay/request_context_test.exs` coverage proving `viewer { email }` still returns the authenticated viewer email for session and bearer-token contexts.
+- Update `test/live_canvas_gql/relay/node_queries_test.exs` so anonymous `node(id:) { ... on User { email } }` returns `email: nil` rather than the user's email.
+- Add a `test/live_canvas_gql/relay/node_queries_test.exs` assertion that owner-scoped `node(id:) { ... on User { email } }` returns the owner email when the request has `context: %{current_scope: Accounts.scope_for_user(user)}`.
+- Add or update a non-owner User-returning-path assertion so requesting `email` through another user's User object returns nil. Good focused candidates are contact-match `matchedUsers { email }` in `test/live_canvas_gql/accounts/contact_queries_test.exs` or `test/live_canvas_gql/accounts/account_mutations_test.exs`, because those tests currently assert matched users' emails are exposed to the contact owner.
+- Update `test/live_canvas_gql/accounts/account_mutations_test.exs` for `registerWithEmail { user { email } }`. Since the legacy mutation does not establish viewer scope, either remove the `email` selection from the assertion or assert `email: nil`; keep the underlying Accounts assertion that the registered user record has the requested email.
+- Add owner and non-owner coverage for `userIdentities` outside the root `viewer` path, preferably in `test/live_canvas_gql/accounts/account_queries_test.exs`: owner-scoped `node(id:) { ... on User { userIdentities(...) } }` returns identities, while anonymous or other-viewer node refetch returns an empty connection.
+- Add a schema cleanup assertion that the `User` type no longer exposes `freshAccessToken` or `refreshToken`. Use a User-type-specific SDL or introspection check so auth payload `refreshToken` fields remain allowed.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8 under `docs/architecture/conventions.md` -> `GraphQL And Relay`: globally refetchable node objects may expose public/profile fields directly, but private viewer-owned fields must use child resolvers that compare the parent object with the current viewer; token/session secrets must only be returned from auth/token payloads.
+- After editing, run `rg -n "fresh_access_token|field :refresh_token, :token|freshAccessToken" lib/live_canvas_gql/accounts test/live_canvas_gql/accounts test/live_canvas_gql/relay` and expect no User-node field references. Token payload references to `refresh_token` in mutations/resolvers/tests remain valid and should be accounted for separately.
+- Run `rg -n "field :email, :string|user_email\\(" lib/live_canvas_gql/accounts/account_types.ex lib/live_canvas_gql/accounts/account_resolver.ex` and confirm the User email field delegates to the owner-checking resolver.
+- Run `rg -n "def user_identities|viewer_id_from_resolution|viewer_from_resolution" lib/live_canvas_gql/accounts/account_resolver.ex` and confirm `user_identities/3` enforces parent id equals current viewer id.
+- Run `rg -n "matchedUsers.*email|\\\"email\\\" => matched|node\\(id: \\$id\\).*email|registerWithEmail" test/live_canvas_gql/accounts test/live_canvas_gql/relay` and confirm the old non-owner email expectations were removed or changed to `nil`.
+- Run `rg -n "freshAccessToken|refreshToken" test/live_canvas_gql/accounts test/live_canvas_gql/relay` and confirm remaining `refreshToken` assertions are auth/token payload assertions, not `User` fields.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/accounts/contact_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/relay/request_context_test.exs test/live_canvas_gql/social/social_queries_test.exs`
+- `mix typecheck`
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Preserve root `viewer` email and identities for the current viewer.
+- Preserve auth/token mutation payloads as the only token-returning GraphQL API.
+- Preserve public/profile fields and visibility-controlled profile/feed/social connections.
+- Keep User node refetch globally available; do not turn all User node fetches into owner-only node lookups in this issue.
+- Ensure `User.email` authorization is field-level because User objects are returned from many parent paths.
+
 **Evidence seen:**
 
 - `lib/live_canvas_gql/accounts/account_types.ex` has `node object(:user)` with `email`, `privacy_mode`, `inserted_at`, content/social connections, `fresh_access_token`, and `refresh_token`.
 - `lib/live_canvas_gql/accounts/account_queries.ex` has viewer-root fields such as `viewer`, `viewer_data_export_requests`, and `viewer_contact_matches`.
 - `lib/live_canvas_gql/accounts/account_mutations.ex` has viewer-scoped mutation names.
 - No initial `field :viewer...` hit was found inside the User node.
+- `lib/live_canvas_gql/schema.ex` `fetch_user_node/1` returns a user by global ID without viewer context.
+- `lib/live_canvas_gql/accounts/account_resolver.ex` has resolver-backed profile/feed fields that use parent plus viewer policy, but `user_identities/3` does not currently check viewer ownership.
 
 **What likely needs to change:**
 
 - Clarify whether the user meant stale field names, token fields, or context-derived resolvers on User node fields.
 - If token fields are the issue, remove tokens from the globally refetchable User node and keep token data only on auth mutation payloads.
 - For private User fields such as `email`, ensure resolver-level authz is based on the parent user plus current viewer, not by replacing the parent with context viewer.
+- Scan all User-node direct and resolver-backed fields for globally refetchable data that needs field-level authz. Preserve public/profile fields and root viewer-scoped operations.
 
 **Where to look first:**
 
@@ -585,12 +687,12 @@ Stage 3 watchpoints to carry into Stage 8:
 **Progress:**
 
 - [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
+- [x] Stage 2 validity/severity discussion complete.
+- [x] Stage 3 similar-instance scan complete.
 - [ ] Stage 4 calibration included in agent-led quality scan.
 - [ ] Stage 5 related newly discovered issues discussed, if any.
 - [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
+- [x] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
 ### GQL-006 - `schema.ex` Node Resolution And Type Resolution
@@ -1019,12 +1121,55 @@ Findings:
 - Similar nested association resolvers found in `chat_message_sender/3`, `follow_request_follower/3`, `Feed.Resolver.host/3`, and `Content.Resolver.author/3` return associated user/media structs, not nested scalar fields. Treat those under `GQL-007` rather than this issue.
 - Other `:string` fields with resolvers in the scan are already covered by `GQL-001` timestamp cleanup, ID/global-ID formatting, public URL generation, or chat/system-event projection.
 
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Keep the Accounts context return shape unchanged. `LC.Accounts.list_user_contact_matches/1` and `LC.Accounts.get_user_contact_match/2` should continue returning the domain contact-match map with `:contact_entry` and `:matched_users`; do not move GraphQL projection into the Accounts context for this cleanup.
+- Keep the public GraphQL API unchanged: `ContactMatch.contactName` and `ContactMatch.birthday` remain nullable string fields, `ContactMatch.matchedUsers` remains a non-null list of users, and contact-match Relay IDs continue to be based on the contact-entry id.
+- In `lib/live_canvas_gql/accounts/account_types.ex`, change `field :contact_name, :string` and `field :birthday, :string` to direct field declarations. Remove the dedicated `resolve(&Resolver.contact_match_name/3)` and `resolve(&Resolver.contact_match_birthday/3)` blocks.
+- In `lib/live_canvas_gql/accounts/account_resolver.ex`, make `contact_match_node/1` the single GraphQL projection point for contact-match nodes. It should preserve the existing `:id`, `:contact_entry`, and `:matched_users` data needed by current type resolution while adding top-level `:contact_name` and `:birthday` from `contact_entry`.
+- Change `contact_match_node/1` from private to public so `lib/live_canvas_gql/schema.ex` can reuse the same projection for `node(id:)` refetches. Keep the public API narrow, with a typespec returning the existing `contact_match_node()` type.
+- Update `@type contact_match_node` so typechecking reflects the flattened GraphQL shape: include `contact_name: String.t() | nil` and `birthday: Date.t() | nil`, keep `id: pos_integer()` and `matched_users: [User.t()]`, and keep `contact_entry: map()` while `schema.ex` still uses map-key type resolution for contact matches.
+- In `lib/live_canvas_gql/schema.ex`, update `fetch_contact_match_node/2` so a successful `Accounts.get_user_contact_match/2` result is passed through the same contact-match projection before being returned. This is required because direct fields on `node(id:) { ... on ContactMatch }` will no longer reach through `contact_entry`.
+- Remove `contact_match_name/3` and `contact_match_birthday/3` plus their specs from `lib/live_canvas_gql/accounts/account_resolver.ex`.
+- Do not alter contact matching queries, contact-entry persistence, matched-user lookup, contact invite delivery, contact upsert validation, or the viewer-scoped authorization in `fetch_contact_match_node/2`.
+- Do not change `LCGQL.Schema` contact-match `resolve_type` beyond what is necessary to keep the flattened map working; broader node/type resolution cleanup is tracked by `GQL-006`.
+- Do not touch timestamp `DateTime.to_iso8601/1` resolver cleanup in this issue. `GQL-008` only removes the contact-match `Date.to_iso8601/1` field resolver by letting the direct `:string` field serialize the date value.
+
+Focused test updates:
+
+- In `test/live_canvas_gql/accounts/contact_queries_test.exs`, add `birthday` to the `viewerContactMatches` query and give at least one imported contact a birthday such as `"1990-02-15"`. Assert the GraphQL result still returns that string after the field becomes direct.
+- In `test/live_canvas_gql/relay/node_queries_test.exs`, add `birthday` to the viewer-owned contact-match node refetch query and create the contact entry with a birthday. Assert both `contactName` and `birthday` survive the node refetch path.
+- Keep the existing `test/live_canvas_gql/accounts/account_mutations_test.exs` coverage for `upsertViewerContactEntry` returning `contactMatch { contactName birthday matchedUsers }`; it remains the mutation-path regression guard.
+- Do not add unit tests for resolver-private projection details unless the projection is moved to a dedicated public module. Prefer public GraphQL tests for this cleanup.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8 under `docs/architecture/conventions.md` -> `GraphQL And Relay`: GraphQL field resolvers should not exist only to reach through a nested map and return a scalar, or only to stringify `Date`/`DateTime` values. Flatten GraphQL-facing projection data once at the boundary, then use direct fields when scalar serialization is sufficient.
+- After editing, run `rg -n "contact_match_(name|birthday)|Date\\.to_iso8601" lib/live_canvas_gql/accounts test/live_canvas_gql/accounts test/live_canvas_gql/relay` and expect no `contact_match_name/3`, `contact_match_birthday/3`, or contact-match `Date.to_iso8601/1` hits.
+- Run `rg -n "field :(contact_name|birthday), :string do|contactMatch.*birthday|birthday" lib/live_canvas_gql/accounts test/live_canvas_gql/accounts test/live_canvas_gql/relay` and confirm the schema fields are direct and the public GraphQL paths still assert birthday output.
+- Run `rg -n "contact_match_node|fetch_contact_match_node" lib/live_canvas_gql/accounts/account_resolver.ex lib/live_canvas_gql/schema.ex` and confirm both viewer contact-match connections and Relay node refetches use the same projection.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_gql/accounts/contact_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
+- `mix typecheck`
+
+Stage 6 watchpoints to carry into Stage 8:
+
+- Preserve viewer ownership checks for contact-match connections and Relay node refetch. Contact-match IDs are globally refetchable Relay IDs, so `node(id:)` must still require the owning viewer context.
+- Preserve the Accounts context/domain contact-match shape; only the GraphQL-facing projection should flatten nested contact-entry scalar fields.
+- Preserve matched-user output and current Relay ID semantics. `ContactMatch.id` remains the contact-entry global ID.
+- Keep nested associated-object loaders and simple dataload wrappers out of this issue; those belong to `GQL-007`.
+
 **Progress:**
 
 - [x] Stage 4 discovered and initially analyzed.
 - [x] Stage 5 validity/severity discussion complete.
 - [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
-- [ ] Stage 7 fix and prevention plan written.
+- [x] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
 ### GEN-002 - Repeated Atom/String Payload Extraction Helpers Across Webhook And Job Handlers
@@ -1182,9 +1327,9 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. `GQL-001` Stage 7 is planned, and Stage 5 and Stage 6 are complete for the Stage 4 candidates. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, starting with `GQL-002` unless it is already marked discussed. If continuing planning, start Stage 7 with the first valid or partially valid issue that does not yet have a fix/prevention plan. If entering implementation, start Stage 8 for `GQL-001` only. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
+Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-008` Stage 7 plans are written, and Stage 5 and Stage 6 are complete for the Stage 4 candidates. If continuing `GQL-005`, enter Stage 8 only if the user explicitly asks to implement `GQL-005`. If continuing Stage 7 planning generally, start with `GEN-002`, the next valid or partially valid issue without a fix/prevention plan. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, `GQL-006`. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
 ```
 
 ## Shared Coordinator Repair To Report
 
-The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001` is discussed/scanned/planned, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 2 discussion for `GQL-002`, Stage 8 implementation for `GQL-001`, or Stage 7 planning for the next valid or partially valid issue.
+The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-008` are discussed/scanned/planned where applicable, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 8 implementation for `GQL-005` if the user explicitly requests it, Stage 7 planning for `GEN-002`, Stage 2 discussion for `GQL-006`, or Stage 8 implementation for another explicitly requested planned issue.
