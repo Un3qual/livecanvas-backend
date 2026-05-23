@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
-Last reviewed: 2026-05-22
-Status: Stage 6 complete for Stage 5 candidates
+Last reviewed: 2026-05-23
+Status: Stage 7 planning started; `GQL-001` planned
 Owner lane: backend
 
 ## Purpose
@@ -23,7 +23,7 @@ Use this same stage language for every issue.
 
 ## Current Handoff
 
-Stage 2 has started and `GQL-001` has been discussed. `GQL-001` Stage 3 and Stage 4 scans are complete. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. Continue next with `GQL-002` or Stage 7 planning only when the user asks. Keep the discussion issue-by-issue. Do not edit implementation code until an issue reaches Stage 8.
+Stage 2 has started and `GQL-001` has been discussed. `GQL-001` Stage 3 and Stage 4 scans are complete, and its Stage 7 fix/prevention plan was written on 2026-05-23. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. Continue next with `GQL-002` discussion, `GQL-001` Stage 8 implementation, or the next Stage 7 plan only when the user asks. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -117,6 +117,36 @@ Related test expectation:
 
 - `test/live_canvas_gql/chat/chat_queries_test.exs` currently computes expected `moderated_at` with `DateTime.to_iso8601/1`; Stage 8 should update the assertion if the field output changes to Elixir's default DateTime string format.
 
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Keep every public GraphQL field in this issue typed as `:string` or `non_null(:string)`. Do not introduce a datetime scalar and do not rename any GraphQL field.
+- In `lib/live_canvas_gql/chat/chat_types.ex`, change `moderated_at` and `inserted_at` to direct field declarations with the same nullability. Remove `chat_message_moderated_at/3` and `chat_message_inserted_at/3` plus their specs from `lib/live_canvas_gql/chat/chat_resolver.ex`.
+- In `lib/live_canvas_gql/social/social_types.ex`, change `requested_at` on `:follow_request` to a direct field declaration with the same nullability. Remove `follow_request_requested_at/3` plus its spec from `lib/live_canvas_gql/social/social_resolver.ex`.
+- In `lib/live_canvas_gql/accounts/account_types.ex`, change data-export `requested_at`/`completed_at` and account-deletion `requested_at`/`scheduled_purge_at`/`completed_at` to direct field declarations with the same nullability. Remove `data_export_requested_at/3`, `data_export_completed_at/3`, `account_deletion_requested_at/3`, `account_deletion_scheduled_purge_at/3`, and `account_deletion_completed_at/3` plus their specs from `lib/live_canvas_gql/accounts/account_resolver.ex`.
+- Review the two related payload-shaping conversions while editing the same resolver family. Prefer returning the original timestamp values from `token_view/1` and `signed_upload_view/1` so the GraphQL field serializer owns string output; keep explicit formatting only if a focused test proves these non-Ecto payload maps cannot be serialized directly.
+- Remove `iso8601_datetime/1` from `lib/live_canvas_gql/accounts/account_resolver.ex` only after its last caller is gone.
+- Do not touch Phoenix channel payload formatting, chat broadcast payloads, storage URL generation, global ID formatting, or direct timestamp fields that already have no resolver.
+
+Focused test updates:
+
+- Update `test/live_canvas_gql/chat/chat_queries_test.exs` so moderated chat assertions no longer compute `DateTime.to_iso8601/1`; assert the GraphQL string contract and that the value represents the removed message timestamp under the direct-field output.
+- Keep existing account data-governance, social follow-request, content signed-upload, and node-query assertions focused on string presence/nullability unless the Stage 8 change reveals an exact output contract that needs to be pinned.
+- Do not broaden this issue into `GQL-008`; contact-match birthday formatting remains tracked separately.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8, preferably in `docs/architecture/conventions.md`, that GraphQL fields must not use resolver functions whose only behavior is timestamp-to-string conversion; direct fields should own simple scalar serialization.
+- After editing, run `rg -n "chat_message_(moderated|inserted)_at|follow_request_requested_at|data_export_.*_at|account_deletion_.*_at|iso8601_datetime" lib/live_canvas_gql test/live_canvas_gql` and expect no hits for `GQL-001` helpers.
+- Run `rg -n "DateTime\\.to_iso8601|to_iso8601\\(" lib/live_canvas_gql test/live_canvas_gql` and account for any remaining hits as either non-`GQL-001` work, a justified explicit transport/API formatting boundary, or follow-up issue scope.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/social/social_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
+- `mix typecheck`
+
 **Where to look first:**
 
 - `lib/live_canvas_gql/chat/chat_types.ex`
@@ -137,7 +167,7 @@ Related test expectation:
 - [x] Stage 4 calibration included in agent-led quality scan.
 - [ ] Stage 5 related newly discovered issues discussed, if any.
 - [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
+- [x] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
 ### GQL-002 - Chat Resolver Presentation And Data-Shaping Helpers
@@ -881,9 +911,9 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Stage 5 and Stage 6 are complete for the Stage 4 candidates. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, starting with GQL-002 unless it is already marked discussed. If continuing planning, start Stage 7 with the first valid or partially valid issue that does not yet have a fix/prevention plan, starting with GQL-001 unless it is already planned. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
+Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. `GQL-001` Stage 7 is planned, and Stage 5 and Stage 6 are complete for the Stage 4 candidates. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, starting with `GQL-002` unless it is already marked discussed. If continuing planning, start Stage 7 with the first valid or partially valid issue that does not yet have a fix/prevention plan. If entering implementation, start Stage 8 for `GQL-001` only. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
 ```
 
 ## Shared Coordinator Repair To Report
 
-The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001` is discussed/scanned, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 2 discussion for `GQL-002` or Stage 7 planning for valid or partially valid issues.
+The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001` is discussed/scanned/planned, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 2 discussion for `GQL-002`, Stage 8 implementation for `GQL-001`, or Stage 7 planning for the next valid or partially valid issue.
