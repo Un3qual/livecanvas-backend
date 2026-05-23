@@ -12,8 +12,8 @@ Status: active for code-quality planning
 
 - Track: `backend_code_quality_cleanup`
 - Source: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
-- Batch: `GQL-005 Stage 7 plan complete; implementation requires explicit Stage 8 request`
-- Why now: The user selected the owner-only private-field approach for `GQL-005`. The Stage 7 plan now covers owner-only `User.email`, removing token fields from the User node, owner-gating `user_identities/3`, preserving public/profile fields and existing profile/feed/social visibility behavior, and focused Stage 8 verification.
+- Batch: `Cleanup stage status audited after GQL-005 Stage 7; implementation requires explicit Stage 8 request`
+- Why now: The user selected the owner-only private-field approach for `GQL-005`, then requested a full status audit. The inventory now explicitly records per-issue stage progress and applicability, including Stage 7 plans for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-008`, with no Stage 8 implementation started.
 
 ## Do This Now
 
@@ -55,6 +55,7 @@ Status: active for code-quality planning
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `GQL-005` on 2026-05-23; exact cleanup scope is User-node direct private/session fields and `user_identities/3`, while preserving profile/feed/social child fields that already re-apply parent-plus-viewer visibility.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `GQL-005` on 2026-05-23; no implementation code touched.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `GQL-008` on 2026-05-23; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` per-issue stage progress and the next-run handoff prompt audited on 2026-05-23; no implementation code touched.
 - Initial checks: `git status --short --branch`, `docs/plans/NOW.md`, `docs/plans/backend/NOW.md`, source conventions doc, and targeted reads/searches across GraphQL resolvers/types, live channel/topic code, chat system events, runtime ownership, and schema files.
 - `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` Task 3 passed on 2026-04-24.
 - `mix compile` -> PASS.

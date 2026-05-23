@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
 Last reviewed: 2026-05-23
-Status: `GQL-005` Stage 7 planned; awaiting next user direction
+Status: stage statuses audited after `GQL-005` Stage 7; awaiting next user direction
 Owner lane: backend
 
 ## Purpose
@@ -21,9 +21,11 @@ Use this same stage language for every issue.
 - [ ] Stage 7: For each valid or partially valid issue, write a detailed fix and prevention plan, including standards or docs needed to keep it from returning.
 - [ ] Stage 8: Fix each valid or partially valid issue one at a time with focused verification.
 
+Applicability note: Stages 1-3 apply to user-reported issues. Stage 4 is one global agent-led scan. Stages 5-6 apply to issues discovered during Stage 4. Stages 7-8 apply to every issue once it has been marked valid or partially valid and scanned.
+
 ## Current Handoff
 
-Stage 2 has started and `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, and `GQL-005` have been discussed. `GQL-001` Stage 3 and Stage 4 scans are complete, and its Stage 7 fix/prevention plan was written on 2026-05-23. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-002` was marked partially valid, scanned, and planned on 2026-05-23. `GQL-003` was marked valid, scanned, and planned on 2026-05-23. `GQL-004` was marked valid, scanned, and planned on 2026-05-23. `GQL-008` was marked partially valid, scanned, and planned on 2026-05-23. `GQL-005` was marked partially valid, scanned, and planned on 2026-05-23. Continue next by entering Stage 8 implementation for a planned issue only if the user explicitly asks for that issue, or switching issues only if the user asks. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
+Stage status was audited on 2026-05-23 after `GQL-005` Stage 7 planning. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, and `GQL-005` have Stage 2, Stage 3, and Stage 7 complete. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008` also has Stage 7 complete. No Stage 8 implementation has started for any cleanup issue. Continue next by entering Stage 8 implementation for a planned issue only if the user explicitly asks for that issue, by starting Stage 7 for `GEN-002` if the user asks for planning, or by resuming Stage 2 with `GQL-006` if the user asks for discussion. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -58,6 +60,21 @@ Stage 5 candidate issues discovered by the Stage 4 scan:
 2. `GEN-002` - Repeated atom/string payload extraction helpers across webhook and job handlers.
 3. `WEB-001` - Duplicate bearer Authorization header parsing in GraphQL and metrics plugs.
 4. `GQL-009` - Accounts GraphQL resolver has accumulated unrelated API responsibilities.
+
+## Current Stage Snapshot
+
+User-reported issue status:
+
+- `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, and `GQL-005`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 not started.
+- `GQL-006`: Stage 1 complete; Stage 2 is the next undecided user-reported issue; Stages 3, 7, and 8 are blocked until Stage 2 marks it valid or partially valid and the follow-up scan/plan is written.
+- `GQL-007`, `ECTO-001`, `GEN-001`, `CTX-001`, `SOCK-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`: Stage 1 complete; Stage 2 pending; Stages 3, 7, and 8 are blocked until each issue is discussed and marked valid or partially valid.
+
+Stage 4 candidate issue status:
+
+- `GQL-008`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 not started.
+- `GEN-002`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 pending, Stage 8 blocked until Stage 7 is written.
+- `WEB-001`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 pending, Stage 8 blocked until Stage 7 is written.
+- `GQL-009`: Stage 4 complete, Stage 5 complete with a deferred-valid decision, Stage 6 complete, Stage 7 deferred until narrower cleanup work is planned or fixed, Stage 8 blocked until Stage 7 is written and implementation is explicitly requested.
 
 ## Issues
 
@@ -162,14 +179,14 @@ Verification for Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [x] Stage 2 validity/severity discussion complete.
-- [x] Stage 3 similar-instance scan complete.
-- [x] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [x] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Complete; marked valid.
+- Stage 3: Complete.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### GQL-002 - Chat Resolver Presentation And Data-Shaping Helpers
 
@@ -265,14 +282,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [x] Stage 2 validity/severity discussion complete.
-- [x] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [x] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Complete; marked partially valid.
+- Stage 3: Complete.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### GQL-003 - Duplicate And Hacky `camelize_lower/1`
 
@@ -367,14 +384,14 @@ Additional Stage 2 notes:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [x] Stage 2 validity/severity discussion complete.
-- [x] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [x] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Complete; marked valid.
+- Stage 3: Complete.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### GQL-004 - Duplicated GraphQL Mutation Error Helpers
 
@@ -546,14 +563,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [x] Stage 2 validity/severity discussion complete.
-- [x] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [x] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Complete; marked valid.
+- Stage 3: Complete.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### GQL-005 - Viewer-Specific Data On The User Node
 
@@ -686,14 +703,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [x] Stage 2 validity/severity discussion complete.
-- [x] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [x] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Complete; marked partially valid.
+- Stage 3: Complete.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### GQL-006 - `schema.ex` Node Resolution And Type Resolution
 
@@ -724,14 +741,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Pending; this is the next undecided user-reported issue.
+- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Blocked until Stage 3 is complete.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### GQL-007 - Resolver Wrappers That Only Dataload Associations
 
@@ -763,14 +780,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Pending.
+- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Blocked until Stage 3 is complete.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### ECTO-001 - Ecto Schema Files Do Not Summarize Constraints And Indexes
 
@@ -799,14 +816,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Pending.
+- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Blocked until Stage 3 is complete.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### GEN-001 - System Events Are Modeled As Chat Messages
 
@@ -845,14 +862,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Pending.
+- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Blocked until Stage 3 is complete.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### CTX-001 - `runtime_rpc_module/1` Indirection
 
@@ -882,14 +899,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Pending.
+- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Blocked until Stage 3 is complete.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### SOCK-001 - `parse_session_id/1` And `parse_session_id_hint/1`
 
@@ -915,14 +932,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Pending.
+- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Blocked until Stage 3 is complete.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### SOCK-002 - Topic Name Generators Duplicated Across GraphQL, Chat, And Channels
 
@@ -953,14 +970,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Pending.
+- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Blocked until Stage 3 is complete.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### SOCK-003 - Channel Error Reason Formatters
 
@@ -988,14 +1005,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Pending.
+- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Blocked until Stage 3 is complete.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### LIVE-001 - Live Session Runtime Ownership Stored In Postgres
 
@@ -1032,14 +1049,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Pending.
+- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Blocked until Stage 3 is complete.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### DOC-001 - Task-Specific Information In General Convention Docs
 
@@ -1067,14 +1084,14 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
-- [ ] Stage 5 related newly discovered issues discussed, if any.
-- [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Complete.
+- Stage 2: Pending.
+- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 4: Complete as the global agent-led scan; no per-issue action pending.
+- Stage 5: Not applicable; this is a user-reported issue.
+- Stage 6: Not applicable; this is a user-reported issue.
+- Stage 7: Blocked until Stage 3 is complete.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ## Stage 4 Agent-Led Quality Scan
 
@@ -1166,11 +1183,14 @@ Stage 6 watchpoints to carry into Stage 8:
 
 **Progress:**
 
-- [x] Stage 4 discovered and initially analyzed.
-- [x] Stage 5 validity/severity discussion complete.
-- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
-- [x] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Not applicable; this issue was discovered during Stage 4.
+- Stage 2: Not applicable; Stage 5 is the validity discussion for Stage 4 candidates.
+- Stage 3: Not applicable; Stage 6 is the similar-instance scan for Stage 4 candidates.
+- Stage 4: Complete; discovered and initially analyzed.
+- Stage 5: Complete; marked partially valid.
+- Stage 6: Complete.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### GEN-002 - Repeated Atom/String Payload Extraction Helpers Across Webhook And Job Handlers
 
@@ -1226,11 +1246,14 @@ Local attr normalization to keep out of the first fix unless Stage 7 proves iden
 
 **Progress:**
 
-- [x] Stage 4 discovered and initially analyzed.
-- [x] Stage 5 validity/severity discussion complete.
-- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Not applicable; this issue was discovered during Stage 4.
+- Stage 2: Not applicable; Stage 5 is the validity discussion for Stage 4 candidates.
+- Stage 3: Not applicable; Stage 6 is the similar-instance scan for Stage 4 candidates.
+- Stage 4: Complete; discovered and initially analyzed.
+- Stage 5: Complete; marked partially valid.
+- Stage 6: Complete.
+- Stage 7: Pending; this is the next valid or partially valid issue without a fix/prevention plan.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### WEB-001 - Duplicate Bearer Authorization Header Parsing In GraphQL And Metrics Plugs
 
@@ -1266,11 +1289,14 @@ Findings:
 
 **Progress:**
 
-- [x] Stage 4 discovered and initially analyzed.
-- [x] Stage 5 validity/severity discussion complete.
-- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Not applicable; this issue was discovered during Stage 4.
+- Stage 2: Not applicable; Stage 5 is the validity discussion for Stage 4 candidates.
+- Stage 3: Not applicable; Stage 6 is the similar-instance scan for Stage 4 candidates.
+- Stage 4: Complete; discovered and initially analyzed.
+- Stage 5: Complete; marked valid.
+- Stage 6: Complete.
+- Stage 7: Pending.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### GQL-009 - Accounts GraphQL Resolver Has Accumulated Unrelated API Responsibilities
 
@@ -1314,11 +1340,14 @@ Findings:
 
 **Progress:**
 
-- [x] Stage 4 discovered and initially analyzed.
-- [x] Stage 5 validity/severity discussion complete.
-- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
-- [ ] Stage 7 fix and prevention plan written.
-- [ ] Stage 8 fixed and verified.
+- Stage 1: Not applicable; this issue was discovered during Stage 4.
+- Stage 2: Not applicable; Stage 5 is the validity discussion for Stage 4 candidates.
+- Stage 3: Not applicable; Stage 6 is the similar-instance scan for Stage 4 candidates.
+- Stage 4: Complete; discovered and initially analyzed.
+- Stage 5: Complete; marked valid but deferred.
+- Stage 6: Complete.
+- Stage 7: Deferred until narrower cleanup work is planned or fixed.
+- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ## Prompt For Next Run
 
@@ -1327,7 +1356,7 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-008` Stage 7 plans are written, and Stage 5 and Stage 6 are complete for the Stage 4 candidates. If continuing `GQL-005`, enter Stage 8 only if the user explicitly asks to implement `GQL-005`. If continuing Stage 7 planning generally, start with `GEN-002`, the next valid or partially valid issue without a fix/prevention plan. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, `GQL-006`. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
+Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Current status: Stage 1 is complete for all user-reported issues; Stage 2 and Stage 3 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, and `GQL-005`; Stage 4 is complete; Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`; Stage 7 plans are written for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-008`; Stage 8 has not started for any issue. If continuing `GQL-005`, enter Stage 8 only if the user explicitly asks to implement `GQL-005`. If continuing Stage 7 planning generally, start with `GEN-002`, the next valid or partially valid issue without a fix/prevention plan. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, `GQL-006`. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
 ```
 
 ## Shared Coordinator Repair To Report
