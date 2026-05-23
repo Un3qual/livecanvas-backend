@@ -1,12 +1,12 @@
 # Backend Code Quality Cleanup Inventory
 
 Last reviewed: 2026-05-22
-Status: Stage 1 complete; Stage 2 discussion is next
+Status: Stage 6 complete for Stage 5 candidates
 Owner lane: backend
 
 ## Purpose
 
-This document is the handoff point for the staged code quality cleanup. The user has made fixing sloppy code, unnecessary complexity, and avoidable duplication the top backend priority. No implementation changes should happen until the relevant issue has been discussed and marked valid.
+This document is the handoff point for the staged code quality cleanup. The user has made fixing sloppy code, unnecessary complexity, and avoidable duplication the top backend priority. No implementation changes should happen until the relevant issue has been discussed and marked valid or partially valid.
 
 ## Stage Model
 
@@ -14,16 +14,16 @@ Use this same stage language for every issue.
 
 - [x] Stage 1: Capture and initially analyze the user-reported issues.
 - [ ] Stage 2: Discuss each user-reported issue with the user and decide whether it is valid, partially valid, not valid, or deferred.
-- [ ] Stage 3: For each valid user-reported issue, scan the codebase for the same or similar patterns and attach the findings to that issue.
-- [ ] Stage 4: Using the valid user-reported issues as calibration, perform an agent-led quality scan for additional slop, anti-patterns, repetition, hard-to-read code, poor documentation, and unnecessary complexity.
-- [ ] Stage 5: Discuss each newly discovered issue with the user and decide whether it is valid, partially valid, not valid, or deferred.
-- [ ] Stage 6: For each valid newly discovered issue, scan for same or similar patterns and attach the findings.
-- [ ] Stage 7: For each valid issue, write a detailed fix and prevention plan, including standards or docs needed to keep it from returning.
-- [ ] Stage 8: Fix each valid issue one at a time with focused verification.
+- [ ] Stage 3: For each valid or partially valid user-reported issue, scan the codebase for the same or similar patterns and attach the findings to that issue.
+- [x] Stage 4: Using the valid or partially valid user-reported issues as calibration, perform an agent-led quality scan for additional slop, anti-patterns, repetition, hard-to-read code, poor documentation, and unnecessary complexity.
+- [x] Stage 5: Discuss each newly discovered issue with the user and decide whether it is valid, partially valid, not valid, or deferred.
+- [x] Stage 6: For each valid or partially valid newly discovered issue, scan for same or similar patterns and attach the findings.
+- [ ] Stage 7: For each valid or partially valid issue, write a detailed fix and prevention plan, including standards or docs needed to keep it from returning.
+- [ ] Stage 8: Fix each valid or partially valid issue one at a time with focused verification.
 
 ## Current Handoff
 
-Start next at Stage 2 with `GQL-001`. Keep the discussion issue-by-issue. Do not start repo-wide scans or code changes during Stage 2 unless the user explicitly asks to skip ahead.
+Stage 2 has started and `GQL-001` has been discussed. `GQL-001` Stage 3 and Stage 4 scans are complete. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. Continue next with `GQL-002` or Stage 7 planning only when the user asks. Keep the discussion issue-by-issue. Do not edit implementation code until an issue reaches Stage 8.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -33,6 +33,8 @@ Initial repository checks performed on 2026-05-22:
 - Source convention doc checked: `docs/architecture/conventions.md`.
 
 ## Discussion Queue
+
+User-reported issues:
 
 1. `GQL-001` - Timestamp string resolvers and string timestamp fields.
 2. `GQL-002` - Chat resolver presentation and data-shaping helpers.
@@ -50,13 +52,22 @@ Initial repository checks performed on 2026-05-22:
 14. `LIVE-001` - Live session runtime ownership stored in Postgres.
 15. `DOC-001` - Task-specific information in general convention docs.
 
+Stage 5 candidate issues discovered by the Stage 4 scan:
+
+1. `GQL-008` - Contact-match field resolvers only project nested contact-entry data.
+2. `GEN-002` - Repeated atom/string payload extraction helpers across webhook and job handlers.
+3. `WEB-001` - Duplicate bearer Authorization header parsing in GraphQL and metrics plugs.
+4. `GQL-009` - Accounts GraphQL resolver has accumulated unrelated API responsibilities.
+
 ## Issues
 
 ### GQL-001 - Timestamp String Resolvers And String Timestamp Fields
 
 **User concern:** GraphQL schema code has dedicated resolvers that convert timestamps to strings. Absinthe can serialize timestamps, so these fields should not need resolver functions.
 
-**Initial assessment:** Likely valid. The schema currently exposes many timestamp fields as `:string`, and several resolvers explicitly call `DateTime.to_iso8601/1` or wrapper helpers. Before fixing, confirm whether the project should import/use Absinthe's datetime scalar for all DateTime fields and whether mobile clients expect GraphQL scalar names or plain strings.
+**Initial assessment:** Valid. The schema can keep timestamp fields exposed as `:string`; the issue is the dedicated resolver functions that only convert Ecto `%DateTime{}` values into strings. Absinthe string serialization can own that conversion, and it is acceptable if the output uses Elixir's `DateTime` string formatting rather than explicit ISO8601 formatting.
+
+**Stage 2 decision:** Marked valid on 2026-05-22. Keep the public GraphQL schema contract as `:string`, remove resolver functions whose only behavior is timestamp-to-string conversion, and avoid migrating these fields to a datetime scalar as part of this issue.
 
 **Evidence seen:**
 
@@ -69,10 +80,42 @@ Initial repository checks performed on 2026-05-22:
 
 **What likely needs to change:**
 
-- Pick the GraphQL scalar standard for DateTime values in this app.
-- Replace unnecessary timestamp resolver functions with direct field declarations where Absinthe can serialize the value.
+- Keep the existing `:string` GraphQL field contract for timestamp values.
+- Replace unnecessary timestamp resolver functions with direct field declarations where Absinthe can serialize the Ecto timestamp value.
 - Update tests to assert the API contract rather than resolver implementation details.
 - Keep any transport-only manual formatting, such as raw Phoenix channel JSON payloads, separate from GraphQL cleanup.
+
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-22:
+
+- `rg -n "DateTime\\.to_iso8601|iso8601_datetime|to_iso8601\\(" lib/live_canvas_gql test/live_canvas_gql`
+- `rg -n "field :[a-zA-Z0-9_]*(at|At|time|Time|expires|Expires|purge|Purge)[a-zA-Z0-9_]*, (non_null\\()?:(string|id)" lib/live_canvas_gql`
+- `rg -n "@spec .*_at\\(|def .*_at\\(|requested_at|completed_at|moderated_at|inserted_at|expires_at|scheduled_purge_at" lib/live_canvas_gql`
+
+Direct resolver-only timestamp conversions to remove in Stage 8:
+
+- `lib/live_canvas_gql/chat/chat_types.ex`: `moderated_at` and `inserted_at` fields are `:string` fields with dedicated resolver functions.
+- `lib/live_canvas_gql/chat/chat_resolver.ex`: `chat_message_moderated_at/3` and `chat_message_inserted_at/3` only convert `%DateTime{}` values with `DateTime.to_iso8601/1` plus nil/default fallbacks.
+- `lib/live_canvas_gql/social/social_types.ex`: `requested_at` on `:follow_request` is a `:string` field with a dedicated resolver function.
+- `lib/live_canvas_gql/social/social_resolver.ex`: `follow_request_requested_at/3` only converts `%DateTime{}` with `DateTime.to_iso8601/1` plus a default fallback.
+- `lib/live_canvas_gql/accounts/account_types.ex`: data-export `requested_at`/`completed_at` and account-deletion `requested_at`/`scheduled_purge_at`/`completed_at` are `:string` fields with dedicated resolver functions.
+- `lib/live_canvas_gql/accounts/account_resolver.ex`: `data_export_requested_at/3`, `data_export_completed_at/3`, `account_deletion_requested_at/3`, `account_deletion_scheduled_purge_at/3`, and `account_deletion_completed_at/3` only pass fields through `iso8601_datetime/1` plus nil/default fallbacks.
+
+Related GraphQL payload-shaping conversions to review during Stage 7:
+
+- `lib/live_canvas_gql/accounts/account_resolver.ex`: `token_view/1` pre-formats `user_token.inserted_at` through `iso8601_datetime/1` before returning the GraphQL token object. This is not a field resolver, but it is the same unnecessary GraphQL-layer DateTime-to-string conversion if the payload can safely return the DateTime value.
+- `lib/live_canvas_gql/content/content_resolver.ex`: `signed_upload_view/1` pre-formats `upload.expires_at` with `DateTime.to_iso8601/1` before returning the GraphQL signed-upload object. This is not Ecto-backed, but it is a similar GraphQL payload-shaping conversion and should be consciously kept or removed in the fix plan.
+
+Already-direct timestamp string fields found during the scan:
+
+- `lib/live_canvas_gql/feed/feed_types.ex`: `started_at`, `ended_at`, and `inserted_at` are direct `:string` fields with no timestamp formatting resolver.
+- `lib/live_canvas_gql/accounts/account_types.ex`: `User.inserted_at`, `UserIdentity.inserted_at`, and token timestamp fields are direct `:string` fields with no timestamp formatting field resolver.
+- `lib/live_canvas_gql/content/content_types.ex`: media/post/user-media/comment `inserted_at` and post `expires_at` fields are direct `:string` fields with no timestamp formatting resolver.
+
+Related test expectation:
+
+- `test/live_canvas_gql/chat/chat_queries_test.exs` currently computes expected `moderated_at` with `DateTime.to_iso8601/1`; Stage 8 should update the assertion if the field output changes to Elixir's default DateTime string format.
 
 **Where to look first:**
 
@@ -89,9 +132,9 @@ Initial repository checks performed on 2026-05-22:
 **Progress:**
 
 - [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
-- [ ] Stage 4 calibration included in agent-led quality scan.
+- [x] Stage 2 validity/severity discussion complete.
+- [x] Stage 3 similar-instance scan complete.
+- [x] Stage 4 calibration included in agent-led quality scan.
 - [ ] Stage 5 related newly discovered issues discussed, if any.
 - [ ] Stage 6 related newly discovered issue scan complete, if any.
 - [ ] Stage 7 fix and prevention plan written.
@@ -630,6 +673,207 @@ Initial repository checks performed on 2026-05-22:
 - [ ] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
+## Stage 4 Agent-Led Quality Scan
+
+Stage 4 was run on 2026-05-22 using `GQL-001` as the current valid calibration point: remove resolver-only formatting, avoid context-specific presentation helpers when the framework or a shared boundary can own them, and flag repeated shaping/parsing code that is likely to drift.
+
+Scan commands:
+
+- `rg -n "Date\\.to_iso8601|NaiveDateTime\\.to_iso8601|Time\\.to_iso8601|to_iso8601\\(" lib/live_canvas_gql lib/live_canvas lib/live_canvas_web lib/live_canvas_schemas`
+- `rg -n "defp (format_|.*_view|.*_payload|.*_response|.*_details|.*_field|.*_error|.*_topic|.*_id|.*_key|camelize|value_for|metadata|visible_body|system_event|parse_)" lib/live_canvas_gql lib/live_canvas lib/live_canvas_web`
+- `rg -n "DateTime\\.to_iso8601|Date\\.to_iso8601|Atom\\.to_string|to_string\\(|Macro\\.camelize|Map\\.get" lib/live_canvas_gql lib/live_canvas lib/live_canvas_web`
+- `rg -n "Application\\.get_env|Application\\.put_env|Keyword\\.get\\(opts|opts\\[:|runtime_.*module|_module\\(opts|adapter|impl" lib/live_canvas test/live_canvas test/live_canvas_web`
+- `rg -n "TODO|FIXME|HACK|temporary|workaround|for now|until|stub|fake|hardcod|slop|hack" lib test docs/plans/backend/2026-05-22-code-quality-cleanup.md`
+- `wc -l lib/live_canvas_gql/*/*_resolver.ex lib/live_canvas/live.ex lib/live_canvas/accounts.ex lib/live_canvas/content/media_processing_job.ex lib/live_canvas/infra/data_governance/*.ex lib/live_canvas_web/channels/live_session_channel.ex`
+
+### GQL-008 - Contact-Match Field Resolvers Only Project Nested Contact-Entry Data
+
+**Stage 4 finding:** `contact_match` fields use dedicated GraphQL resolvers to pull nested fields from `contact_entry`; one also manually converts a `Date` to a string.
+
+**Initial assessment:** Partially valid. This is similar to `GQL-001` because `contact_match_birthday/3` only handles nil and `Date.to_iso8601/1`, which Absinthe string serialization can own. It is not exactly the same issue, because the parent shape is a contact-match projection containing a nested `contact_entry`, so the GraphQL boundary still needs to flatten the domain view shape somewhere.
+
+**Stage 5 decision:** Marked partially valid on 2026-05-22. Keep the Accounts context return shape as a domain contact-match map with nested `contact_entry`, but flatten `contact_name` and `birthday` into the GraphQL-facing contact-match node in `contact_match_node/1`. Then make the GraphQL fields direct `:string` fields and remove `contact_match_name/3` and `contact_match_birthday/3`.
+
+**Evidence seen:**
+
+- `lib/live_canvas_gql/accounts/account_types.ex` defines `contact_name` and `birthday` on `:contact_match` with resolver functions.
+- `lib/live_canvas_gql/accounts/account_resolver.ex` has `contact_match_name/3` and `contact_match_birthday/3`; the birthday resolver only handles nil and calls `Date.to_iso8601/1`.
+
+**Practical options recorded during Stage 5:**
+
+- Keep the Accounts context shape unchanged.
+- Flatten `contact_name` and `birthday` into the GraphQL-facing contact-match node in `contact_match_node/1`.
+- Make `contact_name` and `birthday` direct `:string` fields and remove the dedicated field resolvers.
+
+**Stage 6 scan findings:**
+
+Scan commands run on 2026-05-22:
+
+- `rg -n "Date\\.to_iso8601|def [a-zA-Z0-9_]+\\(%\\{[a-zA-Z0-9_]+: %\\{[a-zA-Z0-9_]+: [a-zA-Z0-9_]+\\}\\}|def [a-zA-Z0-9_]+\\(%\\{[a-zA-Z0-9_]+: %\\{id: _id\\}" lib/live_canvas_gql`
+- `rg -n "field :[a-zA-Z0-9_]+, :string do|field :[a-zA-Z0-9_]+, non_null\\(:string\\) do|resolve\\(&Resolver\\.[a-zA-Z0-9_]+/3\\)" lib/live_canvas_gql/accounts/account_types.ex lib/live_canvas_gql/content/content_types.ex lib/live_canvas_gql/feed/feed_types.ex lib/live_canvas_gql/chat/chat_types.ex lib/live_canvas_gql/social/social_types.ex`
+
+Findings:
+
+- Exact `GQL-008` scope remains limited to contact-match projection: `contact_match_name/3` and `contact_match_birthday/3` are the only GraphQL resolvers found that simply project nested scalar data from a nested map and manually stringify a `Date`.
+- Similar nested association resolvers found in `chat_message_sender/3`, `follow_request_follower/3`, `Feed.Resolver.host/3`, and `Content.Resolver.author/3` return associated user/media structs, not nested scalar fields. Treat those under `GQL-007` rather than this issue.
+- Other `:string` fields with resolvers in the scan are already covered by `GQL-001` timestamp cleanup, ID/global-ID formatting, public URL generation, or chat/system-event projection.
+
+**Progress:**
+
+- [x] Stage 4 discovered and initially analyzed.
+- [x] Stage 5 validity/severity discussion complete.
+- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
+- [ ] Stage 7 fix and prevention plan written.
+- [ ] Stage 8 fixed and verified.
+
+### GEN-002 - Repeated Atom/String Payload Extraction Helpers Across Webhook And Job Handlers
+
+**Stage 4 finding:** Multiple backend modules repeat the same `Map.get(map, atom_key) || Map.get(map, Atom.to_string(atom_key))` pattern for boundary payloads and job payloads.
+
+**Initial assessment:** Partially valid as a maintainability issue. Accepting both atom and string keys is often useful at JSON, webhook, async job, and internal test boundaries, but the repeated helper shape makes it unclear where payload normalization is supposed to happen and increases drift risk.
+
+**Stage 5 decision:** Marked partially valid on 2026-05-22. Scope the first cleanup to async job and webhook payload extraction. Add a small helper for fixed known-key lookup, using an atom key plus `Atom.to_string(key)` and avoiding `String.to_atom/1`; replace exact duplicated payload integer extraction where the semantics match. Keep legitimate local attr normalization out of the first fix unless Stage 6 proves it is an exact duplicate with the same semantics.
+
+**Evidence seen:**
+
+- `lib/live_canvas/content/media_processing_job.ex` repeats atom/string lookup in `maybe_put_integer_attr/3`, `extract_event_payload/1`, `maybe_use_payload_as_event_payload/1`, `extract_processing_state/1`, and `extract_payload_integer/2`.
+- `lib/live_canvas/infra/data_governance/export.ex` defines `extract_payload_integer/2` with the same atom/string lookup pattern.
+- `lib/live_canvas/infra/data_governance/deletion.ex` defines another `extract_payload_integer/2` with the same atom/string lookup pattern.
+- Related variants exist in `lib/live_canvas/chat/system_events.ex`, `lib/live_canvas/live/live_session.ex`, `lib/live_canvas/accounts.ex`, and `lib/live_canvas_web/plugs/observability_context.ex`.
+
+**Practical options recorded during Stage 5:**
+
+- Add a small shared helper for fixed known-key atom/string lookup where dual-key support is intentionally required.
+- Replace exact duplicated async job/webhook payload integer extraction where the semantics match.
+- Avoid `String.to_atom/1` for request or payload maps; derive string keys from known atom keys instead.
+- Keep context-local attr normalization where the accepted payload shape or defaulting behavior differs materially.
+
+**Stage 6 watchpoints:**
+
+- Separate exact duplicate payload extraction from broader local attr normalization; do not collapse helpers just because they all read atom/string keys.
+- Verify whether each helper treats missing, nil, zero, negative, and wrongly typed values the same way before grouping it into a shared helper.
+- Watch for `String.to_atom/1` on request or payload maps and prefer known atom keys plus `Atom.to_string/1`.
+- Keep external JSON/webhook boundary normalization distinct from Ecto changeset/schema attr normalization unless the semantics are identical.
+
+**Stage 6 scan findings:**
+
+Scan command run on 2026-05-22:
+
+- `rg -n "value_for|fetch_attr|extract_payload_integer|Atom\\.to_string\\(|String\\.to_atom\\(" lib test`
+
+Exact duplicate cluster for the first cleanup:
+
+- `lib/live_canvas/content/media_processing_job.ex`: `extract_payload_integer/2` accepts atom/string keys and requires a positive integer. It is used for `:media_asset_id` and `:webhook_event_id`.
+- `lib/live_canvas/infra/data_governance/export.ex`: `extract_payload_integer/2` has the same atom/string positive-integer semantics for `:data_export_request_id`.
+- `lib/live_canvas/infra/data_governance/deletion.ex`: `extract_payload_integer/2` has the same atom/string positive-integer semantics for `:account_deletion_request_id`.
+
+Related payload-boundary helpers to review during Stage 7:
+
+- `lib/live_canvas/content/media_processing_job.ex`: `extract_event_payload/1`, `maybe_use_payload_as_event_payload/1`, `extract_processing_state/1`, and `maybe_put_integer_attr/3` use fixed atom/string key lookup with slightly different validation/default behavior.
+- `lib/live_canvas_web/plugs/observability_context.ex`: `value_for/2` uses `String.to_atom/1`; the key is internally fixed, but the replacement should still prefer known atom keys plus `Atom.to_string/1` if a shared helper lands.
+
+Local attr normalization to keep out of the first fix unless Stage 7 proves identical semantics:
+
+- `lib/live_canvas/chat/system_events.ex`, `lib/live_canvas/chat/chat_message.ex`, `lib/live_canvas/live/live_session.ex`, and `lib/live_canvas/accounts.ex` have atom/string lookup helpers for context/schema attrs with local defaulting and validation behavior.
+- `lib/live_canvas/content.ex` and `lib/live_canvas/accounts/passkeys/wax_adapter.ex` have boundary-specific atom/string lookup variants.
+- `test/support/passkey_test_support.ex` has test-only adapter input lookup and should not drive production helper design.
+
+**Progress:**
+
+- [x] Stage 4 discovered and initially analyzed.
+- [x] Stage 5 validity/severity discussion complete.
+- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
+- [ ] Stage 7 fix and prevention plan written.
+- [ ] Stage 8 fixed and verified.
+
+### WEB-001 - Duplicate Bearer Authorization Header Parsing In GraphQL And Metrics Plugs
+
+**Stage 4 finding:** GraphQL request context and metrics authentication each implement the same bearer-token extraction and parsing logic.
+
+**Initial assessment:** Valid. The duplication is small, but Authorization parsing is security-sensitive enough that two copies can drift in behavior, tests, and error handling.
+
+**Stage 5 decision:** Marked valid on 2026-05-22. Move bearer header extraction/parsing into a small shared web helper. Keep each caller's authorization decision local: GraphQL still owns bearer-vs-session semantics and metrics still owns configured-token comparison.
+
+**Evidence seen:**
+
+- `lib/live_canvas_gql/context.ex` defines `bearer_token_from_authorization_header/1` and `parse_bearer_authorization/1`.
+- `lib/live_canvas_web/plugs/metrics_auth.ex` defines the same two helpers with the same regex and trim behavior.
+
+**Practical options recorded during Stage 5:**
+
+- Move bearer header extraction/parsing into a small shared web auth helper.
+- Keep GraphQL auth/session fallback and metrics token comparison outside the shared helper.
+- Add focused tests around casing, whitespace, missing header, empty token, malformed header, and valid token behavior at the shared boundary.
+
+**Stage 6 scan findings:**
+
+Scan command run on 2026-05-22:
+
+- `rg -n "bearer_token_from_authorization_header|parse_bearer_authorization|get_req_header\\([^\\n]+authorization|\\\"authorization\\\"\\)|Authorization|Bearer" lib test`
+
+Findings:
+
+- The only production copies of bearer Authorization extraction/parsing are in `lib/live_canvas_gql/context.ex` and `lib/live_canvas_web/plugs/metrics_auth.ex`.
+- Tests already cover GraphQL bearer behavior in `test/live_canvas_gql/relay/request_context_test.exs` and metrics endpoint behavior in `test/live_canvas_web/controllers/metrics_endpoint_test.exs`.
+- `test/live_canvas_gql/context_test.exs` and `test/live_canvas_web/plugs/observability_context_test.exs` use bearer headers for observability/leakage checks, but they do not add more parser implementations.
+- Stage 7 should plan shared-helper tests for parser edge cases because neither existing caller-focused test suite fully owns shared parsing semantics.
+
+**Progress:**
+
+- [x] Stage 4 discovered and initially analyzed.
+- [x] Stage 5 validity/severity discussion complete.
+- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
+- [ ] Stage 7 fix and prevention plan written.
+- [ ] Stage 8 fixed and verified.
+
+### GQL-009 - Accounts GraphQL Resolver Has Accumulated Unrelated API Responsibilities
+
+**Stage 4 finding:** `LCGQL.Accounts.Resolver` is much larger than the other GraphQL resolvers and mixes several separate API areas in one module.
+
+**Initial assessment:** Valid as a maintainability concern, but deferred behind narrower cleanup. It should be treated as a structural cleanup only after narrower issues such as `GQL-001`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-008`, and `WEB-001` are discussed and planned. The module currently handles registration, password reset, identity unlinking, data export, account deletion, contact sync, invite delivery, auth challenges, sign-up, login, token refresh/revoke, user fields, contact-match fields, changeset formatting, token views, and field-name formatting.
+
+**Stage 5 decision:** Marked valid but deferred on 2026-05-22. Split `LCGQL.Accounts.Resolver` by cohesive GraphQL API area only after narrower valid or partially valid helper/field cleanups have removed or centralized shared helpers, so the module split does not preserve current duplication under new filenames.
+
+**Evidence seen:**
+
+- `wc -l` reported `lib/live_canvas_gql/accounts/account_resolver.ex` at 1389 lines, compared with `chat_resolver.ex` at 251, `content_resolver.ex` at 407, `feed_resolver.ex` at 113, `live_resolver.ex` at 430, and `social_resolver.ex` at 295.
+- `lib/live_canvas_gql/accounts/account_resolver.ex` contains public resolver groups and private helpers for auth, contacts, data export/account deletion, user child fields, mutation errors, token views, and field formatting.
+
+**Practical options recorded during Stage 5:**
+
+- Defer structural splitting until narrower valid or partially valid helper/field cleanups have a Stage 7 plan or implementation.
+- Split by cohesive GraphQL API area later, such as auth, contacts, data governance, user fields, and identities.
+- Avoid moving existing duplicated helpers into new modules before deciding whether they should become shared helpers.
+- In the meantime, keep new Accounts resolver work out of the monolith when it naturally belongs to a smaller module.
+
+**Stage 6 scan findings:**
+
+Scan commands run on 2026-05-22:
+
+- `wc -l lib/live_canvas_gql/**/*.ex lib/live_canvas_gql/accounts/*.ex`
+- `rg -n "payload field|connection field|field :viewer|resolve\\(&Resolver" lib/live_canvas_gql/accounts/account_mutations.ex lib/live_canvas_gql/accounts/account_queries.ex lib/live_canvas_gql/accounts/account_types.ex`
+- Focused reads of `lib/live_canvas_gql/accounts/account_resolver.ex` around public resolver groups and private helpers.
+
+Findings:
+
+- `LCGQL.Accounts.Resolver` remains the only GraphQL resolver module in the scan with this level of mixed responsibility: 1389 lines versus `live_resolver.ex` at 430, `content_resolver.ex` at 407, `social_resolver.ex` at 295, `chat_resolver.ex` at 251, and `feed_resolver.ex` at 113.
+- `account_mutations.ex` routes 16 payload fields to one resolver module, and `account_queries.ex` routes three query/connection fields to that same module.
+- Natural future split groups are visible:
+  - auth/session entry: `begin_auth_challenge/3`, `sign_up/3`, `log_in/3`, `issue_viewer_auth_tokens/3`, `refresh_auth_tokens/3`, `revoke_refresh_token/3`, plus auth error/token helpers.
+  - legacy/profile/identity basics: `register_with_email/3`, `attach_user_phone_number/3`, `update_viewer_privacy_mode/3`, `request_password_reset/3`, `reset_password/3`, `unlink_viewer_identity/3`, and user identity provider fields.
+  - data governance: data export/account deletion mutations, viewer data export query, timestamp fields, decode helpers, and data-governance errors.
+  - contacts: contact entry upsert, contact invite delivery, contact-match query/projection, and contact-specific errors.
+  - user node child fields: `viewer/3`, profile feed/live-session/replay connections, `user_identities/3`, `user_identity_user/3`, and `visible_profile_connection/3`.
+- This split should remain deferred until narrower shared-helper work is planned or fixed, because `GQL-001`, `GQL-003`, `GQL-004`, `GQL-008`, and `WEB-001` all touch helpers currently embedded in the module.
+
+**Progress:**
+
+- [x] Stage 4 discovered and initially analyzed.
+- [x] Stage 5 validity/severity discussion complete.
+- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
+- [ ] Stage 7 fix and prevention plan written.
+- [ ] Stage 8 fixed and verified.
+
 ## Prompt For Next Run
 
 Use this prompt to continue:
@@ -637,9 +881,9 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Start at Stage 2. Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Do not edit implementation code yet. Discuss the next undecided issue in the Discussion Queue with me, starting with GQL-001 unless it is already marked discussed. For that one issue, explain whether you think it is valid, partially valid, or not valid, why the code was probably written that way, the severity/blast radius, and the practical options. After we decide, update the issue's Stage 2 status and move to the next issue only when I ask.
+Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Stage 5 and Stage 6 are complete for the Stage 4 candidates. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, starting with GQL-002 unless it is already marked discussed. If continuing planning, start Stage 7 with the first valid or partially valid issue that does not yet have a fix/prevention plan, starting with GQL-001 unless it is already planned. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
 ```
 
 ## Shared Coordinator Repair To Report
 
-The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document and Stage 2 discussion.
+The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001` is discussed/scanned, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 2 discussion for `GQL-002` or Stage 7 planning for valid or partially valid issues.
