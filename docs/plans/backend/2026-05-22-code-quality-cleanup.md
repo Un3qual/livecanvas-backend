@@ -6,7 +6,7 @@ Owner lane: backend
 
 ## Purpose
 
-This document is the handoff point for the staged code quality cleanup. The user has made fixing sloppy code, unnecessary complexity, and avoidable duplication the top backend priority. No implementation changes should happen until the relevant issue has been discussed and marked valid.
+This document is the handoff point for the staged code quality cleanup. The user has made fixing sloppy code, unnecessary complexity, and avoidable duplication the top backend priority. No implementation changes should happen until the relevant issue has been discussed and marked valid or partially valid.
 
 ## Stage Model
 
@@ -14,12 +14,12 @@ Use this same stage language for every issue.
 
 - [x] Stage 1: Capture and initially analyze the user-reported issues.
 - [ ] Stage 2: Discuss each user-reported issue with the user and decide whether it is valid, partially valid, not valid, or deferred.
-- [ ] Stage 3: For each valid user-reported issue, scan the codebase for the same or similar patterns and attach the findings to that issue.
-- [x] Stage 4: Using the valid user-reported issues as calibration, perform an agent-led quality scan for additional slop, anti-patterns, repetition, hard-to-read code, poor documentation, and unnecessary complexity.
+- [ ] Stage 3: For each valid or partially valid user-reported issue, scan the codebase for the same or similar patterns and attach the findings to that issue.
+- [x] Stage 4: Using the valid or partially valid user-reported issues as calibration, perform an agent-led quality scan for additional slop, anti-patterns, repetition, hard-to-read code, poor documentation, and unnecessary complexity.
 - [x] Stage 5: Discuss each newly discovered issue with the user and decide whether it is valid, partially valid, not valid, or deferred.
-- [x] Stage 6: For each valid newly discovered issue, scan for same or similar patterns and attach the findings.
-- [ ] Stage 7: For each valid issue, write a detailed fix and prevention plan, including standards or docs needed to keep it from returning.
-- [ ] Stage 8: Fix each valid issue one at a time with focused verification.
+- [x] Stage 6: For each valid or partially valid newly discovered issue, scan for same or similar patterns and attach the findings.
+- [ ] Stage 7: For each valid or partially valid issue, write a detailed fix and prevention plan, including standards or docs needed to keep it from returning.
+- [ ] Stage 8: Fix each valid or partially valid issue one at a time with focused verification.
 
 ## Current Handoff
 
@@ -832,7 +832,7 @@ Findings:
 
 **Initial assessment:** Valid as a maintainability concern, but deferred behind narrower cleanup. It should be treated as a structural cleanup only after narrower issues such as `GQL-001`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-008`, and `WEB-001` are discussed and planned. The module currently handles registration, password reset, identity unlinking, data export, account deletion, contact sync, invite delivery, auth challenges, sign-up, login, token refresh/revoke, user fields, contact-match fields, changeset formatting, token views, and field-name formatting.
 
-**Stage 5 decision:** Marked valid but deferred on 2026-05-22. Split `LCGQL.Accounts.Resolver` by cohesive GraphQL API area only after narrower valid helper/field cleanups have removed or centralized shared helpers, so the module split does not preserve current duplication under new filenames.
+**Stage 5 decision:** Marked valid but deferred on 2026-05-22. Split `LCGQL.Accounts.Resolver` by cohesive GraphQL API area only after narrower valid or partially valid helper/field cleanups have removed or centralized shared helpers, so the module split does not preserve current duplication under new filenames.
 
 **Evidence seen:**
 
@@ -841,7 +841,7 @@ Findings:
 
 **Practical options to discuss in Stage 5:**
 
-- Defer structural splitting until narrower valid helper/field cleanups have a Stage 7 plan or implementation.
+- Defer structural splitting until narrower valid or partially valid helper/field cleanups have a Stage 7 plan or implementation.
 - Split by cohesive GraphQL API area later, such as auth, contacts, data governance, user fields, and identities.
 - Avoid moving existing duplicated helpers into new modules before deciding whether they should become shared helpers.
 - In the meantime, keep new Accounts resolver work out of the monolith when it naturally belongs to a smaller module.
@@ -881,9 +881,9 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update the lane pointer before continuing. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Stage 5 and Stage 6 are complete for the Stage 4 candidates. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, starting with GQL-002 unless it is already marked discussed. If continuing planning, start Stage 7 with the first valid issue that does not yet have a fix/prevention plan, starting with GQL-001 unless it is already planned. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
+Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update the lane pointer before continuing. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Stage 5 and Stage 6 are complete for the Stage 4 candidates. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, starting with GQL-002 unless it is already marked discussed. If continuing planning, start Stage 7 with the first valid or partially valid issue that does not yet have a fix/prevention plan, starting with GQL-001 unless it is already planned. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
 ```
 
 ## Shared Coordinator Repair To Report
 
-The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001` is discussed/scanned, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 2 discussion for `GQL-002` or Stage 7 planning for valid issues.
+The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001` is discussed/scanned, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 2 discussion for `GQL-002` or Stage 7 planning for valid or partially valid issues.
