@@ -12,15 +12,15 @@ Status: active for code-quality planning
 
 - Track: `backend_code_quality_cleanup`
 - Source: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
-- Batch: `Post-GQL-001 Stage-7 handoff: continue Stage 2 discussion, Stage 7 planning, or Stage 8 implementation only when requested`
-- Why now: The user explicitly made sloppy code, code quality, and tech debt cleanup the new top backend priority. `GQL-001` is discussed, scanned, and has a Stage 7 fix/prevention plan. Stage 5 through Stage 6 are complete for the Stage 4 scan candidates, so the next run should either continue user-led discussion at the next undecided reported issue, continue fix/prevention planning for the next valid or partially valid issue without a plan, or enter Stage 8 for `GQL-001` only if the user explicitly asks for implementation.
+- Batch: `GQL-004 Stage 7 plan complete; implementation requires explicit Stage 8 request`
+- Why now: The user marked `GQL-004` valid on 2026-05-23, the focused Stage 3 scan found duplicated GraphQL mutation error construction, changeset traversal/interpolation, field-name formatting, and schema error object shapes across GraphQL resolver/type modules, and the Stage 7 fix/prevention plan is now written. `GQL-001`, `GQL-002`, and `GQL-003` also already have Stage 7 plans.
 
 ## Do This Now
 
 - Open `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
-- If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, starting with `GQL-002` unless it is already marked discussed.
-- If continuing planning, start Stage 7 with the first valid or partially valid issue that does not yet have a fix/prevention plan.
-- If entering implementation, start Stage 8 for `GQL-001` only; do not implement any other issue until its Stage 7 plan is written and the user asks for that issue.
+- If the user continues `GQL-004`, enter Stage 8 implementation only if they explicitly request implementation for `GQL-004`.
+- If the user redirects to another issue, preserve the one-issue-at-a-time rule and update that issue's status before moving again.
+- If entering implementation, start Stage 8 only for the issue the user explicitly names or requests; `GQL-001`, `GQL-002`, `GQL-003`, and `GQL-004` now all have Stage 7 plans, but implementation code remains explicit-request only.
 - For one issue at a time, update the issue's status before moving on.
 - Do not edit implementation code unless the user explicitly asks to enter Stage 8.
 - Report shared dashboard/index repairs instead of editing `docs/plans/NOW.md` or `docs/plans/INDEX.md` from the backend lane.
@@ -40,6 +40,15 @@ Status: active for code-quality planning
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `GQL-001` on 2026-05-23; no implementation code touched.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 4 discovered `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 5 and Stage 6 completed for the Stage 4 candidates.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `GQL-002` on 2026-05-23; user marked it partially valid.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `GQL-002` on 2026-05-23; exact cleanup scope remains concentrated in `LCGQL.Chat.Resolver`, with related but separate input-normalization and transport-shaping boundaries in `LC.Chat.SystemEvents` and `LC.Chat.Broadcasts`.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `GQL-002` on 2026-05-23; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `GQL-003` on 2026-05-23; user marked it valid.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `GQL-003` on 2026-05-23; exact duplicate scope is `LCGQL.Live.Resolver.camelize_lower/1` and `LCGQL.Accounts.Resolver.camelize_lower/1`, with related but contract-sensitive field-name formatters in Accounts, Content, and Social.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `GQL-003` on 2026-05-23; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `GQL-004` on 2026-05-23; user marked it valid.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `GQL-004` on 2026-05-23; exact cleanup scope includes duplicated `{field, message}` mutation error construction, duplicate changeset interpolation, duplicate field/message formatting, and duplicate context-specific GraphQL error objects, while preserving auth-specific `{field, code, message}` contracts.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `GQL-004` on 2026-05-23; no implementation code touched.
 - Initial checks: `git status --short --branch`, `docs/plans/NOW.md`, `docs/plans/backend/NOW.md`, source conventions doc, and targeted reads/searches across GraphQL resolvers/types, live channel/topic code, chat system events, runtime ownership, and schema files.
 - `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` Task 3 passed on 2026-04-24.
 - `mix compile` -> PASS.
@@ -52,11 +61,11 @@ Status: active for code-quality planning
 
 ## Next Up
 
-- Continue Stage 2 in `docs/plans/backend/2026-05-22-code-quality-cleanup.md` at `GQL-002`, enter Stage 8 implementation for `GQL-001` if explicitly requested, or continue Stage 7 planning with the next valid or partially valid issue that lacks a plan.
+- Next for this issue is `GQL-004` Stage 8 only if explicitly requested: implement the shared GraphQL mutation error helper and schema-type consolidation while preserving auth-specific `code`, current public field/message contracts, and the `GQL-003` shared field-name helper boundary. If the user wants discussion instead, the next undecided user-reported issue is `GQL-005`.
 
 ## Required Shared Coordinator Repairs
 
-- `docs/plans/NOW.md`: update the backend lane current batch to `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> post-`GQL-001` Stage-7 handoff: next work is Stage 2 discussion for `GQL-002`, Stage 8 implementation for `GQL-001` if explicitly requested, or Stage 7 planning for the next valid or partially valid issue.
+- `docs/plans/NOW.md`: update the backend lane current batch to `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> `GQL-004` is valid and Stage 7 planned; next issue-local step is Stage 8 only if explicitly requested, while `GQL-001`, `GQL-002`, and `GQL-003` also have Stage 7 plans for later explicit implementation.
 - `docs/plans/INDEX.md`: add `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` to completed backend work through Task 3.
 - `docs/plans/INDEX.md`: add `docs/plans/content/2026-04-24-post-reporting.md` to completed backend work through Task 2.
 - `docs/plans/INDEX.md`: remove or update stale queued-candidate notes for `docs/plans/2026-03-22-development-seed-data.md`, because that plan is already checklist-complete.
