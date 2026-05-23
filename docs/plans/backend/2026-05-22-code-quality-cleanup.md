@@ -699,7 +699,7 @@ Scan commands:
 - `lib/live_canvas_gql/accounts/account_types.ex` defines `contact_name` and `birthday` on `:contact_match` with resolver functions.
 - `lib/live_canvas_gql/accounts/account_resolver.ex` has `contact_match_name/3` and `contact_match_birthday/3`; the birthday resolver only handles nil and calls `Date.to_iso8601/1`.
 
-**Practical options to discuss in Stage 5:**
+**Practical options recorded during Stage 5:**
 
 - Keep the Accounts context shape unchanged.
 - Flatten `contact_name` and `birthday` into the GraphQL-facing contact-match node in `contact_match_node/1`.
@@ -722,7 +722,7 @@ Findings:
 
 - [x] Stage 4 discovered and initially analyzed.
 - [x] Stage 5 validity/severity discussion complete.
-- [x] Stage 6 related newly discovered issue scan complete, if valid.
+- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
 - [ ] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
@@ -741,7 +741,7 @@ Findings:
 - `lib/live_canvas/infra/data_governance/deletion.ex` defines another `extract_payload_integer/2` with the same atom/string lookup pattern.
 - Related variants exist in `lib/live_canvas/chat/system_events.ex`, `lib/live_canvas/live/live_session.ex`, `lib/live_canvas/accounts.ex`, and `lib/live_canvas_web/plugs/observability_context.ex`.
 
-**Practical options to discuss in Stage 5:**
+**Practical options recorded during Stage 5:**
 
 - Add a small shared helper for fixed known-key atom/string lookup where dual-key support is intentionally required.
 - Replace exact duplicated async job/webhook payload integer extraction where the semantics match.
@@ -782,7 +782,7 @@ Local attr normalization to keep out of the first fix unless Stage 7 proves iden
 
 - [x] Stage 4 discovered and initially analyzed.
 - [x] Stage 5 validity/severity discussion complete.
-- [x] Stage 6 related newly discovered issue scan complete, if valid.
+- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
 - [ ] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
@@ -799,7 +799,7 @@ Local attr normalization to keep out of the first fix unless Stage 7 proves iden
 - `lib/live_canvas_gql/context.ex` defines `bearer_token_from_authorization_header/1` and `parse_bearer_authorization/1`.
 - `lib/live_canvas_web/plugs/metrics_auth.ex` defines the same two helpers with the same regex and trim behavior.
 
-**Practical options to discuss in Stage 5:**
+**Practical options recorded during Stage 5:**
 
 - Move bearer header extraction/parsing into a small shared web auth helper.
 - Keep GraphQL auth/session fallback and metrics token comparison outside the shared helper.
@@ -822,7 +822,7 @@ Findings:
 
 - [x] Stage 4 discovered and initially analyzed.
 - [x] Stage 5 validity/severity discussion complete.
-- [x] Stage 6 related newly discovered issue scan complete, if valid.
+- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
 - [ ] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
@@ -839,7 +839,7 @@ Findings:
 - `wc -l` reported `lib/live_canvas_gql/accounts/account_resolver.ex` at 1389 lines, compared with `chat_resolver.ex` at 251, `content_resolver.ex` at 407, `feed_resolver.ex` at 113, `live_resolver.ex` at 430, and `social_resolver.ex` at 295.
 - `lib/live_canvas_gql/accounts/account_resolver.ex` contains public resolver groups and private helpers for auth, contacts, data export/account deletion, user child fields, mutation errors, token views, and field formatting.
 
-**Practical options to discuss in Stage 5:**
+**Practical options recorded during Stage 5:**
 
 - Defer structural splitting until narrower valid or partially valid helper/field cleanups have a Stage 7 plan or implementation.
 - Split by cohesive GraphQL API area later, such as auth, contacts, data governance, user fields, and identities.
@@ -870,7 +870,7 @@ Findings:
 
 - [x] Stage 4 discovered and initially analyzed.
 - [x] Stage 5 validity/severity discussion complete.
-- [x] Stage 6 related newly discovered issue scan complete, if valid.
+- [x] Stage 6 related newly discovered issue scan complete, if valid or partially valid.
 - [ ] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
