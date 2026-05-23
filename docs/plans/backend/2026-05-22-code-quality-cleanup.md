@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
 Last reviewed: 2026-05-23
-Status: Stage 7 planning started; `GQL-001` planned
+Status: `GQL-004` Stage 7 planned; awaiting next user direction
 Owner lane: backend
 
 ## Purpose
@@ -23,7 +23,7 @@ Use this same stage language for every issue.
 
 ## Current Handoff
 
-Stage 2 has started and `GQL-001` has been discussed. `GQL-001` Stage 3 and Stage 4 scans are complete, and its Stage 7 fix/prevention plan was written on 2026-05-23. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. Continue next with `GQL-002` discussion, `GQL-001` Stage 8 implementation, or the next Stage 7 plan only when the user asks. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
+Stage 2 has started and `GQL-001`, `GQL-002`, `GQL-003`, and `GQL-004` have been discussed. `GQL-001` Stage 3 and Stage 4 scans are complete, and its Stage 7 fix/prevention plan was written on 2026-05-23. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-002` was marked partially valid, scanned, and planned on 2026-05-23. `GQL-003` was marked valid, scanned, and planned on 2026-05-23. `GQL-004` was marked valid, scanned, and planned on 2026-05-23. Continue next by entering Stage 8 implementation for a planned issue only if the user explicitly asks for that issue, or switching issues only if the user asks. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -177,6 +177,70 @@ Verification for Stage 8:
 
 **Initial assessment:** Likely valid, with one important design dependency: the larger system-event model in `GEN-001` may supersede much of the current `ChatMessage` field projection. The current resolver parses map keys, accepts both string and atom enum values, manually converts system event metadata into GraphQL fields, and duplicates visible-body behavior already present in `LC.Chat.ChatMessage.visible_body/1` for broadcast payloads.
 
+**Stage 2 decision:** Marked partially valid on 2026-05-23. The resolver-local metadata lookup, atom/string enum casting, and duplicated body redaction are real cleanup targets. Not every field resolver is inherently wrong: GraphQL still needs a boundary for Relay global IDs in `system_event_details`, and the broader `GEN-001` event-object design may replace this projection instead of just relocating it. A first cleanup should remove resolver-local generic parsing/rendering without redesigning durable chat events in this issue.
+
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-23:
+
+- `rg -n "defp? (metadata|value_for|cast_.*type|.*system_event.*|visible_body|.*_details|.*_payload|.*_view|normalize_metadata|kind_string|status_string)|Map\\.get\\([^\\n]+Atom\\.to_string|Atom\\.to_string\\(|to_global_id\\(:chat_message|chat_message_entropy_id|chat_message_id" lib/live_canvas_gql lib/live_canvas lib/live_canvas_web test/live_canvas_gql/chat test/live_canvas_web/channels/live_session_channel_test.exs`
+- `rg -n "chat_message_(body|system_event_type|system_event_details)|system_event_details|systemEventDetails|visible_body|metadata\\(|value_for\\(|cast_system_event_type|message_payload\\(|normalize_metadata" lib test`
+
+Findings:
+
+- Exact `GQL-002` cleanup scope remains concentrated in `lib/live_canvas_gql/chat/chat_resolver.ex`: `chat_message_body/3`, `chat_message_system_event_type/3`, and `chat_message_system_event_details/3` delegate to resolver-local `visible_body/1`, `metadata/1`, `value_for/2`, `cast_system_event_type/1`, `system_event_type/1`, and `system_event_details/1`.
+- The resolver-local `visible_body/1` duplicates part of `LC.Chat.ChatMessage.visible_body/1`, but handles string `"removed"` while the domain helper currently treats only atom `:removed` as removed. Stage 7 should decide whether GraphQL can rely on schema-normalized atoms or whether the domain helper should own both representations before the resolver duplicate is removed.
+- `LC.Chat.SystemEvents` has a separate `value_for/2` for atom/string metadata lookup when accepting insert metadata, and stores durable system-event metadata with string keys. This is a legitimate input-normalization boundary, but Stage 7 should avoid preserving duplicate lookup semantics independently in GraphQL.
+- `LC.Chat.Broadcasts.message_payload/1` and `LC.Chat.message_payload/1` are related transport shaping, not GraphQL shaping. They should stay out of the first `GQL-002` fix except where a shared domain helper such as visible-body redaction already exists.
+- `LCGQL.Live.Resolver` and `LCGQL.Chat.Resolver` both emit lifecycle/removal system events and then broadcast them. This overlap is event-production orchestration, not the same presentation/data-shaping issue; keep it out of `GQL-002` unless `GEN-001` later redesigns system events.
+- `test/live_canvas_gql/chat/chat_queries_test.exs` has focused coverage for mixed user/system history and typed `systemEventDetails` projection, including Relay global ID output for `chatMessageId`. Stage 8 should preserve that API contract or update it only under a deliberate GraphQL schema change.
+
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Keep the current public GraphQL shape for this issue: `ChatMessage` remains the node type, `body` remains nullable string, `systemEventType` remains `:chat_system_event_type`, and `systemEventDetails` remains `:chat_system_event_details` with Relay global `chatMessageId` output. Do not introduce the `GEN-001` event interface/object redesign in this issue.
+- Keep the persisted chat model unchanged: `chat_messages.kind`, `chat_messages.status`, and `chat_messages.metadata` stay as they are. Do not add migrations, new tables, or new durable event schemas for `GQL-002`.
+- In `lib/live_canvas/chat/chat_message.ex`, make `LC.Chat.ChatMessage.visible_body/1` the single redaction helper used by GraphQL and socket payloads. Update the private removed-status predicate so it treats both `:removed` and `"removed"` as removed, then delete the resolver-local duplicate instead of preserving two redaction implementations.
+- In `lib/live_canvas_gql/chat/chat_resolver.ex`, alias `LC.Chat.ChatMessage` as the changeset/projection helper and change `chat_message_body/3` to return `ChatMessageChanges.visible_body(chat_message)`. Remove private `visible_body/1` and its spec from the resolver.
+- Add a small GraphQL boundary module, preferably `lib/live_canvas_gql/chat/system_event_projection.ex`, to own projection from persisted chat-message system-event metadata into GraphQL values. Give it public `event_type/1` and `details/1` functions with typespecs.
+- In the new projection module, read the stored metadata shape explicitly: `"event_type"` under `metadata`, `"details"` under `metadata`, and `"chat_message_id"` / `"chat_message_entropy_id"` under details. Do not carry over a generic atom/string `value_for/2` helper into GraphQL. Durable system events are already stored with string keys by `LC.Chat.SystemEvents`.
+- Keep Relay global ID creation in the GraphQL projection module. `details/1` should convert a positive integer `"chat_message_id"` into `Absinthe.Relay.Node.to_global_id(:chat_message, id, LCGQL.Schema)` and should copy only a binary `"chat_message_entropy_id"`. Return `nil` for empty or invalid detail payloads so clients keep the current nullable field semantics.
+- Map only the current stored event-type strings `"message_removed"`, `"session_ended"`, and `"session_live"` to atoms accepted by the Absinthe enum. Unknown or missing event types should return `nil`; do not accept new event types as part of this cleanup.
+- In `lib/live_canvas_gql/chat/chat_resolver.ex`, delegate `chat_message_system_event_type/3` and `chat_message_system_event_details/3` to the new projection module. Remove resolver-local `metadata/1`, `value_for/2`, `cast_system_event_type/1`, `system_event_type/1`, and `system_event_details/1`, plus the now-local `@type chat_system_event_details` if the new projection module owns that type.
+- Do not touch `LC.Chat.SystemEvents.value_for/2` in this issue. That helper is an input-normalization boundary for accepting insert metadata and is also related to `GEN-002`; `GQL-002` should only remove GraphQL resolver-local parsing/presentation helpers.
+- Do not touch `LC.Chat.Broadcasts.message_payload/1` or `LC.Chat.message_payload/1` except through the shared `LC.Chat.ChatMessage.visible_body/1` behavior. Socket payload string formatting remains transport-specific and outside this GraphQL cleanup.
+- Do not touch `chat_message_sender/3`; simple association-loader wrappers are tracked under `GQL-007`.
+- Do not touch `mutation_error/2`, `error_field/2`, or `error_message/1`; GraphQL mutation error helpers are tracked under `GQL-004`.
+- Do not touch `chat_message_moderated_at/3` or `chat_message_inserted_at/3`; timestamp resolver cleanup is tracked under `GQL-001`.
+
+Focused test updates:
+
+- In `test/live_canvas_schemas/chat/chat_message_test.exs`, extend the `visible_body/1` test so an input map or `%ChatMessage{}` with status `"removed"` is redacted the same as status `:removed`. This guards the shared helper before the GraphQL resolver delegates to it.
+- In `test/live_canvas_gql/chat/chat_queries_test.exs`, keep the existing mixed user/system history test asserting `systemEventType: "MESSAGE_REMOVED"` and Relay-formatted `systemEventDetails.chatMessageId`. If Stage 8 extracts a projection module without changing behavior, this test should remain the main API regression guard.
+- Add a focused GraphQL query assertion, either by extending the mixed history test or adding a small separate test, that a user message with ordinary metadata still returns `systemEventType: nil` and `systemEventDetails: nil`. This protects the projection module from treating arbitrary metadata as a system event.
+- If the new projection module is easy to exercise only through GraphQL, do not add resolver-private unit tests. Prefer public GraphQL tests and the existing domain helper test over testing private parsing details.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8 under `docs/architecture/conventions.md` -> `GraphQL And Relay`: GraphQL resolvers may authorize, paginate, and adapt domain data to GraphQL-specific IDs, but generic scalar/body redaction and reusable projection/parsing should live in domain helpers or focused `LCGQL` boundary modules rather than resolver-private helper clusters.
+- After editing, run `rg -n "defp (metadata|value_for|cast_system_event_type|visible_body|system_event_type|system_event_details)" lib/live_canvas_gql/chat/chat_resolver.ex` and expect no hits.
+- Run `rg -n "SystemEventProjection|ChatMessageChanges.visible_body" lib/live_canvas_gql/chat/chat_resolver.ex` and confirm the resolver delegates to the new projection module and shared visible-body helper.
+- Run `rg -n "Map\\.get\\([^\\n]+Atom\\.to_string|defp value_for|cast_system_event_type" lib/live_canvas_gql/chat` and account for any remaining GraphQL-side atom/string metadata lookup. The expected Stage 8 result is no generic atom/string lookup in `lib/live_canvas_gql/chat`.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_schemas/chat/chat_message_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs`
+- `mix typecheck`
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Preserve Relay global ID output for `systemEventDetails.chatMessageId`; clients should not receive raw database IDs from GraphQL.
+- Preserve nil behavior for non-system messages and invalid/missing system-event details.
+- Keep socket transport formatting and durable system-event persistence out of this issue.
+- Keep the larger `GEN-001` event-object/interface redesign separate.
+
 **Evidence seen:**
 
 - `lib/live_canvas_gql/chat/chat_resolver.ex` contains the exact helper list and manual system-event projection.
@@ -202,12 +266,12 @@ Verification for Stage 8:
 **Progress:**
 
 - [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
+- [x] Stage 2 validity/severity discussion complete.
+- [x] Stage 3 similar-instance scan complete.
 - [ ] Stage 4 calibration included in agent-led quality scan.
 - [ ] Stage 5 related newly discovered issues discussed, if any.
 - [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
+- [x] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
 ### GQL-003 - Duplicate And Hacky `camelize_lower/1`
@@ -215,6 +279,74 @@ Verification for Stage 8:
 **User concern:** `camelize_lower/1` is duplicated in two GraphQL resolver files, is not needed in both, and is written in a hacky way.
 
 **Initial assessment:** Valid. The duplicate implementation appears in `LCGQL.Live.Resolver` and `LCGQL.Accounts.Resolver`. It performs atom-to-string, `Macro.camelize/1`, and manual first-character lowercasing. Field-name conversion should either use a shared GraphQL helper or be avoided by letting Absinthe/adapters own external names.
+
+**Stage 2 decision:** Marked valid on 2026-05-23, with narrow scope. The duplicated local implementation is real slop, and the manual first-character lowercasing is fragile compared with a shared GraphQL field-name helper or framework-aligned naming adapter. The cleanup should not decide the broader mutation-error model by itself: `GQL-004` owns whether changeset traversal and mutation error payloads become universal. For `GQL-003`, the likely fix is to centralize external field-name formatting and replace resolver-local copies where the current API contract still wants lower-camel field paths.
+
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-23:
+
+- `rg -n "camelize_lower|Macro\\.camelize|prefixed_auth_field|format_.*field|field_name|error_field|to_string\\(field\\)|Atom\\.to_string\\(field\\)|field: .*field" lib/live_canvas_gql test/live_canvas_gql`
+- `rg -n "traverse_errors|format_changeset_errors|format_auth_changeset_errors|changeset_errors|mutation_error\\(|social_error\\(|post_mutation_error\\(|auth_error\\(" lib/live_canvas_gql`
+- `rg -n "\\\"field\\\" => \\\"[A-Za-z0-9_.]+\\\"|field\\\" =>|\\\"field\\\"" test/live_canvas_gql/accounts test/live_canvas_gql/live test/live_canvas_gql/content test/live_canvas_gql/social test/live_canvas_gql/chat`
+- `rg -n "Absinthe\\.Adapter|adapter|camelize|underscore|to_camel|camel" config lib test`
+
+Findings:
+
+- Exact duplicate scope is limited to `lib/live_canvas_gql/live/live_resolver.ex` and `lib/live_canvas_gql/accounts/account_resolver.ex`: both define the same private `camelize_lower/1` implementation using `Atom.to_string/1`, `Macro.camelize/1`, and manual first-codepoint lowercasing.
+- `LCGQL.Live.Resolver.format_changeset_errors/1` uses `camelize_lower/1` for changeset field names. The same resolver also has explicit field mappings for invalid IDs, such as `"liveSessionId"` and `"recordingMediaAssetId"`, through `error_field/2`.
+- `LCGQL.Accounts.Resolver.format_auth_changeset_errors/2` uses `prefixed_auth_field/2`, which delegates to `camelize_lower/1`, for auth-path fields such as `"password.passwordConfirmation"`, `"magicLink.token"`, and `"oauth.idToken"`.
+- `LCGQL.Accounts.Resolver.format_changeset_errors/1` intentionally returns `to_string(field)` for ordinary account changeset errors today. Tests currently assert snake_case account fields such as `"password_confirmation"`, so Stage 7 must not blindly change all account mutation error fields to lower camel case.
+- Similar but not identical local field-name formatters exist outside the exact duplicate: `LCGQL.Content.Resolver.format_post_field/1` maps `:media_asset_ids` and `:post_id` to lower-camel API names, and `LCGQL.Social.Resolver.format_field/1` maps relationship ID fields to lower-camel API names with an `Atom.to_string/1` fallback.
+- No Absinthe adapter/helper for this project-specific mutation-error `field` payload was found in config or code. Stage 7 should decide whether to add a focused `LCGQL` helper instead of expecting Absinthe field adapters to format arbitrary error payload strings.
+- Tests pin a mixed public contract: Live errors assert lower-camel fields, auth errors assert dotted lower-camel field paths, Content/Social invalid ID errors assert lower-camel fields, and ordinary Accounts changeset errors assert snake_case fields. Stage 8 should preserve that contract unless `GQL-004` deliberately changes mutation error semantics.
+
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Add a focused GraphQL naming helper module, preferably `lib/live_canvas_gql/field_names.ex`, to own conversion from internal atom field names to external lower-camel GraphQL field names. Keep it small and public enough for resolver modules to share; suggested API: `LCGQL.FieldNames.lower_camel/1`.
+- Implement the helper using a clear string transformation rather than hand-rolled first-codepoint logic in each resolver. Prefer an implementation that converts atom keys through the same conceptual casing Absinthe exposes to clients, for example atom -> string -> `Macro.camelize/1` -> `String.replace_prefix(..., first, String.downcase(first))`, or a similarly explicit helper with tests. Do not introduce a dependency for this small conversion.
+- Add typespecs to the new helper. Since this is new public typed code, Stage 8 must run `mix typecheck`.
+- Replace `camelize_lower/1` in `lib/live_canvas_gql/live/live_resolver.ex` with `LCGQL.FieldNames.lower_camel/1` inside `format_changeset_errors/1`, then remove the private `camelize_lower/1` and its spec from that resolver.
+- Replace `camelize_lower/1` in `lib/live_canvas_gql/accounts/account_resolver.ex` by changing `prefixed_auth_field/2` to call `LCGQL.FieldNames.lower_camel/1`, then remove the private `camelize_lower/1` and its spec from that resolver.
+- Keep `LCGQL.Accounts.Resolver.format_changeset_errors/1` returning `to_string(field)` for ordinary account changeset errors during `GQL-003`; tests currently pin snake_case fields such as `"password_confirmation"`. Any decision to normalize all mutation error fields belongs to `GQL-004`.
+- Do not change explicit public error field strings such as `"liveSessionId"`, `"recordingMediaAssetId"`, `"password.passwordConfirmation"`, `"magicLink.token"`, `"oauth.idToken"`, `"postId"`, `"followedId"`, or `"mutedId"`.
+- Do not refactor `format_changeset_errors/1`, `format_auth_changeset_errors/2`, `mutation_error/2`, `post_mutation_error/2`, or `social_error/2` beyond replacing duplicated field-name conversion. Those helper-shape decisions are tracked under `GQL-004`.
+- Do not change Content or Social resolver field-name formatters in the first Stage 8 pass unless the new helper can replace their exact lower-camel mappings without changing fallback behavior. If touched, keep it limited to replacing explicit lower-camel conversion, not restructuring error builders.
+
+Focused test updates:
+
+- Add a focused unit test for the new helper, preferably `test/live_canvas_gql/field_names_test.exs`, covering at least `:live_session_id -> "liveSessionId"`, `:recording_media_asset_id -> "recordingMediaAssetId"`, `:password_confirmation -> "passwordConfirmation"`, `:id_token -> "idToken"`, and `:challenge_token -> "challengeToken"`.
+- Keep the existing Live mutation assertions that pin lower-camel fields, especially `"liveSessionId"` and `"recordingMediaAssetId"`, as regression coverage for `LCGQL.Live.Resolver`.
+- Keep the existing Accounts auth mutation assertions that pin dotted field paths, especially `"password.passwordConfirmation"`, `"magicLink.token"`, and `"oauth.idToken"`, as regression coverage for `LCGQL.Accounts.Resolver`.
+- Keep ordinary Accounts changeset tests that assert snake_case fields, such as `"password_confirmation"`, unchanged unless `GQL-004` later changes the API contract.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8 under `docs/architecture/conventions.md` -> `GraphQL And Relay`: when GraphQL payloads need external field-name strings, use the shared `LCGQL.FieldNames` helper instead of resolver-local casing functions; do not silently change existing mutation error field contracts while doing helper cleanup.
+- After editing, run `rg -n "camelize_lower|Macro\\.camelize" lib/live_canvas_gql test/live_canvas_gql` and expect no resolver-local `camelize_lower/1` or GraphQL-side `Macro.camelize/1` hits outside the shared helper/test.
+- Run `rg -n "prefixed_auth_field|FieldNames\\.lower_camel|field: .*lower_camel" lib/live_canvas_gql/accounts/account_resolver.ex lib/live_canvas_gql/live/live_resolver.ex` and confirm both resolver call sites use the shared helper.
+- Run `rg -n "\\\"password_confirmation\\\"|\\\"password\\.passwordConfirmation\\\"|\\\"magicLink\\.token\\\"|\\\"oauth\\.idToken\\\"|\\\"recordingMediaAssetId\\\"|\\\"liveSessionId\\\"" test/live_canvas_gql/accounts test/live_canvas_gql/live` and confirm the contract-sensitive assertions remain present.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_gql/field_names_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs`
+- `mix typecheck`
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Preserve the mixed current public contract: Live and auth-path fields use lower camel case, while ordinary Accounts changeset fields remain snake_case.
+- Keep `GQL-003` limited to field-name casing duplication; do not pull in `GQL-004` mutation error helper consolidation.
+- Avoid relying on Absinthe adapters for arbitrary strings in mutation error payloads; these are data values, not schema field identifiers.
+- If Content or Social field-name formatters are considered for the shared helper, verify their existing tests and do not change fallback semantics in this issue.
+
+Additional Stage 2 notes:
+
+- `LCGQL.Live.Resolver.format_changeset_errors/1` uses `camelize_lower/1` for changeset field names, while its hand-written invalid-ID fields already use explicit external names such as `"liveSessionId"` and `"recordingMediaAssetId"`.
+- `LCGQL.Accounts.Resolver.format_changeset_errors/1` currently leaves ordinary account changeset fields as `to_string(field)`, but `format_auth_changeset_errors/2` uses `prefixed_auth_field/2` plus `camelize_lower/1` for auth field paths such as `"password.passwordConfirmation"`, `"magicLink.token"`, and `"oauth.idToken"`.
+- The current public API has mixed field-name conventions across mutation families. `GQL-003` should remove the duplicate helper without silently changing all mutation error field contracts.
 
 **Evidence seen:**
 
@@ -236,12 +368,12 @@ Verification for Stage 8:
 **Progress:**
 
 - [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
+- [x] Stage 2 validity/severity discussion complete.
+- [x] Stage 3 similar-instance scan complete.
 - [ ] Stage 4 calibration included in agent-led quality scan.
 - [ ] Stage 5 related newly discovered issues discussed, if any.
 - [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
+- [x] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
 ### GQL-004 - Duplicated GraphQL Mutation Error Helpers
@@ -249,6 +381,144 @@ Verification for Stage 8:
 **User concern:** Resolver-local helpers like `error_field/2` and `mutation_error/2` are unneeded and duplicated. If GraphQL responses need structured errors, that should be universal, not attached to specific contexts.
 
 **Initial assessment:** Likely valid. Error payloads are currently split across `user_error`, `content_error`, `social_error`, and `auth_error`, while resolvers each carry local formatting helpers. Some differences are real API contract differences, such as `auth_error.code`, but the common `{field, message}` shape is duplicated.
+
+**Stage 2 decision:** Marked valid on 2026-05-23. The duplication is real: multiple resolvers independently build `%{field: ..., message: ...}` errors, traverse changesets, replace `%{key}` placeholders, map raw internal fields to public GraphQL field strings, and stringify atom reasons. However, not every helper is unneeded or interchangeable. Accounts auth errors include `code`, several resolvers intentionally preserve different field-name contracts, and `GQL-003` already owns shared field-name casing. A first fix should centralize common GraphQL mutation error construction and changeset message interpolation while preserving each mutation family's public field names and auth-specific `code`.
+
+Additional Stage 2 notes:
+
+- `LCGQL.Chat.Resolver.mutation_error/2`, `LCGQL.Live.Resolver.mutation_error/2`, `LCGQL.Content.Resolver.post_mutation_error/2`, and `LCGQL.Social.Resolver.social_error/2` all produce a `%{field: ..., message: ...}`-style payload.
+- `LCGQL.Accounts.Resolver` has many one-off `%{field: ..., message: ...}` helpers for contacts, data governance, identities, invites, password reset, and refresh tokens, plus separate `%{field: ..., code: ..., message: ...}` auth errors.
+- `LCGQL.Live.Resolver`, `LCGQL.Content.Resolver`, and `LCGQL.Accounts.Resolver` each traverse changeset errors and duplicate the same interpolation logic for `%{key}` placeholders.
+- `LCGQL.Social.Resolver.format_error_message/1`, `LCGQL.Chat.Resolver.error_message/1`, and other helpers repeatedly convert atom reasons to public message strings, with local exceptions such as invalid IDs becoming `"is invalid"`.
+- `GQL-004` should coordinate with `GQL-003` and `GQL-009`: field-name casing should use the future shared field-name helper, and large Accounts module splitting should wait until shared error helpers exist.
+
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-23:
+
+- `rg -n "\b(mutation_error|post_mutation_error|social_error|auth_error|user_error|content_error|chat_error)\b" lib/live_canvas_gql test/live_canvas_gql`
+- `rg -n "\b(format_changeset_errors|traverse_errors|format_auth_changeset_errors|changeset\.errors|Ecto\.Changeset)\b" lib/live_canvas_gql test/live_canvas_gql`
+- `rg -n "\b(error_field|format_field|format_post_field|format_auth_field|camelize_lower|field_name|format_error_message|error_message)\b" lib/live_canvas_gql test/live_canvas_gql`
+- `rg -n '%\{field:.*message:|field: nil, message:|field: "[^"]+", message:' lib/live_canvas_gql test/live_canvas_gql`
+- `rg -n "\bobject\(:.*error|field :errors|non_null\(:.*error|:auth_error|:user_error|:content_error|:social_error\b" lib/live_canvas_gql`
+
+Common schema error object duplication:
+
+- `lib/live_canvas_gql/accounts/account_types.ex`: `object :user_error` exposes the generic `{field, message}` shape used by Accounts, Chat, and Live mutation payloads.
+- `lib/live_canvas_gql/content/content_types.ex`: `object :content_error` duplicates the same `{field, message}` shape under a content-specific name.
+- `lib/live_canvas_gql/social/social_types.ex`: `object :social_error` duplicates the same `{field, message}` shape under a social-specific name.
+- `lib/live_canvas_gql/accounts/account_types.ex`: `object :auth_error` is related but intentionally different because auth entry/challenge payloads include a required `code` field.
+
+Resolver-local common error builders:
+
+- `lib/live_canvas_gql/chat/chat_resolver.ex`: `mutation_error/2`, `error_field/2`, and `error_message/1` build `{field, message}` errors for `remove_live_chat_message/3`.
+- `lib/live_canvas_gql/live/live_resolver.ex`: `mutation_error/2`, `error_field/2`, and `error_message/1` build the same shape for live session mutations.
+- `lib/live_canvas_gql/content/content_resolver.ex`: `post_mutation_error/2` and `format_post_field/1` build the same shape for post mutations, while `create_post/3` and media-upload fallbacks also still construct literal `%{field: ..., message: ...}` maps inline.
+- `lib/live_canvas_gql/social/social_resolver.ex`: `social_error/2`, `format_field/1`, and `format_error_message/1` build the same shape for follow/block/mute mutations.
+- `lib/live_canvas_gql/accounts/account_resolver.ex`: `contact_upsert_error/1`, `data_export_error/1`, `account_deletion_error/1`, `unlink_identity_error/1`, `invite_delivery_error/1`, `reset_password_error/1`, `refresh_auth_error/1`, and several inline maps all build the same non-auth `{field, message}` shape.
+- `lib/live_canvas_gql/accounts/account_resolver.ex`: `auth_error/3`, `passkey_challenge_error/1`, `require_auth_field/3`, and `format_auth_changeset_errors/2` should share low-level message/field formatting where possible, but must keep the public `{field, code, message}` auth error contract.
+
+Duplicated changeset formatting:
+
+- `lib/live_canvas_gql/live/live_resolver.ex`: `format_changeset_errors/1` traverses changesets, interpolates `%{key}` placeholders, lower-camelizes fields, and emits mutation error maps.
+- `lib/live_canvas_gql/content/content_resolver.ex`: `format_changeset_errors/1` repeats the same traversal and placeholder interpolation, but keeps fields as `to_string(field)`.
+- `lib/live_canvas_gql/accounts/account_resolver.ex`: `format_changeset_errors/1` repeats the same traversal and placeholder interpolation for `:user_error` payloads.
+- `lib/live_canvas_gql/accounts/account_resolver.ex`: `format_auth_changeset_errors/2` repeats the traversal/interpolation again, then prefixes/lower-camelizes fields and wraps them in auth errors with `code: :invalid_input`.
+
+Message and field formatting differences to preserve during Stage 7/8:
+
+- Chat and Live currently translate invalid Relay ID/type failures to field-specific lower-camel names and message `"is invalid"`; other reasons use `Atom.to_string/1`.
+- Content post ID/media-asset ID failures currently use lower-camel field names but message strings from `Atom.to_string/1`; content changeset errors keep raw snake_case field names.
+- Social ID failures use lower-camel field names and atom-string messages such as `"invalid_id"`; tests assert this behavior.
+- Accounts non-auth errors mix raw changeset field names, explicit lower-camel public input fields, `"is invalid"` messages, atom-string messages, and domain-specific messages such as `"export_unavailable"` and `"deletion_unavailable"`.
+- `LCGQL.Context`, `LCGQL.Schema`, and `LCGQL.Dataloader` also mention `auth_error`, but those hits are request-context auth metadata and are not mutation error helper duplication.
+
+Existing focused regression coverage for Stage 8:
+
+- `test/live_canvas_gql/chat/chat_mutations_test.exs` covers `removeLiveChatMessage` success and structured error responses.
+- `test/live_canvas_gql/live/live_mutations_test.exs` covers live session mutation error field/message payloads, including invalid IDs and changeset-backed recording asset errors.
+- `test/live_canvas_gql/content/content_mutations_test.exs` covers content mutation error payloads and schema shape.
+- `test/live_canvas_gql/social/social_mutations_test.exs` covers social mutation error field/message payloads, including current `"invalid_id"` message behavior.
+- `test/live_canvas_gql/accounts/account_mutations_test.exs` covers both `UserError` and `AuthError` payload shapes, including auth-specific `code`.
+
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Add a focused GraphQL helper module, preferably `lib/live_canvas_gql/mutation_errors.ex`, to own GraphQL mutation error map construction and changeset interpolation. This module should be the only GraphQL-layer place that knows how to build `%{field: ..., message: ...}` and `%{field: ..., code: ..., message: ...}` maps.
+- Give the new helper public typespecs. Suggested API:
+
+  ```elixir
+  @type field_name :: String.t() | nil
+  @type user_error :: %{field: field_name(), message: String.t()}
+  @type auth_error_code :: atom()
+  @type auth_error :: %{field: field_name(), code: auth_error_code(), message: String.t()}
+  @type field_mapper :: (atom() -> field_name())
+
+  @spec user_error(field_name(), String.t() | atom()) :: user_error()
+  @spec invalid_error(field_name()) :: user_error()
+  @spec changeset_errors(Ecto.Changeset.t(), field_mapper()) :: [user_error()]
+  @spec auth_error(field_name(), auth_error_code(), String.t() | nil) :: auth_error()
+  @spec auth_changeset_errors(Ecto.Changeset.t(), String.t(), field_mapper()) :: [auth_error()]
+  ```
+
+- Keep reason-to-message policy intentionally small in the shared helper: binary messages pass through, atom messages use `Atom.to_string/1`, and invalid Relay/global-ID errors use explicit caller choice through `invalid_error/1`. Do not add a global reason registry that hides domain-specific messages.
+- Centralize changeset interpolation in the helper. The helper should call `Ecto.Changeset.traverse_errors/2`, replace `%{key}` placeholders with option values, flatten the traversed result, and apply the caller-provided field mapper. Preserve current field-name contracts by choosing the field mapper at each resolver call site.
+- Add a focused GraphQL type module, preferably `lib/live_canvas_gql/mutation_error_types.ex`, for the shared schema error objects. Move `object :user_error`, `enum :auth_error_code`, and `object :auth_error` out of `lib/live_canvas_gql/accounts/account_types.ex` into this module, then import it from `lib/live_canvas_gql/schema.ex` before account/content/social mutation/type modules reference those types.
+- Change content and social mutation payloads to use `:user_error` instead of their duplicated context-specific `:content_error` and `:social_error` object types. Remove `object :content_error` from `lib/live_canvas_gql/content/content_types.ex` and `object :social_error` from `lib/live_canvas_gql/social/social_types.ex`. Preserve each mutation's `errors { field message }` payload shape; the intentional schema change is the GraphQL object type name becoming universal.
+- Keep `:auth_error` separate because auth challenge/sign-up/log-in payloads require `code`. Do not collapse auth errors into `:user_error`, and do not remove or rename auth error code enum values.
+- Migrate resolvers by family after the helper tests exist. Replace local map construction first, then remove now-unused private helpers and imports:
+  - `LCGQL.Chat.Resolver`: replace `mutation_error/2`, `error_field/2`, and `error_message/1` with `MutationErrors.user_error/2` and `MutationErrors.invalid_error/1` call sites for `remove_live_chat_message/3`.
+  - `LCGQL.Live.Resolver`: replace `mutation_error/2`, `error_field/2`, `error_message/1`, and `format_changeset_errors/1` with the helper. For changesets, use a lower-camel mapper. If `GQL-003` has already added `LCGQL.FieldNames.lower_camel/1`, use it; otherwise keep the existing local mapper until `GQL-003` Stage 8 removes it.
+  - `LCGQL.Content.Resolver`: replace `post_mutation_error/2`, `format_post_field/1`, literal unauthenticated/upload-unavailable maps, and `format_changeset_errors/1` with the helper. Preserve current raw snake_case changeset fields and lower-camel explicit input ID fields.
+  - `LCGQL.Social.Resolver`: replace `social_error/2`, `format_field/1`, and `format_error_message/1` with the helper. Preserve existing social invalid-ID messages as `"invalid_id"` rather than changing them to `"is invalid"`.
+  - `LCGQL.Accounts.Resolver`: replace `format_changeset_errors/1`, inline non-auth error maps, `contact_upsert_error/1`, `data_export_error/1`, `account_deletion_error/1`, `unlink_identity_error/1`, `invite_delivery_error/1`, `reset_password_error/1`, and `refresh_auth_error/1` so they delegate map construction to `MutationErrors.user_error/2` or `MutationErrors.invalid_error/1`. Domain-specific reason-to-field/message mapping can remain as small resolver functions where it improves readability.
+  - `LCGQL.Accounts.Resolver`: replace `auth_error/3` and `format_auth_changeset_errors/2` with `MutationErrors.auth_error/3` and `MutationErrors.auth_changeset_errors/3`. Keep `passkey_challenge_error/1`, `require_auth_field/3`, and auth entry payload helpers only as domain flow helpers that call the shared error builder.
+- Keep `GQL-004` separate from `GQL-009`: do not split the large Accounts resolver while implementing this issue. Only touch Accounts code needed to centralize mutation error construction and changeset interpolation.
+- Keep `GQL-004` separate from `GQL-003`: do not introduce a second lower-camel field-name helper. If the shared `LCGQL.FieldNames` module exists, use it; if not, keep field mapping local and let `GQL-003` remove the casing duplicate later.
+
+Focused test plan:
+
+- Add `test/live_canvas_gql/mutation_errors_test.exs` for the new helper before migrating resolvers. Cover:
+  - `user_error(nil, :unauthenticated)` returns `%{field: nil, message: "unauthenticated"}`.
+  - `user_error("postId", :not_found)` returns `%{field: "postId", message: "not_found"}`.
+  - `invalid_error("liveSessionId")` returns `%{field: "liveSessionId", message: "is invalid"}`.
+  - `auth_error("password.email", :email_taken, "has already been taken")` returns a map with `code: :email_taken` and the custom message.
+  - `auth_error(nil, :invalid_input, nil)` returns message `"invalid_input"`.
+  - `changeset_errors/2` interpolates a message such as `"should be at least %{count} character(s)"` and applies the supplied field mapper.
+  - `auth_changeset_errors/3` prefixes the formatted field path, sets `code: :invalid_input`, and interpolates the message.
+- Keep the existing GraphQL mutation regression suites as the public contract tests:
+  - `test/live_canvas_gql/chat/chat_mutations_test.exs`
+  - `test/live_canvas_gql/live/live_mutations_test.exs`
+  - `test/live_canvas_gql/content/content_mutations_test.exs`
+  - `test/live_canvas_gql/social/social_mutations_test.exs`
+  - `test/live_canvas_gql/accounts/account_mutations_test.exs`
+- Add or adjust schema/introspection assertions only where existing tests pin payload object names. The accepted schema result after this cleanup is that content and social mutation `errors` fields use `[UserError!]!`; auth mutation `errors` fields still use `[AuthError!]!`.
+- Do not update tests to normalize field names or messages unless a test currently asserts the context-specific error object type name. Existing field/message values are the compatibility contract for Stage 8.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8 under `docs/architecture/conventions.md` -> `GraphQL And Relay`: GraphQL mutation payloads should use the shared `LCGQL.MutationErrors` helper for `{field, message}` and `{field, code, message}` error maps; new generic mutation errors should use `:user_error` unless a payload needs extra fields such as auth `code`.
+- After editing, run `rg -n "object :(content_error|social_error)|:content_error|:social_error" lib/live_canvas_gql test/live_canvas_gql` and expect no live schema/test references except historical docs.
+- Run `rg -n "defp (mutation_error|post_mutation_error|social_error|auth_error|format_changeset_errors|format_auth_changeset_errors)|traverse_errors" lib/live_canvas_gql` and expect hits only in `lib/live_canvas_gql/mutation_errors.ex` or domain helper names that are deliberately not GraphQL mutation error builders.
+- Run `rg -n '%\{field:.*message:|field: nil, message:|field: "[^"]+", message:' lib/live_canvas_gql` and account for every remaining hit. The expected implementation result is that resolver files call `LCGQL.MutationErrors` instead of constructing mutation error maps inline.
+- Run `rg -n "MutationErrors\\." lib/live_canvas_gql/{accounts,chat,content,live,social}` and confirm every mutation resolver family delegates to the shared helper.
+- Run `rg -n "\\\"is invalid\\\"|\\\"invalid_id\\\"|\\\"password_confirmation\\\"|\\\"password\\.passwordConfirmation\\\"|\\\"recordingMediaAssetId\\\"|\\\"followedId\\\"" test/live_canvas_gql` and confirm contract-sensitive assertions remain present.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_gql/mutation_errors_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/social/social_mutations_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs`
+- `mix typecheck`
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Preserve auth error `code` behavior and enum values; these are part of the public auth contract.
+- Preserve current field string contracts even where they are mixed: Live/auth explicit fields are lower camel or dotted lower camel, Content/Social ID fields are lower camel, and ordinary Accounts/Content changeset fields currently remain snake_case.
+- Preserve current message strings, especially `"is invalid"` for Chat/Live invalid Relay ID/type errors and `"invalid_id"` for Social invalid ID errors.
+- Do not replace authorization or domain error handling while editing resolver error helpers.
+- Do not split `LCGQL.Accounts.Resolver` in this issue; `GQL-009` owns module decomposition after shared error helpers exist.
+- Treat schema consolidation from `:content_error`/`:social_error` to `:user_error` as a deliberate GraphQL schema change. Keep it limited to identical `{field, message}` error objects.
 
 **Evidence seen:**
 
@@ -277,12 +547,12 @@ Verification for Stage 8:
 **Progress:**
 
 - [x] Stage 1 captured and initially analyzed.
-- [ ] Stage 2 validity/severity discussion complete.
-- [ ] Stage 3 similar-instance scan complete.
+- [x] Stage 2 validity/severity discussion complete.
+- [x] Stage 3 similar-instance scan complete.
 - [ ] Stage 4 calibration included in agent-led quality scan.
 - [ ] Stage 5 related newly discovered issues discussed, if any.
 - [ ] Stage 6 related newly discovered issue scan complete, if any.
-- [ ] Stage 7 fix and prevention plan written.
+- [x] Stage 7 fix and prevention plan written.
 - [ ] Stage 8 fixed and verified.
 
 ### GQL-005 - Viewer-Specific Data On The User Node
