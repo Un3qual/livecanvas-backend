@@ -881,7 +881,7 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Stage 5 and Stage 6 are complete for the Stage 4 candidates. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, starting with GQL-002 unless it is already marked discussed. If continuing planning, start Stage 7 with the first valid issue that does not yet have a fix/prevention plan, starting with GQL-001 unless it is already planned. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
+Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update the lane pointer before continuing. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Stage 5 and Stage 6 are complete for the Stage 4 candidates. If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, starting with GQL-002 unless it is already marked discussed. If continuing planning, start Stage 7 with the first valid issue that does not yet have a fix/prevention plan, starting with GQL-001 unless it is already planned. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
 ```
 
 ## Shared Coordinator Repair To Report

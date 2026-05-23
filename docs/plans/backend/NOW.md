@@ -12,27 +12,32 @@ Status: active for code-quality triage
 
 - Track: `backend_code_quality_cleanup`
 - Source: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
-- Batch: `Stage 2: discuss user-reported code-quality issues one by one`
-- Why now: The user explicitly made sloppy code, code quality, and tech debt cleanup the new top backend priority. Stage 1 captured and initially analyzed the reported issues; the next run should validate each issue with the user before scans or code changes.
+- Batch: `Post-Stage-6 handoff: continue Stage 2 discussion or begin Stage 7 planning`
+- Why now: The user explicitly made sloppy code, code quality, and tech debt cleanup the new top backend priority. Stage 2 through Stage 6 are complete for the first discussed issue and the Stage 4 scan candidates, so the next run should either continue user-led discussion at the next undecided reported issue or start fix/prevention planning for the first valid issue without a plan.
 
 ## Do This Now
 
 - Open `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
-- Start at `GQL-001` unless its Stage 2 checkbox has already been completed.
-- Discuss only the next undecided issue with the user: validity, why the code may have been written that way, severity/blast radius, and practical options.
-- After the user decides, update that issue's Stage 2 status before moving on.
-- Do not scan for similar issues or edit implementation code until the issue is marked valid or partially valid.
+- If continuing issue discussion, resume Stage 2 with the next undecided user-reported issue, starting with `GQL-002` unless it is already marked discussed.
+- If continuing planning, start Stage 7 with the first valid issue that does not yet have a fix/prevention plan, starting with `GQL-001` unless it is already planned.
+- For one issue at a time, update the issue's status before moving on.
+- Do not edit implementation code unless the user explicitly asks to enter Stage 8.
 - Report shared dashboard/index repairs instead of editing `docs/plans/NOW.md` or `docs/plans/INDEX.md` from the backend lane.
 
 ## Verification Scope
 
 - Stage 2 is discussion and documentation only.
-- Stage 3 scans should use focused `rg` searches first, then code reads for matched areas.
+- Stage 3 and Stage 6 scans should use focused `rg` searches first, then code reads for matched areas.
+- Stage 7 planning should record the intended fix, prevention checks, verification scope, and Stage 6 watchpoints before implementation.
 - Stage 8 implementation batches must define and run focused verification for each issue; if typed code is touched, run `mix typecheck`.
 
 ## Completed Batch Evidence
 
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 1 completed on 2026-05-22.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `GQL-001`; `GQL-002` is the next undecided user-reported issue.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `GQL-001`.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 4 discovered `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 5 and Stage 6 completed for the Stage 4 candidates.
 - Initial checks: `git status --short --branch`, `docs/plans/NOW.md`, `docs/plans/backend/NOW.md`, source conventions doc, and targeted reads/searches across GraphQL resolvers/types, live channel/topic code, chat system events, runtime ownership, and schema files.
 - `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` Task 3 passed on 2026-04-24.
 - `mix compile` -> PASS.
@@ -45,11 +50,11 @@ Status: active for code-quality triage
 
 ## Next Up
 
-- Continue Stage 2 in `docs/plans/backend/2026-05-22-code-quality-cleanup.md`, starting with the first issue whose Stage 2 checkbox is incomplete.
+- Continue Stage 2 in `docs/plans/backend/2026-05-22-code-quality-cleanup.md` at `GQL-002`, or start Stage 7 planning at `GQL-001` if the user asks for planning.
 
 ## Required Shared Coordinator Repairs
 
-- `docs/plans/NOW.md`: update the backend lane current batch to `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> `Stage 2: discuss user-reported code-quality issues one by one`.
+- `docs/plans/NOW.md`: update the backend lane current batch to `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> post-Stage-6 handoff: next work is either Stage 2 discussion for `GQL-002` or Stage 7 planning for valid issues starting at `GQL-001`.
 - `docs/plans/INDEX.md`: add `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` to completed backend work through Task 3.
 - `docs/plans/INDEX.md`: add `docs/plans/content/2026-04-24-post-reporting.md` to completed backend work through Task 2.
 - `docs/plans/INDEX.md`: remove or update stale queued-candidate notes for `docs/plans/2026-03-22-development-seed-data.md`, because that plan is already checklist-complete.
