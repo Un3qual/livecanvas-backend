@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
 Last reviewed: 2026-05-24
-Status: `SOCK-001` Stage 2 complete; merged into `SOCK-002`
+Status: `LIVE-001` Stage 3 complete; Stage 7 not started
 Owner lane: backend
 
 ## Purpose
@@ -25,7 +25,7 @@ Applicability note: Stages 1-3 apply to user-reported issues. Stage 4 is one glo
 
 ## Current Handoff
 
-Stage status was audited on 2026-05-24 after `SOCK-001` Stage 2 discussion. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001` have Stage 2, Stage 3, and Stage 7 complete. `SOCK-001` has Stage 2 complete with a merge-into-`SOCK-002` decision: the duplicate live-session topic-id parsing concern is real, but topic parsing should be fixed with the same shared topic-boundary work as topic generation. `GEN-001` has Stage 2 complete with a deferred-valid decision: the client-facing system-event model must be fixed later, but the fix requires a dedicated chat timeline/event-object redesign rather than an implicit code-quality cleanup pass. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008`, `GEN-002`, and `WEB-001` also have Stage 7 complete. No Stage 8 implementation has started for any cleanup issue. Continue next by entering Stage 8 implementation for a planned issue only if the user explicitly asks for that named issue, by starting Stage 2 for `SOCK-002` if the user asks to continue issue discussion, or by revisiting deferred `GQL-009` Stage 7 only if the user explicitly asks to plan that deferred structural cleanup. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
+Stage status was audited on 2026-05-24 after `LIVE-001` Stage 3 scanning. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, and `SOCK-003` have Stage 2, Stage 3, and Stage 7 complete. `SOCK-001` has Stage 2 complete with a merge-into-`SOCK-002` decision: the duplicate live-session topic-id parsing concern is real, but topic parsing should be fixed with the same shared topic-boundary work as topic generation. `SOCK-003` Stage 7 keeps the public socket reason-string contract and plans an explicit transport-owned reason-code boundary. `LIVE-001` has Stage 2 and Stage 3 complete with a valid decision: replace Postgres-backed runtime ownership with an OTP-native ownership design. The Stage 3 scan found that Stage 7 must account for ownership claims, runtime process lifecycle, remote routing, viewer snapshots, peer-node partition behavior, release drills, and data-governance references that currently assume the lease table. `GEN-001` has Stage 2 complete with a deferred-valid decision: the client-facing system-event model must be fixed later, but the fix requires a dedicated chat timeline/event-object redesign rather than an implicit code-quality cleanup pass. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008`, `GEN-002`, and `WEB-001` also have Stage 7 complete. No Stage 8 implementation has started for any cleanup issue. Continue next by starting Stage 7 for `LIVE-001` only if the user asks to continue that issue, entering Stage 8 implementation for a planned issue only if the user explicitly asks for that named issue, starting Stage 2 for `DOC-001` only if the user asks to move to the next undecided issue, starting the dedicated `GEN-001` chat timeline/event-object redesign only if the user explicitly asks, or revisiting deferred `GQL-009` Stage 7 only if the user explicitly asks to plan that deferred structural cleanup. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -68,7 +68,10 @@ User-reported issue status:
 - `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 not started.
 - `GEN-001`: Stage 1 complete, Stage 2 complete with a deferred-valid decision; Stage 3 and Stage 7 deferred until a dedicated chat timeline/event-object redesign is explicitly started; Stage 8 blocked until that redesign is planned and implementation is explicitly requested.
 - `SOCK-001`: Stage 1 complete, Stage 2 complete with a merge-into-`SOCK-002` decision; no separate Stage 3, Stage 7, or Stage 8 work should run.
-- `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`: Stage 1 complete; Stage 2 pending; Stages 3, 7, and 8 are blocked until each issue is discussed and marked valid or partially valid.
+- `SOCK-002`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete, Stage 7 complete; Stage 8 blocked until implementation is explicitly requested.
+- `SOCK-003`: Stage 1 complete, Stage 2 complete and marked partially valid, Stage 3 complete, Stage 7 complete; Stage 8 blocked until implementation is explicitly requested.
+- `LIVE-001`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete, Stage 7 not started; Stage 8 blocked until Stage 7 is written and implementation is explicitly requested.
+- `DOC-001`: Stage 1 complete; Stage 2 pending; Stages 3, 7, and 8 are blocked until the issue is discussed and marked valid or partially valid.
 
 Stage 4 candidate issue status:
 
@@ -1405,9 +1408,44 @@ Verification for Stage 8:
 
 **User concern:** Functions like `session_control_topic/1` and all topic name generators should move out of GraphQL modules and domain contexts. Topic generation should be consistent across the app and live under sockets/channels-specific code.
 
-**Initial assessment:** Valid. Topic string construction is duplicated in multiple modules, including GraphQL resolver code, channel code, and chat broadcast code. A shared web/channel topic module would reduce drift and move transport naming out of GraphQL/domain modules.
+**Initial assessment:** Valid. Topic string construction is duplicated in multiple modules, including GraphQL resolver code, channel code, and chat broadcast code. A shared transport-owned topic module would reduce drift and move transport naming out of GraphQL/domain modules.
+
+**Stage 2 decision:** Marked valid on 2026-05-24. Topic naming is a transport boundary and is currently duplicated in GraphQL lifecycle mutation code, the live-session channel, chat broadcast code, and tests. `SOCK-002` should own the shared live-session topic boundary and should include the merged `SOCK-001` parsing concern. Stage 3 should scan generation, parsing, broadcast, subscription, telemetry-hint, and test call sites before Stage 7 decides the exact module boundary. The likely end state is a focused transport-owned topic boundary that can build live-session topics, build control topics, parse live-session join topics, and expose a parsed session-id hint without copying `Integer.parse/1` logic. Stage 7 must still decide whether domain-adjacent broadcast code moves to that transport boundary, receives topics from callers, or depends on a narrowly named topic module; do not solve that during Stage 2.
 
 **Merged scope from `SOCK-001`:** `SOCK-002` also owns live-session topic parsing. The eventual shared topic boundary should replace duplicated generation helpers and the separate `parse_session_id/1` / `parse_session_id_hint/1` parsing path, while preserving client-safe invalid-topic responses and telemetry `session_id` hints.
+
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-24:
+
+- `rg -n 'defp? .*topic|session_control_topic|session_user_control_topic|live_session_topic|topic =' lib test --glob '!deps/**' --glob '!_build/**'`
+- `rg -n '"live_session(:|_)|live_session_control|live_session_user_control|live_session:' lib test --glob '!deps/**' --glob '!_build/**'`
+- `rg -n 'parse_session_id|Integer\.parse\(|invalid_session_id|session_id_hint|join\("live_session:' lib/live_canvas_web test/live_canvas_web lib/live_canvas_gql test/live_canvas_gql --glob '!deps/**' --glob '!_build/**'`
+- `rg -n 'Phoenix\.PubSub\.(broadcast|subscribe)|Endpoint\.subscribe|broadcast!\(|handle_info\(%Broadcast|%Broadcast\{topic:' lib/live_canvas_gql lib/live_canvas_web lib/live_canvas test --glob '!deps/**' --glob '!_build/**'`
+
+Findings:
+
+- Exact topic-generation duplication exists in three production modules:
+  - `lib/live_canvas_gql/live/live_resolver.ex`: private `session_control_topic/1`, `session_user_control_topic/2`, and `live_session_topic/1` support lifecycle disconnect and session-state broadcasts from GraphQL mutations.
+  - `lib/live_canvas_web/channels/live_session_channel.ex`: private `live_session_topic/1`, `session_control_topic/1`, and `session_user_control_topic/2` support session-state broadcasts and control-topic subscriptions for joined sockets.
+  - `lib/live_canvas/chat/broadcasts.ex`: private `live_session_topic/1` supports chat message and chat message update broadcasts.
+- The merged parsing scope is concentrated in `lib/live_canvas_web/channels/live_session_channel.ex`: both authenticated and unauthenticated `join/3` clauses match `"live_session:" <> raw_session_id`; `parse_session_id/1` and `parse_session_id_hint/1` duplicate `Integer.parse/1`; invalid parse still maps to `"invalid_session_id"` while telemetry uses a parsed `session_id` hint or nil.
+- The only other `Integer.parse/1` hit in the scanned web/GQL paths is `lib/live_canvas_web/plugs/webhook_signature.ex`, which parses webhook timestamps and is unrelated to live-session topics.
+- `lib/live_canvas_web/channels/user_socket.ex` declares the Phoenix channel route `channel "live_session:*", LCWeb.LiveSessionChannel`. Treat this as part of the socket boundary to preserve; Stage 7 can decide whether a shared prefix constant is useful, but Stage 8 should not obscure the Phoenix routing pattern.
+- Tests hardcode the same public topic strings in three clusters:
+  - `test/live_canvas_gql/live/live_mutations_test.exs`: subscribes to `"live_session:#{id}"`, `"live_session_control:#{id}"`, and `"live_session_control:#{id}:user:#{user_id}"` to verify lifecycle broadcasts/disconnects.
+  - `test/live_canvas_gql/chat/chat_mutations_test.exs`: subscribes to `"live_session:#{id}"` for chat broadcasts.
+  - `test/live_canvas_web/channels/live_session_channel_test.exs` and `test/integration/live_session_flow_test.exs`: build join topics and PubSub subscription topics directly, including invalid-topic examples such as `"live_session:not-a-session-id"`.
+- `lib/live_canvas/release/capacity_drill.ex` uses an unrelated release probe topic (`"release-capacity-channel-..."`) and should stay out of `SOCK-002`.
+- `LC.Chat.Broadcasts` is transport-adjacent despite living under `LC.Chat` because it already depends on `Phoenix.Socket.Broadcast` and `Phoenix.PubSub`. Stage 7 should decide whether to move this broadcast boundary, inject topics from callers, or allow a narrowly named web/channel topic module dependency; Stage 3 does not require changing the broader chat context.
+
+Stage 3 watchpoints to carry into Stage 7:
+
+- Preserve public socket topic formats unless Stage 7 intentionally records a client-visible contract change: `"live_session:#{session_id}"`, `"live_session_control:#{session_id}"`, and `"live_session_control:#{session_id}:user:#{user_id}"`.
+- Preserve join behavior for invalid topics, missing sessions, ended sessions, remote runtime failures, and telemetry `session_id` hints.
+- Keep topic generation/parsing under a socket/web boundary or another explicitly transport-owned boundary; do not introduce generic domain helpers for Phoenix topic names.
+- Avoid making the `LC.Chat` domain layer depend casually on `LCWeb` without an explicit Stage 7 boundary decision.
+- Update tests through the same shared topic boundary where practical, while keeping invalid-topic literals where they document client-facing rejection behavior.
 
 **Evidence seen:**
 
@@ -1416,13 +1454,124 @@ Verification for Stage 8:
 - `lib/live_canvas_web/channels/live_session_channel.ex` separately parses `"live_session:" <> raw_session_id` with both `parse_session_id/1` and `parse_session_id_hint/1`.
 - `lib/live_canvas/chat/broadcasts.ex` defines `live_session_topic/1`.
 - Tests directly assemble strings like `"live_session_control:#{live_session.id}"`.
+- Focused Stage 2 evidence check on 2026-05-24 confirmed the duplicate helpers and found hardcoded live-session and control topics across `test/live_canvas_gql/live/live_mutations_test.exs`, `test/live_canvas_gql/chat/chat_mutations_test.exs`, and `test/live_canvas_web/channels/live_session_channel_test.exs`.
 
 **What likely needs to change:**
 
-- Create a shared topic helper under the web/channel boundary, for example `LCWeb.LiveSessionTopics`.
+- Create a shared topic helper under an explicit transport-owned boundary, for example `LCTransport.LiveSessionTopics`.
 - Replace GraphQL, channel, chat broadcast, parsing, and tests with the shared helper.
 - Decide whether domain modules like `LC.Chat.Broadcasts` should call a web module, move broadcasts to web, or receive topics from the caller.
 - Preserve `"invalid_session_id"` join responses and telemetry `session_id` hints when parsing live-session topics.
+
+**Stage 7 fix and prevention plan:** Written on 2026-05-24.
+
+Boundary decision for Stage 8:
+
+- Use an explicit transport-owned boundary instead of putting the shared helper under `LCWeb`. `LCWeb` currently depends on `LCGQL`, and `LCGQL` depends on `LC`; making GraphQL call an `LCWeb.*` helper would create the wrong dependency direction for a shared topic contract. The Stage 8 implementation should add a small top-level `LCTransport` boundary for Phoenix transport contracts shared by GraphQL lifecycle mutations, channels, and chat broadcast adapters.
+- Keep `LCTransport.LiveSessionTopics` pure: it should build and parse topic strings only. It should not call Phoenix, subscribe, broadcast, inspect sockets, load sessions, authorize users, or emit telemetry.
+- Do not move the Phoenix channel route declaration out of `lib/live_canvas_web/channels/user_socket.ex`. Keep the visible route literal `channel "live_session:*", LCWeb.LiveSessionChannel` unless Stage 8 proves Phoenix accepts an equally readable compile-time constant; preserving the literal is preferred because it documents the client socket contract.
+- Do not make `LC.Chat` depend on `LCWeb`. For chat broadcasts, remove the private topic generator from `LC.Chat.Broadcasts` by injecting the already-built topic from transport callers, or move the broadcast adapter to an explicit transport module. The preferred first fix is topic injection because it removes duplicated topic construction without broadening this cleanup into the future chat timeline/event-object redesign.
+
+Stage 8 fix scope:
+
+- Add `lib/live_canvas_transport.ex` defining `LCTransport` as a top-level Boundary module. Export only the new topic module at first, for example:
+
+```elixir
+defmodule LCTransport do
+  @moduledoc false
+
+  use Boundary,
+    top_level?: true,
+    deps: [],
+    exports: [LiveSessionTopics]
+end
+```
+
+- Add `lib/live_canvas_transport/live_session_topics.ex` defining `LCTransport.LiveSessionTopics`. Suggested public API:
+
+```elixir
+@type parse_result :: {:ok, pos_integer()} | {:error, :invalid_session_id}
+
+@spec live_session_topic(integer()) :: String.t()
+def live_session_topic(session_id) when is_integer(session_id), do: "live_session:#{session_id}"
+
+@spec session_control_topic(integer()) :: String.t()
+def session_control_topic(session_id) when is_integer(session_id),
+  do: "live_session_control:#{session_id}"
+
+@spec session_user_control_topic(integer(), integer()) :: String.t()
+def session_user_control_topic(session_id, user_id)
+    when is_integer(session_id) and is_integer(user_id),
+    do: "live_session_control:#{session_id}:user:#{user_id}"
+
+@spec parse_live_session_topic(String.t()) :: parse_result()
+def parse_live_session_topic("live_session:" <> raw_session_id),
+  do: parse_session_id(raw_session_id)
+
+def parse_live_session_topic(_topic), do: {:error, :invalid_session_id}
+
+@spec session_id_hint(String.t()) :: pos_integer() | nil
+def session_id_hint(topic) when is_binary(topic) do
+  case parse_live_session_topic(topic) do
+    {:ok, session_id} -> session_id
+    {:error, :invalid_session_id} -> nil
+  end
+end
+
+def session_id_hint(_topic), do: nil
+```
+
+- Keep the parser's accepted ID contract identical to the current channel parser: a decimal integer string with no trailing characters and `session_id > 0` returns `{:ok, session_id}`; everything else returns `{:error, :invalid_session_id}` or `nil` for hints.
+- Update Boundary declarations so callers can use the transport helper without reverse dependencies:
+  - In `lib/live_canvas_gql/live_canvas_gql.ex`, add `LCTransport` to `deps`.
+  - In `lib/live_canvas_web.ex`, add `LCTransport` to `deps`.
+  - Do not add `LCWeb` as a dependency of `LCGQL` or `LC`.
+  - Do not add `LCTransport` to `LC` unless Stage 8 deliberately chooses to keep topic generation inside `LC.Chat.Broadcasts`; the preferred topic-injection path should not require `LC` to depend on transport.
+- In `lib/live_canvas_gql/live/live_resolver.ex`, alias `LCTransport.LiveSessionTopics` and replace private `session_control_topic/1`, `session_user_control_topic/2`, and `live_session_topic/1` calls with `LiveSessionTopics.session_control_topic/1`, `LiveSessionTopics.session_user_control_topic/2`, and `LiveSessionTopics.live_session_topic/1`. Remove the three private topic helpers and their specs.
+- In `lib/live_canvas_web/channels/live_session_channel.ex`, alias `LCTransport.LiveSessionTopics`; replace `parse_session_id/1` with `LiveSessionTopics.parse_live_session_topic(topic)` by passing the full join topic, replace `parse_session_id_hint/1` with `LiveSessionTopics.session_id_hint(topic)`, and replace private topic-builder calls in session-state broadcasts and control subscriptions. Remove private `parse_session_id/1`, `parse_session_id_hint/1`, `live_session_topic/1`, `session_control_topic/1`, and `session_user_control_topic/2`.
+- Preserve unauthenticated join semantics: an unauthenticated socket joining `"live_session:not-a-session-id"` should still return `"not_authorized"` while telemetry gets a nil session hint, because the current unauthenticated clause does not validate the ID before returning auth failure.
+- In `lib/live_canvas/chat/broadcasts.ex`, remove private `live_session_topic/1`. Preferred first fix: change `broadcast_message/1` and `broadcast_message_update/1` to `broadcast_message/2` and `broadcast_message_update/2`, where the second argument is a prebuilt binary topic. Preserve the existing no-op behavior for malformed message maps, and return `:ok` without broadcasting when either `live_session_id` is missing/non-integer or the supplied topic is not a binary.
+- In `lib/live_canvas/chat.ex`, update the public wrappers to accept the topic argument, for example `broadcast_message(chat_message, topic)` and `broadcast_message_update(chat_message, topic)`, and keep `message_payload/1` unchanged.
+- In `lib/live_canvas_gql/chat/chat_resolver.ex`, alias `LCTransport.LiveSessionTopics`. When broadcasting a removed message update or a persisted removal system event, compute the topic from `removed_message.live_session_id` or `system_event.live_session_id` using `LiveSessionTopics.live_session_topic/1` and pass it to the updated `Chat.broadcast_message_update/2` or `Chat.broadcast_message/2`.
+- In `lib/live_canvas_gql/live/live_resolver.ex`, update `broadcast_system_event/1` the same way for lifecycle system events. This keeps chat topic generation outside both `LC.Chat` and GraphQL-local private helpers while avoiding a broad broadcast-adapter move.
+- Leave `LC.Chat.message_payload/1`, chat payload projection helpers, lifecycle event persistence, moderation redaction, and the `GEN-001` system-event object model unchanged.
+
+Focused test updates:
+
+- Add `test/live_canvas_transport/live_session_topics_test.exs` with pure unit coverage for:
+  - `live_session_topic(123) == "live_session:123"`
+  - `session_control_topic(123) == "live_session_control:123"`
+  - `session_user_control_topic(123, 456) == "live_session_control:123:user:456"`
+  - `parse_live_session_topic("live_session:123") == {:ok, 123}`
+  - malformed, non-integer, zero, negative, and trailing-character topics return `{:error, :invalid_session_id}`
+  - `session_id_hint/1` returns the positive integer for a valid join topic and nil for invalid topics.
+- Update `test/live_canvas_gql/live/live_mutations_test.exs`, `test/live_canvas_gql/chat/chat_mutations_test.exs`, `test/live_canvas_web/channels/live_session_channel_test.exs`, and `test/integration/live_session_flow_test.exs` to use `LCTransport.LiveSessionTopics` for valid live-session, control, and user-control topic strings where the test is subscribing to or asserting production broadcasts.
+- Keep literal invalid client topics in channel tests, such as `"live_session:not-a-session-id"`, because those literals document the public rejection behavior.
+- Add or adjust channel telemetry assertions only if changing the join clause from raw ID parsing to full-topic parsing breaks existing coverage. The important invariant is still: valid topic hints record the parsed session ID, invalid topic hints record nil, and unauthenticated joins remain auth failures.
+- Add a focused assertion around chat removal/update broadcasts only if existing GraphQL mutation tests no longer prove that `Chat.broadcast_message/2` and `Chat.broadcast_message_update/2` receive the same topic as before.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8 under `docs/architecture/conventions.md`, preferably in a new short `Realtime Transport` subsection: live-session Phoenix topic strings and parsing live under `LCTransport.LiveSessionTopics`; GraphQL resolvers, channels, and chat broadcast adapters must not reimplement `"live_session:"` or `"live_session_control:"` string construction or duplicate `Integer.parse/1` topic parsing.
+- After editing, run `rg -n 'defp? .*topic|session_control_topic|session_user_control_topic|live_session_topic|parse_session_id|parse_session_id_hint' lib/live_canvas_gql lib/live_canvas_web lib/live_canvas/chat lib/live_canvas_transport` and confirm the only live-session topic builders/parsers are in `LCTransport.LiveSessionTopics`, with call sites delegating to it.
+- Run `rg -n '"live_session(:|_)|live_session_control|live_session:' lib test --glob '!deps/**' --glob '!_build/**'` and confirm remaining literals are either in `LCTransport.LiveSessionTopics`, `LCWeb.UserSocket`'s channel route, or invalid-topic tests that intentionally document the client-facing contract.
+- Run `rg -n 'Integer\.parse\(' lib/live_canvas_gql lib/live_canvas_web lib/live_canvas/chat lib/live_canvas_transport test/live_canvas_transport --glob '!deps/**' --glob '!_build/**'` and confirm live-session topic parsing is centralized in the transport helper. The unrelated webhook timestamp parser must remain out of scope.
+- Run `mix boundary.spec` after dependency updates and confirm `LCGQL` and `LCWeb` can depend on `LCTransport` without adding `LCWeb` dependencies to `LCGQL` or `LC`.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_transport/live_session_topics_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/integration/live_session_flow_test.exs`
+- `mix boundary.spec`
+- `mix typecheck`
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Preserve public topic formats exactly: `"live_session:#{session_id}"`, `"live_session_control:#{session_id}"`, and `"live_session_control:#{session_id}:user:#{user_id}"`.
+- Preserve channel join behavior for malformed IDs, missing sessions, ended sessions, remote runtime failures, rate limits, and unauthenticated sockets.
+- Preserve telemetry `session_id` hints: valid join topics produce the parsed ID, invalid join topics produce nil, and unauthenticated invalid topics remain auth failures.
+- Keep `LCWeb.UserSocket`'s route readable as the socket contract.
+- Do not let `LC.Chat` depend on `LCWeb`, and do not start the `GEN-001` chat timeline/event-object redesign as part of this topic cleanup.
 
 **Where to look first:**
 
@@ -1435,19 +1584,69 @@ Verification for Stage 8:
 **Progress:**
 
 - Stage 1: Complete.
-- Stage 2: Pending.
-- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 2: Complete; marked valid.
+- Stage 3: Complete.
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Blocked until Stage 3 is complete.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request for `SOCK-002`.
 
 ### SOCK-003 - Channel Error Reason Formatters
 
 **User concern:** `join_error_reason/1` and `message_error_reason/1` are mostly just atom-to-string conversion. Find a better way.
 
 **Initial assessment:** Likely valid. The helpers flatten domain and transport reasons into string response payloads inside the channel. Some mappings are meaningful, such as remote-owner errors becoming `session_unavailable`, but many are simple atom conversions.
+
+**Stage 2 decision:** Marked partially valid on 2026-05-24. The cleanup concern is real: `join_error_reason/1` and `message_error_reason/1` mix direct atom-to-string conversion, public socket contract formatting, changeset redaction, and semantic remapping of internal runtime failures inside `LCWeb.LiveSessionChannel`. However, the helpers are not merely needless conversion. The mobile realtime contract documents string `reason` payloads, remote runtime and ownership failures must collapse to client-safe `"session_unavailable"`, and telemetry should keep the internal atom reason separately from the client-facing response. The first cleanup should centralize and make explicit the socket/channel error-code boundary while preserving current public reason strings and avoiding any GraphQL mutation-error redesign owned by `GQL-004`.
+
+Additional Stage 2 notes:
+
+- `docs/contracts/mobile-live-session-realtime.md` pins join failure payloads as string reason codes, including `"invalid_session_id"`, `"session_not_found"`, `"session_ended"`, `"not_authorized"`, `"rate_limited"`, and `"session_unavailable"`.
+- `LCWeb.LiveSessionChannel.join_error_reason/1` currently maps `:ended` and `:session_ended` to `"session_ended"`, `:not_found` to `"session_not_found"`, auth/rate-limit/parser failures to matching string codes, and remote ownership or remote RPC failures to `"session_unavailable"`.
+- `LCWeb.LiveSessionChannel.message_error_reason/1` currently maps chat-send failures to string codes and hides `%Ecto.Changeset{}` details behind `"invalid_message"`.
+- `LCWeb.LiveSessionChannel.channel_reason/1` separately normalizes telemetry metadata to low-cardinality atoms. Stage 3 should keep client-facing string reason formatting separate from telemetry reason normalization instead of merging them casually.
+- `LC.Live.RuntimeRPC` and `LC.Live` already normalize remote transport and remote runtime errors before the channel sees them. `SOCK-003` should not move distributed runtime error normalization out of `LC.Live`; it should only decide where socket client-facing reason codes live.
+- Keep `SOCK-003` scoped to socket/channel-facing error response formatting. Do not absorb GraphQL mutation error construction from `GQL-004`, topic construction/parsing from `SOCK-002`, or broader runtime-ownership design from `LIVE-001`.
+
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-24:
+
+- `rg -n 'defp .*error_reason|error_reason\(|channel_reason\(|%\{reason:|reason: "[^"]+"|Atom\.to_string\(reason\)|session_unavailable|invalid_message|join_failed|invalid_body' lib/live_canvas_web lib/live_canvas_gql lib/live_canvas test/live_canvas_web docs/contracts/mobile-live-session-realtime.md docs/release/observability-metrics.md`
+- `rg -n 'defmodule .*Channel|use LCWeb, :channel|channel "' lib/live_canvas_web test/live_canvas_web`
+- `rg -n 'remote_not_found|remote_timeout|remote_unreachable|owned_by_remote|normalize_remote_response|runtime_rpc_error|normalize_transport_error' lib/live_canvas test/live_canvas test/live_canvas_web/channels`
+- `rg -n 'assert.*%\{reason:|assert_reply .*:error|assert_push "disconnect"|session_unavailable|invalid_session_id|invalid_message|invalid_body|rate_limited' test/live_canvas_web/channels test/integration`
+- `rg -n 'invalid_message|join_failed|message_error_reason\(|join_error_reason\(|channel_reason\(|disconnect_live_session_channels|disconnect_live_session_user' lib test docs`
+- `rg -n 'Broadcast\{topic: .*payload: %\{reason|payload: %\{reason: Atom\.to_string|event: "disconnect"|%\{reason: "viewer_left"|%\{reason: "session_ended"' lib test docs --glob '!deps/**' --glob '!_build/**'`
+
+Findings:
+
+- There is currently one Phoenix channel module in the repo: `lib/live_canvas_web/channels/live_session_channel.ex`, routed from `lib/live_canvas_web/channels/user_socket.ex` with `channel "live_session:*", LCWeb.LiveSessionChannel`. The exact reported formatter pattern is therefore concentrated in `LCWeb.LiveSessionChannel`.
+- Exact cleanup target: `LCWeb.LiveSessionChannel.join_error_reason/1` and `message_error_reason/1`. They are private, untyped response-format helpers used only where the channel returns `{:error, %{reason: ...}}` for join failures and chat-send failures.
+- `join_error_reason/1` has three kinds of behavior mixed together:
+  - direct public string codes for parser/auth/rate-limit/session-status failures;
+  - domain-to-public aliasing such as `:ended` and `:session_ended` both becoming `"session_ended"` and `:not_found` becoming `"session_not_found"`;
+  - client-safe runtime failure redaction, where `{:owned_by_remote, _}`, `:remote_not_found`, `:remote_timeout`, and `:remote_unreachable` all become `"session_unavailable"`.
+- `message_error_reason/1` has direct public string codes for `:session_ended`, `:not_authorized`, `:invalid_body`, and `:rate_limited`, plus `%Ecto.Changeset{}` redaction to `"invalid_message"`. It has no catch-all branch; this matches the currently typed chat-send error surface, but Stage 7 should decide whether an extracted formatter keeps a strict known-code contract or adds an explicit unknown fallback.
+- `LCWeb.LiveSessionChannel.channel_reason/1` is a related but distinct telemetry normalizer. It maps `%Ecto.Changeset{}` to `:changeset`, atom tuple reasons to the atom, atom reasons to themselves, and everything else to `:unknown`. Stage 7 should keep telemetry reason normalization separate from client-facing reason string formatting, even if both live near each other.
+- The mobile realtime contract pins the public string payloads for join failures and disconnects. Join reasons are documented as `"invalid_session_id"`, `"session_not_found"`, `"session_ended"`, `"not_authorized"`, `"rate_limited"`, and `"session_unavailable"`. Disconnect reasons are documented as `"session_ended"` and `"viewer_left"`.
+- `test/live_canvas_web/channels/live_session_channel_test.exs` pins most current client-visible join/chat reason outputs and verifies that remote runtime outcomes return `"session_unavailable"` to clients while preserving the internal telemetry reason (`:remote_unreachable`, `:remote_not_found`, or `:remote_timeout`). It also pins chat-send `"rate_limited"` and `"invalid_body"`.
+- No focused test currently exercises `%Ecto.Changeset{}` chat-send failure mapping to `"invalid_message"` or the `join_error_reason/1` `"join_failed"` fallback. Stage 7 should decide whether to add coverage while extracting the formatter, or whether those branches should become explicit unreachable/unknown mappings.
+- Related socket-facing reason formatting exists in `LCGQL.Live.Resolver.disconnect_live_session_channels/2` and `disconnect_live_session_user/3`, which build `%Broadcast{event: "disconnect", payload: %{reason: Atom.to_string(reason)}}` for the public socket reasons `:session_ended` and `:viewer_left`. Tests in both GraphQL live mutations and channel tests pin those string payloads.
+- Treat the GraphQL lifecycle disconnect payloads as a Stage 7 watchpoint, not automatic widening. If Stage 7 introduces a transport/channel reason-code module, it may be appropriate to use it for disconnect payload reasons as well; if Stage 7 keeps the first fix limited to error replies, leave disconnect payload formatting alone.
+- `LC.Live.RuntimeRPC` and `LC.Live` already normalize distributed runtime transport failures to bounded internal atoms before the channel maps them to a client-safe reason. That normalization belongs outside `SOCK-003`.
+- GraphQL mutation helpers such as `LCGQL.Live.Resolver.error_message/1`, `LCGQL.Chat.Resolver.error_message/1`, `LCGQL.Content.Resolver`, `LCGQL.Social.Resolver`, and `LCGQL.Accounts.Resolver` also convert atoms to strings, but they format GraphQL mutation payloads and remain owned by `GQL-004` or other GraphQL-specific cleanup. They should not be folded into `SOCK-003`.
+- Non-socket internal reason-string conversions, such as auth-event metadata in `LC.Accounts` and async-job reason formatting in `LC.Infra.AsyncJobs.Worker`, are not related to this socket/channel cleanup.
+
+Stage 3 watchpoints to carry into Stage 7:
+
+- Preserve the public `%{reason: string}` socket error payload shape unless Stage 7 explicitly records a mobile contract change.
+- Preserve remote runtime redaction: internal remote and owner-routing reasons must continue to return `"session_unavailable"` to clients without leaking node names or runtime details.
+- Preserve telemetry reason behavior separately from response reason behavior. Tests should still prove clients get `"session_unavailable"` while telemetry retains the more specific internal remote atom.
+- Avoid merging this with `SOCK-002`; topic construction/parsing and reason-code formatting are both transport-adjacent but solve different duplication problems.
+- Avoid merging this with `GQL-004`; GraphQL mutation errors use different schema contracts and should not drive Phoenix Channel payloads.
+- Include focused tests for any extracted reason formatter, especially changeset-to-`"invalid_message"` and unknown/fallback behavior if the extracted API keeps those cases.
 
 **Evidence seen:**
 
@@ -1461,28 +1660,197 @@ Verification for Stage 8:
 - Centralize channel error formatting if strings are still the public contract.
 - Preserve meaningful semantic mappings like remote failures to `session_unavailable`.
 
+**Stage 7 fix and prevention plan:** Written on 2026-05-24.
+
+Boundary decision for Stage 8:
+
+- Keep the public Phoenix Channel payload shape as `%{reason: string}`. The mobile realtime contract already documents string reason codes, so this cleanup should make the string-code boundary explicit rather than switching to atom payloads or structured error objects.
+- Use an explicit transport-owned boundary for live-session socket reason codes. If `SOCK-002` Stage 8 has already created `LCTransport`, extend that boundary; otherwise create it during `SOCK-003` Stage 8 with only the reason-code module exported. The target module is `LCTransport.LiveSessionReasons`.
+- Keep `LCTransport.LiveSessionReasons` pure. It should map already-normalized internal reasons to client-facing socket reason strings only; it must not call Phoenix, load sessions, authorize users, rate-limit, inspect sockets, emit telemetry, or normalize distributed runtime RPC failures.
+- Keep telemetry normalization separate from client response formatting. `LCWeb.LiveSessionChannel.channel_reason/1` can remain channel-local because it produces low-cardinality atom metadata, not public socket response codes.
+- Include GraphQL lifecycle disconnect broadcasts in this Stage 8 scope only for the socket-facing payload reason. `LCGQL.Live.Resolver.disconnect_live_session_channels/2` and `disconnect_live_session_user/3` currently produce Phoenix `disconnect` broadcasts with `%{reason: Atom.to_string(reason)}`; replacing that conversion with `LCTransport.LiveSessionReasons.disconnect_reason/1` belongs to this socket transport boundary. Do not touch GraphQL mutation payload error helpers such as `error_message/1`; those remain owned by `GQL-004` or GraphQL-specific cleanup.
+- Preserve current runtime redaction: `{:owned_by_remote, _}`, `:remote_not_found`, `:remote_timeout`, and `:remote_unreachable` must still return `"session_unavailable"` to clients while telemetry retains the internal atom reason.
+
+Stage 8 fix scope:
+
+- Add or extend `lib/live_canvas_transport.ex`:
+
+```elixir
+defmodule LCTransport do
+  @moduledoc false
+
+  use Boundary,
+    top_level?: true,
+    deps: [],
+    exports: [LiveSessionReasons]
+end
+```
+
+  If `LCTransport.LiveSessionTopics` already exists from `SOCK-002`, preserve that export and add `LiveSessionReasons`; do not remove or rename topic APIs from the other plan.
+- Add `lib/live_canvas_transport/live_session_reasons.ex` with a small public API:
+
+```elixir
+defmodule LCTransport.LiveSessionReasons do
+  @moduledoc """
+  Client-facing reason codes for live-session socket payloads.
+  """
+
+  @type chat_send_error_reason ::
+          :session_ended | :not_authorized | :invalid_body | :rate_limited | Ecto.Changeset.t()
+
+  @type disconnect_reason :: :session_ended | :viewer_left
+
+  @spec join_error_reason(term()) :: String.t()
+  def join_error_reason(:ended), do: "session_ended"
+  def join_error_reason(:not_found), do: "session_not_found"
+  def join_error_reason(:invalid_session_id), do: "invalid_session_id"
+  def join_error_reason(:session_ended), do: "session_ended"
+  def join_error_reason(:not_authorized), do: "not_authorized"
+  def join_error_reason(:rate_limited), do: "rate_limited"
+  def join_error_reason({:owned_by_remote, _owner_node}), do: "session_unavailable"
+
+  def join_error_reason(reason)
+      when reason in [:remote_not_found, :remote_timeout, :remote_unreachable],
+      do: "session_unavailable"
+
+  def join_error_reason(_reason), do: "join_failed"
+
+  @spec chat_send_error_reason(chat_send_error_reason()) :: String.t()
+  def chat_send_error_reason(:session_ended), do: "session_ended"
+  def chat_send_error_reason(:not_authorized), do: "not_authorized"
+  def chat_send_error_reason(:invalid_body), do: "invalid_body"
+  def chat_send_error_reason(:rate_limited), do: "rate_limited"
+  def chat_send_error_reason(%Ecto.Changeset{}), do: "invalid_message"
+
+  @spec disconnect_reason(disconnect_reason()) :: String.t()
+  def disconnect_reason(:session_ended), do: "session_ended"
+  def disconnect_reason(:viewer_left), do: "viewer_left"
+end
+```
+
+- Keep the join formatter's catch-all `"join_failed"` branch because it exists today and is the safest client-facing fallback for unexpected join failures.
+- Keep chat-send formatting strict with no catch-all branch. That preserves current behavior: chat-send errors are a bounded surface, changesets are redacted to `"invalid_message"`, and unexpected internal errors are not silently converted into a misleading client code.
+- Update Boundary declarations so callers can use the transport helper:
+  - In `lib/live_canvas_web.ex`, add `LCTransport` to `deps`.
+  - In `lib/live_canvas_gql/live_canvas_gql.ex`, add `LCTransport` to `deps` if using `disconnect_reason/1` in lifecycle broadcasts.
+  - Do not add `LCWeb` as a dependency of `LCGQL` or `LC`, and do not move reason formatting into `LC.Live`.
+- In `lib/live_canvas_web/channels/live_session_channel.ex`, alias `LCTransport.LiveSessionReasons`, replace `join_error_reason(reason)` with `LiveSessionReasons.join_error_reason(reason)`, replace `message_error_reason(reason)` with `LiveSessionReasons.chat_send_error_reason(reason)`, and remove the private `join_error_reason/1` and `message_error_reason/1` helpers.
+- Leave `LCWeb.LiveSessionChannel.channel_reason/1`, `channel_result_metadata/1`, and telemetry assertions in place. Add a short comment only if needed to make clear that telemetry reason normalization is intentionally separate from public response code formatting.
+- In `lib/live_canvas_gql/live/live_resolver.ex`, alias `LCTransport.LiveSessionReasons` and replace `Atom.to_string(reason)` inside `disconnect_live_session_channels/2` and `disconnect_live_session_user/3` with `LiveSessionReasons.disconnect_reason(reason)`. Do not change `error_message/1` or any GraphQL mutation error contract.
+
+Focused test updates:
+
+- Add `test/live_canvas_transport/live_session_reasons_test.exs` covering the extracted pure formatter:
+  - join mappings: `:invalid_session_id`, `:not_found`, `:ended`, `:session_ended`, `:not_authorized`, and `:rate_limited`;
+  - remote redaction: `{:owned_by_remote, :"node@host"}`, `:remote_not_found`, `:remote_timeout`, and `:remote_unreachable` all return `"session_unavailable"`;
+  - unknown join fallback returns `"join_failed"`;
+  - chat-send mappings: `:session_ended`, `:not_authorized`, `:invalid_body`, `:rate_limited`, and `%Ecto.Changeset{}` returning `"invalid_message"`;
+  - disconnect mappings: `:session_ended` and `:viewer_left`.
+- Keep existing channel tests in `test/live_canvas_web/channels/live_session_channel_test.exs` as integration coverage for public join/chat response payloads and telemetry. They should still prove that clients get `"session_unavailable"` while telemetry keeps `:remote_unreachable`, `:remote_not_found`, or `:remote_timeout`.
+- Keep existing GraphQL lifecycle tests in `test/live_canvas_gql/live/live_mutations_test.exs` as integration coverage for `disconnect` broadcast payloads. They should still assert `%{reason: "session_ended"}` and `%{reason: "viewer_left"}`.
+- Do not force a channel integration test for the changeset-to-`"invalid_message"` branch unless a clean existing path already produces a chat-send changeset failure. The pure formatter test is the focused coverage for that previously untested branch.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8 under `docs/architecture/conventions.md`, preferably in a short `Realtime Transport` subsection: live-session Phoenix topic strings/parsing belong to `LCTransport.LiveSessionTopics` when that module exists, client-facing live-session socket reason strings belong to `LCTransport.LiveSessionReasons`, channel telemetry reason normalization remains separate, and GraphQL mutation errors remain under GraphQL-specific helpers.
+- After editing, run `rg -n 'defp .*error_reason|join_error_reason|message_error_reason|chat_send_error_reason|disconnect_reason' lib/live_canvas_web lib/live_canvas_gql lib/live_canvas_transport` and confirm the only socket response reason formatter definitions are in `LCTransport.LiveSessionReasons`; channel and GraphQL call sites should delegate to it.
+- Run `rg -n 'payload: %\{reason: Atom\.to_string\(reason\)|event: "disconnect".*reason' lib/live_canvas_gql lib/live_canvas_web lib/live_canvas_transport` and confirm live-session disconnect payload reason strings use `LCTransport.LiveSessionReasons.disconnect_reason/1`.
+- Run `rg -n 'Atom\.to_string\(reason\)' lib/live_canvas_web lib/live_canvas_gql lib/live_canvas_transport` and explicitly classify any remaining matches. GraphQL mutation error helpers may remain; socket/channel response payload formatting should not.
+- Run `mix boundary.spec` after dependency updates and confirm `LCWeb` and `LCGQL` can depend on `LCTransport` without introducing an `LCGQL -> LCWeb` or `LC -> LCTransport` dependency.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_transport/live_session_reasons_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas_gql/live/live_mutations_test.exs`
+- `mix boundary.spec`
+- `mix typecheck`
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Preserve the public `%{reason: string}` socket error payload shape.
+- Preserve remote runtime redaction to `"session_unavailable"` for clients while telemetry retains internal remote reasons.
+- Keep telemetry reason normalization separate from client-facing response reason formatting.
+- Do not merge this with `SOCK-002` topic construction/parsing implementation, even if both modules live under `LCTransport`.
+- Do not merge this with `GQL-004`; GraphQL mutation error helpers use different contracts.
+
 **Where to look first:**
 
 - `lib/live_canvas_web/channels/live_session_channel.ex`
+- `lib/live_canvas_gql/live/live_resolver.ex`
 - `test/live_canvas_web/channels/live_session_channel_test.exs`
 - Any shared GraphQL error helper considered for `GQL-004`, to avoid diverging public error conventions.
 
 **Progress:**
 
 - Stage 1: Complete.
-- Stage 2: Pending.
-- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 2: Complete; marked partially valid.
+- Stage 3: Complete.
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Blocked until Stage 3 is complete.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request for `SOCK-003`.
 
 ### LIVE-001 - Live Session Runtime Ownership Stored In Postgres
 
 **User concern:** Why is node ownership for sessions stored/handled with Postgres? Can this be done natively with OTP/Elixir features?
 
 **Initial assessment:** Needs architecture discussion. Current code uses `live_session_runtime_owners` as a lease table to coordinate distributed session runtime ownership. OTP-native options may simplify this if deployment uses a single BEAM cluster and accepts the failure semantics of distributed Erlang primitives. Postgres leases provide durability and work across nodes that share the database, but they add complexity and may be unnecessary for the intended deployment.
+
+**Stage 2 decision:** Marked valid on 2026-05-24. The user selected option #2: replace Postgres-backed live runtime ownership with an OTP-native ownership design. Stage 3 should scan the current ownership implementation and all dependent runtime behaviors before Stage 7 chooses the exact replacement. The fix must explicitly account for the semantics currently provided by the Postgres lease table rather than assuming a local process registry is a drop-in replacement.
+
+Evidence/tradeoffs to carry into Stage 3:
+
+- Current behavior depends on serialized row-lock claims, lease expiry and takeover, runtime heartbeats that stop a process after ownership loss, remote owner routing through runtime RPC, and durable participant rehydration when a runtime process is recreated.
+- OTP-native mechanisms can simplify some deployments, but they do not match those semantics by default: local Registry is node-local, `:pg` is not a single-owner coordinator, `:global` and distributed Erlang require accepting their cluster membership and partition behavior, and purely in-memory ownership loses the shared-DB recovery semantics.
+- Stage 3 must compare OTP-native options such as local Registry, distributed Erlang, `:global`, `:pg`, and supervised process ownership against current runtime join, lookup, failover, viewer count, remote snapshot, partition/rejoin, and cleanup behavior.
+- Keep `LIVE-001` scoped to runtime ownership architecture. Do not absorb the hidden runtime RPC module-selection cleanup already owned by `CTX-001`, socket error formatting owned by `SOCK-003`, or live-session topic work owned by `SOCK-002`.
+
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-24:
+
+- `rg -n 'SessionOwnership|LiveSessionRuntimeOwner|live_session_runtime_owners|owned_by_remote|lease_|heartbeat|runtime_rpc|remote_(lookup|join|live_session_state_snapshot)|lookup_session_server|start_session_server|stop_session_server|join_session_server|SessionRegistry|SessionDynamicSupervisor|peer_runtime|runtime_partition|live_runtime_drill' lib test priv config docs --glob '!deps/**' --glob '!_build/**'`
+- `rg -n 'Registry|DynamicSupervisor|:global|:pg|Node\.|:erpc|PeerRuntimeHelper|disconnect_peer|await_peer_disconnected' lib test config --glob '!deps/**' --glob '!_build/**'`
+- `rg -n 'SessionOwnership\.(claim|refresh|release|get_owner)|LiveSessionRuntimeOwner|live_session_runtime_owners' lib test priv docs/release --glob '!deps/**' --glob '!_build/**'`
+- `rg -n 'lookup_session_server|start_session_server|stop_session_server|join_session_server|remote_lookup_session_server|remote_join_session_server|remote_live_session_state_snapshot|live_session_state_snapshot\(|active_runtime_participants|active_viewer_count' lib/live_canvas test/live_canvas test/live_canvas_web test/integration --glob '!deps/**' --glob '!_build/**'`
+- `rg -n 'lease_ttl_seconds|lease_heartbeat_interval_ms|runtime_rpc_timeout_ms|peer_runtime|live_runtime_drill|owner heartbeat|lease owner|failover|partition' config lib test docs/release docs/plans/archive/completed/release --glob '!deps/**' --glob '!_build/**'`
+
+Findings:
+
+- The exact Postgres ownership target is concentrated in `LC.Live.SessionOwnership`, `LCSchemas.Live.LiveSessionRuntimeOwner`, and `priv/repo/migrations/20260303230000_create_live_session_runtime_owners.exs`. The table enforces one row per `live_session_id`, stores `owner_node`, `lease_expires_at`, and `heartbeat_at`, and uses a `FOR UPDATE` row lock during claims so two nodes cannot both win the same lease window.
+- `LC.Live.SessionOwnership` exposes the current ownership protocol: `claim/3`, `refresh/3`, `release/2`, and `get_owner/2`. Stage 7 must replace or deliberately drop each semantic: first claim, active remote-owner rejection, expired-owner takeover, active-owner refresh, owner-scoped release, stale/expired owner lookup, and app-configured TTL.
+- `LC.Live.SessionSupervisor` is the main coupling point between ownership and runtime processes. It claims ownership before starting a runtime child, releases ownership on stop/start failure, compares the local Registry process with the active owner lookup, terminates stale local runtimes when the owner no longer matches, and maps refresh failures to `:lost_ownership`.
+- `LC.Live.SessionServer` is not Postgres-specific, but it consumes the lease heartbeat callback and stops itself with `:lost_ownership` when the callback can no longer prove ownership. An OTP-native design can probably keep the callback shape, but Stage 7 must decide what proof of ownership replaces `SessionOwnership.refresh/3`.
+- The app already has a local OTP runtime registry: `LC.Live.SessionSupervisor` owns `LC.Live.SessionRegistry` and `LC.Live.SessionDynamicSupervisor`, and `LC.Live.SessionServer` registers via `{:via, Registry, {registry, session_id}}`. This is node-local only today; Stage 7 must not mistake it for a distributed single-owner mechanism by itself.
+- The public `LC.Live` context depends on ownership in several behaviorally important paths:
+  - `start_live_session/2` starts a runtime immediately after inserting the persisted session.
+  - `ensure_session_server/1` routes to a local runtime, returns a remote target for `{:owned_by_remote, owner_node}`, or starts a new local runtime with `active_runtime_participants/1` rehydration when no runtime exists.
+  - `join_live_session/4` couples durable participant upsert to successful local or remote runtime admission, including one retry for remote `:not_found`.
+  - `leave_live_session/2` marks durable participants left and prunes local runtime membership on a best-effort basis.
+  - `end_live_session_with_transition/2` tears down runtime state through `SessionSupervisor.stop_session_server/1`.
+  - `live_session_state_snapshot/2` reads local runtime viewer counts, remote runtime snapshots, or durable active viewer rows depending on runtime availability and transport outcomes.
+- Remote routing currently depends on `owner_node` string values plus `LC.Live.RuntimeRPC`. `RuntimeRPC` resolves `owner_node` against `[Node.self() | Node.list()]` and calls `LC.Live.remote_lookup_session_server/1`, `remote_join_session_server/3`, or `remote_live_session_state_snapshot/1` through `:erpc`. Stage 7 should decide whether an OTP-native ownership layer still needs explicit remote RPC calls, whether ownership directly returns pids, or whether call routing moves behind a new runtime locator.
+- `CTX-001` owns the hidden runtime RPC module-selection cleanup. `LIVE-001` should preserve that boundary: Stage 7 can mention remote routing implications, but should not re-plan `runtime_rpc_module/1` unless `CTX-001` has already implemented or removed that seam.
+- Test coverage that must be carried forward or deliberately rewritten:
+  - `test/live_canvas/live/session_ownership_test.exs` covers first claim, active remote-owner rejection, expired takeover, refresh, owner-scoped release, and row cleanup.
+  - `test/live_canvas/live/session_supervisor_test.exs` covers local claim/start, active remote-owner rejection, expired takeover, stale local runtime termination, release-on-stop, heartbeat refresh, and shutdown after ownership loss.
+  - `test/live_canvas/live/distributed_runtime_test.exs` covers remote lookup/join routing, timeout/not-found normalization, retry on remote-not-found, no durable participant on failed remote join, stale local runtime routing to remote owner, and remote state snapshots.
+  - `test/live_canvas/live_test.exs` covers runtime lookup after start, viewer-count snapshots, durable participant fallback when runtime is missing, runtime shutdown on end, participant rehydration when recreating a missing runtime, and leave cleanup.
+  - `test/live_canvas_web/channels/live_session_channel_test.exs` covers remote-owned channel joins, remote not-found/timeout redaction, telemetry reasons, and runtime shutdown after lost ownership.
+  - `test/integration/live/runtime_partition_rejoin_test.exs` plus `test/support/live/peer_runtime_helper.ex` cover real peer-node partition behavior, remote unreachability, manual lease removal, and local takeover/rejoin.
+- Release and operator material currently assumes the lease model. `lib/live_canvas/release/live_runtime_drill.ex`, `lib/mix/tasks/release.live_runtime_drill.ex`, `docs/release/live-runtime-failover-drills.md`, and `docs/release/deployment-gates.md` refer to capturing lease owner, forcing owner flip, and verifying owner heartbeat. Stage 7 must plan matching operator evidence for the OTP-native design.
+- Data/governance documentation currently includes `live_session_runtime_owners` in the Live data family (`docs/release/compliance-data-governance.md`). If Stage 8 removes the table, the implementation plan must include schema/data-retention doc updates, even though backend-lane workers should not edit shared/coordinator docs unless explicitly assigned.
+- No existing production code uses `:global` or `:pg` for live-session ownership. The only current OTP ownership machinery is the local Registry/DynamicSupervisor pair and distributed Erlang calls through `:erpc`.
+- Similar DB-lease patterns exist outside this issue only as general infrastructure, not live runtime ownership: `LC.Infra.AsyncJobs` uses row locks for due-job claiming. Stage 3 does not treat that as part of `LIVE-001`; it is a different durable work-queue pattern.
+
+Stage 3 watchpoints to carry into Stage 7:
+
+- Stage 7 must choose a concrete ownership primitive, not just say "OTP-native." It should compare at least local Registry-only, `:global`, `:pg` plus a separate single-owner process, and direct distributed Erlang process ownership.
+- Preserve or explicitly replace these user-visible behaviors: no split-brain runtime admission, reconnect-safe join after owner loss, no durable participant row on failed remote runtime admission, viewer-count fallback semantics, ended-session zero viewers, channel error redaction, and remote snapshot behavior.
+- Decide whether the product still supports independent BEAM nodes that share Postgres but are not in one connected Erlang cluster. If yes, a purely OTP-native owner cannot replace the current table without changing the deployment contract.
+- Plan the migration/removal path for `live_session_runtime_owners` only in Stage 7/8. Stage 3 does not remove schemas, migrations, retention references, release runbooks, or tests.
+- Keep release drill and peer-runtime verification in scope for the eventual Stage 8 plan. The old lease-owner drill cannot remain the final operator evidence if ownership is no longer stored in Postgres.
 
 **Evidence seen:**
 
@@ -1496,8 +1864,7 @@ Verification for Stage 8:
 
 - Clarify deployment assumptions: single node, distributed BEAM cluster, multi-node with shared Postgres, or future autoscaling.
 - Compare OTP-native options such as local Registry, distributed Erlang, `:global`, `:pg`, or a supervised process per session against current Postgres lease semantics.
-- If OTP-native is chosen, write a replacement plan for ownership lookup, failover, viewer counts, and remote state snapshots.
-- If Postgres stays, document why and simplify confusing seams such as `runtime_rpc_module/1`.
+- Write a replacement plan for ownership lookup, failover, viewer counts, remote state snapshots, operator drills, and any schema/data-governance cleanup needed if the Postgres table is removed.
 
 **Where to look first:**
 
@@ -1514,12 +1881,12 @@ Verification for Stage 8:
 **Progress:**
 
 - Stage 1: Complete.
-- Stage 2: Pending.
-- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 2: Complete; marked valid.
+- Stage 3: Complete.
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Blocked until Stage 3 is complete.
+- Stage 7: Not started; run only when the user asks to continue `LIVE-001`.
 - Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ### DOC-001 - Task-Specific Information In General Convention Docs
@@ -1905,9 +2272,9 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Current status: Stage 1 is complete for all user-reported issues; Stage 2, Stage 3, and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001`; `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, which now owns both live-session topic generation and parsing cleanup; `GEN-001` Stage 2 is complete with a deferred-valid decision and a required future fix through a dedicated chat timeline/event-object redesign; Stage 4 is complete; Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`; Stage 7 plans are also written for `GQL-008`, `GEN-002`, and `WEB-001`; Stage 8 has not started for any issue. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests and follow that issue's Stage 7 plan. If continuing issue discussion with the next undecided user-reported issue, start Stage 2 for `SOCK-002` only when the user asks to move to the next issue. If continuing `GEN-001`, do not start a cleanup-stage scan by default; start a dedicated chat timeline/event-object redesign only if the user explicitly asks. If continuing Stage 7 planning for other issues, do not start `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
+Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Current status: Stage 1 is complete for all user-reported issues; Stage 2, Stage 3, and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, and `SOCK-003`; `LIVE-001` Stage 2 and Stage 3 are complete with a valid decision to replace Postgres-backed runtime ownership with an OTP-native ownership design, and Stage 7 has not started; `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, which now owns both live-session topic generation and parsing cleanup; `GEN-001` Stage 2 is complete with a deferred-valid decision and a required future fix through a dedicated chat timeline/event-object redesign; Stage 4 is complete; Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`; Stage 7 plans are also written for `GQL-008`, `GEN-002`, and `WEB-001`; Stage 8 has not started for any issue. If continuing `LIVE-001`, start Stage 7 only when the user explicitly asks to continue that issue. If continuing issue discussion with the next undecided user-reported issue, start Stage 2 for `DOC-001` only when the user asks to move to the next issue. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests and follow that issue's Stage 7 plan. If continuing `GEN-001`, do not start a cleanup-stage scan by default; start a dedicated chat timeline/event-object redesign only if the user explicitly asks. If continuing Stage 7 planning for other issues, do not start `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
 ```
 
 ## Shared Coordinator Repair To Report
 
-The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, `CTX-001` Stage 7 is complete and Stage 8 has not started, `GEN-001` Stage 2 is complete with a deferred-valid decision and a required future chat timeline/event-object fix, `ECTO-001` Stage 7 is complete and Stage 8 has not started, `GQL-007` Stage 7 is complete and Stage 8 has not started, `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-008`, `GEN-002`, and `WEB-001` are discussed/scanned/planned where applicable, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 8 implementation for a planned issue if the user explicitly requests it, Stage 2 discussion for `SOCK-002` if the user asks to move to the next undecided issue, explicit dedicated redesign for `GEN-001` if the user asks to start it, or explicit deferred planning for `GQL-009`.
+The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, `SOCK-002` Stage 2, Stage 3, and Stage 7 are complete with Stage 8 not started, `SOCK-003` Stage 2, Stage 3, and Stage 7 are complete with Stage 8 not started, `LIVE-001` Stage 2 and Stage 3 are complete with a valid OTP-native ownership redesign decision and Stage 7 has not started, `CTX-001` Stage 7 is complete and Stage 8 has not started, `GEN-001` Stage 2 is complete with a deferred-valid decision and required future chat timeline/event-object fix, `ECTO-001` Stage 7 is complete and Stage 8 has not started, `GQL-007` Stage 7 is complete and Stage 8 has not started, `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-008`, `GEN-002`, and `WEB-001` are discussed/scanned/planned where applicable, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 7 for `LIVE-001` if the user asks to continue that issue, Stage 2 for `DOC-001` if the user asks to move to the next undecided issue, Stage 8 implementation for a planned issue if the user explicitly requests it, explicit dedicated redesign for `GEN-001` if the user asks to start it, or explicit deferred planning for `GQL-009`.
