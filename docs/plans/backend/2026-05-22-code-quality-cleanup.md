@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
-Last reviewed: 2026-05-23
-Status: `GQL-006` Stage 7 complete; Stage 8 not started
+Last reviewed: 2026-05-24
+Status: `SOCK-001` Stage 2 complete; merged into `SOCK-002`
 Owner lane: backend
 
 ## Purpose
@@ -25,7 +25,7 @@ Applicability note: Stages 1-3 apply to user-reported issues. Stage 4 is one glo
 
 ## Current Handoff
 
-Stage status was audited on 2026-05-23 after `GQL-006` Stage 7 planning. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-006` have Stage 2, Stage 3, and Stage 7 complete. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008`, `GEN-002`, and `WEB-001` also have Stage 7 complete. No Stage 8 implementation has started for any cleanup issue. Continue next by entering Stage 8 implementation for a planned issue only if the user explicitly asks for that issue, by resuming Stage 2 discussion with `GQL-007`, or by revisiting deferred `GQL-009` Stage 7 only if the user explicitly asks to plan that deferred structural cleanup. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
+Stage status was audited on 2026-05-24 after `SOCK-001` Stage 2 discussion. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001` have Stage 2, Stage 3, and Stage 7 complete. `SOCK-001` has Stage 2 complete with a merge-into-`SOCK-002` decision: the duplicate live-session topic-id parsing concern is real, but topic parsing should be fixed with the same shared topic-boundary work as topic generation. `GEN-001` has Stage 2 complete with a deferred-valid decision: the client-facing system-event model must be fixed later, but the fix requires a dedicated chat timeline/event-object redesign rather than an implicit code-quality cleanup pass. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008`, `GEN-002`, and `WEB-001` also have Stage 7 complete. No Stage 8 implementation has started for any cleanup issue. Continue next by entering Stage 8 implementation for a planned issue only if the user explicitly asks for that named issue, by starting Stage 2 for `SOCK-002` if the user asks to continue issue discussion, or by revisiting deferred `GQL-009` Stage 7 only if the user explicitly asks to plan that deferred structural cleanup. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -65,8 +65,10 @@ Stage 5 candidate issues discovered by the Stage 4 scan:
 
 User-reported issue status:
 
-- `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-006`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 not started.
-- `GQL-007`, `ECTO-001`, `GEN-001`, `CTX-001`, `SOCK-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`: Stage 1 complete; Stage 2 pending; Stages 3, 7, and 8 are blocked until each issue is discussed and marked valid or partially valid.
+- `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 not started.
+- `GEN-001`: Stage 1 complete, Stage 2 complete with a deferred-valid decision; Stage 3 and Stage 7 deferred until a dedicated chat timeline/event-object redesign is explicitly started; Stage 8 blocked until that redesign is planned and implementation is explicitly requested.
+- `SOCK-001`: Stage 1 complete, Stage 2 complete with a merge-into-`SOCK-002` decision; no separate Stage 3, Stage 7, or Stage 8 work should run.
+- `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`: Stage 1 complete; Stage 2 pending; Stages 3, 7, and 8 are blocked until each issue is discussed and marked valid or partially valid.
 
 Stage 4 candidate issue status:
 
@@ -862,6 +864,10 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Initial assessment:** Likely valid for simple child fields. Some current wrappers only check preloaded association then call `LCGQL.Dataloader.load_assoc/4`; those can probably become inline dataloader declarations. Other fields include authorization, filtering, ordering, fallback behavior, or connection pagination and should stay resolver-backed.
 
+**Stage 2 decision:** Marked partially valid on 2026-05-23. Simple resolver wrappers whose only responsibility is loading an association through dataloader are real cleanup targets. Resolver functions that re-apply authorization, build Relay connections, paginate, filter, sort, preserve nil/default semantics, or otherwise shape a contract-sensitive response should stay in place for now.
+
+**Future framework note:** Authorization and Relay connection behavior should not remain indefinitely as one-off resolver code. A future cleanup should introduce a dedicated system or framework for reusable child-field authorization and connection construction so pagination, filtering, ordering, and visibility checks are consistent without burying them in ad hoc resolver functions. `GQL-007` should not build that framework; it should avoid deleting wrappers that currently own those behaviors.
+
 **Evidence seen:**
 
 - `lib/live_canvas_gql/chat/chat_resolver.ex` has `chat_message_sender/3`.
@@ -870,11 +876,120 @@ Stage 3 watchpoints to carry into Stage 8:
 - `lib/live_canvas_gql/content/content_resolver.ex` has `author/3`; `media_assets/3` is more than a simple association load because it sorts and documents visibility assumptions.
 - `lib/live_canvas_gql/dataloader.ex` has a generic `load_assoc/4` wrapper.
 
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-23:
+
+- `rg -n "LCGQL\\.Dataloader\\.load_assoc|Dataloader\\.load\\(|Absinthe\\.Resolution\\.Helpers\\.on_load" lib/live_canvas_gql`
+- `rg -n "resolve\\(&Resolver\\.|resolve\\(&[A-Za-z]+Resolver\\." lib/live_canvas_gql/**/*_types.ex lib/live_canvas_gql/**/*_queries.ex lib/live_canvas_gql/**/*_mutations.ex`
+- `rg -n "import Absinthe\\.Resolution\\.Helpers|dataloader\\(" lib/live_canvas_gql test/live_canvas_gql`
+- `rg -n "from_query\\(|from_list\\(|authorize_|visible_profile_connection|can_view_relationship_graph\\?|profile_.*_query|history_query|pending_follow_requests_query|media_assets\\(" lib/live_canvas_gql`
+
+Direct simple dataload-wrapper candidates for Stage 7 planning:
+
+- `lib/live_canvas_gql/chat/chat_types.ex`: `ChatMessage.sender` delegates to `LCGQL.Chat.Resolver.chat_message_sender/3`.
+- `lib/live_canvas_gql/chat/chat_resolver.ex`: `chat_message_sender/3` only returns a preloaded sender, loads `:sender` through `LCGQL.Dataloader.load_assoc/4` when `sender_id` is present, or returns nil.
+- `lib/live_canvas_gql/feed/feed_types.ex`: `LiveSession.host` delegates to `LCGQL.Feed.Resolver.host/3`.
+- `lib/live_canvas_gql/feed/feed_resolver.ex`: `host/3` only returns a preloaded host, loads `:host` through `LCGQL.Dataloader.load_assoc/4` when `host_id` is present, or returns nil.
+- `lib/live_canvas_gql/social/social_types.ex`: `FollowRequest.follower` delegates to `LCGQL.Social.Resolver.follow_request_follower/3`.
+- `lib/live_canvas_gql/social/social_resolver.ex`: `follow_request_follower/3` only returns a preloaded follower, loads `:follower` through `LCGQL.Dataloader.load_assoc/4` when `follower_id` is present, or returns nil.
+- `lib/live_canvas_gql/content/content_types.ex`: `Post.author` delegates to `LCGQL.Content.Resolver.author/3`.
+- `lib/live_canvas_gql/content/content_resolver.ex`: `author/3` only returns a preloaded author, loads `:author` through `LCGQL.Dataloader.load_assoc/4` when `author_id` is present, or returns nil.
+
+Related dataloader and resolver patterns to preserve or defer:
+
+- `lib/live_canvas_gql/accounts/account_resolver.ex`: `user_identity_user/3` also calls `LCGQL.Dataloader.load_assoc/4`, but it first checks that the resolved user matches the current viewer. This is an authorization boundary and should not become a plain inline dataloader field in `GQL-007`.
+- `lib/live_canvas_gql/feed/feed_resolver.ex`: `recording_media_asset/3` uses Dataloader internally, but it re-applies retained-history authorization and filters to durable uploaded/processed media assets. Keep it resolver-backed until the future authorization/connection framework exists.
+- `lib/live_canvas_gql/content/content_resolver.ex`: `media_assets/3` uses Dataloader internally, but it preserves an empty-list fallback and sorts by `{inserted_at, id}`. Keep it resolver-backed unless Stage 7 deliberately provides an equivalent sorting/defaulting approach.
+- `lib/live_canvas_gql/chat/chat_resolver.ex`: `chat_messages/3` authorizes retained-history access and builds a Relay connection from a query; keep out of this dataload-wrapper cleanup.
+- `lib/live_canvas_gql/feed/feed_resolver.ex`, `lib/live_canvas_gql/accounts/account_resolver.ex`, and `lib/live_canvas_gql/social/social_resolver.ex` contain multiple query-backed Relay connection resolvers. These are future authorization/connection framework candidates, not simple dataloader wrapper replacements.
+- No existing `import Absinthe.Resolution.Helpers` or inline `dataloader(...)` call was found in `lib/live_canvas_gql` or `test/live_canvas_gql`, even though `Absinthe.Middleware.Dataloader` is configured in `LCGQL.Schema` and the request context installs a loader. Stage 8 should add the imports and helper calls explicitly in the touched type modules.
+- `LCGQL.Dataloader.load_assoc/4` is currently used by the four simple wrappers above plus `user_identity_user/3`. Keep the helper while `user_identity_user/3` still uses it behind a viewer-ownership check.
+
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Keep the public GraphQL schema shape unchanged. `ChatMessage.sender`, `LiveSession.host`, `FollowRequest.follower`, and `Post.author` keep the same field names, nullability, and return types.
+- In each touched `*_types.ex` module, import Absinthe's dataloader helper explicitly with `import Absinthe.Resolution.Helpers, only: [dataloader: 1]` and alias `LC.Accounts` because all four association targets load through the existing `Accounts` dataloader source.
+- In `lib/live_canvas_gql/chat/chat_types.ex`, change `ChatMessage.sender` from `resolve(&Resolver.chat_message_sender/3)` to inline dataloader resolution:
+
+```elixir
+field :sender, :user do
+  resolve(dataloader(Accounts))
+end
+```
+
+- In `lib/live_canvas_gql/feed/feed_types.ex`, change `LiveSession.host` from `resolve(&Resolver.host/3)` to inline dataloader resolution:
+
+```elixir
+field :host, non_null(:user) do
+  resolve(dataloader(Accounts))
+end
+```
+
+- In `lib/live_canvas_gql/social/social_types.ex`, change `FollowRequest.follower` from `resolve(&Resolver.follow_request_follower/3)` to inline dataloader resolution:
+
+```elixir
+field :follower, non_null(:user) do
+  resolve(dataloader(Accounts))
+end
+```
+
+- In `lib/live_canvas_gql/content/content_types.ex`, change `Post.author` from `resolve(&Resolver.author/3)` to inline dataloader resolution:
+
+```elixir
+field :author, non_null(:user) do
+  resolve(dataloader(Accounts))
+end
+```
+
+- Remove `chat_message_sender/3` plus its spec from `lib/live_canvas_gql/chat/chat_resolver.ex`. After that removal, remove `Accounts` from the `alias LC.{Accounts, Chat}` line because `LCGQL.Chat.Resolver` no longer needs it.
+- Remove `host/3` plus its spec from `lib/live_canvas_gql/feed/feed_resolver.ex`. After that removal, remove `Accounts` from the `alias LC.{Accounts, Chat, Content, Feed}` line because `LCGQL.Feed.Resolver` no longer needs it.
+- Remove `follow_request_follower/3` plus its spec from `lib/live_canvas_gql/social/social_resolver.ex`. Keep `Accounts` aliased there because `fetch_user/2` still uses `Accounts.get_user!/1`.
+- Remove `author/3` plus its spec from `lib/live_canvas_gql/content/content_resolver.ex`. After that removal, remove `Accounts` from the `alias LC.{Accounts, Content, Feed}` line because `LCGQL.Content.Resolver` no longer needs it.
+- Keep `LCGQL.Dataloader.load_assoc/4` in `lib/live_canvas_gql/dataloader.ex` during this issue because `LCGQL.Accounts.Resolver.user_identity_user/3` still uses it behind a viewer-ownership check. Removing or redesigning that helper belongs to a later auth-aware child-field framework pass.
+- Do not touch `LCGQL.Accounts.Resolver.user_identity_user/3`, `LCGQL.Feed.Resolver.recording_media_asset/3`, `LCGQL.Content.Resolver.media_assets/3`, `LCGQL.Chat.Resolver.chat_messages/3`, or query-backed Relay connection resolvers in `LCGQL.Feed.Resolver`, `LCGQL.Accounts.Resolver`, and `LCGQL.Social.Resolver`.
+- Do not add the future authorization/connection framework in this issue. The only Stage 8 implementation work should be replacing the four direct association wrappers and documenting the convention.
+
+Focused test updates:
+
+- Prefer existing public GraphQL tests over resolver-private tests. The behavior should stay observable through schema execution, not through the deleted resolver functions.
+- Keep existing chat sender coverage in `test/live_canvas_gql/chat/chat_queries_test.exs` and `test/live_canvas_gql/chat/chat_mutations_test.exs`; these query `ChatMessage.sender.id` through history, node, and mutation payload paths.
+- Keep existing feed host coverage in `test/live_canvas_gql/feed/feed_queries_test.exs`, especially `"batches repeated host lookups when liveNow requests hosts"`, because it protects both field behavior and dataloader batching.
+- Keep existing social follower coverage in `test/live_canvas_gql/social/social_queries_test.exs` for `viewerPendingFollowRequests { follower { id } }`.
+- Keep existing content author coverage in `test/live_canvas_gql/content/content_queries_test.exs` and `test/live_canvas_gql/content/content_mutations_test.exs` for `Post.author`.
+- Keep `test/live_canvas_gql/relay/node_queries_test.exs` in the focused verification set because it exercises these association fields through globally refetchable node paths and protects against accidental authorization bypasses in nearby fields.
+- Add a new test only if Stage 8 discovers that one of the four inline fields is not covered by the listed GraphQL paths. Do not add tests that assert the implementation detail that `dataloader/1` is used.
+
+Prevention checks:
+
+- Add a durable convention note during Stage 8 under `docs/architecture/conventions.md` -> `GraphQL And Relay`: simple child fields whose only behavior is association loading should use inline Absinthe dataloader declarations; fields that authorize, paginate, filter, sort, default, or shape a contract-sensitive payload should remain resolver-backed until a dedicated authorization/connection framework exists.
+- After editing, run `rg -n "chat_message_sender|follow_request_follower|def host\\(|def author\\(|Resolver\\.host|Resolver\\.author|Resolver\\.chat_message_sender|Resolver\\.follow_request_follower" lib/live_canvas_gql` and expect no hits for the four removed wrappers or their type references.
+- Run `rg -n "LCGQL\\.Dataloader\\.load_assoc" lib/live_canvas_gql` and expect only authorization-preserving usage, currently `LCGQL.Accounts.Resolver.user_identity_user/3`, unless Stage 8 introduces a deliberately equivalent auth-aware replacement.
+- Run `rg -n "recording_media_asset\\(|media_assets\\(|chat_messages\\(|visible_profile_connection|can_view_relationship_graph\\?" lib/live_canvas_gql` and confirm the resolver-backed authorization, sorting, and Relay connection boundaries remain present.
+- Run `rg -n "import Absinthe\\.Resolution\\.Helpers, only: \\[dataloader: 1\\]|resolve\\(dataloader\\(Accounts\\)\\)" lib/live_canvas_gql` and confirm only the intended type modules gained inline dataloader declarations.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/social/social_queries_test.exs test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
+- `mix typecheck`
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Preserve dataloader batching for repeated `LiveSession.host` lookups; the feed batching test should stay green.
+- Do not convert `user_identity_user/3` into a plain inline dataloader because it re-checks current-viewer ownership before exposing the user behind a `UserIdentity`.
+- Do not convert `recording_media_asset/3` because it re-applies retained-history visibility and filters non-durable media assets.
+- Do not convert `media_assets/3` unless the implementation preserves the empty-list fallback and deterministic `{inserted_at, id}` ordering.
+- Do not convert Relay connection resolvers as part of this issue. They belong to the future authorization/connection framework noted above.
+
 **What likely needs to change:**
 
 - Identify resolver functions whose only responsibility is a simple association load.
 - Replace those field definitions with inline Absinthe dataloader usage.
 - Keep resolver functions where authz, connection construction, filtering, sorting, or null/default semantics are required.
+- Carry the future-framework note into Stage 8 so implementation does not flatten authorization or Relay connection behavior merely to remove a wrapper.
 
 **Where to look first:**
 
@@ -887,19 +1002,21 @@ Stage 3 watchpoints to carry into Stage 8:
 **Progress:**
 
 - Stage 1: Complete.
-- Stage 2: Pending.
-- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 2: Complete; marked partially valid.
+- Stage 3: Complete.
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Blocked until Stage 3 is complete.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### ECTO-001 - Ecto Schema Files Do Not Summarize Constraints And Indexes
 
 **User concern:** Ecto schema files need documentation or comments so readers do not have to search migrations to understand table constraints and unique indexes.
 
 **Initial assessment:** Valid. Schema modules currently list fields and associations but generally do not summarize database constraints or indexes. Migrations show many unique indexes and check constraints that are not obvious from schema files.
+
+**Stage 2 decision:** Marked valid with tight scope on 2026-05-23. Schema files should get concise table-contract summaries for database behavior readers need while working in the schema module: unique indexes, check constraints, important foreign-key delete behavior, and deliberate exceptions. Include non-unique indexes only when they explain important query/access behavior or performance-sensitive paths. Do not copy migrations wholesale, do not list every routine index by default, and keep the convention short enough that it can stay current.
 
 **Evidence seen:**
 
@@ -920,22 +1037,178 @@ Stage 3 watchpoints to carry into Stage 8:
 - `priv/repo/migrations/**/*`
 - `docs/architecture/conventions.md`
 
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-23:
+
+- `rg -n "schema \"" lib/live_canvas_schemas`
+- `rg -n "@moduledoc|constraint|unique index|unique_index|table contract|indexes|indices|on_delete|foreign key|check" lib/live_canvas_schemas`
+- `rg -n "^defmodule|schema \"|embedded_schema|@moduledoc|constraint|unique_index|index|references\\(|on_delete|create table|create constraint|create index" lib/live_canvas_schemas priv/repo/migrations`
+- `rg -n "unique_index\\(|create index\\(|create unique_index\\(|create constraint\\(|references\\([^\\n]+on_delete|add .*references\\(" priv/repo/migrations`
+- Focused migration reads for accounts identity, social graph, live, chat, content, post reports, webhooks/jobs, governance requests, auth events, user passkeys, and entropy-id migrations.
+
+Current documentation gap:
+
+- `lib/live_canvas_schemas` has 26 persisted `schema "..."` modules. None of those persisted schema modules has a table-contract summary for unique indexes, check constraints, important foreign-key delete behavior, or important access-pattern indexes.
+- The only `@moduledoc` hits in `lib/live_canvas_schemas` are namespace/base modules with `@moduledoc false`; the scan found no schema-local contract docs.
+- Namespace modules, enum/type modules, and `LCSchemas.Schema` are not direct per-table contract targets, but Stage 7 should consider using `docs/architecture/conventions.md` or `LCSchemas.Schema` to avoid repeating the common relational-table contract in every schema.
+- The initial evidence item for `users.email` is historical now: `20260302000000_rebuild_accounts_identity_tables.exs` drops the `users.email` index/column after splitting addresses into `email_addresses` and join tables. Stage 7 should not document `users.email` as a current `users` table contract.
+
+Schema modules needing contract summaries under the tight scope:
+
+- Accounts identity tables:
+  - `lib/live_canvas_schemas/accounts/user.ex`: common relational `entropy_id` unique contract; `users.suspended_at` has a non-unique index that matters only if Stage 7 decides staff/moderation or active-user query paths deserve schema-local mention.
+  - `lib/live_canvas_schemas/accounts/email_address.ex`: unique `normalized_email` plus common `entropy_id`; table owns canonical normalized email identity.
+  - `lib/live_canvas_schemas/accounts/phone_number.ex`: unique `normalized_e164` plus common `entropy_id`; table owns canonical normalized phone identity.
+  - `lib/live_canvas_schemas/accounts/user_email_address.ex`: unique `(user_id, email_address_id)`, cascade-delete FKs to `users` and `email_addresses`, plus common `entropy_id`.
+  - `lib/live_canvas_schemas/accounts/user_phone_number.ex`: unique `(user_id, phone_number_id)`, cascade-delete FKs to `users` and `phone_numbers`, plus common `entropy_id`.
+  - `lib/live_canvas_schemas/accounts/user_identity.ex`: unique `(provider, provider_uid)`, cascade-delete FK to `users`, plus common `entropy_id`.
+  - `lib/live_canvas_schemas/accounts/user_contact_entry.ex`: unique `(user_id, contact_client_id)`, cascade-delete FK to `users`, plus common `entropy_id`.
+  - `lib/live_canvas_schemas/accounts/user_contact_entry_email_address.ex`: unique `(user_contact_entry_id, email_address_id)`, cascade-delete FKs, plus common `entropy_id`.
+  - `lib/live_canvas_schemas/accounts/user_contact_entry_phone_number.ex`: unique `(user_contact_entry_id, phone_number_id)`, cascade-delete FKs, plus common `entropy_id`.
+  - `lib/live_canvas_schemas/accounts/user_token.ex`: explicit UUID-primary-key exception with no `entropy_id`; unique `(context, secret_hash)` in the current table, cascade-delete FK to `users`, and Postgres-owned UUIDv7 id generation. Historical `(context, token)` appears only in older/down migration paths and should not be documented as the current contract.
+  - `lib/live_canvas_schemas/accounts/user_passkey.ex`: unique `credential_id`, unique `user_identity_id`, cascade-delete FKs to `users` and `user_identities`, plus common `entropy_id`.
+  - `lib/live_canvas_schemas/accounts/auth_event.ex`: nilify-on-delete FK to `users`, common `entropy_id`, and audit/query indexes on `user_id`, `event_type`, and `inserted_at` if Stage 7 treats those as behaviorally important.
+- Social graph tables:
+  - `lib/live_canvas_schemas/social/follow.ex`: unique `(follower_id, followed_id)`, cascade-delete FKs to both users, and common `entropy_id`; follower/followed indexes support relationship lookup paths.
+  - `lib/live_canvas_schemas/social/block.ex`: unique `(blocker_id, blocked_id)`, cascade-delete FKs to both users, and common `entropy_id`; blocker/blocked indexes support relationship lookup paths.
+  - `lib/live_canvas_schemas/social/mute.ex`: unique `(muter_id, muted_id)`, cascade-delete FKs to both users, and common `entropy_id`; muter/muted indexes support relationship lookup paths.
+- Live tables:
+  - `lib/live_canvas_schemas/live/live_session.ex`: cascade-delete FK to host user, nilify-on-delete FK to `recording_media_asset_id`, common `entropy_id`, and status/recording indexes where they explain live/session history access.
+  - `lib/live_canvas_schemas/live/live_participant.ex`: unique `(live_session_id, user_id)`, cascade-delete FKs to live session and user, plus common `entropy_id`.
+  - `lib/live_canvas_schemas/live/live_session_runtime_owner.ex`: unique `live_session_id` enforcing one runtime owner per session, cascade-delete FK to live session, common `entropy_id`, and lease/owner indexes for runtime ownership claim and expiry paths.
+- Chat table:
+  - `lib/live_canvas_schemas/chat/chat_message.ex`: cascade-delete FKs to live session and sender, nilify-on-delete FK to moderator, common `entropy_id`, and the `(live_session_id, inserted_at, id)` index that supports retained-history pagination/order.
+- Content tables:
+  - `lib/live_canvas_schemas/content/post.ex`: cascade-delete FK to author, common `entropy_id`, and behaviorally important story/feed indexes on `kind`, `expires_at`, and `(kind, inserted_at)`; the migration explicitly documents the story-slice ordering index.
+  - `lib/live_canvas_schemas/content/media_asset.ex`: cascade-delete FK to owner and optional cascade-delete FK to post, plus common `entropy_id`.
+  - `lib/live_canvas_schemas/content/post_report.ex`: check constraints for `reason` and `status`, unique `(reporter_id, post_id)`, cascade-delete FKs to reporter and post, common `entropy_id`, and moderation queue index `(status, inserted_at)`.
+- Infra tables:
+  - `lib/live_canvas_schemas/infra/webhook_event.ex`: unique `(provider, external_event_id)` for webhook idempotency, common `entropy_id`, and `(status, received_at)` processing index.
+  - `lib/live_canvas_schemas/infra/async_job.ex`: partial unique `dedupe_key` where non-null, check constraints for non-negative attempts and positive max attempts, common `entropy_id`, and claim index `(kind, status, scheduled_at)`.
+  - `lib/live_canvas_schemas/infra/data_export_request.ex`: nilify-on-delete FK to `users`, common `entropy_id`, and `(user_id, inserted_at)` governance-history index if treated as behaviorally important.
+  - `lib/live_canvas_schemas/infra/account_deletion_request.ex`: nilify-on-delete FK to `users`, common `entropy_id`, and `(user_id, inserted_at)` governance-history index if treated as behaviorally important.
+
+Stage 7 planning constraints:
+
+- Do not document every routine FK index by default. Mention non-unique indexes only when they explain an intentional query path, ordering contract, worker claim path, audit/history lookup, or expiry/cleanup path.
+- Do not duplicate full migration text in schema files. The target is a compact table-contract summary that helps a reader understand invariants without opening migrations.
+- Decide how to represent the common relational-table contract once: bigint `id`, Postgres-generated UUIDv7 `entropy_id`, unique `entropy_id`, and `:utc_datetime_usec` timestamps. Per-schema summaries should focus on table-specific invariants unless Stage 7 chooses an explicit "common contract applies" line.
+- Keep `users_tokens` visibly exceptional because it uses the `:uuid_primary_key` schema mode and UUIDv7 primary key rather than relational bigint plus `entropy_id`.
+
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Keep Stage 8 documentation/comment-only. Do not change migrations, schema fields, associations, changesets, queries, indexes, constraints, enum values, runtime behavior, or tests that assert runtime behavior.
+- Add a durable convention note in `docs/architecture/conventions.md` under `Data And Security`:
+
+```markdown
+- Persisted Ecto schema modules should include a concise table-contract summary near the schema definition. Summaries should name table-specific unique indexes, check constraints, important foreign-key delete behavior, deliberate primary-key/identifier exceptions, and non-unique indexes only when they explain an intentional query path, ordering contract, worker claim path, audit/history lookup, or expiry/cleanup path. Do not copy migrations wholesale; keep common relational defaults in the convention and reference them briefly from each schema.
+```
+
+- Use module-level `@moduledoc` as the per-schema documentation format. Put it after aliases and before `@type` when a module already has aliases, or after `use LCSchemas.Schema, ...` when there are no aliases. Keep each summary short and use this shape:
+
+```elixir
+@moduledoc """
+Schema for the `table_name` table.
+
+Table contract:
+- Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+- Add only table-specific invariants here.
+"""
+```
+
+- For `lib/live_canvas_schemas/accounts/user_token.ex`, use the exception format instead of the standard relational line:
+
+```elixir
+@moduledoc """
+Schema for the `users_tokens` table.
+
+Table contract:
+- Deliberate identifier exception: UUIDv7 primary key generated by Postgres, no `entropy_id`.
+- `(context, secret_hash)` is unique for persisted token secrets.
+- Deleting a user cascades to their tokens.
+"""
+```
+
+- Do not add table-contract docs to namespace modules (`lib/live_canvas_schemas/accounts.ex`, `chat.ex`, `content.ex`, `infra.ex`, `live.ex`, `social.ex`), enum/type modules, or `lib/live_canvas_schemas/schema.ex`.
+
+Schema modules to update in Stage 8:
+
+- Accounts:
+  - `lib/live_canvas_schemas/accounts/user.ex`: standard relational contract; mention the `suspended_at` account-state index only if the final wording ties it to staff/moderation or active-account filtering.
+  - `lib/live_canvas_schemas/accounts/email_address.ex`: standard relational contract; unique `normalized_email`.
+  - `lib/live_canvas_schemas/accounts/phone_number.ex`: standard relational contract; unique `normalized_e164`.
+  - `lib/live_canvas_schemas/accounts/user_email_address.ex`: standard relational contract; unique `(user_id, email_address_id)`; deleting either side cascades to the join row.
+  - `lib/live_canvas_schemas/accounts/user_phone_number.ex`: standard relational contract; unique `(user_id, phone_number_id)`; deleting either side cascades to the join row.
+  - `lib/live_canvas_schemas/accounts/user_identity.ex`: standard relational contract; unique `(provider, provider_uid)`; deleting a user cascades to identities.
+  - `lib/live_canvas_schemas/accounts/user_contact_entry.ex`: standard relational contract; unique `(user_id, contact_client_id)`; deleting a user cascades to contact entries.
+  - `lib/live_canvas_schemas/accounts/user_contact_entry_email_address.ex`: standard relational contract; unique `(user_contact_entry_id, email_address_id)`; deleting either side cascades to the join row.
+  - `lib/live_canvas_schemas/accounts/user_contact_entry_phone_number.ex`: standard relational contract; unique `(user_contact_entry_id, phone_number_id)`; deleting either side cascades to the join row.
+  - `lib/live_canvas_schemas/accounts/user_token.ex`: UUID-primary-key exception; unique `(context, secret_hash)`; user delete cascades to tokens; do not document historical `(context, token)`.
+  - `lib/live_canvas_schemas/accounts/user_passkey.ex`: standard relational contract; unique `credential_id`; unique `user_identity_id`; deleting a user or identity cascades to passkeys.
+  - `lib/live_canvas_schemas/accounts/auth_event.ex`: standard relational contract; deleting a user nilifies `user_id`; mention audit indexes on `user_id`, `event_type`, and `inserted_at`.
+- Social:
+  - `lib/live_canvas_schemas/social/follow.ex`: standard relational contract; unique `(follower_id, followed_id)`; deleting either user cascades; relationship lookup indexes on `follower_id` and `followed_id`.
+  - `lib/live_canvas_schemas/social/block.ex`: standard relational contract; unique `(blocker_id, blocked_id)`; deleting either user cascades; relationship lookup indexes on `blocker_id` and `blocked_id`.
+  - `lib/live_canvas_schemas/social/mute.ex`: standard relational contract; unique `(muter_id, muted_id)`; deleting either user cascades; relationship lookup indexes on `muter_id` and `muted_id`.
+- Live:
+  - `lib/live_canvas_schemas/live/live_session.ex`: standard relational contract; deleting the host user cascades to sessions; deleting a recording media asset nilifies `recording_media_asset_id`; mention status/recording indexes only as live/session-history access aids.
+  - `lib/live_canvas_schemas/live/live_participant.ex`: standard relational contract; unique `(live_session_id, user_id)`; deleting session or user cascades to participants.
+  - `lib/live_canvas_schemas/live/live_session_runtime_owner.ex`: standard relational contract; unique `live_session_id` enforces one runtime owner per session; deleting the live session cascades; `owner_node` and `lease_expires_at` indexes support ownership claim/expiry paths.
+- Chat:
+  - `lib/live_canvas_schemas/chat/chat_message.ex`: standard relational contract; deleting the live session or sender cascades to messages; deleting a moderator nilifies `moderated_by_id`; `(live_session_id, inserted_at, id)` supports retained-history pagination/order.
+- Content:
+  - `lib/live_canvas_schemas/content/post.ex`: standard relational contract; deleting the author cascades to posts; story/feed indexes on `kind`, `expires_at`, and `(kind, inserted_at)` support story filtering and ordering.
+  - `lib/live_canvas_schemas/content/media_asset.ex`: standard relational contract; deleting the owner cascades; deleting the optional post cascades attached assets.
+  - `lib/live_canvas_schemas/content/post_report.ex`: standard relational contract; check constraints for `reason` and `status`; unique `(reporter_id, post_id)`; deleting reporter or post cascades; `(status, inserted_at)` supports moderation queue ordering.
+- Infra:
+  - `lib/live_canvas_schemas/infra/webhook_event.ex`: standard relational contract; unique `(provider, external_event_id)` for webhook idempotency; `(status, received_at)` supports processing scans.
+  - `lib/live_canvas_schemas/infra/async_job.ex`: standard relational contract; partial unique `dedupe_key` where non-null; check constraints for `attempts >= 0` and `max_attempts > 0`; `(kind, status, scheduled_at)` is the worker claim index.
+  - `lib/live_canvas_schemas/infra/data_export_request.ex`: standard relational contract; deleting a user nilifies `user_id`; `(user_id, inserted_at)` supports user governance-history lookup.
+  - `lib/live_canvas_schemas/infra/account_deletion_request.ex`: standard relational contract; deleting a user nilifies `user_id`; `(user_id, inserted_at)` supports user governance-history lookup.
+
+Prevention checks:
+
+- After editing, run `rg -n "Table contract:" lib/live_canvas_schemas` and expect exactly 26 hits, one for each persisted `schema "..."` module.
+- Run `rg -n "schema \"" lib/live_canvas_schemas` and compare the 26 persisted schema modules against the `Table contract:` hits. Namespace modules, enum/type modules, and `LCSchemas.Schema` should remain excluded.
+- Run `rg -n "users\\.email|\\(context, token\\)|\\[:context, :token\\]" lib/live_canvas_schemas` and expect no hits; those are historical contracts, not current schema docs.
+- Run `rg -n "Table contract:|schema-local table contract|Persisted Ecto schema modules" docs/architecture/conventions.md lib/live_canvas_schemas` to confirm both the durable convention and per-schema summaries exist.
+- Run `git diff --check`.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix typecheck`
+- `git diff --check`
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Keep the wording concise. The goal is to surface invariants, not to reproduce migration files in comments.
+- Keep common relational defaults consistent with `docs/architecture/conventions.md`: bigint primary key, database-generated UUIDv7 `entropy_id`, unique `entropy_id`, and `:utc_datetime_usec` timestamps.
+- Keep `users_tokens` visibly exceptional and current: UUIDv7 primary key generated by Postgres, no `entropy_id`, unique `(context, secret_hash)`, and user-delete cascade.
+- Do not document `users.email` or `(context, token)` as current contracts; both appear only in historical or down-migration paths.
+- Mention non-unique indexes only when they explain a behaviorally important access path.
+
 **Progress:**
 
 - Stage 1: Complete.
-- Stage 2: Pending.
-- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 2: Complete.
+- Stage 3: Complete.
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Blocked until Stage 3 is complete.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### GEN-001 - System Events Are Modeled As Chat Messages
 
 **User concern:** System events should not be chat messages with no sender id. They should be special client-facing objects in a GraphQL interface and equivalent websocket event type. User-sent messages would be one event type, while moderator actions, join/leave, and gift events would be other event types. Moderator actions that update another message need later design discussion.
 
 **Initial assessment:** Valid as a product/API architecture concern, but it is larger than a small cleanup. Current implementation persists system events as `chat_messages` rows with `kind: :system_event`, body text, metadata, and a sender id set to the acting host. That is not exactly "no sender id", but it still overloads chat message persistence and client projection.
+
+**Stage 2 decision:** Marked deferred-valid on 2026-05-23. The architecture concern is real and must be fixed later: system events should become first-class client-facing timeline/event objects with matching GraphQL and websocket shapes. The "no sender id" detail is stale because current system events persist an acting host in `sender_id`, and the existing `ChatMessage` timeline design was intentional for history ordering, Relay pagination, and channel/GraphQL reconciliation. Do not treat this as a small cleanup or start Stage 3/7 inside this pass unless the user explicitly asks to begin the dedicated chat timeline/event-object redesign.
 
 **Evidence seen:**
 
@@ -969,19 +1242,21 @@ Stage 3 watchpoints to carry into Stage 8:
 **Progress:**
 
 - Stage 1: Complete.
-- Stage 2: Pending.
-- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 2: Complete; marked deferred-valid with a required future fix.
+- Stage 3: Deferred until a dedicated chat timeline/event-object redesign is explicitly started.
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Blocked until Stage 3 is complete.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Deferred until Stage 3 or a dedicated redesign plan is complete.
+- Stage 8: Blocked until the redesign is planned and implementation is explicitly requested.
 
 ### CTX-001 - `runtime_rpc_module/1` Indirection
 
 **User concern:** `runtime_rpc_module/1` is a function even though the module is never declared or changed in configuration and always uses the default.
 
 **Initial assessment:** Needs discussion. The helper does read application config and per-call opts, and tests currently inject `FakeRuntimeRPC` through opts/config. In production, it appears to default to `LC.Live.RuntimeRPC`. If this is only a test seam, a better test strategy or explicit behaviour module may be preferable to hidden app-config indirection.
+
+**Stage 2 decision:** Marked partially valid on 2026-05-23. The `LC.Live.RuntimeRPC` adapter boundary is useful and should stay: distributed runtime ownership needs deterministic coverage for remote lookup, join, snapshot, timeout, and not-found outcomes without requiring a live multi-node setup in every focused test. The cleanup target is the hidden module-selection seam in `LC.Live.runtime_rpc_module/1`, especially the undocumented `Application.get_env(:live_canvas, LC.Live)[:runtime_rpc]` fallback. Keep an explicit per-call adapter seam for context-level tests if needed, but remove or redesign the surprising app-config module swap and document the test-seam rule.
 
 **Evidence seen:**
 
@@ -1003,22 +1278,101 @@ Stage 3 watchpoints to carry into Stage 8:
 - `test/live_canvas/live/distributed_runtime_test.exs`
 - `test/live_canvas_web/channels/live_session_channel_test.exs`
 
+**Stage 3 scan findings:**
+
+Scan commands run on 2026-05-23:
+
+- `rg -n "runtime_rpc_module|runtime_rpc_timeout_ms|remote_lookup|remote_join|remote_live_session_state_snapshot|RuntimeRPC\\.call|runtime_rpc:|Application\\.(get_env|put_env).*LC\\.Live|FakeRuntimeRPC|defmodule LC\\.Live\\.RuntimeRPC|@callback call" lib test config`
+- `rg -n "runtime_rpc:" config lib test --glob '!deps/**'`
+- `rg -n "runtime_rpc_timeout_ms|runtime_rpc_timeout" . --glob '!deps/**' --glob '!_build/**'`
+- `rg -n "Application\\.get_env\\(:live_canvas, __MODULE__|Application\\.get_env\\(:live_canvas, LC\\.|Application\\.get_env\\(:live_canvas, [A-Z][A-Za-z0-9_.]+" lib test config --glob '!deps/**'`
+- `rg -n "peer_runtime|PeerRuntime|runtime_rpc|owned_by_remote|remote_runtime" test test/support lib docs/plans/backend/2026-05-22-code-quality-cleanup.md`
+
+Findings:
+
+- `runtime_rpc_module/1` exists only in `lib/live_canvas/live.ex`. It reads `Application.get_env(:live_canvas, LC.Live, [])[:runtime_rpc]`, then lets per-call opts override it, then silently falls back to `LC.Live.RuntimeRPC` for non-atom values.
+- Only two public `LC.Live` entry points choose the adapter: `join_live_session/4` and `live_session_state_snapshot/2`.
+- After the adapter is selected, the code already threads it explicitly through private runtime functions: `upsert_live_participant_for_runtime_join/6`, `join_runtime/5`, `join_runtime_with_retry/5`, `remote_lookup/3`, `remote_join/5`, `live_session_state_snapshot_from_runtime/2`, and `remote_live_session_state_snapshot/3`.
+- `LC.Live.RuntimeRPC` already defines a concrete transport adapter and `@callback call/5`, so Stage 8 does not need to invent the boundary. The missing piece is making module selection explicit and non-surprising.
+- No production `config/**` or `lib/**` code sets `runtime_rpc: ...` for `LC.Live`; the only `runtime_rpc:` call sites found are explicit test opts in `test/live_canvas/live/distributed_runtime_test.exs`.
+- `test/live_canvas/live/distributed_runtime_test.exs` uses `runtime_rpc: FakeRuntimeRPC` explicitly in focused context tests. That seam is direct and should remain or be replaced with an equally explicit helper because it verifies remote lookup/join/snapshot error mapping without real distributed nodes.
+- `test/live_canvas_web/channels/live_session_channel_test.exs` is the problematic use: `configure_live_runtime_rpc/1` mutates `Application.put_env(:live_canvas, LC.Live, runtime_rpc: FakeRuntimeRPC)` so channel tests can force `:remote_not_found` and `:remote_timeout` outcomes through the hidden app-config seam.
+- `test/integration/live/runtime_partition_rejoin_test.exs` and `test/support/live/peer_runtime_helper.ex` already cover real peer-node behavior behind the optional `:peer_runtime` tag. That proves the repo has a higher-fidelity path for distributed runtime behavior, but it should not replace every focused fake-adapter unit test.
+- `runtime_rpc_timeout_ms/0` is a separate timeout configuration knob used by the three remote RPC calls. It is not the same issue as module selection and should be left alone unless Stage 8 deliberately documents or validates timeout config.
+- Similar `Application.get_env` usage in `LC.Live.SessionSupervisor`, `LC.Live.SessionOwnership`, rate limiting, object storage, and test support is ordinary scalar/service configuration or support-only configuration. Stage 3 did not find another runtime module-swap helper with the same shape as `runtime_rpc_module/1`.
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Do not remove `LC.Live.RuntimeRPC` or its `call/5` boundary; the cleanup is adapter selection, not the remote RPC abstraction.
+- Avoid replacing the hidden app-config seam with a different hidden global test seam.
+- Preserve explicit per-call adapter injection in `LC.Live` context tests unless Stage 8 introduces an equally clear local helper.
+- Keep channel tests focused on channel behavior; move exact remote runtime outcome coverage to `LC.Live` tests where the adapter can be explicit.
+- Do not widen into `LIVE-001` runtime ownership design or the optional peer-runtime integration test setup.
+- Keep `runtime_rpc_timeout_ms/0` out of scope unless a small doc note is needed; timeout tuning is separate from module indirection.
+
+**Stage 7 fix and prevention plan:** Written on 2026-05-23.
+
+Stage 8 fix scope:
+
+- Keep Stage 8 narrowly focused on `CTX-001`; do not redesign runtime ownership, leases, peer-node tests, or channel join flow beyond removing the hidden runtime-RPC module swap.
+- In `lib/live_canvas/live.ex`:
+  - Remove `runtime_rpc_module/1`.
+  - Keep `@type runtime_rpc_module :: module()` or rename it to `runtime_rpc_adapter` only if the code touched nearby remains clearer and `mix typecheck` stays clean.
+  - In `join_live_session/4`, select the adapter explicitly from the call opts with default `RuntimeRPC`, for example `runtime_rpc = Keyword.get(opts, :runtime_rpc, RuntimeRPC)`.
+  - In `live_session_state_snapshot/2`, use the same explicit per-call default.
+  - Do not read `Application.get_env(:live_canvas, LC.Live, [])[:runtime_rpc]` anywhere.
+  - Continue passing the selected adapter through the existing private runtime functions.
+  - Leave `runtime_rpc_timeout_ms/0` unchanged unless Stage 8 finds a compile/type issue; it is timeout config, not module selection.
+- In `test/live_canvas/live/distributed_runtime_test.exs`:
+  - Keep the explicit `runtime_rpc: FakeRuntimeRPC` context tests for remote lookup, join retry, failed remote join rollback, stale local runtime routing, and remote snapshot behavior.
+  - Add a regression test proving `Application.put_env(:live_canvas, LC.Live, runtime_rpc: FakeRuntimeRPC)` no longer controls the runtime RPC adapter. Use a remote-owner lease whose node is not connected and assert the default adapter returns `{:error, :remote_unreachable}`; also assert the fake adapter did not receive a call if the fake records calls.
+  - Keep the existing process-dictionary fake response setup if it remains the smallest local test seam.
+- In `test/live_canvas_web/channels/live_session_channel_test.exs`:
+  - Remove `configure_live_runtime_rpc/1` and the `Application.put_env(:live_canvas, LC.Live, runtime_rpc: FakeRuntimeRPC)` dependency.
+  - Keep or adapt the existing remote-owned session test that naturally gets `:remote_unreachable` through the default `LC.Live.RuntimeRPC`; it still proves the channel maps remote transport failures to `"session_unavailable"` and emits telemetry with the reason it received.
+  - Move exact `:remote_not_found` and `:remote_timeout` behavior assertions out of channel tests if they depend on the hidden config seam. Those reasons are owned by `LC.Live` context tests with explicit adapter injection.
+  - Remove the channel-local `FakeRuntimeRPC` module if no channel test still uses it.
+- Add a durable convention note in `docs/architecture/conventions.md`, preferably under a new `Runtime Boundaries And Test Seams` section:
+  - Runtime or external-service adapters should be explicit boundaries with typed behavior callbacks.
+  - Production module swaps through app config should exist only when the deployment actually supports changing the adapter and the convention/config is documented.
+  - Test-only adapter swaps should use explicit per-call opts, support helpers, or local fakes instead of hidden app-config module indirection.
+
+Prevention checks for Stage 8:
+
+- `rg -n "runtime_rpc_module|runtime_rpc: FakeRuntimeRPC|Application\\.(get_env|put_env)\\(:live_canvas, (LC\\.)?Live" lib test`
+  - Expected: no `runtime_rpc_module`; no `Application.get_env/put_env` for `LC.Live` runtime RPC; explicit `runtime_rpc: FakeRuntimeRPC` may remain only in `test/live_canvas/live/distributed_runtime_test.exs`.
+- `rg -n "runtime_rpc_timeout_ms|runtime_rpc_timeout" lib/live_canvas/live.ex`
+  - Expected: timeout helper still exists and remote RPC calls still pass a timeout.
+- `rg -n "defmodule FakeRuntimeRPC|runtime_rpc: FakeRuntimeRPC" test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas/live/distributed_runtime_test.exs`
+  - Expected: fake adapter remains only where explicit context tests need it; channel test file should not configure `LC.Live` with the fake.
+- `rg -n "Runtime Boundaries And Test Seams|Test-only adapter swaps|app config" docs/architecture/conventions.md`
+  - Expected: convention note exists.
+- `git diff --check`
+
+Verification for Stage 8:
+
+- `mix test test/live_canvas/live/distributed_runtime_test.exs test/live_canvas_web/channels/live_session_channel_test.exs`
+- `mix typecheck`
+- `git diff --check`
+
 **Progress:**
 
 - Stage 1: Complete.
-- Stage 2: Pending.
-- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 2: Complete; marked partially valid.
+- Stage 3: Complete.
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Blocked until Stage 3 is complete.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request.
 
 ### SOCK-001 - `parse_session_id/1` And `parse_session_id_hint/1`
 
 **User concern:** `live_session_channel.ex` has `parse_session_id/1` and `parse_session_id_hint/1`; these are not needed and are slop.
 
 **Initial assessment:** Partially valid. The code does need to parse the `"live_session:" <> raw_session_id` topic suffix into an integer before calling `Live.fetch_joinable_session/1`, and the hint is used for telemetry on failed joins. The duplication and helper naming are still questionable; parsing could be simplified or centralized with topic parsing.
+
+**Stage 2 decision:** Merged into `SOCK-002` on 2026-05-23. The narrow complaint is partially valid: topic-id parsing and telemetry hints are necessary, but `parse_session_id/1` and `parse_session_id_hint/1` duplicate the same `Integer.parse/1` logic. The fix should not run as a separate narrow cleanup. Instead, `SOCK-002` should own both live-session topic generation and topic parsing so the eventual shared web/channel topic boundary can build topics, parse topics, preserve invalid-topic responses, and provide a parsed session-id telemetry hint consistently.
 
 **Evidence seen:**
 
@@ -1039,13 +1393,13 @@ Stage 3 watchpoints to carry into Stage 8:
 **Progress:**
 
 - Stage 1: Complete.
-- Stage 2: Pending.
-- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 2: Complete; merged into `SOCK-002`.
+- Stage 3: Not applicable separately; `SOCK-002` owns the combined scan.
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Blocked until Stage 3 is complete.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Not applicable separately; `SOCK-002` owns the combined plan.
+- Stage 8: Not applicable separately; implement only through `SOCK-002` after its Stage 7 is written and implementation is explicitly requested.
 
 ### SOCK-002 - Topic Name Generators Duplicated Across GraphQL, Chat, And Channels
 
@@ -1053,18 +1407,22 @@ Stage 3 watchpoints to carry into Stage 8:
 
 **Initial assessment:** Valid. Topic string construction is duplicated in multiple modules, including GraphQL resolver code, channel code, and chat broadcast code. A shared web/channel topic module would reduce drift and move transport naming out of GraphQL/domain modules.
 
+**Merged scope from `SOCK-001`:** `SOCK-002` also owns live-session topic parsing. The eventual shared topic boundary should replace duplicated generation helpers and the separate `parse_session_id/1` / `parse_session_id_hint/1` parsing path, while preserving client-safe invalid-topic responses and telemetry `session_id` hints.
+
 **Evidence seen:**
 
 - `lib/live_canvas_gql/live/live_resolver.ex` defines `session_control_topic/1`, `session_user_control_topic/2`, and `live_session_topic/1`.
 - `lib/live_canvas_web/channels/live_session_channel.ex` defines `session_control_topic/1`, `session_user_control_topic/2`, and `live_session_topic/1`.
+- `lib/live_canvas_web/channels/live_session_channel.ex` separately parses `"live_session:" <> raw_session_id` with both `parse_session_id/1` and `parse_session_id_hint/1`.
 - `lib/live_canvas/chat/broadcasts.ex` defines `live_session_topic/1`.
 - Tests directly assemble strings like `"live_session_control:#{live_session.id}"`.
 
 **What likely needs to change:**
 
 - Create a shared topic helper under the web/channel boundary, for example `LCWeb.LiveSessionTopics`.
-- Replace GraphQL, channel, chat broadcast, and tests with the shared helper.
+- Replace GraphQL, channel, chat broadcast, parsing, and tests with the shared helper.
 - Decide whether domain modules like `LC.Chat.Broadcasts` should call a web module, move broadcasts to web, or receive topics from the caller.
+- Preserve `"invalid_session_id"` join responses and telemetry `session_id` hints when parsing live-session topics.
 
 **Where to look first:**
 
@@ -1547,9 +1905,9 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Current status: Stage 1 is complete for all user-reported issues; Stage 2, Stage 3, and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, and `GQL-006`; Stage 4 is complete; Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`; Stage 7 plans are also written for `GQL-008`, `GEN-002`, and `WEB-001`; Stage 8 has not started for any issue. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests and follow that issue's Stage 7 plan. If continuing issue discussion instead, resume Stage 2 with the next undecided user-reported issue, `GQL-007`. If continuing Stage 7 planning, do not start `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
+Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Current status: Stage 1 is complete for all user-reported issues; Stage 2, Stage 3, and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001`; `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, which now owns both live-session topic generation and parsing cleanup; `GEN-001` Stage 2 is complete with a deferred-valid decision and a required future fix through a dedicated chat timeline/event-object redesign; Stage 4 is complete; Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`; Stage 7 plans are also written for `GQL-008`, `GEN-002`, and `WEB-001`; Stage 8 has not started for any issue. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests and follow that issue's Stage 7 plan. If continuing issue discussion with the next undecided user-reported issue, start Stage 2 for `SOCK-002` only when the user asks to move to the next issue. If continuing `GEN-001`, do not start a cleanup-stage scan by default; start a dedicated chat timeline/event-object redesign only if the user explicitly asks. If continuing Stage 7 planning for other issues, do not start `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
 ```
 
 ## Shared Coordinator Repair To Report
 
-The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-006` Stage 7 is complete, `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-008`, `GEN-002`, and `WEB-001` are discussed/scanned/planned where applicable, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 8 implementation for a planned issue if the user explicitly requests it, Stage 2 discussion for `GQL-007`, or explicit deferred planning for `GQL-009`.
+The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, `CTX-001` Stage 7 is complete and Stage 8 has not started, `GEN-001` Stage 2 is complete with a deferred-valid decision and a required future chat timeline/event-object fix, `ECTO-001` Stage 7 is complete and Stage 8 has not started, `GQL-007` Stage 7 is complete and Stage 8 has not started, `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-008`, `GEN-002`, and `WEB-001` are discussed/scanned/planned where applicable, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 8 implementation for a planned issue if the user explicitly requests it, Stage 2 discussion for `SOCK-002` if the user asks to move to the next undecided issue, explicit dedicated redesign for `GEN-001` if the user asks to start it, or explicit deferred planning for `GQL-009`.
