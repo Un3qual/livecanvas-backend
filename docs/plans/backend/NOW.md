@@ -12,23 +12,34 @@ Status: active for code-quality discussion/planning
 
 - Track: `backend_code_quality_cleanup`
 - Source: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
-- Batch: `SOCK-001 Stage 2 complete; merged into SOCK-002`
-- Why now: The user chose to merge `SOCK-001` into `SOCK-002`, so live-session topic parsing cleanup now belongs with the shared topic generation cleanup. `CTX-001` Stage 7 is complete, and implementation code/schema files remain untouched until the user explicitly requests Stage 8 for a named issue or explicitly starts the `GEN-001` redesign.
+- Batch: `LIVE-001` Stage 3 complete; Stage 7 not started
+- Why now: The cleanup inventory is the source of truth for per-issue stage status. Stage 8 has not started for any issue, and implementation code/schema files remain untouched until the user explicitly requests Stage 8 for a named issue, explicitly asks to continue `LIVE-001` into Stage 7, or explicitly starts the dedicated `GEN-001` redesign.
+- Current status:
+  - Stage 1 is complete for all user-reported issues.
+  - `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001`: Stage 2, Stage 3, and Stage 7 complete; Stage 8 not started.
+  - `SOCK-001`: Stage 2 complete and merged into `SOCK-002`; `SOCK-002` owns both live-session topic generation and parsing cleanup.
+  - `SOCK-002`: Stage 2, Stage 3, and Stage 7 complete; Stage 8 not started.
+  - `SOCK-003`: Stage 2 and Stage 3 complete with a partially-valid decision; Stage 7 complete; Stage 8 not started.
+  - `LIVE-001`: Stage 2 complete with a valid OTP-native ownership redesign decision; Stage 3 complete; Stage 7 not started.
+  - `GEN-001`: Stage 2 complete with a deferred-valid decision and a required future fix through a dedicated chat timeline/event-object redesign.
+  - Stage 4 is complete.
+  - `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`: Stage 5 and Stage 6 complete.
+  - `GQL-008`, `GEN-002`, and `WEB-001`: Stage 7 complete; Stage 8 not started.
+  - `GQL-009`: Stage 7 deferred; revisit only if the user explicitly asks to plan that deferred structural cleanup.
 
 ## Do This Now
 
 - Open `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
-- If the user continues `GQL-007`, enter Stage 8 implementation only if they explicitly ask for `GQL-007` implementation; otherwise leave implementation code untouched.
-- If the user continues any planned issue, including `GQL-006` or `WEB-001`, enter Stage 8 implementation only if they explicitly ask for that issue's implementation.
-- If the user asks to continue Stage 7 planning generally, do not start `GQL-009` unless they explicitly ask to revisit that deferred structural cleanup.
-- For `GEN-001`, do not start a cleanup-stage scan by default. The issue is deferred-valid with a required future fix; start a dedicated chat timeline/event-object redesign only if the user explicitly asks.
-- If the user continues `CTX-001`, enter Stage 8 implementation only if they explicitly ask for `CTX-001` implementation; otherwise leave implementation code untouched.
-- `SOCK-001` is complete for Stage 2 and should not get separate Stage 3, Stage 7, or Stage 8 work; `SOCK-002` owns the combined live-session topic generation and parsing cleanup.
-- If the user asks to continue issue discussion, start Stage 2 for `SOCK-002`; do not move to it until the user asks.
-- If the user continues `ECTO-001`, enter Stage 8 implementation only if they explicitly ask for `ECTO-001` implementation; otherwise leave implementation/schema files untouched.
-- If the user redirects to another issue, preserve the one-issue-at-a-time rule and update that issue's status before moving again.
-- If entering implementation, start Stage 8 only for the issue the user explicitly names or requests; `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, and `WEB-001` now all have Stage 7 plans, but implementation code remains explicit-request only.
 - For one issue at a time, update the issue's status before moving on.
+- If the user explicitly requests Stage 8 for a named issue, follow that issue's Stage 7 plan and run the focused verification recorded there.
+- If the user explicitly requests Stage 8 for `SOCK-002`, follow the `SOCK-002` Stage 7 plan and keep the implementation scoped to the transport topic boundary.
+- If the user explicitly requests Stage 8 for `SOCK-003`, follow the `SOCK-003` Stage 7 plan and keep the implementation scoped to live-session socket reason-code formatting.
+- If the user asks to continue `LIVE-001`, start Stage 7 for `LIVE-001` and write the fix/prevention plan from the Stage 3 findings.
+- If the user asks to continue issue discussion or move to the next undecided user-reported issue, start Stage 2 for `DOC-001`.
+- For `GEN-001`, do not start a cleanup-stage scan by default. The issue is deferred-valid with a required future fix; start a dedicated chat timeline/event-object redesign only if the user explicitly asks.
+- If the user asks to continue Stage 7 planning generally, do not start `GQL-009` unless they explicitly ask to revisit that deferred structural cleanup.
+- `SOCK-001` is complete for Stage 2 and should not get separate Stage 3, Stage 7, or Stage 8 work; `SOCK-002` owns the combined live-session topic generation and parsing cleanup.
+- If the user redirects to another issue, preserve the one-issue-at-a-time rule.
 - Do not edit implementation code unless the user explicitly asks to enter Stage 8.
 - Report shared dashboard/index repairs instead of editing `docs/plans/NOW.md` or `docs/plans/INDEX.md` from the backend lane.
 
@@ -77,6 +88,15 @@ Status: active for code-quality discussion/planning
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `CTX-001` on 2026-05-23; no implementation code touched.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `SOCK-001` on 2026-05-23; user chose to merge it into `SOCK-002`, so topic parsing cleanup will be handled with shared topic generation cleanup rather than as a separate scan/plan.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` per-issue stage progress and the next-run handoff prompt audited on 2026-05-24; no implementation code touched.
+- `docs/plans/backend/NOW.md` aligned with the cleanup inventory status snapshot on 2026-05-24; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `SOCK-002` on 2026-05-24; marked valid; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `SOCK-002` on 2026-05-24; topic generation, parsing, broadcast, subscription, telemetry-hint, and test call sites scanned; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `SOCK-002` on 2026-05-24; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `SOCK-003` on 2026-05-24; marked partially valid; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `SOCK-003` on 2026-05-24; channel error reason formatting, telemetry reason normalization, runtime redaction, disconnect reason payloads, and tests scanned; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `SOCK-003` on 2026-05-24; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `LIVE-001` on 2026-05-24; user selected option #2 and marked it valid for replacing Postgres-backed runtime ownership with an OTP-native ownership design; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `LIVE-001` on 2026-05-24; ownership claims, runtime process lifecycle, remote routing, viewer snapshots, peer-node partition behavior, release drills, and data-governance references scanned; no implementation code touched.
 - Initial checks: `git status --short --branch`, `docs/plans/NOW.md`, `docs/plans/backend/NOW.md`, source conventions doc, and targeted reads/searches across GraphQL resolvers/types, live channel/topic code, chat system events, runtime ownership, and schema files.
 - `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` Task 3 passed on 2026-04-24.
 - `mix compile` -> PASS.
@@ -89,11 +109,16 @@ Status: active for code-quality discussion/planning
 
 ## Next Up
 
-- Next for `SOCK-001` is no separate cleanup-stage work. If the user wants to continue issue discussion, the next undecided user-reported issue is `SOCK-002`, now with `SOCK-001` topic parsing merged into its scope.
+- Await explicit user selection:
+  - Stage 8 implementation for a named issue with a completed Stage 7 plan, including `SOCK-002` or `SOCK-003` if explicitly requested.
+  - Stage 7 fix/prevention plan for `LIVE-001` if the user asks to continue that issue.
+  - Stage 2 discussion for `DOC-001` if the user asks to move to the next undecided issue.
+  - Dedicated `GEN-001` chat timeline/event-object redesign.
+  - Explicit deferred Stage 7 planning for `GQL-009`.
 
 ## Required Shared Coordinator Repairs
 
-- `docs/plans/NOW.md`: update the backend lane current batch to `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> `SOCK-001` Stage 2 complete and merged into `SOCK-002`; `CTX-001` Stage 7 complete and Stage 8 not started; `GEN-001` Stage 2 complete with a deferred-valid decision and required future chat timeline/event-object fix; `ECTO-001` Stage 7 complete and Stage 8 not started; `GQL-007` Stage 7 is complete and Stage 8 not started; `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-008`, `GEN-002`, and `WEB-001` are planned; Stage 8 remains explicit-request only for a named issue.
+- `docs/plans/NOW.md`: update the backend lane current batch to `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> `SOCK-001` Stage 2 complete and merged into `SOCK-002`; `SOCK-002` Stage 2, Stage 3, and Stage 7 complete with Stage 8 not started; `SOCK-003` Stage 2, Stage 3, and Stage 7 complete with Stage 8 not started; `LIVE-001` Stage 2 and Stage 3 complete with a valid OTP-native ownership redesign decision and Stage 7 not started; `CTX-001` Stage 7 complete and Stage 8 not started; `GEN-001` Stage 2 complete with a deferred-valid decision and required future chat timeline/event-object fix; `ECTO-001` Stage 7 complete and Stage 8 not started; `GQL-007` Stage 7 is complete and Stage 8 not started; `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-008`, `GEN-002`, and `WEB-001` are planned; Stage 8 remains explicit-request only for a named issue.
 - `docs/plans/INDEX.md`: add `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` to completed backend work through Task 3.
 - `docs/plans/INDEX.md`: add `docs/plans/content/2026-04-24-post-reporting.md` to completed backend work through Task 2.
 - `docs/plans/INDEX.md`: remove or update stale queued-candidate notes for `docs/plans/2026-03-22-development-seed-data.md`, because that plan is already checklist-complete.
