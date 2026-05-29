@@ -1,16 +1,9 @@
 # Backend Conventions
 
-## Progress
+## Documentation Hygiene
 
-- [x] Token hashing uses SHA3-based hashing (`:sha3_256`) for persisted token secrets.
-- [x] Timestamps use `:utc_datetime_usec`.
-- [x] Future agents have a local `AGENTS.md` with the high-signal rules.
-- [x] The repo includes a dedicated `mix typecheck` alias for Dialyzer.
-- [x] Existing relational tables use `bigint` plus `entropy_id` (`uuidv7`) for relational tables.
-- [x] Existing modules have been refactored from `LiveCanvas*` to `LC*`.
-- [x] Phone OTP delivery has the fake SMS GenServer implementation.
-- [x] The GraphQL schema is Relay-first for the current API surface.
-- [x] The broader typespec rollout is complete.
+- Keep architecture convention documents limited to stable standards, invariants, and cross-cutting rules.
+- Keep execution state, completion ledgers, active-work queues, and future-change tracking in `docs/plans/**` or lane `NOW.md` files.
 
 ## Data And Security
 
@@ -32,7 +25,3 @@
 - The current schema is Relay-aligned: authenticated `viewer`, `node(id:)`, strict global ID decoding, connection-based pagination (`userIdentities`, `followers`, `following`), and Relay payload mutations for both Accounts and Social APIs.
 - Preserve Relay semantics in all new GraphQL work, and use the dedicated migration plan before reshaping existing fields.
 - Re-apply authorization at both the node fetch and child-field resolver layers. A globally refetchable parent node or stored foreign key must never become a shortcut around viewer ownership or visibility checks; treat any raw-ID child lookup without an auth predicate as a `CWE-639` / IDOR risk.
-
-## Planned Refactors
-
-- See the plans in `/Users/admin/Desktop/Programming/projects/LiveCanvas/backend/docs/plans/conventions/` for remaining convention migrations such as Relay-first GraphQL cleanup.
