@@ -81,8 +81,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       assert is_binary(first_cursor)
       assert first_node["id"] == first_contact_id
       assert first_node["contactName"] == "Email Match"
-      assert [%{"id" => ^matched_email_user_id, "email" => email}] = first_node["matchedUsers"]
-      assert email == matched_email_user.email
+      assert [%{"id" => ^matched_email_user_id, "email" => nil}] = first_node["matchedUsers"]
 
       assert {:ok, %{type: :contact_match}} =
                Absinthe.Relay.Node.from_global_id(first_node["id"], LCGQL.Schema)
@@ -105,8 +104,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       assert is_binary(second_cursor)
       assert second_node["id"] == second_contact_id
       assert second_node["contactName"] == "Phone Match"
-      assert [%{"id" => ^matched_phone_user_id, "email" => email}] = second_node["matchedUsers"]
-      assert email == matched_phone_user.email
+      assert [%{"id" => ^matched_phone_user_id, "email" => nil}] = second_node["matchedUsers"]
 
       assert {:ok, %{type: :contact_match}} =
                Absinthe.Relay.Node.from_global_id(second_node["id"], LCGQL.Schema)

@@ -938,6 +938,16 @@ defmodule LCGQL.Accounts.Resolver do
 
   def viewer(_parent, _args, _resolution), do: {:ok, nil}
 
+  @spec user_email(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
+  def user_email(%{id: user_id}, _args, resolution) when is_integer(user_id) do
+    case viewer_from_resolution(resolution) do
+      {:ok, %{id: ^user_id, email: email}} -> {:ok, email}
+      _other -> {:ok, nil}
+    end
+  end
+
+  def user_email(_user, _args, _resolution), do: {:ok, nil}
+
   @spec user_posts(map(), map(), Absinthe.Resolution.t()) :: connection_result()
   def user_posts(%{id: owner_id} = owner, args, resolution) when is_integer(owner_id) do
     visible_profile_connection(args, resolution, fn viewer ->
@@ -1004,10 +1014,19 @@ defmodule LCGQL.Accounts.Resolver do
 
   @spec user_identities(map(), map(), Absinthe.Resolution.t()) ::
           {:ok, map()} | {:error, term()}
-  def user_identities(%{id: _id} = user, args, _resolution) do
-    query = Accounts.user_identities_query(user)
-    Absinthe.Relay.Connection.from_query(query, &Accounts.run_query/1, args)
+  def user_identities(%{id: user_id} = user, args, resolution) when is_integer(user_id) do
+    case viewer_id_from_resolution(resolution) do
+      {:ok, ^user_id} ->
+        query = Accounts.user_identities_query(user)
+        Absinthe.Relay.Connection.from_query(query, &Accounts.run_query/1, args)
+
+      _other ->
+        Absinthe.Relay.Connection.from_list([], args)
+    end
   end
+
+  def user_identities(_user, args, _resolution),
+    do: Absinthe.Relay.Connection.from_list([], args)
 
   @spec viewer_contact_matches(term(), map(), Absinthe.Resolution.t()) ::
           {:ok, map()} | {:error, term()}
