@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
-Last reviewed: 2026-05-24
-Status: `LIVE-001` Stage 3 complete; Stage 7 not started
+Last reviewed: 2026-05-29
+Status: `DOC-001` Stage 3 complete; Stage 7 not started
 Owner lane: backend
 
 ## Purpose
@@ -13,7 +13,7 @@ This document is the handoff point for the staged code quality cleanup. The user
 Use this same stage language for every issue.
 
 - [x] Stage 1: Capture and initially analyze the user-reported issues.
-- [ ] Stage 2: Discuss each user-reported issue with the user and decide whether it is valid, partially valid, not valid, or deferred.
+- [x] Stage 2: Discuss each user-reported issue with the user and decide whether it is valid, partially valid, not valid, or deferred.
 - [ ] Stage 3: For each valid or partially valid user-reported issue, scan the codebase for the same or similar patterns and attach the findings to that issue.
 - [x] Stage 4: Using the valid or partially valid user-reported issues as calibration, perform an agent-led quality scan for additional slop, anti-patterns, repetition, hard-to-read code, poor documentation, and unnecessary complexity.
 - [x] Stage 5: Discuss each newly discovered issue with the user and decide whether it is valid, partially valid, not valid, or deferred.
@@ -25,7 +25,7 @@ Applicability note: Stages 1-3 apply to user-reported issues. Stage 4 is one glo
 
 ## Current Handoff
 
-Stage status was audited on 2026-05-24 after `LIVE-001` Stage 3 scanning. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, and `SOCK-003` have Stage 2, Stage 3, and Stage 7 complete. `SOCK-001` has Stage 2 complete with a merge-into-`SOCK-002` decision: the duplicate live-session topic-id parsing concern is real, but topic parsing should be fixed with the same shared topic-boundary work as topic generation. `SOCK-003` Stage 7 keeps the public socket reason-string contract and plans an explicit transport-owned reason-code boundary. `LIVE-001` has Stage 2 and Stage 3 complete with a valid decision: replace Postgres-backed runtime ownership with an OTP-native ownership design. The Stage 3 scan found that Stage 7 must account for ownership claims, runtime process lifecycle, remote routing, viewer snapshots, peer-node partition behavior, release drills, and data-governance references that currently assume the lease table. `GEN-001` has Stage 2 complete with a deferred-valid decision: the client-facing system-event model must be fixed later, but the fix requires a dedicated chat timeline/event-object redesign rather than an implicit code-quality cleanup pass. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008`, `GEN-002`, and `WEB-001` also have Stage 7 complete. No Stage 8 implementation has started for any cleanup issue. Continue next by starting Stage 7 for `LIVE-001` only if the user asks to continue that issue, entering Stage 8 implementation for a planned issue only if the user explicitly asks for that named issue, starting Stage 2 for `DOC-001` only if the user asks to move to the next undecided issue, starting the dedicated `GEN-001` chat timeline/event-object redesign only if the user explicitly asks, or revisiting deferred `GQL-009` Stage 7 only if the user explicitly asks to plan that deferred structural cleanup. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
+Stage status was audited on 2026-05-29 after `DOC-001` Stage 3 scanning. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, and `LIVE-001` have Stage 2, Stage 3, and Stage 7 complete. `SOCK-001` has Stage 2 complete with a merge-into-`SOCK-002` decision: the duplicate live-session topic-id parsing concern is real, but topic parsing should be fixed with the same shared topic-boundary work as topic generation. `SOCK-003` Stage 7 keeps the public socket reason-string contract and plans an explicit transport-owned reason-code boundary. `LIVE-001` Stage 7 now chooses a layered Kubernetes runtime architecture: `libcluster` handles BEAM cluster discovery, strict shard ownership is the authoritative boundary, local `Registry`/`DynamicSupervisor` trees host session/chat/game/media runtimes, Syn may be used for directory/process-group metadata, Horde is allowed only for soft restartable workers, and Postgres/Swarm remain excluded from runtime ownership. `DOC-001` has Stage 2 and Stage 3 complete and is marked valid: the exact cleanup scope is `docs/architecture/conventions.md`, where the `Progress` checklist and `Planned Refactors` section mix completed task/status tracking into the durable backend standards document. `GEN-001` has Stage 2 complete with a deferred-valid decision: the client-facing system-event model must be fixed later, but the fix requires a dedicated chat timeline/event-object redesign rather than an implicit code-quality cleanup pass. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008`, `GEN-002`, and `WEB-001` also have Stage 7 complete. No Stage 8 implementation has started for any cleanup issue. Continue next by starting Stage 7 for `DOC-001` only if the user asks to continue that issue, entering Stage 8 implementation for `LIVE-001` or another planned issue only if the user explicitly asks for that named issue, starting the dedicated `GEN-001` chat timeline/event-object redesign only if the user explicitly asks, or revisiting deferred `GQL-009` Stage 7 only if the user explicitly asks to plan that deferred structural cleanup. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -70,8 +70,8 @@ User-reported issue status:
 - `SOCK-001`: Stage 1 complete, Stage 2 complete with a merge-into-`SOCK-002` decision; no separate Stage 3, Stage 7, or Stage 8 work should run.
 - `SOCK-002`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete, Stage 7 complete; Stage 8 blocked until implementation is explicitly requested.
 - `SOCK-003`: Stage 1 complete, Stage 2 complete and marked partially valid, Stage 3 complete, Stage 7 complete; Stage 8 blocked until implementation is explicitly requested.
-- `LIVE-001`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete, Stage 7 not started; Stage 8 blocked until Stage 7 is written and implementation is explicitly requested.
-- `DOC-001`: Stage 1 complete; Stage 2 pending; Stages 3, 7, and 8 are blocked until the issue is discussed and marked valid or partially valid.
+- `LIVE-001`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete, Stage 7 complete; Stage 8 blocked until implementation is explicitly requested.
+- `DOC-001`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete; Stage 7 not started; Stage 8 blocked until Stage 7 is written and implementation is explicitly requested.
 
 Stage 4 candidate issue status:
 
@@ -1866,6 +1866,105 @@ Stage 3 watchpoints to carry into Stage 7:
 - Compare OTP-native options such as local Registry, distributed Erlang, `:global`, `:pg`, or a supervised process per session against current Postgres lease semantics.
 - Write a replacement plan for ownership lookup, failover, viewer counts, remote state snapshots, operator drills, and any schema/data-governance cleanup needed if the Postgres table is removed.
 
+**Stage 7 fix and prevention plan:** Written on 2026-05-24; finalized on 2026-05-29 after Kubernetes and future runtime-tree discussion.
+
+Final production architecture choices:
+
+- Remove Postgres-backed live runtime ownership from the realtime path. Do not replace it with Postgres advisory locks or another ownership table. Swarm is also excluded.
+- Use `libcluster` as the default Kubernetes cluster-discovery dependency. The target deployment should use a headless Service, long node names, a shared Erlang cookie from Kubernetes Secret material, a fixed distribution port range, and NetworkPolicy that allows distribution traffic only between runtime-capable backend pods. `DNSCluster` remains an acceptable simpler fallback only if Stage 8 proves `libcluster` is unnecessary for the deployment.
+- Do not globally register every live session, chat room, or game process. Per-session `:global` registration is too much global name churn for the future product and gives too little room for placement policy.
+- Introduce a `LC.RealtimeRuntime` boundary as the product-owned runtime-control layer. It owns cluster discovery integration, shard ownership, runtime lookup, drain state, and routing to locally supervised runtime processes.
+- Use strict shard ownership as the authoritative distributed boundary. Each shard owns a stable subset of live sessions, chat rooms, game rooms, and media-control processes. The first implementation may use `:global` for shard-owner processes, but `:global` should be limited to a small fixed shard-owner set, not one name per runtime.
+- Under each shard owner, use ordinary local OTP building blocks: local `Registry`, `DynamicSupervisor`, and focused supervisors for session/chat/game/media children. Local child trees are cheaper, easier to test, and avoid distributed registry churn for every participant-facing process.
+- Use Syn only for non-authoritative directory, metadata, and process-group use cases. Good candidates include runtime directory hints, feature scopes such as `:live`, `:games`, and `:media`, session process groups, chat membership metadata, and broadcast/routing hints. Syn must not be the only thing preventing two authoritative runtimes from existing.
+- Use Horde only for soft, restartable, duplicate-tolerant work. Good candidates include media helper workers, matchmaking/lobby helpers, background runtime maintenance, and non-authoritative per-session adjunct workers. Do not put `SessionCoordinator`, authoritative `GameRuntime`, or any writer that can admit participants or commit game state directly under Horde unless a later plan adds explicit fencing/idempotency that makes duplicate owners harmless.
+- Keep Phoenix PubSub and Presence as the fanout and socket presence layer. Chat delivery, socket subscriptions, and presence should not be funneled through one owner process when PubSub/Presence can do the transport fanout.
+- Treat video media pipelines as local heavy workers coordinated by the runtime tree, not as globally movable ordinary GenServers. The BEAM runtime should own signaling/control and supervise or reference Membrane/WebRTC-style media workers; draining pods should stop admitting new media work and let existing pipelines end or reconnect according to product policy.
+- Runtime failover is fail-closed and reconnect-driven for authoritative state. During partitions or uncertain ownership, authoritative sessions/games should reject admission or surface `session_unavailable` rather than accepting duplicate writers. Recovery should rehydrate safe durable state when a shard/routing owner is available again.
+
+Target production process tree:
+
+```text
+LC.Application
+  ClusterDiscovery
+    libcluster topologies
+    ClusterHealth / DrainState
+  Phoenix.PubSub
+  LCWeb.Endpoint
+  LC.RealtimeRuntime.Supervisor
+    ShardDirectory
+    ShardOwnerSupervisor
+      ShardOwner[0..N]
+        LocalRuntimeRegistry
+        LocalRuntimeDynamicSupervisor
+          SessionRuntimeSupervisor(session_id)
+            SessionCoordinator
+            ChatRoomRuntime
+            GameRuntime(s)
+            MediaOrchestrator
+            PresenceBridge
+        SoftWorkerSupervisor
+          Horde-managed duplicate-tolerant helpers only, if added
+```
+
+Stage 8 first-slice fix scope:
+
+- Keep Stage 8 focused on replacing the current Postgres lease owner path for live-session runtimes. Do not attempt to build every future game/media feature in this cleanup issue.
+- Add the minimum `libcluster` dependency and Kubernetes topology configuration needed for runtime-capable backend pods to form a connected BEAM cluster. If the deployment chooses `DNSCluster` instead, record the reason in this section before implementation.
+- Add a small top-level `LC.RealtimeRuntime` boundary. The first slice should expose APIs equivalent to the current live-session runtime needs: start or ensure runtime, lookup runtime, join runtime, stop runtime, and state snapshot routing.
+- Add a shard-owner abstraction even if the first implementation uses one shard. The API should make the shard key explicit so later game/chat/media work can add more shards without redesigning ownership again.
+- Use strict shard ownership for the shard process. If `:global` is used in Stage 8, it should name only shard owners such as `{LC.RealtimeRuntime.ShardOwner, shard_id}`. Do not introduce `:global` names for every `session_id`.
+- Move live-session runtime children under a shard-local registry and dynamic supervisor. The existing `LC.Live.SessionServer` can remain the first runtime child type, but its distributed identity must come through the shard directory/owner rather than a Postgres row or per-session global name.
+- Replace `LC.Live.SessionOwnership.claim/3`, `refresh/3`, `release/2`, and `get_owner/2` call paths with `LC.RealtimeRuntime` routing. Remove Postgres lease calls from `LC.Live.SessionSupervisor` and any runtime heartbeat that only proves database lease ownership.
+- Keep `LC.Live.ensure_session_server/1`, `join_live_session/4`, `leave_live_session/2`, `live_session_state_snapshot/2`, and channel error behavior public-compatible. Remote or uncertain ownership must still fail closed and avoid durable participant rows for failed runtime admission.
+- Keep `LC.Live.RuntimeRPC` only if the first `LC.RealtimeRuntime` slice still needs explicit remote calls. Do not redesign the hidden runtime-RPC module-selection seam here; `CTX-001` owns that cleanup. If the new runtime layer makes `RuntimeRPC` obsolete, remove it and mark the `CTX-001` seam obsolete in this inventory.
+- Remove `lib/live_canvas_schemas/live/live_session_runtime_owner.ex` from the runtime schema set and add a migration that drops `live_session_runtime_owners`. Keep the historical create migration file intact.
+- Remove `config :live_canvas, LC.Live.SessionOwnership, lease_ttl_seconds: ...` and lease-heartbeat config that exists only for the Postgres owner model.
+- Update release/operator material to verify cluster discovery, shard ownership, drain behavior, fail-closed joins during owner uncertainty, takeover/reconnect behavior, and absence of ghost participants. Do not leave lease-owner drill language as the final operator evidence.
+- Update data-governance references in `docs/release/compliance-data-governance.md` to remove `live_session_runtime_owners` from the Live data family. If Stage 8 execution is not authorized to edit release/compliance docs, record the exact coordinator repair instead.
+
+Focused test updates:
+
+- Replace `test/live_canvas/live/session_ownership_test.exs` with focused `LC.RealtimeRuntime` ownership tests:
+  - shard key calculation is stable for a session ID;
+  - missing shard/runtime lookup returns `{:error, :not_found}`;
+  - a locally owned shard can start and find a session runtime;
+  - duplicate start for the same session routes to the existing local runtime;
+  - uncertain or remote shard ownership returns a remote/unavailable result without starting a duplicate local runtime.
+- Update `test/live_canvas/live/session_supervisor_test.exs` so it no longer mutates `LiveSessionRuntimeOwner` rows. Keep local runtime lifecycle coverage, but make the ownership setup go through the shard runtime layer.
+- Remove Postgres lease heartbeat tests. If the shard owner has its own health assertion or drain behavior, test that directly under `LC.RealtimeRuntime`.
+- Update `test/live_canvas/live/distributed_runtime_test.exs` to seed remote or unavailable shard ownership through the runtime layer instead of `SessionOwnership.claim/3`. Keep the existing API expectations: remote lookup/join routing, timeout/not-found normalization, retry on remote not found when still applicable, no durable participant row on failed remote join, and remote snapshot behavior.
+- Update `test/live_canvas/live_test.exs` to preserve runtime lookup after start, viewer-count snapshots, durable participant fallback when runtime is missing, runtime shutdown on end, participant rehydration when recreating a missing runtime, and leave cleanup.
+- Update `test/live_canvas_web/channels/live_session_channel_test.exs` to preserve remote/unavailable channel joins, remote not-found/timeout redaction, telemetry reasons, and shutdown/end-session behavior without DB lease setup.
+- Rewrite `test/integration/live/runtime_partition_rejoin_test.exs` around shard ownership and Kubernetes-like peer behavior: a peer-owned shard/runtime accepts local routing through the runtime layer, a disconnected or draining owner fails closed and does not persist a participant, and takeover/reconnect rehydrates durable participants without duplicate runtime owners.
+- Update `test/support/live/peer_runtime_helper.ex` only as needed to start runtime-capable peer nodes, wait for cluster discovery, wait for shard ownership, and simulate drain/partition behavior.
+
+Prevention checks:
+
+- Add a backend convention note during Stage 8, preferably under `docs/architecture/conventions.md`, stating that realtime runtime ownership is shard-owned and OTP-native: Postgres, Swarm, Syn, and Horde must not be used as the authoritative owner for live sessions or game rooms; Syn is directory/group metadata only; Horde is duplicate-tolerant worker supervision only.
+- After editing, run `rg -n 'LiveSessionRuntimeOwner|live_session_runtime_owners|SessionOwnership\\.(claim|refresh|release|get_owner)|lease_ttl_seconds|lease_heartbeat' lib test config docs/release priv/repo/migrations --glob '!deps/**' --glob '!_build/**'`. Expected remaining hits should be limited to the historical create migration, the new drop migration, and explicitly retained historical references.
+- Run `rg -n ':global|Horde|Syn|syn|LC\\.RealtimeRuntime|owned_by_remote' lib test config --glob '!deps/**' --glob '!_build/**'` and confirm `:global`, if present, is limited to shard ownership; Horde is not used for authoritative runtimes; Syn is not used as an ownership gate.
+- Run `rg -n 'runtime_rpc_module\\(|RuntimeRPC|remote_(lookup|join|live_session_state_snapshot)' lib/live_canvas test/live_canvas --glob '!deps/**' --glob '!_build/**'` and account for whether `RuntimeRPC` remains a transitional routing adapter or has become obsolete.
+- Run `mix ecto.migrate` in the test database path used by this repo before focused tests if the new drop-table migration changes schema setup behavior.
+
+Verification for Stage 8:
+
+- `mix compile`
+- `mix test test/live_canvas/live/session_ownership_test.exs test/live_canvas/live/session_supervisor_test.exs test/live_canvas/live/session_server_test.exs test/live_canvas/live/distributed_runtime_test.exs test/live_canvas/live_test.exs test/live_canvas_web/channels/live_session_channel_test.exs`
+- `mix test test/integration/live/runtime_partition_rejoin_test.exs --include peer_runtime`
+- `mix test test/live_canvas/release/live_runtime_drill_test.exs`
+- `mix boundary.spec`
+- `mix typecheck`
+
+Stage 3 watchpoints to carry into Stage 8:
+
+- Preserve no split-brain admission for connected BEAM-cluster nodes by using strict shard ownership rather than eventually consistent per-runtime ownership.
+- Preserve reconnect-safe join after owner loss by rehydrating active durable participants when no authoritative runtime exists.
+- Preserve the invariant that failed remote or unavailable runtime admission does not leave a durable active participant row.
+- Preserve viewer-count fallbacks: local runtime count when available, remote/runtime-layer snapshot when reachable, durable active viewer count when no runtime exists or remote runtime is not found, and deterministic zero when remote transport fails.
+- Preserve ended-session zero-viewer behavior and channel error redaction. Client-facing remote or uncertain runtime failures should still collapse through `SOCK-003` rules to `"session_unavailable"`.
+- Do not broaden into `SOCK-002` topic cleanup, `SOCK-003` reason-code formatting, `GEN-001` chat event redesign, or `CTX-001` hidden runtime-RPC module-selection cleanup except for deleting truly orphaned runtime-RPC code after ownership no longer calls it.
+
 **Where to look first:**
 
 - `lib/live_canvas/live/session_ownership.ex`
@@ -1886,8 +1985,8 @@ Stage 3 watchpoints to carry into Stage 7:
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Not started; run only when the user asks to continue `LIVE-001`.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Complete.
+- Stage 8: Not started; requires an explicit implementation request for `LIVE-001`.
 
 ### DOC-001 - Task-Specific Information In General Convention Docs
 
@@ -1900,12 +1999,46 @@ Stage 3 watchpoints to carry into Stage 7:
 - `docs/architecture/conventions.md` contains a progress checklist.
 - The same file has a `Planned Refactors` section pointing to remaining convention migrations.
 - Durable rules such as timestamp type, token hashing, Relay-first GraphQL, and GraphQL authz should remain in a conventions doc.
+- Rechecked on 2026-05-29: the current `docs/architecture/conventions.md` still contains a `Progress` section with completed task checkboxes and a `Planned Refactors` section that points to plan work, alongside durable backend standards.
+
+**Stage 2 decision:** Marked valid on 2026-05-29. The core complaint is current and valid: `docs/architecture/conventions.md` should be a durable standards document, not a lane/task status document. The cleanup should remove or relocate completed-work checklist content and planned-refactor tracking while preserving stable backend standards such as timestamp type, token hashing, ID shape, typespec expectations, Relay-first GraphQL, and resolver authorization rules. Do not use this issue to rewrite the conventions themselves or to reopen completed convention-alignment work.
 
 **What likely needs to change:**
 
 - Move progress/checklist content out of general conventions into plan/status docs.
 - Keep stable backend standards in conventions.
 - Add any new standards from this cleanup only after discussion and validation.
+- During Stage 3, scan only the conventions document and directly related status/plan references needed to decide whether the task-specific content should be deleted outright or moved into a plan/handoff doc.
+
+**Stage 3 scan commands:**
+
+- `rg --files docs/architecture docs/plans/conventions docs/plans/backend | sort`
+- `rg -n "^## Progress$|^## Planned Refactors$|^- \\[[ xX]\\]|remaining convention|convention migrations|completed|TODO|Task|Stage|current batch|handoff|Status:" docs/architecture docs/plans/conventions docs/plans/backend --glob '*.md'`
+- `sed -n '1,260p' docs/plans/conventions/2026-03-02-conventions-alignment-design.md`
+- `sed -n '1,120p' docs/architecture/conventions.md`
+
+**Stage 3 scan findings:**
+
+- `docs/architecture/conventions.md` is the only general architecture/conventions file in scope.
+- The exact task-specific content in that general document is `docs/architecture/conventions.md` lines 3-13 (`Progress` with completed work checkboxes) and lines 36-38 (`Planned Refactors` pointing readers to remaining convention migrations).
+- `docs/plans/conventions/2026-03-02-conventions-alignment-design.md` also has planned-change language, but it is a dated design/plan record, so that status language belongs there and is not a `DOC-001` cleanup target.
+- `docs/plans/backend/NOW.md` and this cleanup inventory contain status, stage, handoff, and checklist language by design. They are the appropriate places for task tracking and should not be treated as violations of `DOC-001`.
+- `docs/plans/backend/2026-03-25-elixir-backend-starter-kit-extraction-plan.md` has an execution checklist, but it is a backend plan, not a durable conventions document.
+- The durable standards currently mixed into `docs/architecture/conventions.md` are still legitimate convention content: SHA3 token hashing, `:utc_datetime_usec`, bigint plus `entropy_id`, `users_tokens` as the UUID-primary-key exception, public-function typespec expectations, `mix typecheck`, Relay-first GraphQL, and GraphQL authorization checks.
+
+Stage 3 exact cleanup scope:
+
+- Remove the `Progress` checklist from `docs/architecture/conventions.md`.
+- Remove the `Planned Refactors` section from `docs/architecture/conventions.md` unless Stage 7 finds a durable, non-status replacement sentence is necessary.
+- Preserve the durable `Data And Security`, `Types And Verification`, and `GraphQL And Relay` convention rules. Do not use this issue to rewrite those conventions.
+- Do not move the completed checklist into another active handoff doc unless Stage 7 proves there is still live status that is not already captured by dated plan records or lane handoffs.
+
+Stage 3 watchpoints to carry into Stage 7:
+
+- Keep `docs/architecture/conventions.md` as a standards document, not a queue, migration tracker, or completion ledger.
+- If Stage 7 adds a prevention note, make it a durable documentation-hygiene rule rather than a new task-specific checklist.
+- Avoid editing coordinator-owned `docs/plans/NOW.md` or `docs/plans/INDEX.md`; report any shared repair instead.
+- Keep `docs/plans/conventions/2026-03-02-conventions-alignment-design.md` as historical evidence unless Stage 7 identifies a specific stale pointer that must be corrected.
 
 **Where to look first:**
 
@@ -1916,12 +2049,12 @@ Stage 3 watchpoints to carry into Stage 7:
 **Progress:**
 
 - Stage 1: Complete.
-- Stage 2: Pending.
-- Stage 3: Blocked until Stage 2 marks the issue valid or partially valid.
+- Stage 2: Complete; marked valid.
+- Stage 3: Complete.
 - Stage 4: Complete as the global agent-led scan; no per-issue action pending.
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
-- Stage 7: Blocked until Stage 3 is complete.
+- Stage 7: Not started; run only when the user asks to continue `DOC-001`.
 - Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
 
 ## Stage 4 Agent-Led Quality Scan
@@ -2272,9 +2405,9 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Current status: Stage 1 is complete for all user-reported issues; Stage 2, Stage 3, and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, and `SOCK-003`; `LIVE-001` Stage 2 and Stage 3 are complete with a valid decision to replace Postgres-backed runtime ownership with an OTP-native ownership design, and Stage 7 has not started; `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, which now owns both live-session topic generation and parsing cleanup; `GEN-001` Stage 2 is complete with a deferred-valid decision and a required future fix through a dedicated chat timeline/event-object redesign; Stage 4 is complete; Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`; Stage 7 plans are also written for `GQL-008`, `GEN-002`, and `WEB-001`; Stage 8 has not started for any issue. If continuing `LIVE-001`, start Stage 7 only when the user explicitly asks to continue that issue. If continuing issue discussion with the next undecided user-reported issue, start Stage 2 for `DOC-001` only when the user asks to move to the next issue. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests and follow that issue's Stage 7 plan. If continuing `GEN-001`, do not start a cleanup-stage scan by default; start a dedicated chat timeline/event-object redesign only if the user explicitly asks. If continuing Stage 7 planning for other issues, do not start `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
+Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Current status: Stage 1 and Stage 2 are complete for all user-reported issues; Stage 3 and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, and `LIVE-001`; `DOC-001` Stage 2 and Stage 3 are complete and marked valid, with Stage 7 not started; `DOC-001` Stage 3 narrowed the exact cleanup scope to `docs/architecture/conventions.md` lines 3-13 and 36-38; `LIVE-001` Stage 7 plans a layered `LC.RealtimeRuntime` design that removes Postgres-backed runtime owner leases, uses `libcluster` for Kubernetes cluster discovery, uses strict shard ownership as the authoritative distributed boundary, keeps runtime children under local supervisors/registries, allows Syn only for directory/group metadata, and allows Horde only for soft duplicate-tolerant workers; `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, which now owns both live-session topic generation and parsing cleanup; `GEN-001` Stage 2 is complete with a deferred-valid decision and a required future fix through a dedicated chat timeline/event-object redesign; Stage 4 is complete; Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`; Stage 7 plans are also written for `GQL-008`, `GEN-002`, and `WEB-001`; Stage 8 has not started for any issue. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests and follow that issue's Stage 7 plan. If continuing `DOC-001`, start Stage 7 only when the user asks to continue that issue and plan removal of task/status tracking from `docs/architecture/conventions.md` while preserving durable standards. If continuing `GEN-001`, do not start a cleanup-stage scan by default; start a dedicated chat timeline/event-object redesign only if the user explicitly asks. If continuing Stage 7 planning for other issues, do not start `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
 ```
 
 ## Shared Coordinator Repair To Report
 
-The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, `SOCK-002` Stage 2, Stage 3, and Stage 7 are complete with Stage 8 not started, `SOCK-003` Stage 2, Stage 3, and Stage 7 are complete with Stage 8 not started, `LIVE-001` Stage 2 and Stage 3 are complete with a valid OTP-native ownership redesign decision and Stage 7 has not started, `CTX-001` Stage 7 is complete and Stage 8 has not started, `GEN-001` Stage 2 is complete with a deferred-valid decision and required future chat timeline/event-object fix, `ECTO-001` Stage 7 is complete and Stage 8 has not started, `GQL-007` Stage 7 is complete and Stage 8 has not started, `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-008`, `GEN-002`, and `WEB-001` are discussed/scanned/planned where applicable, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 7 for `LIVE-001` if the user asks to continue that issue, Stage 2 for `DOC-001` if the user asks to move to the next undecided issue, Stage 8 implementation for a planned issue if the user explicitly requests it, explicit dedicated redesign for `GEN-001` if the user asks to start it, or explicit deferred planning for `GQL-009`.
+The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, `SOCK-002` Stage 2, Stage 3, and Stage 7 are complete with Stage 8 not started, `SOCK-003` Stage 2, Stage 3, and Stage 7 are complete with Stage 8 not started, `LIVE-001` Stage 2, Stage 3, and Stage 7 are complete with Stage 8 not started and now plans the finalized layered `LC.RealtimeRuntime` shard-ownership design, `DOC-001` Stage 2 and Stage 3 are complete with Stage 7 not started, `CTX-001` Stage 7 is complete and Stage 8 has not started, `GEN-001` Stage 2 is complete with a deferred-valid decision and required future chat timeline/event-object fix, `ECTO-001` Stage 7 is complete and Stage 8 has not started, `GQL-007` Stage 7 is complete and Stage 8 has not started, `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-008`, `GEN-002`, and `WEB-001` are discussed/scanned/planned where applicable, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is either Stage 7 for `DOC-001` if the user asks to continue that issue, Stage 8 implementation for a named planned issue if the user explicitly requests it, explicit dedicated redesign for `GEN-001` if the user asks to start it, or explicit deferred planning for `GQL-009`.
