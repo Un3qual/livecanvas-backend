@@ -50,8 +50,6 @@ config :live_canvas, LC.Infra.DataGovernance.Retention,
   apply_mode_enabled: false,
   incident_hold_active: false
 
-config :live_canvas, LC.Live.SessionSupervisor, lease_heartbeat_interval_ms: 10_000
-
 config :live_canvas, LCWeb.Plugs.MetricsAuth,
   enabled: false,
   token: nil,

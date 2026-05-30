@@ -15,7 +15,8 @@ defmodule LC do
     top_level?: true,
     deps: [LCSchemas],
     exports:
-      [Accounts, Authz, Chat, Content, Feed, Live, RateLimiter, Social] ++ @test_support_exports
+      [Accounts, Authz, Chat, Content, Feed, Live, RateLimiter, RealtimeRuntime, Social] ++
+        @test_support_exports
 
   @spec repo_module() :: LC.Infra.Repo
   def repo_module, do: LC.Infra.Repo

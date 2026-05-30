@@ -1,87 +1,65 @@
-defmodule LC.Live.SessionOwnershipTest do
-  use LC.DataCase, async: true
+defmodule LC.RealtimeRuntimeTest do
+  use LC.DataCase, async: false
 
   import LC.AccountsFixtures, only: [user_fixture: 0]
 
-  alias LC.Live.SessionOwnership
-  alias LCSchemas.Live.{LiveSession, LiveSessionRuntimeOwner}
+  alias LC.Live.SessionServer
+  alias LC.RealtimeRuntime
+  alias LCSchemas.Live.LiveSession
 
-  describe "claim/3" do
-    test "creates an ownership lease for first claim" do
-      session_id = live_session_id_fixture()
-      claimed_at = ~U[2026-03-03 23:00:00.000000Z]
-
-      assert {:ok, lease} = SessionOwnership.claim(session_id, "node-a@127.0.0.1", claimed_at)
-
-      assert lease.live_session_id == session_id
-      assert lease.owner_node == "node-a@127.0.0.1"
-      assert DateTime.compare(lease.heartbeat_at, claimed_at) == :eq
-      assert DateTime.compare(lease.lease_expires_at, claimed_at) == :gt
-    end
-
-    test "rejects claim from a different node while lease is active" do
-      session_id = live_session_id_fixture()
-      claimed_at = ~U[2026-03-03 23:00:00.000000Z]
-
-      assert {:ok, _lease} = SessionOwnership.claim(session_id, "node-a@127.0.0.1", claimed_at)
-
-      assert {:error, {:owned_by_remote, "node-a@127.0.0.1"}} =
-               SessionOwnership.claim(
-                 session_id,
-                 "node-b@127.0.0.1",
-                 DateTime.add(claimed_at, 1, :second)
-               )
-    end
-
-    test "allows takeover claim from another node after lease expiry" do
-      session_id = live_session_id_fixture()
-      claimed_at = ~U[2026-03-03 23:00:00.000000Z]
-
-      assert {:ok, lease} = SessionOwnership.claim(session_id, "node-a@127.0.0.1", claimed_at)
-
-      takeover_at = DateTime.add(lease.lease_expires_at, 1, :second)
-
-      assert {:ok, taken_over} =
-               SessionOwnership.claim(session_id, "node-b@127.0.0.1", takeover_at)
-
-      assert taken_over.owner_node == "node-b@127.0.0.1"
-      assert DateTime.compare(taken_over.heartbeat_at, takeover_at) == :eq
-      assert {:ok, "node-b@127.0.0.1"} = SessionOwnership.get_owner(session_id, takeover_at)
+  describe "shard_id/2" do
+    test "calculates stable shard keys for session IDs" do
+      assert RealtimeRuntime.shard_id(42) == RealtimeRuntime.shard_id(42)
+      assert RealtimeRuntime.shard_id(42, shard_count: 8) == 2
+      assert RealtimeRuntime.shard_id(43, shard_count: 8) == 3
     end
   end
 
-  describe "refresh/3" do
-    test "refreshes lease heartbeat and expiry for active owner" do
+  describe "lookup_session_runtime/2" do
+    test "returns not_found when no owner exists for the shard" do
       session_id = live_session_id_fixture()
-      claimed_at = ~U[2026-03-03 23:00:00.000000Z]
 
-      assert {:ok, lease} = SessionOwnership.claim(session_id, "node-a@127.0.0.1", claimed_at)
-
-      refreshed_at = DateTime.add(claimed_at, 5, :second)
-
-      assert {:ok, refreshed} =
-               SessionOwnership.refresh(session_id, "node-a@127.0.0.1", refreshed_at)
-
-      assert DateTime.compare(refreshed.heartbeat_at, refreshed_at) == :eq
-      assert DateTime.compare(refreshed.lease_expires_at, lease.lease_expires_at) == :gt
-      assert {:ok, "node-a@127.0.0.1"} = SessionOwnership.get_owner(session_id, refreshed_at)
+      assert {:error, :not_found} =
+               RealtimeRuntime.lookup_session_runtime(session_id, shard_id: 999)
     end
   end
 
-  describe "release/2" do
-    test "is idempotent and releases only for matching owner" do
+  describe "start_session_runtime/3" do
+    test "starts and looks up a runtime on a locally owned shard" do
       session_id = live_session_id_fixture()
-      claimed_at = ~U[2026-03-03 23:00:00.000000Z]
 
-      assert {:ok, _lease} = SessionOwnership.claim(session_id, "node-a@127.0.0.1", claimed_at)
-      assert :ok = SessionOwnership.release(session_id, "node-b@127.0.0.1")
-      assert {:ok, "node-a@127.0.0.1"} = SessionOwnership.get_owner(session_id, claimed_at)
+      assert {:ok, pid} = RealtimeRuntime.start_session_runtime(session_id)
+      assert Process.alive?(pid)
+      assert {:ok, ^pid} = RealtimeRuntime.lookup_session_runtime(session_id)
 
-      assert :ok = SessionOwnership.release(session_id, "node-a@127.0.0.1")
-      assert {:error, :not_found} = SessionOwnership.get_owner(session_id, claimed_at)
-      assert :ok = SessionOwnership.release(session_id, "node-a@127.0.0.1")
+      assert :ok = RealtimeRuntime.stop_session_runtime(session_id)
+    end
 
-      assert Repo.aggregate(LiveSessionRuntimeOwner, :count, :id) == 0
+    test "routes duplicate starts for the same session to the existing runtime" do
+      session_id = live_session_id_fixture()
+      joined_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+      initial_participants = %{
+        101 => %{user_id: 101, role: :viewer, joined_at: joined_at}
+      }
+
+      assert {:ok, pid} = RealtimeRuntime.start_session_runtime(session_id, initial_participants)
+      assert {:ok, ^pid} = RealtimeRuntime.start_session_runtime(session_id, %{})
+
+      assert %{participants: participants} = SessionServer.snapshot(pid)
+      assert Map.has_key?(participants, 101)
+
+      assert :ok = RealtimeRuntime.stop_session_runtime(session_id)
+    end
+
+    test "does not start a duplicate local runtime when shard ownership is unavailable" do
+      session_id = live_session_id_fixture()
+
+      assert {:error, :not_found} =
+               RealtimeRuntime.start_session_runtime(session_id, %{}, shard_id: 999)
+
+      assert {:error, :not_found} =
+               RealtimeRuntime.lookup_session_runtime(session_id, shard_id: 999)
     end
   end
 

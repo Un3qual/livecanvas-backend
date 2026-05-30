@@ -1,150 +1,66 @@
 defmodule LC.Live.SessionSupervisorTest do
-  # This module drives shared runtime supervisors and lease heartbeats that run
-  # on their own processes; keeping it synchronous avoids SQL sandbox ownership
-  # races across concurrently running test modules.
   use LC.DataCase, async: false
 
   import LC.AccountsFixtures, only: [user_fixture: 0]
 
-  alias LC.Live.{SessionOwnership, SessionSupervisor}
-  alias LCSchemas.Live.{LiveSession, LiveSessionRuntimeOwner}
+  alias LC.Live.{SessionServer, SessionSupervisor}
+  alias LCSchemas.Live.LiveSession
 
   describe "start_session_server/2" do
-    test "claims local ownership when starting a session runtime" do
+    test "starts a local session runtime through the realtime runtime layer" do
       session_id = live_session_id_fixture()
 
       assert {:ok, pid} = SessionSupervisor.start_session_server(session_id)
       assert Process.alive?(pid)
-      assert {:ok, owner_node} = SessionOwnership.get_owner(session_id, now_utc())
-      assert owner_node == local_node_name()
+      assert {:ok, ^pid} = SessionSupervisor.lookup_session_server(session_id)
       assert :ok = SessionSupervisor.stop_session_server(session_id)
     end
 
-    test "returns owned_by_remote when another node has an active lease" do
+    test "routes duplicate starts for the same session to the existing runtime" do
       session_id = live_session_id_fixture()
-      remote_owner = "remote-a@127.0.0.1"
-
-      assert {:ok, _lease} = SessionOwnership.claim(session_id, remote_owner, now_utc())
-
-      assert {:error, {:owned_by_remote, ^remote_owner}} =
-               SessionSupervisor.start_session_server(session_id)
-    end
-
-    test "takes over an expired remote lease before starting runtime" do
-      session_id = live_session_id_fixture()
-      remote_owner = "remote-a@127.0.0.1"
-      stale_claimed_at = DateTime.add(now_utc(), -120, :second)
-
-      assert {:ok, _lease} = SessionOwnership.claim(session_id, remote_owner, stale_claimed_at)
 
       assert {:ok, pid} = SessionSupervisor.start_session_server(session_id)
-      assert Process.alive?(pid)
-      assert {:ok, owner_node} = SessionOwnership.get_owner(session_id, now_utc())
-      assert owner_node == local_node_name()
+      assert {:ok, ^pid} = SessionSupervisor.start_session_server(session_id)
+
       assert :ok = SessionSupervisor.stop_session_server(session_id)
+    end
+
+    test "returns not_found when the selected shard has no owner" do
+      session_id = live_session_id_fixture()
+
+      assert {:error, :not_found} =
+               SessionSupervisor.start_session_server(session_id, %{}, shard_id: 999)
     end
   end
 
   describe "lookup_session_server/1" do
-    test "returns owned_by_remote when a remote node holds an active lease" do
+    test "returns not_found for a missing runtime on an owned shard" do
       session_id = live_session_id_fixture()
-      remote_owner = "remote-b@127.0.0.1"
 
-      assert {:ok, _lease} = SessionOwnership.claim(session_id, remote_owner, now_utc())
-
-      assert {:error, {:owned_by_remote, ^remote_owner}} =
-               SessionSupervisor.lookup_session_server(session_id)
+      assert {:error, :not_found} = SessionSupervisor.lookup_session_server(session_id)
     end
+  end
 
-    test "prefers active remote lease owner over a stale local runtime process" do
+  describe "join_session_server/3" do
+    test "joins the in-memory runtime when it exists" do
       session_id = live_session_id_fixture()
-      remote_owner = "remote-c@127.0.0.1"
 
-      assert {:ok, pid} =
-               SessionSupervisor.start_session_server(
-                 session_id,
-                 %{},
-                 lease_heartbeat_interval_ms: 60_000
-               )
+      assert {:ok, pid} = SessionSupervisor.start_session_server(session_id)
+      assert :ok = SessionSupervisor.join_session_server(session_id, 101, :viewer)
+      assert %{participants: participants} = SessionServer.snapshot(pid)
+      assert %{role: :viewer, user_id: 101} = Map.fetch!(participants, 101)
 
-      :ok = allow_runtime_db(pid)
-
-      lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session_id)
-      takeover_at = DateTime.add(now_utc(), 60, :second)
-
-      lease
-      |> Ecto.Changeset.change(
-        owner_node: remote_owner,
-        heartbeat_at: takeover_at,
-        lease_expires_at: DateTime.add(takeover_at, 30, :second)
-      )
-      |> Repo.update!()
-
-      monitor_ref = Process.monitor(pid)
-
-      assert {:error, {:owned_by_remote, ^remote_owner}} =
-               SessionSupervisor.lookup_session_server(session_id)
-
-      assert_receive {:DOWN, ^monitor_ref, :process, ^pid, :shutdown}
+      assert :ok = SessionSupervisor.stop_session_server(session_id)
     end
   end
 
   describe "stop_session_server/1" do
-    test "releases local ownership lease on stop" do
+    test "stops local runtime state idempotently" do
       session_id = live_session_id_fixture()
 
       assert {:ok, _pid} = SessionSupervisor.start_session_server(session_id)
-      assert {:ok, _owner_node} = SessionOwnership.get_owner(session_id, now_utc())
-
       assert :ok = SessionSupervisor.stop_session_server(session_id)
-      assert {:error, :not_found} = SessionOwnership.get_owner(session_id, now_utc())
-    end
-  end
-
-  describe "lease heartbeats" do
-    test "refreshes lease heartbeat while runtime is active" do
-      session_id = live_session_id_fixture()
-      heartbeat_interval_ms = 20
-
-      assert {:ok, pid} =
-               SessionSupervisor.start_session_server(
-                 session_id,
-                 %{},
-                 lease_heartbeat_interval_ms: heartbeat_interval_ms
-               )
-
-      :ok = allow_runtime_db(pid)
-      first_lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session_id)
-
-      Process.sleep(heartbeat_interval_ms * 4)
-
-      refreshed_lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session_id)
-
-      assert DateTime.compare(refreshed_lease.heartbeat_at, first_lease.heartbeat_at) == :gt
-
-      assert DateTime.compare(refreshed_lease.lease_expires_at, first_lease.lease_expires_at) ==
-               :gt
-
       assert :ok = SessionSupervisor.stop_session_server(session_id)
-    end
-
-    test "stops runtime when lease refresh can no longer confirm ownership" do
-      session_id = live_session_id_fixture()
-      heartbeat_interval_ms = 20
-
-      assert {:ok, pid} =
-               SessionSupervisor.start_session_server(
-                 session_id,
-                 %{},
-                 lease_heartbeat_interval_ms: heartbeat_interval_ms
-               )
-
-      :ok = allow_runtime_db(pid)
-      lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session_id)
-      _deleted_lease = Repo.delete!(lease)
-      monitor_ref = Process.monitor(pid)
-
-      assert_receive {:DOWN, ^monitor_ref, :process, ^pid, :lost_ownership}
       assert {:error, :not_found} = SessionSupervisor.lookup_session_server(session_id)
     end
   end
@@ -153,23 +69,5 @@ defmodule LC.Live.SessionSupervisorTest do
     host = user_fixture()
     live_session = Repo.insert!(%LiveSession{host_id: host.id})
     live_session.id
-  end
-
-  defp local_node_name, do: Node.self() |> Atom.to_string()
-
-  defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
-
-  defp allow_runtime_db(pid) when is_pid(pid) do
-    case Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), pid) do
-      :ok ->
-        :ok
-
-      {:already, _owner} ->
-        :ok
-
-      # In shared-owner mode (`async: false`) explicit allow is unnecessary.
-      :not_found ->
-        :ok
-    end
   end
 end

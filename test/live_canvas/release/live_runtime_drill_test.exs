@@ -16,18 +16,18 @@ defmodule LC.Release.LiveRuntimeDrillTest do
                )
 
       assert Enum.map(steps, & &1.name) == [
-               "Capture current runtime owner lease",
+               "Capture current shard owner",
                "Simulate owner-node partition",
-               "Force ownership takeover on target node",
+               "Force shard ownership takeover on target node",
                "Run reconnect join probe",
-               "Restore topology and verify steady owner"
+               "Restore topology and verify steady shard owner"
              ]
 
       assert Enum.at(steps, 0).command ==
-               "Inspect lease owner for live_session_id=42 and record lease_expires_at/heartbeat_at."
+               "Inspect realtime shard owner for live_session_id=42 and record shard routing state."
 
       assert Enum.at(steps, 2).command ==
-               "On takeover node takeover@node, start/restart session runtime for live_session_id=42 and confirm lease owner flips."
+               "On takeover node takeover@node, start/restart the shard owner and session runtime for live_session_id=42."
     end
 
     test "requires explicit confirmation outside test env" do
@@ -52,7 +52,7 @@ defmodule LC.Release.LiveRuntimeDrillTest do
         end)
 
       assert output =~ "Release live runtime drill dry run (execution order):"
-      assert output =~ "Capture current runtime owner lease"
+      assert output =~ "Capture current shard owner"
       assert output =~ "live_session_id=42"
       assert output =~ "takeover@node"
       assert output =~ "Run reconnect join probe"

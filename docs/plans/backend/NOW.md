@@ -13,7 +13,7 @@ Status: active for code-quality discussion/planning
 - Track: `backend_code_quality_cleanup`
 - Source: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
 - Batch: continue available Stage 8 cleanup tasks, one issue at a time
-- Why now: The cleanup inventory is the source of truth for per-issue stage status. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, and `DOC-001` have Stage 8 complete. The next agent should keep working through available Stage 8 implementation tasks that already have Stage 7 plans, starting with the next unstarted issue in the cleanup order. Keep `GEN-001` as a separate chat timeline/event-object redesign and keep `GQL-009` deferred unless the user explicitly asks to revisit it.
+- Why now: The cleanup inventory is the source of truth for per-issue stage status. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete. The next agent should keep working through available Stage 8 implementation tasks that already have Stage 7 plans, starting with the next unstarted issue in the cleanup order. Keep `GEN-001` as a separate chat timeline/event-object redesign and keep `GQL-009` deferred unless the user explicitly asks to revisit it.
 - Current status:
   - Stage 1 is complete for all user-reported issues.
   - `GQL-001`: Stage 2, Stage 3, Stage 7, and Stage 8 complete; resolver-only timestamp formatting has been removed from GraphQL fields.
@@ -28,7 +28,7 @@ Status: active for code-quality discussion/planning
   - `SOCK-001`: Stage 2 complete and merged into `SOCK-002`; `SOCK-002` owns both live-session topic generation and parsing cleanup.
   - `SOCK-002`: Stage 2, Stage 3, Stage 7, and Stage 8 complete; live-session topic generation and parsing now live in `LCTransport.LiveSessionTopics`.
   - `SOCK-003`: Stage 2 and Stage 3 complete with a partially-valid decision; Stage 7 complete; Stage 8 complete; client-facing live-session socket reason strings now live in `LCTransport.LiveSessionReasons`.
-  - `LIVE-001`: Stage 2 complete with a valid OTP-native ownership redesign decision; Stage 3 complete; Stage 7 complete; Stage 8 not started.
+  - `LIVE-001`: Stage 2 complete with a valid OTP-native ownership redesign decision; Stage 3 complete; Stage 7 complete; Stage 8 complete; live-session runtime ownership now routes through `LC.RealtimeRuntime` shard ownership and shard-local runtime supervision. The first slice kept the existing `DNSCluster` discovery path instead of adding `libcluster`.
   - `DOC-001`: Stage 2 complete and marked valid; Stage 3 complete; Stage 7 complete; Stage 8 complete with no implementation code touched.
   - `GEN-001`: Stage 2 complete with a deferred-valid decision and a required future fix through a dedicated chat timeline/event-object redesign.
   - Stage 4 is complete.
@@ -43,7 +43,7 @@ Status: active for code-quality discussion/planning
 - Continue Stage 8 implementation for available issues with completed Stage 7 plans, one issue at a time. Start with the next unstarted available issue in cleanup order, follow that issue's Stage 7 plan, run its focused verification, update this lane pointer and the cleanup inventory, commit the milestone, then continue to the next available Stage 8 issue if time remains.
 - `SOCK-002` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `SOCK-003` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
-- When `LIVE-001` is selected by order, follow the `LIVE-001` Stage 7 plan and keep the implementation scoped to replacing Postgres-backed live runtime ownership with the finalized layered `LC.RealtimeRuntime` design: `libcluster` discovery, strict shard ownership, local runtime supervisors, Syn for directory/groups only, and Horde only for soft duplicate-tolerant workers.
+- `LIVE-001` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `DOC-001` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `GQL-005` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - For `GEN-001`, do not start a cleanup-stage scan by default. The issue is deferred-valid with a required future fix; start a dedicated chat timeline/event-object redesign only if the user explicitly asks.
@@ -119,6 +119,7 @@ Status: active for code-quality discussion/planning
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `LIVE-001` on 2026-05-24; user selected option #2 and marked it valid for replacing Postgres-backed runtime ownership with an OTP-native ownership design; no implementation code touched.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `LIVE-001` on 2026-05-24; ownership claims, runtime process lifecycle, remote routing, viewer snapshots, peer-node partition behavior, release drills, and data-governance references scanned; no implementation code touched.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan finalized for `LIVE-001` on 2026-05-29; planned implementation replaces Postgres-backed runtime owner leases with a layered `LC.RealtimeRuntime` design using `libcluster`, strict shard ownership, local runtime supervisors, Syn for directory/groups only, and Horde only for soft duplicate-tolerant workers; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 8 completed for `LIVE-001` on 2026-05-30; live-session runtime ownership now routes through `LC.RealtimeRuntime` shard ownership and shard-local runtime supervision, the Postgres runtime-owner schema/table path is removed by a drop migration, lease heartbeat configuration/tests were removed, remote/unavailable routing stays fail-closed, release/data-governance docs no longer use lease-owner language, and the first slice kept the existing `DNSCluster` discovery path instead of adding `libcluster`.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `DOC-001` on 2026-05-29; marked valid because `docs/architecture/conventions.md` still mixes durable backend standards with a progress checklist and planned-refactor tracking; no implementation code touched.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `DOC-001` on 2026-05-29; exact cleanup scope is `docs/architecture/conventions.md` lines 3-13 and 36-38, while convention-plan and backend-lane status docs are intentionally out of scope; no implementation code touched.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `DOC-001` on 2026-05-29; no implementation code touched.
@@ -136,15 +137,15 @@ Status: active for code-quality discussion/planning
 ## Next Up
 
 - Continue available Stage 8 implementation tasks with completed Stage 7 plans, one issue at a time:
-  - `LIVE-001`, `GQL-008`, `GEN-002`, and `WEB-001`.
-  - Start with `LIVE-001` unless its status has changed by the next run.
+  - `GQL-008`, `GEN-002`, and `WEB-001`.
+  - Start with `GQL-008` unless its status has changed by the next run.
   - After each issue, update the issue's status, refresh this lane pointer, commit the milestone, then continue to the next available Stage 8 issue if time remains.
 - Do not start `GEN-001` through the cleanup-stage flow; start the dedicated chat timeline/event-object redesign only if the user explicitly asks.
 - Do not start `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup.
 
 ## Required Shared Coordinator Repairs
 
-- `docs/plans/NOW.md`: update the backend lane current batch to `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, and `DOC-001` Stage 8 complete; `SOCK-001` Stage 2 complete and merged into `SOCK-002`; `LIVE-001`, `GQL-008`, `GEN-002`, and `WEB-001` are available Stage 8 tasks with completed Stage 7 plans; next backend-lane work should continue those Stage 8 tasks one issue at a time, starting with `LIVE-001` unless status changes; `GEN-001` remains a separate dedicated chat timeline/event-object redesign; `GQL-009` remains deferred until explicitly revisited.
+- `docs/plans/NOW.md`: update the backend lane current batch to `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` Stage 8 complete; `SOCK-001` Stage 2 complete and merged into `SOCK-002`; `GQL-008`, `GEN-002`, and `WEB-001` are available Stage 8 tasks with completed Stage 7 plans; next backend-lane work should continue those Stage 8 tasks one issue at a time, starting with `GQL-008` unless status changes; `GEN-001` remains a separate dedicated chat timeline/event-object redesign; `GQL-009` remains deferred until explicitly revisited.
 - `docs/plans/INDEX.md`: add `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` to completed backend work through Task 3.
 - `docs/plans/INDEX.md`: add `docs/plans/content/2026-04-24-post-reporting.md` to completed backend work through Task 2.
 - `docs/plans/INDEX.md`: remove or update stale queued-candidate notes for `docs/plans/2026-03-22-development-seed-data.md`, because that plan is already checklist-complete.

@@ -35,6 +35,7 @@
 - Runtime or external-service adapters should be explicit boundaries with typed behavior callbacks.
 - Production module swaps through app config should exist only when deployment actually supports changing the adapter and the convention/config is documented.
 - Test-only adapter swaps should use explicit per-call opts, support helpers, or local fakes instead of hidden app-config module indirection.
+- Realtime runtime ownership is OTP-native and shard-owned through `LC.RealtimeRuntime`. Do not use Postgres tables, Swarm, Syn, or Horde as the authoritative owner for live sessions or game rooms; Syn may provide directory/group metadata only, and Horde may supervise only duplicate-tolerant helper workers.
 
 ## GraphQL And Relay
 

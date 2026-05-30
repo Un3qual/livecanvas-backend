@@ -31,9 +31,6 @@ config :live_canvas, LC.Infra.AsyncJobs.Worker, enabled: false
 
 # Keep explicit runtime lease defaults for tests so scenario tests can
 # temporarily override these values and restore deterministic baselines.
-config :live_canvas, LC.Live.SessionOwnership, lease_ttl_seconds: 30
-config :live_canvas, LC.Live.SessionSupervisor, lease_heartbeat_interval_ms: 60_000
-
 config :live_canvas, LC.TestSupport.Live.PeerRuntimeHelper,
   rpc_timeout_ms: 5_000,
   peer_startup_timeout_ms: 15_000,

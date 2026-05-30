@@ -4,8 +4,9 @@ defmodule LC.Live.DistributedRuntimeTest do
   import LC.AccountsFixtures, only: [user_fixture: 0]
 
   alias LC.Live
-  alias LC.Live.{SessionOwnership, SessionSupervisor}
-  alias LCSchemas.Live.{LiveParticipant, LiveSession, LiveSessionRuntimeOwner}
+  alias LC.Live.SessionSupervisor
+  alias LC.RealtimeRuntime
+  alias LCSchemas.Live.{LiveParticipant, LiveSession}
 
   defmodule FakeRuntimeRPC do
     @moduledoc false
@@ -29,11 +30,11 @@ defmodule LC.Live.DistributedRuntimeTest do
   end
 
   describe "lookup_session_server/1" do
-    test "returns owned_by_remote when session lease belongs to another node" do
+    test "returns owned_by_remote when shard ownership belongs to another node" do
       session = live_session_fixture()
       remote_owner = "remote-owner@127.0.0.1"
 
-      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+      put_remote_owner(session, remote_owner)
 
       assert {:error, {:owned_by_remote, ^remote_owner}} =
                Live.lookup_session_server(session.id)
@@ -47,7 +48,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       session = live_session_fixture(host.id)
       remote_owner = "remote-owner@127.0.0.1"
 
-      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+      put_remote_owner(session, remote_owner)
 
       configure_runtime_rpc([
         {:ok, :ok},
@@ -83,7 +84,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       session = live_session_fixture(host.id)
       remote_owner = "remote-owner@127.0.0.1"
 
-      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+      put_remote_owner(session, remote_owner)
       configure_runtime_rpc([{:error, :remote_timeout}])
 
       assert {:error, :remote_timeout} =
@@ -112,7 +113,7 @@ defmodule LC.Live.DistributedRuntimeTest do
         Application.put_env(:live_canvas, Live, previous_live_config)
       end)
 
-      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+      put_remote_owner(session, remote_owner)
       configure_runtime_rpc([{:ok, :ok}])
 
       assert {:error, :remote_unreachable} =
@@ -127,7 +128,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       session = live_session_fixture(host.id)
       remote_owner = "remote-owner@127.0.0.1"
 
-      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+      put_remote_owner(session, remote_owner)
 
       configure_runtime_rpc([
         {:ok, :ok},
@@ -149,7 +150,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       session = live_session_fixture(host.id)
       remote_owner = "remote-owner@127.0.0.1"
 
-      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+      put_remote_owner(session, remote_owner)
 
       configure_runtime_rpc([
         {:ok, :ok},
@@ -198,7 +199,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       session = live_session_fixture(host.id)
       remote_owner = "remote-owner@127.0.0.1"
 
-      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+      put_remote_owner(session, remote_owner)
 
       configure_runtime_rpc([
         {:ok, :ok},
@@ -224,25 +225,10 @@ defmodule LC.Live.DistributedRuntimeTest do
       session = live_session_fixture(host.id)
       remote_owner = "remote-owner@127.0.0.1"
 
-      assert {:ok, stale_local_pid} =
-               SessionSupervisor.start_session_server(
-                 session.id,
-                 %{},
-                 lease_heartbeat_interval_ms: 60_000
-               )
+      assert {:ok, stale_local_pid} = SessionSupervisor.start_session_server(session.id)
 
       assert Process.alive?(stale_local_pid)
-
-      lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session.id)
-      takeover_at = DateTime.add(now_utc(), 60, :second)
-
-      lease
-      |> Ecto.Changeset.change(
-        owner_node: remote_owner,
-        heartbeat_at: takeover_at,
-        lease_expires_at: DateTime.add(takeover_at, 30, :second)
-      )
-      |> Repo.update!()
+      put_remote_owner(session, remote_owner)
 
       configure_runtime_rpc([
         {:ok, :ok},
@@ -279,7 +265,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       session = live_session_fixture(host.id)
       remote_owner = "remote-owner@127.0.0.1"
 
-      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+      put_remote_owner(session, remote_owner)
 
       configure_runtime_rpc([
         {:ok, {:ok, %{status: :live, visibility: :public, viewer_count: 3}}}
@@ -320,5 +306,16 @@ defmodule LC.Live.DistributedRuntimeTest do
     :ok
   end
 
-  defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+  defp put_remote_owner(%LiveSession{id: session_id}, remote_owner)
+       when is_integer(session_id) and is_binary(remote_owner) do
+    shard_id = RealtimeRuntime.shard_id(session_id)
+    :ok = RealtimeRuntime.put_test_shard_owner(shard_id, {:remote, remote_owner})
+
+    on_exit(fn ->
+      RealtimeRuntime.clear_test_shard_owner(shard_id)
+      RealtimeRuntime.stop_session_runtime(session_id)
+    end)
+
+    :ok
+  end
 end

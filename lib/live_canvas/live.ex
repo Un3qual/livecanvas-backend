@@ -3,12 +3,13 @@ defmodule LC.Live do
   The Live context.
   """
 
-  use Boundary, deps: [LC.Content, LC.Infra, LCSchemas]
+  use Boundary, deps: [LC.Content, LC.Infra, LC.RealtimeRuntime, LCSchemas]
   import Ecto.Query, warn: false
 
   alias LC.Content
   alias LC.Infra.Repo
-  alias LC.Live.{RuntimeRPC, SessionServer, SessionSupervisor}
+  alias LC.Live.{RuntimeRPC, SessionSupervisor}
+  alias LC.RealtimeRuntime.SessionServer
   alias LC.Live.LiveParticipant, as: LiveParticipantChanges
   alias LC.Live.LiveSession, as: LiveSessionChanges
   alias LCSchemas.Accounts.User

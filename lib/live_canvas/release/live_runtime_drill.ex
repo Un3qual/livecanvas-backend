@@ -16,10 +16,10 @@ defmodule LC.Release.LiveRuntimeDrill do
       when is_integer(session_id) and session_id > 0 and is_binary(takeover_node) do
     [
       %{
-        name: "Capture current runtime owner lease",
+        name: "Capture current shard owner",
         command:
-          "Inspect lease owner for live_session_id=#{session_id} and record lease_expires_at/heartbeat_at.",
-        success_criteria: "Lease owner is captured with timestamps before any failover action."
+          "Inspect realtime shard owner for live_session_id=#{session_id} and record shard routing state.",
+        success_criteria: "Shard owner is captured before any failover action."
       },
       %{
         name: "Simulate owner-node partition",
@@ -29,11 +29,11 @@ defmodule LC.Release.LiveRuntimeDrill do
           "Ownership lookup from #{takeover_node} no longer reaches the previous owner."
       },
       %{
-        name: "Force ownership takeover on target node",
+        name: "Force shard ownership takeover on target node",
         command:
-          "On takeover node #{takeover_node}, start/restart session runtime for live_session_id=#{session_id} and confirm lease owner flips.",
+          "On takeover node #{takeover_node}, start/restart the shard owner and session runtime for live_session_id=#{session_id}.",
         success_criteria:
-          "Lease owner updates to #{takeover_node} and a local runtime process is present."
+          "Shard ownership routes to #{takeover_node} and a local runtime process is present."
       },
       %{
         name: "Run reconnect join probe",
@@ -43,11 +43,11 @@ defmodule LC.Release.LiveRuntimeDrill do
           "Viewer reconnect succeeds and `live_participants` has no duplicate active rows."
       },
       %{
-        name: "Restore topology and verify steady owner",
+        name: "Restore topology and verify steady shard owner",
         command:
-          "Reconnect partitioned node, confirm owner heartbeat stabilizes, and capture final lease owner for live_session_id=#{session_id}.",
+          "Reconnect partitioned node, confirm shard routing is stable, and capture final owner for live_session_id=#{session_id}.",
         success_criteria:
-          "Heartbeat keeps advancing for the selected owner with no split-brain ownership."
+          "Shard ownership remains single-owner with no duplicate authoritative runtimes."
       }
     ]
   end
