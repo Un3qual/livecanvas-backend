@@ -18,7 +18,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
   end
 
   describe "node" do
-    test "refetches a user from a relay global id" do
+    test "returns nil for private user email without viewer ownership" do
       user = user_fixture()
       global_id = Absinthe.Relay.Node.to_global_id(:user, user.id, LCGQL.Schema)
 
@@ -33,8 +33,31 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       }
       """
 
-      assert {:ok, %{data: %{"node" => %{"id" => ^global_id, "email" => user_email}}}} =
+      assert {:ok, %{data: %{"node" => %{"id" => ^global_id, "email" => nil}}}} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"id" => global_id})
+    end
+
+    test "returns private user email through node refetch for the owning viewer" do
+      user = user_fixture()
+      global_id = Absinthe.Relay.Node.to_global_id(:user, user.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(user)}
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on User {
+            email
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => %{"id" => ^global_id, "email" => user_email}}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => global_id},
+                 context: context
+               )
 
       assert user_email == user.email
     end
@@ -415,7 +438,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                   "node" => %{
                     "id" => ^contact_match_id,
                     "contactName" => "Friend Match",
-                    "matchedUsers" => [%{"id" => ^matched_user_id, "email" => matched_email}]
+                    "matchedUsers" => [%{"id" => ^matched_user_id, "email" => nil}]
                   }
                 }
               }} =
@@ -423,8 +446,6 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                  variables: %{"id" => contact_match_id},
                  context: context
                )
-
-      assert matched_email == matched_user.email
     end
 
     test "returns null for contact match node lookups without the owning viewer context" do
@@ -1162,6 +1183,15 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       assert captured_context.loader.sources[Accounts].default_params.current_scope.user.id ==
                viewer.id
     end
+
+    test "does not expose token fields on the User node" do
+      schema_sdl = Absinthe.Schema.to_sdl(LCGQL.Schema)
+      user_type = schema_type_body!(schema_sdl, "User")
+
+      refute user_type =~ "freshAccessToken"
+      refute user_type =~ "refreshToken"
+      assert schema_sdl =~ "refreshToken: Token"
+    end
   end
 
   defp capture_execution_context(pipeline, _options, test_pid) do
@@ -1170,5 +1200,11 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       Absinthe.Phase.Document.Execution.Resolution,
       {CaptureExecutionContextPhase, test_pid: test_pid}
     )
+  end
+
+  defp schema_type_body!(schema_sdl, type_name) do
+    [_before, rest] = String.split(schema_sdl, "type #{type_name} implements Node {", parts: 2)
+    [body | _after] = String.split(rest, "\n}", parts: 2)
+    body
   end
 end

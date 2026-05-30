@@ -409,6 +409,55 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
     end
   end
 
+  describe "node(user).userIdentities" do
+    test "returns linked identities only for the owning viewer" do
+      owner = user_fixture()
+      outsider = user_fixture()
+      identity = attach_user_identity(owner, :google_provider, "google-node-owner-identity")
+
+      user_id = Absinthe.Relay.Node.to_global_id(:user, owner.id, LCGQL.Schema)
+      identity_id = Absinthe.Relay.Node.to_global_id(:user_identity, identity.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!, $first: Int!) {
+        node(id: $id) {
+          ... on User {
+            userIdentities(first: $first) {
+              edges {
+                node {
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "userIdentities" => %{"edges" => [%{"node" => %{"id" => ^identity_id}}]}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => user_id, "first" => 10},
+                 context: %{current_scope: Accounts.scope_for_user(owner)}
+               )
+
+      assert {:ok, %{data: %{"node" => %{"userIdentities" => %{"edges" => []}}}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => user_id, "first" => 10})
+
+      assert {:ok, %{data: %{"node" => %{"userIdentities" => %{"edges" => []}}}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => user_id, "first" => 10},
+                 context: %{current_scope: Accounts.scope_for_user(outsider)}
+               )
+    end
+  end
+
   describe "node(user)" do
     test "exposes privacyMode on user nodes" do
       user = user_fixture(privacy_mode: :public)

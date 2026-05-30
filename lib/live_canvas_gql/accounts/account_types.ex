@@ -72,7 +72,10 @@ defmodule LCGQL.Accounts.Types do
   end
 
   node object(:user) do
-    field :email, :string
+    field :email, :string do
+      resolve(&Resolver.user_email/3)
+    end
+
     field :privacy_mode, non_null(:user_privacy_mode)
     field :inserted_at, non_null(:string)
 
@@ -103,9 +106,6 @@ defmodule LCGQL.Accounts.Types do
     connection field :following, node_type: :user, paginate: :forward do
       resolve(&SocialResolver.following/3)
     end
-
-    field :fresh_access_token, :token
-    field :refresh_token, :token
   end
 
   node object(:user_identity) do

@@ -117,6 +117,7 @@ defmodule LC.MixProject do
     do: [
       {:boundary, "~> 0.10", runtime: false},
       {:ecto_enum, "~> 1.4"},
+      {:let_me, "~> 2.0"},
       {:ex_phone_number, "~> 0.4.10"},
       {:swoosh, "~> 1.16"},
       {:req, "~> 0.5"},

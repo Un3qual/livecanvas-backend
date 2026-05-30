@@ -31,7 +31,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
               %{
                 data: %{
                   "registerWithEmail" => %{
-                    "user" => %{"id" => user_id, "email" => "user@example.com"},
+                    "user" => %{"id" => user_id, "email" => nil},
                     "errors" => []
                   }
                 }
@@ -986,15 +986,13 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                       "id" => first_contact_match_id,
                       "contactName" => "First Import",
                       "birthday" => "1990-02-15",
-                      "matchedUsers" => [%{"id" => matched_user_id, "email" => matched_email}]
+                      "matchedUsers" => [%{"id" => matched_user_id, "email" => nil}]
                     },
                     "errors" => []
                   }
                 }
               }} =
                Absinthe.run(mutation, LCGQL.Schema, variables: variables, context: context)
-
-      assert matched_email == matched_user.email
 
       assert {:ok, %{type: :contact_match}} =
                Absinthe.Relay.Node.from_global_id(first_contact_match_id, LCGQL.Schema)
@@ -1024,7 +1022,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                       "matchedUsers" => [
                         %{
                           "id" => ^expected_second_user_id,
-                          "email" => second_matched_user_email
+                          "email" => nil
                         }
                       ]
                     },
@@ -1038,8 +1036,6 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                  variables: updated_variables,
                  context: context
                )
-
-      assert second_matched_user_email == second_matched_user.email
     end
 
     test "returns structured errors for invalid input payload values" do
