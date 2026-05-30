@@ -3,6 +3,16 @@ defmodule LCSchemas.Live.LiveSessionRuntimeOwner do
 
   alias LCSchemas.Live.LiveSession
 
+  @moduledoc """
+  Schema for the `live_session_runtime_owners` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `live_session_id` is unique and enforces one runtime owner row per session.
+  - Deleting the live session cascades to its runtime owner row.
+  - `owner_node` and `lease_expires_at` indexes support ownership claim and expiry paths.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

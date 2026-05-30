@@ -1,6 +1,16 @@
 defmodule LCSchemas.Social.Block do
   use Ecto.Schema
 
+  @moduledoc """
+  Schema for the `blocks` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `(blocker_id, blocked_id)` is unique.
+  - Deleting either user cascades to the block row.
+  - `blocker_id` and `blocked_id` indexes support relationship lookup paths.
+  """
+
   @type t :: %__MODULE__{
           blocked: term(),
           blocked_id: integer() | nil,

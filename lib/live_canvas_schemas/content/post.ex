@@ -4,6 +4,15 @@ defmodule LCSchemas.Content.Post do
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.{MediaAsset, PostReport}
 
+  @moduledoc """
+  Schema for the `posts` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - Deleting the author cascades to their posts.
+  - `kind`, `expires_at`, and `(kind, inserted_at)` indexes support story/feed filtering and ordering.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

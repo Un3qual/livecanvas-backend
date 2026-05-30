@@ -1,6 +1,16 @@
 defmodule LCSchemas.Infra.AsyncJob do
   use LCSchemas.Schema, :relational
 
+  @moduledoc """
+  Schema for the `async_jobs` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `dedupe_key` is unique when present.
+  - Database checks enforce `attempts >= 0` and `max_attempts > 0`.
+  - `(kind, status, scheduled_at)` is the worker claim index.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

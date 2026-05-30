@@ -3,6 +3,15 @@ defmodule LCSchemas.Accounts.UserPasskey do
 
   alias LCSchemas.Accounts.{User, UserIdentity}
 
+  @moduledoc """
+  Schema for the `user_passkeys` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `credential_id` is unique, and `user_identity_id` is unique.
+  - Deleting the user or identity cascades to their passkeys.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

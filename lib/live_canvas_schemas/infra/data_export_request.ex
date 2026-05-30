@@ -3,6 +3,15 @@ defmodule LCSchemas.Infra.DataExportRequest do
 
   alias LCSchemas.Accounts.User
 
+  @moduledoc """
+  Schema for the `data_export_requests` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - Deleting a user nilifies `user_id` to retain governance history.
+  - `(user_id, inserted_at)` supports user governance-history lookups.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

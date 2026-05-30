@@ -10,6 +10,14 @@ defmodule LCSchemas.Accounts.User do
     UserPhoneNumber
   }
 
+  @moduledoc """
+  Schema for the `users` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `suspended_at` is indexed for account-state filtering.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

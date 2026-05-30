@@ -1,6 +1,16 @@
 defmodule LCSchemas.Social.Follow do
   use Ecto.Schema
 
+  @moduledoc """
+  Schema for the `follows` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `(follower_id, followed_id)` is unique.
+  - Deleting either user cascades to the follow row.
+  - `follower_id` and `followed_id` indexes support relationship lookup paths.
+  """
+
   @type t :: %__MODULE__{
           accepted_at: DateTime.t() | nil,
           entropy_id: Ecto.UUID.t() | nil,

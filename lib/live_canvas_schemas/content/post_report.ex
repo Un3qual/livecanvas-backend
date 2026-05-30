@@ -4,6 +4,17 @@ defmodule LCSchemas.Content.PostReport do
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.Post
 
+  @moduledoc """
+  Schema for the `post_reports` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `reason` and `status` are enforced by database check constraints.
+  - `(reporter_id, post_id)` is unique.
+  - Deleting the reporter or post cascades to reports.
+  - `(status, inserted_at)` supports moderation queue ordering.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

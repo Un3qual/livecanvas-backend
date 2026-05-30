@@ -5,6 +5,16 @@ defmodule LCSchemas.Live.LiveSession do
   alias LCSchemas.Content.MediaAsset
   alias LCSchemas.Live.LiveParticipant
 
+  @moduledoc """
+  Schema for the `live_sessions` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - Deleting the host user cascades to their live sessions.
+  - Deleting a recording media asset nilifies `recording_media_asset_id`.
+  - `status` and `recording_media_asset_id` indexes support live/session-history access paths.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

@@ -3,6 +3,15 @@ defmodule LCSchemas.Accounts.UserIdentity do
 
   alias LCSchemas.Accounts.User
 
+  @moduledoc """
+  Schema for the `user_identities` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `(provider, provider_uid)` is unique.
+  - Deleting the user cascades to their identities.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

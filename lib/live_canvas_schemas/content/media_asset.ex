@@ -4,6 +4,15 @@ defmodule LCSchemas.Content.MediaAsset do
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.Post
 
+  @moduledoc """
+  Schema for the `media_assets` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - Deleting the owner cascades to their media assets.
+  - Deleting the optional post cascades to attached media assets.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,
