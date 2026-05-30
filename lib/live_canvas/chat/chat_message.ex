@@ -105,6 +105,6 @@ defmodule LC.Chat.ChatMessage do
 
   @spec removed?(map()) :: boolean()
   defp removed?(chat_message) when is_map(chat_message) do
-    Map.get(chat_message, :status, :active) == :removed
+    Map.get(chat_message, :status, :active) in [:removed, "removed"]
   end
 end

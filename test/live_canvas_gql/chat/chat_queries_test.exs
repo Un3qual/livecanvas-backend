@@ -401,7 +401,15 @@ defmodule LCGQL.Chat.ChatQueriesTest do
       viewer = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
-      {:ok, first_message} = Chat.create_message(live_session, viewer, %{body: "first"})
+
+      {:ok, first_message} =
+        Chat.create_message(live_session, viewer, %{
+          body: "first",
+          metadata: %{
+            "details" => %{"chat_message_id" => 1},
+            "event_type" => "message_removed"
+          }
+        })
 
       {:ok, system_event} =
         Chat.record_system_event(live_session, :message_removed,
