@@ -6,6 +6,7 @@ defmodule LCGQL.Chat.ChatMutationsTest do
 
   alias LC.{Accounts, Chat, Live}
   alias LC.Infra.Repo
+  alias LCTransport.LiveSessionTopics
   alias LCSchemas.Chat.ChatMessage
 
   describe "removeLiveChatMessage" do
@@ -50,7 +51,7 @@ defmodule LCGQL.Chat.ChatMutationsTest do
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
       live_session_id = live_session.id
       {:ok, message} = Chat.create_message(live_session, sender, %{body: "remove me"})
-      topic = "live_session:#{live_session.id}"
+      topic = LiveSessionTopics.live_session_topic(live_session.id)
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
 
       message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
@@ -245,7 +246,7 @@ defmodule LCGQL.Chat.ChatMutationsTest do
                  metadata: %{chat_message: message}
                )
 
-      topic = "live_session:#{live_session.id}"
+      topic = LiveSessionTopics.live_session_topic(live_session.id)
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
 
       system_event_id =
@@ -281,11 +282,11 @@ defmodule LCGQL.Chat.ChatMutationsTest do
       assert updated_id == system_event.id
 
       refute_receive %Phoenix.Socket.Broadcast{
-        topic: ^topic,
-        event: "chat:message",
-        payload: %{message: %{metadata: %{"event_type" => "message_removed"}}}
-      },
-      200
+                       topic: ^topic,
+                       event: "chat:message",
+                       payload: %{message: %{metadata: %{"event_type" => "message_removed"}}}
+                     },
+                     200
 
       assert 1 ==
                from(chat_message in ChatMessage,

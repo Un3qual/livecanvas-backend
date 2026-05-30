@@ -6,6 +6,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
   alias LC.{Accounts, Content, Live}
   alias LC.Infra.Repo
+  alias LCTransport.LiveSessionTopics
   alias LCSchemas.{Chat.ChatMessage, Live.LiveParticipant, Live.LiveSession}
 
   @leave_live_session_mutation """
@@ -432,7 +433,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
     test "persists and broadcasts lifecycle system events for successful host transitions" do
       host = user_fixture(privacy_mode: :public)
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
-      topic = "live_session:#{started_session.id}"
+      topic = LiveSessionTopics.live_session_topic(started_session.id)
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
 
       session_id =
@@ -598,7 +599,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
     test "does not emit session_live when a concurrent end wins before the go-live reload" do
       host = user_fixture(privacy_mode: :public)
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
-      topic = "live_session:#{started_session.id}"
+      topic = LiveSessionTopics.live_session_topic(started_session.id)
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
 
       session_id =
@@ -1024,8 +1025,8 @@ defmodule LCGQL.Live.LiveMutationsTest do
       {:ok, live_session} = Live.mark_session_live(started_session)
       session_id = Absinthe.Relay.Node.to_global_id(:live_session, live_session.id, LCGQL.Schema)
       context = %{current_scope: Accounts.scope_for_user(host)}
-      control_topic = "live_session_control:#{live_session.id}"
-      session_topic = "live_session:#{live_session.id}"
+      control_topic = LiveSessionTopics.session_control_topic(live_session.id)
+      session_topic = LiveSessionTopics.live_session_topic(live_session.id)
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, session_topic)
 
@@ -1274,8 +1275,8 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
       session_id = Absinthe.Relay.Node.to_global_id(:live_session, live_session.id, LCGQL.Schema)
       context = %{current_scope: Accounts.scope_for_user(viewer)}
-      control_topic = "live_session_control:#{live_session.id}:user:#{viewer.id}"
-      session_control_topic = "live_session_control:#{live_session.id}"
+      control_topic = LiveSessionTopics.session_user_control_topic(live_session.id, viewer.id)
+      session_control_topic = LiveSessionTopics.session_control_topic(live_session.id)
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
       :ok = Phoenix.PubSub.subscribe(LC.PubSub, session_control_topic)
 

@@ -15,25 +15,25 @@ defmodule LC.Chat.Broadcasts do
           metadata: map()
         }
 
-  @spec broadcast_message(map()) :: :ok
-  def broadcast_message(%{live_session_id: live_session_id} = chat_message)
-      when is_integer(live_session_id) do
-    topic = live_session_topic(live_session_id)
-
+  @spec broadcast_message(map(), String.t()) :: :ok
+  def broadcast_message(%{live_session_id: live_session_id} = chat_message, topic)
+      when is_integer(live_session_id) and is_binary(topic) do
     Phoenix.PubSub.broadcast(
       LC.PubSub,
       topic,
-      %Broadcast{topic: topic, event: "chat:message", payload: %{message: message_payload(chat_message)}}
+      %Broadcast{
+        topic: topic,
+        event: "chat:message",
+        payload: %{message: message_payload(chat_message)}
+      }
     )
   end
 
-  def broadcast_message(_chat_message), do: :ok
+  def broadcast_message(_chat_message, _topic), do: :ok
 
-  @spec broadcast_message_update(map()) :: :ok
-  def broadcast_message_update(%{live_session_id: live_session_id} = chat_message)
-      when is_integer(live_session_id) do
-    topic = live_session_topic(live_session_id)
-
+  @spec broadcast_message_update(map(), String.t()) :: :ok
+  def broadcast_message_update(%{live_session_id: live_session_id} = chat_message, topic)
+      when is_integer(live_session_id) and is_binary(topic) do
     Phoenix.PubSub.broadcast(
       LC.PubSub,
       topic,
@@ -45,7 +45,7 @@ defmodule LC.Chat.Broadcasts do
     )
   end
 
-  def broadcast_message_update(_chat_message), do: :ok
+  def broadcast_message_update(_chat_message, _topic), do: :ok
 
   @spec message_payload(map()) :: message_payload()
   def message_payload(chat_message) when is_map(chat_message) do
@@ -60,10 +60,6 @@ defmodule LC.Chat.Broadcasts do
       metadata: normalize_metadata(Map.get(chat_message, :metadata, %{}))
     }
   end
-
-  @spec live_session_topic(pos_integer()) :: String.t()
-  defp live_session_topic(live_session_id) when is_integer(live_session_id),
-    do: "live_session:#{live_session_id}"
 
   @spec iso8601(DateTime.t() | nil) :: String.t() | nil
   defp iso8601(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)

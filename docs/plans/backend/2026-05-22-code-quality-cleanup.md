@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
 Last reviewed: 2026-05-30
-Status: `GQL-001` Stage 8 complete; `GQL-002` Stage 8 complete; `GQL-005` Stage 8 complete; `DOC-001` Stage 8 complete
+Status: `GQL-001` Stage 8 complete; `GQL-002` Stage 8 complete; `GQL-003` Stage 8 complete; `GQL-005` Stage 8 complete; `SOCK-002` Stage 8 complete; `DOC-001` Stage 8 complete
 Owner lane: backend
 
 ## Purpose
@@ -25,7 +25,7 @@ Applicability note: Stages 1-3 apply to user-reported issues. Stage 4 is one glo
 
 ## Current Handoff
 
-Stage status was audited on 2026-05-30 after `GQL-002` Stage 8 implementation. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 2, Stage 3, and Stage 7 complete. `GQL-001` also has Stage 8 complete: GraphQL timestamp fields that only formatted `DateTime` values now use direct field declarations, token and signed-upload payload views return timestamp values to the GraphQL scalar boundary, the chat timestamp regression test covers direct-field serialization, and `docs/architecture/conventions.md` records the no timestamp-formatting field-resolver rule. `GQL-002` also has Stage 8 complete: shared chat body redaction now lives behind the `LC.Chat.visible_body/1` context boundary, system-event GraphQL projection moved to `LCGQL.Chat.SystemEventProjection`, resolver-local generic metadata parsing helpers were removed, and `docs/architecture/conventions.md` records the resolver-boundary helper rule. `DOC-001` also has Stage 8 complete: `docs/architecture/conventions.md` removes the historical `Progress` checklist and `Planned Refactors` section, preserves durable standards, and adds a `Documentation Hygiene` rule that keeps task/status tracking in plan and lane-status docs. `GQL-005` also has Stage 8 complete: User-node `email` now resolves only for the owning viewer, `userIdentities` now returns a connection only for the owning viewer, User-node token fields were removed, auth/token mutation payloads remain the supported token boundary, and `docs/architecture/conventions.md` now records the private-node-field/token rule. `SOCK-001` has Stage 2 complete with a merge-into-`SOCK-002` decision: the duplicate live-session topic-id parsing concern is real, but topic parsing should be fixed with the same shared topic-boundary work as topic generation. `SOCK-003` Stage 7 keeps the public socket reason-string contract and plans an explicit transport-owned reason-code boundary. `LIVE-001` Stage 7 now chooses a layered Kubernetes runtime architecture: `libcluster` handles BEAM cluster discovery, strict shard ownership is the authoritative boundary, local `Registry`/`DynamicSupervisor` trees host session/chat/game/media runtimes, Syn may be used for directory/process-group metadata, Horde is allowed only for soft restartable workers, and Postgres/Swarm remain excluded from runtime ownership. `GEN-001` has Stage 2 complete with a deferred-valid decision: the client-facing system-event model must be fixed later, but the fix requires a dedicated chat timeline/event-object redesign rather than an implicit code-quality cleanup pass. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008`, `GEN-002`, and `WEB-001` also have Stage 7 complete. No Stage 8 implementation has started for any cleanup issue other than `GQL-001`, `GQL-002`, `DOC-001`, and `GQL-005`. Continue next by entering Stage 8 implementation for the next planned issue only if the user explicitly asks, starting the dedicated `GEN-001` chat timeline/event-object redesign only if the user explicitly asks, or revisiting deferred `GQL-009` Stage 7 only if the user explicitly asks to plan that deferred structural cleanup. Keep the discussion/planning issue-by-issue. Do not edit implementation code until the user explicitly asks to enter Stage 8.
+Stage status was audited on 2026-05-30 after `SOCK-002` Stage 8 implementation. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 2, Stage 3, and Stage 7 complete. `GQL-001` also has Stage 8 complete: GraphQL timestamp fields that only formatted `DateTime` values now use direct field declarations, token and signed-upload payload views return timestamp values to the GraphQL scalar boundary, the chat timestamp regression test covers direct-field serialization, and `docs/architecture/conventions.md` records the no timestamp-formatting field-resolver rule. `GQL-002` also has Stage 8 complete: shared chat body redaction now lives behind the `LC.Chat.visible_body/1` context boundary, system-event GraphQL projection moved to `LCGQL.Chat.SystemEventProjection`, resolver-local generic metadata parsing helpers were removed, and `docs/architecture/conventions.md` records the resolver-boundary helper rule. `GQL-003` also has Stage 8 complete: duplicated resolver-local `camelize_lower/1` helpers were replaced by `LCGQL.FieldNames.lower_camel/1`, live/auth mutation error field contracts stayed unchanged, and `docs/architecture/conventions.md` records the shared field-name helper rule. `DOC-001` also has Stage 8 complete: `docs/architecture/conventions.md` removes the historical `Progress` checklist and `Planned Refactors` section, preserves durable standards, and adds a `Documentation Hygiene` rule that keeps task/status tracking in plan and lane-status docs. `GQL-005` also has Stage 8 complete: User-node `email` now resolves only for the owning viewer, `userIdentities` now returns a connection only for the owning viewer, User-node token fields were removed, auth/token mutation payloads remain the supported token boundary, and `docs/architecture/conventions.md` now records the private-node-field/token rule. `SOCK-001` has Stage 2 complete with a merge-into-`SOCK-002` decision: the duplicate live-session topic-id parsing concern is real, and `SOCK-002` now owns the combined cleanup. `SOCK-002` also has Stage 8 complete: live-session topic generation and join-topic parsing now live in `LCTransport.LiveSessionTopics`, GraphQL/live channel call sites delegate to that helper, chat broadcasts receive prebuilt transport topics, and `docs/architecture/conventions.md` records the realtime transport topic rule. `SOCK-003` Stage 7 keeps the public socket reason-string contract and plans an explicit transport-owned reason-code boundary. `LIVE-001` Stage 7 now chooses a layered Kubernetes runtime architecture: `libcluster` handles BEAM cluster discovery, strict shard ownership is the authoritative boundary, local `Registry`/`DynamicSupervisor` trees host session/chat/game/media runtimes, Syn may be used for directory/process-group metadata, Horde is allowed only for soft duplicate-tolerant workers, and Postgres/Swarm remain excluded from runtime ownership. `GEN-001` has Stage 2 complete with a deferred-valid decision: the client-facing system-event model must be fixed later, but the fix requires a dedicated chat timeline/event-object redesign rather than an implicit code-quality cleanup pass. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned. `GQL-008`, `GEN-002`, and `WEB-001` also have Stage 7 complete. No Stage 8 implementation has started for any cleanup issue other than `GQL-001`, `GQL-002`, `GQL-003`, `DOC-001`, `GQL-005`, and `SOCK-002`. Continue next by working through available Stage 8 issues that already have Stage 7 plans, one issue at a time, starting with `GQL-004` unless status has changed. After each issue, update this inventory and `docs/plans/backend/NOW.md`, commit the milestone, then continue to the next available Stage 8 issue if time remains. Do not start the dedicated `GEN-001` chat timeline/event-object redesign unless the user explicitly asks, and do not revisit deferred `GQL-009` Stage 7 unless the user explicitly asks to plan that deferred structural cleanup.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -65,21 +65,21 @@ Stage 5 candidate issues discovered by the Stage 4 scan:
 
 User-reported issue status:
 
-- `GQL-001` and `GQL-002`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 complete.
-- `GQL-003`, `GQL-004`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 not started.
+- `GQL-001`, `GQL-002`, and `GQL-003`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 complete.
+- `GQL-004`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 not started.
 - `GQL-005`: Stage 1 complete, Stage 2 complete, Stage 3 complete, Stage 7 complete, Stage 8 complete.
 - `GEN-001`: Stage 1 complete, Stage 2 complete with a deferred-valid decision; Stage 3 and Stage 7 deferred until a dedicated chat timeline/event-object redesign is explicitly started; Stage 8 blocked until that redesign is planned and implementation is explicitly requested.
 - `SOCK-001`: Stage 1 complete, Stage 2 complete with a merge-into-`SOCK-002` decision; no separate Stage 3, Stage 7, or Stage 8 work should run.
-- `SOCK-002`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete, Stage 7 complete; Stage 8 blocked until implementation is explicitly requested.
-- `SOCK-003`: Stage 1 complete, Stage 2 complete and marked partially valid, Stage 3 complete, Stage 7 complete; Stage 8 blocked until implementation is explicitly requested.
-- `LIVE-001`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete, Stage 7 complete; Stage 8 blocked until implementation is explicitly requested.
+- `SOCK-002`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete, Stage 7 complete, Stage 8 complete.
+- `SOCK-003`: Stage 1 complete, Stage 2 complete and marked partially valid, Stage 3 complete, Stage 7 complete; Stage 8 not started and available.
+- `LIVE-001`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete, Stage 7 complete; Stage 8 not started and available.
 - `DOC-001`: Stage 1 complete, Stage 2 complete and marked valid, Stage 3 complete, Stage 7 complete, Stage 8 complete; no implementation code touched.
 
 Stage 4 candidate issue status:
 
-- `GQL-008`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 not started.
-- `GEN-002`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 not started.
-- `WEB-001`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 not started.
+- `GQL-008`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 not started and available.
+- `GEN-002`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 not started and available.
+- `WEB-001`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 not started and available.
 - `GQL-009`: Stage 4 complete, Stage 5 complete with a deferred-valid decision, Stage 6 complete, Stage 7 deferred until narrower cleanup work is planned or fixed, Stage 8 blocked until Stage 7 is written and implementation is explicitly requested.
 
 ## Issues
@@ -397,7 +397,7 @@ Additional Stage 2 notes:
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request.
+- Stage 8: Complete; replaced duplicated resolver-local `camelize_lower/1` helpers with `LCGQL.FieldNames.lower_camel/1`, preserved existing mutation error field contracts, and added the durable convention note.
 
 ### GQL-004 - Duplicated GraphQL Mutation Error Helpers
 
@@ -576,7 +576,7 @@ Stage 3 watchpoints to carry into Stage 8:
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request.
+- Stage 8: Not started; available for implementation from the Stage 7 plan.
 
 ### GQL-005 - Viewer-Specific Data On The User Node
 
@@ -861,7 +861,7 @@ Stage 3 watchpoints to carry into Stage 8:
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request.
+- Stage 8: Not started; available for implementation from the Stage 7 plan.
 
 ### GQL-007 - Resolver Wrappers That Only Dataload Associations
 
@@ -1013,7 +1013,7 @@ Stage 3 watchpoints to carry into Stage 8:
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request.
+- Stage 8: Not started; available for implementation from the Stage 7 plan.
 
 ### ECTO-001 - Ecto Schema Files Do Not Summarize Constraints And Indexes
 
@@ -1205,7 +1205,7 @@ Stage 3 watchpoints to carry into Stage 8:
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request.
+- Stage 8: Not started; available for implementation from the Stage 7 plan.
 
 ### GEN-001 - System Events Are Modeled As Chat Messages
 
@@ -1369,7 +1369,7 @@ Verification for Stage 8:
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request.
+- Stage 8: Not started; available for implementation from the Stage 7 plan.
 
 ### SOCK-001 - `parse_session_id/1` And `parse_session_id_hint/1`
 
@@ -1592,7 +1592,7 @@ Stage 3 watchpoints to carry into Stage 8:
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request for `SOCK-002`.
+- Stage 8: Complete; added `LCTransport.LiveSessionTopics`, centralized live-session topic generation and parsing, moved chat broadcasts to prebuilt transport topics, updated transport call sites/tests, and added the durable realtime transport convention note.
 
 ### SOCK-003 - Channel Error Reason Formatters
 
@@ -1791,7 +1791,7 @@ Stage 3 watchpoints to carry into Stage 8:
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request for `SOCK-003`.
+- Stage 8: Not started; available for implementation from the Stage 7 plan.
 
 ### LIVE-001 - Live Session Runtime Ownership Stored In Postgres
 
@@ -1988,7 +1988,7 @@ Stage 3 watchpoints to carry into Stage 8:
 - Stage 5: Not applicable; this is a user-reported issue.
 - Stage 6: Not applicable; this is a user-reported issue.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request for `LIVE-001`.
+- Stage 8: Not started; available for implementation from the Stage 7 plan.
 
 ### DOC-001 - Task-Specific Information In General Convention Docs
 
@@ -2187,7 +2187,7 @@ Stage 6 watchpoints to carry into Stage 8:
 - Stage 5: Complete; marked partially valid.
 - Stage 6: Complete.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request.
+- Stage 8: Not started; available for implementation from the Stage 7 plan.
 
 ### GEN-002 - Repeated Atom/String Payload Extraction Helpers Across Webhook And Job Handlers
 
@@ -2293,7 +2293,7 @@ Stage 6 watchpoints to carry into Stage 8:
 - Stage 5: Complete; marked partially valid.
 - Stage 6: Complete.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request.
+- Stage 8: Not started; available for implementation from the Stage 7 plan.
 
 ### WEB-001 - Duplicate Bearer Authorization Header Parsing In GraphQL And Metrics Plugs
 
@@ -2378,7 +2378,7 @@ Stage 6 watchpoints to carry into Stage 8:
 - Stage 5: Complete; marked valid.
 - Stage 6: Complete.
 - Stage 7: Complete.
-- Stage 8: Not started; requires an explicit implementation request.
+- Stage 8: Not started; available for implementation from the Stage 7 plan.
 
 ### GQL-009 - Accounts GraphQL Resolver Has Accumulated Unrelated API Responsibilities
 
@@ -2438,9 +2438,17 @@ Use this prompt to continue:
 ```text
 Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-code-quality-cleanup.md.
 
-Read AGENTS.md, docs/plans/backend/NOW.md, and the cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane. Do not edit implementation code unless the user explicitly asks to enter Stage 8. Current status: Stage 1 and Stage 2 are complete for all user-reported issues; Stage 3 and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`; `GQL-001` Stage 8 is complete with resolver-only GraphQL timestamp formatting removed, token and signed-upload payload timestamps returned to GraphQL scalar serialization, and a durable convention note added; `GQL-002` Stage 8 is complete with chat body redaction delegated through the `LC.Chat` context boundary, system-event GraphQL projection moved to `LCGQL.Chat.SystemEventProjection`, resolver-local generic metadata/projection helpers removed, and a durable convention note added; `DOC-001` Stage 8 is complete with docs-only removal of task/status tracking from `docs/architecture/conventions.md` while preserving durable standards; `GQL-005` Stage 8 is complete with User-node private field cleanup and token fields removed from the User node; `LIVE-001` Stage 7 plans a layered `LC.RealtimeRuntime` design that removes Postgres-backed runtime owner leases, uses `libcluster` for Kubernetes cluster discovery, uses strict shard ownership as the authoritative distributed boundary, keeps runtime children under local supervisors/registries, allows Syn only for directory/group metadata, and allows Horde only for soft duplicate-tolerant workers; `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, which now owns both live-session topic generation and parsing cleanup; `GEN-001` Stage 2 is complete with a deferred-valid decision and a required future fix through a dedicated chat timeline/event-object redesign; Stage 4 is complete; Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`; Stage 7 plans are also written for `GQL-008`, `GEN-002`, and `WEB-001`; Stage 8 has completed for `GQL-001`, `GQL-002`, `DOC-001`, and `GQL-005` and has not started for any other issue. If entering implementation, start Stage 8 only for the issue the user explicitly names or requests and follow that issue's Stage 7 plan. If continuing `GEN-001`, do not start a cleanup-stage scan by default; start a dedicated chat timeline/event-object redesign only if the user explicitly asks. If continuing Stage 7 planning for other issues, do not start `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup. For one issue at a time, update the issue's status and move to the next issue only when the user asks.
+Read AGENTS.md, docs/plans/backend/NOW.md, and this cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane.
+
+Current status: Stage 1 and Stage 2 are complete for all user-reported issues. Stage 3 and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`. Stage 4 is complete. Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`. Stage 7 plans are written for `GQL-008`, `GEN-002`, and `WEB-001`; `GQL-009` remains deferred until narrower cleanup work is planned or fixed.
+
+Stage 8 is complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-005`, `SOCK-002`, and `DOC-001`. `SOCK-001` is complete for Stage 2 and merged into `SOCK-002`, so do not run separate `SOCK-001` work. `GEN-001` is deferred-valid and must be handled only through a dedicated chat timeline/event-object redesign if the user explicitly asks.
+
+Continue implementation through the remaining available Stage 8 tasks that already have Stage 7 plans, one issue at a time. Start with `GQL-004` unless its status has changed, then continue in cleanup order through `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-003`, `LIVE-001`, `GQL-008`, `GEN-002`, and `WEB-001`. For each issue, follow that issue's Stage 7 plan exactly, keep the scope narrow, run the focused verification listed there, update this inventory and docs/plans/backend/NOW.md, commit the milestone, and then continue to the next available Stage 8 task if time remains.
+
+Do not start `GEN-001` through the cleanup-stage flow. Do not start or plan `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup. Report shared dashboard/index repairs instead of editing docs/plans/NOW.md or docs/plans/INDEX.md from the backend lane.
 ```
 
 ## Shared Coordinator Repair To Report
 
-The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001` Stage 2, Stage 3, Stage 7, and Stage 8 are complete with resolver-only GraphQL timestamp formatting removed, `GQL-002` Stage 2, Stage 3, Stage 7, and Stage 8 are complete with resolver-local chat projection helpers removed, `SOCK-001` Stage 2 is complete and merged into `SOCK-002`, `SOCK-002` Stage 2, Stage 3, and Stage 7 are complete with Stage 8 not started, `SOCK-003` Stage 2, Stage 3, and Stage 7 are complete with Stage 8 not started, `LIVE-001` Stage 2, Stage 3, and Stage 7 are complete with Stage 8 not started and now plans the finalized layered `LC.RealtimeRuntime` shard-ownership design, `DOC-001` Stage 2, Stage 3, Stage 7, and Stage 8 are complete with no implementation code touched, `GQL-005` Stage 2, Stage 3, Stage 7, and Stage 8 are complete with User-node private field cleanup, `CTX-001` Stage 7 is complete and Stage 8 has not started, `GEN-001` Stage 2 is complete with a deferred-valid decision and required future chat timeline/event-object fix, `ECTO-001` Stage 7 is complete and Stage 8 has not started, `GQL-007` Stage 7 is complete and Stage 8 has not started, `GQL-003`, `GQL-004`, `GQL-006`, `GQL-008`, `GEN-002`, and `WEB-001` are discussed/scanned/planned where applicable, Stage 5 and Stage 6 are complete for Stage 4 candidates, and the next work is Stage 8 implementation for a named planned issue only if the user explicitly requests it, explicit dedicated redesign for `GEN-001` if the user asks to start it, or explicit deferred planning for `GQL-009`.
+The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001`, `GQL-002`, `GQL-003`, `GQL-005`, `SOCK-002`, and `DOC-001` have Stage 8 complete; `SOCK-001` is complete for Stage 2 and merged into `SOCK-002`; `GQL-004`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-003`, `LIVE-001`, `GQL-008`, `GEN-002`, and `WEB-001` are available Stage 8 tasks with completed Stage 7 plans; `GEN-001` remains a dedicated future chat timeline/event-object redesign; `GQL-009` remains deferred; and the next backend-lane work is to keep implementing the available Stage 8 tasks one issue at a time, starting with `GQL-004` unless status changes.

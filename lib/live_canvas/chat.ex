@@ -131,7 +131,11 @@ defmodule LC.Chat do
   @doc """
   Persists a bounded system event for a live session.
   """
-  @spec record_system_event(LiveSession.t(), LCSchemas.Chat.chat_system_event_type(), system_event_opts()) ::
+  @spec record_system_event(
+          LiveSession.t(),
+          LCSchemas.Chat.chat_system_event_type(),
+          system_event_opts()
+        ) ::
           system_event_result()
   def record_system_event(%LiveSession{} = live_session, event_type, opts)
       when is_atom(event_type) and is_list(opts) do
@@ -165,7 +169,8 @@ defmodule LC.Chat do
   Marks a retained chat message as removed and reports whether this call won the
   persisted moderation state transition.
   """
-  @spec remove_message_with_transition(ChatMessage.t(), User.t()) :: remove_message_transition_result()
+  @spec remove_message_with_transition(ChatMessage.t(), User.t()) ::
+          remove_message_transition_result()
   def remove_message_with_transition(%ChatMessage{id: message_id}, %User{id: actor_id})
       when is_integer(message_id) and is_integer(actor_id) do
     with %ChatMessage{} = chat_message <- removable_message_query(message_id) |> Repo.one(),
@@ -184,17 +189,17 @@ defmodule LC.Chat do
   @doc """
   Broadcasts a retained chat message over the shared live-session transport.
   """
-  @spec broadcast_message(ChatMessage.t() | map()) :: :ok
-  def broadcast_message(chat_message) when is_map(chat_message) do
-    Broadcasts.broadcast_message(chat_message)
+  @spec broadcast_message(ChatMessage.t() | map(), String.t()) :: :ok
+  def broadcast_message(chat_message, topic) when is_map(chat_message) do
+    Broadcasts.broadcast_message(chat_message, topic)
   end
 
   @doc """
   Broadcasts an in-place retained chat message update over the shared transport.
   """
-  @spec broadcast_message_update(ChatMessage.t() | map()) :: :ok
-  def broadcast_message_update(chat_message) when is_map(chat_message) do
-    Broadcasts.broadcast_message_update(chat_message)
+  @spec broadcast_message_update(ChatMessage.t() | map(), String.t()) :: :ok
+  def broadcast_message_update(chat_message, topic) when is_map(chat_message) do
+    Broadcasts.broadcast_message_update(chat_message, topic)
   end
 
   @doc """
@@ -247,7 +252,10 @@ defmodule LC.Chat do
 
   @spec authorize_message_removal(ChatMessage.t(), pos_integer()) ::
           :ok | {:error, :not_authorized}
-  defp authorize_message_removal(%ChatMessage{live_session: %LiveSession{host_id: host_id}}, actor_id)
+  defp authorize_message_removal(
+         %ChatMessage{live_session: %LiveSession{host_id: host_id}},
+         actor_id
+       )
        when is_integer(host_id) and is_integer(actor_id) do
     # Removal authority belongs to the session host, not the message sender,
     # so viewers cannot delete their own persisted chat rows after the fact.

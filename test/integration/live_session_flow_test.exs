@@ -6,6 +6,7 @@ defmodule LC.Integration.LiveSessionFlowTest do
   import LC.SocialFixtures
 
   alias LC.Live
+  alias LCTransport.LiveSessionTopics
   alias LCWeb.{LiveSessionChannel, UserSocket}
 
   @endpoint LCWeb.Endpoint
@@ -27,7 +28,7 @@ defmodule LC.Integration.LiveSessionFlowTest do
              subscribe_and_join(
                socket,
                LiveSessionChannel,
-               "live_session:#{live_session.id}"
+               LiveSessionTopics.live_session_topic(live_session.id)
              )
 
     ref = Phoenix.ChannelTest.push(live_socket, "chat:send", %{"body" => "integration hello"})

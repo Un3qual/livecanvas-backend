@@ -19,7 +19,7 @@ defmodule LCWeb do
 
   use Boundary,
     top_level?: true,
-    deps: [LC, LCGQL],
+    deps: [LC, LCGQL, LCTransport],
     exports: [Endpoint, Router, Telemetry, UserAuth]
 
   @spec static_paths() :: [String.t()]

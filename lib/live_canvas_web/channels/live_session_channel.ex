@@ -6,6 +6,7 @@ defmodule LCWeb.LiveSessionChannel do
   alias LC.{Chat, Live}
   alias LC.RateLimiter
   alias LCWeb.Plugs.ObservabilityContext
+  alias LCTransport.LiveSessionTopics
   alias Phoenix.Socket.Broadcast
 
   @disconnect_event "disconnect"
@@ -14,15 +15,15 @@ defmodule LCWeb.LiveSessionChannel do
   @spec join(String.t(), map(), Phoenix.Socket.t()) ::
           {:ok, map(), Phoenix.Socket.t()} | {:error, map()}
   def join(
-        "live_session:" <> raw_session_id,
+        "live_session:" <> _raw_session_id = topic,
         _params,
         %Phoenix.Socket{assigns: %{current_user: %{id: user_id} = current_user}} = socket
       ) do
     socket = ensure_observability_context(socket)
-    session_id_hint = parse_session_id_hint(raw_session_id)
+    session_id_hint = LiveSessionTopics.session_id_hint(topic)
 
     result =
-      with {:ok, session_id} <- parse_session_id(raw_session_id),
+      with {:ok, session_id} <- LiveSessionTopics.parse_live_session_topic(topic),
            true <- is_integer(user_id) || {:error, :not_authorized},
            :ok <- rate_limit_join(user_id),
            {:ok, live_session} <- Live.fetch_joinable_session(session_id),
@@ -65,13 +66,17 @@ defmodule LCWeb.LiveSessionChannel do
     end
   end
 
-  def join("live_session:" <> raw_session_id, _params, socket) do
+  def join("live_session:" <> _raw_session_id = topic, _params, socket) do
     socket = ensure_observability_context(socket)
 
     :ok =
       emit_channel_telemetry(
         :join,
-        Map.put(socket_telemetry_metadata(socket), :session_id, parse_session_id_hint(raw_session_id)),
+        Map.put(
+          socket_telemetry_metadata(socket),
+          :session_id,
+          LiveSessionTopics.session_id_hint(topic)
+        ),
         {:error, :not_authorized}
       )
 
@@ -166,21 +171,6 @@ defmodule LCWeb.LiveSessionChannel do
 
   def terminate(_reason, _socket), do: :ok
 
-  defp parse_session_id(raw_session_id) do
-    case Integer.parse(raw_session_id) do
-      {session_id, ""} when session_id > 0 -> {:ok, session_id}
-      _ -> {:error, :invalid_session_id}
-    end
-  end
-
-  @spec parse_session_id_hint(String.t()) :: pos_integer() | nil
-  defp parse_session_id_hint(raw_session_id) when is_binary(raw_session_id) do
-    case Integer.parse(raw_session_id) do
-      {session_id, ""} when session_id > 0 -> session_id
-      _ -> nil
-    end
-  end
-
   defp join_error_reason(:ended), do: "session_ended"
   defp join_error_reason(:not_found), do: "session_not_found"
   defp join_error_reason(:invalid_session_id), do: "invalid_session_id"
@@ -240,7 +230,7 @@ defmodule LCWeb.LiveSessionChannel do
   @spec broadcast_session_state(pos_integer(), map()) :: :ok
   defp broadcast_session_state(session_id, live_session)
        when is_integer(session_id) and is_map(live_session) do
-    topic = live_session_topic(session_id)
+    topic = LiveSessionTopics.live_session_topic(session_id)
 
     Phoenix.PubSub.broadcast(
       LC.PubSub,
@@ -252,10 +242,6 @@ defmodule LCWeb.LiveSessionChannel do
       }
     )
   end
-
-  @spec live_session_topic(pos_integer()) :: String.t()
-  defp live_session_topic(session_id) when is_integer(session_id),
-    do: "live_session:#{session_id}"
 
   @type channel_event :: :chat_send | :join
   @type channel_result :: {:ok, term()} | {:error, term()}
@@ -304,7 +290,8 @@ defmodule LCWeb.LiveSessionChannel do
     assign(socket, :observability_context, observability_context)
   end
 
-  @spec put_live_session_observability_context(Phoenix.Socket.t(), pos_integer()) :: Phoenix.Socket.t()
+  @spec put_live_session_observability_context(Phoenix.Socket.t(), pos_integer()) ::
+          Phoenix.Socket.t()
   defp put_live_session_observability_context(%Phoenix.Socket{} = socket, session_id)
        when is_integer(session_id) do
     observability_context =
@@ -383,17 +370,11 @@ defmodule LCWeb.LiveSessionChannel do
        when is_integer(session_id) and is_integer(user_id) do
     # Session control topics let GraphQL lifecycle mutations invalidate already
     # joined channels so socket state does not drift from persisted state.
-    :ok = LCWeb.Endpoint.subscribe(session_control_topic(session_id))
-    :ok = LCWeb.Endpoint.subscribe(session_user_control_topic(session_id, user_id))
+    :ok = LCWeb.Endpoint.subscribe(LiveSessionTopics.session_control_topic(session_id))
+
+    :ok =
+      LCWeb.Endpoint.subscribe(LiveSessionTopics.session_user_control_topic(session_id, user_id))
+
     :ok
   end
-
-  @spec session_control_topic(pos_integer()) :: String.t()
-  defp session_control_topic(session_id) when is_integer(session_id),
-    do: "live_session_control:#{session_id}"
-
-  @spec session_user_control_topic(pos_integer(), pos_integer()) :: String.t()
-  defp session_user_control_topic(session_id, user_id)
-       when is_integer(session_id) and is_integer(user_id),
-       do: "live_session_control:#{session_id}:user:#{user_id}"
 end

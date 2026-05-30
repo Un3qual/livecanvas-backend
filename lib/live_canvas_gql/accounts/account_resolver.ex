@@ -2,6 +2,7 @@ defmodule LCGQL.Accounts.Resolver do
   import Ecto.Changeset, only: [traverse_errors: 2]
 
   alias LC.{Accounts, Feed}
+  alias LCGQL.FieldNames
   alias LCGQL.Relay
   alias LCSchemas.Accounts.{User, UserIdentity}
   alias LCSchemas.Live.LiveSession
@@ -1334,18 +1335,7 @@ defmodule LCGQL.Accounts.Resolver do
 
   @spec prefixed_auth_field(String.t(), atom()) :: String.t()
   defp prefixed_auth_field(prefix, field) when is_binary(prefix) and is_atom(field) do
-    "#{prefix}.#{camelize_lower(field)}"
-  end
-
-  @spec camelize_lower(atom()) :: String.t()
-  defp camelize_lower(field) when is_atom(field) do
-    field
-    |> Atom.to_string()
-    |> Macro.camelize()
-    |> then(fn
-      <<first::utf8, rest::binary>> -> String.downcase(<<first::utf8>>) <> rest
-      "" -> ""
-    end)
+    "#{prefix}.#{FieldNames.lower_camel(field)}"
   end
 
   @spec contact_match_node(LC.Accounts.contact_match()) :: contact_match_node()
