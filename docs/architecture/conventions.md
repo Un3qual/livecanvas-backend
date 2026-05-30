@@ -38,3 +38,4 @@
 - Globally refetchable node objects may expose public/profile fields directly, but private viewer-owned fields must use child resolvers that compare the parent object with the current viewer. Token and session secrets belong only on auth/token payloads, never on node objects.
 - Do not add GraphQL field resolvers whose only behavior is timestamp-to-string conversion. Keep simple timestamp fields direct and let the GraphQL scalar boundary serialize them.
 - GraphQL resolvers may authorize, paginate, and adapt domain data to GraphQL-specific IDs. Keep generic scalar/body redaction and reusable projection/parsing in domain helpers or focused `LCGQL` boundary modules instead of resolver-private helper clusters.
+- When GraphQL payloads need external field-name strings, use `LCGQL.FieldNames` instead of resolver-local casing helpers. Do not silently change existing mutation error field contracts while replacing duplicated formatting.

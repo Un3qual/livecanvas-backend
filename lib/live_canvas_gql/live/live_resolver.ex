@@ -1,5 +1,6 @@
 defmodule LCGQL.Live.Resolver do
   alias LC.{Chat, Live}
+  alias LCGQL.FieldNames
   alias LCGQL.Relay
   alias LC.RateLimiter
   alias Phoenix.Socket.Broadcast
@@ -65,11 +66,18 @@ defmodule LCGQL.Live.Resolver do
          {:ok, live_session} <- fetch_live_session(decoded_id),
          :ok <- ensure_host_owned(live_session, viewer),
          :ok <- ensure_joinable_state(live_session),
-      {:ok, updated_live_session, transitioned?} <-
+         {:ok, updated_live_session, transitioned?} <-
            Live.mark_session_live_with_transition(live_session) do
       # Emit from the adapter after the Live boundary succeeds so `LC.Live`
       # stays decoupled from durable chat history and channel transport details.
-      :ok = maybe_emit_lifecycle_system_event(updated_live_session, :session_live, transitioned?, viewer)
+      :ok =
+        maybe_emit_lifecycle_system_event(
+          updated_live_session,
+          :session_live,
+          transitioned?,
+          viewer
+        )
+
       :ok = maybe_broadcast_lifecycle_state(updated_live_session, transitioned?)
       {:ok, %{live_session: updated_live_session, errors: []}}
     else
@@ -186,9 +194,9 @@ defmodule LCGQL.Live.Resolver do
              {:ok, live_session} <- fetch_live_session(decoded_id),
              :ok <- ensure_host_owned(live_session, viewer),
              :ok <- ensure_not_ended(live_session),
+             # Keep ownership and processing-state validation in `LC.Live`; the
+             # GraphQL layer only decodes Relay IDs before forwarding them.
              {:ok, ended_live_session, transitioned?} <-
-               # Keep ownership and processing-state validation in `LC.Live`; the
-               # GraphQL layer only decodes Relay IDs before forwarding them.
                Live.end_live_session_with_transition(live_session, end_attrs) do
           # Broadcast the persisted terminal event before disconnecting joined
           # channels so they can reconcile one last durable history row in order.
@@ -299,7 +307,8 @@ defmodule LCGQL.Live.Resolver do
     )
   end
 
-  defp maybe_disconnect_live_session_channels(session_id, true, reason) when is_integer(session_id) do
+  defp maybe_disconnect_live_session_channels(session_id, true, reason)
+       when is_integer(session_id) do
     disconnect_live_session_channels(session_id, reason)
   end
 
@@ -346,7 +355,8 @@ defmodule LCGQL.Live.Resolver do
     end
   end
 
-  defp maybe_emit_lifecycle_system_event(_live_session, _event_type, _transitioned?, _viewer), do: :ok
+  defp maybe_emit_lifecycle_system_event(_live_session, _event_type, _transitioned?, _viewer),
+    do: :ok
 
   defp emit_matching_lifecycle_event?(%{status: :live}, :session_live), do: true
   defp emit_matching_lifecycle_event?(%{status: :ended}, :session_ended), do: true
@@ -391,7 +401,7 @@ defmodule LCGQL.Live.Resolver do
     end)
     |> Enum.flat_map(fn {field, messages} ->
       Enum.map(messages, fn message ->
-        %{field: camelize_lower(field), message: message}
+        %{field: FieldNames.lower_camel(field), message: message}
       end)
     end)
   end
@@ -412,17 +422,6 @@ defmodule LCGQL.Live.Resolver do
     do: "recordingMediaAssetId"
 
   defp error_field(_field, _reason), do: nil
-
-  @spec camelize_lower(atom()) :: String.t()
-  defp camelize_lower(field) when is_atom(field) do
-    field
-    |> Atom.to_string()
-    |> Macro.camelize()
-    |> then(fn
-      <<first::utf8, rest::binary>> -> String.downcase(<<first::utf8>>) <> rest
-      "" -> ""
-    end)
-  end
 
   @spec error_message(mutation_reason()) :: String.t()
   defp error_message(reason) when reason in [:invalid_id, :invalid_type], do: "is invalid"

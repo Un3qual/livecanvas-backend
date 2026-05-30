@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
 Last reviewed: 2026-05-30
-Status: active for code-quality discussion/planning
+Status: active for code-quality implementation
 
 ## Lane Scope
 
@@ -12,13 +12,14 @@ Status: active for code-quality discussion/planning
 
 - Track: `backend_code_quality_cleanup`
 - Source: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
-- Batch: `GQL-002` Stage 8 complete; awaiting the next explicit issue selection
-- Why now: The cleanup inventory is the source of truth for per-issue stage status. `GQL-001` Stage 8 is complete with resolver-only GraphQL timestamp formatting removed, `GQL-002` Stage 8 is complete with resolver-local chat projection helpers removed, `DOC-001` Stage 8 is complete with docs-only conventions cleanup, `GQL-005` Stage 8 is complete with User-node privacy cleanup, Stage 8 has not started for any other issue, and additional implementation code/schema files remain untouched until the user explicitly requests Stage 8 for a named issue or explicitly starts the dedicated `GEN-001` redesign.
+- Batch: `GQL-003` Stage 8 complete; continue requested `SOCK-002` Stage 8 next
+- Why now: The cleanup inventory is the source of truth for per-issue stage status. `GQL-001` Stage 8 is complete with resolver-only GraphQL timestamp formatting removed, `GQL-002` Stage 8 is complete with resolver-local chat projection helpers removed, `GQL-003` Stage 8 is complete with shared GraphQL field-name formatting, `DOC-001` Stage 8 is complete with docs-only conventions cleanup, `GQL-005` Stage 8 is complete with User-node privacy cleanup, and the user explicitly requested `SOCK-002` Stage 8 next.
 - Current status:
   - Stage 1 is complete for all user-reported issues.
   - `GQL-001`: Stage 2, Stage 3, Stage 7, and Stage 8 complete; resolver-only timestamp formatting has been removed from GraphQL fields.
   - `GQL-002`: Stage 2, Stage 3, Stage 7, and Stage 8 complete; resolver-local generic chat projection helpers have been moved to shared domain/context and focused GraphQL boundary modules.
-  - `GQL-003`, `GQL-004`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001`: Stage 2, Stage 3, and Stage 7 complete; Stage 8 not started.
+  - `GQL-003`: Stage 2, Stage 3, Stage 7, and Stage 8 complete; resolver-local field-name casing helpers now delegate to `LCGQL.FieldNames`.
+  - `GQL-004`, `GQL-006`, `GQL-007`, `ECTO-001`, and `CTX-001`: Stage 2, Stage 3, and Stage 7 complete; Stage 8 not started.
   - `GQL-005`: Stage 2, Stage 3, Stage 7, and Stage 8 complete; User-node private fields now require parent-plus-viewer authorization and token fields are removed from the User node.
   - `SOCK-001`: Stage 2 complete and merged into `SOCK-002`; `SOCK-002` owns both live-session topic generation and parsing cleanup.
   - `SOCK-002`: Stage 2, Stage 3, and Stage 7 complete; Stage 8 not started.
@@ -71,6 +72,7 @@ Status: active for code-quality discussion/planning
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `GQL-003` on 2026-05-23; user marked it valid.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `GQL-003` on 2026-05-23; exact duplicate scope is `LCGQL.Live.Resolver.camelize_lower/1` and `LCGQL.Accounts.Resolver.camelize_lower/1`, with related but contract-sensitive field-name formatters in Accounts, Content, and Social.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `GQL-003` on 2026-05-23; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 8 completed for `GQL-003` on 2026-05-30; duplicated resolver-local `camelize_lower/1` helpers were removed, `LCGQL.FieldNames.lower_camel/1` now owns shared GraphQL field-name formatting, and existing live/auth mutation error field contracts were preserved.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 2 completed for `GQL-004` on 2026-05-23; user marked it valid.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `GQL-004` on 2026-05-23; exact cleanup scope includes duplicated `{field, message}` mutation error construction, duplicate changeset interpolation, duplicate field/message formatting, and duplicate context-specific GraphQL error objects, while preserving auth-specific `{field, code, message}` contracts.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `GQL-004` on 2026-05-23; no implementation code touched.
