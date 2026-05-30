@@ -27,9 +27,7 @@ defmodule LCGQL.Social.Types do
   node object(:follow_request) do
     field :state, non_null(:follow_state)
 
-    field :requested_at, non_null(:string) do
-      resolve(&Resolver.follow_request_requested_at/3)
-    end
+    field :requested_at, non_null(:string)
 
     field :follower, non_null(:user) do
       resolve(&Resolver.follow_request_follower/3)

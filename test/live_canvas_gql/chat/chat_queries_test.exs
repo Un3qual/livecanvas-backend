@@ -351,7 +351,7 @@ defmodule LCGQL.Chat.ChatQueriesTest do
 
       message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
       viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
-      moderated_at = DateTime.to_iso8601(removed_message.moderated_at)
+      moderated_at = to_string(removed_message.moderated_at)
 
       assert {:ok,
               %{

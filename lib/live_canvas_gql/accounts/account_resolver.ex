@@ -88,7 +88,7 @@ defmodule LCGQL.Accounts.Resolver do
           serialized_value: String.t(),
           token_version: integer(),
           expires_at: String.t() | nil,
-          inserted_at: String.t() | nil,
+          inserted_at: DateTime.t() | nil,
           updated_at: String.t() | nil
         }
   @type contact_match_node :: %{
@@ -1107,55 +1107,6 @@ defmodule LCGQL.Accounts.Resolver do
   def contact_match_birthday(%{contact_entry: %{birthday: birthday}}, _args, _res),
     do: {:ok, Date.to_iso8601(birthday)}
 
-  @spec data_export_requested_at(
-          %{requested_at: DateTime.t() | nil},
-          map(),
-          Absinthe.Resolution.t()
-        ) ::
-          {:ok, String.t()}
-  def data_export_requested_at(%{requested_at: requested_at}, _args, _resolution),
-    do: {:ok, iso8601_datetime(requested_at) || ""}
-
-  @spec data_export_completed_at(
-          %{completed_at: DateTime.t() | nil},
-          map(),
-          Absinthe.Resolution.t()
-        ) ::
-          {:ok, String.t() | nil}
-  def data_export_completed_at(%{completed_at: completed_at}, _args, _resolution),
-    do: {:ok, iso8601_datetime(completed_at)}
-
-  @spec account_deletion_requested_at(
-          %{requested_at: DateTime.t() | nil},
-          map(),
-          Absinthe.Resolution.t()
-        ) ::
-          {:ok, String.t()}
-  def account_deletion_requested_at(%{requested_at: requested_at}, _args, _resolution),
-    do: {:ok, iso8601_datetime(requested_at) || ""}
-
-  @spec account_deletion_scheduled_purge_at(
-          %{scheduled_purge_at: DateTime.t() | nil},
-          map(),
-          Absinthe.Resolution.t()
-        ) ::
-          {:ok, String.t()}
-  def account_deletion_scheduled_purge_at(
-        %{scheduled_purge_at: scheduled_purge_at},
-        _args,
-        _resolution
-      ),
-      do: {:ok, iso8601_datetime(scheduled_purge_at) || ""}
-
-  @spec account_deletion_completed_at(
-          %{completed_at: DateTime.t() | nil},
-          map(),
-          Absinthe.Resolution.t()
-        ) ::
-          {:ok, String.t() | nil}
-  def account_deletion_completed_at(%{completed_at: completed_at}, _args, _resolution),
-    do: {:ok, iso8601_datetime(completed_at)}
-
   @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
   defp format_changeset_errors(changeset) do
     changeset
@@ -1376,14 +1327,10 @@ defmodule LCGQL.Accounts.Resolver do
       serialized_value: serialized_value,
       token_version: 1,
       expires_at: nil,
-      inserted_at: iso8601_datetime(user_token.inserted_at),
+      inserted_at: user_token.inserted_at,
       updated_at: nil
     }
   end
-
-  @spec iso8601_datetime(DateTime.t() | nil) :: String.t() | nil
-  defp iso8601_datetime(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
-  defp iso8601_datetime(_dt), do: nil
 
   @spec prefixed_auth_field(String.t(), atom()) :: String.t()
   defp prefixed_auth_field(prefix, field) when is_binary(prefix) and is_atom(field) do

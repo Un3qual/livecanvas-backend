@@ -43,13 +43,8 @@ defmodule LCGQL.Chat.Types do
       resolve(&Resolver.chat_message_system_event_details/3)
     end
 
-    field :moderated_at, :string do
-      resolve(&Resolver.chat_message_moderated_at/3)
-    end
-
-    field :inserted_at, non_null(:string) do
-      resolve(&Resolver.chat_message_inserted_at/3)
-    end
+    field :moderated_at, :string
+    field :inserted_at, non_null(:string)
 
     field :sender, :user do
       resolve(&Resolver.chat_message_sender/3)

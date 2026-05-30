@@ -93,22 +93,6 @@ defmodule LCGQL.Chat.Resolver do
     {:ok, system_event_details(chat_message)}
   end
 
-  @spec chat_message_moderated_at(map(), map(), Absinthe.Resolution.t()) ::
-          {:ok, String.t() | nil}
-  def chat_message_moderated_at(%{moderated_at: %DateTime{} = moderated_at}, _args, _resolution) do
-    {:ok, DateTime.to_iso8601(moderated_at)}
-  end
-
-  def chat_message_moderated_at(_chat_message, _args, _resolution), do: {:ok, nil}
-
-  @spec chat_message_inserted_at(map(), map(), Absinthe.Resolution.t()) ::
-          {:ok, String.t()}
-  def chat_message_inserted_at(%{inserted_at: %DateTime{} = inserted_at}, _args, _resolution) do
-    {:ok, DateTime.to_iso8601(inserted_at)}
-  end
-
-  def chat_message_inserted_at(_chat_message, _args, _resolution), do: {:ok, ""}
-
   @spec chat_message_sender(map(), map(), Absinthe.Resolution.t()) ::
           LCGQL.Dataloader.dataloader_result()
   def chat_message_sender(%{sender: %{id: _id} = sender}, _args, _resolution), do: {:ok, sender}
