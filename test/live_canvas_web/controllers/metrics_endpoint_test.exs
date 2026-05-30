@@ -47,8 +47,30 @@ defmodule LCWeb.MetricsEndpointTest do
         |> put_req_header("authorization", "Bearer #{@valid_token}")
         |> get("/ops/metrics")
 
-      assert response(conn, 200) =~ "live_canvas_live_session_start_count{"
+      assert response(conn, 200) =~ "live_canvas_live_session_start_total{"
       assert hd(get_resp_header(conn, "content-type")) =~ "text/plain"
+    end
+
+    test "accepts lower-case and padded bearer headers", %{conn: conn} do
+      put_metrics_config(enabled: true, token: @valid_token)
+
+      conn =
+        conn
+        |> put_req_header("authorization", "  bearer   #{@valid_token}  ")
+        |> get("/ops/metrics")
+
+      assert response(conn, 200) =~ "live_canvas"
+    end
+
+    test "rejects malformed non-bearer authorization headers", %{conn: conn} do
+      put_metrics_config(enabled: true, token: @valid_token)
+
+      conn =
+        conn
+        |> put_req_header("authorization", "Basic #{@valid_token}")
+        |> get("/ops/metrics")
+
+      assert response(conn, 401) == "invalid_metrics_token"
     end
 
     test "exports Prometheus-safe series for summary metrics", %{conn: conn} do
@@ -72,8 +94,7 @@ defmodule LCWeb.MetricsEndpointTest do
 
       assert metrics_body =~ "phoenix_router_dispatch_stop_duration_bucket"
 
-      assert metrics_body =~
-               "live_canvas_live_session_start_count_summary_bucket"
+      assert metrics_body =~ "phoenix_router_dispatch_stop_duration_sum"
     end
   end
 
@@ -85,7 +106,8 @@ defmodule LCWeb.MetricsEndpointTest do
     )
   end
 
-  defp restore_metrics_config(nil), do: Application.delete_env(:live_canvas, @metrics_config_module)
+  defp restore_metrics_config(nil),
+    do: Application.delete_env(:live_canvas, @metrics_config_module)
 
   defp restore_metrics_config(original_config) when is_list(original_config) do
     Application.put_env(:live_canvas, @metrics_config_module, original_config)

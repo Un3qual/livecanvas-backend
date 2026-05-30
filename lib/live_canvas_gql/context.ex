@@ -3,12 +3,13 @@ defmodule LCGQL.Context do
 
   @behaviour Plug
 
-  import Plug.Conn, only: [assign: 3, fetch_session: 1, get_req_header: 2, get_session: 2]
+  import Plug.Conn, only: [assign: 3, fetch_session: 1, get_session: 2]
 
   require Logger
 
   alias LC.Accounts
   alias LCGQL.Dataloader
+  alias LCTransport.BearerAuth
 
   @type conn :: Plug.Conn.t()
   @type auth_transport :: :bearer | :session | :none
@@ -60,7 +61,7 @@ defmodule LCGQL.Context do
   # explicit token transport semantics without accidental session fallback.
   @spec scope_from_request(conn()) :: scope_auth_result()
   defp scope_from_request(conn) do
-    case bearer_token_from_authorization_header(conn) do
+    case BearerAuth.token_from_conn(conn) do
       {:ok, bearer_token} ->
         scope_from_access_token(bearer_token)
 
@@ -93,32 +94,6 @@ defmodule LCGQL.Context do
 
       nil ->
         {Accounts.empty_scope(), %{transport: :session, error: nil}}
-    end
-  end
-
-  @spec bearer_token_from_authorization_header(conn()) ::
-          {:ok, String.t()} | :missing | :malformed
-  defp bearer_token_from_authorization_header(conn) do
-    case get_req_header(conn, "authorization") do
-      [] -> :missing
-      [authorization | _rest] -> parse_bearer_authorization(authorization)
-    end
-  end
-
-  @spec parse_bearer_authorization(String.t()) :: {:ok, String.t()} | :malformed
-  defp parse_bearer_authorization(authorization) when is_binary(authorization) do
-    case Regex.run(~r/^\s*bearer\s+(.+)\s*$/i, authorization, capture: :all_but_first) do
-      [token] ->
-        normalized = String.trim(token)
-
-        if normalized == "" do
-          :malformed
-        else
-          {:ok, normalized}
-        end
-
-      _ ->
-        :malformed
     end
   end
 

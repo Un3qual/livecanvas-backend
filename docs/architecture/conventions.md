@@ -52,6 +52,10 @@
 - When GraphQL payloads need external field-name strings, use `LCGQL.FieldNames` instead of resolver-local casing helpers. Do not silently change existing mutation error field contracts while replacing duplicated formatting.
 - GraphQL mutation payloads should use `LCGQL.MutationErrors` for `{field, message}` and `{field, code, message}` error maps. Use `:user_error` for generic mutation errors unless the payload needs extra fields such as auth `code`.
 
+## Web Auth
+
+- HTTP Authorization Bearer parsing must go through `LCTransport.BearerAuth`. Callers own authorization decisions after parsing and must not reimplement local regex/header parsing.
+
 ## Realtime Transport
 
 - Live-session Phoenix topic strings and parsing live in `LCTransport.LiveSessionTopics`. GraphQL resolvers, channels, and chat broadcast adapters must not reimplement `"live_session:"` or `"live_session_control:"` string construction or duplicate topic `Integer.parse/1` logic.

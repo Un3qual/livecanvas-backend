@@ -5,6 +5,7 @@ defmodule LCWeb.Plugs.MetricsAuth do
 
   import Plug.Conn
 
+  alias LCTransport.BearerAuth
   alias Plug.Crypto
 
   @metrics_content_type "text/plain; version=0.0.4; charset=utf-8"
@@ -30,7 +31,7 @@ defmodule LCWeb.Plugs.MetricsAuth do
   @spec authorize_and_scrape(Plug.Conn.t(), keyword()) :: Plug.Conn.t()
   defp authorize_and_scrape(conn, config) when is_list(config) do
     with {:ok, configured_token} <- configured_token(config),
-         {:ok, provided_token} <- bearer_token_from_authorization_header(conn),
+         {:ok, provided_token} <- BearerAuth.token_from_conn(conn),
          :ok <- verify_token(configured_token, provided_token) do
       scrape_body =
         config
@@ -62,32 +63,6 @@ defmodule LCWeb.Plugs.MetricsAuth do
 
       _other ->
         {:error, :missing_token}
-    end
-  end
-
-  @spec bearer_token_from_authorization_header(Plug.Conn.t()) ::
-          {:ok, String.t()} | :missing | :malformed
-  defp bearer_token_from_authorization_header(conn) do
-    case get_req_header(conn, "authorization") do
-      [] -> :missing
-      [authorization | _rest] -> parse_bearer_authorization(authorization)
-    end
-  end
-
-  @spec parse_bearer_authorization(String.t()) :: {:ok, String.t()} | :malformed
-  defp parse_bearer_authorization(authorization) when is_binary(authorization) do
-    case Regex.run(~r/^\s*bearer\s+(.+)\s*$/i, authorization, capture: :all_but_first) do
-      [token] ->
-        normalized = String.trim(token)
-
-        if normalized == "" do
-          :malformed
-        else
-          {:ok, normalized}
-        end
-
-      _ ->
-        :malformed
     end
   end
 
