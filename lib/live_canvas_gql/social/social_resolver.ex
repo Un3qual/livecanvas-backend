@@ -1,12 +1,12 @@
 defmodule LCGQL.Social.Resolver do
   alias LC.{Accounts, Social}
-  alias LCGQL.Relay
+  alias LCGQL.{FieldNames, MutationErrors, Relay}
 
   @type fetch_user_error :: :invalid_id | :invalid_type | :not_found
   @type resolver_error ::
           :blocked | :not_allowed | :unauthenticated | fetch_user_error() | Ecto.Changeset.t()
   @type follow_payload :: %{id: integer(), state: :accepted | :requested}
-  @type social_error_payload :: %{field: String.t() | nil, message: String.t()}
+  @type social_error_payload :: MutationErrors.user_error()
   @type follow_result_payload :: %{
           follow: follow_payload() | nil,
           errors: [social_error_payload()]
@@ -23,15 +23,15 @@ defmodule LCGQL.Social.Resolver do
       {:ok, %{follow: follow_payload(follow), errors: []}}
     else
       {:error, {field, reason}} ->
-        {:ok, %{follow: nil, errors: [social_error(field, reason)]}}
+        {:ok, %{follow: nil, errors: [error_payload(field, reason)]}}
 
       {:error, reason} ->
-        {:ok, %{follow: nil, errors: [social_error(nil, reason)]}}
+        {:ok, %{follow: nil, errors: [error_payload(nil, reason)]}}
     end
   end
 
   def follow_user(_parent, _args, _resolution) do
-    {:ok, %{follow: nil, errors: [social_error(nil, :unauthenticated)]}}
+    {:ok, %{follow: nil, errors: [error_payload(nil, :unauthenticated)]}}
   end
 
   @spec accept_follow_request(
@@ -53,18 +53,18 @@ defmodule LCGQL.Social.Resolver do
       {:ok, %{follow: follow_payload(accepted_follow), errors: []}}
     else
       nil ->
-        {:ok, %{follow: nil, errors: [social_error(:follower_id, :not_found)]}}
+        {:ok, %{follow: nil, errors: [error_payload(:follower_id, :not_found)]}}
 
       {:error, {field, reason}} ->
-        {:ok, %{follow: nil, errors: [social_error(field, reason)]}}
+        {:ok, %{follow: nil, errors: [error_payload(field, reason)]}}
 
       {:error, reason} ->
-        {:ok, %{follow: nil, errors: [social_error(nil, reason)]}}
+        {:ok, %{follow: nil, errors: [error_payload(nil, reason)]}}
     end
   end
 
   def accept_follow_request(_parent, _args, _resolution) do
-    {:ok, %{follow: nil, errors: [social_error(nil, :unauthenticated)]}}
+    {:ok, %{follow: nil, errors: [error_payload(nil, :unauthenticated)]}}
   end
 
   @spec decline_follow_request(
@@ -84,18 +84,18 @@ defmodule LCGQL.Social.Resolver do
       {:ok, %{errors: []}}
     else
       nil ->
-        {:ok, %{errors: [social_error(:follower_id, :not_found)]}}
+        {:ok, %{errors: [error_payload(:follower_id, :not_found)]}}
 
       {:error, {field, reason}} ->
-        {:ok, %{errors: [social_error(field, reason)]}}
+        {:ok, %{errors: [error_payload(field, reason)]}}
 
       {:error, reason} ->
-        {:ok, %{errors: [social_error(nil, reason)]}}
+        {:ok, %{errors: [error_payload(nil, reason)]}}
     end
   end
 
   def decline_follow_request(_parent, _args, _resolution) do
-    {:ok, %{errors: [social_error(nil, :unauthenticated)]}}
+    {:ok, %{errors: [error_payload(nil, :unauthenticated)]}}
   end
 
   @spec block_user(any(), %{blocked_id: term()}, any()) ::
@@ -108,15 +108,15 @@ defmodule LCGQL.Social.Resolver do
       {:ok, %{errors: []}}
     else
       {:error, {field, reason}} ->
-        {:ok, %{errors: [social_error(field, reason)]}}
+        {:ok, %{errors: [error_payload(field, reason)]}}
 
       {:error, reason} ->
-        {:ok, %{errors: [social_error(nil, reason)]}}
+        {:ok, %{errors: [error_payload(nil, reason)]}}
     end
   end
 
   def block_user(_parent, _args, _resolution) do
-    {:ok, %{errors: [social_error(nil, :unauthenticated)]}}
+    {:ok, %{errors: [error_payload(nil, :unauthenticated)]}}
   end
 
   @spec mute_user(any(), %{muted_id: term()}, any()) ::
@@ -129,15 +129,15 @@ defmodule LCGQL.Social.Resolver do
       {:ok, %{errors: []}}
     else
       {:error, {field, reason}} ->
-        {:ok, %{errors: [social_error(field, reason)]}}
+        {:ok, %{errors: [error_payload(field, reason)]}}
 
       {:error, reason} ->
-        {:ok, %{errors: [social_error(nil, reason)]}}
+        {:ok, %{errors: [error_payload(nil, reason)]}}
     end
   end
 
   def mute_user(_parent, _args, _resolution) do
-    {:ok, %{errors: [social_error(nil, :unauthenticated)]}}
+    {:ok, %{errors: [error_payload(nil, :unauthenticated)]}}
   end
 
   @spec unmute_user(any(), %{muted_id: term()}, any()) ::
@@ -150,12 +150,12 @@ defmodule LCGQL.Social.Resolver do
       {:ok, %{errors: []}}
     else
       {:error, {field, reason}} ->
-        {:ok, %{errors: [social_error(field, reason)]}}
+        {:ok, %{errors: [error_payload(field, reason)]}}
     end
   end
 
   def unmute_user(_parent, _args, _resolution) do
-    {:ok, %{errors: [social_error(nil, :unauthenticated)]}}
+    {:ok, %{errors: [error_payload(nil, :unauthenticated)]}}
   end
 
   @spec relationship_state(any(), %{creator_id: term()}, Absinthe.Resolution.t()) ::
@@ -245,26 +245,15 @@ defmodule LCGQL.Social.Resolver do
     %{id: follow.id, state: follow.state}
   end
 
-  @spec social_error(atom() | nil, resolver_error()) :: social_error_payload()
-  defp social_error(field, reason) do
-    %{
-      field: format_field(field),
-      message: format_error_message(reason)
-    }
-  end
+  @spec error_payload(atom() | nil, resolver_error()) :: social_error_payload()
+  defp error_payload(field, %Ecto.Changeset{}),
+    do: MutationErrors.user_error(format_field(field), "validation_failed")
+
+  defp error_payload(field, reason), do: MutationErrors.user_error(format_field(field), reason)
 
   @spec format_field(atom() | nil) :: String.t() | nil
   defp format_field(nil), do: nil
-  defp format_field(:blocked_id), do: "blockedId"
-  defp format_field(:creator_id), do: "creatorId"
-  defp format_field(:followed_id), do: "followedId"
-  defp format_field(:follower_id), do: "followerId"
-  defp format_field(:muted_id), do: "mutedId"
-  defp format_field(field), do: Atom.to_string(field)
-
-  @spec format_error_message(resolver_error()) :: String.t()
-  defp format_error_message(%Ecto.Changeset{}), do: "validation_failed"
-  defp format_error_message(reason) when is_atom(reason), do: Atom.to_string(reason)
+  defp format_field(field), do: FieldNames.lower_camel(field)
 
   @spec viewer_from_resolution(Absinthe.Resolution.t()) :: {:ok, map()} | :error
   defp viewer_from_resolution(%Absinthe.Resolution{

@@ -9,6 +9,7 @@ defmodule LCGQL.Schema do
 
   # global_id_translator: SmokespotsGraphQL.IDTranslator
   import_types(Absinthe.Plug.Types)
+  import_types(LCGQL.MutationErrorTypes)
   import_types(LCGQL.Accounts.Queries)
   import_types(LCGQL.Accounts.Types)
   import_types(LCGQL.Chat.Types)

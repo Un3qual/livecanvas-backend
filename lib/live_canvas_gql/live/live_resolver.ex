@@ -1,12 +1,13 @@
 defmodule LCGQL.Live.Resolver do
   alias LC.{Chat, Live}
   alias LCGQL.FieldNames
+  alias LCGQL.MutationErrors
   alias LCGQL.Relay
   alias LC.RateLimiter
   alias LCTransport.LiveSessionTopics
   alias Phoenix.Socket.Broadcast
 
-  @type mutation_error :: %{field: String.t() | nil, message: String.t()}
+  @type mutation_error :: MutationErrors.user_error()
   @type live_session_payload :: %{live_session: map() | nil, errors: [mutation_error()]}
   @type leave_live_session_payload :: %{left: boolean(), errors: [mutation_error()]}
   @type live_session_result :: {:ok, live_session_payload()}
@@ -39,15 +40,15 @@ defmodule LCGQL.Live.Resolver do
       {:ok, %{live_session: live_session, errors: []}}
     else
       {:error, :not_authorized} ->
-        {:ok, %{live_session: nil, errors: [mutation_error(nil, :not_authorized)]}}
+        {:ok, %{live_session: nil, errors: [live_session_error(nil, :not_authorized)]}}
 
       _other ->
-        {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+        {:ok, %{live_session: nil, errors: [live_session_error(nil, :invalid_state)]}}
     end
   end
 
   def start_live_session(_parent, _args, _resolution) do
-    {:ok, %{live_session: nil, errors: [mutation_error(nil, :unauthenticated)]}}
+    {:ok, %{live_session: nil, errors: [live_session_error(nil, :unauthenticated)]}}
   end
 
   @spec go_live_session(
@@ -84,22 +85,22 @@ defmodule LCGQL.Live.Resolver do
     else
       {:error, reason}
       when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
-        {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
+        {:ok, %{live_session: nil, errors: [live_session_error(:live_session_id, reason)]}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         if ended_go_live_changeset?(changeset) do
-          {:ok, %{live_session: nil, errors: [mutation_error(nil, :ended)]}}
+          {:ok, %{live_session: nil, errors: [live_session_error(nil, :ended)]}}
         else
-          {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+          {:ok, %{live_session: nil, errors: [live_session_error(nil, :invalid_state)]}}
         end
 
       _other ->
-        {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+        {:ok, %{live_session: nil, errors: [live_session_error(nil, :invalid_state)]}}
     end
   end
 
   def go_live_session(_parent, _args, _resolution) do
-    {:ok, %{live_session: nil, errors: [mutation_error(nil, :unauthenticated)]}}
+    {:ok, %{live_session: nil, errors: [live_session_error(nil, :unauthenticated)]}}
   end
 
   @spec join_live_session(
@@ -123,19 +124,19 @@ defmodule LCGQL.Live.Resolver do
       {:ok, %{live_session: live_session, errors: []}}
     else
       {:error, :rate_limited} ->
-        {:ok, %{live_session: nil, errors: [mutation_error(nil, :rate_limited)]}}
+        {:ok, %{live_session: nil, errors: [live_session_error(nil, :rate_limited)]}}
 
       {:error, reason}
       when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
-        {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
+        {:ok, %{live_session: nil, errors: [live_session_error(:live_session_id, reason)]}}
 
       _other ->
-        {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+        {:ok, %{live_session: nil, errors: [live_session_error(nil, :invalid_state)]}}
     end
   end
 
   def join_live_session(_parent, _args, _resolution) do
-    {:ok, %{live_session: nil, errors: [mutation_error(nil, :unauthenticated)]}}
+    {:ok, %{live_session: nil, errors: [live_session_error(nil, :unauthenticated)]}}
   end
 
   @spec leave_live_session(
@@ -158,12 +159,12 @@ defmodule LCGQL.Live.Resolver do
       {:ok, %{left: true, errors: []}}
     else
       {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found] ->
-        {:ok, %{left: false, errors: [mutation_error(:live_session_id, reason)]}}
+        {:ok, %{left: false, errors: [live_session_error(:live_session_id, reason)]}}
     end
   end
 
   def leave_live_session(_parent, _args, _resolution) do
-    {:ok, %{left: false, errors: [mutation_error(nil, :unauthenticated)]}}
+    {:ok, %{left: false, errors: [live_session_error(nil, :unauthenticated)]}}
   end
 
   @spec end_live_session(
@@ -222,22 +223,27 @@ defmodule LCGQL.Live.Resolver do
         else
           {:error, reason}
           when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
-            {:ok, %{live_session: nil, errors: [mutation_error(:live_session_id, reason)]}}
+            {:ok, %{live_session: nil, errors: [live_session_error(:live_session_id, reason)]}}
 
           {:error, %Ecto.Changeset{} = changeset} ->
-            {:ok, %{live_session: nil, errors: format_changeset_errors(changeset)}}
+            {:ok,
+             %{
+               live_session: nil,
+               errors: MutationErrors.changeset_errors(changeset, &FieldNames.lower_camel/1)
+             }}
 
           _other ->
-            {:ok, %{live_session: nil, errors: [mutation_error(nil, :invalid_state)]}}
+            {:ok, %{live_session: nil, errors: [live_session_error(nil, :invalid_state)]}}
         end
 
       {:error, reason} ->
-        {:ok, %{live_session: nil, errors: [mutation_error(:recording_media_asset_id, reason)]}}
+        {:ok,
+         %{live_session: nil, errors: [live_session_error(:recording_media_asset_id, reason)]}}
     end
   end
 
   def end_live_session(_parent, _args, _resolution) do
-    {:ok, %{live_session: nil, errors: [mutation_error(nil, :unauthenticated)]}}
+    {:ok, %{live_session: nil, errors: [live_session_error(nil, :unauthenticated)]}}
   end
 
   defp decode_optional_recording_media_asset_id(nil), do: {:ok, nil}
@@ -384,39 +390,13 @@ defmodule LCGQL.Live.Resolver do
     )
   end
 
-  @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
-  defp format_changeset_errors(changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(fn {message, options} ->
-      Enum.reduce(options, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
-    |> Enum.flat_map(fn {field, messages} ->
-      Enum.map(messages, fn message ->
-        %{field: FieldNames.lower_camel(field), message: message}
-      end)
-    end)
-  end
+  @spec live_session_error(mutation_error_field(), mutation_reason()) :: mutation_error()
+  defp live_session_error(:live_session_id, reason) when reason in [:invalid_id, :invalid_type],
+    do: MutationErrors.invalid_error("liveSessionId")
 
-  @spec mutation_error(mutation_error_field(), mutation_reason()) :: mutation_error()
-  defp mutation_error(field, reason) do
-    %{
-      field: error_field(field, reason),
-      message: error_message(reason)
-    }
-  end
+  defp live_session_error(:recording_media_asset_id, reason)
+       when reason in [:invalid_id, :invalid_type],
+       do: MutationErrors.invalid_error("recordingMediaAssetId")
 
-  @spec error_field(mutation_error_field(), mutation_reason()) :: String.t() | nil
-  defp error_field(:live_session_id, reason) when reason in [:invalid_id, :invalid_type],
-    do: "liveSessionId"
-
-  defp error_field(:recording_media_asset_id, reason) when reason in [:invalid_id, :invalid_type],
-    do: "recordingMediaAssetId"
-
-  defp error_field(_field, _reason), do: nil
-
-  @spec error_message(mutation_reason()) :: String.t()
-  defp error_message(reason) when reason in [:invalid_id, :invalid_type], do: "is invalid"
-  defp error_message(reason), do: Atom.to_string(reason)
+  defp live_session_error(_field, reason), do: MutationErrors.user_error(nil, reason)
 end

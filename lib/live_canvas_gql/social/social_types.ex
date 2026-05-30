@@ -33,9 +33,4 @@ defmodule LCGQL.Social.Types do
       resolve(&Resolver.follow_request_follower/3)
     end
   end
-
-  object :social_error do
-    field :field, :string
-    field :message, non_null(:string)
-  end
 end

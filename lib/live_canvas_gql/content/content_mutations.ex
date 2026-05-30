@@ -15,7 +15,7 @@ defmodule LCGQL.Content.Mutations do
 
       output do
         field :post, :post
-        field :errors, non_null(list_of(non_null(:content_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.create_post/3)
@@ -29,7 +29,7 @@ defmodule LCGQL.Content.Mutations do
       output do
         field :media_asset, :media_asset
         field :signed_upload, :signed_upload
-        field :errors, non_null(list_of(non_null(:content_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.request_media_upload/3)
@@ -44,7 +44,7 @@ defmodule LCGQL.Content.Mutations do
 
       output do
         field :post, :post
-        field :errors, non_null(list_of(non_null(:content_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.update_post/3)
@@ -57,7 +57,7 @@ defmodule LCGQL.Content.Mutations do
 
       output do
         field :deleted_post_id, :id
-        field :errors, non_null(list_of(non_null(:content_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.delete_post/3)
@@ -72,7 +72,7 @@ defmodule LCGQL.Content.Mutations do
 
       output do
         field :report, :post_report
-        field :errors, non_null(list_of(non_null(:content_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.report_post/3)

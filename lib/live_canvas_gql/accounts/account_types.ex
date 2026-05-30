@@ -25,18 +25,6 @@ defmodule LCGQL.Accounts.Types do
     value(:log_in)
   end
 
-  enum :auth_error_code do
-    value(:unauthenticated)
-    value(:invalid_input)
-    value(:invalid_credentials)
-    value(:email_taken)
-    value(:token_expired)
-    value(:token_revoked)
-    value(:unsupported_provider)
-    value(:provider_verification_failed)
-    value(:passkey_verification_failed)
-  end
-
   @desc "List of supported OAuth providers for logging in."
   enum :oauth_provider do
     value(:apple, description: "Sign in with Apple")
@@ -227,16 +215,5 @@ defmodule LCGQL.Accounts.Types do
     field :device_name, :string
     field :system_name, :string
     field :client_launch_count, :integer
-  end
-
-  object :user_error do
-    field :field, :string
-    field :message, non_null(:string)
-  end
-
-  object :auth_error do
-    field :field, :string
-    field :code, non_null(:auth_error_code)
-    field :message, non_null(:string)
   end
 end
