@@ -6,6 +6,7 @@ defmodule LCGQL.Chat.Resolver do
   alias LC.{Accounts, Chat}
   alias LCGQL.Chat.SystemEventProjection
   alias LCGQL.Relay
+  alias LCTransport.LiveSessionTopics
 
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
@@ -49,10 +50,11 @@ defmodule LCGQL.Chat.Resolver do
       ) do
     with {:ok, decoded_id} <- Relay.decode_global_id(chat_message_id, :chat_message, LCGQL.Schema),
          %{} = chat_message <- Chat.get_history_message(viewer, decoded_id),
-         {:ok, removed_message, transitioned?} <- Chat.remove_message_with_transition(chat_message, viewer) do
+         {:ok, removed_message, transitioned?} <-
+           Chat.remove_message_with_transition(chat_message, viewer) do
       # Durable redaction fixes future history reads, but joined viewers keep
       # rendering the original channel event until they reconcile an update.
-      :ok = Chat.broadcast_message_update(removed_message)
+      :ok = broadcast_message_update(removed_message)
       # Emit from the moderation adapter after the state transition succeeds so
       # `LC.Chat` stays responsible for persistence without owning its callers.
       :ok = maybe_broadcast_removal_system_event(removed_message, transitioned?, viewer)
@@ -80,13 +82,15 @@ defmodule LCGQL.Chat.Resolver do
 
   @spec chat_message_system_event_type(map(), map(), Absinthe.Resolution.t()) ::
           {:ok, LCSchemas.Chat.chat_system_event_type() | nil}
-  def chat_message_system_event_type(chat_message, _args, _resolution) when is_map(chat_message) do
+  def chat_message_system_event_type(chat_message, _args, _resolution)
+      when is_map(chat_message) do
     {:ok, SystemEventProjection.event_type(chat_message)}
   end
 
   @spec chat_message_system_event_details(map(), map(), Absinthe.Resolution.t()) ::
           {:ok, SystemEventProjection.details() | nil}
-  def chat_message_system_event_details(chat_message, _args, _resolution) when is_map(chat_message) do
+  def chat_message_system_event_details(chat_message, _args, _resolution)
+      when is_map(chat_message) do
     {:ok, SystemEventProjection.details(chat_message)}
   end
 
@@ -132,8 +136,23 @@ defmodule LCGQL.Chat.Resolver do
 
   defp maybe_broadcast_removal_system_event(_removed_message, _transitioned?, _viewer), do: :ok
 
-  defp broadcast_system_event({:ok, system_event}), do: Chat.broadcast_message(system_event)
+  defp broadcast_system_event({:ok, %{live_session_id: live_session_id} = system_event})
+       when is_integer(live_session_id) do
+    Chat.broadcast_message(system_event, LiveSessionTopics.live_session_topic(live_session_id))
+  end
+
+  defp broadcast_system_event({:ok, _system_event}), do: :ok
   defp broadcast_system_event({:error, _reason}), do: :ok
+
+  defp broadcast_message_update(%{live_session_id: live_session_id} = chat_message)
+       when is_integer(live_session_id) do
+    Chat.broadcast_message_update(
+      chat_message,
+      LiveSessionTopics.live_session_topic(live_session_id)
+    )
+  end
+
+  defp broadcast_message_update(_chat_message), do: :ok
 
   defp user_message_kind?(%{kind: kind}) when kind in [:user_message, "user_message"], do: true
   defp user_message_kind?(_chat_message), do: false

@@ -8,6 +8,7 @@ defmodule LCWeb.LiveSessionChannelTest do
   alias LC.{Accounts, Live}
   alias LC.Infra.Repo
   alias LC.Live.{SessionOwnership, SessionServer, SessionSupervisor}
+  alias LCTransport.LiveSessionTopics
   alias LCSchemas.Chat.ChatMessage
   alias LCSchemas.Live.{LiveParticipant, LiveSession, LiveSessionRuntimeOwner}
   alias LCWeb.{LiveSessionChannel, UserSocket}
@@ -56,7 +57,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
   end
 
@@ -97,21 +98,21 @@ defmodule LCWeb.LiveSessionChannelTest do
     other_viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
     {:ok, other_session} = Live.start_live_session(other_host, %{visibility: :public})
-    session_topic = "live_session:#{session.id}"
-    other_session_topic = "live_session:#{other_session.id}"
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+    other_session_topic = LiveSessionTopics.live_session_topic(other_session.id)
 
     assert {:ok, _join_payload, _first_socket} =
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     assert {:ok, _other_join_payload, _other_socket} =
              subscribe_and_join(
                socket_for(other_viewer),
                LiveSessionChannel,
-               "live_session:#{other_session.id}"
+               LiveSessionTopics.live_session_topic(other_session.id)
              )
 
     assert_receive %Phoenix.Socket.Broadcast{
@@ -137,7 +138,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(second_viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     assert_receive %Phoenix.Socket.Broadcast{
@@ -187,7 +188,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     ref = push(socket, "chat:send", %{"body" => "hello"})
@@ -238,14 +239,14 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     assert {:ok, _join_payload, _other_viewer_socket} =
              subscribe_and_join(
                socket_for(other_viewer),
                LiveSessionChannel,
-               "live_session:#{other_session.id}"
+               LiveSessionTopics.live_session_topic(other_session.id)
              )
 
     send_ref = push(viewer_socket, "chat:send", %{"body" => "abusive message"})
@@ -267,8 +268,8 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     sender_node_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
     context = %{current_scope: Accounts.scope_for_user(host)}
-    session_topic = "live_session:#{session.id}"
-    other_session_topic = "live_session:#{other_session.id}"
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+    other_session_topic = LiveSessionTopics.live_session_topic(other_session.id)
 
     assert {:ok,
             %{
@@ -303,11 +304,14 @@ defmodule LCWeb.LiveSessionChannelTest do
           inserted_at: ^inserted_at,
           kind: "user_message",
           status: "removed",
-          moderated_at: ^moderated_at,
+          moderated_at: channel_moderated_at,
           metadata: %{}
         }
       }
     }
+
+    assert is_binary(moderated_at)
+    assert is_binary(channel_moderated_at)
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
@@ -355,7 +359,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     send_ref = push(viewer_socket, "chat:send", %{"body" => "remove once"})
@@ -369,7 +373,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
 
     assert sender_id == viewer.id
-    session_topic = "live_session:#{session.id}"
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
     assert_broadcast "chat:message", %{message: %{body: "remove once", id: ^message_id}}
 
     assert_receive %Phoenix.Socket.Message{
@@ -414,10 +418,13 @@ defmodule LCWeb.LiveSessionChannelTest do
           sender_id: ^sender_id,
           inserted_at: ^inserted_at,
           status: "removed",
-          moderated_at: ^moderated_at
+          moderated_at: channel_moderated_at
         }
       }
     }
+
+    assert is_binary(moderated_at)
+    assert is_binary(channel_moderated_at)
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
@@ -480,10 +487,13 @@ defmodule LCWeb.LiveSessionChannelTest do
           sender_id: ^sender_id,
           inserted_at: ^inserted_at,
           status: "removed",
-          moderated_at: ^moderated_at
+          moderated_at: channel_moderated_at
         }
       }
     }
+
+    assert is_binary(moderated_at)
+    assert is_binary(channel_moderated_at)
   end
 
   test "viewer who muted host cannot join a live session topic" do
@@ -496,7 +506,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
@@ -529,14 +539,14 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id + ended_session.id + 10_000}"
+               LiveSessionTopics.live_session_topic(session.id + ended_session.id + 10_000)
              )
 
     assert {:error, %{reason: "session_ended"}} =
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{ended_session.id}"
+               LiveSessionTopics.live_session_topic(ended_session.id)
              )
   end
 
@@ -552,7 +562,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
@@ -581,7 +591,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
@@ -609,7 +619,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
@@ -634,7 +644,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
   end
 
@@ -664,14 +674,14 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     assert {:error, %{reason: "rate_limited"}} =
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
@@ -713,7 +723,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     first_ref = push(socket, "chat:send", %{"body" => "first"})
@@ -753,7 +763,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     ref = push(socket, "chat:send", %{"body" => 42})
@@ -795,7 +805,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket,
                LiveSessionChannel,
-               "live_session:#{session_id}"
+               LiveSessionTopics.live_session_topic(session_id)
              )
 
     assert %{live_session_id: ^session_id} = joined_socket.assigns.observability_context
@@ -838,7 +848,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket,
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     channel_pid = joined_socket.channel_pid
@@ -872,14 +882,14 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     assert {:ok, pid} = Live.lookup_session_server(session.id)
     assert %{participants: participants_before_leave} = SessionServer.snapshot(pid)
     assert Map.has_key?(participants_before_leave, viewer.id)
 
-    session_topic = "live_session:#{session.id}"
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
 
     assert :ok = close(socket)
 
@@ -916,15 +926,15 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     monitor_ref = Process.monitor(socket.channel_pid)
 
     session_id = Absinthe.Relay.Node.to_global_id(:live_session, session.id, LCGQL.Schema)
     context = %{current_scope: Accounts.scope_for_user(host)}
-    session_topic = "live_session:#{session.id}"
-    control_topic = "live_session_control:#{session.id}"
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+    control_topic = LiveSessionTopics.session_control_topic(session.id)
     :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
 
     go_live_mutation = """
@@ -1070,14 +1080,14 @@ defmodule LCWeb.LiveSessionChannelTest do
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               "live_session:#{session.id}"
+               LiveSessionTopics.live_session_topic(session.id)
              )
 
     monitor_ref = Process.monitor(socket.channel_pid)
 
     session_id = Absinthe.Relay.Node.to_global_id(:live_session, session.id, LCGQL.Schema)
     context = %{current_scope: Accounts.scope_for_user(viewer)}
-    control_topic = "live_session_control:#{session.id}:user:#{viewer.id}"
+    control_topic = LiveSessionTopics.session_user_control_topic(session.id, viewer.id)
     :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
 
     mutation = """
@@ -1141,7 +1151,7 @@ defmodule LCWeb.LiveSessionChannelTest do
                subscribe_and_join(
                  socket_for(viewer),
                  LiveSessionChannel,
-                 "live_session:#{session.id}"
+                 LiveSessionTopics.live_session_topic(session.id)
                )
 
       assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
@@ -1165,7 +1175,11 @@ defmodule LCWeb.LiveSessionChannelTest do
     token = Accounts.generate_user_session_token(user)
     connect_params = Map.put(params, "token", token)
 
-    case UserSocket.connect(connect_params, socket(UserSocket, "user_socket:#{user.id}", %{}), %{}) do
+    case UserSocket.connect(
+           connect_params,
+           socket(UserSocket, "user_socket:#{user.id}", %{}),
+           %{}
+         ) do
       {:ok, socket} -> socket
       :error -> flunk("expected socket authentication to succeed")
     end

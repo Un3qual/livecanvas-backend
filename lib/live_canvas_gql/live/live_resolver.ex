@@ -3,6 +3,7 @@ defmodule LCGQL.Live.Resolver do
   alias LCGQL.FieldNames
   alias LCGQL.Relay
   alias LC.RateLimiter
+  alias LCTransport.LiveSessionTopics
   alias Phoenix.Socket.Broadcast
 
   @type mutation_error :: %{field: String.t() | nil, message: String.t()}
@@ -298,7 +299,7 @@ defmodule LCGQL.Live.Resolver do
 
   @spec disconnect_live_session_channels(pos_integer(), atom()) :: :ok
   defp disconnect_live_session_channels(session_id, reason) when is_integer(session_id) do
-    topic = session_control_topic(session_id)
+    topic = LiveSessionTopics.session_control_topic(session_id)
 
     Phoenix.PubSub.broadcast(
       LC.PubSub,
@@ -317,7 +318,7 @@ defmodule LCGQL.Live.Resolver do
   @spec disconnect_live_session_user(pos_integer(), pos_integer(), atom()) :: :ok
   defp disconnect_live_session_user(session_id, user_id, reason)
        when is_integer(session_id) and is_integer(user_id) do
-    topic = session_user_control_topic(session_id, user_id)
+    topic = LiveSessionTopics.session_user_control_topic(session_id, user_id)
 
     Phoenix.PubSub.broadcast(
       LC.PubSub,
@@ -330,15 +331,6 @@ defmodule LCGQL.Live.Resolver do
   defp start_live_session_attrs(args) when is_map(args) do
     Map.take(args, [:visibility])
   end
-
-  @spec session_control_topic(pos_integer()) :: String.t()
-  defp session_control_topic(session_id) when is_integer(session_id),
-    do: "live_session_control:#{session_id}"
-
-  @spec session_user_control_topic(pos_integer(), pos_integer()) :: String.t()
-  defp session_user_control_topic(session_id, user_id)
-       when is_integer(session_id) and is_integer(user_id),
-       do: "live_session_control:#{session_id}:user:#{user_id}"
 
   defp maybe_emit_lifecycle_system_event(live_session, event_type, true, viewer)
        when event_type in [:session_ended, :session_live] and is_map(live_session) and
@@ -362,7 +354,12 @@ defmodule LCGQL.Live.Resolver do
   defp emit_matching_lifecycle_event?(%{status: :ended}, :session_ended), do: true
   defp emit_matching_lifecycle_event?(_live_session, _event_type), do: false
 
-  defp broadcast_system_event({:ok, system_event}), do: Chat.broadcast_message(system_event)
+  defp broadcast_system_event({:ok, %{live_session_id: live_session_id} = system_event})
+       when is_integer(live_session_id) do
+    Chat.broadcast_message(system_event, LiveSessionTopics.live_session_topic(live_session_id))
+  end
+
+  defp broadcast_system_event({:ok, _system_event}), do: :ok
   defp broadcast_system_event({:error, _reason}), do: :ok
 
   defp maybe_broadcast_lifecycle_state(live_session, true) when is_map(live_session) do
@@ -374,7 +371,7 @@ defmodule LCGQL.Live.Resolver do
   @spec broadcast_live_session_state(map()) :: :ok
   defp broadcast_live_session_state(%{id: session_id} = live_session)
        when is_integer(session_id) and is_map(live_session) do
-    topic = live_session_topic(session_id)
+    topic = LiveSessionTopics.live_session_topic(session_id)
 
     Phoenix.PubSub.broadcast(
       LC.PubSub,
@@ -386,10 +383,6 @@ defmodule LCGQL.Live.Resolver do
       }
     )
   end
-
-  @spec live_session_topic(pos_integer()) :: String.t()
-  defp live_session_topic(session_id) when is_integer(session_id),
-    do: "live_session:#{session_id}"
 
   @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
   defp format_changeset_errors(changeset) do
