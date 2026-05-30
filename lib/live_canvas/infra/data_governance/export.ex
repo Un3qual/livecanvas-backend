@@ -35,9 +35,9 @@ defmodule LC.Infra.DataGovernance.Export do
     |> Repo.all()
   end
 
-  @spec get(User.t(), pos_integer()) :: DataExportRequest.t() | nil
+  @spec get(User.t(), integer()) :: DataExportRequest.t() | nil
   def get(%User{id: user_id}, request_id)
-      when is_integer(user_id) and user_id > 0 and is_integer(request_id) and request_id > 0 do
+      when is_integer(user_id) and is_integer(request_id) do
     Repo.get_by(DataExportRequest, id: request_id, user_id: user_id)
   end
 

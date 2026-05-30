@@ -70,16 +70,16 @@ defmodule LC.Feed do
   @doc """
   Returns one post when it is visible to the provided viewer or publicly visible.
   """
-  @spec get_visible_post(User.t() | nil, pos_integer()) :: Post.t() | nil
+  @spec get_visible_post(User.t() | nil, integer()) :: Post.t() | nil
   def get_visible_post(%User{} = viewer, post_id)
-      when is_integer(post_id) and post_id > 0 do
+      when is_integer(post_id) do
     viewer
     |> visible_post_query()
     |> where([post], post.id == ^post_id)
     |> Repo.one()
   end
 
-  def get_visible_post(nil, post_id) when is_integer(post_id) and post_id > 0 do
+  def get_visible_post(nil, post_id) when is_integer(post_id) do
     # Anonymous reads are limited to public posts from active authors so Relay
     # IDs and top-level post lookups cannot bypass follower visibility.
     from(post in Post,

@@ -291,6 +291,48 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       assert first_error.message =~ "Could not decode ID value"
     end
 
+    test "lets non-positive relay local ids fall through to node lookup queries" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+        }
+      }
+      """
+
+      node_cases = [
+        {:user, "users"},
+        {:user_identity, "user_identities"},
+        {:post, "posts"},
+        {:media_asset, "media_assets"},
+        {:post_report, "post_reports"},
+        {:live_session, "live_sessions"},
+        {:follow_request, "follows"},
+        {:chat_message, "chat_messages"},
+        {:data_export_request, "data_export_requests"},
+        {:account_deletion_request, "account_deletion_requests"},
+        {:contact_match, "user_contact_entries"}
+      ]
+
+      for {node_type, table_name} <- node_cases, local_id <- [0, -1] do
+        global_id = Absinthe.Relay.Node.to_global_id(node_type, local_id, LCGQL.Schema)
+
+        {result, queries} =
+          capture_repo_queries(fn ->
+            Absinthe.run(query, LCGQL.Schema,
+              variables: %{"id" => global_id},
+              context: context
+            )
+          end)
+
+        assert {:ok, %{data: %{"node" => nil}}} = result
+        assert count_table_queries(queries, table_name) > 0
+      end
+    end
+
     test "returns nil for follower-only post node lookups without viewer visibility" do
       author = user_fixture()
       outsider = user_fixture()

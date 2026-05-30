@@ -1,5 +1,5 @@
 defmodule LCGQL do
-  use Boundary, top_level?: true, deps: [LC, LCTransport], exports: [Schema, Router]
+  use Boundary, top_level?: true, deps: [LC, LCTransport, LCSchemas], exports: [Schema, Router]
 
   @spec document_providers(term()) :: nonempty_list(Absinthe.Plug.DocumentProvider.Default)
   def document_providers(_) do

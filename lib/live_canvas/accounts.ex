@@ -233,9 +233,9 @@ defmodule LC.Accounts do
   @doc """
   Returns one active identity row owned by the given user.
   """
-  @spec get_active_user_identity(User.t(), pos_integer()) :: UserIdentity.t() | nil
+  @spec get_active_user_identity(User.t(), integer()) :: UserIdentity.t() | nil
   def get_active_user_identity(%User{id: user_id}, identity_id)
-      when is_integer(identity_id) and identity_id > 0 do
+      when is_integer(identity_id) do
     user_id
     |> active_user_identity_by_id_query(identity_id)
     |> Repo.one()
@@ -303,9 +303,9 @@ defmodule LC.Accounts do
   @doc """
   Gets a viewer-owned data export request by local ID.
   """
-  @spec get_user_data_export_request(User.t(), pos_integer()) :: DataExportRequestSchema.t() | nil
+  @spec get_user_data_export_request(User.t(), integer()) :: DataExportRequestSchema.t() | nil
   def get_user_data_export_request(%User{} = user, request_id)
-      when is_integer(request_id) and request_id > 0 do
+      when is_integer(request_id) do
     DataGovernance.get_data_export_request(user, request_id)
   end
 
@@ -329,10 +329,10 @@ defmodule LC.Accounts do
   @doc """
   Gets a viewer-owned account deletion request by local ID.
   """
-  @spec get_user_account_deletion_request(User.t(), pos_integer()) ::
+  @spec get_user_account_deletion_request(User.t(), integer()) ::
           AccountDeletionRequestSchema.t() | nil
   def get_user_account_deletion_request(%User{} = user, request_id)
-      when is_integer(request_id) and request_id > 0 do
+      when is_integer(request_id) do
     DataGovernance.get_account_deletion_request(user, request_id)
   end
 
@@ -1099,9 +1099,9 @@ defmodule LC.Accounts do
   @doc """
   Returns one viewer-owned contact match by contact entry id.
   """
-  @spec get_user_contact_match(User.t(), pos_integer()) :: contact_match() | nil
+  @spec get_user_contact_match(User.t(), integer()) :: contact_match() | nil
   def get_user_contact_match(%User{} = user, contact_entry_id)
-      when is_integer(contact_entry_id) and contact_entry_id > 0 do
+      when is_integer(contact_entry_id) do
     user.id
     |> user_contact_entry_by_id_query(contact_entry_id)
     |> Repo.one()
