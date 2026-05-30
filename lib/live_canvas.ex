@@ -14,7 +14,8 @@ defmodule LC do
   use Boundary,
     top_level?: true,
     deps: [LCSchemas],
-    exports: [Accounts, Chat, Content, Feed, Live, RateLimiter, Social] ++ @test_support_exports
+    exports:
+      [Accounts, Authz, Chat, Content, Feed, Live, RateLimiter, Social] ++ @test_support_exports
 
   @spec repo_module() :: LC.Infra.Repo
   def repo_module, do: LC.Infra.Repo

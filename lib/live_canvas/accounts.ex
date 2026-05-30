@@ -5,7 +5,7 @@ defmodule LC.Accounts do
 
   use Boundary,
     deps: [LC.Infra, LCSchemas],
-    exports: [Tokens]
+    exports: [Scope, Tokens]
 
   import Ecto.Query, warn: false
   import Ecto.Changeset, only: [add_error: 3, change: 2, get_field: 2, put_change: 3]
