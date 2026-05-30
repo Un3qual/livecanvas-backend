@@ -117,13 +117,8 @@ defmodule LCGQL.Accounts.Types do
   end
 
   node object(:contact_match) do
-    field :contact_name, :string do
-      resolve(&Resolver.contact_match_name/3)
-    end
-
-    field :birthday, :string do
-      resolve(&Resolver.contact_match_birthday/3)
-    end
+    field :contact_name, :string
+    field :birthday, :string
 
     field :matched_users, non_null(list_of(non_null(:user)))
   end

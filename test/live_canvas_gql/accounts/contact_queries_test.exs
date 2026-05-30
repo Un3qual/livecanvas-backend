@@ -20,6 +20,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
         Accounts.upsert_user_contact_entry(viewer, %{
           contact_client_id: :crypto.strong_rand_bytes(16),
           contact_name: "Email Match",
+          birthday: "1990-02-15",
           emails: [matched_email_user.email],
           phone_numbers: []
         })
@@ -48,6 +49,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
             node {
               id
               contactName
+              birthday
               matchedUsers {
                 id
                 email
@@ -81,6 +83,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       assert is_binary(first_cursor)
       assert first_node["id"] == first_contact_id
       assert first_node["contactName"] == "Email Match"
+      assert first_node["birthday"] == "1990-02-15"
       assert [%{"id" => ^matched_email_user_id, "email" => nil}] = first_node["matchedUsers"]
 
       assert {:ok, %{type: :contact_match}} =
@@ -104,6 +107,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       assert is_binary(second_cursor)
       assert second_node["id"] == second_contact_id
       assert second_node["contactName"] == "Phone Match"
+      assert is_nil(second_node["birthday"])
       assert [%{"id" => ^matched_phone_user_id, "email" => nil}] = second_node["matchedUsers"]
 
       assert {:ok, %{type: :contact_match}} =

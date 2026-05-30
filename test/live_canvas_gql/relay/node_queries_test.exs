@@ -451,6 +451,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
         Accounts.upsert_user_contact_entry(viewer, %{
           contact_client_id: :crypto.strong_rand_bytes(16),
           contact_name: "Friend Match",
+          birthday: "1990-02-15",
           emails: [matched_user.email]
         })
 
@@ -465,6 +466,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
           id
           ... on ContactMatch {
             contactName
+            birthday
             matchedUsers {
               id
               email
@@ -480,6 +482,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                   "node" => %{
                     "id" => ^contact_match_id,
                     "contactName" => "Friend Match",
+                    "birthday" => "1990-02-15",
                     "matchedUsers" => [%{"id" => ^matched_user_id, "email" => nil}]
                   }
                 }

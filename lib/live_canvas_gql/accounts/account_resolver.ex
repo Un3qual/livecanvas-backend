@@ -34,7 +34,7 @@ defmodule LCGQL.Accounts.Resolver do
         }
   @type unlink_identity_result :: {:ok, unlink_identity_payload()}
   @type contact_upsert_payload :: %{
-          contact_match: LC.Accounts.contact_match() | nil,
+          contact_match: contact_match_node() | nil,
           errors: [mutation_error()]
         }
   @type contact_upsert_result :: {:ok, contact_upsert_payload()}
@@ -84,6 +84,8 @@ defmodule LCGQL.Accounts.Resolver do
         }
   @type contact_match_node :: %{
           id: pos_integer(),
+          contact_name: String.t() | nil,
+          birthday: Date.t() | nil,
           contact_entry: map(),
           matched_users: [User.t()]
         }
@@ -408,8 +410,12 @@ defmodule LCGQL.Accounts.Resolver do
 
     case Accounts.upsert_user_contact_entry(user, contact_attrs) do
       {:ok, contact_entry} ->
-        {:ok,
-         %{contact_match: Accounts.get_user_contact_match(user, contact_entry.id), errors: []}}
+        contact_match =
+          user
+          |> Accounts.get_user_contact_match(contact_entry.id)
+          |> contact_match_payload()
+
+        {:ok, %{contact_match: contact_match, errors: []}}
 
       {:error, reason} ->
         {:ok, %{contact_match: nil, errors: [contact_upsert_error(reason)]}}
@@ -1202,19 +1208,6 @@ defmodule LCGQL.Accounts.Resolver do
     Absinthe.Relay.Connection.from_list([], args)
   end
 
-  @spec contact_match_name(contact_match_node(), map(), Absinthe.Resolution.t()) ::
-          {:ok, String.t() | nil}
-  def contact_match_name(%{contact_entry: %{contact_name: contact_name}}, _args, _res),
-    do: {:ok, contact_name}
-
-  @spec contact_match_birthday(contact_match_node(), map(), Absinthe.Resolution.t()) ::
-          {:ok, String.t() | nil}
-  def contact_match_birthday(%{contact_entry: %{birthday: nil}}, _args, _res),
-    do: {:ok, nil}
-
-  def contact_match_birthday(%{contact_entry: %{birthday: birthday}}, _args, _res),
-    do: {:ok, Date.to_iso8601(birthday)}
-
   @spec contact_upsert_error(contact_upsert_error_reason()) :: mutation_error()
   defp contact_upsert_error(:invalid_contact_client_id),
     do: MutationErrors.invalid_error("contactClientId")
@@ -1410,8 +1403,15 @@ defmodule LCGQL.Accounts.Resolver do
     "#{prefix}.#{FieldNames.lower_camel(field)}"
   end
 
+  @spec contact_match_payload(LC.Accounts.contact_match() | nil) :: contact_match_node() | nil
+  defp contact_match_payload(nil), do: nil
+  defp contact_match_payload(contact_match), do: contact_match_node(contact_match)
+
   @spec contact_match_node(LC.Accounts.contact_match()) :: contact_match_node()
-  defp contact_match_node(%{contact_entry: %{id: id}} = contact_match) do
-    Map.put(contact_match, :id, id)
+  def contact_match_node(%{contact_entry: %{id: id} = contact_entry} = contact_match) do
+    contact_match
+    |> Map.put(:id, id)
+    |> Map.put(:contact_name, Map.get(contact_entry, :contact_name))
+    |> Map.put(:birthday, Map.get(contact_entry, :birthday))
   end
 end
