@@ -5,6 +5,7 @@ defmodule LC.RealtimeRuntimeTest do
 
   alias LC.Live.SessionServer
   alias LC.RealtimeRuntime
+  alias LC.RealtimeRuntime.ShardOwner
   alias LCSchemas.Live.LiveSession
 
   describe "shard_id/2" do
@@ -63,9 +64,106 @@ defmodule LC.RealtimeRuntimeTest do
     end
   end
 
+  describe "runtime supervisor startup" do
+    test "accepts custom shard init options without passing them as supervisor start options" do
+      custom_shard_id = unique_shard_id()
+
+      stop_default_runtime_supervisor()
+
+      on_exit(fn ->
+        restart_default_runtime_supervisor()
+      end)
+
+      assert {:ok, supervisor_pid} =
+               RealtimeRuntime.Supervisor.start_link(
+                 name: :"test_realtime_runtime_supervisor_#{custom_shard_id}",
+                 shard_ids: [custom_shard_id]
+               )
+
+      assert Process.alive?(supervisor_pid)
+      assert is_pid(:global.whereis_name(RealtimeRuntime.global_shard_name(custom_shard_id)))
+
+      Supervisor.stop(supervisor_pid)
+    end
+  end
+
+  describe "shard owner standby registration" do
+    test "an unnamed standby claims the global shard name after the owner exits" do
+      Process.flag(:trap_exit, true)
+
+      shard_id = unique_shard_id()
+      global_name = RealtimeRuntime.global_shard_name(shard_id)
+
+      assert {:ok, owner_pid} =
+               ShardOwner.start_link(
+                 shard_id: shard_id,
+                 global_claim_retry_interval_ms: 10
+               )
+
+      assert :global.whereis_name(global_name) == owner_pid
+
+      assert {:ok, standby_pid} =
+               ShardOwner.start_link(
+                 shard_id: shard_id,
+                 global_claim_retry_interval_ms: 10
+               )
+
+      assert standby_pid != owner_pid
+      assert :global.whereis_name(global_name) == owner_pid
+
+      Process.exit(owner_pid, :kill)
+      assert_receive {:EXIT, ^owner_pid, :killed}
+
+      assert_eventually(fn ->
+        :global.whereis_name(global_name) == standby_pid
+      end)
+
+      Process.exit(standby_pid, :kill)
+      assert_receive {:EXIT, ^standby_pid, :killed}
+    end
+  end
+
   defp live_session_id_fixture do
     host = user_fixture()
     live_session = Repo.insert!(%LiveSession{host_id: host.id})
     live_session.id
+  end
+
+  defp unique_shard_id do
+    System.unique_integer([:positive, :monotonic]) + 10_000
+  end
+
+  defp stop_default_runtime_supervisor do
+    case Process.whereis(RealtimeRuntime.Supervisor) do
+      nil ->
+        :ok
+
+      _pid ->
+        assert :ok = Supervisor.terminate_child(LC.Supervisor, RealtimeRuntime.Supervisor)
+    end
+  end
+
+  defp restart_default_runtime_supervisor do
+    case Process.whereis(RealtimeRuntime.Supervisor) do
+      nil ->
+        assert {:ok, _pid} = Supervisor.restart_child(LC.Supervisor, RealtimeRuntime.Supervisor)
+        :ok
+
+      _pid ->
+        :ok
+    end
+  end
+
+  defp assert_eventually(assertion, attempts \\ 25)
+
+  defp assert_eventually(_assertion, 0), do: flunk("condition was not met before timeout")
+
+  defp assert_eventually(assertion, attempts) when is_function(assertion, 0) do
+    if assertion.() do
+      :ok
+    else
+      Process.sleep(20)
+      assert_eventually(assertion, attempts - 1)
+    end
   end
 end

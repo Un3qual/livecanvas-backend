@@ -41,6 +41,26 @@ defmodule LC.Live.DistributedRuntimeTest do
     end
   end
 
+  describe "start_live_session/3 with remote runtime ownership" do
+    test "routes runtime start through the remote shard owner" do
+      host = user_fixture()
+      remote_owner = "remote-owner@127.0.0.1"
+
+      put_remote_owner_for_shard(0, remote_owner)
+      configure_runtime_rpc([{:ok, :ok}])
+
+      assert {:ok, %LiveSession{id: session_id}} =
+               apply(Live, :start_live_session, [
+                 host,
+                 %{visibility: :public},
+                 [runtime_rpc: FakeRuntimeRPC]
+               ])
+
+      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_start_session_server,
+                      [^session_id, %{}], _opts}
+    end
+  end
+
   describe "join_live_session/4 with remote runtime ownership" do
     test "routes remote lookup and join through runtime RPC" do
       host = user_fixture()
@@ -309,11 +329,21 @@ defmodule LC.Live.DistributedRuntimeTest do
   defp put_remote_owner(%LiveSession{id: session_id}, remote_owner)
        when is_integer(session_id) and is_binary(remote_owner) do
     shard_id = RealtimeRuntime.shard_id(session_id)
+    put_remote_owner_for_shard(shard_id, remote_owner)
+
+    on_exit(fn ->
+      RealtimeRuntime.stop_session_runtime(session_id)
+    end)
+
+    :ok
+  end
+
+  defp put_remote_owner_for_shard(shard_id, remote_owner)
+       when is_integer(shard_id) and is_binary(remote_owner) do
     :ok = RealtimeRuntime.put_test_shard_owner(shard_id, {:remote, remote_owner})
 
     on_exit(fn ->
       RealtimeRuntime.clear_test_shard_owner(shard_id)
-      RealtimeRuntime.stop_session_runtime(session_id)
     end)
 
     :ok

@@ -41,6 +41,7 @@ defmodule LC.Live do
   @type runtime_rpc_error :: :remote_not_found | :remote_timeout | :remote_unreachable
   @type runtime_target :: {:local, pid()} | {:remote, String.t()}
   @type runtime_rpc_adapter :: module()
+  @type start_live_session_option :: {:runtime_rpc, runtime_rpc_adapter()}
   @type session_server_lookup_result ::
           {:ok, pid()} | {:error, :not_found | {:owned_by_remote, String.t()}}
 
@@ -48,8 +49,14 @@ defmodule LC.Live do
   Starts a persisted live session and boots its runtime process.
   """
   @spec start_live_session(User.t(), map()) :: live_session_result()
-  def start_live_session(%User{id: host_id}, attrs) when is_integer(host_id) and is_map(attrs) do
+  @spec start_live_session(User.t(), map(), [start_live_session_option()]) ::
+          live_session_result()
+  def start_live_session(user, attrs, opts \\ [])
+
+  def start_live_session(%User{id: host_id}, attrs, opts)
+      when is_integer(host_id) and is_map(attrs) and is_list(opts) do
     visibility = Map.get(attrs, :visibility, Map.get(attrs, "visibility"))
+    runtime_rpc = Keyword.get(opts, :runtime_rpc, RuntimeRPC)
 
     # Always read suspension state from the database so stale in-memory user
     # structs cannot start sessions after moderation changes.
@@ -61,7 +68,7 @@ defmodule LC.Live do
 
         Repo.transact(fn ->
           with {:ok, live_session} <- Repo.insert(live_session_changeset),
-               {:ok, _pid} <- SessionSupervisor.start_session_server(live_session.id) do
+               :ok <- start_live_session_runtime(live_session.id, runtime_rpc) do
             {:ok, live_session}
           end
         end)
@@ -388,6 +395,30 @@ defmodule LC.Live do
     end
   end
 
+  @doc false
+  @spec remote_start_session_server(pos_integer(), runtime_participants()) ::
+          :ok | {:error, :not_found}
+  def remote_start_session_server(session_id, initial_participants \\ %{})
+
+  def remote_start_session_server(session_id, initial_participants)
+      when is_integer(session_id) and is_map(initial_participants) do
+    case SessionSupervisor.start_session_server(session_id, initial_participants) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+
+      # Ownership can move again before the RPC runs. Keep the cross-node
+      # response stable and let the caller decide whether to retry.
+      {:error, {:owned_by_remote, _owner_node}} ->
+        {:error, :not_found}
+
+      {:error, _reason} ->
+        {:error, :not_found}
+    end
+  end
+
   @spec validate_recording_media_asset(Ecto.Changeset.t(), pos_integer() | nil, keyword()) ::
           Ecto.Changeset.t()
   defp validate_recording_media_asset(changeset, host_id, opts)
@@ -546,6 +577,22 @@ defmodule LC.Live do
     end
   end
 
+  @spec start_live_session_runtime(pos_integer(), runtime_rpc_adapter()) ::
+          :ok | {:error, term()}
+  defp start_live_session_runtime(session_id, runtime_rpc)
+       when is_integer(session_id) and is_atom(runtime_rpc) do
+    case SessionSupervisor.start_session_server(session_id) do
+      {:ok, _pid} ->
+        :ok
+
+      {:error, {:owned_by_remote, owner_node}} ->
+        remote_start(owner_node, session_id, %{}, runtime_rpc)
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
   @spec join_runtime(
           runtime_target(),
           pos_integer(),
@@ -632,6 +679,25 @@ defmodule LC.Live do
       __MODULE__,
       :remote_join_session_server,
       [session_id, user_id, role],
+      timeout: runtime_rpc_timeout_ms()
+    )
+    |> normalize_remote_response()
+  end
+
+  @spec remote_start(
+          String.t(),
+          pos_integer(),
+          runtime_participants(),
+          runtime_rpc_adapter()
+        ) :: :ok | {:error, runtime_rpc_error()}
+  defp remote_start(owner_node, session_id, initial_participants, runtime_rpc)
+       when is_binary(owner_node) and is_integer(session_id) and is_map(initial_participants) and
+              is_atom(runtime_rpc) do
+    owner_node
+    |> runtime_rpc.call(
+      __MODULE__,
+      :remote_start_session_server,
+      [session_id, initial_participants],
       timeout: runtime_rpc_timeout_ms()
     )
     |> normalize_remote_response()

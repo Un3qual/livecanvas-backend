@@ -7,8 +7,13 @@ defmodule LC.RealtimeRuntime.ShardOwner do
 
   @registry LC.RealtimeRuntime.SessionRegistry
   @dynamic_supervisor LC.RealtimeRuntime.SessionDynamicSupervisor
+  @default_global_claim_retry_interval_ms 1_000
 
-  @type state :: %{shard_id: LC.RealtimeRuntime.shard_id()}
+  @type state :: %{
+          shard_id: LC.RealtimeRuntime.shard_id(),
+          registered?: boolean(),
+          global_claim_retry_interval_ms: pos_integer()
+        }
 
   @spec child_spec(keyword()) :: Supervisor.child_spec()
   def child_spec(opts) when is_list(opts) do
@@ -26,21 +31,36 @@ defmodule LC.RealtimeRuntime.ShardOwner do
   def start_link(opts) when is_list(opts) do
     shard_id = Keyword.fetch!(opts, :shard_id)
 
-    state = %{shard_id: shard_id}
+    retry_interval_ms =
+      opts
+      |> Keyword.get(:global_claim_retry_interval_ms, @default_global_claim_retry_interval_ms)
+      |> normalize_retry_interval_ms()
+
+    registered_state = %{
+      shard_id: shard_id,
+      registered?: true,
+      global_claim_retry_interval_ms: retry_interval_ms
+    }
+
+    standby_state = %{
+      shard_id: shard_id,
+      registered?: false,
+      global_claim_retry_interval_ms: retry_interval_ms
+    }
 
     case GenServer.start_link(
            __MODULE__,
-           state,
+           registered_state,
            name: {:global, LC.RealtimeRuntime.global_shard_name(shard_id)}
          ) do
       {:ok, _pid} = started ->
         started
 
       {:error, {:already_started, _owner_pid}} ->
-        GenServer.start_link(__MODULE__, state)
+        GenServer.start_link(__MODULE__, standby_state)
 
       {:error, {:already_registered, _owner_pid}} ->
-        GenServer.start_link(__MODULE__, state)
+        GenServer.start_link(__MODULE__, standby_state)
 
       other ->
         other
@@ -49,7 +69,12 @@ defmodule LC.RealtimeRuntime.ShardOwner do
 
   @impl true
   @spec init(state()) :: {:ok, state()}
-  def init(state), do: {:ok, state}
+  def init(%{registered?: true} = state), do: {:ok, state}
+
+  def init(%{registered?: false} = state) do
+    schedule_global_claim_retry(state)
+    {:ok, state}
+  end
 
   @impl true
   @spec handle_call(term(), GenServer.from(), state()) :: {:reply, term(), state()}
@@ -77,6 +102,26 @@ defmodule LC.RealtimeRuntime.ShardOwner do
 
     {:reply, result, state}
   end
+
+  @impl true
+  @spec handle_info(term(), state()) :: {:noreply, state()}
+  def handle_info(:claim_global_name, %{registered?: false, shard_id: shard_id} = state) do
+    global_name = LC.RealtimeRuntime.global_shard_name(shard_id)
+
+    case :global.whereis_name(global_name) do
+      :undefined ->
+        claim_global_name(global_name, state)
+
+      pid when pid == self() ->
+        {:noreply, %{state | registered?: true}}
+
+      _owner_pid ->
+        schedule_global_claim_retry(state)
+        {:noreply, state}
+    end
+  end
+
+  def handle_info(:claim_global_name, state), do: {:noreply, state}
 
   @spec start_local_session_runtime(pos_integer(), LC.RealtimeRuntime.initial_participants()) ::
           {:ok, pid()} | {:error, term()}
@@ -118,4 +163,28 @@ defmodule LC.RealtimeRuntime.ShardOwner do
         :ok
     end
   end
+
+  @spec claim_global_name({module(), LC.RealtimeRuntime.shard_id()}, state()) ::
+          {:noreply, state()}
+  defp claim_global_name(global_name, state) do
+    case :global.register_name(global_name, self()) do
+      :yes ->
+        {:noreply, %{state | registered?: true}}
+
+      :no ->
+        schedule_global_claim_retry(state)
+        {:noreply, state}
+    end
+  end
+
+  @spec schedule_global_claim_retry(state()) :: reference()
+  defp schedule_global_claim_retry(%{
+         global_claim_retry_interval_ms: retry_interval_ms
+       }) do
+    Process.send_after(self(), :claim_global_name, retry_interval_ms)
+  end
+
+  @spec normalize_retry_interval_ms(term()) :: pos_integer()
+  defp normalize_retry_interval_ms(value) when is_integer(value) and value > 0, do: value
+  defp normalize_retry_interval_ms(_value), do: @default_global_claim_retry_interval_ms
 end

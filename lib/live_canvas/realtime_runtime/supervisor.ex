@@ -8,7 +8,8 @@ defmodule LC.RealtimeRuntime.Supervisor do
 
   @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts \\ []) do
-    Supervisor.start_link(__MODULE__, opts, Keyword.put_new(opts, :name, __MODULE__))
+    {name, init_opts} = Keyword.pop(opts, :name, __MODULE__)
+    Supervisor.start_link(__MODULE__, init_opts, name: name)
   end
 
   @impl true
