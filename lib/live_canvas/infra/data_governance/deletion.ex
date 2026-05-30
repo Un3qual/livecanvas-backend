@@ -4,7 +4,7 @@ defmodule LC.Infra.DataGovernance.Deletion do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
 
-  alias LC.Infra.{AsyncJobs, Repo}
+  alias LC.Infra.{AsyncJobs, Payload, Repo}
 
   alias LCSchemas.Accounts.{AuthEvent, User}
   alias LCSchemas.Infra.{AccountDeletionRequest, AsyncJob}
@@ -96,7 +96,7 @@ defmodule LC.Infra.DataGovernance.Deletion do
   @impl LC.Infra.AsyncJobs.Handler
   @spec handle(AsyncJob.t()) :: LC.Infra.AsyncJobs.Handler.result()
   def handle(%AsyncJob{kind: @job_kind, payload: payload}) when is_map(payload) do
-    with {:ok, request_id} <- extract_payload_integer(payload, :account_deletion_request_id),
+    with {:ok, request_id} <- Payload.positive_integer(payload, :account_deletion_request_id),
          %AccountDeletionRequest{} = request <- Repo.get(AccountDeletionRequest, request_id) do
       process_request(request)
     else
@@ -387,15 +387,6 @@ defmodule LC.Infra.DataGovernance.Deletion do
     reason
     |> inspect(limit: 50)
     |> String.slice(0, 250)
-  end
-
-  @spec extract_payload_integer(map(), :account_deletion_request_id) ::
-          {:ok, pos_integer()} | {:error, :invalid_payload}
-  defp extract_payload_integer(payload, key) when is_map(payload) and is_atom(key) do
-    case Map.get(payload, key) || Map.get(payload, Atom.to_string(key)) do
-      value when is_integer(value) and value > 0 -> {:ok, value}
-      _ -> {:error, :invalid_payload}
-    end
   end
 
   @spec grace_period_seconds(request_opts()) :: non_neg_integer()

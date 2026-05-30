@@ -4,7 +4,7 @@ defmodule LC.Content.MediaProcessingJob do
   import Ecto.Changeset
 
   alias LC.Content.{MediaAsset, MediaProcessing}
-  alias LC.Infra.Repo
+  alias LC.Infra.{Payload, Repo}
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
 
@@ -24,7 +24,7 @@ defmodule LC.Content.MediaProcessingJob do
 
   @spec handle_media_processing(AsyncJob.t()) :: LC.Infra.AsyncJobs.Handler.result()
   defp handle_media_processing(%AsyncJob{payload: payload} = job) when is_map(payload) do
-    with {:ok, media_asset_id} <- extract_payload_integer(payload, :media_asset_id),
+    with {:ok, media_asset_id} <- Payload.positive_integer(payload, :media_asset_id),
          %MediaAssetSchema{} = media_asset <- Repo.get(MediaAssetSchema, media_asset_id) do
       process_media_asset(job, media_asset)
     else
@@ -40,7 +40,7 @@ defmodule LC.Content.MediaProcessingJob do
 
   @spec handle_webhook_processing(AsyncJob.t()) :: LC.Infra.AsyncJobs.Handler.result()
   defp handle_webhook_processing(%AsyncJob{payload: payload}) when is_map(payload) do
-    with {:ok, webhook_event_id} <- extract_payload_integer(payload, :webhook_event_id),
+    with {:ok, webhook_event_id} <- Payload.positive_integer(payload, :webhook_event_id),
          %WebhookEvent{} = webhook_event <- Repo.get(WebhookEvent, webhook_event_id) do
       process_webhook_event(webhook_event)
     else
@@ -123,7 +123,7 @@ defmodule LC.Content.MediaProcessingJob do
 
   defp apply_webhook_payload(payload) when is_map(payload) do
     with {:ok, event_payload} <- extract_event_payload(payload),
-         {:ok, media_asset_id} <- extract_payload_integer(event_payload, :media_asset_id),
+         {:ok, media_asset_id} <- Payload.positive_integer(event_payload, :media_asset_id),
          {:ok, processing_state} <- extract_processing_state(event_payload),
          %MediaAssetSchema{} = media_asset <- Repo.get(MediaAssetSchema, media_asset_id) do
       apply_webhook_state_update(media_asset, processing_state, event_payload)
@@ -194,9 +194,7 @@ defmodule LC.Content.MediaProcessingJob do
 
   defp maybe_put_integer_attr(acc, source, key)
        when is_map(acc) and is_map(source) and is_atom(key) do
-    string_key = Atom.to_string(key)
-
-    case Map.get(source, key) || Map.get(source, string_key) do
+    case Payload.value_for(source, key) do
       value when is_integer(value) -> Map.put(acc, key, value)
       _ -> acc
     end
@@ -225,13 +223,6 @@ defmodule LC.Content.MediaProcessingJob do
   defp extract_processing_state(payload) when is_map(payload) do
     case Map.get(payload, :processing_state) || Map.get(payload, "processing_state") do
       processing_state when is_binary(processing_state) -> {:ok, processing_state}
-      _ -> {:error, :invalid_payload}
-    end
-  end
-
-  defp extract_payload_integer(payload, key) when is_map(payload) and is_atom(key) do
-    case Map.get(payload, key) || Map.get(payload, Atom.to_string(key)) do
-      value when is_integer(value) and value > 0 -> {:ok, value}
       _ -> {:error, :invalid_payload}
     end
   end
