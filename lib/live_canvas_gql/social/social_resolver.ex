@@ -217,17 +217,6 @@ defmodule LCGQL.Social.Resolver do
     Absinthe.Relay.Connection.from_list([], args)
   end
 
-  @spec follow_request_follower(map(), map(), Absinthe.Resolution.t()) ::
-          LCGQL.Dataloader.dataloader_result()
-  def follow_request_follower(%{follower: %{id: _id} = follower}, _args, _resolution),
-    do: {:ok, follower}
-
-  def follow_request_follower(%{follower_id: follower_id} = follow_request, _args, resolution)
-      when is_integer(follower_id),
-      do: LCGQL.Dataloader.load_assoc(follow_request, :follower, Accounts, resolution)
-
-  def follow_request_follower(_follow_request, _args, _resolution), do: {:ok, nil}
-
   defp fetch_user(user_id, field) do
     with {:ok, id} <- Relay.decode_global_id(user_id, :user, LCGQL.Schema) do
       try do

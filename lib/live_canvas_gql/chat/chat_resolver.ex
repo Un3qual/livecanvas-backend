@@ -3,7 +3,7 @@ defmodule LCGQL.Chat.Resolver do
 
   import Ecto.Query, warn: false
 
-  alias LC.{Accounts, Chat}
+  alias LC.Chat
   alias LCGQL.Chat.SystemEventProjection
   alias LCGQL.MutationErrors
   alias LCGQL.Relay
@@ -94,16 +94,6 @@ defmodule LCGQL.Chat.Resolver do
       when is_map(chat_message) do
     {:ok, SystemEventProjection.details(chat_message)}
   end
-
-  @spec chat_message_sender(map(), map(), Absinthe.Resolution.t()) ::
-          LCGQL.Dataloader.dataloader_result()
-  def chat_message_sender(%{sender: %{id: _id} = sender}, _args, _resolution), do: {:ok, sender}
-
-  def chat_message_sender(%{sender_id: sender_id} = chat_message, _args, resolution)
-      when is_integer(sender_id),
-      do: LCGQL.Dataloader.load_assoc(chat_message, :sender, Accounts, resolution)
-
-  def chat_message_sender(_chat_message, _args, _resolution), do: {:ok, nil}
 
   @spec viewer_from_resolution(Absinthe.Resolution.t()) :: {:ok, map()} | :error
   defp viewer_from_resolution(%Absinthe.Resolution{

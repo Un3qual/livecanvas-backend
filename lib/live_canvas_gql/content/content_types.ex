@@ -2,6 +2,9 @@ defmodule LCGQL.Content.Types do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
+  import Absinthe.Resolution.Helpers, only: [dataloader: 1]
+
+  alias LC.Accounts
   alias LCGQL.Content.Resolver
 
   enum :post_kind do
@@ -84,7 +87,7 @@ defmodule LCGQL.Content.Types do
     field :inserted_at, non_null(:string)
 
     field :author, non_null(:user) do
-      resolve(&Resolver.author/3)
+      resolve(dataloader(Accounts))
     end
 
     field :media_assets, non_null(list_of(non_null(:post_media_asset))) do

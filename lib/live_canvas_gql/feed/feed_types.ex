@@ -2,6 +2,9 @@ defmodule LCGQL.Feed.Types do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
+  import Absinthe.Resolution.Helpers, only: [dataloader: 1]
+
+  alias LC.Accounts
   alias LCGQL.Chat.Resolver, as: ChatResolver
   alias LCGQL.Content.Resolver, as: ContentResolver
   alias LCGQL.Feed.Resolver
@@ -40,7 +43,7 @@ defmodule LCGQL.Feed.Types do
     field :inserted_at, non_null(:string)
 
     field :host, non_null(:user) do
-      resolve(&Resolver.host/3)
+      resolve(dataloader(Accounts))
     end
 
     field :recording_media_asset, :live_session_recording_media_asset do

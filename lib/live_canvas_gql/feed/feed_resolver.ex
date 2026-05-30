@@ -1,5 +1,5 @@
 defmodule LCGQL.Feed.Resolver do
-  alias LC.{Accounts, Chat, Content, Feed}
+  alias LC.{Chat, Content, Feed}
 
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
 
@@ -47,17 +47,13 @@ defmodule LCGQL.Feed.Resolver do
     end
   end
 
-  @spec host(map(), map(), Absinthe.Resolution.t()) :: LCGQL.Dataloader.dataloader_result()
-  def host(%{host: %{id: _id} = host}, _args, _resolution), do: {:ok, host}
-
-  def host(%{host_id: host_id} = live_session, _args, resolution) when is_integer(host_id),
-    do: LCGQL.Dataloader.load_assoc(live_session, :host, Accounts, resolution)
-
-  def host(_live_session, _args, _resolution), do: {:ok, nil}
-
   @spec recording_media_asset(map(), map(), Absinthe.Resolution.t()) ::
           LCGQL.Dataloader.dataloader_result()
-  def recording_media_asset(%{recording_media_asset_id: recording_media_asset_id} = live_session, _args, resolution)
+  def recording_media_asset(
+        %{recording_media_asset_id: recording_media_asset_id} = live_session,
+        _args,
+        resolution
+      )
       when is_integer(recording_media_asset_id) do
     with {:ok, viewer} <- viewer_from_resolution(resolution),
          # Global node refetch remains available for `LiveSession`, so child
@@ -105,7 +101,9 @@ defmodule LCGQL.Feed.Resolver do
   defp load_durable_recording_media_asset(_live_session, _resolution), do: {:ok, nil}
 
   @spec durable_recording_media_asset(map() | nil) :: map() | nil
-  defp durable_recording_media_asset(%{processing_state: processing_state} = recording_media_asset)
+  defp durable_recording_media_asset(
+         %{processing_state: processing_state} = recording_media_asset
+       )
        when processing_state in [:uploaded, :processed, "uploaded", "processed"],
        do: recording_media_asset
 

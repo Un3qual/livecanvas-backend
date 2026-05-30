@@ -1,5 +1,5 @@
 defmodule LCGQL.Content.Resolver do
-  alias LC.{Accounts, Content, Feed}
+  alias LC.{Content, Feed}
   alias LCGQL.{FieldNames, MutationErrors, Relay}
   alias LCSchemas.Content.{MediaAsset, Post, PostReport}
 
@@ -271,14 +271,6 @@ defmodule LCGQL.Content.Resolver do
   end
 
   def media_asset_public_url(_media_asset, _args, _resolution), do: {:ok, nil}
-
-  @spec author(map(), map(), Absinthe.Resolution.t()) :: LCGQL.Dataloader.dataloader_result()
-  def author(%{author: %{id: _id} = author}, _args, _resolution), do: {:ok, author}
-
-  def author(%{author_id: author_id} = post, _args, resolution) when is_integer(author_id),
-    do: LCGQL.Dataloader.load_assoc(post, :author, Accounts, resolution)
-
-  def author(_post, _args, _resolution), do: {:ok, nil}
 
   @spec media_assets(map(), map(), Absinthe.Resolution.t()) ::
           LCGQL.Dataloader.dataloader_result()
