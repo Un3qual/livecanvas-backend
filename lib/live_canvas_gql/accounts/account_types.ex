@@ -144,13 +144,8 @@ defmodule LCGQL.Accounts.Types do
     field :status, non_null(:data_export_request_status)
     field :format, non_null(:data_export_request_format)
 
-    field :requested_at, non_null(:string) do
-      resolve(&Resolver.data_export_requested_at/3)
-    end
-
-    field :completed_at, :string do
-      resolve(&Resolver.data_export_completed_at/3)
-    end
+    field :requested_at, non_null(:string)
+    field :completed_at, :string
 
     field :failure_reason, :string
   end
@@ -158,17 +153,9 @@ defmodule LCGQL.Accounts.Types do
   node object(:account_deletion_request) do
     field :status, non_null(:account_deletion_request_status)
 
-    field :requested_at, non_null(:string) do
-      resolve(&Resolver.account_deletion_requested_at/3)
-    end
-
-    field :scheduled_purge_at, non_null(:string) do
-      resolve(&Resolver.account_deletion_scheduled_purge_at/3)
-    end
-
-    field :completed_at, :string do
-      resolve(&Resolver.account_deletion_completed_at/3)
-    end
+    field :requested_at, non_null(:string)
+    field :scheduled_purge_at, non_null(:string)
+    field :completed_at, :string
 
     field :failure_reason, :string
   end

@@ -217,13 +217,6 @@ defmodule LCGQL.Social.Resolver do
     Absinthe.Relay.Connection.from_list([], args)
   end
 
-  @spec follow_request_requested_at(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t()}
-  def follow_request_requested_at(%{requested_at: %DateTime{} = requested_at}, _args, _resolution) do
-    {:ok, DateTime.to_iso8601(requested_at)}
-  end
-
-  def follow_request_requested_at(_follow_request, _args, _resolution), do: {:ok, ""}
-
   @spec follow_request_follower(map(), map(), Absinthe.Resolution.t()) ::
           LCGQL.Dataloader.dataloader_result()
   def follow_request_follower(%{follower: %{id: _id} = follower}, _args, _resolution),

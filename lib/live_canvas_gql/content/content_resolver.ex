@@ -12,7 +12,7 @@ defmodule LCGQL.Content.Resolver do
   @type signed_upload_view :: %{
           method: :put | :post,
           url: String.t(),
-          expires_at: String.t(),
+          expires_at: DateTime.t(),
           headers: [signed_upload_header_view()]
         }
   @type request_media_upload_payload :: %{
@@ -306,7 +306,7 @@ defmodule LCGQL.Content.Resolver do
     %{
       method: upload.method,
       url: upload.url,
-      expires_at: DateTime.to_iso8601(upload.expires_at),
+      expires_at: upload.expires_at,
       headers: upload_headers_view(upload.headers)
     }
   end

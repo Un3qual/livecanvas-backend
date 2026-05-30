@@ -351,7 +351,7 @@ defmodule LCGQL.Chat.ChatQueriesTest do
 
       message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
       viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
-      moderated_at = DateTime.to_iso8601(removed_message.moderated_at)
+      moderated_at = to_string(removed_message.moderated_at)
 
       assert {:ok,
               %{
@@ -401,7 +401,15 @@ defmodule LCGQL.Chat.ChatQueriesTest do
       viewer = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
-      {:ok, first_message} = Chat.create_message(live_session, viewer, %{body: "first"})
+
+      {:ok, first_message} =
+        Chat.create_message(live_session, viewer, %{
+          body: "first",
+          metadata: %{
+            "details" => %{"chat_message_id" => 1},
+            "event_type" => "message_removed"
+          }
+        })
 
       {:ok, system_event} =
         Chat.record_system_event(live_session, :message_removed,

@@ -45,8 +45,13 @@ defmodule LCSchemas.Chat.ChatMessageTest do
         %ChatMessage{body: "hello"}
         |> Map.put(:status, :removed)
 
+      string_removed_message =
+        %ChatMessage{body: "hello"}
+        |> Map.put(:status, "removed")
+
       assert visible_body(active_message) == "hello"
       assert visible_body(removed_message) == nil
+      assert visible_body(string_removed_message) == nil
     end
   end
 
