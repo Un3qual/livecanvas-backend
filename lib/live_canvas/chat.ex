@@ -205,6 +205,14 @@ defmodule LC.Chat do
     Broadcasts.message_payload(chat_message)
   end
 
+  @doc """
+  Returns the client-visible body for a retained chat message.
+  """
+  @spec visible_body(ChatMessage.t() | map()) :: String.t() | nil
+  def visible_body(chat_message) when is_map(chat_message) do
+    ChatMessageChanges.visible_body(chat_message)
+  end
+
   @spec active_host(pos_integer()) :: User.t() | nil
   defp active_host(host_id) when is_integer(host_id) do
     from(user in User, where: user.id == ^host_id and is_nil(user.suspended_at))
