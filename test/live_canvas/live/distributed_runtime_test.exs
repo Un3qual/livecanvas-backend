@@ -95,6 +95,32 @@ defmodule LC.Live.DistributedRuntimeTest do
                )
     end
 
+    test "ignores app-config runtime RPC module swaps" do
+      host = user_fixture()
+      viewer = user_fixture()
+      session = live_session_fixture(host.id)
+      remote_owner = "remote-owner@127.0.0.1"
+      previous_live_config = Application.get_env(:live_canvas, Live, [])
+
+      Application.put_env(
+        :live_canvas,
+        Live,
+        Keyword.put(previous_live_config, :runtime_rpc, FakeRuntimeRPC)
+      )
+
+      on_exit(fn ->
+        Application.put_env(:live_canvas, Live, previous_live_config)
+      end)
+
+      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+      configure_runtime_rpc([{:ok, :ok}])
+
+      assert {:error, :remote_unreachable} =
+               Live.join_live_session(session, viewer, :viewer)
+
+      refute_received {:runtime_rpc_call, ^remote_owner, Live, _function, _args, _opts}
+    end
+
     test "maps remote runtime not found to a stable reason atom" do
       host = user_fixture()
       viewer = user_fixture()

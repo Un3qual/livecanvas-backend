@@ -39,7 +39,7 @@ defmodule LC.Live do
   @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type runtime_rpc_error :: :remote_not_found | :remote_timeout | :remote_unreachable
   @type runtime_target :: {:local, pid()} | {:remote, String.t()}
-  @type runtime_rpc_module :: module()
+  @type runtime_rpc_adapter :: module()
   @type session_server_lookup_result ::
           {:ok, pid()} | {:error, :not_found | {:owned_by_remote, String.t()}}
 
@@ -188,7 +188,13 @@ defmodule LC.Live do
           :ok
       end
 
-    :ok = emit_live_session_telemetry(:end, %{session_id: session_id}, normalize_transition_result(result))
+    :ok =
+      emit_live_session_telemetry(
+        :end,
+        %{session_id: session_id},
+        normalize_transition_result(result)
+      )
+
     result
   end
 
@@ -236,7 +242,7 @@ defmodule LC.Live do
              is_atom(role) and is_list(opts) do
     now = now_utc()
     telemetry_metadata = join_telemetry_metadata(session_id, user_id, host_id, role)
-    runtime_rpc = runtime_rpc_module(opts)
+    runtime_rpc = Keyword.get(opts, :runtime_rpc, RuntimeRPC)
 
     # Channel callers can hold stale assigns, so moderation checks must be
     # re-evaluated from persisted suspension state at join time.
@@ -305,7 +311,7 @@ defmodule LC.Live do
       )
       when status in [:starting, :live, :ended] and visibility in [:followers, :public] and
              is_list(opts) do
-    runtime_rpc = runtime_rpc_module(opts)
+    runtime_rpc = Keyword.get(opts, :runtime_rpc, RuntimeRPC)
 
     case status do
       :ended ->
@@ -412,7 +418,11 @@ defmodule LC.Live do
   end
 
   defp validate_recording_media_asset(changeset, _host_id, _opts) do
-    Ecto.Changeset.add_error(changeset, :recording_media_asset_id, "must belong to the session host")
+    Ecto.Changeset.add_error(
+      changeset,
+      :recording_media_asset_id,
+      "must belong to the session host"
+    )
   end
 
   @spec lock_live_session_for_end(pos_integer()) :: LiveSession.t() | nil
@@ -449,7 +459,7 @@ defmodule LC.Live do
           pos_integer(),
           LCSchemas.Live.live_participant_role(),
           DateTime.t(),
-          runtime_rpc_module()
+          runtime_rpc_adapter()
         ) :: {:ok, LiveParticipant.t()} | {:error, term()}
   defp upsert_live_participant_for_runtime_join(
          runtime_target,
@@ -540,7 +550,7 @@ defmodule LC.Live do
           pos_integer(),
           pos_integer(),
           LCSchemas.Live.live_participant_role(),
-          runtime_rpc_module()
+          runtime_rpc_adapter()
         ) :: :ok | {:error, runtime_rpc_error()}
   defp join_runtime({:local, pid}, _session_id, user_id, role, _runtime_rpc)
        when is_pid(pid) and is_integer(user_id) and is_atom(role) do
@@ -561,7 +571,7 @@ defmodule LC.Live do
           pos_integer(),
           pos_integer(),
           LCSchemas.Live.live_participant_role(),
-          runtime_rpc_module()
+          runtime_rpc_adapter()
         ) :: :ok | {:error, runtime_rpc_error()}
   defp join_runtime_with_retry(
          {:remote, _owner_node} = runtime_target,
@@ -592,7 +602,7 @@ defmodule LC.Live do
     join_runtime(runtime_target, session_id, user_id, role, runtime_rpc)
   end
 
-  @spec remote_lookup(String.t(), pos_integer(), runtime_rpc_module()) ::
+  @spec remote_lookup(String.t(), pos_integer(), runtime_rpc_adapter()) ::
           :ok | {:error, runtime_rpc_error()}
   defp remote_lookup(owner_node, session_id, runtime_rpc)
        when is_binary(owner_node) and is_integer(session_id) and is_atom(runtime_rpc) do
@@ -611,7 +621,7 @@ defmodule LC.Live do
           pos_integer(),
           pos_integer(),
           LCSchemas.Live.live_participant_role(),
-          runtime_rpc_module()
+          runtime_rpc_adapter()
         ) :: :ok | {:error, runtime_rpc_error()}
   defp remote_join(owner_node, session_id, user_id, role, runtime_rpc)
        when is_binary(owner_node) and is_integer(session_id) and is_integer(user_id) and
@@ -641,25 +651,13 @@ defmodule LC.Live do
 
   defp normalize_remote_response(_response), do: {:error, :remote_not_found}
 
-  @spec runtime_rpc_module(keyword()) :: runtime_rpc_module()
-  defp runtime_rpc_module(opts) when is_list(opts) do
-    configured_runtime_rpc =
-      Application.get_env(:live_canvas, __MODULE__, [])
-      |> Keyword.get(:runtime_rpc, RuntimeRPC)
-
-    case Keyword.get(opts, :runtime_rpc, configured_runtime_rpc) do
-      runtime_rpc when is_atom(runtime_rpc) -> runtime_rpc
-      _other -> RuntimeRPC
-    end
-  end
-
   @spec runtime_rpc_timeout_ms() :: pos_integer()
   defp runtime_rpc_timeout_ms do
     Application.get_env(:live_canvas, __MODULE__, [])
     |> Keyword.get(:runtime_rpc_timeout_ms, 5_000)
   end
 
-  @spec live_session_state_snapshot_from_runtime(LiveSession.t(), runtime_rpc_module()) ::
+  @spec live_session_state_snapshot_from_runtime(LiveSession.t(), runtime_rpc_adapter()) ::
           live_session_state()
   defp live_session_state_snapshot_from_runtime(
          %LiveSession{id: session_id} = live_session,
@@ -748,7 +746,7 @@ defmodule LC.Live do
     end)
   end
 
-  @spec remote_live_session_state_snapshot(String.t(), pos_integer(), runtime_rpc_module()) ::
+  @spec remote_live_session_state_snapshot(String.t(), pos_integer(), runtime_rpc_adapter()) ::
           {:ok, live_session_state()} | {:error, runtime_rpc_error()}
   defp remote_live_session_state_snapshot(owner_node, session_id, runtime_rpc)
        when is_binary(owner_node) and is_integer(session_id) and is_atom(runtime_rpc) do
@@ -810,7 +808,8 @@ defmodule LC.Live do
   defp maybe_stop_session_server(_updated_count, session_id) when is_integer(session_id),
     do: SessionSupervisor.stop_session_server(session_id)
 
-  @spec normalize_transition_result(end_live_session_transition_result()) :: end_live_session_result()
+  @spec normalize_transition_result(end_live_session_transition_result()) ::
+          end_live_session_result()
   defp normalize_transition_result({:ok, live_session, _transitioned?}), do: {:ok, live_session}
   defp normalize_transition_result({:error, _reason} = error), do: error
 

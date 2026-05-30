@@ -30,6 +30,12 @@
 - Run `mix precommit` and `mix typecheck` before merging typed work.
 - `mix precommit` includes `mix typecheck`, and `mix typecheck` is clean.
 
+## Runtime Boundaries And Test Seams
+
+- Runtime or external-service adapters should be explicit boundaries with typed behavior callbacks.
+- Production module swaps through app config should exist only when deployment actually supports changing the adapter and the convention/config is documented.
+- Test-only adapter swaps should use explicit per-call opts, support helpers, or local fakes instead of hidden app-config module indirection.
+
 ## GraphQL And Relay
 
 - The target standard is Relay-first: `node` lookups, global IDs, connection fields, edges, cursors, and Relay-friendly mutations.
