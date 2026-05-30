@@ -4,5 +4,5 @@ defmodule LCTransport do
   use Boundary,
     top_level?: true,
     deps: [],
-    exports: [LiveSessionTopics]
+    exports: [LiveSessionReasons, LiveSessionTopics]
 end

@@ -4,7 +4,7 @@ defmodule LCGQL.Live.Resolver do
   alias LCGQL.MutationErrors
   alias LCGQL.Relay
   alias LC.RateLimiter
-  alias LCTransport.LiveSessionTopics
+  alias LCTransport.{LiveSessionReasons, LiveSessionTopics}
   alias Phoenix.Socket.Broadcast
 
   @type mutation_error :: MutationErrors.user_error()
@@ -310,7 +310,11 @@ defmodule LCGQL.Live.Resolver do
     Phoenix.PubSub.broadcast(
       LC.PubSub,
       topic,
-      %Broadcast{topic: topic, event: "disconnect", payload: %{reason: Atom.to_string(reason)}}
+      %Broadcast{
+        topic: topic,
+        event: "disconnect",
+        payload: %{reason: LiveSessionReasons.disconnect_reason(reason)}
+      }
     )
   end
 
@@ -329,7 +333,11 @@ defmodule LCGQL.Live.Resolver do
     Phoenix.PubSub.broadcast(
       LC.PubSub,
       topic,
-      %Broadcast{topic: topic, event: "disconnect", payload: %{reason: Atom.to_string(reason)}}
+      %Broadcast{
+        topic: topic,
+        event: "disconnect",
+        payload: %{reason: LiveSessionReasons.disconnect_reason(reason)}
+      }
     )
   end
 
