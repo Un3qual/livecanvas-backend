@@ -7,11 +7,11 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Backend Lane
 
 - Lane pointer: `docs/plans/backend/NOW.md`
-- Status: active for planning
-- Current track: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Current batch: create the next detailed backend implementation plan
-- Next queued batch: the first executable batch from the new backend plan
-- Notes: backend lane owns backend code and backend planning docs only; shared dashboard/index updates stay with the coordinator
+- Status: active for backend code-quality cleanup
+- Current track: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
+- Current batch: `GQL-009` Stage 8 Task 2 data-governance resolver extraction
+- Next queued batch: `GQL-009` Stage 8 Task 3 user/profile/identity resolver extraction
+- Notes: backend lane owns backend code and backend planning docs only; shared dashboard/index updates stay with the coordinator unless explicitly assigned
 
 ### Mobile Lane
 
@@ -35,18 +35,23 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Release Roadmap And Planning Holes
 
 - Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Status: active for backend planning
-- Notes: this roadmap is now the backend lane's planning source until the next executable product batch is written
+- Status: paused behind explicitly reprioritized backend code-quality cleanup
+- Notes: return to this roadmap after the active cleanup batch finishes or the backend lane is explicitly reprioritized again
+
+### Backend Code Quality Cleanup
+
+- Plan: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
+- Status: active for `GQL-009`
+- Current batch: split `LCGQL.Accounts.Resolver` by cohesive GraphQL API area after the narrower helper cleanups landed; contact resolver extraction is complete, and data-governance extraction is next
+- Notes: `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete; `SOCK-001` was merged into `SOCK-002`; `GEN-001` remains a separate chat timeline/event-object redesign
 
 ## Queued Candidate Work
-
-- The active backend lane remains on the live-session state/presence track unless another slice is explicitly reprioritized.
 
 ### Development Seed Data
 
 - Plan: `docs/plans/2026-03-22-development-seed-data.md`
-- Status: queued
-- Notes: add deterministic development-only seed accounts, social graph edges, feed posts, and a local live-session fixture through `priv/repo/seeds.exs` so backend and mobile work stop depending on manual data setup.
+- Status: completed through Task 2
+- Notes: deterministic development-only seed accounts, social graph edges, feed posts, and a local live-session fixture are implemented and documented.
 
 ### Mobile Expo Frontend Planning Track
 
@@ -66,6 +71,9 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 - GraphQL batching and N+1 reduction is complete through `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 3`.
 - Chat product surface track is complete through `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 3`.
 - Live session channel state/presence is complete through `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 3`.
+- Live session client contract stabilization is complete through `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` -> `Task 3`.
+- Post reporting is complete through `docs/plans/content/2026-04-24-post-reporting.md` -> `Task 2`.
+- Development seed data is complete through `docs/plans/2026-03-22-development-seed-data.md` -> `Task 2`.
 - Live replay and recording track is complete through `docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md` -> `Task 3`.
 - Checklist-complete plans belong in `docs/plans/archive/completed/`.
 - Archived plans are historical context, not the default starting point for a new execution turn.

@@ -1,6 +1,6 @@
 # Current Execution
 
-Last reviewed: 2026-03-22
+Last reviewed: 2026-05-31
 Status: active
 
 ## Coordinator Dashboard
@@ -14,8 +14,8 @@ Status: active
 
 ### Backend Lane
 
-- Status: active for planning
-- Current batch: `docs/plans/backend/NOW.md` -> `Create the next detailed backend implementation plan`
+- Status: active for backend code-quality cleanup
+- Current batch: `docs/plans/backend/NOW.md` -> `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> `GQL-009` Stage 8 Task 2 data-governance resolver extraction
 - Lane write scope: backend code and backend planning docs only
 
 ### Mobile Lane
@@ -31,7 +31,7 @@ Status: active
 
 ## Next Up
 
-- Once the backend lane finishes its planning batch, refresh this dashboard only if `docs/plans/backend/NOW.md` advances to a new executable batch or status.
+- Once the backend lane finishes the current `GQL-009` slice, refresh this dashboard only if `docs/plans/backend/NOW.md` advances to another cleanup slice or a different backend track.
 - Once the mobile lane finishes `Task 1`, refresh the mobile lane summary here only if `docs/plans/mobile/NOW.md` advances to a new batch or status.
 
 ## Repair Conditions
