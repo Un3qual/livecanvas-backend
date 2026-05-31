@@ -2,7 +2,7 @@ defmodule LCGQL.Accounts.Mutations do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  alias LCGQL.Accounts.{ContactResolver, DataGovernanceResolver, Resolver, UserResolver}
+  alias LCGQL.Accounts.{AuthResolver, ContactResolver, DataGovernanceResolver, UserResolver}
 
   object :account_mutations do
     payload field :begin_auth_challenge do
@@ -18,7 +18,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:auth_error)))
       end
 
-      resolve(&Resolver.begin_auth_challenge/3)
+      resolve(&AuthResolver.begin_auth_challenge/3)
     end
 
     payload field :sign_up do
@@ -36,7 +36,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:auth_error)))
       end
 
-      resolve(&Resolver.sign_up/3)
+      resolve(&AuthResolver.sign_up/3)
     end
 
     payload field :log_in do
@@ -54,7 +54,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:auth_error)))
       end
 
-      resolve(&Resolver.log_in/3)
+      resolve(&AuthResolver.log_in/3)
     end
 
     payload field :register_with_email do
@@ -105,7 +105,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.request_password_reset/3)
+      resolve(&AuthResolver.request_password_reset/3)
     end
 
     payload field :reset_password do
@@ -120,7 +120,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.reset_password/3)
+      resolve(&AuthResolver.reset_password/3)
     end
 
     payload field :unlink_viewer_identity do
@@ -215,7 +215,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.issue_viewer_auth_tokens/3)
+      resolve(&AuthResolver.issue_viewer_auth_tokens/3)
     end
 
     payload field :refresh_auth_tokens do
@@ -229,7 +229,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.refresh_auth_tokens/3)
+      resolve(&AuthResolver.refresh_auth_tokens/3)
     end
 
     payload field :revoke_refresh_token do
@@ -242,7 +242,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.revoke_refresh_token/3)
+      resolve(&AuthResolver.revoke_refresh_token/3)
     end
   end
 end

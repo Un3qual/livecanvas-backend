@@ -1,4 +1,4 @@
-defmodule LCGQL.Accounts.Resolver do
+defmodule LCGQL.Accounts.AuthResolver do
   alias LC.Accounts
   alias LCGQL.FieldNames
   alias LCGQL.MutationErrors
