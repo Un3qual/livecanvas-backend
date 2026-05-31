@@ -29,7 +29,7 @@ config :live_canvas, LCWeb.Plugs.WebhookSignature,
 
 config :live_canvas, LC.Infra.AsyncJobs.Worker, enabled: false
 
-# Keep explicit runtime lease defaults for tests so scenario tests can
+# Keep explicit peer runtime defaults for tests so scenario tests can
 # temporarily override these values and restore deterministic baselines.
 config :live_canvas, LC.TestSupport.Live.PeerRuntimeHelper,
   rpc_timeout_ms: 5_000,
