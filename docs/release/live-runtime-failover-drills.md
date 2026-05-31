@@ -1,11 +1,11 @@
 # Live Runtime Failover Drills Runbook
 
-Use this runbook to rehearse ownership handoff behavior for distributed live session runtimes.
+Use this runbook to rehearse shard ownership handoff behavior for distributed live session runtimes.
 
 ## Owners
 
 - Release Engineer: runs the drill command and captures output evidence.
-- Live Runtime Owner: validates lease-owner transitions and reconnect behavior.
+- Live Runtime Owner: validates shard-owner transitions and reconnect behavior.
 - Incident Commander (IC): approves go/no-go after drill evidence review.
 
 ## Prerequisites
@@ -25,16 +25,16 @@ Use this runbook to rehearse ownership handoff behavior for distributed live ses
 
 ## Drill Steps
 
-1. Capture current runtime owner lease.
+1. Capture current shard owner.
 2. Simulate owner-node partition.
-3. Force ownership takeover on the target node.
+3. Force shard ownership takeover on the target node.
 4. Run reconnect join probe.
-5. Restore topology and verify steady owner heartbeat.
+5. Restore topology and verify steady shard owner.
 
 ## Required Evidence For Release Ticket
 
 - Command arguments used (`session-id`, `takeover-node`, `MIX_ENV`).
 - Dry-run output captured and attached.
 - Execution output for each step with timestamp.
-- Final owner lease record (`owner_node`, `lease_expires_at`, `heartbeat_at`).
+- Final shard owner record and routing evidence.
 - Reconnect probe result (`success`/`failure`) and participant consistency notes.

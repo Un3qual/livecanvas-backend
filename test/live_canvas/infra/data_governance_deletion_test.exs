@@ -164,6 +164,22 @@ defmodule LC.Infra.DataGovernanceDeletionTest do
                  auth_event.metadata["purge_mode"] == "stubbed"
              end)
     end
+
+    test "accepts atom-key async job payloads" do
+      user = user_fixture()
+
+      assert {:ok, request} =
+               DataGovernance.request_account_deletion(user, grace_period_seconds: 0)
+
+      job = %AsyncJob{
+        kind: "account_deletion_request",
+        payload: %{account_deletion_request_id: request.id}
+      }
+
+      assert :ok = DataGovernance.Deletion.handle(job)
+
+      assert %{status: :completed} = Repo.get!(AccountDeletionRequest, request.id)
+    end
   end
 
   @spec mark_request_status!(pos_integer(), LCSchemas.Infra.account_deletion_request_status()) ::

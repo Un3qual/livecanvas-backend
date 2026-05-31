@@ -4,6 +4,7 @@ defmodule LC.ContentTest do
   import LC.AccountsFixtures
 
   alias LC.{Content, Live}
+  alias LC.Content.MediaProcessingJob
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
@@ -460,6 +461,12 @@ defmodule LC.ContentTest do
       assert {:ok, finalized_asset} = Content.finalize_media_upload(owner, uploaded_asset.id, %{})
       assert finalized_asset.processing_state == :uploaded
       assert Repo.aggregate(AsyncJob, :count, :id) == 1
+    end
+
+    test "processing handler accepts atom-key payload identifiers" do
+      job = %AsyncJob{kind: "media_asset_processing", payload: %{media_asset_id: 9_999_999_999}}
+
+      assert :ok = MediaProcessingJob.handle(job)
     end
   end
 

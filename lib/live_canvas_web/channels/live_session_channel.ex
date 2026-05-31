@@ -6,7 +6,7 @@ defmodule LCWeb.LiveSessionChannel do
   alias LC.{Chat, Live}
   alias LC.RateLimiter
   alias LCWeb.Plugs.ObservabilityContext
-  alias LCTransport.LiveSessionTopics
+  alias LCTransport.{LiveSessionReasons, LiveSessionTopics}
   alias Phoenix.Socket.Broadcast
 
   @disconnect_event "disconnect"
@@ -62,7 +62,7 @@ defmodule LCWeb.LiveSessionChannel do
             {:error, reason}
           )
 
-        {:error, %{reason: join_error_reason(reason)}}
+        {:error, %{reason: LiveSessionReasons.join_error_reason(reason)}}
     end
   end
 
@@ -80,7 +80,7 @@ defmodule LCWeb.LiveSessionChannel do
         {:error, :not_authorized}
       )
 
-    {:error, %{reason: join_error_reason(:not_authorized)}}
+    {:error, %{reason: LiveSessionReasons.join_error_reason(:not_authorized)}}
   end
 
   @impl true
@@ -138,7 +138,7 @@ defmodule LCWeb.LiveSessionChannel do
         {:reply, {:ok, payload}, socket}
 
       {:error, reason} ->
-        {:reply, {:error, %{reason: message_error_reason(reason)}}, socket}
+        {:reply, {:error, %{reason: LiveSessionReasons.chat_send_error_reason(reason)}}, socket}
     end
   end
 
@@ -152,7 +152,8 @@ defmodule LCWeb.LiveSessionChannel do
         {:error, :invalid_body}
       )
 
-    {:reply, {:error, %{reason: message_error_reason(:invalid_body)}}, socket}
+    {:reply, {:error, %{reason: LiveSessionReasons.chat_send_error_reason(:invalid_body)}},
+     socket}
   end
 
   @impl true
@@ -170,26 +171,6 @@ defmodule LCWeb.LiveSessionChannel do
   end
 
   def terminate(_reason, _socket), do: :ok
-
-  defp join_error_reason(:ended), do: "session_ended"
-  defp join_error_reason(:not_found), do: "session_not_found"
-  defp join_error_reason(:invalid_session_id), do: "invalid_session_id"
-  defp join_error_reason(:session_ended), do: "session_ended"
-  defp join_error_reason(:not_authorized), do: "not_authorized"
-  defp join_error_reason(:rate_limited), do: "rate_limited"
-  defp join_error_reason({:owned_by_remote, _owner_node}), do: "session_unavailable"
-
-  defp join_error_reason(reason)
-       when reason in [:remote_not_found, :remote_timeout, :remote_unreachable],
-       do: "session_unavailable"
-
-  defp join_error_reason(_reason), do: "join_failed"
-
-  defp message_error_reason(:session_ended), do: "session_ended"
-  defp message_error_reason(:not_authorized), do: "not_authorized"
-  defp message_error_reason(:invalid_body), do: "invalid_body"
-  defp message_error_reason(:rate_limited), do: "rate_limited"
-  defp message_error_reason(%Ecto.Changeset{}), do: "invalid_message"
 
   defp safe_leave_live_session(live_session, current_user) do
     Live.leave_live_session(live_session, current_user)

@@ -1,6 +1,16 @@
 defmodule LCSchemas.Social.Mute do
   use Ecto.Schema
 
+  @moduledoc """
+  Schema for the `mutes` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `(muter_id, muted_id)` is unique.
+  - Deleting either user cascades to the mute row.
+  - `muter_id` and `muted_id` indexes support relationship lookup paths.
+  """
+
   @type t :: %__MODULE__{
           entropy_id: Ecto.UUID.t() | nil,
           id: integer() | nil,

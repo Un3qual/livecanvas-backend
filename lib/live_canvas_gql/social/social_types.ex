@@ -2,7 +2,9 @@ defmodule LCGQL.Social.Types do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  alias LCGQL.Social.Resolver
+  import Absinthe.Resolution.Helpers, only: [dataloader: 1]
+
+  alias LC.Accounts
 
   connection(node_type: :follow_request)
 
@@ -30,12 +32,7 @@ defmodule LCGQL.Social.Types do
     field :requested_at, non_null(:string)
 
     field :follower, non_null(:user) do
-      resolve(&Resolver.follow_request_follower/3)
+      resolve(dataloader(Accounts))
     end
-  end
-
-  object :social_error do
-    field :field, :string
-    field :message, non_null(:string)
   end
 end

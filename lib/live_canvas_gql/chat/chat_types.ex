@@ -2,6 +2,9 @@ defmodule LCGQL.Chat.Types do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
+  import Absinthe.Resolution.Helpers, only: [dataloader: 1]
+
+  alias LC.Accounts
   alias LCGQL.Chat.Resolver
 
   connection(node_type: :chat_message)
@@ -47,7 +50,7 @@ defmodule LCGQL.Chat.Types do
     field :inserted_at, non_null(:string)
 
     field :sender, :user do
-      resolve(&Resolver.chat_message_sender/3)
+      resolve(dataloader(Accounts))
     end
   end
 end

@@ -125,9 +125,9 @@ defmodule LC.Content do
   @doc """
   Gets a post report by ID when it belongs to the viewer.
   """
-  @spec get_user_post_report(User.t(), pos_integer()) :: PostReportSchema.t() | nil
+  @spec get_user_post_report(User.t(), integer()) :: PostReportSchema.t() | nil
   def get_user_post_report(%User{id: reporter_id}, report_id)
-      when is_integer(report_id) and report_id > 0 do
+      when is_integer(report_id) do
     Repo.get_by(PostReportSchema, id: report_id, reporter_id: reporter_id)
   end
 
@@ -231,9 +231,9 @@ defmodule LC.Content do
   @doc """
   Gets a media asset by ID when owned by the provided viewer.
   """
-  @spec get_user_media_asset(User.t(), pos_integer()) :: MediaAssetSchema.t() | nil
+  @spec get_user_media_asset(User.t(), integer()) :: MediaAssetSchema.t() | nil
   def get_user_media_asset(%User{id: owner_id}, media_asset_id)
-      when is_integer(media_asset_id) and media_asset_id > 0 do
+      when is_integer(media_asset_id) do
     Repo.get_by(MediaAssetSchema, id: media_asset_id, owner_id: owner_id)
   end
 

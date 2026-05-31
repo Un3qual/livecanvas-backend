@@ -4,6 +4,16 @@ defmodule LCSchemas.Chat.ChatMessage do
   alias LCSchemas.Accounts.User
   alias LCSchemas.Live.LiveSession
 
+  @moduledoc """
+  Schema for the `chat_messages` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - Deleting the live session or sender cascades to messages.
+  - Deleting a moderator nilifies `moderated_by_id`.
+  - `(live_session_id, inserted_at, id)` supports retained-history pagination order.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

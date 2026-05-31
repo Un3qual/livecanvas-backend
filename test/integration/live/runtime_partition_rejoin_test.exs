@@ -4,10 +4,10 @@ defmodule LC.Integration.Live.RuntimePartitionRejoinTest do
   import LC.AccountsFixtures, only: [user_fixture: 1]
 
   alias LC.Live
-  alias LC.Live.{SessionOwnership, SessionSupervisor}
   alias LC.Infra.Repo
+  alias LC.RealtimeRuntime
   alias LC.TestSupport.Live.PeerRuntimeHelper
-  alias LCSchemas.Live.{LiveParticipant, LiveSession, LiveSessionRuntimeOwner}
+  alias LCSchemas.Live.{LiveParticipant, LiveSession}
 
   @moduletag :peer_runtime
 
@@ -26,13 +26,7 @@ defmodule LC.Integration.Live.RuntimePartitionRejoinTest do
         session = live_session_fixture(host.id)
         remote_owner = Atom.to_string(peer_node)
 
-        assert {:ok, _peer_runtime_pid} =
-                 PeerRuntimeHelper.rpc_call(
-                   peer_node,
-                   SessionSupervisor,
-                   :start_session_server,
-                   [session.id]
-                 )
+        put_remote_owner(session, remote_owner)
 
         assert {:error, {:owned_by_remote, ^remote_owner}} =
                  Live.lookup_session_server(session.id)
@@ -51,9 +45,7 @@ defmodule LC.Integration.Live.RuntimePartitionRejoinTest do
                  )
                )
 
-        lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session.id)
-        _deleted_lease = Repo.delete!(lease)
-        assert :ok = wait_for_owner_release(session.id)
+        clear_remote_owner(session)
 
         assert {:ok, %LiveParticipant{user_id: recovered_viewer_id}} =
                  Live.join_live_session(session, recovered_viewer, :viewer)
@@ -63,25 +55,6 @@ defmodule LC.Integration.Live.RuntimePartitionRejoinTest do
         assert node(local_runtime_pid) == Node.self()
       end)
     end)
-  end
-
-  defp wait_for_owner_release(session_id, attempts \\ 30)
-
-  defp wait_for_owner_release(_session_id, 0), do: flunk("session owner lease was not released")
-
-  defp wait_for_owner_release(session_id, attempts)
-       when is_integer(session_id) and attempts > 0 do
-    case SessionOwnership.get_owner(
-           session_id,
-           DateTime.utc_now() |> DateTime.truncate(:microsecond)
-         ) do
-      {:error, :not_found} ->
-        :ok
-
-      {:ok, _owner} ->
-        Process.sleep(25)
-        wait_for_owner_release(session_id, attempts - 1)
-    end
   end
 
   defp live_session_fixture(host_id) when is_integer(host_id) do
@@ -94,5 +67,24 @@ defmodule LC.Integration.Live.RuntimePartitionRejoinTest do
 
   defp unique_email(prefix) when is_binary(prefix) do
     "#{prefix}-#{System.system_time(:microsecond)}-#{System.unique_integer([:positive, :monotonic])}@example.com"
+  end
+
+  defp put_remote_owner(%LiveSession{id: session_id}, remote_owner)
+       when is_integer(session_id) and is_binary(remote_owner) do
+    shard_id = RealtimeRuntime.shard_id(session_id)
+    :ok = RealtimeRuntime.put_test_shard_owner(shard_id, {:remote, remote_owner})
+
+    on_exit(fn ->
+      RealtimeRuntime.clear_test_shard_owner(shard_id)
+      RealtimeRuntime.stop_session_runtime(session_id)
+    end)
+
+    :ok
+  end
+
+  defp clear_remote_owner(%LiveSession{id: session_id}) when is_integer(session_id) do
+    session_id
+    |> RealtimeRuntime.shard_id()
+    |> RealtimeRuntime.clear_test_shard_owner()
   end
 end

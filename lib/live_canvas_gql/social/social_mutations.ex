@@ -12,7 +12,7 @@ defmodule LCGQL.Social.Mutations do
 
       output do
         field :follow, :social_follow_payload
-        field :errors, non_null(list_of(non_null(:social_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.follow_user/3)
@@ -25,7 +25,7 @@ defmodule LCGQL.Social.Mutations do
 
       output do
         field :follow, :social_follow_payload
-        field :errors, non_null(list_of(non_null(:social_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.accept_follow_request/3)
@@ -37,7 +37,7 @@ defmodule LCGQL.Social.Mutations do
       end
 
       output do
-        field :errors, non_null(list_of(non_null(:social_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.decline_follow_request/3)
@@ -49,7 +49,7 @@ defmodule LCGQL.Social.Mutations do
       end
 
       output do
-        field :errors, non_null(list_of(non_null(:social_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.block_user/3)
@@ -61,7 +61,7 @@ defmodule LCGQL.Social.Mutations do
       end
 
       output do
-        field :errors, non_null(list_of(non_null(:social_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.mute_user/3)
@@ -73,7 +73,7 @@ defmodule LCGQL.Social.Mutations do
       end
 
       output do
-        field :errors, non_null(list_of(non_null(:social_error)))
+        field :errors, non_null(list_of(non_null(:user_error)))
       end
 
       resolve(&Resolver.unmute_user/3)

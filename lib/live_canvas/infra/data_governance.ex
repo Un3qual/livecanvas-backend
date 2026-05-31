@@ -39,9 +39,9 @@ defmodule LC.Infra.DataGovernance do
   @doc """
   Fetches a viewer-owned export request by local ID.
   """
-  @spec get_data_export_request(User.t(), pos_integer()) :: DataExportRequest.t() | nil
+  @spec get_data_export_request(User.t(), integer()) :: DataExportRequest.t() | nil
   def get_data_export_request(%User{} = user, request_id)
-      when is_integer(request_id) and request_id > 0 do
+      when is_integer(request_id) do
     Export.get(user, request_id)
   end
 
@@ -63,9 +63,9 @@ defmodule LC.Infra.DataGovernance do
   @doc """
   Fetches a viewer-owned account deletion request by local ID.
   """
-  @spec get_account_deletion_request(User.t(), pos_integer()) :: AccountDeletionRequest.t() | nil
+  @spec get_account_deletion_request(User.t(), integer()) :: AccountDeletionRequest.t() | nil
   def get_account_deletion_request(%User{} = user, request_id)
-      when is_integer(request_id) and request_id > 0 do
+      when is_integer(request_id) do
     Deletion.get(user, request_id)
   end
 

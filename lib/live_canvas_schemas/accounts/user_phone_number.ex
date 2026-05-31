@@ -3,6 +3,15 @@ defmodule LCSchemas.Accounts.UserPhoneNumber do
 
   alias LCSchemas.Accounts.{PhoneNumber, User}
 
+  @moduledoc """
+  Schema for the `user_phone_numbers` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `(user_id, phone_number_id)` is unique.
+  - Deleting the user or phone number cascades to the join row.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

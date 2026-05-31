@@ -69,6 +69,21 @@ defmodule LC.Infra.DataGovernanceExportTest do
       assert reloaded.artifact_metadata["object_key"] =~
                "exports/users/#{user.id}/requests/#{request.entropy_id}"
     end
+
+    test "accepts atom-key async job payloads" do
+      user = user_fixture()
+
+      assert {:ok, request} = DataGovernance.request_data_export(user)
+
+      job = %AsyncJob{
+        kind: "data_export_request",
+        payload: %{data_export_request_id: request.id}
+      }
+
+      assert :ok = DataGovernance.Export.handle(job)
+
+      assert %{status: :completed} = Repo.get!(DataExportRequest, request.id)
+    end
   end
 
   @spec mark_request_completed!(DataExportRequest.t()) :: :ok

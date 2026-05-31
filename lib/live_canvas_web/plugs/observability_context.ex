@@ -51,15 +51,16 @@ defmodule LCWeb.Plugs.ObservabilityContext do
   @spec build_socket_context(map(), pos_integer() | nil) :: context()
   def build_socket_context(params, viewer_id \\ nil) when is_map(params) do
     %{
-      request_id: request_id_from_value(value_for(params, "request_id")),
-      trace_id: trace_id_from_value(value_for(params, "trace_id")),
+      request_id: request_id_from_value(value_for(params, :request_id)),
+      trace_id: trace_id_from_value(value_for(params, :trace_id)),
       viewer_id: viewer_id,
       live_session_id: nil
     }
   end
 
   @spec put_viewer_context(context(), pos_integer() | nil) :: context()
-  def put_viewer_context(%{} = context, viewer_id) when is_nil(viewer_id) or is_integer(viewer_id) do
+  def put_viewer_context(%{} = context, viewer_id)
+      when is_nil(viewer_id) or is_integer(viewer_id) do
     %{context | viewer_id: viewer_id}
   end
 
@@ -165,8 +166,12 @@ defmodule LCWeb.Plugs.ObservabilityContext do
     |> Base.encode16(case: :lower)
   end
 
-  @spec value_for(map(), String.t()) :: term()
-  defp value_for(values, key) when is_map(values) and is_binary(key) do
-    Map.get(values, key) || Map.get(values, String.to_atom(key))
+  @spec value_for(map(), :request_id | :trace_id) :: term()
+  defp value_for(values, :request_id) when is_map(values) do
+    Map.get(values, :request_id) || Map.get(values, "request_id")
+  end
+
+  defp value_for(values, :trace_id) when is_map(values) do
+    Map.get(values, :trace_id) || Map.get(values, "trace_id")
   end
 end

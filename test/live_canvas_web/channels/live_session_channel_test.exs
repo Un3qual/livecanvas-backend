@@ -7,10 +7,11 @@ defmodule LCWeb.LiveSessionChannelTest do
 
   alias LC.{Accounts, Live}
   alias LC.Infra.Repo
-  alias LC.Live.{SessionOwnership, SessionServer, SessionSupervisor}
+  alias LC.Live.SessionServer
+  alias LC.RealtimeRuntime
   alias LCTransport.LiveSessionTopics
   alias LCSchemas.Chat.ChatMessage
-  alias LCSchemas.Live.{LiveParticipant, LiveSession, LiveSessionRuntimeOwner}
+  alias LCSchemas.Live.{LiveParticipant, LiveSession}
   alias LCWeb.{LiveSessionChannel, UserSocket}
 
   @endpoint LCWeb.Endpoint
@@ -18,23 +19,6 @@ defmodule LCWeb.LiveSessionChannelTest do
     [:live_canvas, :live, :channel, :join],
     [:live_canvas, :live, :channel, :chat_send]
   ]
-
-  defmodule FakeRuntimeRPC do
-    @moduledoc false
-
-    def call(_owner_node, _module, function, _args, _opts \\ []) do
-      mode =
-        Application.get_env(:live_canvas, __MODULE__, [])
-        |> Keyword.get(:mode, :ok)
-
-      case {mode, function} do
-        {:remote_not_found, :remote_lookup_session_server} -> {:ok, :ok}
-        {:remote_not_found, :remote_join_session_server} -> {:ok, {:error, :not_found}}
-        {:remote_timeout, _} -> {:error, :remote_timeout}
-        _ -> {:ok, :ok}
-      end
-    end
-  end
 
   setup do
     attach_live_channel_telemetry_handler()
@@ -556,7 +540,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     session = live_session_fixture(host.id)
     remote_owner = "remote-owner@127.0.0.1"
 
-    assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+    put_remote_owner(session, remote_owner)
 
     assert {:error, %{reason: "session_unavailable"}} =
              subscribe_and_join(
@@ -569,63 +553,6 @@ defmodule LCWeb.LiveSessionChannelTest do
                     %{
                       result: :error,
                       reason: :remote_unreachable,
-                      session_id: session_id,
-                      user_id: user_id
-                    }}
-
-    assert session_id == session.id
-    assert user_id == viewer.id
-  end
-
-  test "remote runtime not found returns session_unavailable and preserves telemetry reason" do
-    host = user_fixture(privacy_mode: :public)
-    viewer = user_fixture()
-    session = live_session_fixture(host.id)
-    remote_owner = "remote-owner@127.0.0.1"
-
-    :ok = configure_live_runtime_rpc(:remote_not_found)
-
-    assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
-
-    assert {:error, %{reason: "session_unavailable"}} =
-             subscribe_and_join(
-               socket_for(viewer),
-               LiveSessionChannel,
-               LiveSessionTopics.live_session_topic(session.id)
-             )
-
-    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
-                    %{
-                      result: :error,
-                      reason: :remote_not_found,
-                      session_id: session_id,
-                      user_id: user_id
-                    }}
-
-    assert session_id == session.id
-    assert user_id == viewer.id
-  end
-
-  test "remote runtime timeout returns session_unavailable and preserves telemetry reason" do
-    host = user_fixture(privacy_mode: :public)
-    viewer = user_fixture()
-    session = live_session_fixture(host.id)
-    remote_owner = "remote-owner@127.0.0.1"
-
-    :ok = configure_live_runtime_rpc(:remote_timeout)
-    assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
-
-    assert {:error, %{reason: "session_unavailable"}} =
-             subscribe_and_join(
-               socket_for(viewer),
-               LiveSessionChannel,
-               LiveSessionTopics.live_session_topic(session.id)
-             )
-
-    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
-                    %{
-                      result: :error,
-                      reason: :remote_timeout,
                       session_id: session_id,
                       user_id: user_id
                     }}
@@ -1129,42 +1056,34 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert :ok = wait_for_participant_left(session.id, viewer.id)
   end
 
-  test "ownership-loss handoff keeps join client-safe during reconnect windows" do
-    with_runtime_timing([lease_ttl_seconds: 1, lease_heartbeat_interval_ms: 20], fn ->
-      host = user_fixture(privacy_mode: :public)
-      viewer = user_fixture()
-      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+  test "remote shard handoff keeps join client-safe during reconnect windows" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
 
-      assert {:ok, runtime_pid} = Live.lookup_session_server(session.id)
-      assert Process.alive?(runtime_pid)
+    assert {:ok, runtime_pid} = Live.lookup_session_server(session.id)
+    assert Process.alive?(runtime_pid)
 
-      lease = Repo.get_by!(LiveSessionRuntimeOwner, live_session_id: session.id)
-      _deleted_lease = Repo.delete!(lease)
-      monitor_ref = Process.monitor(runtime_pid)
+    remote_owner = "remote-handoff@127.0.0.1"
+    put_remote_owner(session, remote_owner)
 
-      assert_receive {:DOWN, ^monitor_ref, :process, ^runtime_pid, :lost_ownership}
+    assert {:error, %{reason: "session_unavailable"}} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               LiveSessionTopics.live_session_topic(session.id)
+             )
 
-      remote_owner = "remote-handoff@127.0.0.1"
-      assert {:ok, _lease} = SessionOwnership.claim(session.id, remote_owner, now_utc())
+    assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
+                    %{
+                      result: :error,
+                      reason: :remote_unreachable,
+                      session_id: session_id,
+                      user_id: user_id
+                    }}
 
-      assert {:error, %{reason: "session_unavailable"}} =
-               subscribe_and_join(
-                 socket_for(viewer),
-                 LiveSessionChannel,
-                 LiveSessionTopics.live_session_topic(session.id)
-               )
-
-      assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :join], %{count: 1},
-                      %{
-                        result: :error,
-                        reason: :remote_unreachable,
-                        session_id: session_id,
-                        user_id: user_id
-                      }}
-
-      assert session_id == session.id
-      assert user_id == viewer.id
-    end)
+    assert session_id == session.id
+    assert user_id == viewer.id
   end
 
   defp socket_for(user) do
@@ -1183,26 +1102,6 @@ defmodule LCWeb.LiveSessionChannelTest do
       {:ok, socket} -> socket
       :error -> flunk("expected socket authentication to succeed")
     end
-  end
-
-  defp configure_live_runtime_rpc(mode) when is_atom(mode) do
-    previous_live_config = Application.get_env(:live_canvas, Live, [])
-    previous_fake_rpc_config = Application.get_env(:live_canvas, FakeRuntimeRPC, [])
-
-    Application.put_env(
-      :live_canvas,
-      Live,
-      Keyword.put(previous_live_config, :runtime_rpc, FakeRuntimeRPC)
-    )
-
-    Application.put_env(:live_canvas, FakeRuntimeRPC, mode: mode)
-
-    on_exit(fn ->
-      Application.put_env(:live_canvas, Live, previous_live_config)
-      Application.put_env(:live_canvas, FakeRuntimeRPC, previous_fake_rpc_config)
-    end)
-
-    :ok
   end
 
   defp live_session_fixture(host_id) when is_integer(host_id) do
@@ -1251,39 +1150,17 @@ defmodule LCWeb.LiveSessionChannelTest do
     :ok
   end
 
-  defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+  defp put_remote_owner(%LiveSession{id: session_id}, remote_owner)
+       when is_integer(session_id) and is_binary(remote_owner) do
+    shard_id = RealtimeRuntime.shard_id(session_id)
+    :ok = RealtimeRuntime.put_test_shard_owner(shard_id, {:remote, remote_owner})
 
-  defp with_runtime_timing(opts, fun) when is_list(opts) and is_function(fun, 0) do
-    lease_ttl_seconds = Keyword.fetch!(opts, :lease_ttl_seconds)
-    heartbeat_interval_ms = Keyword.fetch!(opts, :lease_heartbeat_interval_ms)
+    on_exit(fn ->
+      RealtimeRuntime.clear_test_shard_owner(shard_id)
+      RealtimeRuntime.stop_session_runtime(session_id)
+    end)
 
-    previous_ownership_config = Application.get_env(:live_canvas, SessionOwnership, [])
-
-    previous_supervisor_config =
-      Application.get_env(:live_canvas, SessionSupervisor, [])
-
-    Application.put_env(
-      :live_canvas,
-      SessionOwnership,
-      Keyword.put(previous_ownership_config, :lease_ttl_seconds, lease_ttl_seconds)
-    )
-
-    Application.put_env(
-      :live_canvas,
-      SessionSupervisor,
-      Keyword.put(
-        previous_supervisor_config,
-        :lease_heartbeat_interval_ms,
-        heartbeat_interval_ms
-      )
-    )
-
-    try do
-      fun.()
-    after
-      Application.put_env(:live_canvas, SessionOwnership, previous_ownership_config)
-      Application.put_env(:live_canvas, SessionSupervisor, previous_supervisor_config)
-    end
+    :ok
   end
 
   defp remove_message_mutation do

@@ -3,13 +3,14 @@ defmodule LCGQL.Chat.Resolver do
 
   import Ecto.Query, warn: false
 
-  alias LC.{Accounts, Chat}
+  alias LC.Chat
   alias LCGQL.Chat.SystemEventProjection
+  alias LCGQL.MutationErrors
   alias LCGQL.Relay
   alias LCTransport.LiveSessionTopics
 
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
-  @type mutation_error :: %{field: String.t() | nil, message: String.t()}
+  @type mutation_error :: MutationErrors.user_error()
   @type remove_message_payload :: %{chat_message: map() | nil, errors: [mutation_error()]}
   @type remove_message_result :: {:ok, remove_message_payload()}
   @type remove_message_reason ::
@@ -61,15 +62,15 @@ defmodule LCGQL.Chat.Resolver do
       {:ok, %{chat_message: removed_message, errors: []}}
     else
       nil ->
-        {:ok, %{chat_message: nil, errors: [mutation_error(:chat_message_id, :not_found)]}}
+        {:ok, %{chat_message: nil, errors: [remove_message_error(:chat_message_id, :not_found)]}}
 
       {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized] ->
-        {:ok, %{chat_message: nil, errors: [mutation_error(:chat_message_id, reason)]}}
+        {:ok, %{chat_message: nil, errors: [remove_message_error(:chat_message_id, reason)]}}
     end
   end
 
   def remove_live_chat_message(_parent, _args, _resolution) do
-    {:ok, %{chat_message: nil, errors: [mutation_error(nil, :unauthenticated)]}}
+    {:ok, %{chat_message: nil, errors: [remove_message_error(nil, :unauthenticated)]}}
   end
 
   @spec chat_message_body(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
@@ -93,16 +94,6 @@ defmodule LCGQL.Chat.Resolver do
       when is_map(chat_message) do
     {:ok, SystemEventProjection.details(chat_message)}
   end
-
-  @spec chat_message_sender(map(), map(), Absinthe.Resolution.t()) ::
-          LCGQL.Dataloader.dataloader_result()
-  def chat_message_sender(%{sender: %{id: _id} = sender}, _args, _resolution), do: {:ok, sender}
-
-  def chat_message_sender(%{sender_id: sender_id} = chat_message, _args, resolution)
-      when is_integer(sender_id),
-      do: LCGQL.Dataloader.load_assoc(chat_message, :sender, Accounts, resolution)
-
-  def chat_message_sender(_chat_message, _args, _resolution), do: {:ok, nil}
 
   @spec viewer_from_resolution(Absinthe.Resolution.t()) :: {:ok, map()} | :error
   defp viewer_from_resolution(%Absinthe.Resolution{
@@ -157,21 +148,9 @@ defmodule LCGQL.Chat.Resolver do
   defp user_message_kind?(%{kind: kind}) when kind in [:user_message, "user_message"], do: true
   defp user_message_kind?(_chat_message), do: false
 
-  @spec mutation_error(:chat_message_id | nil, remove_message_reason()) :: mutation_error()
-  defp mutation_error(field, reason) do
-    %{
-      field: error_field(field, reason),
-      message: error_message(reason)
-    }
-  end
+  @spec remove_message_error(:chat_message_id | nil, remove_message_reason()) :: mutation_error()
+  defp remove_message_error(:chat_message_id, reason) when reason in [:invalid_id, :invalid_type],
+    do: MutationErrors.invalid_error("chatMessageId")
 
-  @spec error_field(:chat_message_id | nil, remove_message_reason()) :: String.t() | nil
-  defp error_field(:chat_message_id, reason) when reason in [:invalid_id, :invalid_type],
-    do: "chatMessageId"
-
-  defp error_field(_field, _reason), do: nil
-
-  @spec error_message(remove_message_reason()) :: String.t()
-  defp error_message(reason) when reason in [:invalid_id, :invalid_type], do: "is invalid"
-  defp error_message(reason), do: Atom.to_string(reason)
+  defp remove_message_error(_field, reason), do: MutationErrors.user_error(nil, reason)
 end

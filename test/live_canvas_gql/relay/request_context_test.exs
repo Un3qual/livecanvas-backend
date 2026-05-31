@@ -89,6 +89,28 @@ defmodule LCGQL.Relay.RequestContextTest do
 
       assert %{"data" => %{"viewer" => nil}} = json_response(conn, 200)
     end
+
+    test "does not fall back to session auth when authorization header is malformed", %{
+      conn: conn
+    } do
+      session_user = user_fixture()
+
+      query = """
+      query {
+        viewer {
+          email
+        }
+      }
+      """
+
+      conn =
+        conn
+        |> log_in_user(session_user)
+        |> put_req_header("authorization", "Basic not-bearer")
+        |> post("/graphql", %{query: query})
+
+      assert %{"data" => %{"viewer" => nil}} = json_response(conn, 200)
+    end
   end
 
   describe "request loader context" do

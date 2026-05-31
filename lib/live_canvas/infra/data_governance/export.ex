@@ -4,7 +4,7 @@ defmodule LC.Infra.DataGovernance.Export do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
 
-  alias LC.Infra.{AsyncJobs, Repo}
+  alias LC.Infra.{AsyncJobs, Payload, Repo}
   alias LCSchemas.Accounts.User
   alias LCSchemas.Infra.{AsyncJob, DataExportRequest}
 
@@ -35,16 +35,16 @@ defmodule LC.Infra.DataGovernance.Export do
     |> Repo.all()
   end
 
-  @spec get(User.t(), pos_integer()) :: DataExportRequest.t() | nil
+  @spec get(User.t(), integer()) :: DataExportRequest.t() | nil
   def get(%User{id: user_id}, request_id)
-      when is_integer(user_id) and user_id > 0 and is_integer(request_id) and request_id > 0 do
+      when is_integer(user_id) and is_integer(request_id) do
     Repo.get_by(DataExportRequest, id: request_id, user_id: user_id)
   end
 
   @impl LC.Infra.AsyncJobs.Handler
   @spec handle(AsyncJob.t()) :: LC.Infra.AsyncJobs.Handler.result()
   def handle(%AsyncJob{kind: @job_kind, payload: payload}) when is_map(payload) do
-    with {:ok, request_id} <- extract_payload_integer(payload, :data_export_request_id),
+    with {:ok, request_id} <- Payload.positive_integer(payload, :data_export_request_id),
          %DataExportRequest{} = request <- Repo.get(DataExportRequest, request_id) do
       complete_export_request(request)
     else
@@ -185,15 +185,6 @@ defmodule LC.Infra.DataGovernance.Export do
       "content_type" => "application/json",
       "generated_at" => DateTime.to_iso8601(utc_now())
     }
-  end
-
-  @spec extract_payload_integer(map(), :data_export_request_id) ::
-          {:ok, pos_integer()} | {:error, :invalid_payload}
-  defp extract_payload_integer(payload, key) when is_map(payload) and is_atom(key) do
-    case Map.get(payload, key) || Map.get(payload, Atom.to_string(key)) do
-      value when is_integer(value) and value > 0 -> {:ok, value}
-      _ -> {:error, :invalid_payload}
-    end
   end
 
   @spec utc_now() :: DateTime.t()

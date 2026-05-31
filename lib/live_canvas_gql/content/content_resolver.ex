@@ -1,11 +1,9 @@
 defmodule LCGQL.Content.Resolver do
-  import Ecto.Changeset, only: [traverse_errors: 2]
-
-  alias LC.{Accounts, Content, Feed}
-  alias LCGQL.Relay
+  alias LC.{Content, Feed}
+  alias LCGQL.{FieldNames, MutationErrors, Relay}
   alias LCSchemas.Content.{MediaAsset, Post, PostReport}
 
-  @type mutation_error :: %{field: String.t() | nil, message: String.t()}
+  @type mutation_error :: MutationErrors.user_error()
   @type create_post_payload :: %{post: Post.t() | nil, errors: [mutation_error()]}
   @type create_post_result :: {:ok, create_post_payload()}
   @type signed_upload_header_view :: %{name: String.t(), value: String.t()}
@@ -49,17 +47,17 @@ defmodule LCGQL.Content.Resolver do
       {:ok, %{post: post, errors: []}}
     else
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{post: nil, errors: format_changeset_errors(changeset)}}
+        {:ok, %{post: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
 
       {:error, reason} when reason in [:invalid_id, :invalid_type] ->
-        {:ok, %{post: nil, errors: [post_mutation_error(:media_asset_ids, reason)]}}
+        {:ok, %{post: nil, errors: [post_error(:media_asset_ids, reason)]}}
     end
   end
 
   # Post creation is viewer-owned to prevent impersonation via client-supplied
   # author IDs in mutation input payloads.
   def create_post(_parent, _attrs, _resolution) do
-    {:ok, %{post: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+    {:ok, %{post: nil, errors: [MutationErrors.user_error(nil, :unauthenticated)]}}
   end
 
   @spec request_media_upload(
@@ -78,14 +76,19 @@ defmodule LCGQL.Content.Resolver do
         {:ok, %{media_asset: media_asset, signed_upload: signed_upload_view(upload), errors: []}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{media_asset: nil, signed_upload: nil, errors: format_changeset_errors(changeset)}}
+        {:ok,
+         %{
+           media_asset: nil,
+           signed_upload: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
 
       {:error, _reason} ->
         {:ok,
          %{
            media_asset: nil,
            signed_upload: nil,
-           errors: [%{field: nil, message: "upload_unavailable"}]
+           errors: [MutationErrors.user_error(nil, "upload_unavailable")]
          }}
     end
   end
@@ -94,7 +97,11 @@ defmodule LCGQL.Content.Resolver do
   # behalf of other users.
   def request_media_upload(_parent, _attrs, _resolution) do
     {:ok,
-     %{media_asset: nil, signed_upload: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+     %{
+       media_asset: nil,
+       signed_upload: nil,
+       errors: [MutationErrors.user_error(nil, :unauthenticated)]
+     }}
   end
 
   @spec update_post(
@@ -117,17 +124,17 @@ defmodule LCGQL.Content.Resolver do
       {:ok, %{post: post, errors: []}}
     else
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{post: nil, errors: format_changeset_errors(changeset)}}
+        {:ok, %{post: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
 
       {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found] ->
-        {:ok, %{post: nil, errors: [post_mutation_error(:post_id, reason)]}}
+        {:ok, %{post: nil, errors: [post_error(:post_id, reason)]}}
     end
   end
 
   # Post updates are viewer-scoped so clients cannot mutate posts they do not
   # own by providing arbitrary Relay IDs.
   def update_post(_parent, _attrs, _resolution) do
-    {:ok, %{post: nil, errors: [post_mutation_error(nil, :unauthenticated)]}}
+    {:ok, %{post: nil, errors: [post_error(nil, :unauthenticated)]}}
   end
 
   @spec delete_post(
@@ -149,15 +156,19 @@ defmodule LCGQL.Content.Resolver do
        }}
     else
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{deleted_post_id: nil, errors: format_changeset_errors(changeset)}}
+        {:ok,
+         %{
+           deleted_post_id: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
 
       {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found] ->
-        {:ok, %{deleted_post_id: nil, errors: [post_mutation_error(:post_id, reason)]}}
+        {:ok, %{deleted_post_id: nil, errors: [post_error(:post_id, reason)]}}
     end
   end
 
   def delete_post(_parent, _attrs, _resolution) do
-    {:ok, %{deleted_post_id: nil, errors: [post_mutation_error(nil, :unauthenticated)]}}
+    {:ok, %{deleted_post_id: nil, errors: [post_error(nil, :unauthenticated)]}}
   end
 
   @spec report_post(
@@ -182,20 +193,21 @@ defmodule LCGQL.Content.Resolver do
       {:ok, %{report: report, errors: []}}
     else
       nil ->
-        {:ok, %{report: nil, errors: [post_mutation_error(:post_id, :not_found)]}}
+        {:ok, %{report: nil, errors: [post_error(:post_id, :not_found)]}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{report: nil, errors: format_changeset_errors(changeset)}}
+        {:ok,
+         %{report: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
 
       {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found, :own_post] ->
-        {:ok, %{report: nil, errors: [post_mutation_error(:post_id, reason)]}}
+        {:ok, %{report: nil, errors: [post_error(:post_id, reason)]}}
     end
   end
 
   # Report creation is viewer-scoped so clients cannot submit reports on behalf
   # of another account or bypass post visibility through arbitrary Relay IDs.
   def report_post(_parent, _attrs, _resolution) do
-    {:ok, %{report: nil, errors: [post_mutation_error(nil, :unauthenticated)]}}
+    {:ok, %{report: nil, errors: [post_error(nil, :unauthenticated)]}}
   end
 
   @spec post(term(), %{id: term()}, term()) :: {:ok, Post.t() | nil}
@@ -260,14 +272,6 @@ defmodule LCGQL.Content.Resolver do
 
   def media_asset_public_url(_media_asset, _args, _resolution), do: {:ok, nil}
 
-  @spec author(map(), map(), Absinthe.Resolution.t()) :: LCGQL.Dataloader.dataloader_result()
-  def author(%{author: %{id: _id} = author}, _args, _resolution), do: {:ok, author}
-
-  def author(%{author_id: author_id} = post, _args, resolution) when is_integer(author_id),
-    do: LCGQL.Dataloader.load_assoc(post, :author, Accounts, resolution)
-
-  def author(_post, _args, _resolution), do: {:ok, nil}
-
   @spec media_assets(map(), map(), Absinthe.Resolution.t()) ::
           LCGQL.Dataloader.dataloader_result()
   def media_assets(%{id: post_id} = post, _args, %{context: %{loader: loader}})
@@ -285,21 +289,6 @@ defmodule LCGQL.Content.Resolver do
   end
 
   def media_assets(_post, _args, _resolution), do: {:ok, []}
-
-  @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
-  defp format_changeset_errors(changeset) do
-    changeset
-    |> traverse_errors(fn {message, options} ->
-      Enum.reduce(options, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
-    |> Enum.flat_map(fn {field, messages} ->
-      Enum.map(messages, fn message ->
-        %{field: to_string(field), message: message}
-      end)
-    end)
-  end
 
   @spec signed_upload_view(LC.Infra.ObjectStorage.signed_upload()) :: signed_upload_view()
   defp signed_upload_view(upload) do
@@ -391,17 +380,10 @@ defmodule LCGQL.Content.Resolver do
 
   defp normalize_post_media_assets(_media_assets), do: []
 
-  @spec post_mutation_error(:media_asset_ids | :post_id | nil, post_mutation_reason()) ::
+  @spec post_error(:media_asset_ids | :post_id | nil, post_mutation_reason()) ::
           mutation_error()
-  defp post_mutation_error(field, reason) do
-    %{
-      field: format_post_field(field),
-      message: Atom.to_string(reason)
-    }
-  end
+  defp post_error(nil, reason), do: MutationErrors.user_error(nil, reason)
 
-  @spec format_post_field(:media_asset_ids | :post_id | nil) :: String.t() | nil
-  defp format_post_field(nil), do: nil
-  defp format_post_field(:media_asset_ids), do: "mediaAssetIds"
-  defp format_post_field(:post_id), do: "postId"
+  defp post_error(field, reason),
+    do: MutationErrors.user_error(FieldNames.lower_camel(field), reason)
 end

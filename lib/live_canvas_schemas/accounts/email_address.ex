@@ -8,6 +8,14 @@ defmodule LCSchemas.Accounts.EmailAddress do
     UserEmailAddress
   }
 
+  @moduledoc """
+  Schema for the `email_addresses` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `normalized_email` is unique and owns canonical email identity.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

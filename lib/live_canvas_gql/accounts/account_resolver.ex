@@ -1,24 +1,14 @@
 defmodule LCGQL.Accounts.Resolver do
-  import Ecto.Changeset, only: [traverse_errors: 2]
-
   alias LC.{Accounts, Feed}
   alias LCGQL.FieldNames
+  alias LCGQL.MutationErrors
   alias LCGQL.Relay
   alias LCSchemas.Accounts.{User, UserIdentity}
   alias LCSchemas.Live.LiveSession
 
-  @type mutation_error :: %{field: String.t() | nil, message: String.t()}
-  @type auth_error_code ::
-          :unauthenticated
-          | :invalid_input
-          | :invalid_credentials
-          | :email_taken
-          | :token_expired
-          | :token_revoked
-          | :unsupported_provider
-          | :provider_verification_failed
-          | :passkey_verification_failed
-  @type auth_error :: %{field: String.t() | nil, code: auth_error_code(), message: String.t()}
+  @type mutation_error :: MutationErrors.user_error()
+  @type auth_error_code :: MutationErrors.auth_error_code()
+  @type auth_error :: MutationErrors.auth_error()
   @type mutation_payload :: %{
           user: User.t() | nil,
           errors: [mutation_error()]
@@ -44,7 +34,7 @@ defmodule LCGQL.Accounts.Resolver do
         }
   @type unlink_identity_result :: {:ok, unlink_identity_payload()}
   @type contact_upsert_payload :: %{
-          contact_match: LC.Accounts.contact_match() | nil,
+          contact_match: contact_match_node() | nil,
           errors: [mutation_error()]
         }
   @type contact_upsert_result :: {:ok, contact_upsert_payload()}
@@ -94,6 +84,8 @@ defmodule LCGQL.Accounts.Resolver do
         }
   @type contact_match_node :: %{
           id: pos_integer(),
+          contact_name: String.t() | nil,
+          birthday: Date.t() | nil,
           contact_entry: map(),
           matched_users: [User.t()]
         }
@@ -113,7 +105,7 @@ defmodule LCGQL.Accounts.Resolver do
         {:ok, %{user: user, errors: []}}
 
       {:error, changeset} ->
-        {:ok, %{user: nil, errors: format_changeset_errors(changeset)}}
+        {:ok, %{user: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
     end
   end
 
@@ -137,17 +129,17 @@ defmodule LCGQL.Accounts.Resolver do
       {:ok, %{user: Accounts.get_user!(user.id), errors: []}}
     else
       {:error, :invalid_phone_number} ->
-        {:ok, %{user: nil, errors: [%{field: "phoneNumber", message: "is invalid"}]}}
+        {:ok, %{user: nil, errors: [MutationErrors.invalid_error("phoneNumber")]}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{user: nil, errors: format_changeset_errors(changeset)}}
+        {:ok, %{user: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
     end
   end
 
   # Viewer-scoped phone attachment prevents clients from mutating other users'
   # phone bindings by passing arbitrary user IDs into the GraphQL payload.
   def attach_user_phone_number(_parent, _args, _resolution) do
-    {:ok, %{user: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+    {:ok, %{user: nil, errors: [MutationErrors.user_error(nil, :unauthenticated)]}}
   end
 
   @spec update_viewer_privacy_mode(
@@ -171,14 +163,14 @@ defmodule LCGQL.Accounts.Resolver do
         {:ok, %{user: updated_user, errors: []}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{user: nil, errors: format_changeset_errors(changeset)}}
+        {:ok, %{user: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
     end
   end
 
   # Privacy-mode updates are viewer-scoped so clients cannot toggle another
   # account's visibility through GraphQL payload data.
   def update_viewer_privacy_mode(_parent, _args, _resolution) do
-    {:ok, %{user: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+    {:ok, %{user: nil, errors: [MutationErrors.user_error(nil, :unauthenticated)]}}
   end
 
   @spec request_password_reset(
@@ -236,7 +228,8 @@ defmodule LCGQL.Accounts.Resolver do
         {:ok, %{reset: false, errors: [reset_password_error(:invalid_or_expired)]}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{reset: false, errors: format_changeset_errors(changeset)}}
+        {:ok,
+         %{reset: false, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
     end
   end
 
@@ -294,7 +287,11 @@ defmodule LCGQL.Accounts.Resolver do
         {:ok, %{data_export_request: nil, errors: [data_export_error(:enqueue_failed)]}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{data_export_request: nil, errors: format_changeset_errors(changeset)}}
+        {:ok,
+         %{
+           data_export_request: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
     end
   end
 
@@ -321,7 +318,11 @@ defmodule LCGQL.Accounts.Resolver do
         {:ok, %{account_deletion_request: nil, errors: [account_deletion_error(:enqueue_failed)]}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{account_deletion_request: nil, errors: format_changeset_errors(changeset)}}
+        {:ok,
+         %{
+           account_deletion_request: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
     end
   end
 
@@ -369,7 +370,11 @@ defmodule LCGQL.Accounts.Resolver do
         {:ok, %{account_deletion_request: nil, errors: [account_deletion_error(:cannot_cancel)]}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{account_deletion_request: nil, errors: format_changeset_errors(changeset)}}
+        {:ok,
+         %{
+           account_deletion_request: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
     end
   end
 
@@ -405,8 +410,12 @@ defmodule LCGQL.Accounts.Resolver do
 
     case Accounts.upsert_user_contact_entry(user, contact_attrs) do
       {:ok, contact_entry} ->
-        {:ok,
-         %{contact_match: Accounts.get_user_contact_match(user, contact_entry.id), errors: []}}
+        contact_match =
+          user
+          |> Accounts.get_user_contact_match(contact_entry.id)
+          |> contact_match_payload()
+
+        {:ok, %{contact_match: contact_match, errors: []}}
 
       {:error, reason} ->
         {:ok, %{contact_match: nil, errors: [contact_upsert_error(reason)]}}
@@ -414,7 +423,7 @@ defmodule LCGQL.Accounts.Resolver do
   end
 
   def upsert_viewer_contact_entry(_parent, _args, _resolution) do
-    {:ok, %{contact_match: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+    {:ok, %{contact_match: nil, errors: [MutationErrors.user_error(nil, :unauthenticated)]}}
   end
 
   @spec deliver_viewer_contact_invite(
@@ -458,7 +467,8 @@ defmodule LCGQL.Accounts.Resolver do
     do: begin_auth_challenge(parent, input, resolution)
 
   def begin_auth_challenge(_parent, %{provider: :password}, _resolution) do
-    {:ok, %{challenge: nil, errors: [auth_error("provider", :unsupported_provider)]}}
+    {:ok,
+     %{challenge: nil, errors: [MutationErrors.auth_error("provider", :unsupported_provider)]}}
   end
 
   def begin_auth_challenge(
@@ -490,11 +500,26 @@ defmodule LCGQL.Accounts.Resolver do
           {:ok,
            %{
              challenge: nil,
-             errors: [auth_error("magicLink.email", :email_taken, "has already been taken")]
+             errors: [
+               MutationErrors.auth_error(
+                 "magicLink.email",
+                 :email_taken,
+                 "has already been taken"
+               )
+             ]
            }}
 
         {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok, %{challenge: nil, errors: format_auth_changeset_errors(changeset, "magicLink")}}
+          {:ok,
+           %{
+             challenge: nil,
+             errors:
+               MutationErrors.auth_changeset_errors(
+                 changeset,
+                 "magicLink",
+                 &FieldNames.lower_camel/1
+               )
+           }}
       end
     else
       {:error, auth_error} ->
@@ -532,11 +557,22 @@ defmodule LCGQL.Accounts.Resolver do
           {:ok,
            %{
              challenge: nil,
-             errors: [auth_error("passkey.email", :email_taken, "has already been taken")]
+             errors: [
+               MutationErrors.auth_error("passkey.email", :email_taken, "has already been taken")
+             ]
            }}
 
         {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok, %{challenge: nil, errors: format_auth_changeset_errors(changeset, "passkey")}}
+          {:ok,
+           %{
+             challenge: nil,
+             errors:
+               MutationErrors.auth_changeset_errors(
+                 changeset,
+                 "passkey",
+                 &FieldNames.lower_camel/1
+               )
+           }}
 
         {:error, reason} ->
           {:ok, %{challenge: nil, errors: [passkey_challenge_error(reason)]}}
@@ -558,12 +594,12 @@ defmodule LCGQL.Accounts.Resolver do
          challenge_token: nil,
          payload_json: nil
        },
-       errors: [auth_error(nil, :invalid_input)]
+       errors: [MutationErrors.auth_error(nil, :invalid_input)]
      }}
   end
 
   def begin_auth_challenge(_parent, _args, _resolution) do
-    {:ok, %{challenge: nil, errors: [auth_error(nil, :invalid_input)]}}
+    {:ok, %{challenge: nil, errors: [MutationErrors.auth_error(nil, :invalid_input)]}}
   end
 
   @spec sign_up(
@@ -585,14 +621,21 @@ defmodule LCGQL.Accounts.Resolver do
         {:error, :email_taken} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("password.email", :email_taken, "has already been taken")
+             MutationErrors.auth_error("password.email", :email_taken, "has already been taken")
            ])}
 
         {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "password"))}
+          {:ok,
+           auth_entry_error_payload(
+             MutationErrors.auth_changeset_errors(
+               changeset,
+               "password",
+               &FieldNames.lower_camel/1
+             )
+           )}
 
         {:error, :invalid_credentials} ->
-          {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+          {:ok, auth_entry_error_payload([MutationErrors.auth_error(nil, :invalid_input)])}
       end
     else
       {:error, auth_error} ->
@@ -610,16 +653,27 @@ defmodule LCGQL.Accounts.Resolver do
         {:error, :invalid_credentials} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("magicLink.token", :invalid_credentials)
+             MutationErrors.auth_error("magicLink.token", :invalid_credentials)
            ])}
 
         {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "magicLink"))}
+          {:ok,
+           auth_entry_error_payload(
+             MutationErrors.auth_changeset_errors(
+               changeset,
+               "magicLink",
+               &FieldNames.lower_camel/1
+             )
+           )}
 
         {:error, :email_taken} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("magicLink.email", :email_taken, "has already been taken")
+             MutationErrors.auth_error(
+               "magicLink.email",
+               :email_taken,
+               "has already been taken"
+             )
            ])}
       end
     else
@@ -638,22 +692,25 @@ defmodule LCGQL.Accounts.Resolver do
         {:error, :email_taken} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("oauth.idToken", :email_taken, "has already been taken")
+             MutationErrors.auth_error("oauth.idToken", :email_taken, "has already been taken")
            ])}
 
         {:error, :provider_verification_failed} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("oauth.idToken", :provider_verification_failed)
+             MutationErrors.auth_error("oauth.idToken", :provider_verification_failed)
            ])}
 
         {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "oauth"))}
+          {:ok,
+           auth_entry_error_payload(
+             MutationErrors.auth_changeset_errors(changeset, "oauth", &FieldNames.lower_camel/1)
+           )}
 
         {:error, :invalid_credentials} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("oauth.idToken", :provider_verification_failed)
+             MutationErrors.auth_error("oauth.idToken", :provider_verification_failed)
            ])}
       end
     else
@@ -677,29 +734,46 @@ defmodule LCGQL.Accounts.Resolver do
         {:error, :invalid_credentials} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("passkey.challengeToken", :invalid_credentials)
+             MutationErrors.auth_error("passkey.challengeToken", :invalid_credentials)
            ])}
 
         {:error, :email_taken} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("passkey.email", :email_taken, "has already been taken")
+             MutationErrors.auth_error("passkey.email", :email_taken, "has already been taken")
            ])}
 
         {:error, :token_expired} ->
-          {:ok, auth_entry_error_payload([auth_error("passkey.challengeToken", :token_expired)])}
+          {:ok,
+           auth_entry_error_payload([
+             MutationErrors.auth_error("passkey.challengeToken", :token_expired)
+           ])}
 
         {:error, :token_revoked} ->
-          {:ok, auth_entry_error_payload([auth_error("passkey.challengeToken", :token_revoked)])}
+          {:ok,
+           auth_entry_error_payload([
+             MutationErrors.auth_error("passkey.challengeToken", :token_revoked)
+           ])}
 
         {:error, :passkey_verification_failed} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("passkey", :passkey_verification_failed, "passkey_verification_failed")
+             MutationErrors.auth_error(
+               "passkey",
+               :passkey_verification_failed,
+               "passkey_verification_failed"
+             )
            ])}
 
         {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "passkey"))}
+          {:ok,
+           auth_entry_error_payload(
+             MutationErrors.auth_changeset_errors(
+               changeset,
+               "passkey",
+               &FieldNames.lower_camel/1
+             )
+           )}
       end
     else
       {:error, auth_error} ->
@@ -708,7 +782,7 @@ defmodule LCGQL.Accounts.Resolver do
   end
 
   def sign_up(_parent, _args, _resolution) do
-    {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+    {:ok, auth_entry_error_payload([MutationErrors.auth_error(nil, :invalid_input)])}
   end
 
   @spec log_in(
@@ -729,14 +803,21 @@ defmodule LCGQL.Accounts.Resolver do
         {:error, :invalid_credentials} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("password.password", :invalid_credentials)
+             MutationErrors.auth_error("password.password", :invalid_credentials)
            ])}
 
         {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "password"))}
+          {:ok,
+           auth_entry_error_payload(
+             MutationErrors.auth_changeset_errors(
+               changeset,
+               "password",
+               &FieldNames.lower_camel/1
+             )
+           )}
 
         {:error, :email_taken} ->
-          {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+          {:ok, auth_entry_error_payload([MutationErrors.auth_error(nil, :invalid_input)])}
       end
     else
       {:error, auth_error} ->
@@ -754,14 +835,21 @@ defmodule LCGQL.Accounts.Resolver do
         {:error, :invalid_credentials} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("magicLink.token", :invalid_credentials)
+             MutationErrors.auth_error("magicLink.token", :invalid_credentials)
            ])}
 
         {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "magicLink"))}
+          {:ok,
+           auth_entry_error_payload(
+             MutationErrors.auth_changeset_errors(
+               changeset,
+               "magicLink",
+               &FieldNames.lower_camel/1
+             )
+           )}
 
         {:error, :email_taken} ->
-          {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+          {:ok, auth_entry_error_payload([MutationErrors.auth_error(nil, :invalid_input)])}
       end
     else
       {:error, auth_error} ->
@@ -779,20 +867,24 @@ defmodule LCGQL.Accounts.Resolver do
         {:error, :provider_verification_failed} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("oauth.idToken", :provider_verification_failed)
+             MutationErrors.auth_error("oauth.idToken", :provider_verification_failed)
            ])}
 
         {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "oauth"))}
+          {:ok,
+           auth_entry_error_payload(
+             MutationErrors.auth_changeset_errors(changeset, "oauth", &FieldNames.lower_camel/1)
+           )}
 
         {:error, :invalid_credentials} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("oauth.idToken", :provider_verification_failed)
+             MutationErrors.auth_error("oauth.idToken", :provider_verification_failed)
            ])}
 
         {:error, :email_taken} ->
-          {:ok, auth_entry_error_payload([auth_error("oauth.idToken", :invalid_input)])}
+          {:ok,
+           auth_entry_error_payload([MutationErrors.auth_error("oauth.idToken", :invalid_input)])}
       end
     else
       {:error, auth_error} ->
@@ -816,23 +908,40 @@ defmodule LCGQL.Accounts.Resolver do
         {:error, :invalid_credentials} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("passkey.challengeToken", :invalid_credentials)
+             MutationErrors.auth_error("passkey.challengeToken", :invalid_credentials)
            ])}
 
         {:error, :token_expired} ->
-          {:ok, auth_entry_error_payload([auth_error("passkey.challengeToken", :token_expired)])}
+          {:ok,
+           auth_entry_error_payload([
+             MutationErrors.auth_error("passkey.challengeToken", :token_expired)
+           ])}
 
         {:error, :token_revoked} ->
-          {:ok, auth_entry_error_payload([auth_error("passkey.challengeToken", :token_revoked)])}
+          {:ok,
+           auth_entry_error_payload([
+             MutationErrors.auth_error("passkey.challengeToken", :token_revoked)
+           ])}
 
         {:error, :passkey_verification_failed} ->
           {:ok,
            auth_entry_error_payload([
-             auth_error("passkey", :passkey_verification_failed, "passkey_verification_failed")
+             MutationErrors.auth_error(
+               "passkey",
+               :passkey_verification_failed,
+               "passkey_verification_failed"
+             )
            ])}
 
         {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok, auth_entry_error_payload(format_auth_changeset_errors(changeset, "passkey"))}
+          {:ok,
+           auth_entry_error_payload(
+             MutationErrors.auth_changeset_errors(
+               changeset,
+               "passkey",
+               &FieldNames.lower_camel/1
+             )
+           )}
       end
     else
       {:error, auth_error} ->
@@ -841,7 +950,7 @@ defmodule LCGQL.Accounts.Resolver do
   end
 
   def log_in(_parent, _args, _resolution) do
-    {:ok, auth_entry_error_payload([auth_error(nil, :invalid_input)])}
+    {:ok, auth_entry_error_payload([MutationErrors.auth_error(nil, :invalid_input)])}
   end
 
   @spec issue_viewer_auth_tokens(term(), %{optional(:input) => map()}, Absinthe.Resolution.t()) ::
@@ -866,14 +975,18 @@ defmodule LCGQL.Accounts.Resolver do
          %{
            access_token: nil,
            refresh_token: nil,
-           errors: [%{field: nil, message: "invalid_token"}]
+           errors: [MutationErrors.user_error(nil, "invalid_token")]
          }}
     end
   end
 
   def issue_viewer_auth_tokens(_parent, _args, _resolution) do
     {:ok,
-     %{access_token: nil, refresh_token: nil, errors: [%{field: nil, message: "unauthenticated"}]}}
+     %{
+       access_token: nil,
+       refresh_token: nil,
+       errors: [MutationErrors.user_error(nil, :unauthenticated)]
+     }}
   end
 
   @spec refresh_auth_tokens(
@@ -1095,83 +1208,55 @@ defmodule LCGQL.Accounts.Resolver do
     Absinthe.Relay.Connection.from_list([], args)
   end
 
-  @spec contact_match_name(contact_match_node(), map(), Absinthe.Resolution.t()) ::
-          {:ok, String.t() | nil}
-  def contact_match_name(%{contact_entry: %{contact_name: contact_name}}, _args, _res),
-    do: {:ok, contact_name}
-
-  @spec contact_match_birthday(contact_match_node(), map(), Absinthe.Resolution.t()) ::
-          {:ok, String.t() | nil}
-  def contact_match_birthday(%{contact_entry: %{birthday: nil}}, _args, _res),
-    do: {:ok, nil}
-
-  def contact_match_birthday(%{contact_entry: %{birthday: birthday}}, _args, _res),
-    do: {:ok, Date.to_iso8601(birthday)}
-
-  @spec format_changeset_errors(Ecto.Changeset.t()) :: [mutation_error()]
-  defp format_changeset_errors(changeset) do
-    changeset
-    |> traverse_errors(fn {message, options} ->
-      Enum.reduce(options, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
-    |> Enum.flat_map(fn {field, messages} ->
-      Enum.map(messages, fn message ->
-        %{field: to_string(field), message: message}
-      end)
-    end)
-  end
-
   @spec contact_upsert_error(contact_upsert_error_reason()) :: mutation_error()
   defp contact_upsert_error(:invalid_contact_client_id),
-    do: %{field: "contactClientId", message: "is invalid"}
+    do: MutationErrors.invalid_error("contactClientId")
 
-  defp contact_upsert_error(:invalid_birthday), do: %{field: "birthday", message: "is invalid"}
+  defp contact_upsert_error(:invalid_birthday), do: MutationErrors.invalid_error("birthday")
 
   defp contact_upsert_error(:invalid_phone_number),
-    do: %{field: "phoneNumbers", message: "is invalid"}
+    do: MutationErrors.invalid_error("phoneNumbers")
 
-  defp contact_upsert_error(:invalid_email_list), do: %{field: "emails", message: "is invalid"}
+  defp contact_upsert_error(:invalid_email_list), do: MutationErrors.invalid_error("emails")
 
   @spec data_export_error(data_export_error_reason()) :: mutation_error()
   defp data_export_error(:enqueue_failed),
-    do: %{field: nil, message: "export_unavailable"}
+    do: MutationErrors.user_error(nil, "export_unavailable")
 
   defp data_export_error(:unauthenticated),
-    do: %{field: nil, message: "unauthenticated"}
+    do: MutationErrors.user_error(nil, :unauthenticated)
 
   @spec account_deletion_error(account_deletion_error_reason()) :: mutation_error()
   defp account_deletion_error(:enqueue_failed),
-    do: %{field: nil, message: "deletion_unavailable"}
+    do: MutationErrors.user_error(nil, "deletion_unavailable")
 
   defp account_deletion_error(:unauthenticated),
-    do: %{field: nil, message: "unauthenticated"}
+    do: MutationErrors.user_error(nil, :unauthenticated)
 
   defp account_deletion_error(:not_found),
-    do: %{field: nil, message: "not_found"}
+    do: MutationErrors.user_error(nil, :not_found)
 
   defp account_deletion_error(:already_processing),
-    do: %{field: nil, message: "already_processing"}
+    do: MutationErrors.user_error(nil, :already_processing)
 
   defp account_deletion_error(:cannot_cancel),
-    do: %{field: nil, message: "cannot_cancel"}
+    do: MutationErrors.user_error(nil, :cannot_cancel)
 
   defp account_deletion_error(:invalid_request_id),
-    do: %{field: "accountDeletionRequestId", message: "is invalid"}
+    do: MutationErrors.invalid_error("accountDeletionRequestId")
 
   @spec unlink_identity_error(unlink_identity_error_reason()) :: mutation_error()
   defp unlink_identity_error(:invalid_identity_id),
-    do: %{field: "userIdentityId", message: "is invalid"}
+    do: MutationErrors.invalid_error("userIdentityId")
 
   defp unlink_identity_error(:not_found),
-    do: %{field: nil, message: "not_found"}
+    do: MutationErrors.user_error(nil, :not_found)
 
   defp unlink_identity_error(:already_revoked),
-    do: %{field: nil, message: "already_revoked"}
+    do: MutationErrors.user_error(nil, :already_revoked)
 
   defp unlink_identity_error(:unauthenticated),
-    do: %{field: nil, message: "unauthenticated"}
+    do: MutationErrors.user_error(nil, :unauthenticated)
 
   @spec decode_account_deletion_request_id(map()) ::
           {:ok, pos_integer()} | {:error, Relay.decode_error()}
@@ -1233,15 +1318,6 @@ defmodule LCGQL.Accounts.Resolver do
   @spec contact_invite_url(String.t()) :: String.t()
   defp contact_invite_url(token), do: "https://livecanvas.invalid/invites/#{token}"
 
-  @spec auth_error(String.t() | nil, auth_error_code(), String.t() | nil) :: auth_error()
-  defp auth_error(field, code, message \\ nil) do
-    %{
-      field: field,
-      code: code,
-      message: message || Atom.to_string(code)
-    }
-  end
-
   @spec auth_provider_value(LCSchemas.Accounts.user_identity_provider()) ::
           :google | :apple | :passkey | nil
   defp auth_provider_value(:google_provider), do: :google
@@ -1261,21 +1337,21 @@ defmodule LCGQL.Accounts.Resolver do
 
   @spec invite_delivery_error(invite_delivery_error_reason()) :: mutation_error()
   defp invite_delivery_error(:invalid_recipient),
-    do: %{field: "recipient", message: "is invalid"}
+    do: MutationErrors.invalid_error("recipient")
 
   defp invite_delivery_error(:unauthenticated),
-    do: %{field: nil, message: "unauthenticated"}
+    do: MutationErrors.user_error(nil, :unauthenticated)
 
   defp invite_delivery_error(:delivery_failed),
-    do: %{field: nil, message: "delivery_failed"}
+    do: MutationErrors.user_error(nil, :delivery_failed)
 
   @spec reset_password_error(reset_password_error_reason()) :: mutation_error()
   defp reset_password_error(:invalid_or_expired),
-    do: %{field: nil, message: "invalid_or_expired"}
+    do: MutationErrors.user_error(nil, :invalid_or_expired)
 
   @spec refresh_auth_error(refresh_auth_error_reason()) :: mutation_error()
   defp refresh_auth_error(reason),
-    do: %{field: "refreshToken", message: Atom.to_string(reason)}
+    do: MutationErrors.user_error("refreshToken", reason)
 
   @spec auth_entry_payload(LC.Accounts.auth_entry_payload()) :: auth_entry_payload()
   defp auth_entry_payload(%{access_token: access_token, refresh_token: refresh_token}) do
@@ -1289,10 +1365,10 @@ defmodule LCGQL.Accounts.Resolver do
   @spec passkey_challenge_error(:invalid_credentials | :passkey_verification_failed) ::
           auth_error()
   defp passkey_challenge_error(:invalid_credentials),
-    do: auth_error("passkey.challengeToken", :invalid_credentials)
+    do: MutationErrors.auth_error("passkey.challengeToken", :invalid_credentials)
 
   defp passkey_challenge_error(:passkey_verification_failed),
-    do: auth_error("passkey", :passkey_verification_failed)
+    do: MutationErrors.auth_error("passkey", :passkey_verification_failed)
 
   @spec auth_entry_error_payload([auth_error()]) :: auth_entry_payload()
   defp auth_entry_error_payload(errors) do
@@ -1301,25 +1377,15 @@ defmodule LCGQL.Accounts.Resolver do
 
   defp require_auth_field(input, field, prefix) when is_map(input) and is_atom(field) do
     if blank?(Map.get(input, field)) do
-      {:error, auth_error(prefixed_auth_field(prefix, field), :invalid_input, "is required")}
+      {:error,
+       MutationErrors.auth_error(
+         prefixed_auth_field(prefix, field),
+         :invalid_input,
+         "is required"
+       )}
     else
       :ok
     end
-  end
-
-  @spec format_auth_changeset_errors(Ecto.Changeset.t(), String.t()) :: [auth_error()]
-  defp format_auth_changeset_errors(changeset, prefix) do
-    changeset
-    |> traverse_errors(fn {message, options} ->
-      Enum.reduce(options, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
-    |> Enum.flat_map(fn {field, messages} ->
-      Enum.map(messages, fn message ->
-        auth_error(prefixed_auth_field(prefix, field), :invalid_input, message)
-      end)
-    end)
   end
 
   @spec token_view(LC.Accounts.token_payload()) :: token_view()
@@ -1333,13 +1399,19 @@ defmodule LCGQL.Accounts.Resolver do
     }
   end
 
-  @spec prefixed_auth_field(String.t(), atom()) :: String.t()
   defp prefixed_auth_field(prefix, field) when is_binary(prefix) and is_atom(field) do
     "#{prefix}.#{FieldNames.lower_camel(field)}"
   end
 
+  @spec contact_match_payload(LC.Accounts.contact_match() | nil) :: contact_match_node() | nil
+  defp contact_match_payload(nil), do: nil
+  defp contact_match_payload(contact_match), do: contact_match_node(contact_match)
+
   @spec contact_match_node(LC.Accounts.contact_match()) :: contact_match_node()
-  defp contact_match_node(%{contact_entry: %{id: id}} = contact_match) do
-    Map.put(contact_match, :id, id)
+  def contact_match_node(%{contact_entry: %{id: id} = contact_entry} = contact_match) do
+    contact_match
+    |> Map.put(:id, id)
+    |> Map.put(:contact_name, Map.get(contact_entry, :contact_name))
+    |> Map.put(:birthday, Map.get(contact_entry, :birthday))
   end
 end

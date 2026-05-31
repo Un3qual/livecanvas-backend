@@ -11,6 +11,7 @@ defmodule LC.Infra do
       DataGovernance.Retention,
       Mailer,
       ObjectStorage,
+      Payload,
       Repo,
       SMS,
       WebhookEvent

@@ -178,9 +178,9 @@ defmodule LC.Social do
   @doc """
   Returns one pending follow request owned by the user.
   """
-  @spec get_pending_follow_request(User.t(), pos_integer()) :: Follow.t() | nil
+  @spec get_pending_follow_request(User.t(), integer()) :: Follow.t() | nil
   def get_pending_follow_request(%User{id: user_id}, follow_id)
-      when is_integer(follow_id) and follow_id > 0 do
+      when is_integer(follow_id) do
     from(follow in Follow,
       where:
         follow.followed_id == ^user_id and follow.id == ^follow_id and follow.state == :requested,

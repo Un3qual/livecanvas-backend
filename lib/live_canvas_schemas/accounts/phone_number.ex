@@ -8,6 +8,14 @@ defmodule LCSchemas.Accounts.PhoneNumber do
     UserPhoneNumber
   }
 
+  @moduledoc """
+  Schema for the `phone_numbers` table.
+
+  Table contract:
+  - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `normalized_e164` is unique and owns canonical phone identity.
+  """
+
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,

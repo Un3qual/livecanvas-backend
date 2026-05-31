@@ -35,7 +35,6 @@ defmodule LCSchemas do
       Live,
       Live.LiveParticipant,
       Live.LiveSession,
-      Live.LiveSessionRuntimeOwner,
       Infra,
       Infra.AccountDeletionRequest,
       Infra.AccountDeletionRequestStatus,

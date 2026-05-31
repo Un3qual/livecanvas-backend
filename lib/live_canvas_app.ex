@@ -20,7 +20,7 @@ defmodule LCApp do
       {DNSCluster, query: Application.get_env(:live_canvas, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: LC.PubSub},
       LCWeb.Presence,
-      {LC.Live.SessionSupervisor, []},
+      {LC.RealtimeRuntime.Supervisor, []},
       {LC.Infra.SMS.FakeAdapter, []}
     ]
 
@@ -86,7 +86,7 @@ defmodule LCApp do
   defp prometheus_metric(%Summary{} = metric) do
     metric
     |> Map.from_struct()
-    |> Map.put(:reporter_options, [buckets: summary_buckets(metric)])
+    |> Map.put(:reporter_options, buckets: summary_buckets(metric))
     |> then(&struct(Distribution, &1))
   end
 

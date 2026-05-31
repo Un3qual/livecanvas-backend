@@ -76,9 +76,9 @@ defmodule LC.Chat do
   @doc """
   Returns one retained chat message when the viewer can read its session history.
   """
-  @spec get_history_message(User.t(), pos_integer()) :: ChatMessage.t() | nil
+  @spec get_history_message(User.t(), integer()) :: ChatMessage.t() | nil
   def get_history_message(%User{} = viewer, message_id)
-      when is_integer(message_id) and message_id > 0 do
+      when is_integer(message_id) do
     with %ChatMessage{} = chat_message <- history_message_query(message_id) |> Repo.one(),
          :ok <- authorize_history_access(viewer, chat_message.live_session) do
       chat_message
@@ -230,8 +230,8 @@ defmodule LC.Chat do
     |> Repo.exists?()
   end
 
-  @spec history_message_query(pos_integer()) :: Ecto.Query.t()
-  defp history_message_query(message_id) when is_integer(message_id) and message_id > 0 do
+  @spec history_message_query(integer()) :: Ecto.Query.t()
+  defp history_message_query(message_id) when is_integer(message_id) do
     from(chat_message in ChatMessage,
       where: chat_message.id == ^message_id,
       join: live_session in assoc(chat_message, :live_session),

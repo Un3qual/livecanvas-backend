@@ -85,5 +85,17 @@ defmodule LCWeb.Plugs.ObservabilityContextTest do
       refute context.request_id == malicious_request_id
       refute context.request_id =~ "\n"
     end
+
+    test "accepts fixed atom keys for socket request and trace ids" do
+      context =
+        ObservabilityContext.build_socket_context(
+          %{request_id: @request_id, trace_id: @trace_id},
+          42
+        )
+
+      assert context.request_id == @request_id
+      assert context.trace_id == @trace_id
+      assert context.viewer_id == 42
+    end
   end
 end
