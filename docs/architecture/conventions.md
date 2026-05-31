@@ -51,6 +51,7 @@
 - Simple child fields whose only behavior is association loading should use inline Absinthe dataloader declarations. Keep fields resolver-backed when they authorize, paginate, filter, sort, default, or shape contract-sensitive payloads until a dedicated authorization/connection framework exists.
 - When GraphQL payloads need external field-name strings, use `LCGQL.FieldNames` instead of resolver-local casing helpers. Do not silently change existing mutation error field contracts while replacing duplicated formatting.
 - GraphQL mutation payloads should use `LCGQL.MutationErrors` for `{field, message}` and `{field, code, message}` error maps. Use `:user_error` for generic mutation errors unless the payload needs extra fields such as auth `code`.
+- Large GraphQL resolver modules should split by cohesive API area once they mix unrelated query, mutation, and field resolver groups. Keep helpers private to the resolver that owns the behavior, and extract shared helpers only after real cross-module reuse appears.
 
 ## Web Auth
 
