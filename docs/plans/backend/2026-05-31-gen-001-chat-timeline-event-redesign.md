@@ -1,7 +1,7 @@
 # GEN-001 Chat Timeline/Event Object Redesign
 
 Last reviewed: 2026-05-31
-Status: design locked for implementation planning
+Status: design locked; executable implementation plan written and awaiting approval
 Owner lane: backend
 
 ## Goal
@@ -364,9 +364,11 @@ order by s.occurred_at, s.timeline_event_id;
 
 Concrete type resolvers should join the subtype/state tables they need. For `ChatMessageEvent`, the resolver reads `live_session_timeline_chat_message_states.current_body`, not the original immutable send body.
 
-## Implementation Plan Outline
+## Implementation Plan
 
-Write the executable implementation plan after this design is reviewed. Expected task sequence:
+Executable plan: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+
+Expected task sequence:
 
 1. Add timeline event migrations, schemas, and context APIs for message-send projections behind focused tests.
 2. Add edit-event append and projection-update behavior.

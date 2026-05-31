@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
 Last reviewed: 2026-05-31
-Status: active for dedicated `GEN-001` chat timeline/event-object implementation planning
+Status: `GEN-001` chat timeline/event-object implementation plan written; awaiting approval before code
 
 ## Lane Scope
 
@@ -12,7 +12,7 @@ Status: active for dedicated `GEN-001` chat timeline/event-object implementation
 
 - Track: `gen_001_chat_timeline_event_objects`
 - Source: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`; `docs/plans/backend/2026-05-22-code-quality-cleanup.md` remains background only.
-- Batch: write executable implementation plan from the locked breaking-API timeline/event design; do not touch implementation code until the implementation plan is approved.
+- Batch: approve and execute the written implementation plan; do not touch implementation code until the implementation plan is approved.
 - Why now: The cleanup inventory is the source of truth for per-issue stage status. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GQL-009`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete. The user explicitly asked to start `GEN-001`, so it now proceeds as a dedicated chat timeline/event-object redesign rather than through the cleanup-stage flow.
 - Current status:
   - Stage 1 is complete for all user-reported issues.
@@ -40,8 +40,8 @@ Status: active for dedicated `GEN-001` chat timeline/event-object implementation
 
 ## Do This Now
 
-- Review the locked design in `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`.
-- Write an executable implementation plan for the breaking GraphQL/channel/API and Postgres timeline-event redesign.
+- Review the executable implementation plan in `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`.
+- After approval, execute it task-by-task with TDD and milestone commits.
 - Keep implementation code untouched until the implementation plan is approved.
 - No further cleanup-stage implementation is currently unblocked in `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
 - `SOCK-002` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
@@ -150,7 +150,7 @@ Status: active for dedicated `GEN-001` chat timeline/event-object implementation
 ## Next Up
 
 - No unblocked backend code-quality cleanup task remains in `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
-- Continue the explicitly requested dedicated `GEN-001` chat timeline/event-object redesign by writing the executable implementation plan from the locked design.
+- Continue the explicitly requested dedicated `GEN-001` chat timeline/event-object redesign by approving and executing the written implementation plan.
 
 ## Completed Shared Coordinator Repairs
 

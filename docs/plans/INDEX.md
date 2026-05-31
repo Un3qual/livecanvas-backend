@@ -7,9 +7,9 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Backend Lane
 
 - Lane pointer: `docs/plans/backend/NOW.md`
-- Status: active for dedicated `GEN-001` chat timeline/event-object redesign planning
-- Current track: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
-- Current batch: write executable implementation plan from locked design
+- Status: dedicated `GEN-001` chat timeline/event-object implementation plan written; awaiting approval before code
+- Current track: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+- Current batch: approve and execute implementation plan
 - Next queued batch: implementation after plan approval
 - Notes: backend lane owns backend code and backend planning docs only; shared dashboard/index updates stay with the coordinator unless explicitly assigned
 
@@ -48,8 +48,9 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### GEN-001 Chat Timeline/Event Object Redesign
 
 - Source: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
-- Status: design locked for implementation planning
-- Current batch: write executable implementation plan from the locked breaking-API timeline/event design
+- Implementation plan: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+- Status: implementation plan written; awaiting approval before code
+- Current batch: approve and execute implementation plan
 - Next queued batch: implement the approved plan
 - Notes: this work is intentionally separate from the completed code-quality cleanup stages
 

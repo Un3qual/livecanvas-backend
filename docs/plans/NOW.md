@@ -14,8 +14,8 @@ Status: active
 
 ### Backend Lane
 
-- Status: active for dedicated `GEN-001` chat timeline/event-object redesign planning
-- Current batch: `docs/plans/backend/NOW.md` -> `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md` -> write executable implementation plan; cleanup-stage implementation in `docs/plans/backend/2026-05-22-code-quality-cleanup.md` is complete
+- Status: dedicated `GEN-001` chat timeline/event-object implementation plan written; awaiting approval before code
+- Current batch: `docs/plans/backend/NOW.md` -> `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md` -> approve and execute plan; cleanup-stage implementation in `docs/plans/backend/2026-05-22-code-quality-cleanup.md` is complete
 - Lane write scope: backend code and backend planning docs only
 
 ### Mobile Lane
@@ -31,7 +31,7 @@ Status: active
 
 ## Next Up
 
-- Once the backend lane finishes the `GEN-001` implementation plan, refresh this dashboard only if `docs/plans/backend/NOW.md` advances to implementation or a different backend track.
+- Once the backend lane receives approval for the `GEN-001` implementation plan, refresh this dashboard only if `docs/plans/backend/NOW.md` advances to implementation or a different backend track.
 - Once the mobile lane finishes `Task 1`, refresh the mobile lane summary here only if `docs/plans/mobile/NOW.md` advances to a new batch or status.
 
 ## Repair Conditions
