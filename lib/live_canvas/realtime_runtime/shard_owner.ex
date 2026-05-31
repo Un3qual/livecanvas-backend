@@ -83,9 +83,9 @@ defmodule LC.RealtimeRuntime.ShardOwner do
     {:reply, lookup_local_session_runtime(session_id), state}
   end
 
-  def handle_call({:start_session_runtime, session_id, initial_participants}, _from, state)
-      when is_integer(session_id) and is_map(initial_participants) do
-    {:reply, start_local_session_runtime(session_id, initial_participants), state}
+  def handle_call({:start_session_runtime, session_id, initial_participants, opts}, _from, state)
+      when is_integer(session_id) and is_map(initial_participants) and is_list(opts) do
+    {:reply, start_local_session_runtime(session_id, initial_participants, opts), state}
   end
 
   def handle_call({:stop_session_runtime, session_id}, _from, state)
@@ -123,13 +123,20 @@ defmodule LC.RealtimeRuntime.ShardOwner do
 
   def handle_info(:claim_global_name, state), do: {:noreply, state}
 
-  @spec start_local_session_runtime(pos_integer(), LC.RealtimeRuntime.initial_participants()) ::
+  @spec start_local_session_runtime(
+          pos_integer(),
+          LC.RealtimeRuntime.initial_participants(),
+          keyword()
+        ) ::
           {:ok, pid()} | {:error, term()}
-  defp start_local_session_runtime(session_id, initial_participants)
-       when is_integer(session_id) and is_map(initial_participants) do
+  defp start_local_session_runtime(session_id, initial_participants, opts)
+       when is_integer(session_id) and is_map(initial_participants) and is_list(opts) do
+    session_server_opts =
+      [session_id: session_id, registry: @registry, initial_participants: initial_participants]
+      |> Keyword.merge(Keyword.take(opts, [:media_bootstrap]))
+
     child_spec =
-      {SessionServer,
-       session_id: session_id, registry: @registry, initial_participants: initial_participants}
+      {SessionServer, session_server_opts}
       |> Supervisor.child_spec(restart: :temporary, id: {SessionServer, session_id})
 
     case DynamicSupervisor.start_child(@dynamic_supervisor, child_spec) do

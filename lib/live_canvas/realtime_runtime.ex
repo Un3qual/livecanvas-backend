@@ -14,6 +14,8 @@ defmodule LC.RealtimeRuntime do
   @type runtime_lookup_result :: {:ok, pid()} | {:error, lookup_error()}
   @type runtime_start_result :: {:ok, pid()} | {:error, term() | lookup_error()}
   @type runtime_stop_result :: :ok | {:error, remote_owner_error()}
+  @type start_option ::
+          {:shard_id, shard_id()} | {:media_bootstrap, SessionServer.media_bootstrap()}
 
   @spec shard_id(pos_integer()) :: shard_id()
   @spec shard_id(pos_integer(), keyword()) :: shard_id()
@@ -42,16 +44,18 @@ defmodule LC.RealtimeRuntime do
 
   @spec start_session_runtime(pos_integer()) :: runtime_start_result()
   @spec start_session_runtime(pos_integer(), initial_participants()) :: runtime_start_result()
-  @spec start_session_runtime(pos_integer(), initial_participants(), keyword()) ::
+  @spec start_session_runtime(pos_integer(), initial_participants(), [start_option()]) ::
           runtime_start_result()
   def start_session_runtime(session_id, initial_participants \\ %{}, opts \\ [])
 
   def start_session_runtime(session_id, initial_participants, opts)
       when is_integer(session_id) and session_id > 0 and is_map(initial_participants) and
              is_list(opts) do
+    start_opts = runtime_start_options(opts)
+
     session_id
     |> shard_id_from_opts(opts)
-    |> call_shard({:start_session_runtime, session_id, initial_participants})
+    |> call_shard({:start_session_runtime, session_id, initial_participants, start_opts})
   end
 
   @spec stop_session_runtime(pos_integer()) :: runtime_stop_result()
@@ -160,6 +164,14 @@ defmodule LC.RealtimeRuntime do
     case Keyword.get(opts, :shard_id) do
       shard_id when is_integer(shard_id) and shard_id >= 0 -> shard_id
       _other -> shard_id(session_id, opts)
+    end
+  end
+
+  @spec runtime_start_options(keyword()) :: keyword()
+  defp runtime_start_options(opts) when is_list(opts) do
+    case Keyword.get(opts, :media_bootstrap) do
+      media_bootstrap when is_function(media_bootstrap, 1) -> [media_bootstrap: media_bootstrap]
+      _other -> []
     end
   end
 

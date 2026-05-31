@@ -1,13 +1,16 @@
 defmodule LC.Live.SessionSupervisor do
   @moduledoc false
 
+  alias LC.Live.MediaSession
   alias LC.RealtimeRuntime
   alias LC.RealtimeRuntime.SessionServer
 
   @type initial_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type remote_owner_error :: {:owned_by_remote, String.t()}
   @type lookup_error :: :not_found | remote_owner_error()
-  @type start_option :: {:shard_id, RealtimeRuntime.shard_id()}
+  @type start_option ::
+          {:shard_id, RealtimeRuntime.shard_id()}
+          | {:media_bootstrap, SessionServer.media_bootstrap()}
   @type stop_result :: :ok | {:error, remote_owner_error()}
 
   @spec start_link(keyword()) :: Supervisor.on_start()
@@ -28,7 +31,11 @@ defmodule LC.Live.SessionSupervisor do
           {:ok, pid()} | {:error, term() | remote_owner_error()}
   def start_session_server(session_id, initial_participants, opts)
       when is_integer(session_id) and is_map(initial_participants) and is_list(opts) do
-    RealtimeRuntime.start_session_runtime(session_id, initial_participants, opts)
+    RealtimeRuntime.start_session_runtime(
+      session_id,
+      initial_participants,
+      Keyword.put_new(opts, :media_bootstrap, &MediaSession.start_for_session/1)
+    )
   end
 
   @spec stop_session_server(pos_integer()) :: stop_result()

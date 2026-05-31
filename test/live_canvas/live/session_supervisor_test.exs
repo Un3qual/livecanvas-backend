@@ -31,6 +31,19 @@ defmodule LC.Live.SessionSupervisorTest do
       assert {:error, :not_found} =
                SessionSupervisor.start_session_server(session_id, %{}, shard_id: 999)
     end
+
+    test "propagates media bootstrap failures from runtime startup" do
+      session_id = live_session_id_fixture()
+
+      media_bootstrap = fn %LiveSession{id: ^session_id} -> {:error, :pipeline_unavailable} end
+
+      assert {:error, {:media_bootstrap_failed, :pipeline_unavailable}} =
+               SessionSupervisor.start_session_server(session_id, %{},
+                 media_bootstrap: media_bootstrap
+               )
+
+      assert {:error, :not_found} = SessionSupervisor.lookup_session_server(session_id)
+    end
   end
 
   describe "lookup_session_server/1" do
