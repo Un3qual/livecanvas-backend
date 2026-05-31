@@ -42,6 +42,7 @@ defmodule LC.Live do
   @type runtime_target :: {:local, pid()} | {:remote, String.t()}
   @type runtime_rpc_adapter :: module()
   @type start_live_session_option :: {:runtime_rpc, runtime_rpc_adapter()}
+  @type leave_live_session_option :: {:runtime_rpc, runtime_rpc_adapter()}
   @type session_server_lookup_result ::
           {:ok, pid()} | {:error, :not_found | {:owned_by_remote, String.t()}}
 
@@ -278,11 +279,16 @@ defmodule LC.Live do
   Marks a participant as left and prunes their runtime membership.
   """
   @spec leave_live_session(LiveSession.t(), User.t()) :: leave_live_session_result()
-  def leave_live_session(%LiveSession{id: session_id}, %User{id: user_id})
-      when is_integer(session_id) and is_integer(user_id) do
+  @spec leave_live_session(LiveSession.t(), User.t(), [leave_live_session_option()]) ::
+          leave_live_session_result()
+  def leave_live_session(live_session, user, opts \\ [])
+
+  def leave_live_session(%LiveSession{id: session_id}, %User{id: user_id}, opts)
+      when is_integer(session_id) and is_integer(user_id) and is_list(opts) do
+    runtime_rpc = Keyword.get(opts, :runtime_rpc, RuntimeRPC)
     now = now_utc()
     :ok = mark_live_participant_left(session_id, user_id, now)
-    :ok = remove_runtime_participant(session_id, user_id)
+    :ok = remove_runtime_participant(session_id, user_id, runtime_rpc)
     :ok
   end
 
@@ -383,17 +389,52 @@ defmodule LC.Live do
         ) :: :ok | {:error, :not_found}
   def remote_join_session_server(session_id, user_id, role)
       when is_integer(session_id) and is_integer(user_id) and is_atom(role) do
-    case SessionSupervisor.join_session_server(session_id, user_id, role) do
-      :ok ->
-        :ok
+    case ensure_local_session_server(session_id) do
+      {:ok, pid} ->
+        SessionServer.join(pid, user_id, role)
 
       {:error, :not_found} ->
         {:error, :not_found}
+    end
+  end
+
+  @doc false
+  @spec remote_leave_session_server(pos_integer(), pos_integer()) :: :ok
+  def remote_leave_session_server(session_id, user_id)
+      when is_integer(session_id) and is_integer(user_id) do
+    case SessionSupervisor.lookup_session_server(session_id) do
+      {:ok, pid} ->
+        safe_runtime_leave(pid, user_id)
+
+      {:error, :not_found} ->
+        :ok
+
+      {:error, {:owned_by_remote, _owner_node}} ->
+        :ok
+    end
+  end
+
+  @spec ensure_local_session_server(pos_integer()) :: {:ok, pid()} | {:error, :not_found}
+  defp ensure_local_session_server(session_id) when is_integer(session_id) do
+    case SessionSupervisor.lookup_session_server(session_id) do
+      {:ok, pid} ->
+        {:ok, pid}
+
+      {:error, :not_found} ->
+        session_id
+        |> active_runtime_participants()
+        |> then(&SessionSupervisor.start_session_server(session_id, &1))
+        |> normalize_local_session_start()
 
       {:error, {:owned_by_remote, _owner_node}} ->
         {:error, :not_found}
     end
   end
+
+  @spec normalize_local_session_start({:ok, pid()} | {:error, term()}) ::
+          {:ok, pid()} | {:error, :not_found}
+  defp normalize_local_session_start({:ok, pid}) when is_pid(pid), do: {:ok, pid}
+  defp normalize_local_session_start({:error, _reason}), do: {:error, :not_found}
 
   @doc false
   @spec remote_start_session_server(pos_integer(), runtime_participants()) ::
@@ -529,9 +570,9 @@ defmodule LC.Live do
     :ok
   end
 
-  @spec remove_runtime_participant(pos_integer(), pos_integer()) :: :ok
-  defp remove_runtime_participant(session_id, user_id)
-       when is_integer(session_id) and is_integer(user_id) do
+  @spec remove_runtime_participant(pos_integer(), pos_integer(), runtime_rpc_adapter()) :: :ok
+  defp remove_runtime_participant(session_id, user_id, runtime_rpc)
+       when is_integer(session_id) and is_integer(user_id) and is_atom(runtime_rpc) do
     case SessionSupervisor.lookup_session_server(session_id) do
       {:ok, pid} ->
         # Disconnect cleanup is best-effort because runtime processes may race
@@ -541,7 +582,8 @@ defmodule LC.Live do
       {:error, :not_found} ->
         :ok
 
-      {:error, {:owned_by_remote, _owner_node}} ->
+      {:error, {:owned_by_remote, owner_node}} ->
+        _result = remote_leave(owner_node, session_id, user_id, runtime_rpc)
         :ok
     end
   end
@@ -608,10 +650,7 @@ defmodule LC.Live do
   defp join_runtime({:remote, owner_node}, session_id, user_id, role, runtime_rpc)
        when is_binary(owner_node) and is_integer(session_id) and is_integer(user_id) and
               is_atom(role) and is_atom(runtime_rpc) do
-    with :ok <- remote_lookup(owner_node, session_id, runtime_rpc),
-         :ok <- remote_join(owner_node, session_id, user_id, role, runtime_rpc) do
-      :ok
-    end
+    remote_join(owner_node, session_id, user_id, role, runtime_rpc)
   end
 
   @spec join_runtime_with_retry(
@@ -650,20 +689,6 @@ defmodule LC.Live do
     join_runtime(runtime_target, session_id, user_id, role, runtime_rpc)
   end
 
-  @spec remote_lookup(String.t(), pos_integer(), runtime_rpc_adapter()) ::
-          :ok | {:error, runtime_rpc_error()}
-  defp remote_lookup(owner_node, session_id, runtime_rpc)
-       when is_binary(owner_node) and is_integer(session_id) and is_atom(runtime_rpc) do
-    owner_node
-    |> runtime_rpc.call(
-      __MODULE__,
-      :remote_lookup_session_server,
-      [session_id],
-      timeout: runtime_rpc_timeout_ms()
-    )
-    |> normalize_remote_response()
-  end
-
   @spec remote_join(
           String.t(),
           pos_integer(),
@@ -679,6 +704,21 @@ defmodule LC.Live do
       __MODULE__,
       :remote_join_session_server,
       [session_id, user_id, role],
+      timeout: runtime_rpc_timeout_ms()
+    )
+    |> normalize_remote_response()
+  end
+
+  @spec remote_leave(String.t(), pos_integer(), pos_integer(), runtime_rpc_adapter()) ::
+          :ok | {:error, runtime_rpc_error()}
+  defp remote_leave(owner_node, session_id, user_id, runtime_rpc)
+       when is_binary(owner_node) and is_integer(session_id) and is_integer(user_id) and
+              is_atom(runtime_rpc) do
+    owner_node
+    |> runtime_rpc.call(
+      __MODULE__,
+      :remote_leave_session_server,
+      [session_id, user_id],
       timeout: runtime_rpc_timeout_ms()
     )
     |> normalize_remote_response()

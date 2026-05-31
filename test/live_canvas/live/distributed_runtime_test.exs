@@ -62,7 +62,25 @@ defmodule LC.Live.DistributedRuntimeTest do
   end
 
   describe "join_live_session/4 with remote runtime ownership" do
-    test "routes remote lookup and join through runtime RPC" do
+    test "remote join starts a missing local runtime before admitting the viewer" do
+      host = user_fixture()
+      viewer = user_fixture()
+      session = live_session_fixture(host.id)
+
+      on_exit(fn ->
+        RealtimeRuntime.stop_session_runtime(session.id)
+      end)
+
+      assert {:error, :not_found} = SessionSupervisor.lookup_session_server(session.id)
+
+      assert :ok = Live.remote_join_session_server(session.id, viewer.id, :viewer)
+      assert {:ok, pid} = SessionSupervisor.lookup_session_server(session.id)
+      assert %{participants: participants} = LC.Live.SessionServer.snapshot(pid)
+      assert %{user_id: viewer_id, role: :viewer} = Map.fetch!(participants, viewer.id)
+      assert viewer_id == viewer.id
+    end
+
+    test "routes remote join through runtime RPC" do
       host = user_fixture()
       viewer = user_fixture()
       session = live_session_fixture(host.id)
@@ -70,10 +88,7 @@ defmodule LC.Live.DistributedRuntimeTest do
 
       put_remote_owner(session, remote_owner)
 
-      configure_runtime_rpc([
-        {:ok, :ok},
-        {:ok, :ok}
-      ])
+      configure_runtime_rpc([{:ok, :ok}])
 
       assert {:ok, %LiveParticipant{live_session_id: session_id, user_id: viewer_id}} =
                Live.join_live_session(
@@ -86,11 +101,6 @@ defmodule LC.Live.DistributedRuntimeTest do
       assert session_id == session.id
       assert viewer_id == viewer.id
 
-      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_lookup_session_server,
-                      [remote_session_id], _opts}
-
-      assert remote_session_id == session.id
-
       assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_join_session_server,
                       [joined_session_id, joined_viewer_id, :viewer], _opts}
 
@@ -98,7 +108,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       assert joined_viewer_id == viewer.id
     end
 
-    test "maps remote lookup failure to a stable reason atom" do
+    test "maps remote join transport failure to a stable reason atom" do
       host = user_fixture()
       viewer = user_fixture()
       session = live_session_fixture(host.id)
@@ -150,10 +160,7 @@ defmodule LC.Live.DistributedRuntimeTest do
 
       put_remote_owner(session, remote_owner)
 
-      configure_runtime_rpc([
-        {:ok, :ok},
-        {:ok, {:error, :not_found}}
-      ])
+      configure_runtime_rpc([{:ok, {:error, :not_found}}])
 
       assert {:error, :remote_not_found} =
                Live.join_live_session(
@@ -173,9 +180,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       put_remote_owner(session, remote_owner)
 
       configure_runtime_rpc([
-        {:ok, :ok},
         {:ok, {:error, :not_found}},
-        {:ok, :ok},
         {:ok, :ok}
       ])
 
@@ -190,21 +195,11 @@ defmodule LC.Live.DistributedRuntimeTest do
       assert session_id == session.id
       assert viewer_id == viewer.id
 
-      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_lookup_session_server,
-                      [first_lookup_session_id], _opts}
-
-      assert first_lookup_session_id == session.id
-
       assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_join_session_server,
                       [first_join_session_id, first_join_viewer_id, :viewer], _opts}
 
       assert first_join_session_id == session.id
       assert first_join_viewer_id == viewer.id
-
-      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_lookup_session_server,
-                      [retry_lookup_session_id], _opts}
-
-      assert retry_lookup_session_id == session.id
 
       assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_join_session_server,
                       [retry_join_session_id, retry_join_viewer_id, :viewer], _opts}
@@ -222,9 +217,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       put_remote_owner(session, remote_owner)
 
       configure_runtime_rpc([
-        {:ok, :ok},
         {:ok, {:error, :not_found}},
-        {:ok, :ok},
         {:ok, {:error, :not_found}}
       ])
 
@@ -250,10 +243,7 @@ defmodule LC.Live.DistributedRuntimeTest do
       assert Process.alive?(stale_local_pid)
       put_remote_owner(session, remote_owner)
 
-      configure_runtime_rpc([
-        {:ok, :ok},
-        {:ok, :ok}
-      ])
+      configure_runtime_rpc([{:ok, :ok}])
 
       assert {:ok, %LiveParticipant{live_session_id: session_id, user_id: viewer_id}} =
                Live.join_live_session(
@@ -266,16 +256,50 @@ defmodule LC.Live.DistributedRuntimeTest do
       assert session_id == session.id
       assert viewer_id == viewer.id
 
-      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_lookup_session_server,
-                      [remote_session_id], _opts}
-
-      assert remote_session_id == session.id
-
       assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_join_session_server,
                       [joined_session_id, joined_viewer_id, :viewer], _opts}
 
       assert joined_session_id == session.id
       assert joined_viewer_id == viewer.id
+    end
+  end
+
+  describe "leave_live_session/3 with remote runtime ownership" do
+    test "routes remote leave through runtime RPC" do
+      host = user_fixture()
+      viewer = user_fixture()
+      session = live_session_fixture(host.id)
+      remote_owner = "remote-owner@127.0.0.1"
+
+      put_remote_owner(session, remote_owner)
+      configure_runtime_rpc([{:ok, :ok}])
+
+      assert :ok = Live.leave_live_session(session, viewer, runtime_rpc: FakeRuntimeRPC)
+
+      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_leave_session_server,
+                      [left_session_id, left_viewer_id], _opts}
+
+      assert left_session_id == session.id
+      assert left_viewer_id == viewer.id
+    end
+
+    test "remote leave removes the viewer from the local runtime" do
+      host = user_fixture()
+      viewer = user_fixture()
+      session = live_session_fixture(host.id)
+
+      on_exit(fn ->
+        RealtimeRuntime.stop_session_runtime(session.id)
+      end)
+
+      assert {:ok, pid} = SessionSupervisor.start_session_server(session.id)
+      assert :ok = SessionSupervisor.join_session_server(session.id, viewer.id, :viewer)
+      assert %{participants: participants_before_leave} = LC.Live.SessionServer.snapshot(pid)
+      assert Map.has_key?(participants_before_leave, viewer.id)
+
+      assert :ok = Live.remote_leave_session_server(session.id, viewer.id)
+      assert %{participants: participants_after_leave} = LC.Live.SessionServer.snapshot(pid)
+      refute Map.has_key?(participants_after_leave, viewer.id)
     end
   end
 
