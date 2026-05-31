@@ -2,11 +2,11 @@ defmodule LCGQL.Accounts.Queries do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  alias LCGQL.Accounts.{ContactResolver, DataGovernanceResolver, Resolver}
+  alias LCGQL.Accounts.{ContactResolver, DataGovernanceResolver, UserResolver}
 
   object :account_queries do
     field :viewer, :user do
-      resolve(&Resolver.viewer/3)
+      resolve(&UserResolver.viewer/3)
     end
 
     connection field :viewer_data_export_requests,
