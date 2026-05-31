@@ -2,7 +2,7 @@ defmodule LCGQL.Accounts.Types do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  alias LCGQL.Accounts.Resolver
+  alias LCGQL.Accounts.UserResolver
   alias LCGQL.Social.Resolver, as: SocialResolver
 
   connection(node_type: :user)
@@ -61,30 +61,30 @@ defmodule LCGQL.Accounts.Types do
 
   node object(:user) do
     field :email, :string do
-      resolve(&Resolver.user_email/3)
+      resolve(&UserResolver.user_email/3)
     end
 
     field :privacy_mode, non_null(:user_privacy_mode)
     field :inserted_at, non_null(:string)
 
     connection field :posts, node_type: :post, paginate: :forward do
-      resolve(&Resolver.user_posts/3)
+      resolve(&UserResolver.user_posts/3)
     end
 
     connection field :story_feed, node_type: :post, paginate: :forward do
-      resolve(&Resolver.user_story_feed/3)
+      resolve(&UserResolver.user_story_feed/3)
     end
 
     field :current_live_session, :live_session do
-      resolve(&Resolver.user_current_live_session/3)
+      resolve(&UserResolver.user_current_live_session/3)
     end
 
     connection field :replay_feed, node_type: :live_session, paginate: :forward do
-      resolve(&Resolver.user_replay_feed/3)
+      resolve(&UserResolver.user_replay_feed/3)
     end
 
     connection field :user_identities, node_type: :user_identity, paginate: :forward do
-      resolve(&Resolver.user_identities/3)
+      resolve(&UserResolver.user_identities/3)
     end
 
     connection field :followers, node_type: :user, paginate: :forward do
@@ -100,17 +100,17 @@ defmodule LCGQL.Accounts.Types do
     field :provider, non_null(:string)
 
     field :auth_provider, :auth_provider do
-      resolve(&Resolver.user_identity_auth_provider/3)
+      resolve(&UserResolver.user_identity_auth_provider/3)
     end
 
     field :oauth_provider, :oauth_provider, deprecate: "Use authProvider instead." do
-      resolve(&Resolver.user_identity_oauth_provider/3)
+      resolve(&UserResolver.user_identity_oauth_provider/3)
     end
 
     field :uid, non_null(:string)
 
     field :user, non_null(:user) do
-      resolve(&Resolver.user_identity_user/3)
+      resolve(&UserResolver.user_identity_user/3)
     end
 
     field :inserted_at, non_null(:string)

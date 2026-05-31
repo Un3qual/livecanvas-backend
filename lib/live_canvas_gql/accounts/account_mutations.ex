@@ -2,7 +2,7 @@ defmodule LCGQL.Accounts.Mutations do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  alias LCGQL.Accounts.{ContactResolver, DataGovernanceResolver, Resolver}
+  alias LCGQL.Accounts.{ContactResolver, DataGovernanceResolver, Resolver, UserResolver}
 
   object :account_mutations do
     payload field :begin_auth_challenge do
@@ -67,7 +67,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.register_with_email/3)
+      resolve(&UserResolver.register_with_email/3)
     end
 
     payload field :attach_user_phone_number do
@@ -80,7 +80,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.attach_user_phone_number/3)
+      resolve(&UserResolver.attach_user_phone_number/3)
     end
 
     payload field :update_viewer_privacy_mode do
@@ -93,7 +93,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.update_viewer_privacy_mode/3)
+      resolve(&UserResolver.update_viewer_privacy_mode/3)
     end
 
     payload field :request_password_reset do
@@ -133,7 +133,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.unlink_viewer_identity/3)
+      resolve(&UserResolver.unlink_viewer_identity/3)
     end
 
     payload field :request_viewer_data_export do
