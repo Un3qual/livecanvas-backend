@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
-Last reviewed: 2026-05-30
-Status: `GQL-001` Stage 8 complete; `GQL-002` Stage 8 complete; `GQL-003` Stage 8 complete; `GQL-004` Stage 8 complete; `GQL-005` Stage 8 complete; `GQL-006` Stage 8 complete; `GQL-007` Stage 8 complete; `GQL-008` Stage 8 complete; `GEN-002` Stage 8 complete; `WEB-001` Stage 8 complete; `ECTO-001` Stage 8 complete; `CTX-001` Stage 8 complete; `SOCK-002` Stage 8 complete; `SOCK-003` Stage 8 complete; `LIVE-001` Stage 8 complete; `DOC-001` Stage 8 complete
+Last reviewed: 2026-05-31
+Status: `GQL-001` Stage 8 complete; `GQL-002` Stage 8 complete; `GQL-003` Stage 8 complete; `GQL-004` Stage 8 complete; `GQL-005` Stage 8 complete; `GQL-006` Stage 8 complete; `GQL-007` Stage 8 complete; `GQL-008` Stage 8 complete; `GEN-002` Stage 8 complete; `WEB-001` Stage 8 complete; `ECTO-001` Stage 8 complete; `CTX-001` Stage 8 complete; `SOCK-002` Stage 8 complete; `SOCK-003` Stage 8 complete; `LIVE-001` Stage 8 complete; `DOC-001` Stage 8 complete; `GQL-009` Stage 7 complete and Stage 8 Task 1 complete
 Owner lane: backend
 
 ## Purpose
@@ -31,9 +31,9 @@ Stage 8 is complete for `GQL-001`: GraphQL timestamp fields that only formatted 
 
 `SOCK-001` has Stage 2 complete with a merge-into-`SOCK-002` decision: the duplicate live-session topic-id parsing concern is real, and `SOCK-002` now owns the combined cleanup. `SOCK-002` also has Stage 8 complete: live-session topic generation and join-topic parsing now live in `LCTransport.LiveSessionTopics`, GraphQL/live channel call sites delegate to that helper, chat broadcasts receive prebuilt transport topics, and `docs/architecture/conventions.md` records the realtime transport topic rule. `SOCK-003` also has Stage 8 complete: client-facing live-session socket reason strings now live in `LCTransport.LiveSessionReasons`, channel join/chat error payloads and GraphQL lifecycle disconnect broadcasts delegate to it, channel telemetry reason normalization remains separate, and `docs/architecture/conventions.md` records the socket-reason boundary rule. `DOC-001` also has Stage 8 complete: `docs/architecture/conventions.md` removes the historical `Progress` checklist and `Planned Refactors` section, preserves durable standards, and adds a `Documentation Hygiene` rule that keeps task/status tracking in plan and lane-status docs.
 
-`LIVE-001` also has Stage 8 complete: live-session runtime ownership now routes through `LC.RealtimeRuntime` shard ownership and shard-local runtime supervisors, the Postgres `live_session_runtime_owners` schema/table path is removed by a drop migration, runtime lease heartbeats/configuration were removed, remote/unavailable routing remains fail-closed, release/data-governance references no longer use lease-owner language, and `docs/architecture/conventions.md` records the OTP-native shard-owner rule. The first slice kept the existing `DNSCluster` discovery path rather than adding `libcluster`, because the app already has DNS-based BEAM discovery and this slice only needed to replace the ownership layer; revisit `libcluster` when deployment needs topology strategies beyond the existing DNS query. `GQL-008` also has Stage 8 complete: contact-match GraphQL projection now flattens `contact_name` and `birthday` once through `LCGQL.Accounts.Resolver.contact_match_node/1`, `viewerContactMatches`, mutation payloads, and Relay node refetch all use the same projected shape, resolver-only nested scalar/date fields were removed, and `docs/architecture/conventions.md` records the direct-field projection rule. `GEN-002` also has Stage 8 complete: `LC.Infra.Payload` now owns fixed known-key boundary payload lookup and positive-integer extraction, async/webhook/data-governance handlers delegate duplicate id extraction to it, the observability socket context no longer uses `String.to_atom/1`, and `docs/architecture/conventions.md` records the boundary-payload helper rule. `WEB-001` also has Stage 8 complete: HTTP Authorization Bearer parsing now lives in `LCTransport.BearerAuth`, GraphQL request context and metrics auth delegate parsing to it while keeping authorization decisions local, malformed GraphQL Authorization headers do not fall back to sessions, metrics casing/whitespace behavior is covered, and `docs/architecture/conventions.md` records the web-auth parsing rule. `GEN-001` has Stage 2 complete with a deferred-valid decision: the client-facing system-event model must be fixed later, but the fix requires a dedicated chat timeline/event-object redesign rather than an implicit code-quality cleanup pass. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned.
+`LIVE-001` also has Stage 8 complete: live-session runtime ownership now routes through `LC.RealtimeRuntime` shard ownership and shard-local runtime supervisors, the Postgres `live_session_runtime_owners` schema/table path is removed by a drop migration, runtime lease heartbeats/configuration were removed, remote/unavailable routing remains fail-closed, release/data-governance references no longer use lease-owner language, and `docs/architecture/conventions.md` records the OTP-native shard-owner rule. The first slice kept the existing `DNSCluster` discovery path rather than adding `libcluster`, because the app already has DNS-based BEAM discovery and this slice only needed to replace the ownership layer; revisit `libcluster` when deployment needs topology strategies beyond the existing DNS query. `GQL-008` also has Stage 8 complete: contact-match GraphQL projection now flattens `contact_name` and `birthday` once through the GraphQL contact-match projection helper, `viewerContactMatches`, mutation payloads, and Relay node refetch all use the same projected shape, resolver-only nested scalar/date fields were removed, and `docs/architecture/conventions.md` records the direct-field projection rule. `GEN-002` also has Stage 8 complete: `LC.Infra.Payload` now owns fixed known-key boundary payload lookup and positive-integer extraction, async/webhook/data-governance handlers delegate duplicate id extraction to it, the observability socket context no longer uses `String.to_atom/1`, and `docs/architecture/conventions.md` records the boundary-payload helper rule. `WEB-001` also has Stage 8 complete: HTTP Authorization Bearer parsing now lives in `LCTransport.BearerAuth`, GraphQL request context and metrics auth delegate parsing to it while keeping authorization decisions local, malformed GraphQL Authorization headers do not fall back to sessions, metrics casing/whitespace behavior is covered, and `docs/architecture/conventions.md` records the web-auth parsing rule. `GEN-001` has Stage 2 complete with a deferred-valid decision: the client-facing system-event model must be fixed later, but the fix requires a dedicated chat timeline/event-object redesign rather than an implicit code-quality cleanup pass. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned.
 
-No Stage 8 implementation has started for any cleanup issue other than `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `DOC-001`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, and `LIVE-001`. No additional available Stage 8 implementation tasks remain with completed Stage 7 plans. Do not start the dedicated `GEN-001` chat timeline/event-object redesign unless the user explicitly asks, and do not revisit deferred `GQL-009` Stage 7 unless the user explicitly asks to plan that deferred structural cleanup.
+No Stage 8 implementation has started for any cleanup issue other than `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `DOC-001`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `GQL-009`. On 2026-05-31, the user explicitly asked to repair the shared docs and start `GQL-009`; Stage 7 is written, and Stage 8 Task 1 extracted contact responsibilities into `LCGQL.Accounts.ContactResolver`. Continue Stage 8 one focused extraction at a time. Do not start the dedicated `GEN-001` chat timeline/event-object redesign unless the user explicitly asks.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -92,7 +92,7 @@ Stage 4 candidate issue status:
 - `GQL-008`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 complete.
 - `GEN-002`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 complete.
 - `WEB-001`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 complete.
-- `GQL-009`: Stage 4 complete, Stage 5 complete with a deferred-valid decision, Stage 6 complete, Stage 7 deferred until narrower cleanup work is planned or fixed, Stage 8 blocked until Stage 7 is written and implementation is explicitly requested.
+- `GQL-009`: Stage 4 complete, Stage 5 complete with a deferred-valid decision, Stage 6 complete, Stage 7 complete after explicit user request on 2026-05-31, Stage 8 Task 1 complete.
 
 ## Issues
 
@@ -2432,6 +2432,52 @@ Findings:
   - user node child fields: `viewer/3`, profile feed/live-session/replay connections, `user_identities/3`, `user_identity_user/3`, and `visible_profile_connection/3`.
 - This split should remain deferred until narrower shared-helper work is planned or fixed, because `GQL-001`, `GQL-003`, `GQL-004`, `GQL-008`, and `WEB-001` all touch helpers currently embedded in the module.
 
+**Stage 7 fix and prevention plan:** Written on 2026-05-31 after the user explicitly asked to start `GQL-009`.
+
+Stage 8 fix scope:
+
+- Preserve the public GraphQL schema contract. Do not rename fields, payloads, errors, Relay node types, global IDs, connections, cursor behavior, or mutation payload shapes.
+- Split `LCGQL.Accounts.Resolver` by cohesive GraphQL API area rather than by technical helper type. The goal is smaller resolver modules with clear ownership, not a new generic utility layer.
+- Create focused resolver modules under `lib/live_canvas_gql/accounts/`:
+  - `LCGQL.Accounts.ContactResolver` owns contact-match GraphQL projection, `viewerContactMatches`, `upsertViewerContactEntry`, `deliverViewerContactInvite`, and contact-specific normalization/error helpers.
+  - `LCGQL.Accounts.DataGovernanceResolver` owns `viewerDataExportRequests`, `requestViewerDataExport`, `requestViewerAccountDeletion`, `cancelViewerAccountDeletionRequest`, data-export/account-deletion error mapping, account-deletion global-ID decoding, and request option filtering.
+  - `LCGQL.Accounts.UserResolver` owns `viewer`, User-node child resolvers, user-identity field resolvers, profile connection authorization helpers, profile/privacy mutations, and identity unlinking.
+  - `LCGQL.Accounts.AuthResolver` owns `beginAuthChallenge`, `signUp`, `logIn`, `issueViewerAuthTokens`, `refreshAuthTokens`, `revokeRefreshToken`, password reset request/reset mutations, token payload projection, auth-entry payload projection, auth field validation, and deterministic auth URL builders.
+- Keep helpers private to the module that owns the behavior. Extract a shared helper only if two new resolver modules need the same behavior after the split; do not preserve the current monolith by moving private helpers into a catch-all utility module.
+- Update `account_mutations.ex`, `account_queries.ex`, `account_types.ex`, and `schema.ex` to call the focused resolver modules directly. Avoid long-term delegation wrappers in `LCGQL.Accounts.Resolver`.
+- Remove `LCGQL.Accounts.Resolver` only after all references are gone. If a transition slice leaves it partially populated, keep it only for unmoved functions and shrink it each slice.
+- Leave `account_mutations.ex`, `account_queries.ex`, and `account_types.ex` structurally intact in this cleanup unless a resolver alias change is needed. Schema object definitions and field grouping are not the `GQL-009` target.
+- Do not move business logic into GraphQL. Context calls stay in `LC.Accounts`/`LC.Feed`, and GraphQL modules should keep only authorization-adapter, Relay/global-ID, connection, payload-projection, and GraphQL error-mapping work.
+- Do not add migrations, context APIs, new auth flows, new contact behavior, or new data-governance behavior as part of this structural cleanup.
+
+Stage 8 task order:
+
+1. [x] Extract contact responsibilities first because they already have a cohesive query/mutation surface and a public projection helper used by Relay node refetch. Move `contact_match_node/1` with the contact resolver and update `LCGQL.Schema` to use it for synthetic contact-match node projection.
+2. Extract data-governance responsibilities next. Keep data-export and account-deletion request/cancel/list behavior together so request ID decoding, option filtering, and error mapping stay local.
+3. Extract user/profile/identity responsibilities. Move `viewer`, private `user_email`, profile child connections, user identity fields, profile/privacy mutations, and identity unlinking together so viewer re-authorization helpers remain local.
+4. Extract auth/recovery/token responsibilities last. This is the largest slice, so preserve existing GraphQL auth tests and rate-limit expectations while moving deterministic URL builders, auth field validation, token projection, auth challenge/sign-up/login, refresh, revoke, and password reset behavior into `AuthResolver`.
+5. Remove the old `LCGQL.Accounts.Resolver` module after all references are moved, and add/update the durable GraphQL convention so future large resolver modules split by cohesive API area before becoming mixed-responsibility adapters.
+
+Focused test plan:
+
+- For each extraction slice, add a small RED boundary/ownership test only when it gives useful confidence that the new public resolver module owns a behavior that was previously trapped in the monolith. Prefer existing public GraphQL tests for API behavior over asserting private implementation details.
+- Contact slice verification:
+  - RED: add a focused test for `LCGQL.Accounts.ContactResolver.contact_match_node/1` projection ownership before creating the module.
+  - GREEN: move contact query/mutation/projection functions and run `mix test test/live_canvas_gql/accounts/contact_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs`.
+- Data-governance slice verification:
+  - Run the data-export/account-deletion portions through `test/live_canvas_gql/accounts/account_mutations_test.exs` and keep `viewerDataExportRequests` connection behavior covered.
+- User/profile/identity slice verification:
+  - Run `mix test test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs` after moving viewer, user child fields, and identity fields.
+- Auth/recovery/token slice verification:
+  - Run `mix test test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs test/integration/accounts_login_flow_test.exs`.
+- After every production-code slice, run `mix compile`. Because resolver modules have public functions and typespecs, run `mix typecheck` before marking `GQL-009` Stage 8 complete.
+
+Prevention checks:
+
+- After each slice, run `rg -n "alias LCGQL.Accounts.Resolver|&Resolver\\.|LCGQL\\.Accounts\\.Resolver|AccountsResolver" lib/live_canvas_gql` and verify remaining hits are only for unmoved slices.
+- After the final slice, run `rg -n "defmodule LCGQL.Accounts.Resolver|LCGQL\\.Accounts\\.Resolver|alias LCGQL.Accounts.Resolver|&Resolver\\." lib/live_canvas_gql test` and expect no hits.
+- Add a durable convention under `docs/architecture/conventions.md` during Stage 8 completion: large GraphQL resolver modules should split by cohesive API area once they mix unrelated mutation/query/field resolver groups; keep shared helpers focused and only extract them after real cross-module use appears.
+
 **Progress:**
 
 - Stage 1: Not applicable; this issue was discovered during Stage 4.
@@ -2440,8 +2486,8 @@ Findings:
 - Stage 4: Complete; discovered and initially analyzed.
 - Stage 5: Complete; marked valid but deferred.
 - Stage 6: Complete.
-- Stage 7: Deferred until narrower cleanup work is planned or fixed.
-- Stage 8: Blocked until Stage 7 is written and implementation is explicitly requested.
+- Stage 7: Complete; structural split plan written after explicit user request.
+- Stage 8: Started; Task 1 contact resolver extraction complete. `LCGQL.Accounts.ContactResolver` now owns contact-match projection, `viewerContactMatches`, `upsertViewerContactEntry`, `deliverViewerContactInvite`, and contact-specific helpers. `LCGQL.Schema` uses `ContactResolver.contact_match_node/1` for synthetic contact-match node refetch. Task 2 data-governance resolver extraction is next.
 
 ## Prompt For Next Run
 
@@ -2452,14 +2498,10 @@ Continue the backend code quality cleanup from docs/plans/backend/2026-05-22-cod
 
 Read AGENTS.md, docs/plans/backend/NOW.md, and this cleanup inventory. Treat this inventory as the source of truth for per-issue stage status; if docs/plans/backend/NOW.md lags behind these statuses, follow this inventory and update docs/plans/backend/NOW.md before continuing. Do not edit coordinator-owned docs/plans/NOW.md from the backend lane.
 
-Current status: Stage 1 and Stage 2 are complete for all user-reported issues. Stage 3 and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`. Stage 4 is complete. Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`. Stage 7 plans are written for `GQL-008`, `GEN-002`, and `WEB-001`; `GQL-009` remains deferred until narrower cleanup work is planned or fixed.
+Current status: Stage 1 and Stage 2 are complete for all user-reported issues. Stage 3 and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`. Stage 4 is complete. Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`. Stage 7 plans are written for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`.
 
-Stage 8 is complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`. `SOCK-001` is complete for Stage 2 and merged into `SOCK-002`, so do not run separate `SOCK-001` work. `GEN-001` is deferred-valid and must be handled only through a dedicated chat timeline/event-object redesign if the user explicitly asks.
+Stage 8 is complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`. `SOCK-001` is complete for Stage 2 and merged into `SOCK-002`, so do not run separate `SOCK-001` work. `GQL-009` Stage 7 is complete after explicit user request, Stage 8 Task 1 contact resolver extraction is complete, and Stage 8 should continue with Task 2 data-governance resolver extraction. `GEN-001` is deferred-valid and must be handled only through a dedicated chat timeline/event-object redesign if the user explicitly asks.
 
-No remaining available Stage 8 task has a completed Stage 7 plan. Do not start `GEN-001` through the cleanup-stage flow. Do not start or plan `GQL-009` unless the user explicitly asks to revisit that deferred structural cleanup. Report shared dashboard/index repairs instead of editing docs/plans/NOW.md or docs/plans/INDEX.md from the backend lane.
+Continue `GQL-009` Stage 8 with the next focused extraction from the Stage 7 plan. Do not start `GEN-001` through the cleanup-stage flow. Shared dashboard/index repairs were explicitly assigned on 2026-05-31; otherwise report shared-doc repairs instead of editing docs/plans/NOW.md or docs/plans/INDEX.md from the backend lane.
 
 ```
-
-## Shared Coordinator Repair To Report
-
-The user explicitly reprioritized backend code quality cleanup as the new number 1 priority. `docs/plans/NOW.md` is coordinator-owned, so backend-lane workers should not edit it directly. A coordinator should update the backend lane summary there to point at this document, noting that `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete; `SOCK-001` is complete for Stage 2 and merged into `SOCK-002`; no additional available Stage 8 task has a completed Stage 7 plan; `GEN-001` remains a dedicated future chat timeline/event-object redesign; and `GQL-009` remains deferred unless explicitly revisited.

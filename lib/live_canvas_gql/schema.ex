@@ -6,7 +6,7 @@ defmodule LCGQL.Schema do
 
   alias LC.{Accounts, Chat, Content, Feed, Live, Social}
   alias LCGQL.Dataloader
-  alias LCGQL.Accounts.Resolver, as: AccountsResolver
+  alias LCGQL.Accounts.ContactResolver
   alias LCSchemas.Accounts.{User, UserContactEntry, UserIdentity}
   alias LCSchemas.Chat.ChatMessage
   alias LCSchemas.Content.{MediaAsset, Post, PostReport}
@@ -328,11 +328,11 @@ defmodule LCGQL.Schema do
   defp fetch_contact_match_node(_id, _resolution), do: {:ok, nil}
 
   @spec maybe_contact_match_node(Accounts.contact_match() | nil) ::
-          AccountsResolver.contact_match_node() | nil
+          ContactResolver.contact_match_node() | nil
   defp maybe_contact_match_node(nil), do: nil
 
   defp maybe_contact_match_node(contact_match),
-    do: AccountsResolver.contact_match_node(contact_match)
+    do: ContactResolver.contact_match_node(contact_match)
 
   @spec cast_node_local_id(term()) :: {:ok, integer()} | :error
   defp cast_node_local_id(value) do

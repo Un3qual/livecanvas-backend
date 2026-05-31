@@ -2,7 +2,7 @@ defmodule LCGQL.Accounts.Mutations do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  alias LCGQL.Accounts.Resolver
+  alias LCGQL.Accounts.{ContactResolver, Resolver}
 
   object :account_mutations do
     payload field :begin_auth_challenge do
@@ -189,7 +189,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.upsert_viewer_contact_entry/3)
+      resolve(&ContactResolver.upsert_viewer_contact_entry/3)
     end
 
     payload field :deliver_viewer_contact_invite do
@@ -201,7 +201,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.deliver_viewer_contact_invite/3)
+      resolve(&ContactResolver.deliver_viewer_contact_invite/3)
     end
 
     payload field :issue_viewer_auth_tokens do
