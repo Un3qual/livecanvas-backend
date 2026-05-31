@@ -2,7 +2,7 @@ defmodule LCGQL.Accounts.Mutations do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  alias LCGQL.Accounts.{ContactResolver, Resolver}
+  alias LCGQL.Accounts.{ContactResolver, DataGovernanceResolver, Resolver}
 
   object :account_mutations do
     payload field :begin_auth_challenge do
@@ -146,7 +146,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.request_viewer_data_export/3)
+      resolve(&DataGovernanceResolver.request_viewer_data_export/3)
     end
 
     payload field :request_viewer_account_deletion do
@@ -159,7 +159,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.request_viewer_account_deletion/3)
+      resolve(&DataGovernanceResolver.request_viewer_account_deletion/3)
     end
 
     payload field :cancel_viewer_account_deletion_request do
@@ -172,7 +172,7 @@ defmodule LCGQL.Accounts.Mutations do
         field :errors, non_null(list_of(non_null(:user_error)))
       end
 
-      resolve(&Resolver.cancel_viewer_account_deletion_request/3)
+      resolve(&DataGovernanceResolver.cancel_viewer_account_deletion_request/3)
     end
 
     payload field :upsert_viewer_contact_entry do
