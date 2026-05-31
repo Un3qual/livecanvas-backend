@@ -41,6 +41,18 @@ defmodule LC.Live.DistributedRuntimeTest do
     end
   end
 
+  describe "stop_session_runtime/1 with remote runtime ownership" do
+    test "returns the remote owner instead of reporting a local stop" do
+      session = live_session_fixture()
+      remote_owner = "remote-owner@127.0.0.1"
+
+      put_remote_owner(session, remote_owner)
+
+      assert {:error, {:owned_by_remote, ^remote_owner}} =
+               RealtimeRuntime.stop_session_runtime(session.id)
+    end
+  end
+
   describe "start_live_session/3 with remote runtime ownership" do
     test "routes runtime start through the remote shard owner" do
       host = user_fixture()
@@ -300,6 +312,42 @@ defmodule LC.Live.DistributedRuntimeTest do
       assert :ok = Live.remote_leave_session_server(session.id, viewer.id)
       assert %{participants: participants_after_leave} = LC.Live.SessionServer.snapshot(pid)
       refute Map.has_key?(participants_after_leave, viewer.id)
+    end
+  end
+
+  describe "end_live_session_with_transition/3 with remote runtime ownership" do
+    test "routes remote stop through runtime RPC" do
+      host = user_fixture()
+      session = live_session_fixture(host.id)
+      remote_owner = "remote-owner@127.0.0.1"
+
+      put_remote_owner(session, remote_owner)
+      configure_runtime_rpc([{:ok, :ok}])
+
+      assert {:ok, %LiveSession{id: session_id}, true} =
+               Live.end_live_session_with_transition(
+                 session,
+                 %{ended_reason: :host_ended},
+                 runtime_rpc: FakeRuntimeRPC
+               )
+
+      assert session_id == session.id
+
+      assert_receive {:runtime_rpc_call, ^remote_owner, Live, :remote_stop_session_server,
+                      [stopped_session_id], _opts}
+
+      assert stopped_session_id == session.id
+    end
+
+    test "remote stop terminates the local runtime" do
+      host = user_fixture()
+      session = live_session_fixture(host.id)
+
+      assert {:ok, _pid} = SessionSupervisor.start_session_server(session.id)
+      assert {:ok, _pid} = SessionSupervisor.lookup_session_server(session.id)
+
+      assert :ok = Live.remote_stop_session_server(session.id)
+      assert {:error, :not_found} = SessionSupervisor.lookup_session_server(session.id)
     end
   end
 

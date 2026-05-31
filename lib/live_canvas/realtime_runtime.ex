@@ -13,6 +13,7 @@ defmodule LC.RealtimeRuntime do
   @type lookup_error :: :not_found | remote_owner_error()
   @type runtime_lookup_result :: {:ok, pid()} | {:error, lookup_error()}
   @type runtime_start_result :: {:ok, pid()} | {:error, term() | lookup_error()}
+  @type runtime_stop_result :: :ok | {:error, remote_owner_error()}
 
   @spec shard_id(pos_integer()) :: shard_id()
   @spec shard_id(pos_integer(), keyword()) :: shard_id()
@@ -53,8 +54,8 @@ defmodule LC.RealtimeRuntime do
     |> call_shard({:start_session_runtime, session_id, initial_participants})
   end
 
-  @spec stop_session_runtime(pos_integer()) :: :ok
-  @spec stop_session_runtime(pos_integer(), keyword()) :: :ok
+  @spec stop_session_runtime(pos_integer()) :: runtime_stop_result()
+  @spec stop_session_runtime(pos_integer(), keyword()) :: runtime_stop_result()
   def stop_session_runtime(session_id, opts \\ [])
 
   def stop_session_runtime(session_id, opts)
@@ -63,7 +64,8 @@ defmodule LC.RealtimeRuntime do
 
     case call_shard(shard_id, {:stop_session_runtime, session_id}) do
       :ok -> :ok
-      {:error, _reason} -> :ok
+      {:error, :not_found} -> :ok
+      {:error, {:owned_by_remote, _owner_node}} = error -> error
     end
   end
 

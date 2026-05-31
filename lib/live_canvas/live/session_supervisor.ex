@@ -8,6 +8,7 @@ defmodule LC.Live.SessionSupervisor do
   @type remote_owner_error :: {:owned_by_remote, String.t()}
   @type lookup_error :: :not_found | remote_owner_error()
   @type start_option :: {:shard_id, RealtimeRuntime.shard_id()}
+  @type stop_result :: :ok | {:error, remote_owner_error()}
 
   @spec start_link(keyword()) :: Supervisor.on_start()
   def start_link(opts \\ []) do
@@ -30,7 +31,7 @@ defmodule LC.Live.SessionSupervisor do
     RealtimeRuntime.start_session_runtime(session_id, initial_participants, opts)
   end
 
-  @spec stop_session_server(pos_integer()) :: :ok
+  @spec stop_session_server(pos_integer()) :: stop_result()
   def stop_session_server(session_id) when is_integer(session_id) do
     RealtimeRuntime.stop_session_runtime(session_id)
   end

@@ -42,6 +42,7 @@ defmodule LC.Live do
   @type runtime_target :: {:local, pid()} | {:remote, String.t()}
   @type runtime_rpc_adapter :: module()
   @type start_live_session_option :: {:runtime_rpc, runtime_rpc_adapter()}
+  @type end_live_session_option :: {:runtime_rpc, runtime_rpc_adapter()}
   @type leave_live_session_option :: {:runtime_rpc, runtime_rpc_adapter()}
   @type session_server_lookup_result ::
           {:ok, pid()} | {:error, :not_found | {:owned_by_remote, String.t()}}
@@ -133,11 +134,17 @@ defmodule LC.Live do
   Marks a live session as ended and tears down runtime state.
   """
   @spec end_live_session(persisted_live_session()) :: end_live_session_result()
-  def end_live_session(%LiveSession{} = live_session), do: end_live_session(live_session, %{})
+  def end_live_session(%LiveSession{} = live_session), do: end_live_session(live_session, %{}, [])
 
   @spec end_live_session(persisted_live_session(), map()) :: end_live_session_result()
-  def end_live_session(%LiveSession{} = live_session, attrs) when is_map(attrs) do
-    case end_live_session_with_transition(live_session, attrs) do
+  def end_live_session(%LiveSession{} = live_session, attrs),
+    do: end_live_session(live_session, attrs, [])
+
+  @spec end_live_session(persisted_live_session(), map(), [end_live_session_option()]) ::
+          end_live_session_result()
+  def end_live_session(%LiveSession{} = live_session, attrs, opts)
+      when is_map(attrs) and is_list(opts) do
+    case end_live_session_with_transition(live_session, attrs, opts) do
       {:ok, ended_live_session, _transitioned?} -> {:ok, ended_live_session}
       {:error, _reason} = error -> error
     end
@@ -146,12 +153,21 @@ defmodule LC.Live do
   @spec end_live_session_with_transition(persisted_live_session()) ::
           end_live_session_transition_result()
   def end_live_session_with_transition(%LiveSession{} = live_session),
-    do: end_live_session_with_transition(live_session, %{})
+    do: end_live_session_with_transition(live_session, %{}, [])
 
   @spec end_live_session_with_transition(persisted_live_session(), map()) ::
           end_live_session_transition_result()
-  def end_live_session_with_transition(%LiveSession{id: session_id}, attrs)
-      when is_integer(session_id) and is_map(attrs) do
+  def end_live_session_with_transition(%LiveSession{} = live_session, attrs),
+    do: end_live_session_with_transition(live_session, attrs, [])
+
+  @spec end_live_session_with_transition(
+          persisted_live_session(),
+          map(),
+          [end_live_session_option()]
+        ) :: end_live_session_transition_result()
+  def end_live_session_with_transition(%LiveSession{id: session_id}, attrs, opts)
+      when is_integer(session_id) and is_map(attrs) and is_list(opts) do
+    runtime_rpc = Keyword.get(opts, :runtime_rpc, RuntimeRPC)
     now = now_utc()
     # Lock the session row before validating the optional recording so a
     # concurrent asset delete cannot slip between validation and persistence.
@@ -188,10 +204,10 @@ defmodule LC.Live do
     :ok =
       case result do
         {:ok, %LiveSession{}, true} ->
-          maybe_stop_session_server(1, session_id)
+          maybe_stop_session_server(1, session_id, runtime_rpc)
 
         {:ok, %LiveSession{}, false} ->
-          maybe_stop_session_server(0, session_id)
+          maybe_stop_session_server(0, session_id, runtime_rpc)
 
         {:error, _reason} ->
           :ok
@@ -409,6 +425,20 @@ defmodule LC.Live do
       {:error, :not_found} ->
         :ok
 
+      {:error, {:owned_by_remote, _owner_node}} ->
+        :ok
+    end
+  end
+
+  @doc false
+  @spec remote_stop_session_server(pos_integer()) :: :ok
+  def remote_stop_session_server(session_id) when is_integer(session_id) do
+    case SessionSupervisor.stop_session_server(session_id) do
+      :ok ->
+        :ok
+
+      # Stop RPCs are idempotent cleanup; if ownership moved again, the caller
+      # should not fail the already-persisted end transition.
       {:error, {:owned_by_remote, _owner_node}} ->
         :ok
     end
@@ -724,6 +754,20 @@ defmodule LC.Live do
     |> normalize_remote_response()
   end
 
+  @spec remote_stop(String.t(), pos_integer(), runtime_rpc_adapter()) ::
+          :ok | {:error, runtime_rpc_error()}
+  defp remote_stop(owner_node, session_id, runtime_rpc)
+       when is_binary(owner_node) and is_integer(session_id) and is_atom(runtime_rpc) do
+    owner_node
+    |> runtime_rpc.call(
+      __MODULE__,
+      :remote_stop_session_server,
+      [session_id],
+      timeout: runtime_rpc_timeout_ms()
+    )
+    |> normalize_remote_response()
+  end
+
   @spec remote_start(
           String.t(),
           pos_integer(),
@@ -911,9 +955,18 @@ defmodule LC.Live do
   @type live_session_event_result ::
           {:ok, LiveParticipant.t() | LiveSession.t()} | {:error, term()}
 
-  @spec maybe_stop_session_server(0 | 1, pos_integer()) :: :ok
-  defp maybe_stop_session_server(_updated_count, session_id) when is_integer(session_id),
-    do: SessionSupervisor.stop_session_server(session_id)
+  @spec maybe_stop_session_server(0 | 1, pos_integer(), runtime_rpc_adapter()) :: :ok
+  defp maybe_stop_session_server(_updated_count, session_id, runtime_rpc)
+       when is_integer(session_id) and is_atom(runtime_rpc) do
+    case SessionSupervisor.stop_session_server(session_id) do
+      :ok ->
+        :ok
+
+      {:error, {:owned_by_remote, owner_node}} ->
+        _result = remote_stop(owner_node, session_id, runtime_rpc)
+        :ok
+    end
+  end
 
   @spec normalize_transition_result(end_live_session_transition_result()) ::
           end_live_session_result()
