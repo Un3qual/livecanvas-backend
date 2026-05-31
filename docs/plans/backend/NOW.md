@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
 Last reviewed: 2026-05-31
-Status: active for `GQL-009` code-quality structural cleanup
+Status: current backend code-quality cleanup inventory complete, except deferred `GEN-001`
 
 ## Lane Scope
 
@@ -12,8 +12,8 @@ Status: active for `GQL-009` code-quality structural cleanup
 
 - Track: `backend_code_quality_cleanup`
 - Source: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
-- Batch: `GQL-009` Stage 8 Task 2 data-governance resolver extraction
-- Why now: The cleanup inventory is the source of truth for per-issue stage status. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete. The user explicitly asked to repair the shared docs and start `GQL-009`, so the deferred structural cleanup may now be planned and executed. Keep `GEN-001` as a separate chat timeline/event-object redesign unless the user explicitly asks for it.
+- Batch: no active backend cleanup implementation batch; `GQL-009` Stage 8 is complete
+- Why now: The cleanup inventory is the source of truth for per-issue stage status. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GQL-009`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete. Keep `GEN-001` as a separate chat timeline/event-object redesign unless the user explicitly asks for it.
 - Current status:
   - Stage 1 is complete for all user-reported issues.
   - `GQL-001`: Stage 2, Stage 3, Stage 7, and Stage 8 complete; resolver-only timestamp formatting has been removed from GraphQL fields.
@@ -36,13 +36,12 @@ Status: active for `GQL-009` code-quality structural cleanup
   - `GEN-001`: Stage 2 complete with a deferred-valid decision and a required future fix through a dedicated chat timeline/event-object redesign.
   - Stage 4 is complete.
   - `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`: Stage 5 and Stage 6 complete.
-  - `GQL-009`: Stage 7 complete; Stage 8 Task 1 contact resolver extraction complete; Stage 8 Task 2 data-governance resolver extraction is next.
+  - `GQL-009`: Stage 7 complete; Stage 8 complete. Contact responsibilities live in `LCGQL.Accounts.ContactResolver`, data-governance responsibilities live in `LCGQL.Accounts.DataGovernanceResolver`, user/profile/identity responsibilities live in `LCGQL.Accounts.UserResolver`, auth/recovery/token responsibilities live in `LCGQL.Accounts.AuthResolver`, and the old `LCGQL.Accounts.Resolver` module has been removed.
 
 ## Do This Now
 
-- Open `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
-- For one issue at a time, update the issue's status before moving on.
-- Execute `GQL-009` Stage 8 Task 2 by extracting data-export/account-deletion query and mutation responsibilities into a focused data-governance resolver. Preserve the public GraphQL contract and use TDD for production-code refactors.
+- Open `docs/plans/backend/2026-05-22-code-quality-cleanup.md` if the user explicitly resumes this cleanup plan.
+- No further cleanup-stage implementation is currently unblocked in this plan.
 - `SOCK-002` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `SOCK-003` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `LIVE-001` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
@@ -55,7 +54,7 @@ Status: active for `GQL-009` code-quality structural cleanup
 - `GQL-009` has been explicitly revisited by the user; keep scope to the Accounts resolver structural split and do not broaden into unrelated Accounts behavior changes.
 - `SOCK-001` is complete for Stage 2 and should not get separate Stage 3, Stage 7, or Stage 8 work; `SOCK-002` owns the combined live-session topic generation and parsing cleanup.
 - If the user redirects to another issue, preserve the one-issue-at-a-time rule.
-- No Stage 8 implementation is authorized until the `GQL-009` Stage 7 plan is written. Do not edit implementation code for other blocked/deferred issues.
+- Do not edit implementation code for blocked/deferred cleanup issues.
 - Shared dashboard/index repair was explicitly assigned for this turn; otherwise, report future shared-doc repairs instead of editing `docs/plans/NOW.md` or `docs/plans/INDEX.md` from the backend lane.
 
 ## Verification Scope
@@ -132,6 +131,9 @@ Status: active for `GQL-009` code-quality structural cleanup
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 3 completed for `DOC-001` on 2026-05-29; exact cleanup scope is `docs/architecture/conventions.md` lines 3-13 and 36-38, while convention-plan and backend-lane status docs are intentionally out of scope; no implementation code touched.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 7 fix/prevention plan written for `DOC-001` on 2026-05-29; no implementation code touched.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` Stage 8 completed for `DOC-001` on 2026-05-29; `docs/architecture/conventions.md` now removes task/status tracking, preserves durable standards, and adds documentation-hygiene rules; no implementation code touched.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` `GQL-009` Stage 8 Task 2 completed on 2026-05-31; `LCGQL.Accounts.DataGovernanceResolver` now owns data-export/account-deletion query and mutation responsibilities, data-governance ID decoding, option filtering, and error mapping. Verification: `mix test test/live_canvas_gql/accounts/data_governance_resolver_test.exs`, `mix test test/live_canvas_gql/accounts/account_mutations_test.exs`, `mix compile`, and `mix typecheck`.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` `GQL-009` Stage 8 Task 3 completed on 2026-05-31; `LCGQL.Accounts.UserResolver` now owns viewer lookup, private user email, profile child connections, user identity fields, profile/privacy mutations, identity unlinking, owner re-authorization helpers, and identity ID/error mapping. Verification: `mix test test/live_canvas_gql/accounts/user_resolver_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs`, `mix compile`, and `mix typecheck`.
+- `docs/plans/backend/2026-05-22-code-quality-cleanup.md` `GQL-009` Stage 8 Task 4 completed on 2026-05-31; `LCGQL.Accounts.AuthResolver` now owns auth challenge/sign-up/login, viewer token issue/refresh/revoke, password reset request/reset, deterministic auth URL builders, auth validation, token projection, and auth-entry payload projection. The old `LCGQL.Accounts.Resolver` module was removed after schema references moved to focused resolver modules. Verification: `mix test test/live_canvas_gql/accounts/auth_resolver_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs test/integration/accounts_login_flow_test.exs`, `mix compile`, and `mix typecheck`.
 - Initial checks: `git status --short --branch`, `docs/plans/NOW.md`, `docs/plans/backend/NOW.md`, source conventions doc, and targeted reads/searches across GraphQL resolvers/types, live channel/topic code, chat system events, runtime ownership, and schema files.
 - `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` Task 3 passed on 2026-04-24.
 - `mix compile` -> PASS.
@@ -144,7 +146,7 @@ Status: active for `GQL-009` code-quality structural cleanup
 
 ## Next Up
 
-- Continue with `GQL-009` Stage 8 Task 2: data-governance resolver extraction.
+- No unblocked backend code-quality cleanup task remains in `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
 - Do not start `GEN-001` through the cleanup-stage flow; start the dedicated chat timeline/event-object redesign only if the user explicitly asks.
 
 ## Completed Shared Coordinator Repairs

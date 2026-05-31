@@ -1,7 +1,7 @@
 # Backend Code Quality Cleanup Inventory
 
 Last reviewed: 2026-05-31
-Status: `GQL-001` Stage 8 complete; `GQL-002` Stage 8 complete; `GQL-003` Stage 8 complete; `GQL-004` Stage 8 complete; `GQL-005` Stage 8 complete; `GQL-006` Stage 8 complete; `GQL-007` Stage 8 complete; `GQL-008` Stage 8 complete; `GEN-002` Stage 8 complete; `WEB-001` Stage 8 complete; `ECTO-001` Stage 8 complete; `CTX-001` Stage 8 complete; `SOCK-002` Stage 8 complete; `SOCK-003` Stage 8 complete; `LIVE-001` Stage 8 complete; `DOC-001` Stage 8 complete; `GQL-009` Stage 7 complete and Stage 8 Task 1 complete
+Status: `GQL-001` Stage 8 complete; `GQL-002` Stage 8 complete; `GQL-003` Stage 8 complete; `GQL-004` Stage 8 complete; `GQL-005` Stage 8 complete; `GQL-006` Stage 8 complete; `GQL-007` Stage 8 complete; `GQL-008` Stage 8 complete; `GEN-002` Stage 8 complete; `WEB-001` Stage 8 complete; `ECTO-001` Stage 8 complete; `CTX-001` Stage 8 complete; `SOCK-002` Stage 8 complete; `SOCK-003` Stage 8 complete; `LIVE-001` Stage 8 complete; `DOC-001` Stage 8 complete; `GQL-009` Stage 8 complete
 Owner lane: backend
 
 ## Purpose
@@ -19,7 +19,7 @@ Use this same stage language for every issue.
 - [x] Stage 5: Discuss each newly discovered issue with the user and decide whether it is valid, partially valid, not valid, or deferred.
 - [x] Stage 6: For each valid or partially valid newly discovered issue, scan for same or similar patterns and attach the findings.
 - [ ] Stage 7: For each valid or partially valid issue, write a detailed fix and prevention plan, including standards or docs needed to keep it from returning.
-- [ ] Stage 8: Fix each valid or partially valid issue one at a time with focused verification.
+- [x] Stage 8: Fix each valid or partially valid issue one at a time with focused verification.
 
 Applicability note: Stages 1-3 apply to user-reported issues. Stage 4 is one global agent-led scan. Stages 5-6 apply to issues discovered during Stage 4. Stages 7-8 apply to every issue once it has been marked valid or partially valid and scanned.
 
@@ -33,7 +33,7 @@ Stage 8 is complete for `GQL-001`: GraphQL timestamp fields that only formatted 
 
 `LIVE-001` also has Stage 8 complete: live-session runtime ownership now routes through `LC.RealtimeRuntime` shard ownership and shard-local runtime supervisors, the Postgres `live_session_runtime_owners` schema/table path is removed by a drop migration, runtime lease heartbeats/configuration were removed, remote/unavailable routing remains fail-closed, release/data-governance references no longer use lease-owner language, and `docs/architecture/conventions.md` records the OTP-native shard-owner rule. The first slice kept the existing `DNSCluster` discovery path rather than adding `libcluster`, because the app already has DNS-based BEAM discovery and this slice only needed to replace the ownership layer; revisit `libcluster` when deployment needs topology strategies beyond the existing DNS query. `GQL-008` also has Stage 8 complete: contact-match GraphQL projection now flattens `contact_name` and `birthday` once through the GraphQL contact-match projection helper, `viewerContactMatches`, mutation payloads, and Relay node refetch all use the same projected shape, resolver-only nested scalar/date fields were removed, and `docs/architecture/conventions.md` records the direct-field projection rule. `GEN-002` also has Stage 8 complete: `LC.Infra.Payload` now owns fixed known-key boundary payload lookup and positive-integer extraction, async/webhook/data-governance handlers delegate duplicate id extraction to it, the observability socket context no longer uses `String.to_atom/1`, and `docs/architecture/conventions.md` records the boundary-payload helper rule. `WEB-001` also has Stage 8 complete: HTTP Authorization Bearer parsing now lives in `LCTransport.BearerAuth`, GraphQL request context and metrics auth delegate parsing to it while keeping authorization decisions local, malformed GraphQL Authorization headers do not fall back to sessions, metrics casing/whitespace behavior is covered, and `docs/architecture/conventions.md` records the web-auth parsing rule. `GEN-001` has Stage 2 complete with a deferred-valid decision: the client-facing system-event model must be fixed later, but the fix requires a dedicated chat timeline/event-object redesign rather than an implicit code-quality cleanup pass. Stage 5 and Stage 6 are complete for Stage 4 candidates: `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009` have been discussed and scanned.
 
-No Stage 8 implementation has started for any cleanup issue other than `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `DOC-001`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `GQL-009`. On 2026-05-31, the user explicitly asked to repair the shared docs and start `GQL-009`; Stage 7 is written, and Stage 8 Task 1 extracted contact responsibilities into `LCGQL.Accounts.ContactResolver`. Continue Stage 8 one focused extraction at a time. Do not start the dedicated `GEN-001` chat timeline/event-object redesign unless the user explicitly asks.
+Stage 8 is complete for every valid or partially valid cleanup issue except deferred `GEN-001`, which must not start through the cleanup-stage flow. On 2026-05-31, the user explicitly asked to repair the shared docs and start `GQL-009`; Stage 7 was written, Stage 8 Task 1 extracted contact responsibilities into `LCGQL.Accounts.ContactResolver`, Stage 8 Task 2 extracted data-governance responsibilities into `LCGQL.Accounts.DataGovernanceResolver`, Stage 8 Task 3 extracted user/profile/identity responsibilities into `LCGQL.Accounts.UserResolver`, and Stage 8 Task 4 extracted auth/recovery/token responsibilities into `LCGQL.Accounts.AuthResolver`. Do not start the dedicated `GEN-001` chat timeline/event-object redesign unless the user explicitly asks.
 
 Initial repository checks performed on 2026-05-22:
 
@@ -92,7 +92,7 @@ Stage 4 candidate issue status:
 - `GQL-008`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 complete.
 - `GEN-002`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 complete.
 - `WEB-001`: Stage 4 complete, Stage 5 complete, Stage 6 complete, Stage 7 complete, Stage 8 complete.
-- `GQL-009`: Stage 4 complete, Stage 5 complete with a deferred-valid decision, Stage 6 complete, Stage 7 complete after explicit user request on 2026-05-31, Stage 8 Task 1 complete.
+- `GQL-009`: Stage 4 complete, Stage 5 complete with a deferred-valid decision, Stage 6 complete, Stage 7 complete after explicit user request on 2026-05-31, Stage 8 complete.
 
 ## Issues
 
@@ -2453,10 +2453,10 @@ Stage 8 fix scope:
 Stage 8 task order:
 
 1. [x] Extract contact responsibilities first because they already have a cohesive query/mutation surface and a public projection helper used by Relay node refetch. Move `contact_match_node/1` with the contact resolver and update `LCGQL.Schema` to use it for synthetic contact-match node projection.
-2. Extract data-governance responsibilities next. Keep data-export and account-deletion request/cancel/list behavior together so request ID decoding, option filtering, and error mapping stay local.
-3. Extract user/profile/identity responsibilities. Move `viewer`, private `user_email`, profile child connections, user identity fields, profile/privacy mutations, and identity unlinking together so viewer re-authorization helpers remain local.
-4. Extract auth/recovery/token responsibilities last. This is the largest slice, so preserve existing GraphQL auth tests and rate-limit expectations while moving deterministic URL builders, auth field validation, token projection, auth challenge/sign-up/login, refresh, revoke, and password reset behavior into `AuthResolver`.
-5. Remove the old `LCGQL.Accounts.Resolver` module after all references are moved, and add/update the durable GraphQL convention so future large resolver modules split by cohesive API area before becoming mixed-responsibility adapters.
+2. [x] Extract data-governance responsibilities next. Keep data-export and account-deletion request/cancel/list behavior together so request ID decoding, option filtering, and error mapping stay local.
+3. [x] Extract user/profile/identity responsibilities. Move `viewer`, private `user_email`, profile child connections, user identity fields, profile/privacy mutations, and identity unlinking together so viewer re-authorization helpers remain local.
+4. [x] Extract auth/recovery/token responsibilities last. This is the largest slice, so preserve existing GraphQL auth tests and rate-limit expectations while moving deterministic URL builders, auth field validation, token projection, auth challenge/sign-up/login, refresh, revoke, and password reset behavior into `AuthResolver`.
+5. [x] Remove the old `LCGQL.Accounts.Resolver` module after all references are moved, and add/update the durable GraphQL convention so future large resolver modules split by cohesive API area before becoming mixed-responsibility adapters.
 
 Focused test plan:
 
@@ -2487,7 +2487,7 @@ Prevention checks:
 - Stage 5: Complete; marked valid but deferred.
 - Stage 6: Complete.
 - Stage 7: Complete; structural split plan written after explicit user request.
-- Stage 8: Started; Task 1 contact resolver extraction complete. `LCGQL.Accounts.ContactResolver` now owns contact-match projection, `viewerContactMatches`, `upsertViewerContactEntry`, `deliverViewerContactInvite`, and contact-specific helpers. `LCGQL.Schema` uses `ContactResolver.contact_match_node/1` for synthetic contact-match node refetch. Task 2 data-governance resolver extraction is next.
+- Stage 8: Complete; Task 1 contact resolver extraction moved contact-match projection, `viewerContactMatches`, `upsertViewerContactEntry`, `deliverViewerContactInvite`, and contact-specific helpers into `LCGQL.Accounts.ContactResolver`. Task 2 data-governance resolver extraction moved `viewerDataExportRequests`, `requestViewerDataExport`, `requestViewerAccountDeletion`, `cancelViewerAccountDeletionRequest`, request ID decoding, option filtering, and data-governance error mapping into `LCGQL.Accounts.DataGovernanceResolver`. Task 3 user/profile/identity resolver extraction moved `viewer`, private user email, profile child connections, user identity fields, profile/privacy mutations, identity unlinking, owner re-authorization helpers, and identity ID/error mapping into `LCGQL.Accounts.UserResolver`. Task 4 auth/recovery/token resolver extraction moved auth challenge/sign-up/login, viewer token issue/refresh/revoke, password reset request/reset, deterministic auth URL builders, auth validation, token projection, and auth-entry payload projection into `LCGQL.Accounts.AuthResolver`. The old `LCGQL.Accounts.Resolver` module was removed after all schema references moved to focused resolver modules, and `docs/architecture/conventions.md` records the cohesive GraphQL resolver split rule.
 
 ## Prompt For Next Run
 
@@ -2500,8 +2500,8 @@ Read AGENTS.md, docs/plans/backend/NOW.md, and this cleanup inventory. Treat thi
 
 Current status: Stage 1 and Stage 2 are complete for all user-reported issues. Stage 3 and Stage 7 are complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`. Stage 4 is complete. Stage 5 and Stage 6 are complete for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`. Stage 7 plans are written for `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`.
 
-Stage 8 is complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`. `SOCK-001` is complete for Stage 2 and merged into `SOCK-002`, so do not run separate `SOCK-001` work. `GQL-009` Stage 7 is complete after explicit user request, Stage 8 Task 1 contact resolver extraction is complete, and Stage 8 should continue with Task 2 data-governance resolver extraction. `GEN-001` is deferred-valid and must be handled only through a dedicated chat timeline/event-object redesign if the user explicitly asks.
+Stage 8 is complete for `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GQL-009`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001`. `SOCK-001` is complete for Stage 2 and merged into `SOCK-002`, so do not run separate `SOCK-001` work. `GEN-001` is deferred-valid and must be handled only through a dedicated chat timeline/event-object redesign if the user explicitly asks.
 
-Continue `GQL-009` Stage 8 with the next focused extraction from the Stage 7 plan. Do not start `GEN-001` through the cleanup-stage flow. Shared dashboard/index repairs were explicitly assigned on 2026-05-31; otherwise report shared-doc repairs instead of editing docs/plans/NOW.md or docs/plans/INDEX.md from the backend lane.
+No further cleanup-stage implementation is currently unblocked in this plan. Do not start `GEN-001` through the cleanup-stage flow. Shared dashboard/index repairs were explicitly assigned on 2026-05-31; otherwise report shared-doc repairs instead of editing docs/plans/NOW.md or docs/plans/INDEX.md from the backend lane.
 
 ```
