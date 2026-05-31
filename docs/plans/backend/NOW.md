@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
 Last reviewed: 2026-05-31
-Status: current backend code-quality cleanup inventory complete, except deferred `GEN-001`
+Status: active for dedicated `GEN-001` chat timeline/event-object implementation planning
 
 ## Lane Scope
 
@@ -10,10 +10,10 @@ Status: current backend code-quality cleanup inventory complete, except deferred
 
 ## Current Batch
 
-- Track: `backend_code_quality_cleanup`
-- Source: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
-- Batch: no active backend cleanup implementation batch; `GQL-009` Stage 8 is complete
-- Why now: The cleanup inventory is the source of truth for per-issue stage status. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GQL-009`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete. Keep `GEN-001` as a separate chat timeline/event-object redesign unless the user explicitly asks for it.
+- Track: `gen_001_chat_timeline_event_objects`
+- Source: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`; `docs/plans/backend/2026-05-22-code-quality-cleanup.md` remains background only.
+- Batch: write executable implementation plan from the locked breaking-API timeline/event design; do not touch implementation code until the implementation plan is approved.
+- Why now: The cleanup inventory is the source of truth for per-issue stage status. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GQL-009`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete. The user explicitly asked to start `GEN-001`, so it now proceeds as a dedicated chat timeline/event-object redesign rather than through the cleanup-stage flow.
 - Current status:
   - Stage 1 is complete for all user-reported issues.
   - `GQL-001`: Stage 2, Stage 3, Stage 7, and Stage 8 complete; resolver-only timestamp formatting has been removed from GraphQL fields.
@@ -40,8 +40,10 @@ Status: current backend code-quality cleanup inventory complete, except deferred
 
 ## Do This Now
 
-- Open `docs/plans/backend/2026-05-22-code-quality-cleanup.md` if the user explicitly resumes this cleanup plan.
-- No further cleanup-stage implementation is currently unblocked in this plan.
+- Review the locked design in `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`.
+- Write an executable implementation plan for the breaking GraphQL/channel/API and Postgres timeline-event redesign.
+- Keep implementation code untouched until the implementation plan is approved.
+- No further cleanup-stage implementation is currently unblocked in `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
 - `SOCK-002` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `SOCK-003` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `LIVE-001` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
@@ -50,7 +52,7 @@ Status: current backend code-quality cleanup inventory complete, except deferred
 - `WEB-001` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `DOC-001` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `GQL-005` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
-- For `GEN-001`, do not start a cleanup-stage scan by default. The issue is deferred-valid with a required future fix; start a dedicated chat timeline/event-object redesign only if the user explicitly asks.
+- `GEN-001` has been explicitly started by the user; keep it as a dedicated chat timeline/event-object redesign, not a cleanup-stage scan.
 - `GQL-009` has been explicitly revisited by the user; keep scope to the Accounts resolver structural split and do not broaden into unrelated Accounts behavior changes.
 - `SOCK-001` is complete for Stage 2 and should not get separate Stage 3, Stage 7, or Stage 8 work; `SOCK-002` owns the combined live-session topic generation and parsing cleanup.
 - If the user redirects to another issue, preserve the one-issue-at-a-time rule.
@@ -59,6 +61,7 @@ Status: current backend code-quality cleanup inventory complete, except deferred
 
 ## Verification Scope
 
+- This implementation-planning batch should not require Mix verification unless it touches implementation code.
 - Stage 2 is discussion and documentation only.
 - Stage 3 and Stage 6 scans should use focused `rg` searches first, then code reads for matched areas.
 - Stage 7 planning should record the intended fix, prevention checks, verification scope, and Stage 6 watchpoints before implementation.
@@ -147,12 +150,14 @@ Status: current backend code-quality cleanup inventory complete, except deferred
 ## Next Up
 
 - No unblocked backend code-quality cleanup task remains in `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
-- Do not start `GEN-001` through the cleanup-stage flow; start the dedicated chat timeline/event-object redesign only if the user explicitly asks.
+- Continue the explicitly requested dedicated `GEN-001` chat timeline/event-object redesign by writing the executable implementation plan from the locked design.
 
 ## Completed Shared Coordinator Repairs
 
 - `docs/plans/NOW.md`: repaired on 2026-05-31 to point the backend lane at active `GQL-009` cleanup work.
 - `docs/plans/INDEX.md`: repaired on 2026-05-31 to add completed live-session client-contract and post-reporting entries, mark development seed data complete, remove the stale active live-session lane note, and point the backend lane at active `GQL-009` cleanup work.
+- `docs/plans/NOW.md`: repaired on 2026-05-31 to point the backend lane at the explicitly requested dedicated `GEN-001` chat timeline/event-object redesign.
+- `docs/plans/INDEX.md`: repaired on 2026-05-31 to mark backend code-quality cleanup implementation complete and add the active `GEN-001` redesign track.
 
 ## Repair Conditions
 
