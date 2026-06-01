@@ -22,6 +22,9 @@ defmodule LC.Chat do
   @type timeline_chat_message_result ::
           {:ok, TimelineProjection.t()}
           | {:error, changeset() | :not_authorized | :session_ended}
+  @type timeline_chat_message_edit_result ::
+          {:ok, TimelineProjection.t()}
+          | {:error, changeset() | :not_authorized | :not_found | :hidden | :session_ended}
   @type system_event_opts :: [actor: User.t(), metadata: map()]
   @type system_event_result ::
           {:ok, ChatMessage.t()}
@@ -137,6 +140,14 @@ defmodule LC.Chat do
     end
   end
 
+  @spec authorize_timeline_chat_edit_join(User.t(), LiveSession.t()) :: authorize_join_result()
+  defp authorize_timeline_chat_edit_join(%User{}, %LiveSession{status: :ended}),
+    do: {:error, :session_ended}
+
+  defp authorize_timeline_chat_edit_join(%User{} = actor, %LiveSession{} = live_session) do
+    authorize_join(actor, live_session)
+  end
+
   @doc """
   Persists a retained chat message for a live session.
   """
@@ -168,6 +179,22 @@ defmodule LC.Chat do
     with :ok <- authorize_join(sender, live_session) do
       TimelineEvents.create_chat_message(Repo, live_session, sender, attrs)
     end
+  end
+
+  @doc """
+  Persists an append-only timeline chat message edit and returns the updated projection.
+  """
+  @spec edit_timeline_chat_message(TimelineProjection.t() | map(), User.t(), map()) ::
+          timeline_chat_message_edit_result()
+  def edit_timeline_chat_message(timeline_event, %User{} = actor, attrs)
+      when is_map(timeline_event) and is_map(attrs) do
+    TimelineEvents.edit_chat_message(
+      Repo,
+      timeline_event,
+      actor,
+      attrs,
+      &authorize_timeline_chat_edit_join/2
+    )
   end
 
   @doc """

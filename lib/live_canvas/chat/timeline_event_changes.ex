@@ -5,6 +5,7 @@ defmodule LC.Chat.TimelineEventChanges do
 
   alias LCSchemas.Chat.{
     LiveSessionTimelineChatMessage,
+    LiveSessionTimelineChatMessageEdit,
     LiveSessionTimelineChatMessageState,
     LiveSessionTimelineEvent,
     LiveSessionTimelineEventState
@@ -51,6 +52,47 @@ defmodule LC.Chat.TimelineEventChanges do
     }
   end
 
+  @spec attrs_for_chat_message_edit_insert(
+          pos_integer(),
+          pos_integer(),
+          pos_integer(),
+          String.t(),
+          attrs(),
+          DateTime.t()
+        ) :: %{
+          event: map(),
+          chat_message_edit: map()
+        }
+  def attrs_for_chat_message_edit_insert(
+        live_session_id,
+        actor_user_id,
+        target_event_id,
+        previous_body,
+        attrs,
+        %DateTime{} = now
+      )
+      when is_integer(live_session_id) and is_integer(actor_user_id) and
+             is_integer(target_event_id) and is_binary(previous_body) and is_map(attrs) do
+    new_body = attrs |> value_for(:body, "") |> normalize_body()
+
+    %{
+      event: %{
+        live_session_id: live_session_id,
+        actor_user_id: actor_user_id,
+        target_event_id: target_event_id,
+        event_type: :chat_message_edited,
+        occurred_at: now,
+        payload: %{}
+      },
+      chat_message_edit: %{
+        live_session_id: live_session_id,
+        target_event_id: target_event_id,
+        previous_body: previous_body,
+        new_body: new_body
+      }
+    }
+  end
+
   @spec chat_message_event_changeset(LiveSessionTimelineEvent.t(), attrs()) ::
           Ecto.Changeset.t()
   def chat_message_event_changeset(%LiveSessionTimelineEvent{} = timeline_event, attrs)
@@ -92,6 +134,38 @@ defmodule LC.Chat.TimelineEventChanges do
     |> check_constraint(:body_format,
       name: :live_session_timeline_chat_messages_body_format_check
     )
+  end
+
+  @spec chat_message_edit_changeset(LiveSessionTimelineChatMessageEdit.t(), attrs()) ::
+          Ecto.Changeset.t()
+  def chat_message_edit_changeset(
+        %LiveSessionTimelineChatMessageEdit{} = chat_message_edit,
+        attrs
+      )
+      when is_map(attrs) do
+    chat_message_edit
+    |> cast(attrs, [
+      :timeline_event_id,
+      :live_session_id,
+      :target_event_id,
+      :previous_body,
+      :new_body
+    ])
+    |> validate_required([
+      :timeline_event_id,
+      :live_session_id,
+      :target_event_id,
+      :previous_body,
+      :new_body
+    ])
+    |> validate_number(:timeline_event_id, greater_than: 0)
+    |> validate_number(:live_session_id, greater_than: 0)
+    |> validate_number(:target_event_id, greater_than: 0)
+    |> validate_length(:previous_body, min: 1, max: @max_body_length)
+    |> validate_length(:new_body, min: 1, max: @max_body_length)
+    |> foreign_key_constraint(:timeline_event_id)
+    |> foreign_key_constraint(:live_session_id)
+    |> foreign_key_constraint(:target_event_id)
   end
 
   @spec chat_message_state_changeset(LiveSessionTimelineChatMessageState.t(), attrs()) ::
