@@ -83,6 +83,9 @@ export function resolveLandingHrefForAuth(
   snapshot: StartupSnapshot,
   authStatus: ResolvedAuthStatus,
 ): string | null {
+  const initialHref = snapshot.initialHref;
+  const initialRoutePath = initialHref ? routePathFromHref(initialHref) : null;
+
   if (authStatus === 'loading') {
     return null;
   }
@@ -92,14 +95,18 @@ export function resolveLandingHrefForAuth(
   }
 
   if (authStatus === 'unauthenticated') {
-    return snapshot.initialHref && AUTH_ROUTE_HREFS.has(snapshot.initialHref)
-      ? snapshot.initialHref
+    return initialHref && initialRoutePath && AUTH_ROUTE_HREFS.has(initialRoutePath)
+      ? initialHref
       : '/sign-in';
   }
 
-  return snapshot.initialHref && !AUTH_ROUTE_HREFS.has(snapshot.initialHref)
-    ? snapshot.initialHref
+  return initialHref && initialRoutePath && !AUTH_ROUTE_HREFS.has(initialRoutePath)
+    ? initialHref
     : '/home';
+}
+
+function routePathFromHref(href: string): string {
+  return href.split('?', 1)[0] ?? href;
 }
 
 export function routeHrefFromUrl(initialUrl: string | null): string | null {
@@ -108,8 +115,11 @@ export function routeHrefFromUrl(initialUrl: string | null): string | null {
   }
 
   const withoutFragment = initialUrl.split('#', 1)[0] ?? '';
-  const withoutQuery = withoutFragment.split('?', 1)[0] ?? '';
-  const [, routeSource = withoutQuery] = withoutQuery.split('://', 2);
+  const queryStart = withoutFragment.indexOf('?');
+  const routeHref =
+    queryStart === -1 ? withoutFragment : withoutFragment.slice(0, queryStart);
+  const query = queryStart === -1 ? '' : withoutFragment.slice(queryStart + 1);
+  const [, routeSource = routeHref] = routeHref.split('://', 2);
 
   // Expo deep links commonly encode the first route segment as the URL host.
   const candidate = `/${routeSource.replace(/^\/+/, '').replace(/\/+$/, '')}`;
@@ -118,5 +128,11 @@ export function routeHrefFromUrl(initialUrl: string | null): string | null {
     return null;
   }
 
-  return KNOWN_ROUTE_HREFS.has(candidate) ? candidate : null;
+  if (!KNOWN_ROUTE_HREFS.has(candidate)) {
+    return null;
+  }
+
+  return candidate === '/live-session' && query
+    ? `${candidate}?${query}`
+    : candidate;
 }

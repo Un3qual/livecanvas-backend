@@ -16,6 +16,14 @@ describe('routeHrefFromUrl', () => {
   test('accepts the sign-up deep link route', () => {
     expect(routeHrefFromUrl('livecanvas-mobile://sign-up')).toBe('/sign-up');
   });
+
+  test('preserves live-session query params in known protected deep links', () => {
+    expect(
+      routeHrefFromUrl(
+        'livecanvas-mobile://live-session?sessionId=TGl2ZVNlc3Npb246MTIz',
+      ),
+    ).toBe('/live-session?sessionId=TGl2ZVNlc3Npb246MTIz');
+  });
 });
 
 describe('resolveLandingHrefForAuth', () => {
@@ -97,5 +105,39 @@ describe('resolveLandingHrefForAuth', () => {
         'loading',
       ),
     ).toBeNull();
+  });
+
+  test('sends unauthenticated live-session deep links to sign-in', () => {
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          initialUrl:
+            'livecanvas-mobile://live-session?sessionId=TGl2ZVNlc3Npb246MTIz',
+          initialHref: '/live-session?sessionId=TGl2ZVNlc3Npb246MTIz',
+          landingHref: '/live-session?sessionId=TGl2ZVNlc3Npb246MTIz',
+          defaultHref: '/sign-in',
+          bootSessionState: 'signed_out',
+          resetReason: null,
+        },
+        'unauthenticated',
+      ),
+    ).toBe('/sign-in');
+  });
+
+  test('preserves authenticated live-session deep links after auth settles', () => {
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          initialUrl:
+            'livecanvas-mobile://live-session?sessionId=TGl2ZVNlc3Npb246MTIz',
+          initialHref: '/live-session?sessionId=TGl2ZVNlc3Npb246MTIz',
+          landingHref: '/live-session?sessionId=TGl2ZVNlc3Npb246MTIz',
+          defaultHref: '/home',
+          bootSessionState: 'authenticated',
+          resetReason: null,
+        },
+        'authenticated',
+      ),
+    ).toBe('/live-session?sessionId=TGl2ZVNlc3Npb246MTIz');
   });
 });
