@@ -72,7 +72,7 @@ defmodule LCGQL.Live.Resolver do
            Live.mark_session_live_with_transition(live_session) do
       # Emit from the adapter after the Live boundary succeeds so `LC.Live`
       # stays decoupled from durable chat history and channel transport details.
-      :ok =
+      lifecycle_timeline_result =
         maybe_emit_lifecycle_timeline_event(
           updated_live_session,
           :live_session_started,
@@ -81,7 +81,14 @@ defmodule LCGQL.Live.Resolver do
         )
 
       :ok = maybe_broadcast_lifecycle_state(updated_live_session, transitioned?)
-      {:ok, %{live_session: updated_live_session, errors: []}}
+
+      case lifecycle_timeline_result do
+        :ok ->
+          {:ok, %{live_session: updated_live_session, errors: []}}
+
+        {:error, :invalid_state} ->
+          {:ok, %{live_session: nil, errors: [live_session_error(nil, :invalid_state)]}}
+      end
     else
       {:error, reason}
       when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
@@ -202,7 +209,7 @@ defmodule LCGQL.Live.Resolver do
                Live.end_live_session_with_transition(live_session, end_attrs) do
           # Broadcast the persisted terminal event before disconnecting joined
           # channels so they can reconcile one last durable history row in order.
-          :ok =
+          lifecycle_timeline_result =
             maybe_emit_lifecycle_timeline_event(
               ended_live_session,
               :live_session_ended,
@@ -219,7 +226,13 @@ defmodule LCGQL.Live.Resolver do
               :session_ended
             )
 
-          {:ok, %{live_session: ended_live_session, errors: []}}
+          case lifecycle_timeline_result do
+            :ok ->
+              {:ok, %{live_session: ended_live_session, errors: []}}
+
+            {:error, :invalid_state} ->
+              {:ok, %{live_session: nil, errors: [live_session_error(nil, :invalid_state)]}}
+          end
         else
           {:error, reason}
           when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
@@ -378,7 +391,7 @@ defmodule LCGQL.Live.Resolver do
     )
   end
 
-  defp broadcast_lifecycle_timeline_event({:error, _reason}), do: :ok
+  defp broadcast_lifecycle_timeline_event({:error, _reason}), do: {:error, :invalid_state}
 
   defp maybe_broadcast_lifecycle_state(live_session, true) when is_map(live_session) do
     broadcast_live_session_state(live_session)

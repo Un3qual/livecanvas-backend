@@ -23,7 +23,7 @@ defmodule LC.Chat do
           | {:error, changeset() | :not_authorized | :not_found | :hidden | :session_ended}
   @type timeline_chat_message_removal_result ::
           {:ok, %{removed_event_id: pos_integer(), transitioned?: boolean()}}
-          | {:error, :not_authorized | :not_found | :not_chat_message}
+          | {:error, changeset() | :not_authorized | :not_found | :not_chat_message}
   @type lifecycle_timeline_event_opts :: [actor: User.t()]
   @type lifecycle_timeline_event_result ::
           {:ok, TimelineProjection.t()} | {:error, :not_authorized | changeset()}
@@ -33,14 +33,14 @@ defmodule LC.Chat do
   Authorizes whether the given viewer can join the provided live session topic.
   """
   @spec authorize_join(User.t(), LiveSession.t()) :: authorize_join_result()
+  def authorize_join(%User{}, %LiveSession{status: :ended}), do: {:error, :session_ended}
+
   def authorize_join(%User{id: viewer_id}, %LiveSession{host_id: viewer_id})
       when is_integer(viewer_id) do
     # Channel assigns can be stale after moderation updates, so use persisted
     # account state for host self-joins.
     if active_user?(viewer_id), do: :ok, else: {:error, :not_authorized}
   end
-
-  def authorize_join(%User{}, %LiveSession{status: :ended}), do: {:error, :session_ended}
 
   def authorize_join(%User{} = viewer, %LiveSession{} = live_session) do
     authorize_visible_session_access(viewer, live_session)
@@ -93,10 +93,18 @@ defmodule LC.Chat do
   """
   @spec create_timeline_chat_message(LiveSession.t(), User.t(), map()) ::
           timeline_chat_message_result()
-  def create_timeline_chat_message(%LiveSession{} = live_session, %User{} = sender, attrs)
-      when is_map(attrs) do
-    with :ok <- authorize_join(sender, live_session) do
-      TimelineEvents.create_chat_message(Repo, live_session, sender, attrs)
+  def create_timeline_chat_message(
+        %LiveSession{id: live_session_id},
+        %User{} = sender,
+        attrs
+      )
+      when is_integer(live_session_id) and is_map(attrs) do
+    with %LiveSession{} = persisted_live_session <- Repo.get(LiveSession, live_session_id),
+         :ok <- authorize_join(sender, persisted_live_session) do
+      TimelineEvents.create_chat_message(Repo, persisted_live_session, sender, attrs)
+    else
+      nil -> {:error, :session_ended}
+      {:error, _reason} = error -> error
     end
   end
 
@@ -123,19 +131,13 @@ defmodule LC.Chat do
           timeline_chat_message_removal_result()
   def remove_timeline_chat_message(timeline_event, %User{} = actor, attrs)
       when is_map(timeline_event) and is_map(attrs) do
-    case TimelineEvents.remove_chat_message(
-           Repo,
-           timeline_event,
-           actor,
-           attrs,
-           &authorize_timeline_host_actor/2
-         ) do
-      {:error, %Ecto.Changeset{} = changeset} ->
-        raise Ecto.InvalidChangesetError, action: :insert, changeset: changeset
-
-      result ->
-        result
-    end
+    TimelineEvents.remove_chat_message(
+      Repo,
+      timeline_event,
+      actor,
+      attrs,
+      &authorize_timeline_host_actor/2
+    )
   end
 
   @doc """

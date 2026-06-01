@@ -163,6 +163,13 @@ defmodule LCGQL.Chat.Resolver do
            errors: [timeline_event_error(nil, :not_found)]
          }}
 
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok,
+         %{
+           removed_timeline_event_id: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
+
       {:error, reason}
       when reason in [:invalid_id, :invalid_type, :not_authorized, :not_chat_message, :not_found] ->
         {:ok,

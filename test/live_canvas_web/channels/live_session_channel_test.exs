@@ -222,6 +222,31 @@ defmodule LCWeb.LiveSessionChannelTest do
            } = Chat.get_timeline_event(viewer, event_id)
   end
 
+  test "sending timeline:chat_message:send rejects stale sockets after session end" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               session_topic
+             )
+
+    {:ok, _ended_session} = Live.end_live_session(session)
+
+    ref = push(socket, "timeline:chat_message:send", %{"body" => "too late"})
+
+    assert_reply ref, :error, %{reason: "session_ended"}
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "timeline:event"
+    }
+  end
+
   test "editLiveChatMessage broadcasts timeline event updates to joined clients" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()

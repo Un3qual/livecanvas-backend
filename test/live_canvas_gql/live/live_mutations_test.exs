@@ -597,7 +597,104 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
       assert %LiveSessionTimelineEventState{projection_state: :visible} =
                Repo.get!(LiveSessionTimelineEventState, end_event_id)
+    end
 
+    test "goLiveSession reports an error when lifecycle timeline recording fails" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      {:ok, _suspended_host} = Accounts.suspend_user(host)
+
+      mutation = """
+      mutation GoLiveSession($liveSessionId: ID!) {
+        goLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "goLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [%{"field" => nil, "message" => "invalid_state"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+
+      assert 0 ==
+               from(timeline_event in LiveSessionTimelineEvent,
+                 where:
+                   timeline_event.live_session_id == ^started_session.id and
+                     timeline_event.event_type == :live_session_started
+               )
+               |> Repo.aggregate(:count)
+    end
+
+    test "endLiveSession reports an error when lifecycle timeline recording fails" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      {:ok, _suspended_host} = Accounts.suspend_user(host)
+
+      mutation = """
+      mutation EndLiveSession($liveSessionId: ID!) {
+        endLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "endLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [%{"field" => nil, "message" => "invalid_state"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+
+      assert 0 ==
+               from(timeline_event in LiveSessionTimelineEvent,
+                 where:
+                   timeline_event.live_session_id == ^started_session.id and
+                     timeline_event.event_type == :live_session_ended
+               )
+               |> Repo.aggregate(:count)
     end
 
     test "does not emit session_live when a concurrent end wins before the go-live reload" do

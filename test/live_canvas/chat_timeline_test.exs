@@ -89,6 +89,23 @@ defmodule LC.ChatTimelineTest do
       assert {:error, :not_authorized} =
                Chat.create_timeline_chat_message(session, sender, %{body: "blocked"})
     end
+
+    test "re-reads session state before accepting sends from stale callers" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, _ended_session} = Live.end_live_session(session)
+
+      assert {:error, :session_ended} =
+               Chat.create_timeline_chat_message(session, host, %{body: "too late"})
+
+      assert 0 ==
+               from(timeline_event in LiveSessionTimelineEvent,
+                 where:
+                   timeline_event.live_session_id == ^session.id and
+                     timeline_event.event_type == :chat_message_sent
+               )
+               |> Repo.aggregate(:count)
+    end
   end
 
   describe "edit_timeline_chat_message/3" do
@@ -314,6 +331,18 @@ defmodule LC.ChatTimelineTest do
 
       assert {:error, :not_authorized} =
                Chat.remove_timeline_chat_message(event, sender, %{})
+    end
+
+    test "returns changeset errors for invalid removal metadata" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, event} = Chat.create_timeline_chat_message(session, sender, %{body: "remove"})
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Chat.remove_timeline_chat_message(event, host, %{reason_code: 123})
+
+      assert :reason_code in Keyword.keys(changeset.errors)
     end
   end
 end
