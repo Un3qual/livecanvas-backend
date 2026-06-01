@@ -910,21 +910,20 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
-      event: "chat:message",
+      event: "timeline:event",
       payload: %{
-        message: %{
-          body: "The live session started.",
-          sender_id: ^host_id,
-          inserted_at: go_live_inserted_at,
-          kind: "system_event",
-          status: "active",
-          moderated_at: nil,
-          metadata: %{"details" => %{}, "event_type" => "session_live"}
+        event: %{
+          __typename: "LiveSessionStartedEvent",
+          id: go_live_event_id,
+          event_type: "live_session_started",
+          occurred_at: go_live_occurred_at,
+          actor_id: ^host_id
         }
       }
     }
 
-    assert is_binary(go_live_inserted_at)
+    assert is_integer(go_live_event_id)
+    assert is_binary(go_live_occurred_at)
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
@@ -956,21 +955,20 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
-      event: "chat:message",
+      event: "timeline:event",
       payload: %{
-        message: %{
-          body: "The live session ended.",
-          sender_id: ^host_id,
-          inserted_at: end_inserted_at,
-          kind: "system_event",
-          status: "active",
-          moderated_at: nil,
-          metadata: %{"details" => %{}, "event_type" => "session_ended"}
+        event: %{
+          __typename: "LiveSessionEndedEvent",
+          id: end_event_id,
+          event_type: "live_session_ended",
+          occurred_at: end_occurred_at,
+          actor_id: ^host_id
         }
       }
     }
 
-    assert is_binary(end_inserted_at)
+    assert is_integer(end_event_id)
+    assert is_binary(end_occurred_at)
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
