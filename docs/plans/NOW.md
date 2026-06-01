@@ -21,7 +21,7 @@ Status: active
 ### Mobile Lane
 
 - Status: active for execution
-- Current batch: `docs/plans/mobile/NOW.md` -> `Task 1: Choose the routing model and define the top-level route groups`
+- Current batch: `docs/plans/mobile/NOW.md` -> `Task 1: Add live-session presentation and navigation helpers`
 - Lane write scope: `mobile/` plus `docs/plans/mobile/**` only
 
 ## Shared File Policy
@@ -32,7 +32,7 @@ Status: active
 ## Next Up
 
 - Once the backend lane selects new implementation work, refresh this dashboard from `docs/plans/backend/NOW.md` and `docs/plans/INDEX.md`.
-- Once the mobile lane finishes `Task 1`, refresh the mobile lane summary here only if `docs/plans/mobile/NOW.md` advances to a new batch or status.
+- Once the mobile lane finishes the live discovery/watch Task 1, refresh the mobile lane summary here only if `docs/plans/mobile/NOW.md` advances to a new batch or status.
 
 ## Repair Conditions
 

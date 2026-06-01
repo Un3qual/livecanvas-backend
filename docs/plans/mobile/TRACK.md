@@ -8,7 +8,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Track Status
 
-- Status: profiles/social basics complete; next detailed plan needed for live discovery plus viewer watch flow
+- Status: live discovery plus viewer watch flow plan ready for execution
 - Approved overview: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
 - Approved bootstrap design:
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
@@ -18,10 +18,10 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
   - `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`
   - `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`
   - `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
-- Current detailed plan: none active
+- Current detailed plan: `docs/plans/mobile/2026-06-01-live-discovery-viewer-watch-flow.md`
 - Lane execution pointer: `docs/plans/mobile/NOW.md`
 - Coordinator dashboard: `docs/plans/NOW.md`
-- Next lane batch: create the live discovery plus viewer watch-flow detailed implementation plan.
+- Next lane batch: `docs/plans/mobile/2026-06-01-live-discovery-viewer-watch-flow.md` -> `Task 1: Add live-session presentation and navigation helpers`.
 
 ## Recommended Detailed Plan Order
 
