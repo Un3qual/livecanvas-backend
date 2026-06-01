@@ -10,10 +10,24 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type FollowState = "ACCEPTED" | "REQUESTED" | "%future added value";
+export type LiveSessionStatus = "ENDED" | "LIVE" | "STARTING" | "%future added value";
+export type LiveSessionVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
 export type UserPrivacyMode = "PRIVATE" | "PUBLIC" | "%future added value";
 export type ViewerProfileScreenQuery$variables = Record<PropertyKey, never>;
 export type ViewerProfileScreenQuery$data = {
   readonly viewer: {
+    readonly currentLiveSession: {
+      readonly endedAt: string | null | undefined;
+      readonly host: {
+        readonly email: string | null | undefined;
+        readonly id: string;
+      };
+      readonly id: string;
+      readonly insertedAt: string;
+      readonly startedAt: string | null | undefined;
+      readonly status: LiveSessionStatus;
+      readonly visibility: LiveSessionVisibility;
+    } | null | undefined;
     readonly email: string | null | undefined;
     readonly followers: {
       readonly edges: ReadonlyArray<{
@@ -85,18 +99,69 @@ v2 = {
   "storageKey": null
 },
 v3 = [
+  (v0/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "status",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "visibility",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "insertedAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "startedAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "endedAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "User",
+    "kind": "LinkedField",
+    "name": "host",
+    "plural": false,
+    "selections": [
+      (v0/*: any*/),
+      (v1/*: any*/)
+    ],
+    "storageKey": null
+  }
+],
+v4 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 10
   }
 ],
-v4 = [
+v5 = [
   (v0/*: any*/),
   (v1/*: any*/),
   (v2/*: any*/)
 ],
-v5 = [
+v6 = [
   {
     "alias": null,
     "args": null,
@@ -130,14 +195,14 @@ v5 = [
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": (v4/*: any*/),
+        "selections": (v5/*: any*/),
         "storageKey": null
       }
     ],
     "storageKey": null
   }
 ],
-v6 = [
+v7 = [
   {
     "alias": null,
     "args": null,
@@ -151,22 +216,32 @@ v6 = [
       (v2/*: any*/),
       {
         "alias": null,
-        "args": (v3/*: any*/),
+        "args": null,
+        "concreteType": "LiveSession",
+        "kind": "LinkedField",
+        "name": "currentLiveSession",
+        "plural": false,
+        "selections": (v3/*: any*/),
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": (v4/*: any*/),
         "concreteType": "UserConnection",
         "kind": "LinkedField",
         "name": "followers",
         "plural": false,
-        "selections": (v5/*: any*/),
+        "selections": (v6/*: any*/),
         "storageKey": "followers(first:10)"
       },
       {
         "alias": null,
-        "args": (v3/*: any*/),
+        "args": (v4/*: any*/),
         "concreteType": "UserConnection",
         "kind": "LinkedField",
         "name": "following",
         "plural": false,
-        "selections": (v5/*: any*/),
+        "selections": (v6/*: any*/),
         "storageKey": "following(first:10)"
       }
     ],
@@ -224,7 +299,7 @@ v6 = [
                 "kind": "LinkedField",
                 "name": "follower",
                 "plural": false,
-                "selections": (v4/*: any*/),
+                "selections": (v5/*: any*/),
                 "storageKey": null
               }
             ],
@@ -243,7 +318,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "ViewerProfileScreenQuery",
-    "selections": (v6/*: any*/),
+    "selections": (v7/*: any*/),
     "type": "RootQueryType",
     "abstractKey": null
   },
@@ -252,15 +327,15 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "ViewerProfileScreenQuery",
-    "selections": (v6/*: any*/)
+    "selections": (v7/*: any*/)
   },
   "params": {
-    "cacheID": "ab282df3222262350439bcf597709749",
+    "cacheID": "16c0e5e3b29b397dd4753fc86eb851f8",
     "id": null,
     "metadata": {},
     "name": "ViewerProfileScreenQuery",
     "operationKind": "query",
-    "text": "query ViewerProfileScreenQuery {\n  viewer {\n    id\n    email\n    privacyMode\n    followers(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    following(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n  viewerPendingFollowRequests(first: 3) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ViewerProfileScreenQuery {\n  viewer {\n    id\n    email\n    privacyMode\n    currentLiveSession {\n      id\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n    followers(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    following(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n  viewerPendingFollowRequests(first: 3) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

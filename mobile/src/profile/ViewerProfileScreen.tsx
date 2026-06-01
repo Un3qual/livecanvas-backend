@@ -13,6 +13,8 @@ import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
+import { liveSessionHref } from '../live/liveSessionNavigation';
+import { LiveSessionSummaryCard } from '../live/LiveSessionSummaryCard';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
@@ -288,6 +290,18 @@ function ViewerProfileContent() {
           id
           email
           privacyMode
+          currentLiveSession {
+            id
+            status
+            visibility
+            insertedAt
+            startedAt
+            endedAt
+            host {
+              id
+              email
+            }
+          }
           followers(first: 10) {
             pageInfo {
               hasNextPage
@@ -505,6 +519,7 @@ function ViewerProfileContent() {
         : 'Privacy unavailable';
   const followers = readConnectionNodes(viewer.followers);
   const following = readConnectionNodes(viewer.following);
+  const currentLiveSession = viewer.currentLiveSession ?? null;
   const pendingRequests = readConnectionNodes(
     data.viewerPendingFollowRequests,
   ).filter(
@@ -536,6 +551,13 @@ function ViewerProfileContent() {
             subtitle={identity.subtitle}
           />
         </View>
+        {currentLiveSession ? (
+          <LiveSessionSummaryCard
+            buttonLabel="Open live session"
+            onPress={() => router.push(liveSessionHref(currentLiveSession.id))}
+            session={currentLiveSession}
+          />
+        ) : null}
         <View style={styles.stats}>
           <SummaryStat
             label="Followers preview"

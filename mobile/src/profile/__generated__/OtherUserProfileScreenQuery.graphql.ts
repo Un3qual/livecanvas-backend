@@ -9,6 +9,8 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type LiveSessionStatus = "ENDED" | "LIVE" | "STARTING" | "%future added value";
+export type LiveSessionVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
 export type RelationshipState = "ACCEPTED" | "BLOCKED" | "NONE" | "PUBLIC" | "REQUESTED" | "%future added value";
 export type UserPrivacyMode = "PRIVATE" | "PUBLIC" | "%future added value";
 export type OtherUserProfileScreenQuery$variables = {
@@ -18,6 +20,18 @@ export type OtherUserProfileScreenQuery$data = {
   readonly isMuted: boolean;
   readonly node: {
     readonly __typename: "User";
+    readonly currentLiveSession: {
+      readonly endedAt: string | null | undefined;
+      readonly host: {
+        readonly email: string | null | undefined;
+        readonly id: string;
+      };
+      readonly id: string;
+      readonly insertedAt: string;
+      readonly startedAt: string | null | undefined;
+      readonly status: LiveSessionStatus;
+      readonly visibility: LiveSessionVisibility;
+    } | null | undefined;
     readonly followers: {
       readonly edges: ReadonlyArray<{
         readonly node: {
@@ -178,6 +192,73 @@ v11 = {
   "kind": "ScalarField",
   "name": "isMuted",
   "storageKey": null
+},
+v12 = [
+  (v3/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "status",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "visibility",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "insertedAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "startedAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "endedAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "User",
+    "kind": "LinkedField",
+    "name": "host",
+    "plural": false,
+    "selections": [
+      (v3/*: any*/),
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "email",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+],
+v13 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "LiveSession",
+  "kind": "LinkedField",
+  "name": "currentLiveSession",
+  "plural": false,
+  "selections": (v12/*: any*/),
+  "storageKey": null
 };
 return {
   "fragment": {
@@ -200,6 +281,7 @@ return {
             "selections": [
               (v3/*: any*/),
               (v4/*: any*/),
+              (v13/*: any*/),
               (v7/*: any*/),
               (v8/*: any*/)
             ],
@@ -235,6 +317,7 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v4/*: any*/),
+              (v13/*: any*/),
               (v7/*: any*/),
               (v8/*: any*/)
             ],
@@ -249,12 +332,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b84556765a0f05fdbef36c369635dabb",
+    "cacheID": "d68f77aa09f00de65cd24fef02341329",
     "id": null,
     "metadata": {},
     "name": "OtherUserProfileScreenQuery",
     "operationKind": "query",
-    "text": "query OtherUserProfileScreenQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on User {\n      id\n      privacyMode\n      followers(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n      following(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n  relationshipState(creatorId: $id)\n  isMuted(creatorId: $id)\n}\n"
+    "text": "query OtherUserProfileScreenQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on User {\n      id\n      privacyMode\n      currentLiveSession {\n        id\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n      followers(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n      following(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n  relationshipState(creatorId: $id)\n  isMuted(creatorId: $id)\n}\n"
   }
 };
 })();
