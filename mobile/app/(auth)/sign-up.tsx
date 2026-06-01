@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -15,15 +15,24 @@ import { AuthField } from '../../src/components/AuthField';
 import { AppHeader } from '../../src/components/AppHeader';
 import { authScreenStyles as styles } from '../../src/components/authScreenStyles';
 import { useAuthEntryController } from '../../src/auth/useAuthEntryController';
+import {
+  authRouteHref,
+  readAuthReturnToParam,
+} from '../../src/config/runtime';
 import { useAppTheme } from '../../src/providers/ThemeProvider';
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const { returnTo: rawReturnTo } = useLocalSearchParams<{
+    returnTo?: string | string[];
+  }>();
   const theme = useAppTheme();
   const controller = useAuthEntryController('signUp');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const returnToHref = readAuthReturnToParam(rawReturnTo);
+  const successHref = returnToHref ?? '/home';
 
   const handlePasswordSignUp = async () => {
     const success = await controller.submitPassword({
@@ -33,7 +42,7 @@ export default function SignUpScreen() {
     });
 
     if (success) {
-      router.replace('/home');
+      router.replace(successHref);
     }
   };
 
@@ -41,7 +50,7 @@ export default function SignUpScreen() {
     const success = await controller.submitGoogle();
 
     if (success) {
-      router.replace('/home');
+      router.replace(successHref);
     }
   };
 
@@ -49,7 +58,7 @@ export default function SignUpScreen() {
     const success = await controller.submitApple();
 
     if (success) {
-      router.replace('/home');
+      router.replace(successHref);
     }
   };
 
@@ -179,7 +188,7 @@ export default function SignUpScreen() {
                 disabled={!controller.canSwitchScreens}
                 onPress={() => {
                   controller.handleAlternateScreenPress(() => {
-                    router.replace('/sign-in');
+                    router.replace(authRouteHref('/sign-in', returnToHref));
                   });
                 }}
               >

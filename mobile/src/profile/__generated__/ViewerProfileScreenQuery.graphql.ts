@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a30d2d8cf44775f6dc0a0f0970ad2034>>
+ * @generated SignedSource<<ab9b98ab8009a64aebbcf49d5a6f3c33>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,10 +10,24 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type FollowState = "ACCEPTED" | "REQUESTED" | "%future added value";
+export type LiveSessionStatus = "ENDED" | "LIVE" | "STARTING" | "%future added value";
+export type LiveSessionVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
 export type UserPrivacyMode = "PRIVATE" | "PUBLIC" | "%future added value";
 export type ViewerProfileScreenQuery$variables = Record<PropertyKey, never>;
 export type ViewerProfileScreenQuery$data = {
   readonly viewer: {
+    readonly currentLiveSession: {
+      readonly endedAt: string | null | undefined;
+      readonly host: {
+        readonly email: string | null | undefined;
+        readonly id: string;
+      };
+      readonly id: string;
+      readonly insertedAt: string;
+      readonly startedAt: string | null | undefined;
+      readonly status: LiveSessionStatus;
+      readonly visibility: LiveSessionVisibility;
+    } | null | undefined;
     readonly email: string | null | undefined;
     readonly followers: {
       readonly edges: ReadonlyArray<{
@@ -151,6 +165,66 @@ v6 = [
       (v2/*: any*/),
       {
         "alias": null,
+        "args": null,
+        "concreteType": "LiveSession",
+        "kind": "LinkedField",
+        "name": "currentLiveSession",
+        "plural": false,
+        "selections": [
+          (v0/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "status",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "visibility",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "insertedAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "startedAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "endedAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "User",
+            "kind": "LinkedField",
+            "name": "host",
+            "plural": false,
+            "selections": [
+              (v0/*: any*/),
+              (v1/*: any*/)
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
         "args": (v3/*: any*/),
         "concreteType": "UserConnection",
         "kind": "LinkedField",
@@ -255,16 +329,16 @@ return {
     "selections": (v6/*: any*/)
   },
   "params": {
-    "cacheID": "ab282df3222262350439bcf597709749",
+    "cacheID": "16c0e5e3b29b397dd4753fc86eb851f8",
     "id": null,
     "metadata": {},
     "name": "ViewerProfileScreenQuery",
     "operationKind": "query",
-    "text": "query ViewerProfileScreenQuery {\n  viewer {\n    id\n    email\n    privacyMode\n    followers(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    following(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n  viewerPendingFollowRequests(first: 3) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ViewerProfileScreenQuery {\n  viewer {\n    id\n    email\n    privacyMode\n    currentLiveSession {\n      id\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n    followers(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    following(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n  viewerPendingFollowRequests(first: 3) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5f83d61b96476418f4c6f9e69276eb09";
+(node as any).hash = "caac10486e16d15822ff2ae19a88ddeb";
 
 export default node;

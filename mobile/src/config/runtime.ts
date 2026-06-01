@@ -11,6 +11,7 @@ const KNOWN_ROUTE_HREFS = new Set([
 ]);
 
 const AUTH_ROUTE_HREFS = new Set(['/sign-in', '/sign-up']);
+const AUTH_RETURN_TO_ROUTE_HREFS = new Set(['/live-session']);
 
 type ResolvedAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -83,6 +84,9 @@ export function resolveLandingHrefForAuth(
   snapshot: StartupSnapshot,
   authStatus: ResolvedAuthStatus,
 ): string | null {
+  const initialHref = snapshot.initialHref;
+  const initialRoutePath = initialHref ? routePathFromHref(initialHref) : null;
+
   if (authStatus === 'loading') {
     return null;
   }
@@ -92,14 +96,55 @@ export function resolveLandingHrefForAuth(
   }
 
   if (authStatus === 'unauthenticated') {
-    return snapshot.initialHref && AUTH_ROUTE_HREFS.has(snapshot.initialHref)
-      ? snapshot.initialHref
-      : '/sign-in';
+    if (
+      initialHref &&
+      initialRoutePath &&
+      AUTH_ROUTE_HREFS.has(initialRoutePath)
+    ) {
+      return initialHref;
+    }
+
+    return authRouteHref('/sign-in', initialHref);
   }
 
-  return snapshot.initialHref && !AUTH_ROUTE_HREFS.has(snapshot.initialHref)
-    ? snapshot.initialHref
+  return initialHref && initialRoutePath && !AUTH_ROUTE_HREFS.has(initialRoutePath)
+    ? initialHref
     : '/home';
+}
+
+function routePathFromHref(href: string): string {
+  return href.split('?', 1)[0] ?? href;
+}
+
+export function authRouteHref(
+  routeHref: '/sign-in' | '/sign-up',
+  returnToHref?: string | null,
+): string {
+  const returnTo = normalizeAuthReturnToHref(returnToHref);
+
+  return returnTo
+    ? `${routeHref}?returnTo=${encodeURIComponent(returnTo)}`
+    : routeHref;
+}
+
+export function readAuthReturnToParam(
+  rawReturnTo: string | string[] | undefined,
+): string | null {
+  const value = Array.isArray(rawReturnTo) ? rawReturnTo[0] : rawReturnTo;
+
+  return normalizeAuthReturnToHref(value);
+}
+
+function normalizeAuthReturnToHref(returnToHref?: string | null): string | null {
+  const trimmed = returnToHref?.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const routePath = routePathFromHref(trimmed);
+
+  return AUTH_RETURN_TO_ROUTE_HREFS.has(routePath) ? trimmed : null;
 }
 
 export function routeHrefFromUrl(initialUrl: string | null): string | null {
@@ -108,8 +153,11 @@ export function routeHrefFromUrl(initialUrl: string | null): string | null {
   }
 
   const withoutFragment = initialUrl.split('#', 1)[0] ?? '';
-  const withoutQuery = withoutFragment.split('?', 1)[0] ?? '';
-  const [, routeSource = withoutQuery] = withoutQuery.split('://', 2);
+  const queryStart = withoutFragment.indexOf('?');
+  const routeHref =
+    queryStart === -1 ? withoutFragment : withoutFragment.slice(0, queryStart);
+  const query = queryStart === -1 ? '' : withoutFragment.slice(queryStart + 1);
+  const [, routeSource = routeHref] = routeHref.split('://', 2);
 
   // Expo deep links commonly encode the first route segment as the URL host.
   const candidate = `/${routeSource.replace(/^\/+/, '').replace(/\/+$/, '')}`;
@@ -118,5 +166,11 @@ export function routeHrefFromUrl(initialUrl: string | null): string | null {
     return null;
   }
 
-  return KNOWN_ROUTE_HREFS.has(candidate) ? candidate : null;
+  if (!KNOWN_ROUTE_HREFS.has(candidate)) {
+    return null;
+  }
+
+  return candidate === '/live-session' && query
+    ? `${candidate}?${query}`
+    : candidate;
 }

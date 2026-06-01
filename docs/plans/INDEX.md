@@ -18,8 +18,8 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Status: active for execution
 - Current track: `docs/plans/mobile/TRACK.md`
-- Current batch: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` -> `Task 1`
-- Next queued batch: `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md` -> `Task 2`
+- Current batch: `docs/plans/mobile/2026-06-01-live-discovery-viewer-watch-flow.md` -> `Task 1`
+- Next queued batch: `docs/plans/mobile/2026-06-01-live-discovery-viewer-watch-flow.md` -> `Task 2`
 - Notes: mobile lane owns `mobile/` and `docs/plans/mobile/**` only; report backend contract dependencies instead of editing backend code directly
 
 ## Track Status
@@ -65,8 +65,8 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Mobile Expo Frontend Planning Track
 
 - Source: `docs/plans/mobile/TRACK.md`
-- Status: bootstrap complete; the mobile lane is executing the next post-bootstrap shell batch
-- Notes: the initial Expo `blank-typescript` scaffold and isolated `mobile/flake.nix` now exist; the next mobile step is to lock the app shell topology before auth, Relay, or realtime work lands
+- Status: live discovery plus viewer watch flow plan ready for execution
+- Notes: the shell, Relay/auth session lifecycle, and profiles/social basics plans are complete; the next mobile step is the Relay-first live discovery and durable viewer watch flow
 
 ## Paused Or Deferred
 
