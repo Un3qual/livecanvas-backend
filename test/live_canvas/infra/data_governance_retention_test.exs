@@ -10,6 +10,23 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
 
   describe "run/1" do
+    test "configured policy cutoffs name the timeline event family" do
+      configured_cutoffs =
+        :live_canvas
+        |> Application.get_env(Retention, [])
+        |> Keyword.fetch!(:family_cutoff_days)
+
+      assert Keyword.keys(configured_cutoffs) == [
+               :auth_events,
+               :async_jobs,
+               :webhook_events,
+               :live_session_timeline_events,
+               :live_participants
+             ]
+
+      assert Keyword.get(configured_cutoffs, :live_session_timeline_events) == 180
+    end
+
     test "computes cutoff_at from cutoff-days using UTC microsecond precision" do
       now = ~U[2026-03-04 18:45:12.123456Z]
 

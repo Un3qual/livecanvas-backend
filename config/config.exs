@@ -44,7 +44,7 @@ config :live_canvas, LC.Infra.DataGovernance.Retention,
     auth_events: 365,
     async_jobs: 30,
     webhook_events: 90,
-    chat_messages: 180,
+    live_session_timeline_events: 180,
     live_participants: 180
   ],
   apply_mode_enabled: false,
