@@ -2,314 +2,278 @@ defmodule LCGQL.Chat.ChatMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
-  import Ecto.Query
 
   alias LC.{Accounts, Chat, Live}
-  alias LC.Infra.Repo
-  alias LCTransport.LiveSessionTopics
-  alias LCSchemas.Chat.ChatMessage
 
-  describe "removeLiveChatMessage" do
-    test "allows the session host to remove a viewer-authored message" do
-      host = user_fixture(privacy_mode: :public)
-      sender = user_fixture()
-      context = %{current_scope: Accounts.scope_for_user(host)}
-      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
-      {:ok, message} = Chat.create_message(live_session, sender, %{body: "abusive message"})
-
-      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
-      sender_id = Absinthe.Relay.Node.to_global_id(:user, sender.id, LCGQL.Schema)
-
-      assert {:ok,
-              %{
-                data: %{
-                  "removeLiveChatMessage" => %{
-                    "chatMessage" => %{
-                      "id" => ^message_id,
-                      "body" => nil,
-                      "status" => "REMOVED",
-                      "moderatedAt" => moderated_at,
-                      "sender" => %{"id" => ^sender_id}
-                    },
-                    "errors" => []
-                  }
-                }
-              }} =
-               Absinthe.run(remove_message_mutation(), LCGQL.Schema,
-                 variables: %{"chatMessageId" => message_id},
-                 context: context
-               )
-
-      assert is_binary(moderated_at)
-      assert %{status: :removed} = Chat.get_history_message(host, message.id)
-    end
-
-    test "records and broadcasts one message_removed system event for the first removal" do
-      host = user_fixture(privacy_mode: :public)
-      sender = user_fixture()
-      context = %{current_scope: Accounts.scope_for_user(host)}
-      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
-      live_session_id = live_session.id
-      {:ok, message} = Chat.create_message(live_session, sender, %{body: "remove me"})
-      topic = LiveSessionTopics.live_session_topic(live_session.id)
-      :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
-
-      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
-
-      assert {:ok,
-              %{
-                data: %{
-                  "removeLiveChatMessage" => %{
-                    "chatMessage" => %{
-                      "id" => ^message_id,
-                      "body" => nil,
-                      "status" => "REMOVED",
-                      "moderatedAt" => moderated_at
-                    },
-                    "errors" => []
-                  }
-                }
-              }} =
-               Absinthe.run(remove_message_mutation(), LCGQL.Schema,
-                 variables: %{"chatMessageId" => message_id},
-                 context: context
-               )
-
-      assert is_binary(moderated_at)
-
-      assert_receive %Phoenix.Socket.Broadcast{
-        topic: ^topic,
-        event: "chat:message",
-        payload: %{
-          message: %{
-            id: system_event_id,
-            body: "A chat message was removed.",
-            sender_id: sender_id,
-            inserted_at: inserted_at,
-            kind: "system_event",
-            status: "active",
-            moderated_at: nil,
-            metadata: %{
-              "details" => %{
-                "chat_message_entropy_id" => chat_message_entropy_id,
-                "chat_message_id" => chat_message_id
-              },
-              "event_type" => "message_removed"
-            }
-          }
-        }
-      }
-
-      assert is_integer(system_event_id)
-      assert sender_id == host.id
-      assert is_binary(inserted_at)
-      assert chat_message_id == message.id
-      assert chat_message_entropy_id == message.entropy_id
-
-      assert [
-               %ChatMessage{
-                 id: ^system_event_id,
-                 live_session_id: ^live_session_id,
-                 sender_id: ^sender_id,
-                 body: "A chat message was removed.",
-                 kind: :system_event,
-                 status: :active,
-                 metadata: %{
-                   "details" => %{
-                     "chat_message_entropy_id" => ^chat_message_entropy_id,
-                     "chat_message_id" => ^chat_message_id
-                   },
-                   "event_type" => "message_removed"
-                 }
-               }
-             ] =
-               from(chat_message in ChatMessage,
-                 where:
-                   chat_message.live_session_id == ^live_session.id and
-                     chat_message.kind == :system_event,
-                 order_by: [asc: chat_message.inserted_at, asc: chat_message.id]
-               )
-               |> Repo.all()
-    end
-
-    test "returns not_authorized when the sender is not the session host" do
+  describe "editLiveChatMessage" do
+    test "allows the original actor to edit an active chat message event" do
       host = user_fixture(privacy_mode: :public)
       sender = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(sender)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
-      {:ok, message} = Chat.create_message(live_session, sender, %{body: "cannot self-remove"})
-      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
+      {:ok, event} = Chat.create_timeline_chat_message(live_session, sender, %{body: "helo"})
+
+      event_id = global_id(:chat_message_event, event.id)
 
       assert {:ok,
               %{
                 data: %{
-                  "removeLiveChatMessage" => %{
-                    "chatMessage" => nil,
+                  "editLiveChatMessage" => %{
+                    "chatMessageEvent" => %{
+                      "id" => ^event_id,
+                      "body" => "hello",
+                      "edited" => true,
+                      "editCount" => 1,
+                      "editedAt" => edited_at
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(edit_message_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => event_id, "body" => "hello"},
+                 context: context
+               )
+
+      assert is_binary(edited_at)
+
+      assert %{body: "hello", edited: true, edit_count: 1} =
+               Chat.get_timeline_event(sender, event.id)
+    end
+
+    test "rejects edits from a different actor" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      other = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(other)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, event} = Chat.create_timeline_chat_message(live_session, sender, %{body: "mine"})
+
+      event_id = global_id(:chat_message_event, event.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "editLiveChatMessage" => %{
+                    "chatMessageEvent" => nil,
                     "errors" => [%{"message" => "not_authorized"}]
                   }
                 }
               }} =
-               Absinthe.run(remove_message_mutation(), LCGQL.Schema,
-                 variables: %{"chatMessageId" => message_id},
+               Absinthe.run(edit_message_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => event_id, "body" => "stolen"},
                  context: context
                )
     end
 
-    test "returns not_authorized for a host from another live session" do
+    test "maps invalid global ID types to a chatMessageEventId validation error" do
+      actor = user_fixture(privacy_mode: :public)
+      {:ok, live_session} = Live.start_live_session(actor, %{visibility: :public})
+      context = %{current_scope: Accounts.scope_for_user(actor)}
+      live_session_id = global_id(:live_session, live_session.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "editLiveChatMessage" => %{
+                    "chatMessageEvent" => nil,
+                    "errors" => [
+                      %{"field" => "chatMessageEventId", "message" => "is invalid"}
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(edit_message_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => live_session_id, "body" => "invalid"},
+                 context: context
+               )
+    end
+  end
+
+  describe "removeLiveChatMessageEvent" do
+    test "allows the session host to remove a viewer-authored chat message event" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, event} = Chat.create_timeline_chat_message(live_session, sender, %{body: "abusive"})
+
+      event_id = global_id(:chat_message_event, event.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => ^event_id,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => event_id},
+                 context: context
+               )
+
+      assert Chat.get_timeline_event(sender, event.id) == nil
+    end
+
+    test "rejects removal by non-hosts" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(sender)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, event} = Chat.create_timeline_chat_message(live_session, sender, %{body: "mine"})
+      event_id = global_id(:chat_message_event, event.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => nil,
+                    "errors" => [%{"message" => "not_authorized"}]
+                  }
+                }
+              }} =
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => event_id},
+                 context: context
+               )
+    end
+
+    test "rejects removal by a host from another live session" do
       host = user_fixture(privacy_mode: :public)
       sender = user_fixture()
       outsider = user_fixture(privacy_mode: :public)
       context = %{current_scope: Accounts.scope_for_user(outsider)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
       {:ok, _outsider_session} = Live.start_live_session(outsider, %{visibility: :public})
-
-      {:ok, message} =
-        Chat.create_message(live_session, sender, %{body: "still not your session"})
-
-      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
+      {:ok, event} = Chat.create_timeline_chat_message(live_session, sender, %{body: "private"})
+      event_id = global_id(:chat_message_event, event.id)
 
       assert {:ok,
               %{
                 data: %{
-                  "removeLiveChatMessage" => %{
-                    "chatMessage" => nil,
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => nil,
                     "errors" => [%{"message" => "not_authorized"}]
                   }
                 }
               }} =
-               Absinthe.run(remove_message_mutation(), LCGQL.Schema,
-                 variables: %{"chatMessageId" => message_id},
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => event_id},
                  context: context
                )
     end
 
-    test "is idempotent and reuses the first moderation timestamp" do
+    test "returns the removed event id without exposing a hidden event node on repeat calls" do
       host = user_fixture(privacy_mode: :public)
       sender = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(host)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
-      {:ok, message} = Chat.create_message(live_session, sender, %{body: "remove once"})
-      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
+
+      {:ok, event} =
+        Chat.create_timeline_chat_message(live_session, sender, %{body: "remove once"})
+
+      event_id = global_id(:chat_message_event, event.id)
 
       assert {:ok,
               %{
                 data: %{
-                  "removeLiveChatMessage" => %{
-                    "chatMessage" => %{"moderatedAt" => moderated_at},
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => ^event_id,
                     "errors" => []
                   }
                 }
               }} =
-               Absinthe.run(remove_message_mutation(), LCGQL.Schema,
-                 variables: %{"chatMessageId" => message_id},
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => event_id},
                  context: context
                )
 
       assert {:ok,
               %{
                 data: %{
-                  "removeLiveChatMessage" => %{
-                    "chatMessage" => %{
-                      "id" => ^message_id,
-                      "body" => nil,
-                      "status" => "REMOVED",
-                      "moderatedAt" => ^moderated_at
-                    },
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => ^event_id,
                     "errors" => []
                   }
                 }
               }} =
-               Absinthe.run(remove_message_mutation(), LCGQL.Schema,
-                 variables: %{"chatMessageId" => message_id},
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => event_id},
                  context: context
                )
 
-      assert 1 ==
-               from(chat_message in ChatMessage,
-                 where:
-                   chat_message.live_session_id == ^live_session.id and
-                     chat_message.kind == :system_event
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(timeline_event_node_query(), LCGQL.Schema,
+                 variables: %{"id" => event_id},
+                 context: context
                )
-               |> Repo.aggregate(:count)
     end
 
-    test "does not emit another removal event when removing a system event row" do
-      host = user_fixture(privacy_mode: :public)
-      sender = user_fixture()
-      context = %{current_scope: Accounts.scope_for_user(host)}
-      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
-      {:ok, message} = Chat.create_message(live_session, sender, %{body: "remove me"})
-
-      assert {:ok, system_event} =
-               Chat.record_system_event(live_session, :message_removed,
-                 actor: host,
-                 metadata: %{chat_message: message}
-               )
-
-      topic = LiveSessionTopics.live_session_topic(live_session.id)
-      :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
-
-      system_event_id =
-        Absinthe.Relay.Node.to_global_id(:chat_message, system_event.id, LCGQL.Schema)
+    test "maps invalid global ID types to a chatMessageEventId validation error" do
+      actor = user_fixture(privacy_mode: :public)
+      {:ok, live_session} = Live.start_live_session(actor, %{visibility: :public})
+      context = %{current_scope: Accounts.scope_for_user(actor)}
+      live_session_id = global_id(:live_session, live_session.id)
 
       assert {:ok,
               %{
                 data: %{
-                  "removeLiveChatMessage" => %{
-                    "chatMessage" => %{
-                      "id" => ^system_event_id,
-                      "body" => nil,
-                      "status" => "REMOVED",
-                      "moderatedAt" => moderated_at
-                    },
-                    "errors" => []
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => nil,
+                    "errors" => [
+                      %{"field" => "chatMessageEventId", "message" => "is invalid"}
+                    ]
                   }
                 }
               }} =
-               Absinthe.run(remove_message_mutation(), LCGQL.Schema,
-                 variables: %{"chatMessageId" => system_event_id},
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => live_session_id},
                  context: context
                )
+    end
 
-      assert is_binary(moderated_at)
+    test "maps lifecycle event IDs to a chatMessageEventId validation error" do
+      host = user_fixture(privacy_mode: :public)
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
 
-      assert_receive %Phoenix.Socket.Broadcast{
-        topic: ^topic,
-        event: "chat:message_updated",
-        payload: %{message: %{id: updated_id, body: nil, kind: "system_event", status: "removed"}}
-      }
-
-      assert updated_id == system_event.id
-
-      refute_receive %Phoenix.Socket.Broadcast{
-                       topic: ^topic,
-                       event: "chat:message",
-                       payload: %{message: %{metadata: %{"event_type" => "message_removed"}}}
-                     },
-                     200
-
-      assert 1 ==
-               from(chat_message in ChatMessage,
-                 where:
-                   chat_message.live_session_id == ^live_session.id and
-                     chat_message.kind == :system_event
+      assert {:ok, started_event} =
+               Chat.record_lifecycle_timeline_event(live_session, :live_session_started,
+                 actor: host
                )
-               |> Repo.aggregate(:count)
+
+      started_event_id = global_id(:live_session_started_event, started_event.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => nil,
+                    "errors" => [
+                      %{"field" => "chatMessageEventId", "message" => "is invalid"}
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => started_event_id},
+                 context: context
+               )
     end
   end
 
-  defp remove_message_mutation do
+  defp edit_message_mutation do
     """
-    mutation($chatMessageId: ID!) {
-      removeLiveChatMessage(input: { chatMessageId: $chatMessageId }) {
-        chatMessage {
+    mutation($chatMessageEventId: ID!, $body: String!) {
+      editLiveChatMessage(input: { chatMessageEventId: $chatMessageEventId, body: $body }) {
+        chatMessageEvent {
           id
           body
-          status
-          moderatedAt
-          sender {
-            id
-          }
+          edited
+          editCount
+          editedAt
         }
         errors {
           field
@@ -319,4 +283,33 @@ defmodule LCGQL.Chat.ChatMutationsTest do
     }
     """
   end
+
+  defp remove_message_event_mutation do
+    """
+    mutation($chatMessageEventId: ID!) {
+      removeLiveChatMessageEvent(input: { chatMessageEventId: $chatMessageEventId }) {
+        removedTimelineEventId
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+  end
+
+  defp timeline_event_node_query do
+    """
+    query($id: ID!) {
+      node(id: $id) {
+        id
+        ... on ChatMessageEvent {
+          body
+        }
+      }
+    }
+    """
+  end
+
+  defp global_id(type, id), do: Absinthe.Relay.Node.to_global_id(type, id, LCGQL.Schema)
 end

@@ -87,7 +87,7 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
            } = Jason.decode!(second_conn.resp_body)
   end
 
-  test "uses moderation-action limits for removeLiveChatMessage", %{conn: conn} do
+  test "uses moderation-action limits for removeLiveChatMessageEvent", %{conn: conn} do
     previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
 
     Application.put_env(
@@ -111,7 +111,53 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
 
     moderation_mutation = """
     mutation {
-      removeLiveChatMessage(input: { chatMessageId: \"123\" }) {
+      removeLiveChatMessageEvent(input: { chatMessageEventId: \"123\" }) {
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    conn = %{conn | remote_ip: {127, 0, 0, 1}}
+    first_conn = post(conn, "/graphql", %{"query" => moderation_mutation})
+    assert first_conn.status == 200
+
+    second_conn = post(conn, "/graphql", %{"query" => moderation_mutation})
+    assert second_conn.status == 429
+
+    assert %{
+             "errors" => [
+               %{"message" => "rate_limited", "extensions" => %{"code" => "RATE_LIMITED"}}
+             ]
+           } = Jason.decode!(second_conn.resp_body)
+  end
+
+  test "uses moderation-action limits for editLiveChatMessage", %{conn: conn} do
+    previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LC.RateLimiter,
+      limits: [
+        graphql_mutation: [limit: 10, window_ms: 60_000],
+        moderation_action: [limit: 1, window_ms: 60_000],
+        auth_login: [limit: 10, window_ms: 60_000],
+        channel_join: [limit: 10, window_ms: 60_000],
+        chat_send: [limit: 10, window_ms: 60_000]
+      ]
+    )
+
+    LC.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LC.RateLimiter, previous_config)
+      LC.RateLimiter.reset!()
+    end)
+
+    moderation_mutation = """
+    mutation {
+      editLiveChatMessage(input: { chatMessageEventId: \"123\", body: \"edited\" }) {
         errors {
           message
         }

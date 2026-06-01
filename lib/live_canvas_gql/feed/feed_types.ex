@@ -50,8 +50,8 @@ defmodule LCGQL.Feed.Types do
       resolve(&Resolver.recording_media_asset/3)
     end
 
-    connection field :chat_messages, node_type: :chat_message, paginate: :both do
-      resolve(&ChatResolver.chat_messages/3)
+    connection field :timeline_events, node_type: :live_session_timeline_event, paginate: :both do
+      resolve(&ChatResolver.timeline_events/3)
     end
   end
 end

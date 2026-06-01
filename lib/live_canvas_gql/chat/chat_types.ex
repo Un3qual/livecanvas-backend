@@ -2,55 +2,50 @@ defmodule LCGQL.Chat.Types do
   use Absinthe.Schema.Notation
   use Absinthe.Relay.Schema.Notation, :modern
 
-  import Absinthe.Resolution.Helpers, only: [dataloader: 1]
-
-  alias LC.Accounts
   alias LCGQL.Chat.Resolver
 
-  connection(node_type: :chat_message)
+  connection(node_type: :live_session_timeline_event)
 
-  enum :chat_message_kind do
-    value(:user_message)
-    value(:system_event)
+  enum :live_session_timeline_event_type do
+    value(:chat_message_sent)
+    value(:live_session_started)
+    value(:live_session_ended)
   end
 
-  enum :chat_message_status do
-    value(:active)
-    value(:removed)
+  interface :live_session_timeline_event do
+    field :id, non_null(:id)
+    field :event_type, non_null(:live_session_timeline_event_type)
+    field :occurred_at, non_null(:string)
+    field :actor, :user
+
+    resolve_type(&Resolver.timeline_event_type/2)
   end
 
-  enum :chat_system_event_type do
-    value(:message_removed)
-    value(:session_ended)
-    value(:session_live)
+  node object(:chat_message_event) do
+    interface(:live_session_timeline_event)
+
+    field :event_type, non_null(:live_session_timeline_event_type)
+    field :occurred_at, non_null(:string)
+    field :actor, :user
+    field :body, non_null(:string)
+    field :edited, non_null(:boolean)
+    field :edit_count, non_null(:integer)
+    field :edited_at, :string
   end
 
-  object :chat_system_event_details do
-    field :chat_message_id, :id
-    field :chat_message_entropy_id, :string
+  node object(:live_session_started_event) do
+    interface(:live_session_timeline_event)
+
+    field :event_type, non_null(:live_session_timeline_event_type)
+    field :occurred_at, non_null(:string)
+    field :actor, :user
   end
 
-  node object(:chat_message) do
-    field :body, :string do
-      resolve(&Resolver.chat_message_body/3)
-    end
+  node object(:live_session_ended_event) do
+    interface(:live_session_timeline_event)
 
-    field :kind, non_null(:chat_message_kind)
-    field :status, non_null(:chat_message_status)
-
-    field :system_event_type, :chat_system_event_type do
-      resolve(&Resolver.chat_message_system_event_type/3)
-    end
-
-    field :system_event_details, :chat_system_event_details do
-      resolve(&Resolver.chat_message_system_event_details/3)
-    end
-
-    field :moderated_at, :string
-    field :inserted_at, non_null(:string)
-
-    field :sender, :user do
-      resolve(dataloader(Accounts))
-    end
+    field :event_type, non_null(:live_session_timeline_event_type)
+    field :occurred_at, non_null(:string)
+    field :actor, :user
   end
 end
