@@ -60,6 +60,20 @@ describe('privacyModeReducer', () => {
     });
   });
 
+  test('ignores a second submit while a privacy update is active', () => {
+    const state = privacyModeReducer(createPrivacyModeState('PUBLIC'), {
+      mode: 'PRIVATE',
+      type: 'submit',
+    });
+
+    expect(
+      privacyModeReducer(state, {
+        mode: 'PUBLIC',
+        type: 'submit',
+      }),
+    ).toBe(state);
+  });
+
   test('normalizes future enum values after mutation success', () => {
     expect(
       privacyModeReducer(

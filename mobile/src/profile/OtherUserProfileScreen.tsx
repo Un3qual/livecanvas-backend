@@ -1,4 +1,5 @@
 import React, {
+  useEffect,
   useReducer,
   useRef,
   useState,
@@ -20,7 +21,11 @@ import {
   formatPrivacyModeLabel,
   formatProfileIdentity,
 } from './profilePresentation';
-import { describeRelationshipState } from './relationshipPresentation';
+import {
+  describeRelationshipState,
+  type RelationshipState,
+} from './relationshipPresentation';
+import { formatMutationErrors } from './mutationErrors';
 import type { OtherUserProfileScreenFollowUserMutation } from './__generated__/OtherUserProfileScreenFollowUserMutation.graphql';
 import type { OtherUserProfileScreenQuery } from './__generated__/OtherUserProfileScreenQuery.graphql';
 
@@ -31,18 +36,12 @@ type OtherUserProfileUser = Extract<
   { readonly __typename: 'User' }
 >;
 
-type SocialMutationError = {
-  readonly field?: string | null;
-  readonly message: string;
-};
-
 const otherUserProfileScreenQuery = graphql`
   query OtherUserProfileScreenQuery($id: ID!) {
     node(id: $id) {
       __typename
       ... on User {
         id
-        email
         privacyMode
         followers(first: 3) {
           pageInfo {
@@ -85,302 +84,6 @@ const otherUserProfileScreenFollowUserMutation = graphql`
     }
   }
 `;
-
-export function OtherUserProfileScreen({ id }: { id: string }) {
-  const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
-
-  return (
-    <OtherUserProfileErrorBoundary
-      key={queryRetryKey}
-      onRetry={retryQuery}
-    >
-      <OtherUserProfileContent
-        id={id}
-        key={queryRetryKey}
-        onRefresh={retryQuery}
-      />
-    </OtherUserProfileErrorBoundary>
-  );
-}
-
-type OtherUserProfileErrorBoundaryProps = PropsWithChildren<{
-  onRetry: () => void;
-}>;
-
-type OtherUserProfileErrorBoundaryState = {
-  hasError: boolean;
-};
-
-class OtherUserProfileErrorBoundary extends React.Component<
-  OtherUserProfileErrorBoundaryProps,
-  OtherUserProfileErrorBoundaryState
-> {
-  state: OtherUserProfileErrorBoundaryState = { hasError: false };
-
-  static getDerivedStateFromError(): OtherUserProfileErrorBoundaryState {
-    return { hasError: true };
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <ScreenState
-          state="error"
-          message="We couldn't load this profile. Check your connection and try again."
-          onRetry={this.props.onRetry}
-        />
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-function OtherUserProfileContent({
-  id,
-  onRefresh,
-}: {
-  id: string;
-  onRefresh: () => void;
-}) {
-  const theme = useAppTheme();
-  const router = useRouter();
-  const [followError, setFollowError] = useState<string | null>(null);
-  const activeFollowSubmissionRef = useRef(false);
-  const [commitFollowUser, isFollowUserMutationInFlight] =
-    useMutation<OtherUserProfileScreenFollowUserMutation>(
-      otherUserProfileScreenFollowUserMutation,
-    );
-  const data = useLazyLoadQuery<OtherUserProfileScreenQuery>(
-    otherUserProfileScreenQuery,
-    { id },
-    { fetchPolicy: 'store-and-network' },
-  );
-
-  if (!isUserNode(data.node)) {
-    return (
-      <UnavailableProfileScreen
-        message="This profile is unavailable."
-        onBack={() => router.back()}
-      />
-    );
-  }
-
-  const user = data.node;
-  const identity = formatProfileIdentity(user);
-  const privacy = formatPrivacyModeLabel(user.privacyMode);
-  const relationship = describeRelationshipState({
-    isMuted: data.isMuted,
-    state: data.relationshipState,
-  });
-  const followersPreviewCount = formatConnectionPreviewCount({
-    hasNextPage: user.followers?.pageInfo.hasNextPage,
-    visibleCount: countConnectionEdges(user.followers),
-  });
-  const followingPreviewCount = formatConnectionPreviewCount({
-    hasNextPage: user.following?.pageInfo.hasNextPage,
-    visibleCount: countConnectionEdges(user.following),
-  });
-
-  const submitFollowUser = () => {
-    if (
-      !relationship.canFollow ||
-      isFollowUserMutationInFlight ||
-      activeFollowSubmissionRef.current
-    ) {
-      return;
-    }
-
-    activeFollowSubmissionRef.current = true;
-    setFollowError(null);
-    commitFollowUser({
-      variables: {
-        input: {
-          followedId: user.id,
-        },
-      },
-      onCompleted: (payload) => {
-        activeFollowSubmissionRef.current = false;
-        const result = payload.followUser;
-
-        if (!result?.follow || result.errors.length > 0) {
-          setFollowError(formatRelationshipMutationErrors(result?.errors));
-          return;
-        }
-
-        onRefresh();
-      },
-      onError: () => {
-        activeFollowSubmissionRef.current = false;
-        setFollowError(
-          'We could not update this relationship. Check your connection and try again.',
-        );
-      },
-    });
-  };
-
-  return (
-    <ScrollView
-      style={[styles.screen, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={styles.content}
-    >
-      <AppButton
-        label="Back"
-        onPress={() => router.back()}
-        style={styles.backButton}
-        variant="secondary"
-      />
-
-      <AppCard>
-        <View style={styles.identity}>
-          <View
-            style={[
-              styles.avatar,
-              { backgroundColor: theme.colors.surfaceMuted },
-            ]}
-          >
-            <Text style={[styles.avatarText, { color: theme.colors.accent }]}>
-              {identity.initials}
-            </Text>
-          </View>
-          <AppHeader
-            eyebrow="Profile"
-            title={identity.title}
-            subtitle={identity.subtitle}
-          />
-        </View>
-        <View
-          style={[
-            styles.summaryPanel,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-            {privacy.label}
-          </Text>
-          <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-            {privacy.description}
-          </Text>
-        </View>
-      </AppCard>
-
-      <AppCard>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          {relationship.label}
-        </Text>
-        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-          {relationship.status}
-        </Text>
-        {relationship.actionLabel ? (
-          <AppButton
-            disabled={!relationship.canFollow || isFollowUserMutationInFlight}
-            label={
-              isFollowUserMutationInFlight
-                ? 'Saving...'
-                : relationship.actionLabel
-            }
-            onPress={submitFollowUser}
-          />
-        ) : null}
-        {followError ? (
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>
-            {followError}
-          </Text>
-        ) : null}
-      </AppCard>
-
-      <AppCard>
-        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          Visible social preview
-        </Text>
-        <View style={styles.stats}>
-          <SocialPreviewStat label="Followers" value={followersPreviewCount} />
-          <SocialPreviewStat label="Following" value={followingPreviewCount} />
-        </View>
-      </AppCard>
-    </ScrollView>
-  );
-}
-
-function SocialPreviewStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  const theme = useAppTheme();
-
-  return (
-    <View
-      style={[
-        styles.stat,
-        {
-          backgroundColor: theme.colors.surfaceMuted,
-          borderColor: theme.colors.border,
-        },
-      ]}
-    >
-      <Text style={[styles.statValue, { color: theme.colors.text }]}>
-        {value}
-      </Text>
-      <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-function UnavailableProfileScreen({
-  message,
-  onBack,
-}: {
-  message: string;
-  onBack: () => void;
-}) {
-  const theme = useAppTheme();
-
-  return (
-    <View
-      style={[
-        styles.unavailableScreen,
-        { backgroundColor: theme.colors.background },
-      ]}
-    >
-      <AppButton
-        label="Back"
-        onPress={onBack}
-        style={styles.unavailableBackButton}
-        variant="secondary"
-      />
-      <ScreenState state="empty" message={message} />
-    </View>
-  );
-}
-
-function isUserNode(
-  node: OtherUserProfileNode,
-): node is OtherUserProfileUser {
-  return node?.__typename === 'User';
-}
-
-function formatRelationshipMutationErrors(
-  errors: ReadonlyArray<SocialMutationError> | null | undefined,
-): string {
-  const messages =
-    errors
-      ?.map((error) =>
-        error.field ? `${error.field}: ${error.message}` : error.message,
-      )
-      .filter((message) => message.length > 0) ?? [];
-
-  return messages.length > 0
-    ? messages.join('; ')
-    : 'We could not update this relationship.';
-}
 
 const styles = StyleSheet.create({
   screen: {
@@ -451,3 +154,364 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.lg,
   },
 });
+
+export function OtherUserProfileScreen({ id }: { id: string }) {
+  const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
+  const [relationshipStateOverride, setRelationshipStateOverride] =
+    useState<RelationshipState | null>(null);
+
+  useEffect(() => {
+    setRelationshipStateOverride(null);
+  }, [id]);
+
+  return (
+    <OtherUserProfileErrorBoundary
+      key={queryRetryKey}
+      onRetry={retryQuery}
+    >
+      <OtherUserProfileContent
+        id={id}
+        key={queryRetryKey}
+        onRefresh={retryQuery}
+        onRelationshipStateOverride={setRelationshipStateOverride}
+        relationshipStateOverride={relationshipStateOverride}
+      />
+    </OtherUserProfileErrorBoundary>
+  );
+}
+
+type OtherUserProfileErrorBoundaryProps = PropsWithChildren<{
+  onRetry: () => void;
+}>;
+
+type OtherUserProfileErrorBoundaryState = {
+  hasError: boolean;
+};
+
+class OtherUserProfileErrorBoundary extends React.Component<
+  OtherUserProfileErrorBoundaryProps,
+  OtherUserProfileErrorBoundaryState
+> {
+  state: OtherUserProfileErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): OtherUserProfileErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <ScreenState
+          state="error"
+          message="We couldn't load this profile. Check your connection and try again."
+          onRetry={this.props.onRetry}
+        />
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function OtherUserProfileContent({
+  id,
+  onRefresh,
+  onRelationshipStateOverride,
+  relationshipStateOverride,
+}: {
+  id: string;
+  onRefresh: () => void;
+  onRelationshipStateOverride: (state: RelationshipState) => void;
+  relationshipStateOverride: RelationshipState | null;
+}) {
+  const theme = useAppTheme();
+  const router = useRouter();
+  const [followError, setFollowError] = useState<string | null>(null);
+  const activeFollowSubmissionRef = useRef(false);
+  const [commitFollowUser, isFollowUserMutationInFlight] =
+    useMutation<OtherUserProfileScreenFollowUserMutation>(
+      otherUserProfileScreenFollowUserMutation,
+    );
+  const data = useLazyLoadQuery<OtherUserProfileScreenQuery>(
+    otherUserProfileScreenQuery,
+    { id },
+    { fetchPolicy: 'store-and-network' },
+  );
+
+  useEffect(() => {
+    activeFollowSubmissionRef.current = false;
+    setFollowError(null);
+  }, [id]);
+
+  if (!isUserNode(data.node)) {
+    return (
+      <UnavailableProfileScreen
+        message="This profile is unavailable."
+        onBack={() => router.back()}
+      />
+    );
+  }
+
+  const user = data.node;
+  const identity = formatProfileIdentity(user);
+  const privacy = formatPrivacyModeLabel(user.privacyMode);
+  const relationshipState = relationshipStateOverride ?? data.relationshipState;
+  const relationship = describeRelationshipState({
+    isMuted: data.isMuted,
+    state: relationshipState,
+  });
+  const followersPreviewCount = formatConnectionPreviewCount({
+    hasNextPage: user.followers?.pageInfo.hasNextPage,
+    visibleCount: countConnectionEdges(user.followers),
+  });
+  const followingPreviewCount = formatConnectionPreviewCount({
+    hasNextPage: user.following?.pageInfo.hasNextPage,
+    visibleCount: countConnectionEdges(user.following),
+  });
+
+  const submitFollowUser = () => {
+    if (
+      !relationship.canFollow ||
+      isFollowUserMutationInFlight ||
+      activeFollowSubmissionRef.current
+    ) {
+      return;
+    }
+
+    activeFollowSubmissionRef.current = true;
+    setFollowError(null);
+    commitFollowUser({
+      variables: {
+        input: {
+          followedId: user.id,
+        },
+      },
+      onCompleted: (payload) => {
+        activeFollowSubmissionRef.current = false;
+        const result = payload.followUser;
+
+        if (!result?.follow || result.errors.length > 0) {
+          setFollowError(formatRelationshipMutationErrors(result?.errors));
+          return;
+        }
+
+        onRelationshipStateOverride(result.follow.state);
+        onRefresh();
+      },
+      onError: () => {
+        activeFollowSubmissionRef.current = false;
+        setFollowError(
+          'We could not update this relationship. Check your connection and try again.',
+        );
+      },
+    });
+  };
+
+  return (
+    <ScrollView
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={styles.content}
+    >
+      <AppButton
+        label="Back"
+        onPress={() => router.back()}
+        style={styles.backButton}
+        variant="secondary"
+      />
+
+      <ProfileSummaryCard identity={identity} privacy={privacy} />
+
+      <RelationshipCard
+        errorMessage={followError}
+        isSubmitting={isFollowUserMutationInFlight}
+        onSubmit={submitFollowUser}
+        relationship={relationship}
+      />
+
+      <SocialPreviewCard
+        followersPreviewCount={followersPreviewCount}
+        followingPreviewCount={followingPreviewCount}
+      />
+    </ScrollView>
+  );
+}
+
+function ProfileSummaryCard({
+  identity,
+  privacy,
+}: {
+  identity: ReturnType<typeof formatProfileIdentity>;
+  privacy: ReturnType<typeof formatPrivacyModeLabel>;
+}) {
+  const theme = useAppTheme();
+
+  return (
+    <AppCard>
+      <View style={styles.identity}>
+        <ProfileAvatar initials={identity.initials} />
+        <AppHeader
+          eyebrow="Profile"
+          title={identity.title}
+          subtitle={identity.subtitle}
+        />
+      </View>
+      <View
+        style={[
+          styles.summaryPanel,
+          {
+            backgroundColor: theme.colors.surfaceMuted,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          {privacy.label}
+        </Text>
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          {privacy.description}
+        </Text>
+      </View>
+    </AppCard>
+  );
+}
+
+function RelationshipCard({
+  errorMessage,
+  isSubmitting,
+  onSubmit,
+  relationship,
+}: {
+  errorMessage: string | null;
+  isSubmitting: boolean;
+  onSubmit: () => void;
+  relationship: ReturnType<typeof describeRelationshipState>;
+}) {
+  const theme = useAppTheme();
+
+  return (
+    <AppCard>
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+        {relationship.label}
+      </Text>
+      <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+        {relationship.status}
+      </Text>
+      {relationship.actionLabel ? (
+        <AppButton
+          disabled={!relationship.canFollow || isSubmitting}
+          label={isSubmitting ? 'Saving...' : relationship.actionLabel}
+          onPress={onSubmit}
+        />
+      ) : null}
+      {errorMessage ? (
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>
+          {errorMessage}
+        </Text>
+      ) : null}
+    </AppCard>
+  );
+}
+
+function SocialPreviewCard({
+  followersPreviewCount,
+  followingPreviewCount,
+}: {
+  followersPreviewCount: string;
+  followingPreviewCount: string;
+}) {
+  const theme = useAppTheme();
+
+  return (
+    <AppCard>
+      <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+        Visible social preview
+      </Text>
+      <View style={styles.stats}>
+        <SocialPreviewStat label="Followers" value={followersPreviewCount} />
+        <SocialPreviewStat label="Following" value={followingPreviewCount} />
+      </View>
+    </AppCard>
+  );
+}
+
+function ProfileAvatar({ initials }: { initials: string }) {
+  const theme = useAppTheme();
+
+  return (
+    <View
+      style={[styles.avatar, { backgroundColor: theme.colors.surfaceMuted }]}
+    >
+      <Text style={[styles.avatarText, { color: theme.colors.accent }]}>
+        {initials}
+      </Text>
+    </View>
+  );
+}
+
+function SocialPreviewStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  const theme = useAppTheme();
+
+  return (
+    <View
+      style={[
+        styles.stat,
+        {
+          backgroundColor: theme.colors.surfaceMuted,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <Text style={[styles.statValue, { color: theme.colors.text }]}>
+        {value}
+      </Text>
+      <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function UnavailableProfileScreen({
+  message,
+  onBack,
+}: {
+  message: string;
+  onBack: () => void;
+}) {
+  const theme = useAppTheme();
+
+  return (
+    <View
+      style={[
+        styles.unavailableScreen,
+        { backgroundColor: theme.colors.background },
+      ]}
+    >
+      <AppButton
+        label="Back"
+        onPress={onBack}
+        style={styles.unavailableBackButton}
+        variant="secondary"
+      />
+      <ScreenState state="empty" message={message} />
+    </View>
+  );
+}
+
+function isUserNode(
+  node: OtherUserProfileNode,
+): node is OtherUserProfileUser {
+  return node?.__typename === 'User';
+}
+
+function formatRelationshipMutationErrors(
+  errors: Parameters<typeof formatMutationErrors>[0],
+): string {
+  return formatMutationErrors(errors, 'We could not update this relationship.');
+}

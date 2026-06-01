@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d43d248f2d6d454bc0dd21628091718f>>
+ * @generated SignedSource<<4efa0847e295e2fa891adae59f1af021>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,7 +18,6 @@ export type OtherUserProfileScreenQuery$data = {
   readonly isMuted: boolean;
   readonly node: {
     readonly __typename: "User";
-    readonly email: string | null | undefined;
     readonly followers: {
       readonly edges: ReadonlyArray<{
         readonly node: {
@@ -86,24 +85,17 @@ v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "email",
-  "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "privacyMode",
   "storageKey": null
 },
-v6 = [
+v5 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 3
   }
 ],
-v7 = [
+v6 = [
   {
     "alias": null,
     "args": null,
@@ -146,43 +138,43 @@ v7 = [
     "storageKey": null
   }
 ],
-v8 = {
+v7 = {
   "alias": null,
-  "args": (v6/*: any*/),
+  "args": (v5/*: any*/),
   "concreteType": "UserConnection",
   "kind": "LinkedField",
   "name": "followers",
   "plural": false,
-  "selections": (v7/*: any*/),
+  "selections": (v6/*: any*/),
   "storageKey": "followers(first:3)"
 },
-v9 = {
+v8 = {
   "alias": null,
-  "args": (v6/*: any*/),
+  "args": (v5/*: any*/),
   "concreteType": "UserConnection",
   "kind": "LinkedField",
   "name": "following",
   "plural": false,
-  "selections": (v7/*: any*/),
+  "selections": (v6/*: any*/),
   "storageKey": "following(first:3)"
 },
-v10 = [
+v9 = [
   {
     "kind": "Variable",
     "name": "creatorId",
     "variableName": "id"
   }
 ],
-v11 = {
+v10 = {
   "alias": null,
-  "args": (v10/*: any*/),
+  "args": (v9/*: any*/),
   "kind": "ScalarField",
   "name": "relationshipState",
   "storageKey": null
 },
-v12 = {
+v11 = {
   "alias": null,
-  "args": (v10/*: any*/),
+  "args": (v9/*: any*/),
   "kind": "ScalarField",
   "name": "isMuted",
   "storageKey": null
@@ -208,9 +200,8 @@ return {
             "selections": [
               (v3/*: any*/),
               (v4/*: any*/),
-              (v5/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/)
+              (v7/*: any*/),
+              (v8/*: any*/)
             ],
             "type": "User",
             "abstractKey": null
@@ -218,8 +209,8 @@ return {
         ],
         "storageKey": null
       },
-      (v11/*: any*/),
-      (v12/*: any*/)
+      (v10/*: any*/),
+      (v11/*: any*/)
     ],
     "type": "RootQueryType",
     "abstractKey": null
@@ -244,9 +235,8 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v4/*: any*/),
-              (v5/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/)
+              (v7/*: any*/),
+              (v8/*: any*/)
             ],
             "type": "User",
             "abstractKey": null
@@ -254,21 +244,21 @@ return {
         ],
         "storageKey": null
       },
-      (v11/*: any*/),
-      (v12/*: any*/)
+      (v10/*: any*/),
+      (v11/*: any*/)
     ]
   },
   "params": {
-    "cacheID": "3ed085eccc2aaf3d435871f9af968491",
+    "cacheID": "b84556765a0f05fdbef36c369635dabb",
     "id": null,
     "metadata": {},
     "name": "OtherUserProfileScreenQuery",
     "operationKind": "query",
-    "text": "query OtherUserProfileScreenQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on User {\n      id\n      email\n      privacyMode\n      followers(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n      following(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n  relationshipState(creatorId: $id)\n  isMuted(creatorId: $id)\n}\n"
+    "text": "query OtherUserProfileScreenQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on User {\n      id\n      privacyMode\n      followers(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n      following(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n  relationshipState(creatorId: $id)\n  isMuted(creatorId: $id)\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9239e5d69f660455e33b00512f437658";
+(node as any).hash = "7ab5aaf7559edf11c84e411843e60f08";
 
 export default node;

@@ -1,3 +1,8 @@
+import {
+  formatMutationErrors as formatMutationErrorMessages,
+  type MutationError,
+} from './mutationErrors';
+
 export type PrivacyMode = 'PUBLIC' | 'PRIVATE';
 
 export type PrivacyModeState = {
@@ -11,11 +16,6 @@ export type PrivacyModeAction =
   | { type: 'success'; mode: string }
   | { type: 'error'; message: string }
   | { type: 'reset'; mode: string };
-
-type MutationError = {
-  readonly field?: string | null;
-  readonly message: string;
-};
 
 export function createPrivacyModeState(mode: string): PrivacyModeState {
   return {
@@ -31,6 +31,10 @@ export function privacyModeReducer(
 ): PrivacyModeState {
   switch (action.type) {
     case 'submit':
+      if (state.pendingMode !== null) {
+        return state;
+      }
+
       return {
         currentMode: state.currentMode,
         errorMessage: null,
@@ -53,6 +57,9 @@ export function privacyModeReducer(
 
     case 'reset':
       return createPrivacyModeState(action.mode);
+
+    default:
+      return state;
   }
 }
 
@@ -66,6 +73,9 @@ export function nextPrivacyMode(mode: PrivacyMode | null): PrivacyMode | null {
 
     case null:
       return null;
+
+    default:
+      return null;
   }
 }
 
@@ -76,14 +86,8 @@ export function normalizePrivacyMode(mode: string): PrivacyMode | null {
 export function formatMutationErrors(
   errors: ReadonlyArray<MutationError> | null | undefined,
 ): string {
-  const messages =
-    errors
-      ?.map((error) =>
-        error.field ? `${error.field}: ${error.message}` : error.message,
-      )
-      .filter((message) => message.length > 0) ?? [];
-
-  return messages.length > 0
-    ? messages.join('; ')
-    : 'We could not update privacy mode.';
+  return formatMutationErrorMessages(
+    errors,
+    'We could not update privacy mode.',
+  );
 }

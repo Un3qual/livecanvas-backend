@@ -13,6 +13,13 @@ export type RelationshipDescription = {
   status: string;
 };
 
+const unavailableRelationshipDescription: RelationshipDescription = {
+  actionLabel: null,
+  canFollow: false,
+  label: 'Relationship unavailable',
+  status: 'Refresh later to see the current relationship.',
+};
+
 export function describeRelationshipState({
   isMuted,
   state,
@@ -65,11 +72,9 @@ export function describeRelationshipState({
       };
 
     case '%future added value':
-      return {
-        actionLabel: null,
-        canFollow: false,
-        label: 'Relationship unavailable',
-        status: 'Refresh later to see the current relationship.',
-      };
+      return unavailableRelationshipDescription;
+
+    default:
+      return unavailableRelationshipDescription;
   }
 }

@@ -1315,7 +1315,6 @@ function OtherUserProfileContent({
           __typename
           ... on User {
             id
-            email
             privacyMode
             followers(first: 3) {
               pageInfo {

@@ -30,9 +30,11 @@ function readProfileId(value: string | string[] | undefined): string | null {
     return readProfileId(value[0]);
   }
 
-  if (typeof value !== 'string' || value.trim().length === 0) {
+  const id = typeof value === 'string' ? value.trim() : '';
+
+  if (id.length === 0) {
     return null;
   }
 
-  return value;
+  return id;
 }

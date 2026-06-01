@@ -77,6 +77,9 @@ export function followRequestReducer(
           [action.requestId]: action.message,
         },
       };
+
+    default:
+      return state;
   }
 }
 
