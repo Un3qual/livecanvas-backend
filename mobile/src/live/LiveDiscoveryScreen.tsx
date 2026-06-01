@@ -3,9 +3,11 @@ import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { graphql, useLazyLoadQuery } from 'react-relay';
 
+import { AppButton } from '../components/AppButton';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
 import { useAppTheme } from '../providers/ThemeProvider';
+import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { spacing, typography } from '../theme/tokens';
 import { liveSessionHref } from './liveSessionNavigation';
 import {
@@ -13,12 +15,6 @@ import {
   type LiveSessionSummary,
 } from './LiveSessionSummaryCard';
 import type { LiveDiscoveryScreenQuery } from './__generated__/LiveDiscoveryScreenQuery.graphql';
-
-type ConnectionLike<TNode> = {
-  readonly edges?:
-    | ReadonlyArray<{ readonly node?: TNode | null } | null | undefined>
-    | null;
-} | null | undefined;
 
 const styles = StyleSheet.create({
   screen: {
@@ -37,6 +33,9 @@ const styles = StyleSheet.create({
   sectionTitle: typography.label,
   list: {
     gap: spacing.md,
+  },
+  profileAction: {
+    alignSelf: 'center',
   },
 });
 
@@ -142,6 +141,10 @@ function LiveDiscoveryContent() {
     router.push(liveSessionHref(session.id));
   }
 
+  function openViewerProfile() {
+    router.push('/profile');
+  }
+
   if (!currentSession && liveNowSessions.length === 0) {
     return (
       <ScreenState
@@ -160,6 +163,12 @@ function LiveDiscoveryContent() {
         eyebrow="Home"
         title="Live now"
         subtitle="Join active sessions from people you can watch."
+      />
+      <AppButton
+        label="Open profile"
+        onPress={openViewerProfile}
+        style={styles.profileAction}
+        variant="secondary"
       />
 
       {currentSession ? (
@@ -199,15 +208,5 @@ function SectionTitle({ title }: { title: string }) {
     <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
       {title}
     </Text>
-  );
-}
-
-function readConnectionNodes<TNode>(
-  connection: ConnectionLike<TNode>,
-): Array<NonNullable<TNode>> {
-  return (
-    connection?.edges
-      ?.map((edge) => edge?.node)
-      .filter((node): node is NonNullable<TNode> => node != null) ?? []
   );
 }

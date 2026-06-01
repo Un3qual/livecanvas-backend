@@ -307,7 +307,7 @@ function LiveSessionWatchContent({
           'join',
         );
 
-        if (!result?.liveSession || result.errors.length > 0) {
+        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
           dispatchWatchAction({
             error: formatLiveMutationErrors(result?.errors),
             sessionId: session.id,
@@ -365,7 +365,7 @@ function LiveSessionWatchContent({
           'leave',
         );
 
-        if (!result?.left || result.errors.length > 0) {
+        if (!result?.left || (result.errors?.length ?? 0) > 0) {
           dispatchWatchAction({
             error: formatLiveMutationErrors(result?.errors),
             sessionId: session.id,

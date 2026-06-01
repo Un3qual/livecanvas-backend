@@ -30,6 +30,8 @@ export type LiveSessionBadgeColors = {
   readonly text: string;
 };
 
+const LIVE_SESSION_DATE_LOCALE = 'en-US';
+
 export function normalizeLiveSessionStatus(status: string): LiveSessionStatus {
   switch (status) {
     case 'STARTING':
@@ -123,7 +125,7 @@ function formatShortDate(value: string | null | undefined): string | null {
     return null;
   }
 
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(LIVE_SESSION_DATE_LOCALE, {
     day: 'numeric',
     month: 'short',
     timeZone: 'UTC',

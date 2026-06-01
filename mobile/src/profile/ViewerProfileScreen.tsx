@@ -16,6 +16,7 @@ import { ScreenState } from '../components/ScreenState';
 import { liveSessionHref } from '../live/liveSessionNavigation';
 import { LiveSessionSummaryCard } from '../live/LiveSessionSummaryCard';
 import { useAppTheme } from '../providers/ThemeProvider';
+import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
   countConnectionEdges,
@@ -54,12 +55,6 @@ type PendingFollowRequestEdge = NonNullable<
 type PendingFollowRequest = NonNullable<
   NonNullable<PendingFollowRequestEdge>['node']
 >;
-
-type ConnectionLike<TNode> = {
-  readonly edges?:
-    | ReadonlyArray<{ readonly node?: TNode | null } | null | undefined>
-    | null;
-} | null | undefined;
 
 const viewerProfileScreenPrivacyModeMutation = graphql`
   mutation ViewerProfileScreenPrivacyModeMutation(
@@ -891,16 +886,6 @@ function EmptyCardMessage({ message }: { message: string }) {
     <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
       {message}
     </Text>
-  );
-}
-
-function readConnectionNodes<TNode>(
-  connection: ConnectionLike<TNode>,
-): Array<NonNullable<TNode>> {
-  return (
-    connection?.edges
-      ?.map((edge) => edge?.node)
-      .filter((node): node is NonNullable<TNode> => node != null) ?? []
   );
 }
 
