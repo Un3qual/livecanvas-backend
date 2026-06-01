@@ -6,6 +6,7 @@ import {
   formatLiveSessionStatus,
   formatLiveSessionTiming,
   formatLiveSessionVisibility,
+  type LiveMutationError,
 } from './liveSessionPresentation';
 
 describe('liveSessionPresentation', () => {
@@ -73,14 +74,49 @@ describe('liveSessionPresentation', () => {
   });
 
   test('maps mutation errors to viewer-safe copy', () => {
-    expect(formatLiveMutationErrors([{ field: null, message: 'rate_limited' }])).toBe(
-      'Too many live-session attempts. Wait a moment and try again.',
-    );
-    expect(
-      formatLiveMutationErrors([{ field: 'liveSessionId', message: 'not_authorized' }]),
-    ).toBe('This live session is not available to your account.');
-    expect(formatLiveMutationErrors([])).toBe(
-      'We could not update this live session. Check your connection and try again.',
-    );
+    const unavailable = 'This live session is not available to your account.';
+    const fallback =
+      'We could not update this live session. Check your connection and try again.';
+    const cases: ReadonlyArray<{
+      readonly errors: ReadonlyArray<LiveMutationError> | null | undefined;
+      readonly expected: string;
+    }> = [
+      {
+        errors: [{ field: null, message: 'rate_limited' }],
+        expected: 'Too many live-session attempts. Wait a moment and try again.',
+      },
+      {
+        errors: [{ field: 'liveSessionId', message: 'not_authorized' }],
+        expected: unavailable,
+      },
+      {
+        errors: [{ field: 'liveSessionId', message: 'not_found' }],
+        expected: unavailable,
+      },
+      {
+        errors: [{ field: 'liveSessionId', message: 'ended' }],
+        expected: unavailable,
+      },
+      {
+        errors: [{ field: null, message: 'unauthenticated' }],
+        expected: 'Sign in again to keep watching live sessions.',
+      },
+      {
+        errors: [],
+        expected: fallback,
+      },
+      {
+        errors: null,
+        expected: fallback,
+      },
+      {
+        errors: undefined,
+        expected: fallback,
+      },
+    ];
+
+    for (const { errors, expected } of cases) {
+      expect(formatLiveMutationErrors(errors)).toBe(expected);
+    }
   });
 });

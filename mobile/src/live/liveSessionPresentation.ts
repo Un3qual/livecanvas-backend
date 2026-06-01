@@ -1,5 +1,9 @@
-export type LiveSessionStatus = 'STARTING' | 'LIVE' | 'ENDED' | string;
-export type LiveSessionVisibility = 'PUBLIC' | 'FOLLOWERS' | string;
+export type LiveSessionStatus =
+  | 'STARTING'
+  | 'LIVE'
+  | 'ENDED'
+  | '%future added value';
+export type LiveSessionVisibility = 'PUBLIC' | 'FOLLOWERS' | '%future added value';
 export type LiveMutationError = {
   readonly field?: string | null;
   readonly message?: string | null;
