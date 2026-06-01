@@ -8,7 +8,7 @@ defmodule LC.Infra.DataGovernanceDeletionTest do
   alias LC.{Accounts, Chat, Content, Live}
   alias LC.Infra.DataGovernance
   alias LCSchemas.Accounts.{AuthEvent, User}
-  alias LCSchemas.Chat.ChatMessage
+  alias LCSchemas.Chat.LiveSessionTimelineEvent
   alias LCSchemas.Content.{MediaAsset, Post}
   alias LCSchemas.Infra.{AccountDeletionRequest, AsyncJob}
   alias LCSchemas.Live.{LiveParticipant, LiveSession}
@@ -105,7 +105,10 @@ defmodule LC.Infra.DataGovernanceDeletionTest do
 
       assert {:ok, session} = Live.start_live_session(user, %{visibility: :public})
       assert {:ok, participant} = Live.join_live_session(session, other_user, :viewer)
-      assert {:ok, message} = Chat.create_message(session, user, %{body: "pending deletion"})
+
+      assert {:ok, timeline_event} =
+               Chat.create_timeline_chat_message(session, user, %{body: "pending deletion"})
+
       assert {:ok, refresh_token_payload} = Accounts.issue_refresh_token(user)
 
       assert {:ok, contact_entry} =
@@ -139,7 +142,7 @@ defmodule LC.Infra.DataGovernanceDeletionTest do
       assert Repo.get!(MediaAsset, media_asset.id).id == media_asset.id
       assert Repo.get!(LiveSession, session.id).id == session.id
       assert Repo.get!(LiveParticipant, participant.id).id == participant.id
-      assert Repo.get!(ChatMessage, message.id).id == message.id
+      assert Repo.get!(LiveSessionTimelineEvent, timeline_event.id).id == timeline_event.id
       assert Repo.get!(Follow, follow.id).id == follow.id
       assert Repo.get!(Block, block.id).id == block.id
       assert Repo.get!(Mute, mute.id).id == mute.id

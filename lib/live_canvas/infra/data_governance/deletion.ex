@@ -15,7 +15,7 @@ defmodule LC.Infra.DataGovernance.Deletion do
   @default_grace_period_seconds 7 * 24 * 60 * 60
   @default_job_max_attempts 3
   @stubbed_purge_order [
-    :chat_messages,
+    :live_session_timeline_events,
     :live_participants,
     :live_sessions,
     :media_assets,

@@ -31,7 +31,6 @@ defmodule LCSchemas do
       Content.MediaAsset,
       Content.PostReport,
       Chat,
-      Chat.ChatMessage,
       Chat.LiveSessionModerationAction,
       Chat.LiveSessionTimelineChatMessage,
       Chat.LiveSessionTimelineChatMessageEdit,

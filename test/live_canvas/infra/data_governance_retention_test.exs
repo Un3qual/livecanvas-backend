@@ -4,7 +4,7 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
   import LC.AccountsFixtures
 
   alias LC.Infra.DataGovernance.Retention
-  alias LCSchemas.Chat.ChatMessage
+  alias LCSchemas.Chat.LiveSessionTimelineEvent
   alias LCSchemas.Live.{LiveParticipant, LiveSession}
   alias LCSchemas.Accounts.AuthEvent
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
@@ -111,22 +111,22 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
       set_webhook_timestamps!(old_webhook_event.id, old_timestamp, old_timestamp)
       set_webhook_timestamps!(recent_webhook_event.id, recent_timestamp, recent_timestamp)
 
-      old_chat_message =
-        Repo.insert!(%ChatMessage{
+      old_timeline_event =
+        Repo.insert!(%LiveSessionTimelineEvent{
           live_session_id: live_session.id,
-          sender_id: old_participant_user.id,
-          body: "old message",
-          kind: :user_message,
-          metadata: %{}
+          actor_user_id: old_participant_user.id,
+          event_type: :chat_message_sent,
+          occurred_at: old_timestamp,
+          payload: %{}
         })
 
-      recent_chat_message =
-        Repo.insert!(%ChatMessage{
+      recent_timeline_event =
+        Repo.insert!(%LiveSessionTimelineEvent{
           live_session_id: live_session.id,
-          sender_id: recent_participant_user.id,
-          body: "recent message",
-          kind: :user_message,
-          metadata: %{}
+          actor_user_id: recent_participant_user.id,
+          event_type: :chat_message_sent,
+          occurred_at: recent_timestamp,
+          payload: %{}
         })
 
       old_live_participant =
@@ -152,8 +152,8 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
           left_at: recent_timestamp
         })
 
-      set_chat_message_timestamps!(old_chat_message.id, old_timestamp)
-      set_chat_message_timestamps!(recent_chat_message.id, recent_timestamp)
+      set_timeline_event_timestamps!(old_timeline_event.id, old_timestamp)
+      set_timeline_event_timestamps!(recent_timeline_event.id, recent_timestamp)
       set_live_participant_timestamps!(old_live_participant.id, old_timestamp, old_timestamp)
 
       set_live_participant_timestamps!(
@@ -171,7 +171,7 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
                :auth_events,
                :async_jobs,
                :webhook_events,
-               :chat_messages,
+               :live_session_timeline_events,
                :live_participants
              ]
 
@@ -287,32 +287,32 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
       live_session =
         Repo.insert!(%LiveSession{host_id: host.id, status: :live, visibility: :public})
 
-      # chat_messages policy: 180 days
-      old_chat_message =
-        Repo.insert!(%ChatMessage{
+      # live_session_timeline_events policy: 180 days
+      old_timeline_event =
+        Repo.insert!(%LiveSessionTimelineEvent{
           live_session_id: live_session.id,
-          sender_id: sender.id,
-          body: "old policy chat message",
-          kind: :user_message,
-          metadata: %{}
+          actor_user_id: sender.id,
+          event_type: :chat_message_sent,
+          occurred_at: DateTime.add(now, -(200 * 86_400), :second),
+          payload: %{}
         })
 
-      recent_chat_message =
-        Repo.insert!(%ChatMessage{
+      recent_timeline_event =
+        Repo.insert!(%LiveSessionTimelineEvent{
           live_session_id: live_session.id,
-          sender_id: sender.id,
-          body: "recent policy chat message",
-          kind: :user_message,
-          metadata: %{}
+          actor_user_id: sender.id,
+          event_type: :chat_message_sent,
+          occurred_at: DateTime.add(now, -(90 * 86_400), :second),
+          payload: %{}
         })
 
-      set_chat_message_timestamps!(
-        old_chat_message.id,
+      set_timeline_event_timestamps!(
+        old_timeline_event.id,
         DateTime.add(now, -(200 * 86_400), :second)
       )
 
-      set_chat_message_timestamps!(
-        recent_chat_message.id,
+      set_timeline_event_timestamps!(
+        recent_timeline_event.id,
         DateTime.add(now, -(90 * 86_400), :second)
       )
 
@@ -357,7 +357,7 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
                :auth_events,
                :async_jobs,
                :webhook_events,
-               :chat_messages,
+               :live_session_timeline_events,
                :live_participants
              ]
 
@@ -462,14 +462,16 @@ defmodule LC.Infra.DataGovernanceRetentionTest do
     :ok
   end
 
-  @spec set_chat_message_timestamps!(pos_integer(), DateTime.t()) :: :ok
-  defp set_chat_message_timestamps!(chat_message_id, inserted_at)
-       when is_integer(chat_message_id) and chat_message_id > 0 and
-              is_struct(inserted_at, DateTime) do
+  @spec set_timeline_event_timestamps!(pos_integer(), DateTime.t()) :: :ok
+  defp set_timeline_event_timestamps!(timeline_event_id, occurred_at)
+       when is_integer(timeline_event_id) and timeline_event_id > 0 and
+              is_struct(occurred_at, DateTime) do
     {_count, _rows} =
       Repo.update_all(
-        from(chat_message in ChatMessage, where: chat_message.id == ^chat_message_id),
-        set: [inserted_at: inserted_at, updated_at: inserted_at]
+        from(timeline_event in LiveSessionTimelineEvent,
+          where: timeline_event.id == ^timeline_event_id
+        ),
+        set: [occurred_at: occurred_at, inserted_at: occurred_at, updated_at: occurred_at]
       )
 
     :ok

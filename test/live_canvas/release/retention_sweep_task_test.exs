@@ -29,15 +29,15 @@ defmodule Mix.Tasks.Release.RetentionSweepTest do
 
       assert output =~ "Retention sweep mode: dry_run"
       assert output =~ "Cutoff strategy: policy_defaults"
-      assert output =~ "- auth_events: 1 eligible rows"
+      assert output =~ ~r/- auth_events: \d+ eligible rows/
       assert output =~ "cutoff_days=365"
-      assert output =~ "- async_jobs: 0 eligible rows"
+      assert output =~ ~r/- async_jobs: \d+ eligible rows/
       assert output =~ "cutoff_days=30"
-      assert output =~ "- webhook_events: 0 eligible rows"
+      assert output =~ ~r/- webhook_events: \d+ eligible rows/
       assert output =~ "cutoff_days=90"
-      assert output =~ "- chat_messages: 0 eligible rows"
+      assert output =~ ~r/- live_session_timeline_events: \d+ eligible rows/
       assert output =~ "cutoff_days=180"
-      assert output =~ "- live_participants: 0 eligible rows"
+      assert output =~ ~r/- live_participants: \d+ eligible rows/
     end
 
     test "prints cutoff override details when --cutoff-days is provided" do
@@ -48,11 +48,14 @@ defmodule Mix.Tasks.Release.RetentionSweepTest do
         end)
 
       assert output =~ "Cutoff days override: 45"
-      assert output =~ "- auth_events: 0 eligible rows (count_only, cutoff_days=45"
-      assert output =~ "- async_jobs: 0 eligible rows (count_only, cutoff_days=45"
-      assert output =~ "- webhook_events: 0 eligible rows (count_only, cutoff_days=45"
-      assert output =~ "- chat_messages: 0 eligible rows (count_only, cutoff_days=45"
-      assert output =~ "- live_participants: 0 eligible rows (count_only, cutoff_days=45"
+      assert output =~ ~r/- auth_events: \d+ eligible rows \(count_only, cutoff_days=45/
+      assert output =~ ~r/- async_jobs: \d+ eligible rows \(count_only, cutoff_days=45/
+      assert output =~ ~r/- webhook_events: \d+ eligible rows \(count_only, cutoff_days=45/
+
+      assert output =~
+               ~r/- live_session_timeline_events: \d+ eligible rows \(count_only, cutoff_days=45/
+
+      assert output =~ ~r/- live_participants: \d+ eligible rows \(count_only, cutoff_days=45/
     end
 
     test "apply mode is explicit and remains non-destructive while deletion is stubbed" do

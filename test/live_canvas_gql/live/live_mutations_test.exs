@@ -7,7 +7,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
   alias LC.{Accounts, Content, Live}
   alias LC.Infra.Repo
   alias LCTransport.LiveSessionTopics
-  alias LCSchemas.Chat.{ChatMessage, LiveSessionTimelineEvent, LiveSessionTimelineEventState}
+  alias LCSchemas.Chat.{LiveSessionTimelineEvent, LiveSessionTimelineEventState}
   alias LCSchemas.Live.{LiveParticipant, LiveSession}
 
   @leave_live_session_mutation """
@@ -598,17 +598,6 @@ defmodule LCGQL.Live.LiveMutationsTest do
       assert %LiveSessionTimelineEventState{projection_state: :visible} =
                Repo.get!(LiveSessionTimelineEventState, end_event_id)
 
-      legacy_lifecycle_events =
-        from(chat_message in ChatMessage,
-          where:
-            chat_message.live_session_id == ^started_session.id and
-              chat_message.kind == :system_event
-        )
-        |> Repo.all()
-
-      refute Enum.any?(legacy_lifecycle_events, fn chat_message ->
-               chat_message.metadata["event_type"] in ["session_live", "session_ended"]
-             end)
     end
 
     test "does not emit session_live when a concurrent end wins before the go-live reload" do
