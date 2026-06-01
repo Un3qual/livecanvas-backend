@@ -27,9 +27,15 @@ defmodule LC.Live do
   @type live_session_result :: {:ok, LiveSession.t()} | {:error, changeset() | term()}
   @type live_session_transition_result ::
           {:ok, LiveSession.t(), boolean()} | {:error, changeset() | term()}
+  @type live_session_transition_effect :: (LiveSession.t(), boolean() ->
+                                             :ok | {:ok, term()} | {:error, term()})
+  @type live_session_transition_effect_result ::
+          {:ok, LiveSession.t(), boolean(), term() | nil} | {:error, changeset() | term()}
   @type end_live_session_result :: {:ok, ended_live_session()} | {:error, changeset()}
   @type end_live_session_transition_result ::
           {:ok, ended_live_session(), boolean()} | {:error, changeset()}
+  @type end_live_session_transition_effect_result ::
+          {:ok, ended_live_session(), boolean(), term() | nil} | {:error, changeset() | term()}
   @type live_participant_result :: {:ok, LiveParticipant.t()} | {:error, changeset() | term()}
   @type leave_live_session_result :: :ok
   @type live_session_state :: %{
@@ -99,34 +105,64 @@ defmodule LC.Live do
   """
   @spec mark_session_live_with_transition(persisted_live_session()) ::
           live_session_transition_result()
-  def mark_session_live_with_transition(%LiveSession{status: :ended} = live_session) do
+  def mark_session_live_with_transition(%LiveSession{} = live_session) do
+    case mark_session_live_with_transition(live_session, &noop_transition_effect/2) do
+      {:ok, updated_live_session, transitioned?, _effect_result} ->
+        {:ok, updated_live_session, transitioned?}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Marks a live session as started and runs `transition_effect` before the
+  persisted transition commits.
+  """
+  @spec mark_session_live_with_transition(
+          persisted_live_session(),
+          live_session_transition_effect()
+        ) :: live_session_transition_effect_result()
+  def mark_session_live_with_transition(
+        %LiveSession{status: :ended} = live_session,
+        transition_effect
+      )
+      when is_function(transition_effect, 2) do
     {:error, LiveSessionChanges.mark_live_changeset(live_session, now_utc())}
   end
 
-  def mark_session_live_with_transition(%LiveSession{id: session_id})
-      when is_integer(session_id) do
+  def mark_session_live_with_transition(%LiveSession{id: session_id}, transition_effect)
+      when is_integer(session_id) and is_function(transition_effect, 2) do
     now = now_utc()
 
-    {updated_count, _} =
-      from(live_session in LiveSession,
-        where: live_session.id == ^session_id and live_session.status == :starting
-      )
-      |> Repo.update_all(set: [status: :live, started_at: now])
+    case Repo.transact(fn ->
+           {updated_count, _} =
+             from(live_session in LiveSession,
+               where: live_session.id == ^session_id and live_session.status == :starting
+             )
+             |> Repo.update_all(set: [status: :live, started_at: now])
 
-    case {updated_count, Repo.get(LiveSession, session_id)} do
-      # A concurrent end transition can commit between the winning update and
-      # the reload, but this caller still owns the starting-to-live transition.
-      {1, %LiveSession{} = persisted_session} ->
-        {:ok, persisted_session, true}
+           case {updated_count, Repo.get(LiveSession, session_id)} do
+             # A concurrent end transition can commit between the winning update and
+             # the reload, but this caller still owns the starting-to-live transition.
+             {1, %LiveSession{} = persisted_session} ->
+               {:ok, run_transition_effect(transition_effect, persisted_session, true)}
 
-      {0, %LiveSession{status: :ended} = ended_session} ->
-        {:error, LiveSessionChanges.mark_live_changeset(ended_session, now)}
+             {0, %LiveSession{status: :ended} = ended_session} ->
+               Repo.rollback(LiveSessionChanges.mark_live_changeset(ended_session, now))
 
-      {0, %LiveSession{} = persisted_session} ->
-        {:ok, persisted_session, false}
+             {0, %LiveSession{} = persisted_session} ->
+               {:ok, run_transition_effect(transition_effect, persisted_session, false)}
 
-      {_updated_count, nil} ->
-        {:error, :not_found}
+             {_updated_count, nil} ->
+               Repo.rollback(:not_found)
+           end
+         end) do
+      {:ok, {%LiveSession{} = persisted_session, transitioned?, effect_result}} ->
+        {:ok, persisted_session, transitioned?, effect_result}
+
+      {:error, _reason} = error ->
+        error
     end
   end
 
@@ -165,8 +201,35 @@ defmodule LC.Live do
           map(),
           [end_live_session_option()]
         ) :: end_live_session_transition_result()
-  def end_live_session_with_transition(%LiveSession{id: session_id}, attrs, opts)
+  def end_live_session_with_transition(%LiveSession{id: session_id} = live_session, attrs, opts)
       when is_integer(session_id) and is_map(attrs) and is_list(opts) do
+    case end_live_session_with_transition(live_session, attrs, opts, &noop_transition_effect/2) do
+      {:ok, ended_live_session, transitioned?, _effect_result} ->
+        {:ok, ended_live_session, transitioned?}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Ends a live session and runs `transition_effect` before the persisted
+  transition commits and before runtime teardown side effects run.
+  """
+  @spec end_live_session_with_transition(
+          persisted_live_session(),
+          map(),
+          [end_live_session_option()],
+          live_session_transition_effect()
+        ) :: end_live_session_transition_effect_result()
+  def end_live_session_with_transition(
+        %LiveSession{id: session_id},
+        attrs,
+        opts,
+        transition_effect
+      )
+      when is_integer(session_id) and is_map(attrs) and is_list(opts) and
+             is_function(transition_effect, 2) do
     runtime_rpc = Keyword.get(opts, :runtime_rpc, RuntimeRPC)
     now = now_utc()
     # Lock the session row before validating the optional recording so a
@@ -178,7 +241,7 @@ defmodule LC.Live do
                  Repo.rollback(:not_found)
 
                %LiveSession{status: :ended} = ended_session ->
-                 {:ok, {ended_session, false}}
+                 {:ok, run_transition_effect(transition_effect, ended_session, false)}
 
                %LiveSession{} = persisted_session ->
                  changeset =
@@ -188,14 +251,14 @@ defmodule LC.Live do
 
                  if changeset.valid? do
                    {:ok, ended_session} = Repo.update(changeset)
-                   {:ok, {ended_session, true}}
+                   {:ok, run_transition_effect(transition_effect, ended_session, true)}
                  else
                    Repo.rollback(changeset)
                  end
              end
            end) do
-        {:ok, {ended_session, transitioned?}} ->
-          {:ok, ended_session, transitioned?}
+        {:ok, {%LiveSession{} = ended_session, transitioned?, effect_result}} ->
+          {:ok, ended_session, transitioned?, effect_result}
 
         {:error, reason} ->
           {:error, reason}
@@ -203,10 +266,10 @@ defmodule LC.Live do
 
     :ok =
       case result do
-        {:ok, %LiveSession{}, true} ->
+        {:ok, %LiveSession{}, true, _effect_result} ->
           maybe_stop_session_server(1, session_id, runtime_rpc)
 
-        {:ok, %LiveSession{}, false} ->
+        {:ok, %LiveSession{}, false, _effect_result} ->
           maybe_stop_session_server(0, session_id, runtime_rpc)
 
         {:error, _reason} ->
@@ -968,9 +1031,26 @@ defmodule LC.Live do
     end
   end
 
-  @spec normalize_transition_result(end_live_session_transition_result()) ::
+  @spec noop_transition_effect(LiveSession.t(), boolean()) :: {:ok, nil}
+  defp noop_transition_effect(%LiveSession{}, transitioned?) when is_boolean(transitioned?),
+    do: {:ok, nil}
+
+  @spec run_transition_effect(live_session_transition_effect(), LiveSession.t(), boolean()) ::
+          {LiveSession.t(), boolean(), term() | nil} | no_return()
+  defp run_transition_effect(transition_effect, %LiveSession{} = live_session, transitioned?)
+       when is_function(transition_effect, 2) and is_boolean(transitioned?) do
+    case transition_effect.(live_session, transitioned?) do
+      :ok -> {live_session, transitioned?, nil}
+      {:ok, effect_result} -> {live_session, transitioned?, effect_result}
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  @spec normalize_transition_result(end_live_session_transition_effect_result()) ::
           end_live_session_result()
-  defp normalize_transition_result({:ok, live_session, _transitioned?}), do: {:ok, live_session}
+  defp normalize_transition_result({:ok, live_session, _transitioned?, _effect_result}),
+    do: {:ok, live_session}
+
   defp normalize_transition_result({:error, _reason} = error), do: error
 
   defp emit_live_session_telemetry(event, metadata, result)

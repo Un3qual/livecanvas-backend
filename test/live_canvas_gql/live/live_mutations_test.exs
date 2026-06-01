@@ -646,6 +646,8 @@ defmodule LCGQL.Live.LiveMutationsTest do
                      timeline_event.event_type == :live_session_started
                )
                |> Repo.aggregate(:count)
+
+      assert %LiveSession{status: :starting} = Live.get_live_session!(started_session.id)
     end
 
     test "endLiveSession reports an error when lifecycle timeline recording fails" do
@@ -695,9 +697,11 @@ defmodule LCGQL.Live.LiveMutationsTest do
                      timeline_event.event_type == :live_session_ended
                )
                |> Repo.aggregate(:count)
+
+      assert %LiveSession{status: :starting} = Live.get_live_session!(started_session.id)
     end
 
-    test "does not emit session_live when a concurrent end wins before the go-live reload" do
+    test "serializes lifecycle timeline events when go-live wins a concurrent end race" do
       host = user_fixture(privacy_mode: :public)
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
       topic = LiveSessionTopics.live_session_topic(started_session.id)
@@ -793,7 +797,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
               %{
                 data: %{
                   "goLiveSession" => %{
-                    "liveSession" => %{"id" => ^session_id, "status" => "ENDED"},
+                    "liveSession" => %{"id" => ^session_id, "status" => "LIVE"},
                     "errors" => []
                   }
                 }
@@ -812,15 +816,14 @@ defmodule LCGQL.Live.LiveMutationsTest do
       assert_receive %Phoenix.Socket.Broadcast{
         topic: ^topic,
         event: "timeline:event",
-        payload: %{event: %{event_type: "live_session_ended"}}
+        payload: %{event: %{event_type: "live_session_started"}}
       }
 
-      refute_receive %Phoenix.Socket.Broadcast{
-                       topic: ^topic,
-                       event: "timeline:event",
-                       payload: %{event: %{event_type: "live_session_started"}}
-                     },
-                     200
+      assert_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "timeline:event",
+        payload: %{event: %{event_type: "live_session_ended"}}
+      }
     end
 
     test "rejects repeated end transitions once a session is already ended" do
