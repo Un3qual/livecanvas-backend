@@ -8,11 +8,13 @@ defmodule LC.ChatTimelineTest do
   alias LC.{Accounts, Chat, Live}
 
   alias LCSchemas.Chat.{
+    LiveSessionModerationAction,
     LiveSessionTimelineChatMessage,
     LiveSessionTimelineChatMessageEdit,
     LiveSessionTimelineChatMessageState,
     LiveSessionTimelineEvent,
-    LiveSessionTimelineEventState
+    LiveSessionTimelineEventState,
+    LiveSessionTimelineModerationEvent
   }
 
   describe "create_timeline_chat_message/3" do
@@ -195,6 +197,104 @@ defmodule LC.ChatTimelineTest do
 
       assert {:error, :hidden} =
                Chat.edit_timeline_chat_message(original, sender, %{body: "still hidden"})
+    end
+  end
+
+  describe "remove_timeline_chat_message/3" do
+    test "hides the original message from future history and records internal removal fact" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, first} = Chat.create_timeline_chat_message(session, sender, %{body: "remove"})
+      {:ok, _second} = Chat.create_timeline_chat_message(session, host, %{body: "keep"})
+
+      assert {:ok, %{removed_event_id: removed_id, transitioned?: true}} =
+               Chat.remove_timeline_chat_message(first, host, %{
+                 reason_code: "abuse",
+                 internal_note: "reported by viewers"
+               })
+
+      assert removed_id == first.id
+
+      assert [%{body: "keep"}] =
+               session
+               |> Chat.timeline_history_query()
+               |> Chat.run_query()
+
+      assert %LiveSessionTimelineEventState{
+               projection_state: :hidden,
+               superseded_by_event_id: removal_event_id,
+               moderation_action_id: moderation_action_id
+             } = Repo.get!(LiveSessionTimelineEventState, first.id)
+
+      assert %LiveSessionModerationAction{
+               action_type: :message_removed,
+               live_session_id: live_session_id,
+               actor_user_id: actor_user_id,
+               target_user_id: target_user_id,
+               target_event_id: target_event_id,
+               reason_code: "abuse",
+               internal_note: "reported by viewers"
+             } = Repo.get!(LiveSessionModerationAction, moderation_action_id)
+
+      assert live_session_id == session.id
+      assert actor_user_id == host.id
+      assert target_user_id == sender.id
+      assert target_event_id == first.id
+
+      assert %LiveSessionTimelineEvent{
+               live_session_id: removal_live_session_id,
+               actor_user_id: removal_actor_user_id,
+               event_type: :chat_message_removed,
+               target_event_id: ^removed_id,
+               payload: %{}
+             } = Repo.get!(LiveSessionTimelineEvent, removal_event_id)
+
+      assert removal_live_session_id == session.id
+      assert removal_actor_user_id == host.id
+
+      assert %LiveSessionTimelineModerationEvent{
+               live_session_id: moderation_event_live_session_id,
+               moderation_action_id: ^moderation_action_id
+             } = Repo.get!(LiveSessionTimelineModerationEvent, removal_event_id)
+
+      assert moderation_event_live_session_id == session.id
+
+      assert %LiveSessionTimelineEventState{projection_state: :internal} =
+               Repo.get!(LiveSessionTimelineEventState, removal_event_id)
+    end
+
+    test "does not create another removal event for repeated removals" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, event} = Chat.create_timeline_chat_message(session, sender, %{body: "remove once"})
+
+      assert {:ok, %{transitioned?: true}} =
+               Chat.remove_timeline_chat_message(event, host, %{})
+
+      assert {:ok, %{removed_event_id: removed_id, transitioned?: false}} =
+               Chat.remove_timeline_chat_message(event, host, %{})
+
+      assert removed_id == event.id
+
+      assert 1 ==
+               from(timeline_event in LiveSessionTimelineEvent,
+                 where:
+                   timeline_event.live_session_id == ^session.id and
+                     timeline_event.event_type == :chat_message_removed
+               )
+               |> Repo.aggregate(:count)
+    end
+
+    test "denies removal by non-hosts" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, event} = Chat.create_timeline_chat_message(session, sender, %{body: "keep"})
+
+      assert {:error, :not_authorized} =
+               Chat.remove_timeline_chat_message(event, sender, %{})
     end
   end
 end

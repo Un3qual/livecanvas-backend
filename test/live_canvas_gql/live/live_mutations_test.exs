@@ -7,7 +7,8 @@ defmodule LCGQL.Live.LiveMutationsTest do
   alias LC.{Accounts, Content, Live}
   alias LC.Infra.Repo
   alias LCTransport.LiveSessionTopics
-  alias LCSchemas.{Chat.ChatMessage, Live.LiveParticipant, Live.LiveSession}
+  alias LCSchemas.Chat.{ChatMessage, LiveSessionTimelineEvent, LiveSessionTimelineEventState}
+  alias LCSchemas.Live.{LiveParticipant, LiveSession}
 
   @leave_live_session_mutation """
   mutation LeaveLiveSession($liveSessionId: ID!) {
@@ -430,7 +431,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                )
     end
 
-    test "persists and broadcasts lifecycle system events for successful host transitions" do
+    test "persists and broadcasts lifecycle timeline events for successful host transitions" do
       host = user_fixture(privacy_mode: :public)
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
       topic = LiveSessionTopics.live_session_topic(started_session.id)
@@ -489,17 +490,14 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
       assert_receive %Phoenix.Socket.Broadcast{
         topic: ^topic,
-        event: "chat:message",
+        event: "timeline:event",
         payload: %{
-          message: %{
-            id: go_live_message_id,
-            body: "The live session started.",
-            sender_id: sender_id,
-            inserted_at: go_live_inserted_at,
-            kind: "system_event",
-            status: "active",
-            moderated_at: nil,
-            metadata: %{"details" => %{}, "event_type" => "session_live"}
+          event: %{
+            __typename: "LiveSessionStartedEvent",
+            id: go_live_event_id,
+            event_type: "live_session_started",
+            occurred_at: go_live_occurred_at,
+            actor_id: actor_id
           }
         }
       }
@@ -516,9 +514,9 @@ defmodule LCGQL.Live.LiveMutationsTest do
         }
       }
 
-      assert is_integer(go_live_message_id)
-      assert sender_id == host.id
-      assert is_binary(go_live_inserted_at)
+      assert is_integer(go_live_event_id)
+      assert actor_id == host.id
+      assert is_binary(go_live_occurred_at)
 
       assert {:ok,
               %{
@@ -538,17 +536,14 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
       assert_receive %Phoenix.Socket.Broadcast{
         topic: ^topic,
-        event: "chat:message",
+        event: "timeline:event",
         payload: %{
-          message: %{
-            id: end_message_id,
-            body: "The live session ended.",
-            sender_id: sender_id,
-            inserted_at: end_inserted_at,
-            kind: "system_event",
-            status: "active",
-            moderated_at: nil,
-            metadata: %{"details" => %{}, "event_type" => "session_ended"}
+          event: %{
+            __typename: "LiveSessionEndedEvent",
+            id: end_event_id,
+            event_type: "live_session_ended",
+            occurred_at: end_occurred_at,
+            actor_id: end_actor_id
           }
         }
       }
@@ -565,35 +560,55 @@ defmodule LCGQL.Live.LiveMutationsTest do
         }
       }
 
-      assert is_integer(end_message_id)
-      assert sender_id == host.id
-      assert is_binary(end_inserted_at)
+      assert is_integer(end_event_id)
+      assert end_actor_id == host.id
+      assert is_binary(end_occurred_at)
 
       assert [
-               %ChatMessage{
-                 id: ^go_live_message_id,
-                 body: "The live session started.",
-                 sender_id: ^sender_id,
-                 kind: :system_event,
-                 status: :active,
-                 metadata: %{"details" => %{}, "event_type" => "session_live"}
+               %LiveSessionTimelineEvent{
+                 id: ^go_live_event_id,
+                 actor_user_id: go_live_actor_id,
+                 event_type: :live_session_started,
+                 payload: %{}
                },
-               %ChatMessage{
-                 id: ^end_message_id,
-                 body: "The live session ended.",
-                 sender_id: ^sender_id,
-                 kind: :system_event,
-                 status: :active,
-                 metadata: %{"details" => %{}, "event_type" => "session_ended"}
+               %LiveSessionTimelineEvent{
+                 id: ^end_event_id,
+                 actor_user_id: end_event_actor_id,
+                 event_type: :live_session_ended,
+                 payload: %{}
                }
              ] =
-               from(chat_message in ChatMessage,
+               from(timeline_event in LiveSessionTimelineEvent,
                  where:
-                   chat_message.live_session_id == ^started_session.id and
-                     chat_message.kind == :system_event,
-                 order_by: [asc: chat_message.inserted_at, asc: chat_message.id]
+                   timeline_event.live_session_id == ^started_session.id and
+                     timeline_event.event_type in [
+                       :live_session_started,
+                       :live_session_ended
+                     ],
+                 order_by: [asc: timeline_event.occurred_at, asc: timeline_event.id]
                )
                |> Repo.all()
+
+      assert go_live_actor_id == host.id
+      assert end_event_actor_id == host.id
+
+      assert %LiveSessionTimelineEventState{projection_state: :visible} =
+               Repo.get!(LiveSessionTimelineEventState, go_live_event_id)
+
+      assert %LiveSessionTimelineEventState{projection_state: :visible} =
+               Repo.get!(LiveSessionTimelineEventState, end_event_id)
+
+      legacy_lifecycle_events =
+        from(chat_message in ChatMessage,
+          where:
+            chat_message.live_session_id == ^started_session.id and
+              chat_message.kind == :system_event
+        )
+        |> Repo.all()
+
+      refute Enum.any?(legacy_lifecycle_events, fn chat_message ->
+               chat_message.metadata["event_type"] in ["session_live", "session_ended"]
+             end)
     end
 
     test "does not emit session_live when a concurrent end wins before the go-live reload" do
@@ -710,14 +725,14 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
       assert_receive %Phoenix.Socket.Broadcast{
         topic: ^topic,
-        event: "chat:message",
-        payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
+        event: "timeline:event",
+        payload: %{event: %{event_type: "live_session_ended"}}
       }
 
       refute_receive %Phoenix.Socket.Broadcast{
                        topic: ^topic,
-                       event: "chat:message",
-                       payload: %{message: %{metadata: %{"event_type" => "session_live"}}}
+                       event: "timeline:event",
+                       payload: %{event: %{event_type: "live_session_started"}}
                      },
                      200
     end
@@ -1077,14 +1092,14 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
       assert_receive %Phoenix.Socket.Broadcast{
         topic: ^session_topic,
-        event: "chat:message",
-        payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
+        event: "timeline:event",
+        payload: %{event: %{event_type: "live_session_ended"}}
       }
 
       refute_receive %Phoenix.Socket.Broadcast{
                        topic: ^session_topic,
-                       event: "chat:message",
-                       payload: %{message: %{metadata: %{"event_type" => "session_ended"}}}
+                       event: "timeline:event",
+                       payload: %{event: %{event_type: "live_session_ended"}}
                      },
                      200
 

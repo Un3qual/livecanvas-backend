@@ -73,9 +73,9 @@ defmodule LCGQL.Live.Resolver do
       # Emit from the adapter after the Live boundary succeeds so `LC.Live`
       # stays decoupled from durable chat history and channel transport details.
       :ok =
-        maybe_emit_lifecycle_system_event(
+        maybe_emit_lifecycle_timeline_event(
           updated_live_session,
-          :session_live,
+          :live_session_started,
           transitioned?,
           viewer
         )
@@ -203,9 +203,9 @@ defmodule LCGQL.Live.Resolver do
           # Broadcast the persisted terminal event before disconnecting joined
           # channels so they can reconcile one last durable history row in order.
           :ok =
-            maybe_emit_lifecycle_system_event(
+            maybe_emit_lifecycle_timeline_event(
               ended_live_session,
-              :session_ended,
+              :live_session_ended,
               transitioned?,
               viewer
             )
@@ -346,35 +346,37 @@ defmodule LCGQL.Live.Resolver do
     Map.take(args, [:visibility])
   end
 
-  defp maybe_emit_lifecycle_system_event(live_session, event_type, true, viewer)
-       when event_type in [:session_ended, :session_live] and is_map(live_session) and
+  defp maybe_emit_lifecycle_timeline_event(live_session, event_type, true, viewer)
+       when event_type in [:live_session_ended, :live_session_started] and is_map(live_session) and
               is_map(viewer) do
     # Emit only when the persisted reload still matches the lifecycle event.
-    # This suppresses stale `session_live` rows if a concurrent end wins before
+    # This suppresses stale `live_session_started` rows if a concurrent end wins before
     # the go-live caller reloads the row after owning the DB transition.
     if emit_matching_lifecycle_event?(live_session, event_type) do
       live_session
-      |> Chat.record_system_event(event_type, actor: viewer)
-      |> broadcast_system_event()
+      |> Chat.record_lifecycle_timeline_event(event_type, actor: viewer)
+      |> broadcast_timeline_event()
     else
       :ok
     end
   end
 
-  defp maybe_emit_lifecycle_system_event(_live_session, _event_type, _transitioned?, _viewer),
+  defp maybe_emit_lifecycle_timeline_event(_live_session, _event_type, _transitioned?, _viewer),
     do: :ok
 
-  defp emit_matching_lifecycle_event?(%{status: :live}, :session_live), do: true
-  defp emit_matching_lifecycle_event?(%{status: :ended}, :session_ended), do: true
+  defp emit_matching_lifecycle_event?(%{status: :live}, :live_session_started), do: true
+  defp emit_matching_lifecycle_event?(%{status: :ended}, :live_session_ended), do: true
   defp emit_matching_lifecycle_event?(_live_session, _event_type), do: false
 
-  defp broadcast_system_event({:ok, %{live_session_id: live_session_id} = system_event})
+  defp broadcast_timeline_event({:ok, %{live_session_id: live_session_id} = timeline_event})
        when is_integer(live_session_id) do
-    Chat.broadcast_message(system_event, LiveSessionTopics.live_session_topic(live_session_id))
+    Chat.broadcast_timeline_event(
+      timeline_event,
+      LiveSessionTopics.live_session_topic(live_session_id)
+    )
   end
 
-  defp broadcast_system_event({:ok, _system_event}), do: :ok
-  defp broadcast_system_event({:error, _reason}), do: :ok
+  defp broadcast_timeline_event({:error, _reason}), do: :ok
 
   defp maybe_broadcast_lifecycle_state(live_session, true) when is_map(live_session) do
     broadcast_live_session_state(live_session)

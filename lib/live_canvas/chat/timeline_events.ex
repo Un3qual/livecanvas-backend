@@ -8,11 +8,13 @@ defmodule LC.Chat.TimelineEvents do
   alias LCSchemas.Accounts.User
 
   alias LCSchemas.Chat.{
+    LiveSessionModerationAction,
     LiveSessionTimelineChatMessage,
     LiveSessionTimelineChatMessageEdit,
     LiveSessionTimelineChatMessageState,
     LiveSessionTimelineEvent,
-    LiveSessionTimelineEventState
+    LiveSessionTimelineEventState,
+    LiveSessionTimelineModerationEvent
   }
 
   alias LCSchemas.Live.LiveSession
@@ -26,6 +28,12 @@ defmodule LC.Chat.TimelineEvents do
   @type edit_result ::
           {:ok, TimelineProjection.t()}
           | {:error, Ecto.Changeset.t() | :not_authorized | :not_found | :hidden | :session_ended}
+  @type lifecycle_event_type :: :live_session_started | :live_session_ended
+  @type lifecycle_result :: {:ok, TimelineProjection.t()} | {:error, Ecto.Changeset.t()}
+  @type removal_authorizer :: (LiveSession.t(), User.t() -> :ok | {:error, :not_authorized})
+  @type removal_result ::
+          {:ok, %{removed_event_id: pos_integer(), transitioned?: boolean()}}
+          | {:error, Ecto.Changeset.t() | :not_authorized | :not_found | :not_chat_message}
 
   @spec create_chat_message(repo(), LiveSession.t(), User.t(), map()) :: create_result()
   def create_chat_message(
@@ -129,6 +137,71 @@ defmodule LC.Chat.TimelineEvents do
     end
   end
 
+  @spec remove_chat_message(
+          repo(),
+          TimelineProjection.t() | map(),
+          User.t(),
+          map(),
+          removal_authorizer()
+        ) ::
+          removal_result()
+  def remove_chat_message(
+        repo,
+        timeline_event,
+        %User{id: actor_user_id} = actor,
+        attrs,
+        authorizer
+      )
+      when is_atom(repo) and is_map(timeline_event) and is_integer(actor_user_id) and
+             is_map(attrs) and is_function(authorizer, 2) do
+    with {:ok, target_event_id} <- target_event_id_from(timeline_event) do
+      repo.transaction(fn ->
+        with %LiveSessionTimelineEventState{} = event_state <-
+               locked_event_state_query(target_event_id) |> repo.one(),
+             %LiveSessionTimelineEvent{} = target_event <-
+               target_event_query(target_event_id) |> repo.one(),
+             :ok <- require_removable_event_type(target_event),
+             %LiveSession{} = live_session <- repo.get(LiveSession, target_event.live_session_id),
+             :ok <- authorizer.(live_session, actor) do
+          remove_chat_message_projection(repo, target_event, event_state, actor_user_id, attrs)
+        else
+          nil -> repo.rollback(:not_found)
+          {:error, %Ecto.Changeset{} = changeset} -> repo.rollback(changeset)
+          {:error, reason} -> repo.rollback(reason)
+        end
+      end)
+    end
+  end
+
+  @spec record_lifecycle_event(repo(), LiveSession.t(), User.t(), lifecycle_event_type()) ::
+          lifecycle_result()
+  def record_lifecycle_event(
+        repo,
+        %LiveSession{id: live_session_id},
+        %User{id: actor_user_id},
+        event_type
+      )
+      when is_atom(repo) and is_integer(live_session_id) and is_integer(actor_user_id) and
+             event_type in [:live_session_started, :live_session_ended] do
+    %{event: event_attrs, event_state: event_state_attrs} =
+      TimelineEventChanges.attrs_for_lifecycle_event_insert(
+        live_session_id,
+        actor_user_id,
+        event_type,
+        now_utc()
+      )
+
+    repo.transaction(fn ->
+      with {:ok, event} <- insert_timeline_event(repo, event_attrs),
+           {:ok, _event_state} <-
+             insert_event_state(repo, Map.put(event_state_attrs, :timeline_event_id, event.id)) do
+        projection_for_event!(repo, event.id)
+      else
+        {:error, %Ecto.Changeset{} = changeset} -> repo.rollback(changeset)
+      end
+    end)
+  end
+
   @spec history_query(pos_integer()) :: Ecto.Query.t()
   def history_query(live_session_id) when is_integer(live_session_id) do
     base_projection_query()
@@ -166,6 +239,14 @@ defmodule LC.Chat.TimelineEvents do
 
   defp require_editable_event_type(%LiveSessionTimelineEvent{}), do: {:error, :not_found}
 
+  @spec require_removable_event_type(LiveSessionTimelineEvent.t()) ::
+          :ok | {:error, :not_chat_message}
+  defp require_removable_event_type(%LiveSessionTimelineEvent{event_type: :chat_message_sent}),
+    do: :ok
+
+  defp require_removable_event_type(%LiveSessionTimelineEvent{}),
+    do: {:error, :not_chat_message}
+
   @spec require_original_actor(LiveSessionTimelineEvent.t(), pos_integer()) ::
           :ok | {:error, :not_authorized}
   defp require_original_actor(
@@ -197,6 +278,15 @@ defmodule LC.Chat.TimelineEvents do
   defp event_state_query(timeline_event_id) when is_integer(timeline_event_id) do
     from(event_state in LiveSessionTimelineEventState,
       where: event_state.timeline_event_id == ^timeline_event_id,
+      limit: 1
+    )
+  end
+
+  @spec locked_event_state_query(pos_integer()) :: Ecto.Query.t()
+  defp locked_event_state_query(timeline_event_id) when is_integer(timeline_event_id) do
+    from(event_state in LiveSessionTimelineEventState,
+      where: event_state.timeline_event_id == ^timeline_event_id,
+      lock: "FOR UPDATE",
       limit: 1
     )
   end
@@ -249,6 +339,77 @@ defmodule LC.Chat.TimelineEvents do
     )
   end
 
+  @spec remove_chat_message_projection(
+          repo(),
+          LiveSessionTimelineEvent.t(),
+          LiveSessionTimelineEventState.t(),
+          pos_integer(),
+          map()
+        ) :: %{removed_event_id: pos_integer(), transitioned?: boolean()} | no_return()
+  defp remove_chat_message_projection(
+         _repo,
+         %LiveSessionTimelineEvent{id: target_event_id},
+         %LiveSessionTimelineEventState{projection_state: :hidden},
+         _actor_user_id,
+         _attrs
+       )
+       when is_integer(target_event_id) do
+    %{removed_event_id: target_event_id, transitioned?: false}
+  end
+
+  defp remove_chat_message_projection(
+         repo,
+         %LiveSessionTimelineEvent{
+           id: target_event_id,
+           live_session_id: live_session_id,
+           actor_user_id: target_user_id
+         },
+         %LiveSessionTimelineEventState{} = event_state,
+         actor_user_id,
+         attrs
+       ) do
+    now = now_utc()
+
+    %{
+      event: event_attrs,
+      moderation_action: moderation_action_attrs,
+      event_state: removal_event_state_attrs
+    } =
+      TimelineEventChanges.attrs_for_chat_message_removal_insert(
+        live_session_id,
+        actor_user_id,
+        target_event_id,
+        target_user_id,
+        attrs,
+        now
+      )
+
+    with {:ok, moderation_action} <- insert_moderation_action(repo, moderation_action_attrs),
+         {:ok, removal_event} <- insert_timeline_event(repo, event_attrs),
+         {:ok, _moderation_event} <-
+           insert_timeline_moderation_event(repo, %{
+             timeline_event_id: removal_event.id,
+             live_session_id: live_session_id,
+             moderation_action_id: moderation_action.id
+           }),
+         {:ok, _target_event_state} <-
+           update_event_state(repo, event_state, %{
+             projection_state: :hidden,
+             superseded_by_event_id: removal_event.id,
+             moderation_action_id: moderation_action.id,
+             updated_at: now
+           }),
+         {:ok, _removal_event_state} <-
+           insert_event_state(
+             repo,
+             Map.put(removal_event_state_attrs, :timeline_event_id, removal_event.id)
+           ) do
+      %{removed_event_id: target_event_id, transitioned?: true}
+    else
+      {:error, %Ecto.Changeset{} = changeset} -> repo.rollback(changeset)
+    end
+  end
+
   @spec now_utc() :: DateTime.t()
   defp now_utc do
     DateTime.utc_now() |> DateTime.truncate(:microsecond)
@@ -286,6 +447,14 @@ defmodule LC.Chat.TimelineEvents do
     |> repo.insert()
   end
 
+  @spec insert_moderation_action(repo(), map()) ::
+          {:ok, LiveSessionModerationAction.t()} | {:error, Ecto.Changeset.t()}
+  defp insert_moderation_action(repo, attrs) do
+    %LiveSessionModerationAction{}
+    |> TimelineEventChanges.moderation_action_changeset(attrs)
+    |> repo.insert()
+  end
+
   @spec update_chat_message_state(repo(), LiveSessionTimelineChatMessageState.t(), map()) ::
           {:ok, LiveSessionTimelineChatMessageState.t()} | {:error, Ecto.Changeset.t()}
   defp update_chat_message_state(repo, %LiveSessionTimelineChatMessageState{} = state, attrs) do
@@ -294,11 +463,27 @@ defmodule LC.Chat.TimelineEvents do
     |> repo.update()
   end
 
+  @spec update_event_state(repo(), LiveSessionTimelineEventState.t(), map()) ::
+          {:ok, LiveSessionTimelineEventState.t()} | {:error, Ecto.Changeset.t()}
+  defp update_event_state(repo, %LiveSessionTimelineEventState{} = state, attrs) do
+    state
+    |> TimelineEventChanges.event_state_changeset(attrs)
+    |> repo.update()
+  end
+
   @spec insert_event_state(repo(), map()) ::
           {:ok, LiveSessionTimelineEventState.t()} | {:error, Ecto.Changeset.t()}
   defp insert_event_state(repo, attrs) do
     %LiveSessionTimelineEventState{}
     |> TimelineEventChanges.event_state_changeset(attrs)
+    |> repo.insert()
+  end
+
+  @spec insert_timeline_moderation_event(repo(), map()) ::
+          {:ok, LiveSessionTimelineModerationEvent.t()} | {:error, Ecto.Changeset.t()}
+  defp insert_timeline_moderation_event(repo, attrs) do
+    %LiveSessionTimelineModerationEvent{}
+    |> TimelineEventChanges.timeline_moderation_event_changeset(attrs)
     |> repo.insert()
   end
 
@@ -315,7 +500,7 @@ defmodule LC.Chat.TimelineEvents do
       as: :event_state,
       join: event in assoc(event_state, :timeline_event),
       as: :event,
-      join: chat_message_state in LiveSessionTimelineChatMessageState,
+      left_join: chat_message_state in LiveSessionTimelineChatMessageState,
       as: :chat_message_state,
       on: chat_message_state.timeline_event_id == event_state.timeline_event_id,
       left_join: actor in assoc(event, :actor),
@@ -332,8 +517,8 @@ defmodule LC.Chat.TimelineEvents do
         target_event_id: event.target_event_id,
         projection_state: event_state.projection_state,
         body: chat_message_state.current_body,
-        edited: chat_message_state.edit_count > 0,
-        edit_count: chat_message_state.edit_count,
+        edited: fragment("coalesce(?, 0) > 0", chat_message_state.edit_count),
+        edit_count: type(fragment("coalesce(?, 0)", chat_message_state.edit_count), :integer),
         edited_at: chat_message_state.last_edited_at
       }
     )

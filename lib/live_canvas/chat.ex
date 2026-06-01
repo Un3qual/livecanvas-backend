@@ -25,10 +25,16 @@ defmodule LC.Chat do
   @type timeline_chat_message_edit_result ::
           {:ok, TimelineProjection.t()}
           | {:error, changeset() | :not_authorized | :not_found | :hidden | :session_ended}
+  @type timeline_chat_message_removal_result ::
+          {:ok, %{removed_event_id: pos_integer(), transitioned?: boolean()}}
+          | {:error, :not_authorized | :not_found | :not_chat_message}
   @type system_event_opts :: [actor: User.t(), metadata: map()]
   @type system_event_result ::
           {:ok, ChatMessage.t()}
           | {:error, changeset() | :invalid_metadata | :not_authorized | :unknown_event_type}
+  @type lifecycle_timeline_event_opts :: [actor: User.t()]
+  @type lifecycle_timeline_event_result ::
+          {:ok, TimelineProjection.t()} | {:error, :not_authorized | changeset()}
   @type remove_message_result ::
           {:ok, ChatMessage.t()} | {:error, changeset() | :not_authorized | :not_found}
   @type remove_message_transition_result ::
@@ -198,6 +204,29 @@ defmodule LC.Chat do
   end
 
   @doc """
+  Hides a timeline chat message projection and records the durable moderation facts.
+  """
+  @spec remove_timeline_chat_message(TimelineProjection.t() | map(), User.t(), map()) ::
+          {:ok, %{removed_event_id: pos_integer(), transitioned?: boolean()}}
+          | {:error, :not_authorized | :not_found | :not_chat_message}
+  def remove_timeline_chat_message(timeline_event, %User{} = actor, attrs)
+      when is_map(timeline_event) and is_map(attrs) do
+    case TimelineEvents.remove_chat_message(
+           Repo,
+           timeline_event,
+           actor,
+           attrs,
+           &authorize_system_event_actor/2
+         ) do
+      {:error, %Ecto.Changeset{} = changeset} ->
+        raise Ecto.InvalidChangesetError, action: :insert, changeset: changeset
+
+      result ->
+        result
+    end
+  end
+
+  @doc """
   Persists a bounded system event for a live session.
   """
   @spec record_system_event(
@@ -216,6 +245,25 @@ defmodule LC.Chat do
            |> ChatMessageChanges.changeset(attrs)
            |> Repo.insert() do
       {:ok, chat_message}
+    else
+      nil -> {:error, :not_authorized}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  @doc """
+  Persists a first-class lifecycle timeline event for a live session.
+  """
+  @spec record_lifecycle_timeline_event(
+          LiveSession.t(),
+          :live_session_started | :live_session_ended,
+          lifecycle_timeline_event_opts()
+        ) :: {:ok, TimelineProjection.t()} | {:error, :not_authorized | Ecto.Changeset.t()}
+  def record_lifecycle_timeline_event(%LiveSession{} = live_session, event_type, opts)
+      when event_type in [:live_session_started, :live_session_ended] and is_list(opts) do
+    with %User{} = actor <- Keyword.get(opts, :actor),
+         :ok <- authorize_system_event_actor(live_session, actor) do
+      TimelineEvents.record_lifecycle_event(Repo, live_session, actor, event_type)
     else
       nil -> {:error, :not_authorized}
       {:error, _reason} = error -> error
@@ -272,6 +320,25 @@ defmodule LC.Chat do
   end
 
   @doc """
+  Broadcasts a timeline event over the shared live-session transport.
+  """
+  @spec broadcast_timeline_event(TimelineProjection.t() | map(), String.t()) :: :ok
+  def broadcast_timeline_event(%{live_session_id: live_session_id} = timeline_event, topic)
+      when is_integer(live_session_id) and is_binary(topic) do
+    Phoenix.PubSub.broadcast(
+      LC.PubSub,
+      topic,
+      %Phoenix.Socket.Broadcast{
+        topic: topic,
+        event: "timeline:event",
+        payload: %{event: timeline_event_payload(timeline_event)}
+      }
+    )
+  end
+
+  def broadcast_timeline_event(_timeline_event, _topic), do: :ok
+
+  @doc """
   Builds the shared channel payload projection for a retained chat message.
   """
   @spec message_payload(ChatMessage.t() | map()) :: chat_transport_payload()
@@ -286,6 +353,35 @@ defmodule LC.Chat do
   def visible_body(chat_message) when is_map(chat_message) do
     ChatMessageChanges.visible_body(chat_message)
   end
+
+  defp timeline_event_payload(timeline_event) when is_map(timeline_event) do
+    event_type = Map.get(timeline_event, :event_type)
+
+    %{
+      __typename: timeline_event_typename(event_type),
+      id: Map.get(timeline_event, :id),
+      event_type: event_type_string(event_type),
+      occurred_at: iso8601(Map.get(timeline_event, :occurred_at)),
+      actor_id: Map.get(timeline_event, :actor_user_id)
+    }
+  end
+
+  @spec timeline_event_typename(atom() | String.t() | nil) :: String.t()
+  defp timeline_event_typename(:live_session_started), do: "LiveSessionStartedEvent"
+  defp timeline_event_typename(:live_session_ended), do: "LiveSessionEndedEvent"
+  defp timeline_event_typename(:chat_message_removed), do: "ChatMessageRemovedEvent"
+  defp timeline_event_typename(:chat_message_edited), do: "ChatMessageEditedEvent"
+  defp timeline_event_typename(:chat_message_sent), do: "ChatMessageEvent"
+  defp timeline_event_typename(_event_type), do: "TimelineEvent"
+
+  @spec event_type_string(atom() | String.t() | nil) :: String.t() | nil
+  defp event_type_string(nil), do: nil
+  defp event_type_string(event_type) when is_atom(event_type), do: Atom.to_string(event_type)
+  defp event_type_string(event_type) when is_binary(event_type), do: event_type
+
+  @spec iso8601(DateTime.t() | nil) :: String.t() | nil
+  defp iso8601(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
+  defp iso8601(_datetime), do: nil
 
   @spec active_host(pos_integer()) :: User.t() | nil
   defp active_host(host_id) when is_integer(host_id) do

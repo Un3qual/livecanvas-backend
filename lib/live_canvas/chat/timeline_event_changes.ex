@@ -4,11 +4,13 @@ defmodule LC.Chat.TimelineEventChanges do
   import Ecto.Changeset
 
   alias LCSchemas.Chat.{
+    LiveSessionModerationAction,
     LiveSessionTimelineChatMessage,
     LiveSessionTimelineChatMessageEdit,
     LiveSessionTimelineChatMessageState,
     LiveSessionTimelineEvent,
-    LiveSessionTimelineEventState
+    LiveSessionTimelineEventState,
+    LiveSessionTimelineModerationEvent
   }
 
   @max_body_length 2000
@@ -89,6 +91,92 @@ defmodule LC.Chat.TimelineEventChanges do
         target_event_id: target_event_id,
         previous_body: previous_body,
         new_body: new_body
+      }
+    }
+  end
+
+  @spec attrs_for_chat_message_removal_insert(
+          pos_integer(),
+          pos_integer(),
+          pos_integer(),
+          pos_integer() | nil,
+          attrs(),
+          DateTime.t()
+        ) :: %{
+          event: map(),
+          moderation_action: map(),
+          event_state: map()
+        }
+  def attrs_for_chat_message_removal_insert(
+        live_session_id,
+        actor_user_id,
+        target_event_id,
+        target_user_id,
+        attrs,
+        %DateTime{} = now
+      )
+      when is_integer(live_session_id) and is_integer(actor_user_id) and
+             is_integer(target_event_id) and is_map(attrs) do
+    moderation_action =
+      %{
+        live_session_id: live_session_id,
+        action_type: :message_removed,
+        actor_user_id: actor_user_id,
+        target_user_id: target_user_id,
+        target_event_id: target_event_id
+      }
+      |> maybe_put(:reason_code, value_for(attrs, :reason_code, nil))
+      |> maybe_put(:internal_note, value_for(attrs, :internal_note, nil))
+
+    %{
+      event: %{
+        live_session_id: live_session_id,
+        actor_user_id: actor_user_id,
+        target_event_id: target_event_id,
+        event_type: :chat_message_removed,
+        occurred_at: now,
+        payload: %{}
+      },
+      moderation_action: moderation_action,
+      event_state: %{
+        live_session_id: live_session_id,
+        occurred_at: now,
+        projection_state: :internal,
+        updated_at: now
+      }
+    }
+  end
+
+  @spec attrs_for_lifecycle_event_insert(
+          pos_integer(),
+          pos_integer(),
+          :live_session_started | :live_session_ended,
+          DateTime.t()
+        ) :: %{
+          event: map(),
+          event_state: map()
+        }
+  def attrs_for_lifecycle_event_insert(
+        live_session_id,
+        actor_user_id,
+        event_type,
+        %DateTime{} = now
+      )
+      when is_integer(live_session_id) and is_integer(actor_user_id) and
+             event_type in [:live_session_started, :live_session_ended] do
+    %{
+      event: %{
+        live_session_id: live_session_id,
+        actor_user_id: actor_user_id,
+        event_type: event_type,
+        occurred_at: now,
+        payload: %{}
+      },
+      event_state: %{
+        live_session_id: live_session_id,
+        occurred_at: now,
+        projection_state: :visible,
+        updated_at: now
       }
     }
   end
@@ -205,6 +293,37 @@ defmodule LC.Chat.TimelineEventChanges do
     )
   end
 
+  @spec moderation_action_changeset(LiveSessionModerationAction.t(), attrs()) ::
+          Ecto.Changeset.t()
+  def moderation_action_changeset(%LiveSessionModerationAction{} = moderation_action, attrs)
+      when is_map(attrs) do
+    moderation_action
+    |> cast(attrs, [
+      :live_session_id,
+      :action_type,
+      :actor_user_id,
+      :target_user_id,
+      :target_event_id,
+      :reason_code,
+      :internal_note,
+      :expires_at,
+      :revoked_at
+    ])
+    |> validate_required([:live_session_id, :action_type, :actor_user_id])
+    |> validate_number(:live_session_id, greater_than: 0)
+    |> validate_number(:actor_user_id, greater_than: 0)
+    |> validate_number(:target_user_id, greater_than: 0)
+    |> validate_number(:target_event_id, greater_than: 0)
+    |> foreign_key_constraint(:live_session_id)
+    |> foreign_key_constraint(:actor_user_id)
+    |> foreign_key_constraint(:target_user_id)
+    |> foreign_key_constraint(:target_event_id)
+    |> check_constraint(:action_type, name: :live_session_moderation_actions_action_type_check)
+    |> unique_constraint(:target_event_id,
+      name: :live_session_moderation_actions_message_removed_target_index
+    )
+  end
+
   @spec event_state_changeset(LiveSessionTimelineEventState.t(), attrs()) :: Ecto.Changeset.t()
   def event_state_changeset(%LiveSessionTimelineEventState{} = event_state, attrs)
       when is_map(attrs) do
@@ -238,9 +357,33 @@ defmodule LC.Chat.TimelineEventChanges do
     )
   end
 
+  @spec timeline_moderation_event_changeset(LiveSessionTimelineModerationEvent.t(), attrs()) ::
+          Ecto.Changeset.t()
+  def timeline_moderation_event_changeset(
+        %LiveSessionTimelineModerationEvent{} = moderation_event,
+        attrs
+      )
+      when is_map(attrs) do
+    moderation_event
+    |> cast(attrs, [:timeline_event_id, :live_session_id, :moderation_action_id])
+    |> validate_required([:timeline_event_id, :live_session_id, :moderation_action_id])
+    |> validate_number(:timeline_event_id, greater_than: 0)
+    |> validate_number(:live_session_id, greater_than: 0)
+    |> validate_number(:moderation_action_id, greater_than: 0)
+    |> foreign_key_constraint(:timeline_event_id)
+    |> foreign_key_constraint(:live_session_id)
+    |> foreign_key_constraint(:moderation_action_id)
+    |> unique_constraint(:moderation_action_id,
+      name: :live_session_timeline_moderation_events_action_id_index
+    )
+  end
+
   defp value_for(attrs, key, default) do
     Map.get(attrs, key) || Map.get(attrs, Atom.to_string(key)) || default
   end
+
+  defp maybe_put(attrs, _key, nil), do: attrs
+  defp maybe_put(attrs, key, value), do: Map.put(attrs, key, value)
 
   defp normalize_body(body) when is_binary(body), do: String.trim(body)
   defp normalize_body(body), do: body
