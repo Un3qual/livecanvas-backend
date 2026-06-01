@@ -19,6 +19,6 @@ describe('readConnectionNodes', () => {
 
   test('returns an empty list when the connection is missing', () => {
     expect(readConnectionNodes(null)).toEqual([]);
-    expect(readConnectionNodes(undefined)).toEqual([]);
+    expect(readConnectionNodes()).toEqual([]);
   });
 });

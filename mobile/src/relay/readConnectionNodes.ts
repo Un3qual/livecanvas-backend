@@ -5,7 +5,7 @@ type ConnectionLike<TNode> = {
 } | null | undefined;
 
 export function readConnectionNodes<TNode>(
-  connection: ConnectionLike<TNode>,
+  connection?: ConnectionLike<TNode>,
 ): Array<NonNullable<TNode>> {
   return (
     connection?.edges
