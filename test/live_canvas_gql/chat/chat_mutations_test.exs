@@ -165,16 +165,18 @@ defmodule LCGQL.Chat.ChatMutationsTest do
                )
     end
 
-    test "returns the removed event id without exposing a hidden event node on repeat calls" do
+    test "returns the same public error for hidden and missing event IDs" do
       host = user_fixture(privacy_mode: :public)
       sender = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(host)}
+      non_host_context = %{current_scope: Accounts.scope_for_user(sender)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
 
       {:ok, event} =
         Chat.create_timeline_chat_message(live_session, sender, %{body: "remove once"})
 
       event_id = global_id(:chat_message_event, event.id)
+      missing_event_id = global_id(:chat_message_event, event.id + 10_000_000)
 
       assert {:ok,
               %{
@@ -190,18 +192,31 @@ defmodule LCGQL.Chat.ChatMutationsTest do
                  context: context
                )
 
+      expected_not_found_payload = %{
+        "removedTimelineEventId" => nil,
+        "errors" => [%{"field" => nil, "message" => "not_found"}]
+      }
+
       assert {:ok,
               %{
                 data: %{
-                  "removeLiveChatMessageEvent" => %{
-                    "removedTimelineEventId" => ^event_id,
-                    "errors" => []
-                  }
+                  "removeLiveChatMessageEvent" => ^expected_not_found_payload
                 }
               }} =
                Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
                  variables: %{"chatMessageEventId" => event_id},
-                 context: context
+                 context: non_host_context
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "removeLiveChatMessageEvent" => ^expected_not_found_payload
+                }
+              }} =
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => missing_event_id},
+                 context: non_host_context
                )
 
       assert {:ok, %{data: %{"node" => nil}}} =

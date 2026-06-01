@@ -136,7 +136,7 @@ defmodule LCGQL.Chat.Resolver do
         %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
       ) do
     with {:ok, event_id} <- decode_chat_message_event_id(chat_message_event_id),
-         timeline_event <- Chat.get_timeline_event(viewer, event_id) || %{id: event_id},
+         %{} = timeline_event <- Chat.get_timeline_event(viewer, event_id),
          {:ok, %{removed_event_id: removed_event_id}} <-
            Chat.remove_timeline_chat_message(timeline_event, viewer, %{}) do
       {:ok,
@@ -145,6 +145,13 @@ defmodule LCGQL.Chat.Resolver do
          errors: []
        }}
     else
+      nil ->
+        {:ok,
+         %{
+           removed_timeline_event_id: nil,
+           errors: [timeline_event_error(nil, :not_found)]
+         }}
+
       {:error, reason}
       when reason in [:invalid_id, :invalid_type, :not_authorized, :not_chat_message, :not_found] ->
         {:ok,
