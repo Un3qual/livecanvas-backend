@@ -2,8 +2,10 @@ defmodule LCGQL.Chat.Resolver do
   @moduledoc false
 
   alias LC.Chat
+  alias LC.Chat.TimelineProjection
   alias LCGQL.MutationErrors
   alias LCGQL.Relay
+  alias LCTransport.LiveSessionTopics
 
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
   @type mutation_error :: MutationErrors.user_error()
@@ -82,6 +84,8 @@ defmodule LCGQL.Chat.Resolver do
            Chat.get_timeline_event(viewer, event_id),
          {:ok, edited_event} <-
            Chat.edit_timeline_chat_message(timeline_event, viewer, %{body: body}) do
+      :ok = broadcast_timeline_event_update(edited_event)
+
       {:ok, %{chat_message_event: edited_event, errors: []}}
     else
       nil ->
@@ -137,8 +141,15 @@ defmodule LCGQL.Chat.Resolver do
       ) do
     with {:ok, event_id} <- decode_chat_message_event_id(chat_message_event_id),
          %{} = timeline_event <- Chat.get_timeline_event(viewer, event_id),
-         {:ok, %{removed_event_id: removed_event_id}} <-
+         {:ok, %{removed_event_id: removed_event_id, transitioned?: transitioned?}} <-
            Chat.remove_timeline_chat_message(timeline_event, viewer, %{}) do
+      :ok =
+        maybe_broadcast_timeline_event_removed(
+          timeline_event,
+          removed_event_id,
+          transitioned?
+        )
+
       {:ok,
        %{
          removed_timeline_event_id: timeline_event_global_id(removed_event_id),
@@ -180,6 +191,32 @@ defmodule LCGQL.Chat.Resolver do
   defp decode_chat_message_event_id(chat_message_event_id) do
     Relay.decode_global_id(chat_message_event_id, :chat_message_event, LCGQL.Schema)
   end
+
+  @spec broadcast_timeline_event_update(TimelineProjection.t()) :: :ok
+  defp broadcast_timeline_event_update(%{live_session_id: live_session_id} = timeline_event)
+       when is_integer(live_session_id) do
+    Chat.broadcast_timeline_event_update(
+      timeline_event,
+      LiveSessionTopics.live_session_topic(live_session_id)
+    )
+  end
+
+  @spec maybe_broadcast_timeline_event_removed(TimelineProjection.t(), pos_integer(), boolean()) ::
+          :ok
+  defp maybe_broadcast_timeline_event_removed(
+         %{live_session_id: live_session_id},
+         removed_event_id,
+         true
+       )
+       when is_integer(live_session_id) and is_integer(removed_event_id) do
+    Chat.broadcast_timeline_event_removed(
+      removed_event_id,
+      LiveSessionTopics.live_session_topic(live_session_id)
+    )
+  end
+
+  defp maybe_broadcast_timeline_event_removed(_timeline_event, _removed_event_id, _transitioned?),
+    do: :ok
 
   @spec timeline_event_global_id(pos_integer()) :: String.t()
   defp timeline_event_global_id(event_id) when is_integer(event_id) and event_id > 0 do

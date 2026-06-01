@@ -355,7 +355,7 @@ defmodule LCGQL.Live.Resolver do
     if emit_matching_lifecycle_event?(live_session, event_type) do
       live_session
       |> Chat.record_lifecycle_timeline_event(event_type, actor: viewer)
-      |> broadcast_timeline_event()
+      |> broadcast_lifecycle_timeline_event()
     else
       :ok
     end
@@ -368,7 +368,9 @@ defmodule LCGQL.Live.Resolver do
   defp emit_matching_lifecycle_event?(%{status: :ended}, :live_session_ended), do: true
   defp emit_matching_lifecycle_event?(_live_session, _event_type), do: false
 
-  defp broadcast_timeline_event({:ok, %{live_session_id: live_session_id} = timeline_event})
+  defp broadcast_lifecycle_timeline_event(
+         {:ok, %{live_session_id: live_session_id} = timeline_event}
+       )
        when is_integer(live_session_id) do
     Chat.broadcast_timeline_event(
       timeline_event,
@@ -376,7 +378,7 @@ defmodule LCGQL.Live.Resolver do
     )
   end
 
-  defp broadcast_timeline_event({:error, _reason}), do: :ok
+  defp broadcast_lifecycle_timeline_event({:error, _reason}), do: :ok
 
   defp maybe_broadcast_lifecycle_state(live_session, true) when is_map(live_session) do
     broadcast_live_session_state(live_session)

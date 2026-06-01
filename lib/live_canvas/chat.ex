@@ -6,7 +6,15 @@ defmodule LC.Chat do
   use Boundary, deps: [LC.Infra, LC.ReadPolicy, LCSchemas]
   import Ecto.Query, warn: false
 
-  alias LC.Chat.{Broadcasts, History, SystemEvents, TimelineEvents, TimelineProjection}
+  alias LC.Chat.{
+    Broadcasts,
+    History,
+    SystemEvents,
+    TimelineBroadcasts,
+    TimelineEvents,
+    TimelineProjection
+  }
+
   alias LC.Chat.ChatMessage, as: ChatMessageChanges
   alias LC.Infra.Repo
   alias LC.ReadPolicy
@@ -41,6 +49,7 @@ defmodule LC.Chat do
           {:ok, ChatMessage.t(), boolean()}
           | {:error, changeset() | :not_authorized | :not_found}
   @type chat_transport_payload :: Broadcasts.message_payload()
+  @type timeline_event_transport_payload :: TimelineBroadcasts.event_payload()
 
   @doc """
   Authorizes whether the given viewer can join the provided live session topic.
@@ -323,20 +332,34 @@ defmodule LC.Chat do
   Broadcasts a timeline event over the shared live-session transport.
   """
   @spec broadcast_timeline_event(TimelineProjection.t() | map(), String.t()) :: :ok
-  def broadcast_timeline_event(%{live_session_id: live_session_id} = timeline_event, topic)
-      when is_integer(live_session_id) and is_binary(topic) do
-    Phoenix.PubSub.broadcast(
-      LC.PubSub,
-      topic,
-      %Phoenix.Socket.Broadcast{
-        topic: topic,
-        event: "timeline:event",
-        payload: %{event: timeline_event_payload(timeline_event)}
-      }
-    )
+  def broadcast_timeline_event(timeline_event, topic)
+      when is_map(timeline_event) and is_binary(topic) do
+    TimelineBroadcasts.broadcast_event(timeline_event, topic)
   end
 
   def broadcast_timeline_event(_timeline_event, _topic), do: :ok
+
+  @doc """
+  Broadcasts an in-place timeline event update over the shared live-session transport.
+  """
+  @spec broadcast_timeline_event_update(TimelineProjection.t() | map(), String.t()) :: :ok
+  def broadcast_timeline_event_update(timeline_event, topic)
+      when is_map(timeline_event) and is_binary(topic) do
+    TimelineBroadcasts.broadcast_event_update(timeline_event, topic)
+  end
+
+  def broadcast_timeline_event_update(_timeline_event, _topic), do: :ok
+
+  @doc """
+  Broadcasts that a visible timeline event has been removed from the shared transport.
+  """
+  @spec broadcast_timeline_event_removed(pos_integer(), String.t()) :: :ok
+  def broadcast_timeline_event_removed(timeline_event_id, topic)
+      when is_integer(timeline_event_id) and timeline_event_id > 0 and is_binary(topic) do
+    TimelineBroadcasts.broadcast_event_removed(timeline_event_id, topic)
+  end
+
+  def broadcast_timeline_event_removed(_timeline_event_id, _topic), do: :ok
 
   @doc """
   Builds the shared channel payload projection for a retained chat message.
@@ -354,34 +377,13 @@ defmodule LC.Chat do
     ChatMessageChanges.visible_body(chat_message)
   end
 
-  defp timeline_event_payload(timeline_event) when is_map(timeline_event) do
-    event_type = Map.get(timeline_event, :event_type)
-
-    %{
-      __typename: timeline_event_typename(event_type),
-      id: Map.get(timeline_event, :id),
-      event_type: event_type_string(event_type),
-      occurred_at: iso8601(Map.get(timeline_event, :occurred_at)),
-      actor_id: Map.get(timeline_event, :actor_user_id)
-    }
+  @doc """
+  Builds the shared channel payload projection for a timeline event.
+  """
+  @spec timeline_event_payload(TimelineProjection.t()) :: timeline_event_transport_payload()
+  def timeline_event_payload(timeline_event) when is_map(timeline_event) do
+    TimelineBroadcasts.event_payload(timeline_event)
   end
-
-  @spec timeline_event_typename(atom() | String.t() | nil) :: String.t()
-  defp timeline_event_typename(:live_session_started), do: "LiveSessionStartedEvent"
-  defp timeline_event_typename(:live_session_ended), do: "LiveSessionEndedEvent"
-  defp timeline_event_typename(:chat_message_removed), do: "ChatMessageRemovedEvent"
-  defp timeline_event_typename(:chat_message_edited), do: "ChatMessageEditedEvent"
-  defp timeline_event_typename(:chat_message_sent), do: "ChatMessageEvent"
-  defp timeline_event_typename(_event_type), do: "TimelineEvent"
-
-  @spec event_type_string(atom() | String.t() | nil) :: String.t() | nil
-  defp event_type_string(nil), do: nil
-  defp event_type_string(event_type) when is_atom(event_type), do: Atom.to_string(event_type)
-  defp event_type_string(event_type) when is_binary(event_type), do: event_type
-
-  @spec iso8601(DateTime.t() | nil) :: String.t() | nil
-  defp iso8601(%DateTime{} = datetime), do: DateTime.to_iso8601(datetime)
-  defp iso8601(_datetime), do: nil
 
   @spec active_host(pos_integer()) :: User.t() | nil
   defp active_host(host_id) when is_integer(host_id) do

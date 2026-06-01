@@ -102,7 +102,7 @@ defmodule LCWeb.LiveSessionChannel do
   @spec handle_in(String.t(), map(), Phoenix.Socket.t()) ::
           {:reply, {:error | :ok, map()}, Phoenix.Socket.t()}
   def handle_in(
-        "chat:send",
+        "timeline:chat_message:send",
         %{"body" => body},
         %Phoenix.Socket{
           assigns: %{
@@ -118,9 +118,9 @@ defmodule LCWeb.LiveSessionChannel do
       with true <-
              (is_integer(user_id) && is_integer(live_session_id)) || {:error, :not_authorized},
            :ok <- rate_limit_chat_send(user_id, live_session_id),
-           {:ok, chat_message} <-
-             Chat.create_message(live_session, current_user, %{body: body}) do
-        {:ok, %{message: Chat.message_payload(chat_message)}}
+           {:ok, timeline_event} <-
+             Chat.create_timeline_chat_message(live_session, current_user, %{body: body}) do
+        {:ok, %{event: Chat.timeline_event_payload(timeline_event)}, timeline_event}
       else
         {:error, reason} -> {:error, reason}
       end
@@ -133,8 +133,8 @@ defmodule LCWeb.LiveSessionChannel do
       )
 
     case result do
-      {:ok, payload} ->
-        broadcast!(socket, "chat:message", payload)
+      {:ok, payload, timeline_event} ->
+        :ok = Chat.broadcast_timeline_event(timeline_event, socket.topic)
         {:reply, {:ok, payload}, socket}
 
       {:error, reason} ->
@@ -142,7 +142,7 @@ defmodule LCWeb.LiveSessionChannel do
     end
   end
 
-  def handle_in("chat:send", _payload, socket) do
+  def handle_in("timeline:chat_message:send", _payload, socket) do
     socket = ensure_observability_context(socket)
 
     :ok =
@@ -225,7 +225,7 @@ defmodule LCWeb.LiveSessionChannel do
   end
 
   @type channel_event :: :chat_send | :join
-  @type channel_result :: {:ok, term()} | {:error, term()}
+  @type channel_result :: {:ok, term()} | {:ok, term(), term()} | {:error, term()}
 
   defp emit_channel_telemetry(event, metadata, result)
        when event in [:join, :chat_send] and is_map(metadata) do
@@ -241,6 +241,7 @@ defmodule LCWeb.LiveSessionChannel do
   end
 
   defp channel_result_metadata({:ok, _payload}), do: %{result: :ok}
+  defp channel_result_metadata({:ok, _payload, _event}), do: %{result: :ok}
 
   defp channel_result_metadata({:error, reason}) do
     %{result: :error, reason: channel_reason(reason)}
