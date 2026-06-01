@@ -2,6 +2,7 @@ defmodule LCSchemas.Chat.LiveSessionTimelineChatMessageState do
   use Ecto.Schema
 
   alias LCSchemas.Chat.LiveSessionTimelineEvent
+  alias LCSchemas.Live.LiveSession
 
   @primary_key false
   @foreign_key_type :id
@@ -11,7 +12,8 @@ defmodule LCSchemas.Chat.LiveSessionTimelineChatMessageState do
 
   Table contract:
   - One mutable chat-message projection row per message event, keyed by `timeline_event_id`.
-  - Deleting the source event cascades to the projection row.
+  - `live_session_id` is denormalized so the source and last edit event references can be constrained to the same session.
+  - Deleting the source event or live session cascades to the projection row.
   - Deleting the last edit event nilifies `last_edit_event_id`.
   - `last_edit_event_id` is indexed for edit-history lookups, and `edit_count >= 0` is enforced by the database.
   """
@@ -19,6 +21,8 @@ defmodule LCSchemas.Chat.LiveSessionTimelineChatMessageState do
   @type t :: %__MODULE__{
           timeline_event_id: pos_integer() | nil,
           timeline_event: LiveSessionTimelineEvent.t() | Ecto.Association.NotLoaded.t(),
+          live_session_id: pos_integer() | nil,
+          live_session: LiveSession.t() | Ecto.Association.NotLoaded.t(),
           current_body: String.t() | nil,
           edit_count: non_neg_integer(),
           last_edit_event_id: pos_integer() | nil,
@@ -29,6 +33,7 @@ defmodule LCSchemas.Chat.LiveSessionTimelineChatMessageState do
 
   schema "live_session_timeline_chat_message_states" do
     belongs_to :timeline_event, LiveSessionTimelineEvent, primary_key: true
+    belongs_to :live_session, LiveSession
     field :current_body, :string
     field :edit_count, :integer, default: 0
     belongs_to :last_edit_event, LiveSessionTimelineEvent, foreign_key: :last_edit_event_id

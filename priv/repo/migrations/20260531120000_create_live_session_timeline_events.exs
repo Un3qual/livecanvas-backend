@@ -212,6 +212,7 @@ defmodule LiveCanvas.Repo.Migrations.CreateLiveSessionTimelineEvents do
           references(:live_session_timeline_events, on_delete: :delete_all),
           primary_key: true
 
+      add :live_session_id, references(:live_sessions, on_delete: :delete_all), null: false
       add :current_body, :text
       add :edit_count, :bigint, null: false, default: 0
 
@@ -224,6 +225,34 @@ defmodule LiveCanvas.Repo.Migrations.CreateLiveSessionTimelineEvents do
 
     create index(:live_session_timeline_chat_message_states, [:last_edit_event_id])
 
+    execute(
+      """
+      alter table live_session_timeline_chat_message_states
+      add constraint chat_message_states_event_same_session_fk
+      foreign key (timeline_event_id, live_session_id)
+      references live_session_timeline_events(id, live_session_id)
+      on delete cascade
+      """,
+      """
+      alter table live_session_timeline_chat_message_states
+      drop constraint if exists chat_message_states_event_same_session_fk
+      """
+    )
+
+    execute(
+      """
+      alter table live_session_timeline_chat_message_states
+      add constraint chat_message_states_last_edit_same_session_fk
+      foreign key (last_edit_event_id, live_session_id)
+      references live_session_timeline_events(id, live_session_id)
+      on delete set null (last_edit_event_id)
+      """,
+      """
+      alter table live_session_timeline_chat_message_states
+      drop constraint if exists chat_message_states_last_edit_same_session_fk
+      """
+    )
+
     create constraint(
              :live_session_timeline_chat_message_states,
              :live_session_timeline_chat_message_states_edit_count_check,
@@ -234,6 +263,8 @@ defmodule LiveCanvas.Repo.Migrations.CreateLiveSessionTimelineEvents do
       add :timeline_event_id,
           references(:live_session_timeline_events, on_delete: :delete_all),
           primary_key: true
+
+      add :live_session_id, references(:live_sessions, on_delete: :delete_all), null: false
 
       add :target_event_id,
           references(:live_session_timeline_events, on_delete: :delete_all),
@@ -249,15 +280,73 @@ defmodule LiveCanvas.Repo.Migrations.CreateLiveSessionTimelineEvents do
              name: :live_session_timeline_chat_message_edits_target_index
            )
 
+    execute(
+      """
+      alter table live_session_timeline_chat_message_edits
+      add constraint chat_message_edits_event_same_session_fk
+      foreign key (timeline_event_id, live_session_id)
+      references live_session_timeline_events(id, live_session_id)
+      on delete cascade
+      """,
+      """
+      alter table live_session_timeline_chat_message_edits
+      drop constraint if exists chat_message_edits_event_same_session_fk
+      """
+    )
+
+    execute(
+      """
+      alter table live_session_timeline_chat_message_edits
+      add constraint chat_message_edits_target_same_session_fk
+      foreign key (target_event_id, live_session_id)
+      references live_session_timeline_events(id, live_session_id)
+      on delete cascade
+      """,
+      """
+      alter table live_session_timeline_chat_message_edits
+      drop constraint if exists chat_message_edits_target_same_session_fk
+      """
+    )
+
     create table(:live_session_timeline_moderation_events, primary_key: false) do
       add :timeline_event_id,
           references(:live_session_timeline_events, on_delete: :delete_all),
           primary_key: true
 
+      add :live_session_id, references(:live_sessions, on_delete: :delete_all), null: false
+
       add :moderation_action_id,
           references(:live_session_moderation_actions, on_delete: :delete_all),
           null: false
     end
+
+    execute(
+      """
+      alter table live_session_timeline_moderation_events
+      add constraint timeline_moderation_events_event_same_session_fk
+      foreign key (timeline_event_id, live_session_id)
+      references live_session_timeline_events(id, live_session_id)
+      on delete cascade
+      """,
+      """
+      alter table live_session_timeline_moderation_events
+      drop constraint if exists timeline_moderation_events_event_same_session_fk
+      """
+    )
+
+    execute(
+      """
+      alter table live_session_timeline_moderation_events
+      add constraint timeline_moderation_events_action_same_session_fk
+      foreign key (moderation_action_id, live_session_id)
+      references live_session_moderation_actions(id, live_session_id)
+      on delete cascade
+      """,
+      """
+      alter table live_session_timeline_moderation_events
+      drop constraint if exists timeline_moderation_events_action_same_session_fk
+      """
+    )
 
     create unique_index(
              :live_session_timeline_moderation_events,

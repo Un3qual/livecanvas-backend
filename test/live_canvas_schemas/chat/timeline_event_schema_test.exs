@@ -53,6 +53,7 @@ defmodule LCSchemas.Chat.TimelineEventSchemaTest do
 
     Repo.insert!(%LiveSessionTimelineChatMessageState{
       timeline_event_id: event.id,
+      live_session_id: session.id,
       current_body: "hello",
       edit_count: 0,
       updated_at: now
@@ -78,6 +79,7 @@ defmodule LCSchemas.Chat.TimelineEventSchemaTest do
 
     Repo.insert!(%LiveSessionTimelineChatMessageEdit{
       timeline_event_id: edit_event.id,
+      live_session_id: session.id,
       target_event_id: event.id,
       previous_body: "hello",
       new_body: "hello!"
@@ -104,6 +106,7 @@ defmodule LCSchemas.Chat.TimelineEventSchemaTest do
 
     Repo.insert!(%LiveSessionTimelineModerationEvent{
       timeline_event_id: moderation_event.id,
+      live_session_id: session.id,
       moderation_action_id: moderation_action.id
     })
 
@@ -201,6 +204,77 @@ defmodule LCSchemas.Chat.TimelineEventSchemaTest do
                      projection_state: :hidden,
                      moderation_action_id: moderation_action.id,
                      updated_at: now_utc()
+                   })
+                 end
+  end
+
+  test "chat message states cannot point last edit events at another live session" do
+    %{host: source_host, session: source_session} = live_session_fixture()
+    %{host: other_host, session: other_session} = live_session_fixture()
+    timeline_event = insert_timeline_event!(source_session, source_host)
+
+    last_edit_event =
+      insert_timeline_event!(other_session, other_host, %{event_type: :chat_message_edited})
+
+    assert_raise Ecto.ConstraintError,
+                 ~r/chat_message_states_last_edit_same_session_fk/,
+                 fn ->
+                   Repo.insert!(%LiveSessionTimelineChatMessageState{
+                     timeline_event_id: timeline_event.id,
+                     live_session_id: source_session.id,
+                     current_body: "hello",
+                     edit_count: 1,
+                     last_edit_event_id: last_edit_event.id,
+                     last_edited_at: last_edit_event.occurred_at,
+                     updated_at: now_utc()
+                   })
+                 end
+  end
+
+  test "chat message edit rows cannot target events from another live session" do
+    %{host: source_host, session: source_session} = live_session_fixture()
+    %{host: other_host, session: other_session} = live_session_fixture()
+
+    edit_event =
+      insert_timeline_event!(source_session, source_host, %{event_type: :chat_message_edited})
+
+    target_event = insert_timeline_event!(other_session, other_host)
+
+    assert_raise Ecto.ConstraintError,
+                 ~r/chat_message_edits_target_same_session_fk/,
+                 fn ->
+                   Repo.insert!(%LiveSessionTimelineChatMessageEdit{
+                     timeline_event_id: edit_event.id,
+                     live_session_id: source_session.id,
+                     target_event_id: target_event.id,
+                     previous_body: "hello",
+                     new_body: "hello!"
+                   })
+                 end
+  end
+
+  test "timeline moderation events cannot use actions from another live session" do
+    %{host: source_host, session: source_session} = live_session_fixture()
+    %{host: other_host, session: other_session} = live_session_fixture()
+
+    moderation_event =
+      insert_timeline_event!(source_session, source_host, %{event_type: :chat_message_removed})
+
+    moderation_action =
+      Repo.insert!(%LiveSessionModerationAction{
+        live_session_id: other_session.id,
+        action_type: :user_muted,
+        actor_user_id: other_host.id,
+        target_user_id: source_host.id
+      })
+
+    assert_raise Ecto.ConstraintError,
+                 ~r/timeline_moderation_events_action_same_session_fk/,
+                 fn ->
+                   Repo.insert!(%LiveSessionTimelineModerationEvent{
+                     timeline_event_id: moderation_event.id,
+                     live_session_id: source_session.id,
+                     moderation_action_id: moderation_action.id
                    })
                  end
   end
