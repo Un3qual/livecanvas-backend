@@ -1,7 +1,15 @@
-import React, { Suspense, useReducer, type PropsWithChildren } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { graphql, useLazyLoadQuery } from 'react-relay';
+import React, {
+  Suspense,
+  useEffect,
+  useReducer,
+  useRef,
+  type PropsWithChildren,
+} from 'react';
+import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
 
+import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
@@ -14,6 +22,22 @@ import {
   formatPrivacyModeLabel,
   formatProfileIdentity,
 } from './profilePresentation';
+import {
+  createPrivacyModeState,
+  formatMutationErrors,
+  nextPrivacyMode,
+  privacyModeReducer,
+} from './privacyModeReducer';
+import {
+  createFollowRequestState,
+  followRequestReducer,
+  isFollowRequestDismissed,
+  type FollowRequestActionKind,
+  type FollowRequestState,
+} from './followRequestReducer';
+import type { ViewerProfileScreenAcceptFollowRequestMutation } from './__generated__/ViewerProfileScreenAcceptFollowRequestMutation.graphql';
+import type { ViewerProfileScreenDeclineFollowRequestMutation } from './__generated__/ViewerProfileScreenDeclineFollowRequestMutation.graphql';
+import type { ViewerProfileScreenPrivacyModeMutation } from './__generated__/ViewerProfileScreenPrivacyModeMutation.graphql';
 import type { ViewerProfileScreenQuery } from './__generated__/ViewerProfileScreenQuery.graphql';
 
 type ViewerProfileData = ViewerProfileScreenQuery['response'];
@@ -34,6 +58,173 @@ type ConnectionLike<TNode> = {
     | ReadonlyArray<{ readonly node?: TNode | null } | null | undefined>
     | null;
 } | null | undefined;
+
+const viewerProfileScreenPrivacyModeMutation = graphql`
+  mutation ViewerProfileScreenPrivacyModeMutation(
+    $input: UpdateViewerPrivacyModeInput!
+  ) {
+    updateViewerPrivacyMode(input: $input) {
+      user {
+        id
+        privacyMode
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const viewerProfileScreenAcceptFollowRequestMutation = graphql`
+  mutation ViewerProfileScreenAcceptFollowRequestMutation(
+    $input: AcceptFollowRequestInput!
+  ) {
+    acceptFollowRequest(input: $input) {
+      follow {
+        id
+        state
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const viewerProfileScreenDeclineFollowRequestMutation = graphql`
+  mutation ViewerProfileScreenDeclineFollowRequestMutation(
+    $input: DeclineFollowRequestInput!
+  ) {
+    declineFollowRequest(input: $input) {
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  content: {
+    alignItems: 'center',
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  identity: {
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  avatar: {
+    width: 84,
+    height: 84,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  stats: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  stat: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  statLabel: typography.label,
+  privacyPanel: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  sectionHeading: {
+    gap: spacing.xs,
+  },
+  sectionTitle: typography.label,
+  bodyText: typography.body,
+  errorText: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  list: {
+    gap: spacing.sm,
+  },
+  row: {
+    minHeight: 64,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  pressedRow: {
+    opacity: 0.78,
+  },
+  requestRow: {
+    minHeight: 104,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    gap: spacing.sm,
+  },
+  requestIdentity: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  smallAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smallAvatarText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  rowBody: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  rowTitle: typography.label,
+  rowSubtitle: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  rowActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  rowActionButton: {
+    flex: 1,
+  },
+  emptyText: {
+    ...typography.body,
+    textAlign: 'center',
+  },
+});
 
 export function ViewerProfileScreen() {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
@@ -86,6 +277,10 @@ class ViewerProfileErrorBoundary extends React.Component<
 
 function ViewerProfileContent() {
   const theme = useAppTheme();
+  const router = useRouter();
+  const openProfile = (userId: string) => {
+    router.push({ pathname: '/profiles/[id]', params: { id: userId } });
+  };
   const data = useLazyLoadQuery<ViewerProfileScreenQuery>(
     graphql`
       query ViewerProfileScreenQuery {
@@ -139,6 +334,149 @@ function ViewerProfileContent() {
   );
 
   const viewer = data.viewer;
+  const [commitPrivacyMode, isPrivacyModeMutationInFlight] =
+    useMutation<ViewerProfileScreenPrivacyModeMutation>(
+      viewerProfileScreenPrivacyModeMutation,
+    );
+  const [privacyModeState, dispatchPrivacyMode] = useReducer(
+    privacyModeReducer,
+    viewer?.privacyMode ?? '',
+    createPrivacyModeState,
+  );
+  const [followRequestState, dispatchFollowRequest] = useReducer(
+    followRequestReducer,
+    undefined,
+    createFollowRequestState,
+  );
+  const activeFollowRequestActionRef =
+    useRef<FollowRequestState['activeAction']>(null);
+  const [commitAcceptFollowRequest] =
+    useMutation<ViewerProfileScreenAcceptFollowRequestMutation>(
+      viewerProfileScreenAcceptFollowRequestMutation,
+    );
+  const [commitDeclineFollowRequest] =
+    useMutation<ViewerProfileScreenDeclineFollowRequestMutation>(
+      viewerProfileScreenDeclineFollowRequestMutation,
+    );
+
+  useEffect(() => {
+    if (viewer?.privacyMode != null) {
+      dispatchPrivacyMode({ mode: viewer.privacyMode, type: 'reset' });
+    }
+  }, [viewer?.privacyMode]);
+
+  function handlePrivacyModePress() {
+    const requestedPrivacyMode = nextPrivacyMode(
+      privacyModeState.currentMode,
+    );
+
+    if (isPrivacyModeMutationInFlight || requestedPrivacyMode == null) {
+      return;
+    }
+
+    dispatchPrivacyMode({ mode: requestedPrivacyMode, type: 'submit' });
+
+    commitPrivacyMode({
+      variables: {
+        input: {
+          privacyMode: requestedPrivacyMode,
+        },
+      },
+      onCompleted: (response) => {
+        const result = response.updateViewerPrivacyMode;
+
+        if (!result?.user || result.errors.length > 0) {
+          dispatchPrivacyMode({
+            message: formatMutationErrors(result?.errors),
+            type: 'error',
+          });
+          return;
+        }
+
+        dispatchPrivacyMode({
+          mode: result.user.privacyMode,
+          type: 'success',
+        });
+      },
+      onError: () => {
+        dispatchPrivacyMode({
+          message:
+            'We could not update privacy mode. Check your connection and try again.',
+          type: 'error',
+        });
+      },
+    });
+  }
+
+  const submitFollowRequestAction = (
+    request: PendingFollowRequest,
+    action: FollowRequestActionKind,
+  ) => {
+    if (
+      followRequestState.activeAction ||
+      activeFollowRequestActionRef.current
+    ) {
+      return;
+    }
+
+    const activeAction = { action, requestId: request.id };
+    activeFollowRequestActionRef.current = activeAction;
+    dispatchFollowRequest({ ...activeAction, type: 'start' });
+
+    const variables = { input: { followerId: request.follower.id } };
+    const dispatchActionError = (message: string) => {
+      activeFollowRequestActionRef.current = null;
+      dispatchFollowRequest({
+        message,
+        requestId: request.id,
+        type: 'error',
+      });
+    };
+    const dispatchActionSuccess = () => {
+      activeFollowRequestActionRef.current = null;
+      dispatchFollowRequest({ requestId: request.id, type: 'success' });
+    };
+    const handleError = () => {
+      dispatchActionError(
+        'We could not update this follow request. Check your connection and try again.',
+      );
+    };
+
+    if (action === 'accept') {
+      commitAcceptFollowRequest({
+        variables,
+        onCompleted: (payload) => {
+          const result = payload.acceptFollowRequest;
+
+          if (!result?.follow || result.errors.length > 0) {
+            dispatchActionError(
+              formatFollowRequestMutationErrors(result?.errors),
+            );
+            return;
+          }
+
+          dispatchActionSuccess();
+        },
+        onError: handleError,
+      });
+      return;
+    }
+
+    commitDeclineFollowRequest({
+      variables,
+      onCompleted: (payload) => {
+        const result = payload.declineFollowRequest;
+
+        if (!result || result.errors.length > 0) {
+          dispatchActionError(formatFollowRequestMutationErrors(result?.errors));
+          return;
+        }
+
+        dispatchActionSuccess();
+      },
+      onError: handleError,
+    });
+  };
 
   if (!viewer) {
     return (
@@ -150,10 +488,28 @@ function ViewerProfileContent() {
   }
 
   const identity = formatProfileIdentity(viewer);
-  const privacy = formatPrivacyModeLabel(viewer.privacyMode);
+  const displayedPrivacyMode =
+    privacyModeState.pendingMode ??
+    privacyModeState.currentMode ??
+    viewer.privacyMode;
+  const requestedPrivacyMode = nextPrivacyMode(
+    privacyModeState.currentMode,
+  );
+  const privacy = formatPrivacyModeLabel(displayedPrivacyMode);
+  const privacyButtonLabel = isPrivacyModeMutationInFlight
+    ? 'Saving...'
+    : requestedPrivacyMode === 'PRIVATE'
+      ? 'Switch to private'
+      : requestedPrivacyMode === 'PUBLIC'
+        ? 'Switch to public'
+        : 'Privacy unavailable';
   const followers = readConnectionNodes(viewer.followers);
   const following = readConnectionNodes(viewer.following);
-  const pendingRequests = readConnectionNodes(data.viewerPendingFollowRequests);
+  const pendingRequests = readConnectionNodes(
+    data.viewerPendingFollowRequests,
+  ).filter(
+    (request) => !isFollowRequestDismissed(followRequestState, request.id),
+  );
   const visibleFollowerCount = countConnectionEdges(viewer.followers);
   const visibleFollowingCount = countConnectionEdges(viewer.following);
 
@@ -211,6 +567,19 @@ function ViewerProfileContent() {
           <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
             {privacy.description}
           </Text>
+          <AppButton
+            disabled={
+              isPrivacyModeMutationInFlight || requestedPrivacyMode == null
+            }
+            label={privacyButtonLabel}
+            onPress={handlePrivacyModePress}
+            variant="secondary"
+          />
+          {privacyModeState.errorMessage ? (
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+              {privacyModeState.errorMessage}
+            </Text>
+          ) : null}
         </View>
       </AppCard>
 
@@ -222,6 +591,7 @@ function ViewerProfileContent() {
         <ProfilePreviewList
           users={followers}
           emptyMessage="No followers are visible yet."
+          onOpenProfile={openProfile}
         />
       </AppCard>
 
@@ -233,6 +603,7 @@ function ViewerProfileContent() {
         <ProfilePreviewList
           users={following}
           emptyMessage="No followed profiles are visible yet."
+          onOpenProfile={openProfile}
         />
       </AppCard>
 
@@ -241,7 +612,13 @@ function ViewerProfileContent() {
           title="Requests"
           subtitle={`${pendingRequests.length} pending in preview`}
         />
-        <PendingRequestPreviewList requests={pendingRequests} />
+        <PendingRequestPreviewList
+          activeAction={followRequestState.activeAction}
+          errorsByRequestId={followRequestState.errorsByRequestId}
+          onAction={submitFollowRequestAction}
+          onOpenProfile={openProfile}
+          requests={pendingRequests}
+        />
       </AppCard>
     </ScrollView>
   );
@@ -294,9 +671,11 @@ function SectionHeading({
 function ProfilePreviewList({
   users,
   emptyMessage,
+  onOpenProfile,
 }: {
   users: ReadonlyArray<ProfileUser>;
   emptyMessage: string;
+  onOpenProfile: (userId: string) => void;
 }) {
   if (users.length === 0) {
     return <EmptyCardMessage message={emptyMessage} />;
@@ -305,19 +684,37 @@ function ProfilePreviewList({
   return (
     <View style={styles.list}>
       {users.map((user) => (
-        <ProfilePreviewRow key={user.id} user={user} />
+        <ProfilePreviewRow
+          key={user.id}
+          onOpenProfile={onOpenProfile}
+          user={user}
+        />
       ))}
     </View>
   );
 }
 
-function ProfilePreviewRow({ user }: { user: ProfileUser }) {
+function ProfilePreviewRow({
+  onOpenProfile,
+  user,
+}: {
+  onOpenProfile: (userId: string) => void;
+  user: ProfileUser;
+}) {
   const theme = useAppTheme();
   const identity = formatProfileIdentity(user);
   const privacy = formatPrivacyModeLabel(user.privacyMode);
 
   return (
-    <View style={[styles.row, { borderColor: theme.colors.border }]}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => onOpenProfile(user.id)}
+      style={({ pressed }) => [
+        styles.row,
+        { borderColor: theme.colors.border },
+        pressed ? styles.pressedRow : null,
+      ]}
+    >
       <View
         style={[
           styles.smallAvatar,
@@ -336,13 +733,24 @@ function ProfilePreviewRow({ user }: { user: ProfileUser }) {
           {privacy.label}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 function PendingRequestPreviewList({
+  activeAction,
+  errorsByRequestId,
+  onAction,
+  onOpenProfile,
   requests,
 }: {
+  activeAction: FollowRequestState['activeAction'];
+  errorsByRequestId: FollowRequestState['errorsByRequestId'];
+  onAction: (
+    request: PendingFollowRequest,
+    action: FollowRequestActionKind,
+  ) => void;
+  onOpenProfile: (userId: string) => void;
   requests: ReadonlyArray<PendingFollowRequest>;
 }) {
   if (requests.length === 0) {
@@ -352,40 +760,102 @@ function PendingRequestPreviewList({
   return (
     <View style={styles.list}>
       {requests.map((request) => (
-        <PendingRequestPreviewRow key={request.id} request={request} />
+        <PendingRequestPreviewRow
+          activeAction={activeAction}
+          errorMessage={errorsByRequestId[request.id]}
+          key={request.id}
+          onAction={onAction}
+          onOpenProfile={onOpenProfile}
+          request={request}
+        />
       ))}
     </View>
   );
 }
 
 function PendingRequestPreviewRow({
+  activeAction,
+  errorMessage,
+  onAction,
+  onOpenProfile,
   request,
 }: {
+  activeAction: FollowRequestState['activeAction'];
+  errorMessage?: string;
+  onAction: (
+    request: PendingFollowRequest,
+    action: FollowRequestActionKind,
+  ) => void;
+  onOpenProfile: (userId: string) => void;
   request: PendingFollowRequest;
 }) {
   const theme = useAppTheme();
   const identity = formatProfileIdentity(request.follower);
   const requestPreview = formatFollowRequestPreview(request);
+  const isActive = activeAction?.requestId === request.id;
+  const isBlockedByAnotherRequest =
+    activeAction != null && activeAction.requestId !== request.id;
 
   return (
-    <View style={[styles.row, { borderColor: theme.colors.border }]}>
-      <View
-        style={[
-          styles.smallAvatar,
-          { backgroundColor: theme.colors.surfaceMuted },
+    <View style={[styles.requestRow, { borderColor: theme.colors.border }]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => onOpenProfile(request.follower.id)}
+        style={({ pressed }) => [
+          styles.requestIdentity,
+          pressed ? styles.pressedRow : null,
         ]}
       >
-        <Text style={[styles.smallAvatarText, { color: theme.colors.accent }]}>
-          {identity.initials}
-        </Text>
-      </View>
-      <View style={styles.rowBody}>
-        <Text style={[styles.rowTitle, { color: theme.colors.text }]}>
-          {identity.title}
-        </Text>
-        <Text style={[styles.rowSubtitle, { color: theme.colors.textMuted }]}>
-          {requestPreview.stateLabel} - {requestPreview.requestedAtLabel}
-        </Text>
+        <View
+          style={[
+            styles.smallAvatar,
+            { backgroundColor: theme.colors.surfaceMuted },
+          ]}
+        >
+          <Text
+            style={[styles.smallAvatarText, { color: theme.colors.accent }]}
+          >
+            {identity.initials}
+          </Text>
+        </View>
+        <View style={styles.rowBody}>
+          <Text style={[styles.rowTitle, { color: theme.colors.text }]}>
+            {identity.title}
+          </Text>
+          <Text
+            style={[styles.rowSubtitle, { color: theme.colors.textMuted }]}
+          >
+            {requestPreview.stateLabel} - {requestPreview.requestedAtLabel}
+          </Text>
+          {errorMessage ? (
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+              {errorMessage}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+      <View style={styles.rowActions}>
+        <AppButton
+          disabled={isBlockedByAnotherRequest || isActive}
+          label={
+            isActive && activeAction?.action === 'accept'
+              ? 'Accepting...'
+              : 'Accept'
+          }
+          onPress={() => onAction(request, 'accept')}
+          style={styles.rowActionButton}
+        />
+        <AppButton
+          disabled={isBlockedByAnotherRequest || isActive}
+          label={
+            isActive && activeAction?.action === 'decline'
+              ? 'Declining...'
+              : 'Decline'
+          }
+          onPress={() => onAction(request, 'decline')}
+          style={styles.rowActionButton}
+          variant="secondary"
+        />
       </View>
     </View>
   );
@@ -411,94 +881,12 @@ function readConnectionNodes<TNode>(
   );
 }
 
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  content: {
-    alignItems: 'center',
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  identity: {
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 28,
-    fontWeight: '700',
-  },
-  stats: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  stat: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  statLabel: typography.label,
-  privacyPanel: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: spacing.xs,
-  },
-  sectionHeading: {
-    gap: spacing.xs,
-  },
-  sectionTitle: typography.label,
-  bodyText: typography.body,
-  list: {
-    gap: spacing.sm,
-  },
-  row: {
-    minHeight: 64,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  smallAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  smallAvatarText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  rowBody: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  rowTitle: typography.label,
-  rowSubtitle: {
-    ...typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  emptyText: {
-    ...typography.body,
-    textAlign: 'center',
-  },
-});
+function formatFollowRequestMutationErrors(
+  errors: Parameters<typeof formatMutationErrors>[0],
+): string {
+  if (!errors || errors.length === 0) {
+    return 'We could not update this follow request. Check your connection and try again.';
+  }
+
+  return formatMutationErrors(errors);
+}

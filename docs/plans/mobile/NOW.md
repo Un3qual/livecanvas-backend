@@ -1,7 +1,7 @@
 # Mobile Lane Execution
 
-Last reviewed: 2026-04-25
-Status: active for execution
+Last reviewed: 2026-06-01
+Status: profiles/social basics complete; next mobile batch needs planning
 
 ## Lane Scope
 
@@ -10,32 +10,25 @@ Status: active for execution
 
 ## Current Batch
 
-- Track: `profiles_social_basics`
+- Track: none active after profiles/social closeout
 - Source: `docs/plans/mobile/TRACK.md`
-- Plan: `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
-- Batch: `Task 2: Add viewer privacy mode updates`
-- Why now: Task 1 now renders the Relay-backed viewer profile surface. Privacy mode updates are the next unblocked profile action before pending follow requests and other-user profile affordances.
+- Plan: no active detailed mobile implementation plan remains until the next plan is written.
+- Batch: no active mobile implementation batch remains until the next detailed plan is written.
+- Why now: The profiles/social basics plan is complete and the mobile lane is ready to plan the next product slice.
 
 ## Do This Now
 
-- Implement `Task 2` from `docs/plans/mobile/2026-04-24-profiles-social-basics.md`.
-- Create the viewer privacy mode reducer and tests.
-- Add the Relay-backed `updateViewerPrivacyMode` mutation to the viewer profile screen.
-- Run the focused privacy reducer tests, Relay compiler, and `tsc --noEmit`.
+- Create the next detailed mobile implementation plan for live discovery plus viewer watch flow.
+- Preserve the mobile lane scope: own `mobile/` and `docs/plans/mobile/**` only.
+- Do not edit backend Elixir/GraphQL code or coordinator-owned shared docs from the mobile lane.
 
 ## Verification Scope
 
-```bash
-cd mobile
-bun test src/profile/privacyModeReducer.test.ts
-XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec relay-compiler
-XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec tsc --noEmit
-```
+No implementation batch is active. Verification scope should be defined by the next detailed mobile plan.
 
 ## Next Up
 
-- Task 3: Add pending follow requests and accept/decline actions.
-- Task 4: Add other-user profile route and relationship follow affordance.
+- Live discovery plus viewer watch-flow detailed implementation plan.
 
 ## Repair Conditions
 
