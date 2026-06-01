@@ -48,6 +48,13 @@ export function isLiveSessionWatchMutationPending(
   );
 }
 
+export function isLiveSessionWatchAnyMutationPending(
+  pendingMutation: LiveSessionWatchPendingMutation | null,
+  sessionId: string,
+): boolean {
+  return pendingMutation?.sessionId === sessionId;
+}
+
 export function clearLiveSessionWatchPendingMutation(
   pendingMutation: LiveSessionWatchPendingMutation | null,
   sessionId: string,

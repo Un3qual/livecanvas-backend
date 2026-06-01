@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   clearLiveSessionWatchPendingMutation,
   createLiveSessionWatchState,
+  isLiveSessionWatchAnyMutationPending,
   isLiveSessionWatchMutationPending,
   liveSessionWatchReducer,
   readLiveSessionWatchSubmission,
@@ -196,6 +197,12 @@ describe('liveSessionWatchReducer', () => {
     expect(
       isLiveSessionWatchMutationPending(pending, 'session-2', 'join'),
     ).toBe(false);
+    expect(isLiveSessionWatchAnyMutationPending(pending, 'session-1')).toBe(
+      true,
+    );
+    expect(isLiveSessionWatchAnyMutationPending(pending, 'session-2')).toBe(
+      false,
+    );
 
     expect(
       clearLiveSessionWatchPendingMutation(pending, 'session-2', 'join'),

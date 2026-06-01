@@ -28,7 +28,7 @@ import {
 import {
   clearLiveSessionWatchPendingMutation,
   createLiveSessionWatchState,
-  isLiveSessionWatchMutationPending,
+  isLiveSessionWatchAnyMutationPending,
   liveSessionWatchReducer,
   readLiveSessionWatchSubmission,
   type LiveSessionWatchPendingMutation,
@@ -227,10 +227,9 @@ function LiveSessionWatchContent({
       !enterable ||
       hasActiveSubmission ||
       isJoined ||
-      isLiveSessionWatchMutationPending(
+      isLiveSessionWatchAnyMutationPending(
         pendingMutationRef.current,
         session.id,
-        'join',
       )
     ) {
       return;
@@ -286,10 +285,9 @@ function LiveSessionWatchContent({
     if (
       !isJoined ||
       hasActiveSubmission ||
-      isLiveSessionWatchMutationPending(
+      isLiveSessionWatchAnyMutationPending(
         pendingMutationRef.current,
         session.id,
-        'leave',
       )
     ) {
       return;
