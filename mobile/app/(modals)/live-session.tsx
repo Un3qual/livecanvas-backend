@@ -1,31 +1,23 @@
-import { StyleSheet, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 
-import { AppCard } from '../../src/components/AppCard';
-import { AppHeader } from '../../src/components/AppHeader';
-import { useAppTheme } from '../../src/providers/ThemeProvider';
-import { spacing } from '../../src/theme/tokens';
+import { ScreenState } from '../../src/components/ScreenState';
+import { readLiveSessionIdParam } from '../../src/live/liveSessionNavigation';
+import { LiveSessionWatchScreen } from '../../src/live/LiveSessionWatchScreen';
 
 export default function LiveSessionModal() {
-  const theme = useAppTheme();
+  const { sessionId: rawSessionId } = useLocalSearchParams<{
+    sessionId?: string | string[];
+  }>();
+  const sessionId = readLiveSessionIdParam(rawSessionId);
 
-  return (
-    <View style={[styles.screen, { backgroundColor: theme.colors.surface }]}>
-      <AppCard>
-        <AppHeader
-          eyebrow="Modal entry"
-          title="Live session"
-          subtitle="This modal route will host future live-session entry points."
-        />
-      </AppCard>
-    </View>
-  );
+  if (!sessionId) {
+    return (
+      <ScreenState
+        state="error"
+        message="Choose a live session to continue."
+      />
+    );
+  }
+
+  return <LiveSessionWatchScreen sessionId={sessionId} />;
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-});
