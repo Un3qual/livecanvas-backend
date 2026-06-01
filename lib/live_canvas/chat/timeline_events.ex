@@ -19,6 +19,9 @@ defmodule LC.Chat.TimelineEvents do
 
   alias LCSchemas.Live.LiveSession
 
+  # `:redacted_placeholder` is intentionally query-visible but not produced by
+  # the current removal flow; default moderation hides messages until product
+  # chooses a visible tombstone UI.
   @visible_projection_states [:visible, :redacted_placeholder]
 
   @type repo :: module()
@@ -96,7 +99,8 @@ defmodule LC.Chat.TimelineEvents do
                target_event_query(target_event_id) |> repo.one(),
              :ok <- require_editable_event_type(target_event),
              :ok <- require_original_actor(target_event, actor_user_id),
-             %LiveSession{} = live_session <- repo.get(LiveSession, target_event.live_session_id),
+             %LiveSession{} = live_session <-
+               locked_live_session_query(target_event.live_session_id) |> repo.one(),
              :ok <- authorizer.(actor, live_session),
              %LiveSessionTimelineEventState{} = event_state <-
                locked_event_state_query(target_event_id) |> repo.one(),
@@ -270,6 +274,15 @@ defmodule LC.Chat.TimelineEvents do
   defp target_event_query(timeline_event_id) when is_integer(timeline_event_id) do
     from(event in LiveSessionTimelineEvent,
       where: event.id == ^timeline_event_id,
+      limit: 1
+    )
+  end
+
+  @spec locked_live_session_query(pos_integer()) :: Ecto.Query.t()
+  defp locked_live_session_query(live_session_id) when is_integer(live_session_id) do
+    from(live_session in LiveSession,
+      where: live_session.id == ^live_session_id,
+      lock: "FOR UPDATE",
       limit: 1
     )
   end
