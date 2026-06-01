@@ -1,7 +1,13 @@
-import React, { Suspense, useReducer, type PropsWithChildren } from 'react';
+import React, {
+  Suspense,
+  useEffect,
+  useReducer,
+  type PropsWithChildren,
+} from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { graphql, useLazyLoadQuery } from 'react-relay';
+import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
 
+import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
@@ -14,6 +20,13 @@ import {
   formatPrivacyModeLabel,
   formatProfileIdentity,
 } from './profilePresentation';
+import {
+  createPrivacyModeState,
+  formatMutationErrors,
+  nextPrivacyMode,
+  privacyModeReducer,
+} from './privacyModeReducer';
+import type { ViewerProfileScreenPrivacyModeMutation } from './__generated__/ViewerProfileScreenPrivacyModeMutation.graphql';
 import type { ViewerProfileScreenQuery } from './__generated__/ViewerProfileScreenQuery.graphql';
 
 type ViewerProfileData = ViewerProfileScreenQuery['response'];
@@ -34,6 +47,23 @@ type ConnectionLike<TNode> = {
     | ReadonlyArray<{ readonly node?: TNode | null } | null | undefined>
     | null;
 } | null | undefined;
+
+const viewerProfileScreenPrivacyModeMutation = graphql`
+  mutation ViewerProfileScreenPrivacyModeMutation(
+    $input: UpdateViewerPrivacyModeInput!
+  ) {
+    updateViewerPrivacyMode(input: $input) {
+      user {
+        id
+        privacyMode
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
 
 export function ViewerProfileScreen() {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
@@ -139,6 +169,64 @@ function ViewerProfileContent() {
   );
 
   const viewer = data.viewer;
+  const [commitPrivacyMode, isPrivacyModeMutationInFlight] =
+    useMutation<ViewerProfileScreenPrivacyModeMutation>(
+      viewerProfileScreenPrivacyModeMutation,
+    );
+  const [privacyModeState, dispatchPrivacyMode] = useReducer(
+    privacyModeReducer,
+    viewer?.privacyMode ?? '',
+    createPrivacyModeState,
+  );
+
+  useEffect(() => {
+    if (viewer?.privacyMode != null) {
+      dispatchPrivacyMode({ mode: viewer.privacyMode, type: 'reset' });
+    }
+  }, [viewer?.privacyMode]);
+
+  function handlePrivacyModePress() {
+    const requestedPrivacyMode = nextPrivacyMode(
+      privacyModeState.currentMode,
+    );
+
+    if (isPrivacyModeMutationInFlight || requestedPrivacyMode == null) {
+      return;
+    }
+
+    dispatchPrivacyMode({ mode: requestedPrivacyMode, type: 'submit' });
+
+    commitPrivacyMode({
+      variables: {
+        input: {
+          privacyMode: requestedPrivacyMode,
+        },
+      },
+      onCompleted: (response) => {
+        const result = response.updateViewerPrivacyMode;
+
+        if (!result?.user || result.errors.length > 0) {
+          dispatchPrivacyMode({
+            message: formatMutationErrors(result?.errors),
+            type: 'error',
+          });
+          return;
+        }
+
+        dispatchPrivacyMode({
+          mode: result.user.privacyMode,
+          type: 'success',
+        });
+      },
+      onError: () => {
+        dispatchPrivacyMode({
+          message:
+            'We could not update privacy mode. Check your connection and try again.',
+          type: 'error',
+        });
+      },
+    });
+  }
 
   if (!viewer) {
     return (
@@ -150,7 +238,21 @@ function ViewerProfileContent() {
   }
 
   const identity = formatProfileIdentity(viewer);
-  const privacy = formatPrivacyModeLabel(viewer.privacyMode);
+  const displayedPrivacyMode =
+    privacyModeState.pendingMode ??
+    privacyModeState.currentMode ??
+    viewer.privacyMode;
+  const requestedPrivacyMode = nextPrivacyMode(
+    privacyModeState.currentMode,
+  );
+  const privacy = formatPrivacyModeLabel(displayedPrivacyMode);
+  const privacyButtonLabel = isPrivacyModeMutationInFlight
+    ? 'Saving...'
+    : requestedPrivacyMode === 'PRIVATE'
+      ? 'Switch to private'
+      : requestedPrivacyMode === 'PUBLIC'
+        ? 'Switch to public'
+        : 'Privacy unavailable';
   const followers = readConnectionNodes(viewer.followers);
   const following = readConnectionNodes(viewer.following);
   const pendingRequests = readConnectionNodes(data.viewerPendingFollowRequests);
@@ -211,6 +313,19 @@ function ViewerProfileContent() {
           <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
             {privacy.description}
           </Text>
+          <AppButton
+            disabled={
+              isPrivacyModeMutationInFlight || requestedPrivacyMode == null
+            }
+            label={privacyButtonLabel}
+            onPress={handlePrivacyModePress}
+            variant="secondary"
+          />
+          {privacyModeState.errorMessage ? (
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+              {privacyModeState.errorMessage}
+            </Text>
+          ) : null}
         </View>
       </AppCard>
 
@@ -464,6 +579,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: typography.label,
   bodyText: typography.body,
+  errorText: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
   list: {
     gap: spacing.sm,
   },

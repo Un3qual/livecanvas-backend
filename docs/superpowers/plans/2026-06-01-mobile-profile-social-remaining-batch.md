@@ -363,10 +363,10 @@ Expected: commit succeeds.
 
 **Files:**
 - Modify: `mobile/src/profile/ViewerProfileScreen.tsx`
-- Generated: `mobile/src/profile/__generated__/ViewerProfilePrivacyModeMutation.graphql.ts`
+- Generated: `mobile/src/profile/__generated__/ViewerProfileScreenPrivacyModeMutation.graphql.ts`
 - Modify: `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
 
-- [ ] **Step 1: Add Relay mutation imports and reducer imports**
+- [x] **Step 1: Add Relay mutation imports and reducer imports**
 
 In `mobile/src/profile/ViewerProfileScreen.tsx`, extend imports:
 
@@ -381,17 +381,17 @@ import {
   nextPrivacyMode,
   privacyModeReducer,
 } from './privacyModeReducer';
-import type { ViewerProfilePrivacyModeMutation } from './__generated__/ViewerProfilePrivacyModeMutation.graphql';
+import type { ViewerProfileScreenPrivacyModeMutation } from './__generated__/ViewerProfileScreenPrivacyModeMutation.graphql';
 ```
 
-- [ ] **Step 2: Add the privacy mutation**
+- [x] **Step 2: Add the privacy mutation**
 
 Inside `ViewerProfileContent`, after the existing `useLazyLoadQuery` call, add:
 
 ```ts
 const [commitPrivacyMode, isPrivacyModeInFlight] =
-  useMutation<ViewerProfilePrivacyModeMutation>(graphql`
-    mutation ViewerProfilePrivacyModeMutation(
+  useMutation<ViewerProfileScreenPrivacyModeMutation>(graphql`
+    mutation ViewerProfileScreenPrivacyModeMutation(
       $input: UpdateViewerPrivacyModeInput!
     ) {
       updateViewerPrivacyMode(input: $input) {
@@ -408,7 +408,7 @@ const [commitPrivacyMode, isPrivacyModeInFlight] =
   `);
 ```
 
-- [ ] **Step 3: Add reducer state synchronized from Relay viewer data**
+- [x] **Step 3: Add reducer state synchronized from Relay viewer data**
 
 After `const viewer = data.viewer;` and before rendering the profile content, add:
 
@@ -426,7 +426,7 @@ useEffect(() => {
 }, [viewer?.privacyMode]);
 ```
 
-- [ ] **Step 4: Add the submit handler**
+- [x] **Step 4: Add the submit handler**
 
 In `ViewerProfileContent`, add:
 
@@ -473,7 +473,7 @@ const submitPrivacyMode = () => {
 };
 ```
 
-- [ ] **Step 5: Replace the static privacy panel with a compact control**
+- [x] **Step 5: Replace the static privacy panel with a compact control**
 
 Use the current confirmed or pending mode for display:
 
@@ -533,7 +533,7 @@ errorText: {
 },
 ```
 
-- [ ] **Step 6: Run Relay compiler**
+- [x] **Step 6: Run Relay compiler**
 
 Run:
 
@@ -542,9 +542,9 @@ cd mobile
 XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec relay-compiler
 ```
 
-Expected: PASS and generated `ViewerProfilePrivacyModeMutation.graphql.ts` appears under `mobile/src/profile/__generated__/`.
+Expected: PASS and generated `ViewerProfileScreenPrivacyModeMutation.graphql.ts` appears under `mobile/src/profile/__generated__/`.
 
-- [ ] **Step 7: Run focused verification**
+- [x] **Step 7: Run focused verification**
 
 Run:
 
@@ -556,7 +556,7 @@ XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command
 
 Expected: PASS.
 
-- [ ] **Step 8: Update Task 2 checklist**
+- [x] **Step 8: Update Task 2 checklist**
 
 In `docs/plans/mobile/2026-04-24-profiles-social-basics.md`, mark Task 2 and its steps complete. Add verification evidence under the task using this format:
 
@@ -567,12 +567,12 @@ Task 2 verification on 2026-06-01:
 - `nix ... tsc --noEmit` passed.
 ```
 
-- [ ] **Step 9: Commit Task 2**
+- [x] **Step 9: Commit Task 2**
 
 Run:
 
 ```bash
-git add mobile/src/profile/ViewerProfileScreen.tsx mobile/src/profile/__generated__/ViewerProfilePrivacyModeMutation.graphql.ts docs/plans/mobile/2026-04-24-profiles-social-basics.md
+git add mobile/src/profile/ViewerProfileScreen.tsx mobile/src/profile/__generated__/ViewerProfileScreenPrivacyModeMutation.graphql.ts docs/plans/mobile/2026-04-24-profiles-social-basics.md
 git commit -m "feat: add viewer privacy mode updates"
 ```
 
