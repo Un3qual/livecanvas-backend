@@ -551,13 +551,6 @@ function ViewerProfileContent() {
             subtitle={identity.subtitle}
           />
         </View>
-        {currentLiveSession ? (
-          <LiveSessionSummaryCard
-            buttonLabel="Open live session"
-            onPress={() => router.push(liveSessionHref(currentLiveSession.id))}
-            session={currentLiveSession}
-          />
-        ) : null}
         <View style={styles.stats}>
           <SummaryStat
             label="Followers preview"
@@ -604,6 +597,14 @@ function ViewerProfileContent() {
           ) : null}
         </View>
       </AppCard>
+
+      {currentLiveSession ? (
+        <LiveSessionSummaryCard
+          buttonLabel="Open live session"
+          onPress={() => router.push(liveSessionHref(currentLiveSession.id))}
+          session={currentLiveSession}
+        />
+      ) : null}
 
       <AppCard>
         <SectionHeading
