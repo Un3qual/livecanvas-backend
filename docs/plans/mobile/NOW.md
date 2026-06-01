@@ -1,6 +1,6 @@
 # Mobile Lane Execution
 
-Last reviewed: 2026-04-25
+Last reviewed: 2026-06-01
 Status: active for execution
 
 ## Lane Scope
@@ -13,29 +13,29 @@ Status: active for execution
 - Track: `profiles_social_basics`
 - Source: `docs/plans/mobile/TRACK.md`
 - Plan: `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
-- Batch: `Task 3: Add pending follow requests and accept/decline actions`
-- Why now: Task 2 now wires viewer privacy mode updates into the Relay-backed profile surface. Pending follow-request actions are the next unblocked profile interaction before other-user profile affordances.
+- Batch: `Task 4: Add other-user profile route and relationship follow affordance`
+- Why now: Task 3 now wires pending follow-request accept/decline actions into the Relay-backed viewer profile surface. Other-user profile navigation and supported follow/request affordances are the next unblocked profile interaction.
 
 ## Do This Now
 
-- Implement `Task 3` from `docs/plans/mobile/2026-04-24-profiles-social-basics.md`.
-- Create the pending follow-request reducer and tests.
-- Add Relay-backed `acceptFollowRequest` and `declineFollowRequest` mutations to the viewer profile screen.
-- Render inbound pending requests with accept/decline actions and row-level error handling.
-- Run the focused follow-request reducer tests, Relay compiler, and `tsc --noEmit`.
+- Implement `Task 4` from `docs/plans/mobile/2026-04-24-profiles-social-basics.md`.
+- Create the relationship presentation helper and tests.
+- Add the other-user profile route guarded through Relay `node(id:)`.
+- Add profile-row navigation from social previews to `/profiles/[id]`.
+- Wire the supported `followUser(input: { followedId })` affordance for states backed by the current GraphQL contract.
+- Run the focused relationship presentation tests, Relay compiler, and `tsc --noEmit`.
 
 ## Verification Scope
 
 ```bash
 cd mobile
-bun test src/profile/followRequestReducer.test.ts
-XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec relay-compiler
-XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec tsc --noEmit
+bun test src/profile/relationshipPresentation.test.ts
+pnpm exec relay-compiler
+pnpm exec tsc --noEmit
 ```
 
 ## Next Up
 
-- Task 4: Add other-user profile route and relationship follow affordance.
 - Task 5: Verify the profiles/social slice and advance mobile planning pointers.
 
 ## Repair Conditions

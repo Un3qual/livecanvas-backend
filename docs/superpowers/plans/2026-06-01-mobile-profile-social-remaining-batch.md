@@ -584,11 +584,11 @@ Expected: commit succeeds.
 - Create: `mobile/src/profile/followRequestReducer.test.ts`
 - Create: `mobile/src/profile/followRequestReducer.ts`
 - Modify: `mobile/src/profile/ViewerProfileScreen.tsx`
-- Generated: `mobile/src/profile/__generated__/AcceptFollowRequestMutation.graphql.ts`
-- Generated: `mobile/src/profile/__generated__/DeclineFollowRequestMutation.graphql.ts`
+- Generated: `mobile/src/profile/__generated__/ViewerProfileScreenAcceptFollowRequestMutation.graphql.ts`
+- Generated: `mobile/src/profile/__generated__/ViewerProfileScreenDeclineFollowRequestMutation.graphql.ts`
 - Modify: `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
 
-- [ ] **Step 1: Write failing follow-request reducer tests**
+- [x] **Step 1: Write failing follow-request reducer tests**
 
 Create `mobile/src/profile/followRequestReducer.test.ts`:
 
@@ -672,7 +672,7 @@ describe('followRequestReducer', () => {
 });
 ```
 
-- [ ] **Step 2: Run follow-request reducer tests and verify RED**
+- [x] **Step 2: Run follow-request reducer tests and verify RED**
 
 Run:
 
@@ -683,7 +683,7 @@ bun test src/profile/followRequestReducer.test.ts
 
 Expected: FAIL because `followRequestReducer.ts` does not exist.
 
-- [ ] **Step 3: Implement follow-request reducer**
+- [x] **Step 3: Implement follow-request reducer**
 
 Create `mobile/src/profile/followRequestReducer.ts`:
 
@@ -786,7 +786,7 @@ function removeRequestError(
 }
 ```
 
-- [ ] **Step 4: Run follow-request reducer tests and verify GREEN**
+- [x] **Step 4: Run follow-request reducer tests and verify GREEN**
 
 Run:
 
@@ -797,7 +797,7 @@ bun test src/profile/followRequestReducer.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Add mutations and reducer state to `ViewerProfileScreen`**
+- [x] **Step 5: Add mutations and reducer state to `ViewerProfileScreen`**
 
 In `mobile/src/profile/ViewerProfileScreen.tsx`, add imports:
 
@@ -807,9 +807,10 @@ import {
   followRequestReducer,
   isFollowRequestDismissed,
   type FollowRequestActionKind,
+  type FollowRequestState,
 } from './followRequestReducer';
-import type { AcceptFollowRequestMutation } from './__generated__/AcceptFollowRequestMutation.graphql';
-import type { DeclineFollowRequestMutation } from './__generated__/DeclineFollowRequestMutation.graphql';
+import type { ViewerProfileScreenAcceptFollowRequestMutation } from './__generated__/ViewerProfileScreenAcceptFollowRequestMutation.graphql';
+import type { ViewerProfileScreenDeclineFollowRequestMutation } from './__generated__/ViewerProfileScreenDeclineFollowRequestMutation.graphql';
 ```
 
 Inside `ViewerProfileContent`, add:
@@ -821,8 +822,8 @@ const [followRequestState, dispatchFollowRequest] = useReducer(
   createFollowRequestState,
 );
 const [commitAcceptFollowRequest] =
-  useMutation<AcceptFollowRequestMutation>(graphql`
-    mutation AcceptFollowRequestMutation($input: AcceptFollowRequestInput!) {
+  useMutation<ViewerProfileScreenAcceptFollowRequestMutation>(graphql`
+    mutation ViewerProfileScreenAcceptFollowRequestMutation($input: AcceptFollowRequestInput!) {
       acceptFollowRequest(input: $input) {
         follow {
           id
@@ -836,8 +837,8 @@ const [commitAcceptFollowRequest] =
     }
   `);
 const [commitDeclineFollowRequest] =
-  useMutation<DeclineFollowRequestMutation>(graphql`
-    mutation DeclineFollowRequestMutation($input: DeclineFollowRequestInput!) {
+  useMutation<ViewerProfileScreenDeclineFollowRequestMutation>(graphql`
+    mutation ViewerProfileScreenDeclineFollowRequestMutation($input: DeclineFollowRequestInput!) {
       declineFollowRequest(input: $input) {
         errors {
           field
@@ -856,7 +857,7 @@ const pendingRequests = readConnectionNodes(
 ).filter((request) => !isFollowRequestDismissed(followRequestState, request.id));
 ```
 
-- [ ] **Step 6: Add the follow-request submit handler**
+- [x] **Step 6: Add the follow-request submit handler**
 
 Inside `ViewerProfileContent`, add:
 
@@ -875,20 +876,44 @@ const submitFollowRequestAction = (
     type: 'start',
   });
 
-  const commit =
-    action === 'accept' ? commitAcceptFollowRequest : commitDeclineFollowRequest;
+  const variables = { input: { followerId: request.follower.id } };
+  const handleError = () => {
+    dispatchFollowRequest({
+      message: 'We could not update this follow request. Check your connection and try again.',
+      requestId: request.id,
+      type: 'error',
+    });
+  };
 
-  commit({
-    variables: {
-      input: {
-        followerId: request.follower.id,
+  if (action === 'accept') {
+    commitAcceptFollowRequest({
+      variables,
+      onCompleted: (payload) => {
+        const result = payload.acceptFollowRequest;
+
+        if (!result || result.errors.length > 0) {
+          dispatchFollowRequest({
+            message: formatMutationErrors(result?.errors),
+            requestId: request.id,
+            type: 'error',
+          });
+          return;
+        }
+
+        dispatchFollowRequest({
+          requestId: request.id,
+          type: 'success',
+        });
       },
-    },
+      onError: handleError,
+    });
+    return;
+  }
+
+  commitDeclineFollowRequest({
+    variables,
     onCompleted: (payload) => {
-      const result =
-        action === 'accept'
-          ? payload.acceptFollowRequest
-          : payload.declineFollowRequest;
+      const result = payload.declineFollowRequest;
 
       if (!result || result.errors.length > 0) {
         dispatchFollowRequest({
@@ -904,18 +929,12 @@ const submitFollowRequestAction = (
         type: 'success',
       });
     },
-    onError: () => {
-      dispatchFollowRequest({
-        message: 'We could not update this follow request. Check your connection and try again.',
-        requestId: request.id,
-        type: 'error',
-      });
-    },
+    onError: handleError,
   });
 };
 ```
 
-- [ ] **Step 7: Replace preview-only request rows with actions**
+- [x] **Step 7: Replace preview-only request rows with actions**
 
 Pass action state and handler into `PendingRequestPreviewList`:
 
@@ -994,7 +1013,7 @@ rowActions: {
 },
 ```
 
-- [ ] **Step 8: Run Relay compiler and focused verification**
+- [x] **Step 8: Run Relay compiler and focused verification**
 
 Run:
 
@@ -1005,18 +1024,20 @@ bun test src/profile/followRequestReducer.test.ts
 XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command flakes' run path:.#pnpm -- exec tsc --noEmit
 ```
 
-Expected: PASS and generated mutation artifacts appear.
+Expected: PASS and generated `ViewerProfileScreenAcceptFollowRequestMutation.graphql.ts` and `ViewerProfileScreenDeclineFollowRequestMutation.graphql.ts` artifacts appear.
 
-- [ ] **Step 9: Update Task 3 checklist**
+Task 3 execution note on 2026-06-01: the exact Nix Relay and TypeScript commands failed with `error: cannot connect to socket at '/nix/var/nix/daemon-socket/socket': Connection refused`; local `pnpm exec relay-compiler`, `pnpm exec tsc --noEmit`, and the focused reducer test passed.
+
+- [x] **Step 9: Update Task 3 checklist**
 
 In `docs/plans/mobile/2026-04-24-profiles-social-basics.md`, mark Task 3 and its steps complete. Record verification evidence for the reducer test, Relay compiler, and TypeScript.
 
-- [ ] **Step 10: Commit Task 3**
+- [x] **Step 10: Commit Task 3**
 
 Run:
 
 ```bash
-git add mobile/src/profile/ViewerProfileScreen.tsx mobile/src/profile/followRequestReducer.ts mobile/src/profile/followRequestReducer.test.ts mobile/src/profile/__generated__/AcceptFollowRequestMutation.graphql.ts mobile/src/profile/__generated__/DeclineFollowRequestMutation.graphql.ts docs/plans/mobile/2026-04-24-profiles-social-basics.md
+git add mobile/src/profile/ViewerProfileScreen.tsx mobile/src/profile/followRequestReducer.ts mobile/src/profile/followRequestReducer.test.ts mobile/src/profile/__generated__/ViewerProfileScreenAcceptFollowRequestMutation.graphql.ts mobile/src/profile/__generated__/ViewerProfileScreenDeclineFollowRequestMutation.graphql.ts docs/plans/mobile/2026-04-24-profiles-social-basics.md docs/plans/mobile/NOW.md docs/superpowers/plans/2026-06-01-mobile-profile-social-remaining-batch.md
 git commit -m "feat: add mobile follow request actions"
 ```
 

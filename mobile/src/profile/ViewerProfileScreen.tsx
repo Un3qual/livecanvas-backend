@@ -2,6 +2,7 @@ import React, {
   Suspense,
   useEffect,
   useReducer,
+  useRef,
   type PropsWithChildren,
 } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -26,6 +27,15 @@ import {
   nextPrivacyMode,
   privacyModeReducer,
 } from './privacyModeReducer';
+import {
+  createFollowRequestState,
+  followRequestReducer,
+  isFollowRequestDismissed,
+  type FollowRequestActionKind,
+  type FollowRequestState,
+} from './followRequestReducer';
+import type { ViewerProfileScreenAcceptFollowRequestMutation } from './__generated__/ViewerProfileScreenAcceptFollowRequestMutation.graphql';
+import type { ViewerProfileScreenDeclineFollowRequestMutation } from './__generated__/ViewerProfileScreenDeclineFollowRequestMutation.graphql';
 import type { ViewerProfileScreenPrivacyModeMutation } from './__generated__/ViewerProfileScreenPrivacyModeMutation.graphql';
 import type { ViewerProfileScreenQuery } from './__generated__/ViewerProfileScreenQuery.graphql';
 
@@ -57,6 +67,36 @@ const viewerProfileScreenPrivacyModeMutation = graphql`
         id
         privacyMode
       }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const viewerProfileScreenAcceptFollowRequestMutation = graphql`
+  mutation ViewerProfileScreenAcceptFollowRequestMutation(
+    $input: AcceptFollowRequestInput!
+  ) {
+    acceptFollowRequest(input: $input) {
+      follow {
+        id
+        state
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const viewerProfileScreenDeclineFollowRequestMutation = graphql`
+  mutation ViewerProfileScreenDeclineFollowRequestMutation(
+    $input: DeclineFollowRequestInput!
+  ) {
+    declineFollowRequest(input: $input) {
       errors {
         field
         message
@@ -178,6 +218,21 @@ function ViewerProfileContent() {
     viewer?.privacyMode ?? '',
     createPrivacyModeState,
   );
+  const [followRequestState, dispatchFollowRequest] = useReducer(
+    followRequestReducer,
+    undefined,
+    createFollowRequestState,
+  );
+  const activeFollowRequestActionRef =
+    useRef<FollowRequestState['activeAction']>(null);
+  const [commitAcceptFollowRequest] =
+    useMutation<ViewerProfileScreenAcceptFollowRequestMutation>(
+      viewerProfileScreenAcceptFollowRequestMutation,
+    );
+  const [commitDeclineFollowRequest] =
+    useMutation<ViewerProfileScreenDeclineFollowRequestMutation>(
+      viewerProfileScreenDeclineFollowRequestMutation,
+    );
 
   useEffect(() => {
     if (viewer?.privacyMode != null) {
@@ -228,6 +283,76 @@ function ViewerProfileContent() {
     });
   }
 
+  const submitFollowRequestAction = (
+    request: PendingFollowRequest,
+    action: FollowRequestActionKind,
+  ) => {
+    if (
+      followRequestState.activeAction ||
+      activeFollowRequestActionRef.current
+    ) {
+      return;
+    }
+
+    const activeAction = { action, requestId: request.id };
+    activeFollowRequestActionRef.current = activeAction;
+    dispatchFollowRequest({ ...activeAction, type: 'start' });
+
+    const variables = { input: { followerId: request.follower.id } };
+    const dispatchActionError = (message: string) => {
+      activeFollowRequestActionRef.current = null;
+      dispatchFollowRequest({
+        message,
+        requestId: request.id,
+        type: 'error',
+      });
+    };
+    const dispatchActionSuccess = () => {
+      activeFollowRequestActionRef.current = null;
+      dispatchFollowRequest({ requestId: request.id, type: 'success' });
+    };
+    const handleError = () => {
+      dispatchActionError(
+        'We could not update this follow request. Check your connection and try again.',
+      );
+    };
+
+    if (action === 'accept') {
+      commitAcceptFollowRequest({
+        variables,
+        onCompleted: (payload) => {
+          const result = payload.acceptFollowRequest;
+
+          if (!result || result.errors.length > 0) {
+            dispatchActionError(
+              formatFollowRequestMutationErrors(result?.errors),
+            );
+            return;
+          }
+
+          dispatchActionSuccess();
+        },
+        onError: handleError,
+      });
+      return;
+    }
+
+    commitDeclineFollowRequest({
+      variables,
+      onCompleted: (payload) => {
+        const result = payload.declineFollowRequest;
+
+        if (!result || result.errors.length > 0) {
+          dispatchActionError(formatFollowRequestMutationErrors(result?.errors));
+          return;
+        }
+
+        dispatchActionSuccess();
+      },
+      onError: handleError,
+    });
+  };
+
   if (!viewer) {
     return (
       <ScreenState
@@ -255,7 +380,11 @@ function ViewerProfileContent() {
         : 'Privacy unavailable';
   const followers = readConnectionNodes(viewer.followers);
   const following = readConnectionNodes(viewer.following);
-  const pendingRequests = readConnectionNodes(data.viewerPendingFollowRequests);
+  const pendingRequests = readConnectionNodes(
+    data.viewerPendingFollowRequests,
+  ).filter(
+    (request) => !isFollowRequestDismissed(followRequestState, request.id),
+  );
   const visibleFollowerCount = countConnectionEdges(viewer.followers);
   const visibleFollowingCount = countConnectionEdges(viewer.following);
 
@@ -356,7 +485,12 @@ function ViewerProfileContent() {
           title="Requests"
           subtitle={`${pendingRequests.length} pending in preview`}
         />
-        <PendingRequestPreviewList requests={pendingRequests} />
+        <PendingRequestPreviewList
+          activeAction={followRequestState.activeAction}
+          errorsByRequestId={followRequestState.errorsByRequestId}
+          onAction={submitFollowRequestAction}
+          requests={pendingRequests}
+        />
       </AppCard>
     </ScrollView>
   );
@@ -456,8 +590,17 @@ function ProfilePreviewRow({ user }: { user: ProfileUser }) {
 }
 
 function PendingRequestPreviewList({
+  activeAction,
+  errorsByRequestId,
+  onAction,
   requests,
 }: {
+  activeAction: FollowRequestState['activeAction'];
+  errorsByRequestId: FollowRequestState['errorsByRequestId'];
+  onAction: (
+    request: PendingFollowRequest,
+    action: FollowRequestActionKind,
+  ) => void;
   requests: ReadonlyArray<PendingFollowRequest>;
 }) {
   if (requests.length === 0) {
@@ -467,20 +610,38 @@ function PendingRequestPreviewList({
   return (
     <View style={styles.list}>
       {requests.map((request) => (
-        <PendingRequestPreviewRow key={request.id} request={request} />
+        <PendingRequestPreviewRow
+          activeAction={activeAction}
+          errorMessage={errorsByRequestId[request.id]}
+          key={request.id}
+          onAction={onAction}
+          request={request}
+        />
       ))}
     </View>
   );
 }
 
 function PendingRequestPreviewRow({
+  activeAction,
+  errorMessage,
+  onAction,
   request,
 }: {
+  activeAction: FollowRequestState['activeAction'];
+  errorMessage?: string;
+  onAction: (
+    request: PendingFollowRequest,
+    action: FollowRequestActionKind,
+  ) => void;
   request: PendingFollowRequest;
 }) {
   const theme = useAppTheme();
   const identity = formatProfileIdentity(request.follower);
   const requestPreview = formatFollowRequestPreview(request);
+  const isActive = activeAction?.requestId === request.id;
+  const isBlockedByAnotherRequest =
+    activeAction != null && activeAction.requestId !== request.id;
 
   return (
     <View style={[styles.row, { borderColor: theme.colors.border }]}>
@@ -501,6 +662,34 @@ function PendingRequestPreviewRow({
         <Text style={[styles.rowSubtitle, { color: theme.colors.textMuted }]}>
           {requestPreview.stateLabel} - {requestPreview.requestedAtLabel}
         </Text>
+        {errorMessage ? (
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>
+            {errorMessage}
+          </Text>
+        ) : null}
+        <View style={styles.rowActions}>
+          <AppButton
+            disabled={isBlockedByAnotherRequest || isActive}
+            label={
+              isActive && activeAction?.action === 'accept'
+                ? 'Accepting...'
+                : 'Accept'
+            }
+            onPress={() => onAction(request, 'accept')}
+            style={styles.rowActionButton}
+          />
+          <AppButton
+            disabled={isBlockedByAnotherRequest || isActive}
+            label={
+              isActive && activeAction?.action === 'decline'
+                ? 'Declining...'
+                : 'Decline'
+            }
+            onPress={() => onAction(request, 'decline')}
+            style={styles.rowActionButton}
+            variant="secondary"
+          />
+        </View>
       </View>
     </View>
   );
@@ -524,6 +713,16 @@ function readConnectionNodes<TNode>(
       ?.map((edge) => edge?.node)
       .filter((node): node is NonNullable<TNode> => node != null) ?? []
   );
+}
+
+function formatFollowRequestMutationErrors(
+  errors: Parameters<typeof formatMutationErrors>[0],
+): string {
+  if (!errors || errors.length === 0) {
+    return 'We could not update this follow request. Check your connection and try again.';
+  }
+
+  return formatMutationErrors(errors);
 }
 
 const styles = StyleSheet.create({
@@ -616,6 +815,13 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontSize: 14,
     lineHeight: 20,
+  },
+  rowActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  rowActionButton: {
+    flex: 1,
   },
   emptyText: {
     ...typography.body,
