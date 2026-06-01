@@ -2,6 +2,7 @@ import { Redirect, useLocalSearchParams } from 'expo-router';
 
 import { useAuth } from '../../src/auth/AuthProvider';
 import { ScreenState } from '../../src/components/ScreenState';
+import { authRouteHref } from '../../src/config/runtime';
 import { readLiveSessionIdParam } from '../../src/live/liveSessionNavigation';
 import { LiveSessionWatchScreen } from '../../src/live/LiveSessionWatchScreen';
 
@@ -15,11 +16,14 @@ export default function LiveSessionModal() {
     return null;
   }
 
-  if (state.status === 'unauthenticated') {
-    return <Redirect href="/sign-in" />;
-  }
-
   const sessionId = readLiveSessionIdParam(rawSessionId);
+  const returnToHref = sessionId
+    ? `/live-session?sessionId=${encodeURIComponent(sessionId)}`
+    : '/live-session';
+
+  if (state.status === 'unauthenticated') {
+    return <Redirect href={authRouteHref('/sign-in', returnToHref)} />;
+  }
 
   if (!sessionId) {
     return (

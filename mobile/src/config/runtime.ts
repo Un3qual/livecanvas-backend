@@ -11,6 +11,7 @@ const KNOWN_ROUTE_HREFS = new Set([
 ]);
 
 const AUTH_ROUTE_HREFS = new Set(['/sign-in', '/sign-up']);
+const AUTH_RETURN_TO_ROUTE_HREFS = new Set(['/live-session']);
 
 type ResolvedAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
@@ -95,9 +96,15 @@ export function resolveLandingHrefForAuth(
   }
 
   if (authStatus === 'unauthenticated') {
-    return initialHref && initialRoutePath && AUTH_ROUTE_HREFS.has(initialRoutePath)
-      ? initialHref
-      : '/sign-in';
+    if (
+      initialHref &&
+      initialRoutePath &&
+      AUTH_ROUTE_HREFS.has(initialRoutePath)
+    ) {
+      return initialHref;
+    }
+
+    return authRouteHref('/sign-in', initialHref);
   }
 
   return initialHref && initialRoutePath && !AUTH_ROUTE_HREFS.has(initialRoutePath)
@@ -107,6 +114,37 @@ export function resolveLandingHrefForAuth(
 
 function routePathFromHref(href: string): string {
   return href.split('?', 1)[0] ?? href;
+}
+
+export function authRouteHref(
+  routeHref: '/sign-in' | '/sign-up',
+  returnToHref?: string | null,
+): string {
+  const returnTo = normalizeAuthReturnToHref(returnToHref);
+
+  return returnTo
+    ? `${routeHref}?returnTo=${encodeURIComponent(returnTo)}`
+    : routeHref;
+}
+
+export function readAuthReturnToParam(
+  rawReturnTo: string | string[] | undefined,
+): string | null {
+  const value = Array.isArray(rawReturnTo) ? rawReturnTo[0] : rawReturnTo;
+
+  return normalizeAuthReturnToHref(value);
+}
+
+function normalizeAuthReturnToHref(returnToHref?: string | null): string | null {
+  const trimmed = returnToHref?.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const routePath = routePathFromHref(trimmed);
+
+  return AUTH_RETURN_TO_ROUTE_HREFS.has(routePath) ? trimmed : null;
 }
 
 export function routeHrefFromUrl(initialUrl: string | null): string | null {

@@ -10,7 +10,12 @@ mock.module('react-native', () => ({
   },
 }));
 
-const { resolveLandingHrefForAuth, routeHrefFromUrl } = await import('./runtime');
+const {
+  authRouteHref,
+  readAuthReturnToParam,
+  resolveLandingHrefForAuth,
+  routeHrefFromUrl,
+} = await import('./runtime');
 mock.restore();
 
 type ModalAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -169,7 +174,7 @@ describe('resolveLandingHrefForAuth', () => {
     ).toBeNull();
   });
 
-  test('sends unauthenticated live-session deep links to sign-in', () => {
+  test('sends unauthenticated live-session deep links to sign-in with a return target', () => {
     expect(
       resolveLandingHrefForAuth(
         {
@@ -183,7 +188,9 @@ describe('resolveLandingHrefForAuth', () => {
         },
         'unauthenticated',
       ),
-    ).toBe('/sign-in');
+    ).toBe(
+      '/sign-in?returnTo=%2Flive-session%3FsessionId%3DTGl2ZVNlc3Npb246MTIz',
+    );
   });
 
   test('preserves authenticated live-session deep links after auth settles', () => {
@@ -204,6 +211,34 @@ describe('resolveLandingHrefForAuth', () => {
   });
 });
 
+describe('auth return targets', () => {
+  test('encodes live-session return targets on auth routes', () => {
+    expect(
+      authRouteHref(
+        '/sign-in',
+        '/live-session?sessionId=TGl2ZVNlc3Npb246MTIz',
+      ),
+    ).toBe(
+      '/sign-in?returnTo=%2Flive-session%3FsessionId%3DTGl2ZVNlc3Npb246MTIz',
+    );
+  });
+
+  test('reads only the first live-session return target', () => {
+    expect(
+      readAuthReturnToParam([
+        '/live-session?sessionId=TGl2ZVNlc3Npb246MTIz',
+        '/profile',
+      ]),
+    ).toBe('/live-session?sessionId=TGl2ZVNlc3Npb246MTIz');
+  });
+
+  test('rejects external and auth-route return targets', () => {
+    expect(readAuthReturnToParam('https://example.com')).toBeNull();
+    expect(readAuthReturnToParam('/sign-in')).toBeNull();
+    expect(readAuthReturnToParam('/profile')).toBeNull();
+  });
+});
+
 describe('LiveSessionModal', () => {
   test('returns nothing while auth is loading', () => {
     modalAuthStatus = 'loading';
@@ -219,7 +254,9 @@ describe('LiveSessionModal', () => {
     const element = LiveSessionModal() as ModalElement;
 
     expect(element?.type).toBe(RedirectMock);
-    expect(element?.props.href).toBe('/sign-in');
+    expect(element?.props.href).toBe(
+      '/sign-in?returnTo=%2Flive-session%3FsessionId%3DTGl2ZVNlc3Npb246MTIz',
+    );
   });
 
   test('keeps missing-session state for authenticated users', () => {
