@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  clearLiveSessionWatchPendingMutation,
   createLiveSessionWatchState,
+  isLiveSessionWatchMutationPending,
   liveSessionWatchReducer,
   readLiveSessionWatchSubmission,
 } from './liveSessionWatchReducer';
@@ -43,6 +45,14 @@ describe('liveSessionWatchReducer', () => {
       liveSessionWatchReducer(state, {
         type: 'join_succeeded',
         sessionId: 'old-session',
+      }),
+    ).toBe(state);
+
+    expect(
+      liveSessionWatchReducer(state, {
+        error: 'Stale error',
+        sessionId: 'old-session',
+        type: 'join_failed',
       }),
     ).toBe(state);
   });
@@ -172,5 +182,29 @@ describe('liveSessionWatchReducer', () => {
       'joining',
     );
     expect(readLiveSessionWatchSubmission(joining, 'new-session')).toBe('idle');
+  });
+
+  test('matches and clears pending mutations by session and kind', () => {
+    const pending = { kind: 'join' as const, sessionId: 'session-1' };
+
+    expect(
+      isLiveSessionWatchMutationPending(pending, 'session-1', 'join'),
+    ).toBe(true);
+    expect(
+      isLiveSessionWatchMutationPending(pending, 'session-1', 'leave'),
+    ).toBe(false);
+    expect(
+      isLiveSessionWatchMutationPending(pending, 'session-2', 'join'),
+    ).toBe(false);
+
+    expect(
+      clearLiveSessionWatchPendingMutation(pending, 'session-2', 'join'),
+    ).toBe(pending);
+    expect(
+      clearLiveSessionWatchPendingMutation(pending, 'session-1', 'leave'),
+    ).toBe(pending);
+    expect(
+      clearLiveSessionWatchPendingMutation(pending, 'session-1', 'join'),
+    ).toBeNull();
   });
 });

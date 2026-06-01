@@ -2,6 +2,7 @@ import React, {
   Suspense,
   useEffect,
   useReducer,
+  useRef,
   type PropsWithChildren,
 } from 'react';
 import { useRouter } from 'expo-router';
@@ -25,9 +26,12 @@ import {
   type LiveSessionVisibility,
 } from './liveSessionPresentation';
 import {
+  clearLiveSessionWatchPendingMutation,
   createLiveSessionWatchState,
+  isLiveSessionWatchMutationPending,
   liveSessionWatchReducer,
   readLiveSessionWatchSubmission,
+  type LiveSessionWatchPendingMutation,
 } from './liveSessionWatchReducer';
 import type { LiveSessionWatchScreenJoinMutation } from './__generated__/LiveSessionWatchScreenJoinMutation.graphql';
 import type { LiveSessionWatchScreenLeaveMutation } from './__generated__/LiveSessionWatchScreenLeaveMutation.graphql';
@@ -41,6 +45,14 @@ type LiveSessionNode = Extract<
 
 type LiveSessionWatchScreenProps = {
   sessionId: string;
+};
+
+type PendingMutationRef = {
+  current: LiveSessionWatchPendingMutation | null;
+};
+
+type LiveSessionWatchContentProps = LiveSessionWatchScreenProps & {
+  pendingMutationRef: PendingMutationRef;
 };
 
 const liveSessionWatchScreenJoinMutation = graphql`
@@ -86,6 +98,9 @@ export function LiveSessionWatchScreen({
   sessionId,
 }: LiveSessionWatchScreenProps) {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
+  const pendingMutationRef = useRef<LiveSessionWatchPendingMutation | null>(
+    null,
+  );
   const resetKey = `${sessionId}:${queryRetryKey}`;
 
   return (
@@ -95,7 +110,11 @@ export function LiveSessionWatchScreen({
           <ScreenState state="loading" message="Loading live session..." />
         }
       >
-        <LiveSessionWatchContent key={resetKey} sessionId={sessionId} />
+        <LiveSessionWatchContent
+          key={resetKey}
+          pendingMutationRef={pendingMutationRef}
+          sessionId={sessionId}
+        />
       </Suspense>
     </LiveSessionWatchErrorBoundary>
   );
@@ -134,7 +153,10 @@ class LiveSessionWatchErrorBoundary extends React.Component<
   }
 }
 
-function LiveSessionWatchContent({ sessionId }: LiveSessionWatchScreenProps) {
+function LiveSessionWatchContent({
+  pendingMutationRef,
+  sessionId,
+}: LiveSessionWatchContentProps) {
   const theme = useAppTheme();
   const router = useRouter();
   const data = useLazyLoadQuery<LiveSessionWatchScreenQuery>(
@@ -201,10 +223,20 @@ function LiveSessionWatchContent({ sessionId }: LiveSessionWatchScreenProps) {
   const hasActiveSubmission = visibleSubmission !== 'idle';
 
   function handleJoinPress() {
-    if (!enterable || hasActiveSubmission || isJoined) {
+    if (
+      !enterable ||
+      hasActiveSubmission ||
+      isJoined ||
+      isLiveSessionWatchMutationPending(
+        pendingMutationRef.current,
+        session.id,
+        'join',
+      )
+    ) {
       return;
     }
 
+    pendingMutationRef.current = { kind: 'join', sessionId: session.id };
     dispatchWatchAction({ type: 'join_started', sessionId: session.id });
 
     commitJoinLiveSession({
@@ -215,6 +247,11 @@ function LiveSessionWatchContent({ sessionId }: LiveSessionWatchScreenProps) {
       },
       onCompleted: (payload) => {
         const result = payload.joinLiveSession;
+        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
+          pendingMutationRef.current,
+          session.id,
+          'join',
+        );
 
         if (!result?.liveSession || result.errors.length > 0) {
           dispatchWatchAction({
@@ -231,6 +268,11 @@ function LiveSessionWatchContent({ sessionId }: LiveSessionWatchScreenProps) {
         });
       },
       onError: () => {
+        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
+          pendingMutationRef.current,
+          session.id,
+          'join',
+        );
         dispatchWatchAction({
           error: formatLiveMutationErrors([]),
           sessionId: session.id,
@@ -241,10 +283,19 @@ function LiveSessionWatchContent({ sessionId }: LiveSessionWatchScreenProps) {
   }
 
   function handleLeavePress() {
-    if (!isJoined || hasActiveSubmission) {
+    if (
+      !isJoined ||
+      hasActiveSubmission ||
+      isLiveSessionWatchMutationPending(
+        pendingMutationRef.current,
+        session.id,
+        'leave',
+      )
+    ) {
       return;
     }
 
+    pendingMutationRef.current = { kind: 'leave', sessionId: session.id };
     dispatchWatchAction({ type: 'leave_started', sessionId: session.id });
 
     commitLeaveLiveSession({
@@ -255,6 +306,11 @@ function LiveSessionWatchContent({ sessionId }: LiveSessionWatchScreenProps) {
       },
       onCompleted: (payload) => {
         const result = payload.leaveLiveSession;
+        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
+          pendingMutationRef.current,
+          session.id,
+          'leave',
+        );
 
         if (!result?.left || result.errors.length > 0) {
           dispatchWatchAction({
@@ -271,6 +327,11 @@ function LiveSessionWatchContent({ sessionId }: LiveSessionWatchScreenProps) {
         });
       },
       onError: () => {
+        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
+          pendingMutationRef.current,
+          session.id,
+          'leave',
+        );
         dispatchWatchAction({
           error: formatLiveMutationErrors([]),
           sessionId: session.id,

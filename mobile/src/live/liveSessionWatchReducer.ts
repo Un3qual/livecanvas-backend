@@ -1,10 +1,16 @@
 export type LiveSessionWatchSubmission = 'idle' | 'joining' | 'leaving';
+export type LiveSessionWatchMutationKind = 'join' | 'leave';
 
 export type LiveSessionWatchState = {
   readonly activeSessionId: string | null;
   readonly error: string | null;
   readonly isJoined: boolean;
   readonly submission: LiveSessionWatchSubmission;
+};
+
+export type LiveSessionWatchPendingMutation = {
+  readonly kind: LiveSessionWatchMutationKind;
+  readonly sessionId: string;
 };
 
 export type LiveSessionWatchAction =
@@ -30,6 +36,26 @@ export function readLiveSessionWatchSubmission(
   sessionId: string,
 ): LiveSessionWatchSubmission {
   return state.activeSessionId === sessionId ? state.submission : 'idle';
+}
+
+export function isLiveSessionWatchMutationPending(
+  pendingMutation: LiveSessionWatchPendingMutation | null,
+  sessionId: string,
+  kind: LiveSessionWatchMutationKind,
+): boolean {
+  return (
+    pendingMutation?.sessionId === sessionId && pendingMutation.kind === kind
+  );
+}
+
+export function clearLiveSessionWatchPendingMutation(
+  pendingMutation: LiveSessionWatchPendingMutation | null,
+  sessionId: string,
+  kind: LiveSessionWatchMutationKind,
+): LiveSessionWatchPendingMutation | null {
+  return isLiveSessionWatchMutationPending(pendingMutation, sessionId, kind)
+    ? null
+    : pendingMutation;
 }
 
 export function liveSessionWatchReducer(
