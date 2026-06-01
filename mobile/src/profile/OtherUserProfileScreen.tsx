@@ -159,10 +159,25 @@ export function OtherUserProfileScreen({ id }: { id: string }) {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
   const [relationshipStateOverride, setRelationshipStateOverride] =
     useState<RelationshipState | null>(null);
+  const currentProfileIdRef = useRef(id);
+
+  currentProfileIdRef.current = id;
 
   useEffect(() => {
     setRelationshipStateOverride(null);
   }, [id]);
+
+  const handleRelationshipMutationSuccess = (
+    profileId: string,
+    state: RelationshipState,
+  ) => {
+    if (currentProfileIdRef.current !== profileId) {
+      return;
+    }
+
+    setRelationshipStateOverride(state);
+    retryQuery();
+  };
 
   return (
     <OtherUserProfileErrorBoundary
@@ -172,8 +187,7 @@ export function OtherUserProfileScreen({ id }: { id: string }) {
       <OtherUserProfileContent
         id={id}
         key={queryRetryKey}
-        onRefresh={retryQuery}
-        onRelationshipStateOverride={setRelationshipStateOverride}
+        onRelationshipMutationSuccess={handleRelationshipMutationSuccess}
         relationshipStateOverride={relationshipStateOverride}
       />
     </OtherUserProfileErrorBoundary>
@@ -215,13 +229,14 @@ class OtherUserProfileErrorBoundary extends React.Component<
 
 function OtherUserProfileContent({
   id,
-  onRefresh,
-  onRelationshipStateOverride,
+  onRelationshipMutationSuccess,
   relationshipStateOverride,
 }: {
   id: string;
-  onRefresh: () => void;
-  onRelationshipStateOverride: (state: RelationshipState) => void;
+  onRelationshipMutationSuccess: (
+    profileId: string,
+    state: RelationshipState,
+  ) => void;
   relationshipStateOverride: RelationshipState | null;
 }) {
   const theme = useAppTheme();
@@ -295,8 +310,7 @@ function OtherUserProfileContent({
           return;
         }
 
-        onRelationshipStateOverride(result.follow.state);
-        onRefresh();
+        onRelationshipMutationSuccess(id, result.follow.state);
       },
       onError: () => {
         activeFollowSubmissionRef.current = false;
