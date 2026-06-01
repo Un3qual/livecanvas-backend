@@ -9,6 +9,7 @@ defmodule LC.ChatTimelineTest do
 
   alias LCSchemas.Chat.{
     LiveSessionTimelineChatMessage,
+    LiveSessionTimelineChatMessageEdit,
     LiveSessionTimelineChatMessageState,
     LiveSessionTimelineEvent,
     LiveSessionTimelineEventState
@@ -129,6 +130,32 @@ defmodule LC.ChatTimelineTest do
         |> Repo.all()
 
       assert length(edit_events) == 2
+      assert [first_edit_event, second_edit_event] = edit_events
+
+      edit_facts =
+        from(edit in LiveSessionTimelineChatMessageEdit,
+          where: edit.timeline_event_id in ^[first_edit_event.id, second_edit_event.id]
+        )
+        |> Repo.all()
+        |> Map.new(&{&1.timeline_event_id, &1})
+
+      assert map_size(edit_facts) == 2
+
+      assert %LiveSessionTimelineChatMessageEdit{
+               target_event_id: first_target_event_id,
+               previous_body: "helo world",
+               new_body: "hello world"
+             } = Map.fetch!(edit_facts, first_edit_event.id)
+
+      assert first_target_event_id == original.id
+
+      assert %LiveSessionTimelineChatMessageEdit{
+               target_event_id: second_target_event_id,
+               previous_body: "hello world",
+               new_body: "hello, world"
+             } = Map.fetch!(edit_facts, second_edit_event.id)
+
+      assert second_target_event_id == original.id
     end
 
     test "denies edits from non-senders" do
