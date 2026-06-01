@@ -90,6 +90,20 @@ defmodule LiveCanvas.Repo.Migrations.CreateLiveSessionTimelineEvents do
              check: "action_type in ('message_removed', 'user_muted', 'user_banned')"
            )
 
+    execute(
+      """
+      alter table live_session_moderation_actions
+      add constraint live_session_moderation_actions_target_same_session_fk
+      foreign key (target_event_id, live_session_id)
+      references live_session_timeline_events(id, live_session_id)
+      on delete set null (target_event_id)
+      """,
+      """
+      alter table live_session_moderation_actions
+      drop constraint if exists live_session_moderation_actions_target_same_session_fk
+      """
+    )
+
     create table(:live_session_timeline_event_states, primary_key: false) do
       add :timeline_event_id,
           references(:live_session_timeline_events, on_delete: :delete_all),
@@ -124,6 +138,34 @@ defmodule LiveCanvas.Repo.Migrations.CreateLiveSessionTimelineEvents do
              check:
                "projection_state in ('visible', 'hidden', 'redacted_placeholder', 'internal')"
            )
+
+    execute(
+      """
+      alter table live_session_timeline_event_states
+      add constraint live_session_timeline_event_states_event_same_session_fk
+      foreign key (timeline_event_id, live_session_id)
+      references live_session_timeline_events(id, live_session_id)
+      on delete cascade
+      """,
+      """
+      alter table live_session_timeline_event_states
+      drop constraint if exists live_session_timeline_event_states_event_same_session_fk
+      """
+    )
+
+    execute(
+      """
+      alter table live_session_timeline_event_states
+      add constraint live_session_timeline_event_states_superseded_same_session_fk
+      foreign key (superseded_by_event_id, live_session_id)
+      references live_session_timeline_events(id, live_session_id)
+      on delete set null (superseded_by_event_id)
+      """,
+      """
+      alter table live_session_timeline_event_states
+      drop constraint if exists live_session_timeline_event_states_superseded_same_session_fk
+      """
+    )
 
     create table(:live_session_timeline_chat_messages, primary_key: false) do
       add :timeline_event_id,

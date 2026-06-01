@@ -113,4 +113,95 @@ defmodule LCSchemas.Chat.TimelineEventSchemaTest do
     assert Repo.get!(LiveSessionTimelineModerationEvent, moderation_event.id).moderation_action_id ==
              moderation_action.id
   end
+
+  test "moderation actions cannot target timeline events from another live session" do
+    %{host: source_host, session: source_session} = live_session_fixture()
+    %{host: other_host, session: other_session} = live_session_fixture()
+    target_event = insert_timeline_event!(source_session, source_host)
+
+    assert %LiveSessionModerationAction{target_event_id: nil} =
+             Repo.insert!(%LiveSessionModerationAction{
+               live_session_id: other_session.id,
+               action_type: :user_muted,
+               actor_user_id: other_host.id,
+               target_user_id: source_host.id
+             })
+
+    assert_raise Ecto.ConstraintError,
+                 ~r/live_session_moderation_actions_target_same_session_fk/,
+                 fn ->
+                   Repo.insert!(%LiveSessionModerationAction{
+                     live_session_id: other_session.id,
+                     action_type: :message_removed,
+                     actor_user_id: other_host.id,
+                     target_user_id: source_host.id,
+                     target_event_id: target_event.id
+                   })
+                 end
+  end
+
+  test "event states cannot denormalize a different live session than their timeline event" do
+    %{host: source_host, session: source_session} = live_session_fixture()
+    %{session: other_session} = live_session_fixture()
+    timeline_event = insert_timeline_event!(source_session, source_host)
+
+    assert_raise Ecto.ConstraintError,
+                 ~r/live_session_timeline_event_states_event_same_session_fk/,
+                 fn ->
+                   Repo.insert!(%LiveSessionTimelineEventState{
+                     timeline_event_id: timeline_event.id,
+                     live_session_id: other_session.id,
+                     occurred_at: timeline_event.occurred_at,
+                     projection_state: :visible,
+                     updated_at: now_utc()
+                   })
+                 end
+  end
+
+  test "event states cannot point superseded events at another live session" do
+    %{host: source_host, session: source_session} = live_session_fixture()
+    %{host: other_host, session: other_session} = live_session_fixture()
+    timeline_event = insert_timeline_event!(source_session, source_host)
+    superseding_event = insert_timeline_event!(other_session, other_host)
+
+    assert_raise Ecto.ConstraintError,
+                 ~r/live_session_timeline_event_states_superseded_same_session_fk/,
+                 fn ->
+                   Repo.insert!(%LiveSessionTimelineEventState{
+                     timeline_event_id: timeline_event.id,
+                     live_session_id: source_session.id,
+                     occurred_at: timeline_event.occurred_at,
+                     projection_state: :hidden,
+                     superseded_by_event_id: superseding_event.id,
+                     updated_at: now_utc()
+                   })
+                 end
+  end
+
+  defp live_session_fixture do
+    host = user_fixture(privacy_mode: :public)
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    %{host: host, session: session}
+  end
+
+  defp insert_timeline_event!(live_session, actor, attrs \\ %{}) do
+    attrs =
+      Map.merge(
+        %{
+          live_session_id: live_session.id,
+          actor_user_id: actor.id,
+          event_type: :chat_message_sent,
+          occurred_at: now_utc(),
+          payload: %{}
+        },
+        attrs
+      )
+
+    Repo.insert!(struct(LiveSessionTimelineEvent, attrs))
+  end
+
+  defp now_utc do
+    DateTime.utc_now() |> DateTime.truncate(:microsecond)
+  end
 end
