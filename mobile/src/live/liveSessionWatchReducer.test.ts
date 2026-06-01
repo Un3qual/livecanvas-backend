@@ -7,6 +7,7 @@ import {
   isLiveSessionWatchMutationPending,
   liveSessionWatchReducer,
   readLiveSessionWatchSubmission,
+  shouldAutoLeaveLiveSession,
 } from './liveSessionWatchReducer';
 
 describe('liveSessionWatchReducer', () => {
@@ -213,5 +214,30 @@ describe('liveSessionWatchReducer', () => {
     expect(
       clearLiveSessionWatchPendingMutation(pending, 'session-1', 'join'),
     ).toBeNull();
+  });
+
+  test('only auto-leaves an idle joined active session without pending work', () => {
+    const joined = {
+      activeSessionId: 'session-1',
+      error: null,
+      isJoined: true,
+      submission: 'idle' as const,
+    };
+
+    expect(shouldAutoLeaveLiveSession(joined, 'session-1', null)).toBe(true);
+    expect(shouldAutoLeaveLiveSession(joined, 'session-2', null)).toBe(false);
+    expect(
+      shouldAutoLeaveLiveSession(joined, 'session-1', {
+        kind: 'leave',
+        sessionId: 'session-1',
+      }),
+    ).toBe(false);
+    expect(
+      shouldAutoLeaveLiveSession(
+        { ...joined, submission: 'leaving' },
+        'session-1',
+        null,
+      ),
+    ).toBe(false);
   });
 });

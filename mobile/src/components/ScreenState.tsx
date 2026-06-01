@@ -7,7 +7,12 @@ import { AppButton } from './AppButton';
 
 type LoadingState = { state: 'loading'; message?: string };
 type ErrorState = { state: 'error'; message: string; onRetry?: () => void };
-type EmptyState = { state: 'empty'; message: string };
+type EmptyState = {
+  state: 'empty';
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
 
 type ScreenStateProps = LoadingState | ErrorState | EmptyState;
 
@@ -65,6 +70,13 @@ export function ScreenState(props: ScreenStateProps) {
           <Text style={[styles.message, { color: theme.colors.textMuted }]}>
             {props.message}
           </Text>
+          {props.actionLabel && props.onAction ? (
+            <AppButton
+              label={props.actionLabel}
+              onPress={props.onAction}
+              variant="secondary"
+            />
+          ) : null}
         </View>
       );
   }

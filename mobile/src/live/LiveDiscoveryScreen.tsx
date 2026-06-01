@@ -150,6 +150,8 @@ function LiveDiscoveryContent() {
       <ScreenState
         state="empty"
         message="No live sessions are available right now."
+        actionLabel="Open profile"
+        onAction={openViewerProfile}
       />
     );
   }

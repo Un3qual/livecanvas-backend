@@ -65,6 +65,19 @@ export function clearLiveSessionWatchPendingMutation(
     : pendingMutation;
 }
 
+export function shouldAutoLeaveLiveSession(
+  state: LiveSessionWatchState,
+  sessionId: string,
+  pendingMutation: LiveSessionWatchPendingMutation | null,
+): boolean {
+  return (
+    state.activeSessionId === sessionId &&
+    state.isJoined &&
+    state.submission === 'idle' &&
+    !isLiveSessionWatchAnyMutationPending(pendingMutation, sessionId)
+  );
+}
+
 export function liveSessionWatchReducer(
   state: LiveSessionWatchState,
   action: LiveSessionWatchAction,
