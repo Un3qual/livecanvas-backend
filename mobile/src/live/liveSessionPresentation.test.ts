@@ -1,0 +1,86 @@
+import { describe, expect, test } from 'bun:test';
+
+import {
+  canEnterLiveSession,
+  formatLiveMutationErrors,
+  formatLiveSessionStatus,
+  formatLiveSessionTiming,
+  formatLiveSessionVisibility,
+} from './liveSessionPresentation';
+
+describe('liveSessionPresentation', () => {
+  test('formats known and future live-session statuses', () => {
+    expect(formatLiveSessionStatus('STARTING')).toEqual({
+      label: 'Starting soon',
+      tone: 'pending',
+    });
+    expect(formatLiveSessionStatus('LIVE')).toEqual({
+      label: 'Live now',
+      tone: 'live',
+    });
+    expect(formatLiveSessionStatus('ENDED')).toEqual({
+      label: 'Ended',
+      tone: 'ended',
+    });
+    expect(formatLiveSessionStatus('%future added value')).toEqual({
+      label: 'Status unavailable',
+      tone: 'ended',
+    });
+  });
+
+  test('treats starting and live sessions as enterable', () => {
+    expect(canEnterLiveSession('STARTING')).toBe(true);
+    expect(canEnterLiveSession('LIVE')).toBe(true);
+    expect(canEnterLiveSession('ENDED')).toBe(false);
+    expect(canEnterLiveSession('%future added value')).toBe(false);
+  });
+
+  test('formats visibility without leaking policy internals', () => {
+    expect(formatLiveSessionVisibility('PUBLIC')).toBe('Public');
+    expect(formatLiveSessionVisibility('FOLLOWERS')).toBe('Followers');
+    expect(formatLiveSessionVisibility('%future added value')).toBe('Visibility unavailable');
+  });
+
+  test('formats timing from the status-specific timestamp', () => {
+    expect(
+      formatLiveSessionTiming({
+        endedAt: null,
+        insertedAt: '2026-06-01T16:00:00Z',
+        startedAt: '2026-06-01T16:04:00Z',
+        status: 'LIVE',
+      }),
+    ).toBe('Live since Jun 1, 2026');
+
+    expect(
+      formatLiveSessionTiming({
+        endedAt: '2026-06-01T17:10:00Z',
+        insertedAt: '2026-06-01T16:00:00Z',
+        startedAt: '2026-06-01T16:04:00Z',
+        status: 'ENDED',
+      }),
+    ).toBe('Ended Jun 1, 2026');
+  });
+
+  test('keeps malformed timing explicit', () => {
+    expect(
+      formatLiveSessionTiming({
+        endedAt: null,
+        insertedAt: 'not-a-date',
+        startedAt: null,
+        status: 'STARTING',
+      }),
+    ).toBe('Time unavailable');
+  });
+
+  test('maps mutation errors to viewer-safe copy', () => {
+    expect(formatLiveMutationErrors([{ field: null, message: 'rate_limited' }])).toBe(
+      'Too many live-session attempts. Wait a moment and try again.',
+    );
+    expect(
+      formatLiveMutationErrors([{ field: 'liveSessionId', message: 'not_authorized' }]),
+    ).toBe('This live session is not available to your account.');
+    expect(formatLiveMutationErrors([])).toBe(
+      'We could not update this live session. Check your connection and try again.',
+    );
+  });
+});
