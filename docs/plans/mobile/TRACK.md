@@ -8,7 +8,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Track Status
 
-- Status: executing profiles/social basics plan - Task 2 (viewer privacy mode updates)
+- Status: profiles/social basics complete; next detailed plan needed for live discovery plus viewer watch flow
 - Approved overview: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
 - Approved bootstrap design:
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
@@ -17,11 +17,11 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 - Completed detailed plans:
   - `docs/plans/mobile/2026-03-22-mobile-app-shell-routing-and-global-providers.md`
   - `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`
-- Current detailed plan:
-  `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
+  - `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
+- Current detailed plan: none active
 - Lane execution pointer: `docs/plans/mobile/NOW.md`
 - Coordinator dashboard: `docs/plans/NOW.md`
-- Next lane batch: implement `Task 2: Add viewer privacy mode updates` from the profiles/social basics plan.
+- Next lane batch: create the live discovery plus viewer watch-flow detailed implementation plan.
 
 ## Recommended Detailed Plan Order
 

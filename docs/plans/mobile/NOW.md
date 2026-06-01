@@ -1,7 +1,7 @@
 # Mobile Lane Execution
 
 Last reviewed: 2026-06-01
-Status: active for execution
+Status: profiles/social basics complete; next mobile batch needs planning
 
 ## Lane Scope
 
@@ -10,33 +10,25 @@ Status: active for execution
 
 ## Current Batch
 
-- Track: `profiles_social_basics`
+- Track: none active after profiles/social closeout
 - Source: `docs/plans/mobile/TRACK.md`
-- Plan: `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
-- Batch: `Task 4: Add other-user profile route and relationship follow affordance`
-- Why now: Task 3 now wires pending follow-request accept/decline actions into the Relay-backed viewer profile surface. Other-user profile navigation and supported follow/request affordances are the next unblocked profile interaction.
+- Plan: no active detailed mobile implementation plan remains until the next plan is written.
+- Batch: no active mobile implementation batch remains until the next detailed plan is written.
+- Why now: The profiles/social basics plan is complete and the mobile lane is ready to plan the next product slice.
 
 ## Do This Now
 
-- Implement `Task 4` from `docs/plans/mobile/2026-04-24-profiles-social-basics.md`.
-- Create the relationship presentation helper and tests.
-- Add the other-user profile route guarded through Relay `node(id:)`.
-- Add profile-row navigation from social previews to `/profiles/[id]`.
-- Wire the supported `followUser(input: { followedId })` affordance for states backed by the current GraphQL contract.
-- Run the focused relationship presentation tests, Relay compiler, and `tsc --noEmit`.
+- Create the next detailed mobile implementation plan for live discovery plus viewer watch flow.
+- Preserve the mobile lane scope: own `mobile/` and `docs/plans/mobile/**` only.
+- Do not edit backend Elixir/GraphQL code or coordinator-owned shared docs from the mobile lane.
 
 ## Verification Scope
 
-```bash
-cd mobile
-bun test src/profile/relationshipPresentation.test.ts
-pnpm exec relay-compiler
-pnpm exec tsc --noEmit
-```
+No implementation batch is active. Verification scope should be defined by the next detailed mobile plan.
 
 ## Next Up
 
-- Task 5: Verify the profiles/social slice and advance mobile planning pointers.
+- Live discovery plus viewer watch-flow detailed implementation plan.
 
 ## Repair Conditions
 

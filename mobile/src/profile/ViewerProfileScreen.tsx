@@ -5,7 +5,8 @@ import React, {
   useRef,
   type PropsWithChildren,
 } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
@@ -156,6 +157,10 @@ class ViewerProfileErrorBoundary extends React.Component<
 
 function ViewerProfileContent() {
   const theme = useAppTheme();
+  const router = useRouter();
+  const openProfile = (userId: string) => {
+    router.push({ pathname: '/profiles/[id]', params: { id: userId } });
+  };
   const data = useLazyLoadQuery<ViewerProfileScreenQuery>(
     graphql`
       query ViewerProfileScreenQuery {
@@ -466,6 +471,7 @@ function ViewerProfileContent() {
         <ProfilePreviewList
           users={followers}
           emptyMessage="No followers are visible yet."
+          onOpenProfile={openProfile}
         />
       </AppCard>
 
@@ -477,6 +483,7 @@ function ViewerProfileContent() {
         <ProfilePreviewList
           users={following}
           emptyMessage="No followed profiles are visible yet."
+          onOpenProfile={openProfile}
         />
       </AppCard>
 
@@ -489,6 +496,7 @@ function ViewerProfileContent() {
           activeAction={followRequestState.activeAction}
           errorsByRequestId={followRequestState.errorsByRequestId}
           onAction={submitFollowRequestAction}
+          onOpenProfile={openProfile}
           requests={pendingRequests}
         />
       </AppCard>
@@ -543,9 +551,11 @@ function SectionHeading({
 function ProfilePreviewList({
   users,
   emptyMessage,
+  onOpenProfile,
 }: {
   users: ReadonlyArray<ProfileUser>;
   emptyMessage: string;
+  onOpenProfile: (userId: string) => void;
 }) {
   if (users.length === 0) {
     return <EmptyCardMessage message={emptyMessage} />;
@@ -554,19 +564,37 @@ function ProfilePreviewList({
   return (
     <View style={styles.list}>
       {users.map((user) => (
-        <ProfilePreviewRow key={user.id} user={user} />
+        <ProfilePreviewRow
+          key={user.id}
+          onOpenProfile={onOpenProfile}
+          user={user}
+        />
       ))}
     </View>
   );
 }
 
-function ProfilePreviewRow({ user }: { user: ProfileUser }) {
+function ProfilePreviewRow({
+  onOpenProfile,
+  user,
+}: {
+  onOpenProfile: (userId: string) => void;
+  user: ProfileUser;
+}) {
   const theme = useAppTheme();
   const identity = formatProfileIdentity(user);
   const privacy = formatPrivacyModeLabel(user.privacyMode);
 
   return (
-    <View style={[styles.row, { borderColor: theme.colors.border }]}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => onOpenProfile(user.id)}
+      style={({ pressed }) => [
+        styles.row,
+        { borderColor: theme.colors.border },
+        pressed ? styles.pressedRow : null,
+      ]}
+    >
       <View
         style={[
           styles.smallAvatar,
@@ -585,7 +613,7 @@ function ProfilePreviewRow({ user }: { user: ProfileUser }) {
           {privacy.label}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -593,6 +621,7 @@ function PendingRequestPreviewList({
   activeAction,
   errorsByRequestId,
   onAction,
+  onOpenProfile,
   requests,
 }: {
   activeAction: FollowRequestState['activeAction'];
@@ -601,6 +630,7 @@ function PendingRequestPreviewList({
     request: PendingFollowRequest,
     action: FollowRequestActionKind,
   ) => void;
+  onOpenProfile: (userId: string) => void;
   requests: ReadonlyArray<PendingFollowRequest>;
 }) {
   if (requests.length === 0) {
@@ -615,6 +645,7 @@ function PendingRequestPreviewList({
           errorMessage={errorsByRequestId[request.id]}
           key={request.id}
           onAction={onAction}
+          onOpenProfile={onOpenProfile}
           request={request}
         />
       ))}
@@ -626,6 +657,7 @@ function PendingRequestPreviewRow({
   activeAction,
   errorMessage,
   onAction,
+  onOpenProfile,
   request,
 }: {
   activeAction: FollowRequestState['activeAction'];
@@ -634,6 +666,7 @@ function PendingRequestPreviewRow({
     request: PendingFollowRequest,
     action: FollowRequestActionKind,
   ) => void;
+  onOpenProfile: (userId: string) => void;
   request: PendingFollowRequest;
 }) {
   const theme = useAppTheme();
@@ -644,52 +677,65 @@ function PendingRequestPreviewRow({
     activeAction != null && activeAction.requestId !== request.id;
 
   return (
-    <View style={[styles.row, { borderColor: theme.colors.border }]}>
-      <View
-        style={[
-          styles.smallAvatar,
-          { backgroundColor: theme.colors.surfaceMuted },
+    <View style={[styles.requestRow, { borderColor: theme.colors.border }]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => onOpenProfile(request.follower.id)}
+        style={({ pressed }) => [
+          styles.requestIdentity,
+          pressed ? styles.pressedRow : null,
         ]}
       >
-        <Text style={[styles.smallAvatarText, { color: theme.colors.accent }]}>
-          {identity.initials}
-        </Text>
-      </View>
-      <View style={styles.rowBody}>
-        <Text style={[styles.rowTitle, { color: theme.colors.text }]}>
-          {identity.title}
-        </Text>
-        <Text style={[styles.rowSubtitle, { color: theme.colors.textMuted }]}>
-          {requestPreview.stateLabel} - {requestPreview.requestedAtLabel}
-        </Text>
-        {errorMessage ? (
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>
-            {errorMessage}
+        <View
+          style={[
+            styles.smallAvatar,
+            { backgroundColor: theme.colors.surfaceMuted },
+          ]}
+        >
+          <Text
+            style={[styles.smallAvatarText, { color: theme.colors.accent }]}
+          >
+            {identity.initials}
           </Text>
-        ) : null}
-        <View style={styles.rowActions}>
-          <AppButton
-            disabled={isBlockedByAnotherRequest || isActive}
-            label={
-              isActive && activeAction?.action === 'accept'
-                ? 'Accepting...'
-                : 'Accept'
-            }
-            onPress={() => onAction(request, 'accept')}
-            style={styles.rowActionButton}
-          />
-          <AppButton
-            disabled={isBlockedByAnotherRequest || isActive}
-            label={
-              isActive && activeAction?.action === 'decline'
-                ? 'Declining...'
-                : 'Decline'
-            }
-            onPress={() => onAction(request, 'decline')}
-            style={styles.rowActionButton}
-            variant="secondary"
-          />
         </View>
+        <View style={styles.rowBody}>
+          <Text style={[styles.rowTitle, { color: theme.colors.text }]}>
+            {identity.title}
+          </Text>
+          <Text
+            style={[styles.rowSubtitle, { color: theme.colors.textMuted }]}
+          >
+            {requestPreview.stateLabel} - {requestPreview.requestedAtLabel}
+          </Text>
+          {errorMessage ? (
+            <Text style={[styles.errorText, { color: theme.colors.error }]}>
+              {errorMessage}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+      <View style={styles.rowActions}>
+        <AppButton
+          disabled={isBlockedByAnotherRequest || isActive}
+          label={
+            isActive && activeAction?.action === 'accept'
+              ? 'Accepting...'
+              : 'Accept'
+          }
+          onPress={() => onAction(request, 'accept')}
+          style={styles.rowActionButton}
+        />
+        <AppButton
+          disabled={isBlockedByAnotherRequest || isActive}
+          label={
+            isActive && activeAction?.action === 'decline'
+              ? 'Declining...'
+              : 'Decline'
+          }
+          onPress={() => onAction(request, 'decline')}
+          style={styles.rowActionButton}
+          variant="secondary"
+        />
       </View>
     </View>
   );
@@ -791,6 +837,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: radius.md,
     padding: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  pressedRow: {
+    opacity: 0.78,
+  },
+  requestRow: {
+    minHeight: 104,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    gap: spacing.sm,
+  },
+  requestIdentity: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,

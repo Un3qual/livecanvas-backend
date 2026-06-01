@@ -1,0 +1,453 @@
+import React, {
+  useReducer,
+  useRef,
+  useState,
+  type PropsWithChildren,
+} from 'react';
+import { useRouter } from 'expo-router';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
+
+import { AppButton } from '../components/AppButton';
+import { AppCard } from '../components/AppCard';
+import { AppHeader } from '../components/AppHeader';
+import { ScreenState } from '../components/ScreenState';
+import { useAppTheme } from '../providers/ThemeProvider';
+import { radius, spacing, typography } from '../theme/tokens';
+import {
+  countConnectionEdges,
+  formatConnectionPreviewCount,
+  formatPrivacyModeLabel,
+  formatProfileIdentity,
+} from './profilePresentation';
+import { describeRelationshipState } from './relationshipPresentation';
+import type { OtherUserProfileScreenFollowUserMutation } from './__generated__/OtherUserProfileScreenFollowUserMutation.graphql';
+import type { OtherUserProfileScreenQuery } from './__generated__/OtherUserProfileScreenQuery.graphql';
+
+type OtherUserProfileData = OtherUserProfileScreenQuery['response'];
+type OtherUserProfileNode = OtherUserProfileData['node'];
+type OtherUserProfileUser = Extract<
+  NonNullable<OtherUserProfileNode>,
+  { readonly __typename: 'User' }
+>;
+
+type SocialMutationError = {
+  readonly field?: string | null;
+  readonly message: string;
+};
+
+const otherUserProfileScreenQuery = graphql`
+  query OtherUserProfileScreenQuery($id: ID!) {
+    node(id: $id) {
+      __typename
+      ... on User {
+        id
+        email
+        privacyMode
+        followers(first: 3) {
+          pageInfo {
+            hasNextPage
+          }
+          edges {
+            node {
+              id
+            }
+          }
+        }
+        following(first: 3) {
+          pageInfo {
+            hasNextPage
+          }
+          edges {
+            node {
+              id
+            }
+          }
+        }
+      }
+    }
+    relationshipState(creatorId: $id)
+    isMuted(creatorId: $id)
+  }
+`;
+
+const otherUserProfileScreenFollowUserMutation = graphql`
+  mutation OtherUserProfileScreenFollowUserMutation($input: FollowUserInput!) {
+    followUser(input: $input) {
+      follow {
+        id
+        state
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export function OtherUserProfileScreen({ id }: { id: string }) {
+  const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
+
+  return (
+    <OtherUserProfileErrorBoundary
+      key={queryRetryKey}
+      onRetry={retryQuery}
+    >
+      <OtherUserProfileContent
+        id={id}
+        key={queryRetryKey}
+        onRefresh={retryQuery}
+      />
+    </OtherUserProfileErrorBoundary>
+  );
+}
+
+type OtherUserProfileErrorBoundaryProps = PropsWithChildren<{
+  onRetry: () => void;
+}>;
+
+type OtherUserProfileErrorBoundaryState = {
+  hasError: boolean;
+};
+
+class OtherUserProfileErrorBoundary extends React.Component<
+  OtherUserProfileErrorBoundaryProps,
+  OtherUserProfileErrorBoundaryState
+> {
+  state: OtherUserProfileErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): OtherUserProfileErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <ScreenState
+          state="error"
+          message="We couldn't load this profile. Check your connection and try again."
+          onRetry={this.props.onRetry}
+        />
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function OtherUserProfileContent({
+  id,
+  onRefresh,
+}: {
+  id: string;
+  onRefresh: () => void;
+}) {
+  const theme = useAppTheme();
+  const router = useRouter();
+  const [followError, setFollowError] = useState<string | null>(null);
+  const activeFollowSubmissionRef = useRef(false);
+  const [commitFollowUser, isFollowUserMutationInFlight] =
+    useMutation<OtherUserProfileScreenFollowUserMutation>(
+      otherUserProfileScreenFollowUserMutation,
+    );
+  const data = useLazyLoadQuery<OtherUserProfileScreenQuery>(
+    otherUserProfileScreenQuery,
+    { id },
+    { fetchPolicy: 'store-and-network' },
+  );
+
+  if (!isUserNode(data.node)) {
+    return (
+      <UnavailableProfileScreen
+        message="This profile is unavailable."
+        onBack={() => router.back()}
+      />
+    );
+  }
+
+  const user = data.node;
+  const identity = formatProfileIdentity(user);
+  const privacy = formatPrivacyModeLabel(user.privacyMode);
+  const relationship = describeRelationshipState({
+    isMuted: data.isMuted,
+    state: data.relationshipState,
+  });
+  const followersPreviewCount = formatConnectionPreviewCount({
+    hasNextPage: user.followers?.pageInfo.hasNextPage,
+    visibleCount: countConnectionEdges(user.followers),
+  });
+  const followingPreviewCount = formatConnectionPreviewCount({
+    hasNextPage: user.following?.pageInfo.hasNextPage,
+    visibleCount: countConnectionEdges(user.following),
+  });
+
+  const submitFollowUser = () => {
+    if (
+      !relationship.canFollow ||
+      isFollowUserMutationInFlight ||
+      activeFollowSubmissionRef.current
+    ) {
+      return;
+    }
+
+    activeFollowSubmissionRef.current = true;
+    setFollowError(null);
+    commitFollowUser({
+      variables: {
+        input: {
+          followedId: user.id,
+        },
+      },
+      onCompleted: (payload) => {
+        activeFollowSubmissionRef.current = false;
+        const result = payload.followUser;
+
+        if (!result?.follow || result.errors.length > 0) {
+          setFollowError(formatRelationshipMutationErrors(result?.errors));
+          return;
+        }
+
+        onRefresh();
+      },
+      onError: () => {
+        activeFollowSubmissionRef.current = false;
+        setFollowError(
+          'We could not update this relationship. Check your connection and try again.',
+        );
+      },
+    });
+  };
+
+  return (
+    <ScrollView
+      style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentContainerStyle={styles.content}
+    >
+      <AppButton
+        label="Back"
+        onPress={() => router.back()}
+        style={styles.backButton}
+        variant="secondary"
+      />
+
+      <AppCard>
+        <View style={styles.identity}>
+          <View
+            style={[
+              styles.avatar,
+              { backgroundColor: theme.colors.surfaceMuted },
+            ]}
+          >
+            <Text style={[styles.avatarText, { color: theme.colors.accent }]}>
+              {identity.initials}
+            </Text>
+          </View>
+          <AppHeader
+            eyebrow="Profile"
+            title={identity.title}
+            subtitle={identity.subtitle}
+          />
+        </View>
+        <View
+          style={[
+            styles.summaryPanel,
+            {
+              backgroundColor: theme.colors.surfaceMuted,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            {privacy.label}
+          </Text>
+          <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+            {privacy.description}
+          </Text>
+        </View>
+      </AppCard>
+
+      <AppCard>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          {relationship.label}
+        </Text>
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          {relationship.status}
+        </Text>
+        {relationship.actionLabel ? (
+          <AppButton
+            disabled={!relationship.canFollow || isFollowUserMutationInFlight}
+            label={
+              isFollowUserMutationInFlight
+                ? 'Saving...'
+                : relationship.actionLabel
+            }
+            onPress={submitFollowUser}
+          />
+        ) : null}
+        {followError ? (
+          <Text style={[styles.errorText, { color: theme.colors.error }]}>
+            {followError}
+          </Text>
+        ) : null}
+      </AppCard>
+
+      <AppCard>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Visible social preview
+        </Text>
+        <View style={styles.stats}>
+          <SocialPreviewStat label="Followers" value={followersPreviewCount} />
+          <SocialPreviewStat label="Following" value={followingPreviewCount} />
+        </View>
+      </AppCard>
+    </ScrollView>
+  );
+}
+
+function SocialPreviewStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  const theme = useAppTheme();
+
+  return (
+    <View
+      style={[
+        styles.stat,
+        {
+          backgroundColor: theme.colors.surfaceMuted,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <Text style={[styles.statValue, { color: theme.colors.text }]}>
+        {value}
+      </Text>
+      <Text style={[styles.statLabel, { color: theme.colors.textMuted }]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function UnavailableProfileScreen({
+  message,
+  onBack,
+}: {
+  message: string;
+  onBack: () => void;
+}) {
+  const theme = useAppTheme();
+
+  return (
+    <View
+      style={[
+        styles.unavailableScreen,
+        { backgroundColor: theme.colors.background },
+      ]}
+    >
+      <AppButton
+        label="Back"
+        onPress={onBack}
+        style={styles.unavailableBackButton}
+        variant="secondary"
+      />
+      <ScreenState state="empty" message={message} />
+    </View>
+  );
+}
+
+function isUserNode(
+  node: OtherUserProfileNode,
+): node is OtherUserProfileUser {
+  return node?.__typename === 'User';
+}
+
+function formatRelationshipMutationErrors(
+  errors: ReadonlyArray<SocialMutationError> | null | undefined,
+): string {
+  const messages =
+    errors
+      ?.map((error) =>
+        error.field ? `${error.field}: ${error.message}` : error.message,
+      )
+      .filter((message) => message.length > 0) ?? [];
+
+  return messages.length > 0
+    ? messages.join('; ')
+    : 'We could not update this relationship.';
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  content: {
+    alignItems: 'center',
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  backButton: {
+    width: '100%',
+    maxWidth: 420,
+  },
+  identity: {
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  avatar: {
+    width: 84,
+    height: 84,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  summaryPanel: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  sectionTitle: typography.label,
+  bodyText: typography.body,
+  errorText: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  stats: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  stat: {
+    flex: 1,
+    minHeight: 72,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  statLabel: typography.label,
+  unavailableScreen: {
+    flex: 1,
+    paddingTop: spacing.lg,
+  },
+  unavailableBackButton: {
+    marginHorizontal: spacing.lg,
+  },
+});
