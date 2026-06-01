@@ -14,11 +14,6 @@ import {
 } from './LiveSessionSummaryCard';
 import type { LiveDiscoveryScreenQuery } from './__generated__/LiveDiscoveryScreenQuery.graphql';
 
-type LiveDiscoveryData = LiveDiscoveryScreenQuery['response'];
-type LiveNowEdge = NonNullable<
-  NonNullable<LiveDiscoveryData['liveNow']>['edges']
->[number];
-
 type ConnectionLike<TNode> = {
   readonly edges?:
     | ReadonlyArray<{ readonly node?: TNode | null } | null | undefined>

@@ -17,13 +17,15 @@ import { formatProfileIdentity } from '../profile/profilePresentation';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
+  badgeColorsForLiveStatusTone,
   canEnterLiveSession,
   formatLiveMutationErrors,
   formatLiveSessionStatus,
   formatLiveSessionTiming,
   formatLiveSessionVisibility,
+  normalizeLiveSessionStatus,
+  normalizeLiveSessionVisibility,
   type LiveSessionStatus,
-  type LiveSessionVisibility,
 } from './liveSessionPresentation';
 import {
   clearLiveSessionWatchPendingMutation,
@@ -273,6 +275,8 @@ function LiveSessionWatchContent({
   const isLeaving = visibleSubmission === 'leaving';
   const hasActiveSubmission = visibleSubmission !== 'idle';
 
+  // UI submission state disables controls after render; the ref closes the
+  // same-render double-tap gap before reducer state propagates.
   function handleJoinPress() {
     if (
       !enterable ||
@@ -506,7 +510,7 @@ function LiveSessionHero({
 }) {
   const theme = useAppTheme();
   const host = formatProfileIdentity(session.host);
-  const badgeColors = badgeColorsForTone(status.tone, theme);
+  const badgeColors = badgeColorsForLiveStatusTone(status.tone, theme);
 
   return (
     <AppCard>
@@ -594,29 +598,6 @@ function RecordingMetadata({
   );
 }
 
-function normalizeLiveSessionStatus(status: string): LiveSessionStatus {
-  switch (status) {
-    case 'STARTING':
-    case 'LIVE':
-    case 'ENDED':
-      return status;
-    default:
-      return '%future added value';
-  }
-}
-
-function normalizeLiveSessionVisibility(
-  visibility: string,
-): LiveSessionVisibility {
-  switch (visibility) {
-    case 'PUBLIC':
-    case 'FOLLOWERS':
-      return visibility;
-    default:
-      return '%future added value';
-  }
-}
-
 function formatRecordingProcessingState(processingState: string): string {
   switch (processingState) {
     case 'PENDING_UPLOAD':
@@ -629,33 +610,5 @@ function formatRecordingProcessingState(processingState: string): string {
       return 'Failed';
     default:
       return 'Unavailable';
-  }
-}
-
-function badgeColorsForTone(
-  tone: ReturnType<typeof formatLiveSessionStatus>['tone'],
-  theme: ReturnType<typeof useAppTheme>,
-) {
-  switch (tone) {
-    case 'live':
-      return {
-        surface: theme.colors.accent,
-        text: theme.colors.accentText,
-      };
-    case 'pending':
-      return {
-        surface: theme.colors.surfaceMuted,
-        text: theme.colors.accent,
-      };
-    case 'ended':
-      return {
-        surface: theme.colors.errorMuted,
-        text: theme.colors.error,
-      };
-    default:
-      return {
-        surface: theme.colors.surfaceMuted,
-        text: theme.colors.textMuted,
-      };
   }
 }

@@ -14,6 +14,45 @@ export type LiveStatusPresentation = {
   readonly tone: 'pending' | 'live' | 'ended';
 };
 
+type LiveSessionBadgeTheme = {
+  readonly colors: {
+    readonly accent: string;
+    readonly accentText: string;
+    readonly error: string;
+    readonly errorMuted: string;
+    readonly surfaceMuted: string;
+    readonly textMuted: string;
+  };
+};
+
+export type LiveSessionBadgeColors = {
+  readonly surface: string;
+  readonly text: string;
+};
+
+export function normalizeLiveSessionStatus(status: string): LiveSessionStatus {
+  switch (status) {
+    case 'STARTING':
+    case 'LIVE':
+    case 'ENDED':
+      return status;
+    default:
+      return '%future added value';
+  }
+}
+
+export function normalizeLiveSessionVisibility(
+  visibility: string,
+): LiveSessionVisibility {
+  switch (visibility) {
+    case 'PUBLIC':
+    case 'FOLLOWERS':
+      return visibility;
+    default:
+      return '%future added value';
+  }
+}
+
 export function formatLiveSessionStatus(
   status: LiveSessionStatus,
 ): LiveStatusPresentation {
@@ -43,6 +82,34 @@ export function formatLiveSessionVisibility(
       return 'Followers';
     default:
       return 'Visibility unavailable';
+  }
+}
+
+export function badgeColorsForLiveStatusTone(
+  tone: LiveStatusPresentation['tone'],
+  theme: LiveSessionBadgeTheme,
+): LiveSessionBadgeColors {
+  switch (tone) {
+    case 'live':
+      return {
+        surface: theme.colors.accent,
+        text: theme.colors.accentText,
+      };
+    case 'pending':
+      return {
+        surface: theme.colors.surfaceMuted,
+        text: theme.colors.accent,
+      };
+    case 'ended':
+      return {
+        surface: theme.colors.errorMuted,
+        text: theme.colors.error,
+      };
+    default:
+      return {
+        surface: theme.colors.surfaceMuted,
+        text: theme.colors.textMuted,
+      };
   }
 }
 

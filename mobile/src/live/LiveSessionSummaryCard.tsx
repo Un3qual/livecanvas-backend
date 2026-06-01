@@ -6,11 +6,12 @@ import { useAppTheme } from '../providers/ThemeProvider';
 import { formatProfileIdentity } from '../profile/profilePresentation';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
+  badgeColorsForLiveStatusTone,
   formatLiveSessionStatus,
   formatLiveSessionTiming,
   formatLiveSessionVisibility,
-  type LiveSessionStatus,
-  type LiveSessionVisibility,
+  normalizeLiveSessionStatus,
+  normalizeLiveSessionVisibility,
 } from './liveSessionPresentation';
 
 export type LiveSessionSummary = {
@@ -78,7 +79,7 @@ export function LiveSessionSummaryCard({
     status: normalizedStatus,
   });
   const hostIdentity = formatProfileIdentity(session.host);
-  const badgeColors = badgeColorsForTone(status.tone, theme);
+  const badgeColors = badgeColorsForLiveStatusTone(status.tone, theme);
 
   return (
     <AppCard>
@@ -116,55 +117,4 @@ export function LiveSessionSummaryCard({
       <AppButton label={buttonLabel} onPress={onPress} />
     </AppCard>
   );
-}
-
-function normalizeLiveSessionStatus(status: string): LiveSessionStatus {
-  switch (status) {
-    case 'STARTING':
-    case 'LIVE':
-    case 'ENDED':
-      return status;
-    default:
-      return '%future added value';
-  }
-}
-
-function normalizeLiveSessionVisibility(
-  visibility: string,
-): LiveSessionVisibility {
-  switch (visibility) {
-    case 'PUBLIC':
-    case 'FOLLOWERS':
-      return visibility;
-    default:
-      return '%future added value';
-  }
-}
-
-function badgeColorsForTone(
-  tone: ReturnType<typeof formatLiveSessionStatus>['tone'],
-  theme: ReturnType<typeof useAppTheme>,
-) {
-  switch (tone) {
-    case 'live':
-      return {
-        surface: theme.colors.accent,
-        text: theme.colors.accentText,
-      };
-    case 'pending':
-      return {
-        surface: theme.colors.surfaceMuted,
-        text: theme.colors.accent,
-      };
-    case 'ended':
-      return {
-        surface: theme.colors.errorMuted,
-        text: theme.colors.error,
-      };
-    default:
-      return {
-        surface: theme.colors.surfaceMuted,
-        text: theme.colors.textMuted,
-      };
-  }
 }

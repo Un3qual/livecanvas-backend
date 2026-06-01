@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  badgeColorsForLiveStatusTone,
   canEnterLiveSession,
   formatLiveMutationErrors,
   formatLiveSessionStatus,
   formatLiveSessionTiming,
   formatLiveSessionVisibility,
+  normalizeLiveSessionStatus,
+  normalizeLiveSessionVisibility,
   type LiveMutationError,
 } from './liveSessionPresentation';
 
@@ -29,6 +32,17 @@ describe('liveSessionPresentation', () => {
     });
   });
 
+  test('normalizes unknown status and visibility values to Relay future sentinels', () => {
+    expect(normalizeLiveSessionStatus('LIVE')).toBe('LIVE');
+    expect(normalizeLiveSessionStatus('BUFFERING')).toBe(
+      '%future added value',
+    );
+    expect(normalizeLiveSessionVisibility('PUBLIC')).toBe('PUBLIC');
+    expect(normalizeLiveSessionVisibility('SUBSCRIBERS')).toBe(
+      '%future added value',
+    );
+  });
+
   test('treats starting and live sessions as enterable', () => {
     expect(canEnterLiveSession('STARTING')).toBe(true);
     expect(canEnterLiveSession('LIVE')).toBe(true);
@@ -40,6 +54,32 @@ describe('liveSessionPresentation', () => {
     expect(formatLiveSessionVisibility('PUBLIC')).toBe('Public');
     expect(formatLiveSessionVisibility('FOLLOWERS')).toBe('Followers');
     expect(formatLiveSessionVisibility('%future added value')).toBe('Visibility unavailable');
+  });
+
+  test('maps live status tones to theme colors', () => {
+    const theme = {
+      colors: {
+        accent: 'accent',
+        accentText: 'accentText',
+        error: 'error',
+        errorMuted: 'errorMuted',
+        surfaceMuted: 'surfaceMuted',
+        textMuted: 'textMuted',
+      },
+    };
+
+    expect(badgeColorsForLiveStatusTone('live', theme)).toEqual({
+      surface: 'accent',
+      text: 'accentText',
+    });
+    expect(badgeColorsForLiveStatusTone('pending', theme)).toEqual({
+      surface: 'surfaceMuted',
+      text: 'accent',
+    });
+    expect(badgeColorsForLiveStatusTone('ended', theme)).toEqual({
+      surface: 'errorMuted',
+      text: 'error',
+    });
   });
 
   test('formats timing from the status-specific timestamp', () => {
