@@ -260,6 +260,7 @@ function LiveSessionWatchContent({
   const autoLeaveOnUnmountRef = useRef<
     AutoLeaveOnUnmountRef['current']
   >(null);
+  const didUnmountRef = useRef(false);
   const leaveMutationRef = useRef(commitLeaveLiveSession);
 
   leaveMutationRef.current = commitLeaveLiveSession;
@@ -269,40 +270,53 @@ function LiveSessionWatchContent({
   }, [sessionId]);
 
   useEffect(() => {
+    didUnmountRef.current = false;
+
     return () => {
+      didUnmountRef.current = true;
       const autoLeave = autoLeaveOnUnmountRef.current;
 
       if (!autoLeave?.shouldLeave) {
         return;
       }
 
-      pendingMutationRef.current = {
-        kind: 'leave',
-        sessionId: autoLeave.sessionId,
-      };
-      leaveMutationRef.current({
-        variables: {
-          input: {
-            liveSessionId: autoLeave.sessionId,
-          },
-        },
-        onCompleted: () => {
-          pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
-            pendingMutationRef.current,
-            autoLeave.sessionId,
-            'leave',
-          );
-        },
-        onError: () => {
-          pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
-            pendingMutationRef.current,
-            autoLeave.sessionId,
-            'leave',
-          );
-        },
-      });
+      commitDetachedLeaveLiveSession(autoLeave.sessionId);
     };
   }, [pendingMutationRef]);
+
+  function commitDetachedLeaveLiveSession(sessionId: string) {
+    if (
+      isLiveSessionWatchAnyMutationPending(pendingMutationRef.current, sessionId)
+    ) {
+      return;
+    }
+
+    pendingMutationRef.current = {
+      kind: 'leave',
+      sessionId,
+    };
+    leaveMutationRef.current({
+      variables: {
+        input: {
+          liveSessionId: sessionId,
+        },
+      },
+      onCompleted: () => {
+        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
+          pendingMutationRef.current,
+          sessionId,
+          'leave',
+        );
+      },
+      onError: () => {
+        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
+          pendingMutationRef.current,
+          sessionId,
+          'leave',
+        );
+      },
+    });
+  }
 
   if (data.node?.__typename !== 'LiveSession') {
     return <UnavailableLiveSession onBack={() => router.back()} />;
@@ -364,6 +378,10 @@ function LiveSessionWatchContent({
         );
 
         if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
+          if (didUnmountRef.current) {
+            return;
+          }
+
           dispatchWatchAction({
             error: formatLiveMutationErrors(result?.errors),
             sessionId: session.id,
@@ -372,14 +390,19 @@ function LiveSessionWatchContent({
           return;
         }
 
-        dispatchWatchAction({
-          sessionId: session.id,
-          type: 'join_succeeded',
-        });
+        if (didUnmountRef.current) {
+          commitDetachedLeaveLiveSession(session.id);
+          return;
+        }
+
         autoLeaveOnUnmountRef.current = {
           sessionId: session.id,
           shouldLeave: true,
         };
+        dispatchWatchAction({
+          sessionId: session.id,
+          type: 'join_succeeded',
+        });
       },
       onError: () => {
         pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
@@ -387,6 +410,11 @@ function LiveSessionWatchContent({
           session.id,
           'join',
         );
+
+        if (didUnmountRef.current) {
+          return;
+        }
+
         dispatchWatchAction({
           error: formatLiveMutationErrors([]),
           sessionId: session.id,
@@ -434,6 +462,10 @@ function LiveSessionWatchContent({
             sessionId: session.id,
             shouldLeave: true,
           };
+          if (didUnmountRef.current) {
+            return;
+          }
+
           dispatchWatchAction({
             error: formatLiveMutationErrors(result?.errors),
             sessionId: session.id,
@@ -442,14 +474,18 @@ function LiveSessionWatchContent({
           return;
         }
 
-        dispatchWatchAction({
-          sessionId: session.id,
-          type: 'leave_succeeded',
-        });
         autoLeaveOnUnmountRef.current = {
           sessionId: session.id,
           shouldLeave: false,
         };
+        if (didUnmountRef.current) {
+          return;
+        }
+
+        dispatchWatchAction({
+          sessionId: session.id,
+          type: 'leave_succeeded',
+        });
       },
       onError: () => {
         pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
@@ -461,6 +497,10 @@ function LiveSessionWatchContent({
           sessionId: session.id,
           shouldLeave: true,
         };
+        if (didUnmountRef.current) {
+          return;
+        }
+
         dispatchWatchAction({
           error: formatLiveMutationErrors([]),
           sessionId: session.id,

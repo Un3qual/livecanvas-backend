@@ -7,12 +7,19 @@ import { AppButton } from './AppButton';
 
 type LoadingState = { state: 'loading'; message?: string };
 type ErrorState = { state: 'error'; message: string; onRetry?: () => void };
-type EmptyState = {
-  state: 'empty';
-  message: string;
-  actionLabel?: string;
-  onAction?: () => void;
-};
+type EmptyState =
+  | {
+      state: 'empty';
+      message: string;
+      actionLabel: string;
+      onAction: () => void;
+    }
+  | {
+      state: 'empty';
+      message: string;
+      actionLabel?: undefined;
+      onAction?: undefined;
+    };
 
 type ScreenStateProps = LoadingState | ErrorState | EmptyState;
 
