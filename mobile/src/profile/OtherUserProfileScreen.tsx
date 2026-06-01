@@ -54,7 +54,6 @@ const otherUserProfileScreenQuery = graphql`
           endedAt
           host {
             id
-            email
           }
         }
         followers(first: 3) {

@@ -15,10 +15,11 @@ describe('liveSessionNavigation', () => {
 
   test('reads the first session ID when Expo Router provides repeated params', () => {
     expect(readLiveSessionIdParam(['first', 'second'])).toBe('first');
+    expect(readLiveSessionIdParam(['   ', 'second'])).toBe('second');
   });
 
   test('rejects missing or blank session ID params', () => {
-    expect(readLiveSessionIdParam(undefined)).toBeNull();
+    expect(readLiveSessionIdParam()).toBeNull();
     expect(readLiveSessionIdParam('   ')).toBeNull();
   });
 });

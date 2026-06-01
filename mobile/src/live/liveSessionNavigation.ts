@@ -6,9 +6,11 @@ export function liveSessionHref(sessionId: string) {
 }
 
 export function readLiveSessionIdParam(
-  value: string | string[] | undefined,
+  value?: string | string[],
 ): string | null {
-  const raw = Array.isArray(value) ? value[0] : value;
+  const raw = Array.isArray(value)
+    ? value.find((candidate) => candidate.trim().length > 0)
+    : value;
   const trimmed = raw?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : null;
 }

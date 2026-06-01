@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c2de271d0b8e4b1695c290fb6506373e>>
+ * @generated SignedSource<<6a6b4d049e44f6eaeff2277360800bc4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,7 +23,6 @@ export type OtherUserProfileScreenQuery$data = {
     readonly currentLiveSession: {
       readonly endedAt: string | null | undefined;
       readonly host: {
-        readonly email: string | null | undefined;
         readonly id: string;
       };
       readonly id: string;
@@ -102,7 +101,10 @@ v4 = {
   "name": "privacyMode",
   "storageKey": null
 },
-v5 = {
+v5 = [
+  (v3/*: any*/)
+],
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "LiveSession",
@@ -153,29 +155,20 @@ v5 = {
       "kind": "LinkedField",
       "name": "host",
       "plural": false,
-      "selections": [
-        (v3/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "email",
-          "storageKey": null
-        }
-      ],
+      "selections": (v5/*: any*/),
       "storageKey": null
     }
   ],
   "storageKey": null
 },
-v6 = [
+v7 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 3
   }
 ],
-v7 = [
+v8 = [
   {
     "alias": null,
     "args": null,
@@ -209,52 +202,50 @@ v7 = [
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": [
-          (v3/*: any*/)
-        ],
+        "selections": (v5/*: any*/),
         "storageKey": null
       }
     ],
     "storageKey": null
   }
 ],
-v8 = {
+v9 = {
   "alias": null,
-  "args": (v6/*: any*/),
+  "args": (v7/*: any*/),
   "concreteType": "UserConnection",
   "kind": "LinkedField",
   "name": "followers",
   "plural": false,
-  "selections": (v7/*: any*/),
+  "selections": (v8/*: any*/),
   "storageKey": "followers(first:3)"
 },
-v9 = {
+v10 = {
   "alias": null,
-  "args": (v6/*: any*/),
+  "args": (v7/*: any*/),
   "concreteType": "UserConnection",
   "kind": "LinkedField",
   "name": "following",
   "plural": false,
-  "selections": (v7/*: any*/),
+  "selections": (v8/*: any*/),
   "storageKey": "following(first:3)"
 },
-v10 = [
+v11 = [
   {
     "kind": "Variable",
     "name": "creatorId",
     "variableName": "id"
   }
 ],
-v11 = {
+v12 = {
   "alias": null,
-  "args": (v10/*: any*/),
+  "args": (v11/*: any*/),
   "kind": "ScalarField",
   "name": "relationshipState",
   "storageKey": null
 },
-v12 = {
+v13 = {
   "alias": null,
-  "args": (v10/*: any*/),
+  "args": (v11/*: any*/),
   "kind": "ScalarField",
   "name": "isMuted",
   "storageKey": null
@@ -280,9 +271,9 @@ return {
             "selections": [
               (v3/*: any*/),
               (v4/*: any*/),
-              (v5/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/)
+              (v6/*: any*/),
+              (v9/*: any*/),
+              (v10/*: any*/)
             ],
             "type": "User",
             "abstractKey": null
@@ -290,8 +281,8 @@ return {
         ],
         "storageKey": null
       },
-      (v11/*: any*/),
-      (v12/*: any*/)
+      (v12/*: any*/),
+      (v13/*: any*/)
     ],
     "type": "RootQueryType",
     "abstractKey": null
@@ -316,9 +307,9 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v4/*: any*/),
-              (v5/*: any*/),
-              (v8/*: any*/),
-              (v9/*: any*/)
+              (v6/*: any*/),
+              (v9/*: any*/),
+              (v10/*: any*/)
             ],
             "type": "User",
             "abstractKey": null
@@ -326,21 +317,21 @@ return {
         ],
         "storageKey": null
       },
-      (v11/*: any*/),
-      (v12/*: any*/)
+      (v12/*: any*/),
+      (v13/*: any*/)
     ]
   },
   "params": {
-    "cacheID": "d68f77aa09f00de65cd24fef02341329",
+    "cacheID": "48e3cf06869c79382a2dca03ae5232e9",
     "id": null,
     "metadata": {},
     "name": "OtherUserProfileScreenQuery",
     "operationKind": "query",
-    "text": "query OtherUserProfileScreenQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on User {\n      id\n      privacyMode\n      currentLiveSession {\n        id\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n      followers(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n      following(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n  relationshipState(creatorId: $id)\n  isMuted(creatorId: $id)\n}\n"
+    "text": "query OtherUserProfileScreenQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on User {\n      id\n      privacyMode\n      currentLiveSession {\n        id\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n        }\n      }\n      followers(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n      following(first: 3) {\n        pageInfo {\n          hasNextPage\n        }\n        edges {\n          node {\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n  relationshipState(creatorId: $id)\n  isMuted(creatorId: $id)\n}\n"
   }
 };
 })();
 
-(node as any).hash = "173b9fec9572d45c7369419e80ff9422";
+(node as any).hash = "55fb09c3b6e74102fcf6dc5b26cdf65a";
 
 export default node;

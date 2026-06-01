@@ -141,5 +141,8 @@ export function liveSessionWatchReducer(
         isJoined: true,
         submission: 'idle',
       };
+
+    default:
+      return state;
   }
 }

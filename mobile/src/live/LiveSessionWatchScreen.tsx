@@ -94,6 +94,57 @@ const liveSessionWatchScreenLeaveMutation = graphql`
   }
 `;
 
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  content: {
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  unavailable: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  heroHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  badge: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  badgeText: typography.label,
+  sectionTitle: typography.label,
+  bodyText: typography.body,
+  errorText: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  metadataRow: {
+    borderTopWidth: 1,
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+  },
+  metadataLabel: {
+    ...typography.label,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  metadataValue: typography.body,
+  recordingMetadata: {
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+});
+
 export function LiveSessionWatchScreen({
   sessionId,
 }: LiveSessionWatchScreenProps) {
@@ -601,56 +652,10 @@ function badgeColorsForTone(
         surface: theme.colors.errorMuted,
         text: theme.colors.error,
       };
+    default:
+      return {
+        surface: theme.colors.surfaceMuted,
+        text: theme.colors.textMuted,
+      };
   }
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  content: {
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  unavailable: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  heroHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  badge: {
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  badgeText: typography.label,
-  sectionTitle: typography.label,
-  bodyText: typography.body,
-  errorText: {
-    ...typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  metadataRow: {
-    borderTopWidth: 1,
-    gap: spacing.xs,
-    paddingTop: spacing.sm,
-  },
-  metadataLabel: {
-    ...typography.label,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  metadataValue: typography.body,
-  recordingMetadata: {
-    gap: spacing.sm,
-    paddingTop: spacing.sm,
-  },
-});

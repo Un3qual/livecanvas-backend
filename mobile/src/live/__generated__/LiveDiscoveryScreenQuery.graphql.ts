@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b59ffe5d2e2905cc1e1006965f7fd333>>
+ * @generated SignedSource<<581441210636ff6bf49c3f7b5d27cad8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,10 +30,6 @@ export type LiveDiscoveryScreenQuery$data = {
         readonly visibility: LiveSessionVisibility;
       } | null | undefined;
     } | null | undefined> | null | undefined;
-    readonly pageInfo: {
-      readonly endCursor: string | null | undefined;
-      readonly hasNextPage: boolean;
-    };
   } | null | undefined;
   readonly viewer: {
     readonly currentLiveSession: {
@@ -163,31 +159,6 @@ v3 = [
           }
         ],
         "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "PageInfo",
-        "kind": "LinkedField",
-        "name": "pageInfo",
-        "plural": false,
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "hasNextPage",
-            "storageKey": null
-          },
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "endCursor",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
       }
     ],
     "storageKey": null
@@ -233,16 +204,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "3ebd377fec58f43f52fe046750f25f3b",
+    "cacheID": "734352a88c66b098baa60708f76f82f8",
     "id": null,
     "metadata": {},
     "name": "LiveDiscoveryScreenQuery",
     "operationKind": "query",
-    "text": "query LiveDiscoveryScreenQuery(\n  $first: Int!\n) {\n  liveNow(first: $first) {\n    edges {\n      node {\n        id\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n    }\n  }\n  viewer {\n    id\n    currentLiveSession {\n      id\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n  }\n}\n"
+    "text": "query LiveDiscoveryScreenQuery(\n  $first: Int!\n) {\n  liveNow(first: $first) {\n    edges {\n      node {\n        id\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n  }\n  viewer {\n    id\n    currentLiveSession {\n      id\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "aada4bd25b210775ec7f0077b2f655d0";
+(node as any).hash = "f01fc14a1a5a5bfd5ebe0532710d7313";
 
 export default node;

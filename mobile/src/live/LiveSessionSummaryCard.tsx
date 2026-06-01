@@ -29,6 +29,37 @@ type LiveSessionSummaryCardProps = {
   session: LiveSessionSummary;
 };
 
+const styles = StyleSheet.create({
+  header: {
+    alignItems: 'flex-start',
+  },
+  badge: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  badgeText: typography.label,
+  body: {
+    gap: spacing.xs,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  subtitle: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  details: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  detailText: typography.body,
+});
+
 export function LiveSessionSummaryCard({
   buttonLabel,
   onPress,
@@ -130,36 +161,10 @@ function badgeColorsForTone(
         surface: theme.colors.errorMuted,
         text: theme.colors.error,
       };
+    default:
+      return {
+        surface: theme.colors.surfaceMuted,
+        text: theme.colors.textMuted,
+      };
   }
 }
-
-const styles = StyleSheet.create({
-  header: {
-    alignItems: 'flex-start',
-  },
-  badge: {
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  badgeText: typography.label,
-  body: {
-    gap: spacing.xs,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  subtitle: {
-    ...typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  details: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  detailText: typography.body,
-});

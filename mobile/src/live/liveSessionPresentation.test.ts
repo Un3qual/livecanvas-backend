@@ -102,6 +102,13 @@ describe('liveSessionPresentation', () => {
         expected: 'Sign in again to keep watching live sessions.',
       },
       {
+        errors: [
+          { field: null, message: 'unexpected_error' },
+          { field: null, message: 'unauthenticated' },
+        ],
+        expected: 'Sign in again to keep watching live sessions.',
+      },
+      {
         errors: [],
         expected: fallback,
       },

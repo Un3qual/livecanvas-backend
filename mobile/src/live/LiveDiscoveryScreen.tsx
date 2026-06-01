@@ -18,16 +18,32 @@ type LiveDiscoveryData = LiveDiscoveryScreenQuery['response'];
 type LiveNowEdge = NonNullable<
   NonNullable<LiveDiscoveryData['liveNow']>['edges']
 >[number];
-type LiveNowSession = NonNullable<NonNullable<LiveNowEdge>['node']>;
-type CurrentLiveSession = NonNullable<
-  NonNullable<LiveDiscoveryData['viewer']>['currentLiveSession']
->;
 
 type ConnectionLike<TNode> = {
   readonly edges?:
     | ReadonlyArray<{ readonly node?: TNode | null } | null | undefined>
     | null;
 } | null | undefined;
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  content: {
+    alignItems: 'center',
+    gap: spacing.lg,
+    padding: spacing.lg,
+  },
+  section: {
+    width: '100%',
+    maxWidth: 420,
+    gap: spacing.sm,
+  },
+  sectionTitle: typography.label,
+  list: {
+    gap: spacing.md,
+  },
+});
 
 export function LiveDiscoveryScreen() {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
@@ -98,10 +114,6 @@ function LiveDiscoveryContent() {
                 email
               }
             }
-          }
-          pageInfo {
-            hasNextPage
-            endCursor
           }
         }
         viewer {
@@ -204,23 +216,3 @@ function readConnectionNodes<TNode>(
       .filter((node): node is NonNullable<TNode> => node != null) ?? []
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  content: {
-    alignItems: 'center',
-    gap: spacing.lg,
-    padding: spacing.lg,
-  },
-  section: {
-    width: '100%',
-    maxWidth: 420,
-    gap: spacing.sm,
-  },
-  sectionTitle: typography.label,
-  list: {
-    gap: spacing.md,
-  },
-});

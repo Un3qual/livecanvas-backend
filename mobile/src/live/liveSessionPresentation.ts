@@ -96,18 +96,29 @@ export function formatLiveSessionTiming({
 export function formatLiveMutationErrors(
   errors: ReadonlyArray<LiveMutationError> | null | undefined,
 ): string {
-  const firstMessage = errors?.find((error) => error?.message)?.message;
+  const messages =
+    errors
+      ?.map((error) => error?.message?.trim())
+      .filter(
+        (message): message is string =>
+          typeof message === 'string' && message.length > 0,
+      ) ?? [];
 
-  switch (firstMessage) {
-    case 'rate_limited':
-      return 'Too many live-session attempts. Wait a moment and try again.';
-    case 'not_authorized':
-    case 'not_found':
-    case 'ended':
-      return 'This live session is not available to your account.';
-    case 'unauthenticated':
-      return 'Sign in again to keep watching live sessions.';
-    default:
-      return 'We could not update this live session. Check your connection and try again.';
+  if (messages.includes('unauthenticated')) {
+    return 'Sign in again to keep watching live sessions.';
   }
+
+  if (messages.includes('rate_limited')) {
+    return 'Too many live-session attempts. Wait a moment and try again.';
+  }
+
+  if (
+    messages.some((message) =>
+      ['not_authorized', 'not_found', 'ended'].includes(message),
+    )
+  ) {
+    return 'This live session is not available to your account.';
+  }
+
+  return 'We could not update this live session. Check your connection and try again.';
 }
