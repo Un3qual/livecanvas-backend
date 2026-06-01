@@ -27,6 +27,7 @@ import {
 import {
   createLiveSessionWatchState,
   liveSessionWatchReducer,
+  readLiveSessionWatchSubmission,
 } from './liveSessionWatchReducer';
 import type { LiveSessionWatchScreenJoinMutation } from './__generated__/LiveSessionWatchScreenJoinMutation.graphql';
 import type { LiveSessionWatchScreenLeaveMutation } from './__generated__/LiveSessionWatchScreenLeaveMutation.graphql';
@@ -85,15 +86,16 @@ export function LiveSessionWatchScreen({
   sessionId,
 }: LiveSessionWatchScreenProps) {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
+  const resetKey = `${sessionId}:${queryRetryKey}`;
 
   return (
-    <LiveSessionWatchErrorBoundary key={queryRetryKey} onRetry={retryQuery}>
+    <LiveSessionWatchErrorBoundary key={resetKey} onRetry={retryQuery}>
       <Suspense
         fallback={
           <ScreenState state="loading" message="Loading live session..." />
         }
       >
-        <LiveSessionWatchContent sessionId={sessionId} />
+        <LiveSessionWatchContent key={resetKey} sessionId={sessionId} />
       </Suspense>
     </LiveSessionWatchErrorBoundary>
   );
@@ -167,11 +169,11 @@ function LiveSessionWatchContent({ sessionId }: LiveSessionWatchScreenProps) {
     liveSessionWatchReducer,
     createLiveSessionWatchState(),
   );
-  const [commitJoinLiveSession, isJoinInFlight] =
+  const [commitJoinLiveSession] =
     useMutation<LiveSessionWatchScreenJoinMutation>(
       liveSessionWatchScreenJoinMutation,
     );
-  const [commitLeaveLiveSession, isLeaveInFlight] =
+  const [commitLeaveLiveSession] =
     useMutation<LiveSessionWatchScreenLeaveMutation>(
       liveSessionWatchScreenLeaveMutation,
     );
@@ -190,16 +192,16 @@ function LiveSessionWatchContent({ sessionId }: LiveSessionWatchScreenProps) {
   const enterable = canEnterLiveSession(normalizedStatus);
   const isCurrentSession = watchState.activeSessionId === session.id;
   const isJoined = isCurrentSession && watchState.isJoined;
-  const isJoining =
-    isCurrentSession &&
-    (watchState.submission === 'joining' || isJoinInFlight);
-  const isLeaving =
-    isCurrentSession &&
-    (watchState.submission === 'leaving' || isLeaveInFlight);
-  const hasActiveSubmission = watchState.submission !== 'idle';
+  const visibleSubmission = readLiveSessionWatchSubmission(
+    watchState,
+    session.id,
+  );
+  const isJoining = visibleSubmission === 'joining';
+  const isLeaving = visibleSubmission === 'leaving';
+  const hasActiveSubmission = visibleSubmission !== 'idle';
 
   function handleJoinPress() {
-    if (!enterable || hasActiveSubmission || isJoinInFlight || isJoined) {
+    if (!enterable || hasActiveSubmission || isJoined) {
       return;
     }
 
@@ -239,7 +241,7 @@ function LiveSessionWatchContent({ sessionId }: LiveSessionWatchScreenProps) {
   }
 
   function handleLeavePress() {
-    if (!isJoined || hasActiveSubmission || isLeaveInFlight) {
+    if (!isJoined || hasActiveSubmission) {
       return;
     }
 

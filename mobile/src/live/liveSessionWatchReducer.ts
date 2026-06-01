@@ -25,6 +25,13 @@ export function createLiveSessionWatchState(): LiveSessionWatchState {
   };
 }
 
+export function readLiveSessionWatchSubmission(
+  state: LiveSessionWatchState,
+  sessionId: string,
+): LiveSessionWatchSubmission {
+  return state.activeSessionId === sessionId ? state.submission : 'idle';
+}
+
 export function liveSessionWatchReducer(
   state: LiveSessionWatchState,
   action: LiveSessionWatchAction,
