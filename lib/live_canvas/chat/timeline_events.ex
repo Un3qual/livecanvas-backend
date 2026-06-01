@@ -99,7 +99,7 @@ defmodule LC.Chat.TimelineEvents do
              %LiveSession{} = live_session <- repo.get(LiveSession, target_event.live_session_id),
              :ok <- authorizer.(actor, live_session),
              %LiveSessionTimelineEventState{} = event_state <-
-               event_state_query(target_event_id) |> repo.one(),
+               locked_event_state_query(target_event_id) |> repo.one(),
              :ok <- require_visible_projection(event_state),
              %LiveSessionTimelineChatMessageState{} = chat_message_state <-
                locked_chat_message_state_query(target_event_id) |> repo.one(),
@@ -270,14 +270,6 @@ defmodule LC.Chat.TimelineEvents do
   defp target_event_query(timeline_event_id) when is_integer(timeline_event_id) do
     from(event in LiveSessionTimelineEvent,
       where: event.id == ^timeline_event_id,
-      limit: 1
-    )
-  end
-
-  @spec event_state_query(pos_integer()) :: Ecto.Query.t()
-  defp event_state_query(timeline_event_id) when is_integer(timeline_event_id) do
-    from(event_state in LiveSessionTimelineEventState,
-      where: event_state.timeline_event_id == ^timeline_event_id,
       limit: 1
     )
   end

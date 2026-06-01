@@ -182,7 +182,7 @@ defmodule LCWeb.LiveSessionChannelTest do
         __typename: "ChatMessageEvent",
         event_type: "chat_message_sent",
         body: "hello",
-        id: event_id,
+        id: event_global_id,
         actor_id: actor_id,
         occurred_at: occurred_at,
         edited: false,
@@ -192,7 +192,8 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
 
     assert actor_id == viewer.id
-    assert is_integer(event_id)
+    assert is_binary(event_global_id)
+    event_id = decode_global_node_id(event_global_id, :chat_message_event)
     assert {:ok, _, 0} = DateTime.from_iso8601(occurred_at)
 
     assert_receive %Phoenix.Socket.Message{
@@ -203,7 +204,7 @@ defmodule LCWeb.LiveSessionChannelTest do
           __typename: "ChatMessageEvent",
           event_type: "chat_message_sent",
           body: "hello",
-          id: ^event_id,
+          id: ^event_global_id,
           actor_id: ^actor_id,
           occurred_at: ^occurred_at,
           edited: false,
@@ -239,21 +240,21 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert_reply send_ref, :ok, %{
       event: %{
         body: "hello",
-        id: event_id,
+        id: event_global_id,
         actor_id: actor_id
       }
     }
 
     assert actor_id == viewer.id
+    _event_id = decode_global_node_id(event_global_id, :chat_message_event)
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
       event: "timeline:event",
-      payload: %{event: %{id: ^event_id, body: "hello"}}
+      payload: %{event: %{id: ^event_global_id, body: "hello"}}
     }
 
-    chat_message_event_id =
-      Absinthe.Relay.Node.to_global_id(:chat_message_event, event_id, LCGQL.Schema)
+    chat_message_event_id = event_global_id
 
     context = %{current_scope: Accounts.scope_for_user(viewer)}
 
@@ -287,7 +288,7 @@ defmodule LCWeb.LiveSessionChannelTest do
       payload: %{
         event: %{
           __typename: "ChatMessageEvent",
-          id: ^event_id,
+          id: ^event_global_id,
           body: "hello, world",
           edited: true,
           edit_count: 1
@@ -323,22 +324,22 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert_reply send_ref, :ok, %{
       event: %{
         body: "abusive message",
-        id: event_id,
+        id: event_global_id,
         actor_id: actor_id
       }
     }
 
     assert actor_id == viewer.id
+    event_id = decode_global_node_id(event_global_id, :chat_message_event)
     session_topic = LiveSessionTopics.live_session_topic(session.id)
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
       event: "timeline:event",
-      payload: %{event: %{body: "abusive message", id: ^event_id}}
+      payload: %{event: %{body: "abusive message", id: ^event_global_id}}
     }
 
-    chat_message_event_id =
-      Absinthe.Relay.Node.to_global_id(:chat_message_event, event_id, LCGQL.Schema)
+    chat_message_event_id = event_global_id
 
     context = %{current_scope: Accounts.scope_for_user(host)}
     other_session_topic = LiveSessionTopics.live_session_topic(other_session.id)
@@ -369,7 +370,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
       event: "timeline:event_removed",
-      payload: %{removed_timeline_event_id: ^event_id}
+      payload: %{removed_timeline_event_id: ^chat_message_event_id}
     }
 
     refute_receive %Phoenix.Socket.Message{
@@ -395,22 +396,22 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     assert_reply send_ref, :ok, %{
       event: %{
-        id: event_id,
+        id: event_global_id,
         actor_id: actor_id
       }
     }
 
     assert actor_id == viewer.id
+    _event_id = decode_global_node_id(event_global_id, :chat_message_event)
     session_topic = LiveSessionTopics.live_session_topic(session.id)
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
       event: "timeline:event",
-      payload: %{event: %{body: "remove once", id: ^event_id}}
+      payload: %{event: %{body: "remove once", id: ^event_global_id}}
     }
 
-    chat_message_event_id =
-      Absinthe.Relay.Node.to_global_id(:chat_message_event, event_id, LCGQL.Schema)
+    chat_message_event_id = event_global_id
 
     context = %{current_scope: Accounts.scope_for_user(host)}
 
@@ -433,7 +434,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
       event: "timeline:event_removed",
-      payload: %{removed_timeline_event_id: ^event_id}
+      payload: %{removed_timeline_event_id: ^chat_message_event_id}
     }
 
     assert {:ok,
@@ -906,7 +907,8 @@ defmodule LCWeb.LiveSessionChannelTest do
       }
     }
 
-    assert is_integer(go_live_event_id)
+    assert is_binary(go_live_event_id)
+    _go_live_local_id = decode_global_node_id(go_live_event_id, :live_session_started_event)
     assert is_binary(go_live_occurred_at)
 
     assert_receive %Phoenix.Socket.Message{
@@ -951,7 +953,8 @@ defmodule LCWeb.LiveSessionChannelTest do
       }
     }
 
-    assert is_integer(end_event_id)
+    assert is_binary(end_event_id)
+    _end_local_id = decode_global_node_id(end_event_id, :live_session_ended_event)
     assert is_binary(end_occurred_at)
 
     assert_receive %Phoenix.Socket.Message{
@@ -1084,6 +1087,13 @@ defmodule LCWeb.LiveSessionChannelTest do
       {:ok, socket} -> socket
       :error -> flunk("expected socket authentication to succeed")
     end
+  end
+
+  defp decode_global_node_id(global_id, expected_type) when is_binary(global_id) do
+    assert {:ok, %{type: ^expected_type, id: local_id}} =
+             Absinthe.Relay.Node.from_global_id(global_id, LCGQL.Schema)
+
+    String.to_integer(local_id)
   end
 
   defp live_session_fixture(host_id) when is_integer(host_id) do

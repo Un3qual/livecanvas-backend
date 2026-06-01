@@ -3,6 +3,7 @@ defmodule LCWeb.LiveSessionChannel do
 
   require Logger
 
+  alias LC.Chat.TimelineProjection
   alias LC.{Chat, Live}
   alias LC.RateLimiter
   alias LCWeb.Plugs.ObservabilityContext
@@ -94,6 +95,8 @@ defmodule LCWeb.LiveSessionChannel do
   @impl true
   @spec handle_out(String.t(), map(), Phoenix.Socket.t()) :: {:noreply, Phoenix.Socket.t()}
   def handle_out(event, payload, socket) when is_binary(event) and is_map(payload) do
+    payload = normalize_timeline_channel_payload(event, payload)
+
     push(socket, event, payload)
     {:noreply, socket}
   end
@@ -120,7 +123,7 @@ defmodule LCWeb.LiveSessionChannel do
            :ok <- rate_limit_chat_send(user_id, live_session_id),
            {:ok, timeline_event} <-
              Chat.create_timeline_chat_message(live_session, current_user, %{body: body}) do
-        {:ok, %{event: Chat.timeline_event_payload(timeline_event)}, timeline_event}
+        {:ok, %{event: timeline_event_channel_payload(timeline_event)}, timeline_event}
       else
         {:error, reason} -> {:error, reason}
       end
@@ -155,6 +158,67 @@ defmodule LCWeb.LiveSessionChannel do
     {:reply, {:error, %{reason: LiveSessionReasons.chat_send_error_reason(:invalid_body)}},
      socket}
   end
+
+  # PubSub carries domain-shaped integer IDs inside the backend; the socket API
+  # exposes Relay IDs so clients can reconcile channel events with GraphQL nodes.
+  @spec normalize_timeline_channel_payload(String.t(), map()) :: map()
+  defp normalize_timeline_channel_payload("timeline:event", %{event: event} = payload)
+       when is_map(event) do
+    %{payload | event: normalize_timeline_event_id(event)}
+  end
+
+  defp normalize_timeline_channel_payload("timeline:event_updated", %{event: event} = payload)
+       when is_map(event) do
+    %{payload | event: normalize_timeline_event_id(event)}
+  end
+
+  defp normalize_timeline_channel_payload(
+         "timeline:event_removed",
+         %{removed_timeline_event_id: timeline_event_id} = payload
+       )
+       when is_integer(timeline_event_id) do
+    %{
+      payload
+      | removed_timeline_event_id:
+          Absinthe.Relay.Node.to_global_id(:chat_message_event, timeline_event_id, LCGQL.Schema)
+    }
+  end
+
+  defp normalize_timeline_channel_payload(_event, payload), do: payload
+
+  @spec timeline_event_channel_payload(TimelineProjection.t()) :: map()
+  defp timeline_event_channel_payload(timeline_event) when is_map(timeline_event) do
+    timeline_event
+    |> Chat.timeline_event_payload()
+    |> normalize_timeline_event_id()
+  end
+
+  @spec normalize_timeline_event_id(map()) :: map()
+  defp normalize_timeline_event_id(%{id: timeline_event_id, event_type: event_type} = event)
+       when is_integer(timeline_event_id) do
+    case timeline_event_node_type(event_type) do
+      nil ->
+        event
+
+      node_type ->
+        Map.put(
+          event,
+          :id,
+          Absinthe.Relay.Node.to_global_id(node_type, timeline_event_id, LCGQL.Schema)
+        )
+    end
+  end
+
+  defp normalize_timeline_event_id(event), do: event
+
+  @spec timeline_event_node_type(atom() | String.t() | nil) :: atom() | nil
+  defp timeline_event_node_type(:chat_message_sent), do: :chat_message_event
+  defp timeline_event_node_type("chat_message_sent"), do: :chat_message_event
+  defp timeline_event_node_type(:live_session_started), do: :live_session_started_event
+  defp timeline_event_node_type("live_session_started"), do: :live_session_started_event
+  defp timeline_event_node_type(:live_session_ended), do: :live_session_ended_event
+  defp timeline_event_node_type("live_session_ended"), do: :live_session_ended_event
+  defp timeline_event_node_type(_event_type), do: nil
 
   @impl true
   @spec terminate(term(), Phoenix.Socket.t()) :: :ok

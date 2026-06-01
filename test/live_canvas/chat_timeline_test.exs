@@ -198,6 +198,25 @@ defmodule LC.ChatTimelineTest do
       assert {:error, :hidden} =
                Chat.edit_timeline_chat_message(original, sender, %{body: "still hidden"})
     end
+
+    test "locks projection state before accepting edits" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, original} = Chat.create_timeline_chat_message(session, sender, %{body: "unlocked"})
+
+      {result, queries} =
+        capture_repo_queries(fn ->
+          Chat.edit_timeline_chat_message(original, sender, %{body: "locked"})
+        end)
+
+      assert {:ok, %{body: "locked"}} = result
+
+      assert Enum.any?(queries, fn query ->
+               String.contains?(query, ~s(FROM "live_session_timeline_event_states")) and
+                 String.contains?(query, "FOR UPDATE")
+             end)
+    end
   end
 
   describe "remove_timeline_chat_message/3" do

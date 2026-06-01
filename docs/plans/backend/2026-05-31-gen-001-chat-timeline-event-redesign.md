@@ -127,7 +127,7 @@ Postgres constraints/indexes:
 | `live_session_id` | bigint, not null |
 | `occurred_at` | `:utc_datetime_usec`, not null |
 | `projection_state` | text, not null |
-| `superseded_by_event_id` | bigint, nullable FK to `live_session_timeline_events(id)` |
+| `superseded_by_event_id` | bigint, nullable FK to `live_session_timeline_events(id)` plus composite same-session FK with `live_session_id` |
 | `moderation_action_id` | bigint, nullable FK to `live_session_moderation_actions(id)` |
 | `updated_at` | `:utc_datetime_usec`, not null |
 
@@ -145,6 +145,7 @@ Indexes:
 - Partial current-history index on `(live_session_id, occurred_at, timeline_event_id)` where `projection_state in ('visible', 'redacted_placeholder')`.
 - FK index on `superseded_by_event_id`.
 - FK index on `moderation_action_id`.
+- Composite FK from `(superseded_by_event_id, live_session_id)` to `live_session_timeline_events(id, live_session_id)` so a removal/edit marker cannot supersede an event from another live session.
 
 This table is intentionally mutable so the insert-heavy event envelope remains append-only and avoids hot updates.
 
@@ -272,12 +273,13 @@ Example:
 
 For each edit, in one transaction:
 
-1. Lock `live_session_timeline_chat_message_states` for the target message with `FOR UPDATE`.
+1. Lock `live_session_timeline_event_states` for the target message with `FOR UPDATE`.
 2. Validate actor authorization and current projection state.
-3. Insert `live_session_timeline_events` with `event_type = 'chat_message_edited'` and `target_event_id = E100`.
-4. Insert `live_session_timeline_chat_message_edits` with previous and new body.
-5. Update `live_session_timeline_chat_message_states.current_body`, `edit_count`, `last_edit_event_id`, and `last_edited_at`.
-6. Commit and broadcast `timeline:event_updated` for `E100`.
+3. Lock `live_session_timeline_chat_message_states` for the target message with `FOR UPDATE`.
+4. Insert `live_session_timeline_events` with `event_type = 'chat_message_edited'` and `target_event_id = E100`.
+5. Insert `live_session_timeline_chat_message_edits` with previous and new body.
+6. Update `live_session_timeline_chat_message_states.current_body`, `edit_count`, `last_edit_event_id`, and `last_edited_at`.
+7. Commit and broadcast `timeline:event_updated` for `E100`.
 
 Recovery/replay returns only `E100` as a `ChatMessageEvent` with the latest body, `edited = true`, `editCount = 2`, and `editedAt` from `E109`. It does not return `E104` or `E109` as separate visible timeline items.
 
