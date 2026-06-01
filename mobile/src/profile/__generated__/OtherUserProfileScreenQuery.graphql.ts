@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4efa0847e295e2fa891adae59f1af021>>
+ * @generated SignedSource<<c2de271d0b8e4b1695c290fb6506373e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -102,14 +102,80 @@ v4 = {
   "name": "privacyMode",
   "storageKey": null
 },
-v5 = [
+v5 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "LiveSession",
+  "kind": "LinkedField",
+  "name": "currentLiveSession",
+  "plural": false,
+  "selections": [
+    (v3/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "status",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "visibility",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "insertedAt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "startedAt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "endedAt",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "User",
+      "kind": "LinkedField",
+      "name": "host",
+      "plural": false,
+      "selections": [
+        (v3/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "email",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
+v6 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 3
   }
 ],
-v6 = [
+v7 = [
   {
     "alias": null,
     "args": null,
@@ -152,112 +218,45 @@ v6 = [
     "storageKey": null
   }
 ],
-v7 = {
+v8 = {
   "alias": null,
-  "args": (v5/*: any*/),
+  "args": (v6/*: any*/),
   "concreteType": "UserConnection",
   "kind": "LinkedField",
   "name": "followers",
   "plural": false,
-  "selections": (v6/*: any*/),
+  "selections": (v7/*: any*/),
   "storageKey": "followers(first:3)"
 },
-v8 = {
+v9 = {
   "alias": null,
-  "args": (v5/*: any*/),
+  "args": (v6/*: any*/),
   "concreteType": "UserConnection",
   "kind": "LinkedField",
   "name": "following",
   "plural": false,
-  "selections": (v6/*: any*/),
+  "selections": (v7/*: any*/),
   "storageKey": "following(first:3)"
 },
-v9 = [
+v10 = [
   {
     "kind": "Variable",
     "name": "creatorId",
     "variableName": "id"
   }
 ],
-v10 = {
+v11 = {
   "alias": null,
-  "args": (v9/*: any*/),
+  "args": (v10/*: any*/),
   "kind": "ScalarField",
   "name": "relationshipState",
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
-  "args": (v9/*: any*/),
+  "args": (v10/*: any*/),
   "kind": "ScalarField",
   "name": "isMuted",
-  "storageKey": null
-},
-v12 = [
-  (v3/*: any*/),
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "status",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "visibility",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "insertedAt",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "startedAt",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "endedAt",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "User",
-    "kind": "LinkedField",
-    "name": "host",
-    "plural": false,
-    "selections": [
-      (v3/*: any*/),
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "email",
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  }
-],
-v13 = {
-  "alias": null,
-  "args": null,
-  "concreteType": "LiveSession",
-  "kind": "LinkedField",
-  "name": "currentLiveSession",
-  "plural": false,
-  "selections": (v12/*: any*/),
   "storageKey": null
 };
 return {
@@ -281,9 +280,9 @@ return {
             "selections": [
               (v3/*: any*/),
               (v4/*: any*/),
-              (v13/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/)
+              (v5/*: any*/),
+              (v8/*: any*/),
+              (v9/*: any*/)
             ],
             "type": "User",
             "abstractKey": null
@@ -291,8 +290,8 @@ return {
         ],
         "storageKey": null
       },
-      (v10/*: any*/),
-      (v11/*: any*/)
+      (v11/*: any*/),
+      (v12/*: any*/)
     ],
     "type": "RootQueryType",
     "abstractKey": null
@@ -317,9 +316,9 @@ return {
             "kind": "InlineFragment",
             "selections": [
               (v4/*: any*/),
-              (v13/*: any*/),
-              (v7/*: any*/),
-              (v8/*: any*/)
+              (v5/*: any*/),
+              (v8/*: any*/),
+              (v9/*: any*/)
             ],
             "type": "User",
             "abstractKey": null
@@ -327,8 +326,8 @@ return {
         ],
         "storageKey": null
       },
-      (v10/*: any*/),
-      (v11/*: any*/)
+      (v11/*: any*/),
+      (v12/*: any*/)
     ]
   },
   "params": {
@@ -342,6 +341,6 @@ return {
 };
 })();
 
-(node as any).hash = "7ab5aaf7559edf11c84e411843e60f08";
+(node as any).hash = "173b9fec9572d45c7369419e80ff9422";
 
 export default node;

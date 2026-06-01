@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a30d2d8cf44775f6dc0a0f0970ad2034>>
+ * @generated SignedSource<<ab9b98ab8009a64aebbcf49d5a6f3c33>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -99,69 +99,18 @@ v2 = {
   "storageKey": null
 },
 v3 = [
-  (v0/*: any*/),
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "status",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "visibility",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "insertedAt",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "startedAt",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "kind": "ScalarField",
-    "name": "endedAt",
-    "storageKey": null
-  },
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "User",
-    "kind": "LinkedField",
-    "name": "host",
-    "plural": false,
-    "selections": [
-      (v0/*: any*/),
-      (v1/*: any*/)
-    ],
-    "storageKey": null
-  }
-],
-v4 = [
   {
     "kind": "Literal",
     "name": "first",
     "value": 10
   }
 ],
-v5 = [
+v4 = [
   (v0/*: any*/),
   (v1/*: any*/),
   (v2/*: any*/)
 ],
-v6 = [
+v5 = [
   {
     "alias": null,
     "args": null,
@@ -195,14 +144,14 @@ v6 = [
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
-        "selections": (v5/*: any*/),
+        "selections": (v4/*: any*/),
         "storageKey": null
       }
     ],
     "storageKey": null
   }
 ],
-v7 = [
+v6 = [
   {
     "alias": null,
     "args": null,
@@ -221,27 +170,77 @@ v7 = [
         "kind": "LinkedField",
         "name": "currentLiveSession",
         "plural": false,
-        "selections": (v3/*: any*/),
+        "selections": [
+          (v0/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "status",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "visibility",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "insertedAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "startedAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "endedAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "User",
+            "kind": "LinkedField",
+            "name": "host",
+            "plural": false,
+            "selections": [
+              (v0/*: any*/),
+              (v1/*: any*/)
+            ],
+            "storageKey": null
+          }
+        ],
         "storageKey": null
       },
       {
         "alias": null,
-        "args": (v4/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": "UserConnection",
         "kind": "LinkedField",
         "name": "followers",
         "plural": false,
-        "selections": (v6/*: any*/),
+        "selections": (v5/*: any*/),
         "storageKey": "followers(first:10)"
       },
       {
         "alias": null,
-        "args": (v4/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": "UserConnection",
         "kind": "LinkedField",
         "name": "following",
         "plural": false,
-        "selections": (v6/*: any*/),
+        "selections": (v5/*: any*/),
         "storageKey": "following(first:10)"
       }
     ],
@@ -299,7 +298,7 @@ v7 = [
                 "kind": "LinkedField",
                 "name": "follower",
                 "plural": false,
-                "selections": (v5/*: any*/),
+                "selections": (v4/*: any*/),
                 "storageKey": null
               }
             ],
@@ -318,7 +317,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "ViewerProfileScreenQuery",
-    "selections": (v7/*: any*/),
+    "selections": (v6/*: any*/),
     "type": "RootQueryType",
     "abstractKey": null
   },
@@ -327,7 +326,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "ViewerProfileScreenQuery",
-    "selections": (v7/*: any*/)
+    "selections": (v6/*: any*/)
   },
   "params": {
     "cacheID": "16c0e5e3b29b397dd4753fc86eb851f8",
@@ -340,6 +339,6 @@ return {
 };
 })();
 
-(node as any).hash = "5f83d61b96476418f4c6f9e69276eb09";
+(node as any).hash = "caac10486e16d15822ff2ae19a88ddeb";
 
 export default node;

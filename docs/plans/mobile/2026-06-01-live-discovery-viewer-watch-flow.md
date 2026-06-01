@@ -1,6 +1,6 @@
 # Live Discovery And Viewer Watch Flow Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
 **Goal:** Build the first mobile live-session viewer path: discover visible live sessions, enter from home/profile/deep links, inspect a durable watch screen, and use viewer join/leave mutations.
 
@@ -55,12 +55,12 @@ Verified before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Add live-session presentation and navigation helpers
-- [ ] Task 2: Build Relay-backed home live discovery
-- [ ] Task 3: Add profile-based live-session entry points
-- [ ] Task 4: Build the durable viewer watch screen with join/leave mutations
-- [ ] Task 5: Preserve live-session deep links through startup routing
-- [ ] Task 6: Verify the live discovery/watch slice and advance mobile planning pointers
+- [x] Task 1: Add live-session presentation and navigation helpers
+- [x] Task 2: Build Relay-backed home live discovery
+- [x] Task 3: Add profile-based live-session entry points
+- [x] Task 4: Build the durable viewer watch screen with join/leave mutations
+- [x] Task 5: Preserve live-session deep links through startup routing
+- [x] Task 6: Verify the live discovery/watch slice and advance mobile planning pointers
 
 ### Task 1: Add Live-Session Presentation And Navigation Helpers
 
@@ -70,7 +70,7 @@ Verified before drafting this plan:
 - Create: `mobile/src/live/liveSessionNavigation.test.ts`
 - Create: `mobile/src/live/liveSessionNavigation.ts`
 
-- [ ] **Step 1: Write presentation helper tests**
+- [x] **Step 1: Write presentation helper tests**
 
 Create `mobile/src/live/liveSessionPresentation.test.ts`:
 
@@ -163,7 +163,7 @@ describe('liveSessionPresentation', () => {
 });
 ```
 
-- [ ] **Step 2: Run presentation helper tests and verify RED**
+- [x] **Step 2: Run presentation helper tests and verify RED**
 
 Run:
 
@@ -174,7 +174,7 @@ bun test src/live/liveSessionPresentation.test.ts
 
 Expected: FAIL because `src/live/liveSessionPresentation.ts` does not exist yet.
 
-- [ ] **Step 3: Implement presentation helpers**
+- [x] **Step 3: Implement presentation helpers**
 
 Create `mobile/src/live/liveSessionPresentation.ts`:
 
@@ -290,7 +290,7 @@ export function formatLiveMutationErrors(
 }
 ```
 
-- [ ] **Step 4: Run presentation helper tests and verify GREEN**
+- [x] **Step 4: Run presentation helper tests and verify GREEN**
 
 Run:
 
@@ -301,7 +301,7 @@ bun test src/live/liveSessionPresentation.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Write navigation helper tests**
+- [x] **Step 5: Write navigation helper tests**
 
 Create `mobile/src/live/liveSessionNavigation.test.ts`:
 
@@ -332,7 +332,7 @@ describe('liveSessionNavigation', () => {
 });
 ```
 
-- [ ] **Step 6: Run navigation helper tests and verify RED**
+- [x] **Step 6: Run navigation helper tests and verify RED**
 
 Run:
 
@@ -343,7 +343,7 @@ bun test src/live/liveSessionNavigation.test.ts
 
 Expected: FAIL because `src/live/liveSessionNavigation.ts` does not exist yet.
 
-- [ ] **Step 7: Implement navigation helpers**
+- [x] **Step 7: Implement navigation helpers**
 
 Create `mobile/src/live/liveSessionNavigation.ts`:
 
@@ -364,7 +364,7 @@ export function readLiveSessionIdParam(
 }
 ```
 
-- [ ] **Step 8: Run Task 1 tests and commit**
+- [x] **Step 8: Run Task 1 tests and commit**
 
 Run:
 
@@ -390,7 +390,7 @@ git commit -m "feat(mobile): add live session presentation helpers"
 - Modify: `mobile/app/(app)/home.tsx`
 - Generated: `mobile/src/live/__generated__/LiveDiscoveryScreenQuery.graphql.ts`
 
-- [ ] **Step 1: Create the shared live-session summary card**
+- [x] **Step 1: Create the shared live-session summary card**
 
 Create `mobile/src/live/LiveSessionSummaryCard.tsx` with props that accept a Relay session fragment-shaped object:
 
@@ -415,7 +415,7 @@ Render:
 
 Use existing `AppCard`, `AppButton`, `useAppTheme`, `spacing`, `radius`, and `typography`. Keep the card max width consistent with existing shell/profile cards.
 
-- [ ] **Step 2: Build the discovery screen query**
+- [x] **Step 2: Build the discovery screen query**
 
 Create `mobile/src/live/LiveDiscoveryScreen.tsx` with this Relay query:
 
@@ -461,7 +461,7 @@ query LiveDiscoveryScreenQuery($first: Int!) {
 
 Use `useLazyLoadQuery` with `{ first: 20 }` and `fetchPolicy: 'store-and-network'`.
 
-- [ ] **Step 3: Add loading, error, empty, and list rendering**
+- [x] **Step 3: Add loading, error, empty, and list rendering**
 
 Wrap `LiveDiscoveryScreen` in a local error boundary and `Suspense`, following the current `ViewerProfileScreen` pattern.
 
@@ -473,7 +473,7 @@ Behavior:
 - show `ScreenState` empty when there is no current session and no visible live sessions
 - navigate with `router.push(liveSessionHref(session.id))`
 
-- [ ] **Step 4: Replace the home placeholder**
+- [x] **Step 4: Replace the home placeholder**
 
 Modify `mobile/app/(app)/home.tsx` to render only:
 
@@ -485,7 +485,7 @@ export default function HomeScreen() {
 }
 ```
 
-- [ ] **Step 5: Run Relay codegen and TypeScript**
+- [x] **Step 5: Run Relay codegen and TypeScript**
 
 Run:
 
@@ -497,7 +497,7 @@ XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command
 
 Expected: Relay artifact is generated and TypeScript passes.
 
-- [ ] **Step 6: Commit Task 2**
+- [x] **Step 6: Commit Task 2**
 
 Commit:
 
@@ -514,7 +514,7 @@ git commit -m "feat(mobile): add live discovery home"
 - Generated: `mobile/src/profile/__generated__/ViewerProfileScreenQuery.graphql.ts`
 - Generated: `mobile/src/profile/__generated__/OtherUserProfileScreenQuery.graphql.ts`
 
-- [ ] **Step 1: Add `currentLiveSession` to the viewer profile query**
+- [x] **Step 1: Add `currentLiveSession` to the viewer profile query**
 
 Extend `ViewerProfileScreenQuery.viewer` with:
 
@@ -533,19 +533,19 @@ currentLiveSession {
 }
 ```
 
-- [ ] **Step 2: Render the viewer's current live entry**
+- [x] **Step 2: Render the viewer's current live entry**
 
 In `ViewerProfileContent`, render `LiveSessionSummaryCard` above the follower/following stats when `data.viewer.currentLiveSession` is present. Use button label `Open live session` and navigate with `router.push(liveSessionHref(session.id))`.
 
-- [ ] **Step 3: Add `currentLiveSession` to the other-user profile query**
+- [x] **Step 3: Add `currentLiveSession` to the other-user profile query**
 
 Extend the `... on User` selection in `OtherUserProfileScreenQuery` with the same `currentLiveSession` fields.
 
-- [ ] **Step 4: Render visible other-user live entry**
+- [x] **Step 4: Render visible other-user live entry**
 
 In `OtherUserProfileContent`, render `LiveSessionSummaryCard` after the identity section when `user.currentLiveSession` is present. Use button label `Watch live` and navigate with `router.push(liveSessionHref(user.currentLiveSession.id))`.
 
-- [ ] **Step 5: Run Relay codegen and TypeScript**
+- [x] **Step 5: Run Relay codegen and TypeScript**
 
 Run:
 
@@ -557,7 +557,7 @@ XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command
 
 Expected: profile query artifacts update and TypeScript passes.
 
-- [ ] **Step 6: Commit Task 3**
+- [x] **Step 6: Commit Task 3**
 
 Commit:
 
@@ -577,7 +577,7 @@ git commit -m "feat(mobile): add profile live session entry"
 - Generated: `mobile/src/live/__generated__/LiveSessionWatchScreenJoinMutation.graphql.ts`
 - Generated: `mobile/src/live/__generated__/LiveSessionWatchScreenLeaveMutation.graphql.ts`
 
-- [ ] **Step 1: Write watch reducer tests**
+- [x] **Step 1: Write watch reducer tests**
 
 Create `mobile/src/live/liveSessionWatchReducer.test.ts`:
 
@@ -680,7 +680,7 @@ describe('liveSessionWatchReducer', () => {
 });
 ```
 
-- [ ] **Step 2: Run watch reducer tests and verify RED**
+- [x] **Step 2: Run watch reducer tests and verify RED**
 
 Run:
 
@@ -691,7 +691,7 @@ bun test src/live/liveSessionWatchReducer.test.ts
 
 Expected: FAIL because `src/live/liveSessionWatchReducer.ts` does not exist yet.
 
-- [ ] **Step 3: Implement watch reducer**
+- [x] **Step 3: Implement watch reducer**
 
 Create `mobile/src/live/liveSessionWatchReducer.ts` with this public state and action contract:
 
@@ -721,7 +721,7 @@ Rules:
 - success/failure actions whose `sessionId` does not match `activeSessionId` return the previous state object unchanged.
 - `leave_failed` keeps `isJoined: true` so the user can retry cleanup.
 
-- [ ] **Step 4: Run watch reducer tests and verify GREEN**
+- [x] **Step 4: Run watch reducer tests and verify GREEN**
 
 Run:
 
@@ -732,7 +732,7 @@ bun test src/live/liveSessionWatchReducer.test.ts
 
 Expected: PASS.
 
-- [ ] **Step 5: Replace the live-session modal route**
+- [x] **Step 5: Replace the live-session modal route**
 
 Modify `mobile/app/(modals)/live-session.tsx` to:
 - call `useLocalSearchParams<{ sessionId?: string | string[] }>()`
@@ -740,7 +740,7 @@ Modify `mobile/app/(modals)/live-session.tsx` to:
 - render `ScreenState` error with message `Choose a live session to continue.` when missing
 - render `<LiveSessionWatchScreen sessionId={sessionId} />` when present
 
-- [ ] **Step 6: Build the watch screen query and mutations**
+- [x] **Step 6: Build the watch screen query and mutations**
 
 Create `mobile/src/live/LiveSessionWatchScreen.tsx` with query:
 
@@ -806,7 +806,7 @@ mutation LiveSessionWatchScreenLeaveMutation($input: LeaveLiveSessionInput!) {
 }
 ```
 
-- [ ] **Step 7: Render durable watch states**
+- [x] **Step 7: Render durable watch states**
 
 Behavior:
 - loading: `ScreenState` with `Loading live session...`
@@ -821,7 +821,7 @@ Behavior:
 
 Use `useReducer(liveSessionWatchReducer, createLiveSessionWatchState())`, `useMutation`, and a local error boundary following existing profile screen patterns.
 
-- [ ] **Step 8: Run Task 4 verification**
+- [x] **Step 8: Run Task 4 verification**
 
 Run:
 
@@ -834,7 +834,7 @@ XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command
 
 Expected: reducer tests pass, Relay artifacts are generated, and TypeScript passes.
 
-- [ ] **Step 9: Commit Task 4**
+- [x] **Step 9: Commit Task 4**
 
 Commit:
 
@@ -849,7 +849,7 @@ git commit -m "feat(mobile): add live session watch flow"
 - Modify: `mobile/src/config/runtime.test.ts`
 - Modify: `mobile/src/config/runtime.ts`
 
-- [ ] **Step 1: Add runtime deep-link tests**
+- [x] **Step 1: Add runtime deep-link tests**
 
 Extend `mobile/src/config/runtime.test.ts`:
 
@@ -895,7 +895,7 @@ test('preserves authenticated live-session deep links after auth settles', () =>
 });
 ```
 
-- [ ] **Step 2: Run runtime tests and verify RED**
+- [x] **Step 2: Run runtime tests and verify RED**
 
 Run:
 
@@ -906,7 +906,7 @@ bun test src/config/runtime.test.ts
 
 Expected: FAIL because `routeHrefFromUrl` currently strips query params.
 
-- [ ] **Step 3: Update startup route parsing**
+- [x] **Step 3: Update startup route parsing**
 
 Modify `mobile/src/config/runtime.ts`:
 - keep `KNOWN_ROUTE_HREFS` as route paths without query params
@@ -925,7 +925,7 @@ function routePathFromHref(href: string): string {
 
 Use `routePathFromHref(snapshot.initialHref)` when checking `AUTH_ROUTE_HREFS`.
 
-- [ ] **Step 4: Run runtime tests and TypeScript**
+- [x] **Step 4: Run runtime tests and TypeScript**
 
 Run:
 
@@ -937,7 +937,7 @@ XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit Task 5**
+- [x] **Step 5: Commit Task 5**
 
 Commit:
 
@@ -953,7 +953,7 @@ git commit -m "feat(mobile): preserve live session deep links"
 - Modify: `docs/plans/mobile/TRACK.md`
 - Modify: `docs/plans/mobile/NOW.md`
 
-- [ ] **Step 1: Run focused mobile tests**
+- [x] **Step 1: Run focused mobile tests**
 
 Run:
 
@@ -964,7 +964,7 @@ bun test src/live/liveSessionPresentation.test.ts src/live/liveSessionNavigation
 
 Expected: PASS.
 
-- [ ] **Step 2: Run Relay and TypeScript verification**
+- [x] **Step 2: Run Relay and TypeScript verification**
 
 Run:
 
@@ -976,7 +976,7 @@ XDG_CACHE_HOME=/tmp/nix-run-cache nix --extra-experimental-features 'nix-command
 
 Expected: PASS.
 
-- [ ] **Step 3: Re-read the slice for scope leaks**
+- [x] **Step 3: Re-read the slice for scope leaks**
 
 Confirm:
 - no backend Elixir, backend GraphQL schema, or shared contract files changed
@@ -985,11 +985,11 @@ Confirm:
 - no chat-history or chat-realtime UI was introduced
 - no replay discovery was introduced
 
-- [ ] **Step 4: Update the mobile plan progress**
+- [x] **Step 4: Update the mobile plan progress**
 
 In this file, mark completed task checkboxes and add a short verification note with the exact commands run.
 
-- [ ] **Step 5: Advance mobile lane pointers**
+- [x] **Step 5: Advance mobile lane pointers**
 
 Update `docs/plans/mobile/TRACK.md` and `docs/plans/mobile/NOW.md`:
 - status: live discovery plus durable viewer watch flow complete
@@ -997,7 +997,7 @@ Update `docs/plans/mobile/TRACK.md` and `docs/plans/mobile/NOW.md`:
 - next detailed plan: host broadcast native capability and preflight planning, unless the coordinator explicitly prioritizes channel transport contract repair first
 - note the backend contract dependency for future Phoenix Channel work: mobile needs a client-safe channel join identifier or topic derived from a Relay `LiveSession`
 
-- [ ] **Step 6: Commit Task 6**
+- [x] **Step 6: Commit Task 6**
 
 Commit:
 
@@ -1005,6 +1005,31 @@ Commit:
 git add docs/plans/mobile/2026-06-01-live-discovery-viewer-watch-flow.md docs/plans/mobile/TRACK.md docs/plans/mobile/NOW.md
 git commit -m "docs(mobile): close live discovery watch plan"
 ```
+
+## Verification Note
+
+Completed on 2026-06-01.
+
+Commands run:
+
+```bash
+cd mobile
+bun test src/live/liveSessionPresentation.test.ts src/live/liveSessionNavigation.test.ts src/live/liveSessionWatchReducer.test.ts src/config/runtime.test.ts
+./node_modules/.bin/relay-compiler
+./node_modules/.bin/tsc --noEmit
+cd ..
+git diff --check
+```
+
+Results:
+- Focused Bun tests passed: 33 tests, 0 failures, 64 assertions.
+- Relay compiler passed after running outside the sandbox because Watchman could not update `/Users/admin/.local/state/watchman/admin-state` inside the sandbox.
+- Local TypeScript `./node_modules/.bin/tsc --noEmit` passed.
+- `git diff --check` passed.
+
+Nix note:
+- The plan's Nix-wrapped Relay and TypeScript commands could not run in this environment because `/nix/var/nix/daemon-socket/socket` refused connections.
+- The same Nix daemon failure occurred inside the sandbox and after escalation, so local mobile toolchain commands were used for the final verification evidence.
 
 ## Final Verification Command Set
 
@@ -1019,7 +1044,9 @@ cd ..
 git diff --check
 ```
 
-Expected: all commands pass.
+Expected: all commands pass when the Nix daemon is available. In this checkout,
+the local Relay and TypeScript equivalents passed as recorded in the
+verification note above.
 
 ## Follow-Up Dependency
 
