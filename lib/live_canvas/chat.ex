@@ -6,7 +6,7 @@ defmodule LC.Chat do
   use Boundary, deps: [LC.Infra, LC.ReadPolicy, LCSchemas]
   import Ecto.Query, warn: false
 
-  alias LC.Chat.{Broadcasts, History, SystemEvents}
+  alias LC.Chat.{Broadcasts, History, SystemEvents, TimelineEvents, TimelineProjection}
   alias LC.Chat.ChatMessage, as: ChatMessageChanges
   alias LC.Infra.Repo
   alias LC.ReadPolicy
@@ -19,6 +19,9 @@ defmodule LC.Chat do
   @type authorize_history_result :: :ok | {:error, :not_authorized}
   @type chat_message_result ::
           {:ok, ChatMessage.t()} | {:error, changeset() | :not_authorized | :session_ended}
+  @type timeline_chat_message_result ::
+          {:ok, TimelineProjection.t()}
+          | {:error, changeset() | :not_authorized | :session_ended}
   @type system_event_opts :: [actor: User.t(), metadata: map()]
   @type system_event_result ::
           {:ok, ChatMessage.t()}
@@ -89,6 +92,33 @@ defmodule LC.Chat do
 
   def get_history_message(%User{}, _message_id), do: nil
 
+  @doc """
+  Returns a deterministic visible timeline projection query for a live session's retained chat.
+  """
+  @spec timeline_history_query(LiveSession.t()) :: Ecto.Query.t()
+  def timeline_history_query(%LiveSession{id: live_session_id})
+      when is_integer(live_session_id) do
+    TimelineEvents.history_query(live_session_id)
+  end
+
+  @doc """
+  Returns one visible timeline event when the viewer can read its session history.
+  """
+  @spec get_timeline_event(User.t(), integer()) :: TimelineProjection.t() | nil
+  def get_timeline_event(%User{} = viewer, timeline_event_id)
+      when is_integer(timeline_event_id) do
+    with %{live_session_id: live_session_id} = timeline_event <-
+           timeline_event_id |> TimelineEvents.event_query() |> Repo.one(),
+         %LiveSession{} = live_session <- Repo.get(LiveSession, live_session_id),
+         :ok <- authorize_history_access(viewer, live_session) do
+      timeline_event
+    else
+      _other -> nil
+    end
+  end
+
+  def get_timeline_event(%User{}, _timeline_event_id), do: nil
+
   @spec authorize_visible_session_access(User.t(), LiveSession.t()) ::
           :ok | {:error, :not_authorized}
   defp authorize_visible_session_access(
@@ -125,6 +155,18 @@ defmodule LC.Chat do
            )
            |> Repo.insert() do
       {:ok, chat_message}
+    end
+  end
+
+  @doc """
+  Persists an append-only timeline chat message event and its current projection.
+  """
+  @spec create_timeline_chat_message(LiveSession.t(), User.t(), map()) ::
+          timeline_chat_message_result()
+  def create_timeline_chat_message(%LiveSession{} = live_session, %User{} = sender, attrs)
+      when is_map(attrs) do
+    with :ok <- authorize_join(sender, live_session) do
+      TimelineEvents.create_chat_message(Repo, live_session, sender, attrs)
     end
   end
 
