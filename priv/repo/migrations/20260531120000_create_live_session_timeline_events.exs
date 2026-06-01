@@ -65,6 +65,17 @@ defmodule LiveCanvas.Repo.Migrations.CreateLiveSessionTimelineEvents do
     end
 
     create unique_index(:live_session_moderation_actions, [:entropy_id])
+
+    execute(
+      """
+      create unique index live_session_moderation_actions_id_live_session_id_index
+      on live_session_moderation_actions (id, live_session_id)
+      """,
+      """
+      drop index if exists live_session_moderation_actions_id_live_session_id_index
+      """
+    )
+
     create index(:live_session_moderation_actions, [:live_session_id])
     create index(:live_session_moderation_actions, [:actor_user_id])
     create index(:live_session_moderation_actions, [:target_user_id])
@@ -164,6 +175,20 @@ defmodule LiveCanvas.Repo.Migrations.CreateLiveSessionTimelineEvents do
       """
       alter table live_session_timeline_event_states
       drop constraint if exists live_session_timeline_event_states_superseded_same_session_fk
+      """
+    )
+
+    execute(
+      """
+      alter table live_session_timeline_event_states
+      add constraint timeline_event_states_moderation_action_same_session_fk
+      foreign key (moderation_action_id, live_session_id)
+      references live_session_moderation_actions(id, live_session_id)
+      on delete set null (moderation_action_id)
+      """,
+      """
+      alter table live_session_timeline_event_states
+      drop constraint if exists timeline_event_states_moderation_action_same_session_fk
       """
     )
 

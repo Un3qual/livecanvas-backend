@@ -178,6 +178,33 @@ defmodule LCSchemas.Chat.TimelineEventSchemaTest do
                  end
   end
 
+  test "event states cannot point moderation actions at another live session" do
+    %{host: source_host, session: source_session} = live_session_fixture()
+    %{host: other_host, session: other_session} = live_session_fixture()
+    timeline_event = insert_timeline_event!(source_session, source_host)
+
+    moderation_action =
+      Repo.insert!(%LiveSessionModerationAction{
+        live_session_id: other_session.id,
+        action_type: :user_muted,
+        actor_user_id: other_host.id,
+        target_user_id: source_host.id
+      })
+
+    assert_raise Ecto.ConstraintError,
+                 ~r/timeline_event_states_moderation_action_same_session_fk/,
+                 fn ->
+                   Repo.insert!(%LiveSessionTimelineEventState{
+                     timeline_event_id: timeline_event.id,
+                     live_session_id: source_session.id,
+                     occurred_at: timeline_event.occurred_at,
+                     projection_state: :hidden,
+                     moderation_action_id: moderation_action.id,
+                     updated_at: now_utc()
+                   })
+                 end
+  end
+
   defp live_session_fixture do
     host = user_fixture(privacy_mode: :public)
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
