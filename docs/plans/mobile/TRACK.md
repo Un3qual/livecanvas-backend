@@ -8,7 +8,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Track Status
 
-- Status: live discovery plus durable viewer watch flow complete
+- Status: channel transport contract repair plan ready for execution
 - Approved overview: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
 - Approved bootstrap design:
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
@@ -19,11 +19,11 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
   - `docs/plans/mobile/2026-03-27-relay-auth-session-lifecycle.md`
   - `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
   - `docs/plans/mobile/2026-06-01-live-discovery-viewer-watch-flow.md`
-- Current detailed plan: none; next detailed plan should cover host broadcast native capability and preflight planning unless the coordinator prioritizes channel transport contract repair first.
+- Current detailed plan: `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md`
 - Lane execution pointer: `docs/plans/mobile/NOW.md`
 - Coordinator dashboard: `docs/plans/NOW.md`
-- Next lane batch: create the host broadcast native capability and preflight planning plan.
-- Backend contract dependency for future channel work: mobile needs a client-safe channel join identifier or topic derived from a Relay `LiveSession`; do not decode Relay IDs client-side.
+- Next lane batch: execute `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md` -> `Task 1`.
+- Backend contract dependency for future channel work: mobile needs a client-safe channel join identifier or topic derived from a Relay `LiveSession`; do not decode Relay IDs client-side. This dependency is now the active repair plan before host broadcast/native media planning.
 
 ## Recommended Detailed Plan Order
 
