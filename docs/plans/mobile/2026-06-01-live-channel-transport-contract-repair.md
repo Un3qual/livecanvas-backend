@@ -23,9 +23,9 @@ Verified before drafting this plan:
 
 ## Scope Decisions
 
-- Add a nullable `LiveSession.channelTopic` field for mobile clients. It returns the server-generated channel topic for visible `STARTING` and `LIVE` sessions and returns `null` for `ENDED` sessions.
+- Add a nullable `LiveSession.channelTopic` field for mobile clients. It re-applies viewer authorization in the child field resolver, returns the server-generated channel topic for viewer-authorized `STARTING` and `LIVE` sessions, and returns `null` for `ENDED`, unauthenticated, or unauthorized sessions.
 - Treat `channelTopic` as an opaque transport string. Mobile code must not parse it, derive it from a Relay ID, or assume it will always contain the database integer.
-- Keep channel authorization in the socket join path even though the topic came from an authorized GraphQL read.
+- Keep channel authorization in the socket join path even though the topic came from an authorized GraphQL read; GraphQL topic disclosure and channel joining must both enforce authorization.
 - Update the realtime contract to the current timeline event names and payload shapes.
 - Add mobile pure helpers for validating a provided topic and normalizing timeline event payloads. Do not add socket connection lifecycle, media playback, media capture, or chat UI in this batch.
 - Regenerate the mobile Relay schema and generated artifacts only for queries/mutations touched by this plan.
@@ -38,6 +38,7 @@ Verified before drafting this plan:
 - `lib/live_canvas_gql/live/live_resolver.ex`: expose a small public resolver for `LiveSession.channelTopic`.
 - `test/live_canvas_gql/feed/feed_queries_test.exs`: cover `channelTopic` on `liveNow`.
 - `test/live_canvas_gql/relay/node_queries_test.exs`: cover `channelTopic` on `node(id:)`.
+- `test/live_canvas_gql/live/live_resolver_test.exs`: cover direct child-resolver authorization behavior, including unauthorized private/followers-only sessions.
 - `test/live_canvas_gql/live/live_mutations_test.exs`: cover mutation payloads returning `channelTopic`.
 - `test/live_canvas_web/channels/live_session_channel_test.exs`: keep the current timeline-event channel payload contract pinned.
 - `mobile/schema.graphql`: refresh the local schema snapshot after backend GraphQL changes.
@@ -113,6 +114,17 @@ Stable payload shape:
 
 Also update topic wording so clients join the `LiveSession.channelTopic` value returned by GraphQL and treat the topic as opaque.
 
+Update the Disconnect Control section so it says:
+
+```markdown
+Mobile clients do not join these control topics directly. The client-observable contract is:
+
+- `endLiveSession` publishes the terminal `timeline:event` lifecycle event first
+- then publishes the terminal `session:state`
+- only after those events does the server close already-joined viewers with `reason: "session_ended"`
+- `leaveLiveSession` closes only the caller's joined channel with `reason: "viewer_left"`
+```
+
 - [ ] **Step 2: Run the existing channel contract test**
 
 Run:
@@ -186,6 +198,7 @@ git commit -m "docs: repair mobile live realtime contract"
 - Modify: `lib/live_canvas_gql/live/live_resolver.ex`
 - Modify: `test/live_canvas_gql/feed/feed_queries_test.exs`
 - Modify: `test/live_canvas_gql/relay/node_queries_test.exs`
+- Create: `test/live_canvas_gql/live/live_resolver_test.exs`
 - Modify: `test/live_canvas_gql/live/live_mutations_test.exs`
 
 - [ ] **Step 1: Document `channelTopic`**
@@ -244,6 +257,31 @@ test "live sessions expose an opaque channel topic for active sessions" do
 
   assert channel_topic == LiveSessionTopics.live_session_topic(live_session.id)
 end
+
+test "liveNow does not expose channel topics for non-visible followers-only sessions" do
+  host = user_fixture()
+  outsider = user_fixture()
+  {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+  {:ok, _live_session} = Live.mark_session_live(session)
+
+  query = """
+  query HiddenLiveNowWithChannelTopic {
+    liveNow(first: 10) {
+      edges {
+        node {
+          id
+          channelTopic
+        }
+      }
+    }
+  }
+  """
+
+  assert {:ok, %{data: %{"liveNow" => %{"edges" => []}}}} =
+           Absinthe.run(query, LCGQL.Schema,
+             context: %{current_scope: Accounts.scope_for_user(outsider)}
+           )
+end
 ```
 
 In `test/live_canvas_gql/relay/node_queries_test.exs`, add coverage that queries `channelTopic` from `node(id:)`:
@@ -284,7 +322,67 @@ test "ended live session node reads return a null channel topic" do
 end
 ```
 
-- [ ] **Step 3: Write failing mutation payload coverage**
+- [ ] **Step 3: Write direct child-resolver authorization coverage**
+
+Create `test/live_canvas_gql/live/live_resolver_test.exs`:
+
+```elixir
+defmodule LCGQL.Live.ResolverTest do
+  use LC.DataCase, async: true
+
+  import LC.AccountsFixtures
+  import LC.SocialFixtures
+
+  alias LC.{Accounts, Live}
+  alias LCGQL.Live.Resolver
+  alias LCTransport.LiveSessionTopics
+
+  describe "live_session_channel_topic/3" do
+    test "returns an opaque topic for an authorized active viewer" do
+      host = user_fixture()
+      viewer = user_fixture()
+      _follow = accepted_follow_fixture(viewer, host)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+      {:ok, live_session} = Live.mark_session_live(session)
+
+      assert {:ok, topic} =
+               Resolver.live_session_channel_topic(live_session, %{}, resolution_for(viewer))
+
+      assert topic == LiveSessionTopics.live_session_topic(live_session.id)
+    end
+
+    test "returns nil for active sessions the viewer cannot join" do
+      host = user_fixture()
+      outsider = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+      {:ok, live_session} = Live.mark_session_live(session)
+
+      assert {:ok, nil} =
+               Resolver.live_session_channel_topic(live_session, %{}, resolution_for(outsider))
+    end
+
+    test "returns nil for ended sessions and missing viewer scope" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, ended_session} = Live.end_live_session(session)
+
+      assert {:ok, nil} =
+               Resolver.live_session_channel_topic(ended_session, %{}, resolution_for(host))
+
+      assert {:ok, nil} =
+               Resolver.live_session_channel_topic(session, %{}, %Absinthe.Resolution{
+                 context: %{}
+               })
+    end
+  end
+
+  defp resolution_for(viewer) do
+    %Absinthe.Resolution{context: %{current_scope: Accounts.scope_for_user(viewer)}}
+  end
+end
+```
+
+- [ ] **Step 4: Write failing mutation payload coverage**
 
 In `test/live_canvas_gql/live/live_mutations_test.exs`, extend the `startLiveSession`, `goLiveSession`, and `joinLiveSession` success selections to include `channelTopic`:
 
@@ -298,32 +396,39 @@ liveSession {
 
 Assert that `channelTopic` equals `LiveSessionTopics.live_session_topic(session.id)` for returned `STARTING` and `LIVE` sessions.
 
-- [ ] **Step 4: Run focused GraphQL tests and verify RED**
+- [ ] **Step 5: Run focused GraphQL tests and verify RED**
 
 Run:
 
 ```bash
-mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_mutations_test.exs
+mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_resolver_test.exs test/live_canvas_gql/live/live_mutations_test.exs
 ```
 
-Expected: FAIL with a GraphQL validation error that `channelTopic` does not exist on `LiveSession`.
+Expected: FAIL with a GraphQL validation error that `channelTopic` does not exist on `LiveSession` and an undefined `Resolver.live_session_channel_topic/3` failure in the direct resolver test.
 
-- [ ] **Step 5: Implement the resolver**
+- [ ] **Step 6: Implement the resolver**
 
 In `lib/live_canvas_gql/live/live_resolver.ex`, add:
 
 ```elixir
 @spec live_session_channel_topic(map(), map(), Absinthe.Resolution.t()) ::
         {:ok, String.t() | nil}
-def live_session_channel_topic(%{id: session_id, status: status}, _args, _resolution)
-    when is_integer(session_id) and status in [:starting, :live] do
-  {:ok, LiveSessionTopics.live_session_topic(session_id)}
+def live_session_channel_topic(
+      %{id: session_id, status: status} = live_session,
+      _args,
+      %Absinthe.Resolution{context: %{current_scope: %{user: %{id: user_id} = viewer}}}
+    )
+    when is_integer(session_id) and is_integer(user_id) and status in [:starting, :live] do
+  case Chat.authorize_join(viewer, live_session) do
+    :ok -> {:ok, LiveSessionTopics.live_session_topic(session_id)}
+    {:error, _reason} -> {:ok, nil}
+  end
 end
 
 def live_session_channel_topic(_live_session, _args, _resolution), do: {:ok, nil}
 ```
 
-- [ ] **Step 6: Add the GraphQL field**
+- [ ] **Step 7: Add the GraphQL field**
 
 In `lib/live_canvas_gql/feed/feed_types.ex`, inside `object :live_session`, add:
 
@@ -333,17 +438,17 @@ field :channel_topic, :string do
 end
 ```
 
-- [ ] **Step 7: Run focused GraphQL tests**
+- [ ] **Step 8: Run focused GraphQL tests**
 
 Run:
 
 ```bash
-mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_mutations_test.exs
+mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_resolver_test.exs test/live_canvas_gql/live/live_mutations_test.exs
 ```
 
 Expected: PASS.
 
-- [ ] **Step 8: Run compile and typecheck**
+- [ ] **Step 9: Run compile and typecheck**
 
 Run:
 
@@ -354,10 +459,10 @@ mix typecheck
 
 Expected: both PASS.
 
-- [ ] **Step 9: Commit Task 2**
+- [ ] **Step 10: Commit Task 2**
 
 ```bash
-git add docs/contracts/mobile-live-session-graphql.md lib/live_canvas_gql/feed/feed_types.ex lib/live_canvas_gql/live/live_resolver.ex test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_mutations_test.exs
+git add docs/contracts/mobile-live-session-graphql.md lib/live_canvas_gql/feed/feed_types.ex lib/live_canvas_gql/live/live_resolver.ex test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_resolver_test.exs test/live_canvas_gql/live/live_mutations_test.exs
 git commit -m "feat: expose live session channel topic"
 ```
 
@@ -614,6 +719,37 @@ describe('liveSessionRealtimeEvents', () => {
     });
   });
 
+  test('accepts lifecycle timeline events with nullable chat fields', () => {
+    expect(
+      normalizeLiveSessionRealtimeEvent('timeline:event', {
+        event: {
+          __typename: 'LiveSessionStartedEvent',
+          id: 'started-event-id',
+          event_type: 'live_session_started',
+          body: null,
+          actor_id: 42,
+          occurred_at: '2026-06-01T23:18:09Z',
+          edited: null,
+          edit_count: null,
+          edited_at: null,
+        },
+      }),
+    ).toEqual({
+      kind: 'timeline_event',
+      event: {
+        __typename: 'LiveSessionStartedEvent',
+        id: 'started-event-id',
+        eventType: 'live_session_started',
+        body: null,
+        actorId: 42,
+        occurredAt: '2026-06-01T23:18:09Z',
+        edited: null,
+        editCount: null,
+        editedAt: null,
+      },
+    });
+  });
+
   test('ignores malformed or unknown payloads', () => {
     expect(normalizeLiveSessionRealtimeEvent('session:state', {})).toBeNull();
     expect(normalizeLiveSessionRealtimeEvent('unknown:event', {})).toBeNull();
@@ -635,8 +771,8 @@ export type LiveSessionTimelineEventPayload = {
   readonly body: string | null;
   readonly actorId: number | null;
   readonly occurredAt: string;
-  readonly edited: boolean;
-  readonly editCount: number;
+  readonly edited: boolean | null;
+  readonly editCount: number | null;
   readonly editedAt: string | null;
 };
 
@@ -729,8 +865,8 @@ function normalizeTimelineEvent(value: unknown): LiveSessionTimelineEventPayload
     typeof value.id !== 'string' ||
     typeof value.event_type !== 'string' ||
     typeof value.occurred_at !== 'string' ||
-    typeof value.edited !== 'boolean' ||
-    typeof value.edit_count !== 'number'
+    !isNullableBoolean(value.edited) ||
+    !isNullableNumber(value.edit_count)
   ) {
     return null;
   }
@@ -742,8 +878,8 @@ function normalizeTimelineEvent(value: unknown): LiveSessionTimelineEventPayload
     body: typeof value.body === 'string' ? value.body : null,
     actorId: typeof value.actor_id === 'number' ? value.actor_id : null,
     occurredAt: value.occurred_at,
-    edited: value.edited,
-    editCount: value.edit_count,
+    edited: typeof value.edited === 'boolean' ? value.edited : null,
+    editCount: typeof value.edit_count === 'number' ? value.edit_count : null,
     editedAt: typeof value.edited_at === 'string' ? value.edited_at : null,
   };
 }
@@ -774,6 +910,14 @@ function normalizeRealtimeVisibility(value: unknown): 'PUBLIC' | 'FOLLOWERS' | n
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNullableBoolean(value: unknown): value is boolean | null {
+  return typeof value === 'boolean' || value === null;
+}
+
+function isNullableNumber(value: unknown): value is number | null {
+  return typeof value === 'number' || value === null;
 }
 ```
 
@@ -820,7 +964,7 @@ git commit -m "feat(mobile): add live realtime contract helpers"
 Run:
 
 ```bash
-mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
+mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_resolver_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
 mix compile
 mix typecheck
 ```
@@ -888,7 +1032,7 @@ git commit -m "docs: hand off to host broadcast planning"
 Run this complete set before opening the PR:
 
 ```bash
-mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
+mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_resolver_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
 mix compile
 mix typecheck
 cd mobile
