@@ -5,7 +5,7 @@ defmodule LC.Infra.DataGovernance.Retention do
 
   alias LC.Infra.Repo
   alias LCSchemas.Accounts.AuthEvent
-  alias LCSchemas.Chat.ChatMessage
+  alias LCSchemas.Chat.LiveSessionTimelineEvent
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
   alias LCSchemas.Live.LiveParticipant
 
@@ -14,7 +14,7 @@ defmodule LC.Infra.DataGovernance.Retention do
     auth_events: 365,
     async_jobs: 30,
     webhook_events: 90,
-    chat_messages: 180,
+    live_session_timeline_events: 180,
     live_participants: 180
   ]
   @default_apply_mode_enabled false
@@ -24,7 +24,7 @@ defmodule LC.Infra.DataGovernance.Retention do
           :auth_events
           | :async_jobs
           | :webhook_events
-          | :chat_messages
+          | :live_session_timeline_events
           | :live_participants
   @type mode :: :dry_run | :apply
   @type cutoff_strategy :: :policy_defaults | :override
@@ -172,7 +172,13 @@ defmodule LC.Infra.DataGovernance.Retention do
   end
 
   defp family_order,
-    do: [:auth_events, :async_jobs, :webhook_events, :chat_messages, :live_participants]
+    do: [
+      :auth_events,
+      :async_jobs,
+      :webhook_events,
+      :live_session_timeline_events,
+      :live_participants
+    ]
 
   @spec count_candidates(family(), DateTime.t()) :: non_neg_integer()
   defp count_candidates(:auth_events, cutoff_at) do
@@ -200,8 +206,10 @@ defmodule LC.Infra.DataGovernance.Retention do
     |> Repo.aggregate(:count, :id)
   end
 
-  defp count_candidates(:chat_messages, cutoff_at) do
-    from(chat_message in ChatMessage, where: chat_message.inserted_at <= ^cutoff_at)
+  defp count_candidates(:live_session_timeline_events, cutoff_at) do
+    from(timeline_event in LiveSessionTimelineEvent,
+      where: timeline_event.occurred_at <= ^cutoff_at
+    )
     |> Repo.aggregate(:count, :id)
   end
 

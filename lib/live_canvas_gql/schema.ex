@@ -8,7 +8,6 @@ defmodule LCGQL.Schema do
   alias LCGQL.Dataloader
   alias LCGQL.Accounts.ContactResolver
   alias LCSchemas.Accounts.{User, UserContactEntry, UserIdentity}
-  alias LCSchemas.Chat.ChatMessage
   alias LCSchemas.Content.{MediaAsset, Post, PostReport}
   alias LCSchemas.Infra.{AccountDeletionRequest, DataExportRequest}
   alias LCSchemas.Live.LiveSession
@@ -52,8 +51,14 @@ defmodule LCGQL.Schema do
         %{type: :follow_request, id: id}, resolution ->
           fetch_follow_request_node(id, resolution)
 
-        %{type: :chat_message, id: id}, resolution ->
-          fetch_chat_message_node(id, resolution)
+        %{type: :chat_message_event, id: id}, resolution ->
+          fetch_timeline_event_node(id, resolution, :chat_message_sent)
+
+        %{type: :live_session_started_event, id: id}, resolution ->
+          fetch_timeline_event_node(id, resolution, :live_session_started)
+
+        %{type: :live_session_ended_event, id: id}, resolution ->
+          fetch_timeline_event_node(id, resolution, :live_session_ended)
 
         %{type: :data_export_request, id: id}, resolution ->
           fetch_data_export_request_node(id, resolution)
@@ -110,8 +115,23 @@ defmodule LCGQL.Schema do
       %Follow{state: :requested}, _resolution ->
         :follow_request
 
-      %ChatMessage{}, _resolution ->
-        :chat_message
+      %{event_type: :chat_message_sent, id: id}, _resolution when is_integer(id) ->
+        :chat_message_event
+
+      %{event_type: "chat_message_sent", id: id}, _resolution when is_integer(id) ->
+        :chat_message_event
+
+      %{event_type: :live_session_started, id: id}, _resolution when is_integer(id) ->
+        :live_session_started_event
+
+      %{event_type: "live_session_started", id: id}, _resolution when is_integer(id) ->
+        :live_session_started_event
+
+      %{event_type: :live_session_ended, id: id}, _resolution when is_integer(id) ->
+        :live_session_ended_event
+
+      %{event_type: "live_session_ended", id: id}, _resolution when is_integer(id) ->
+        :live_session_ended_event
 
       %{id: id, contact_entry: %UserContactEntry{}, matched_users: matched_users}, _resolution ->
         if is_integer(id) and is_list(matched_users), do: :contact_match
@@ -262,19 +282,26 @@ defmodule LCGQL.Schema do
 
   defp fetch_follow_request_node(_id, _resolution), do: {:ok, nil}
 
-  # Chat-message nodes are viewer-scoped because history remains readable after
-  # a session ends, but only to viewers who still satisfy chat visibility rules.
-  defp fetch_chat_message_node(id, %{context: %{current_scope: %{user: %{id: _id} = viewer}}}) do
-    case cast_node_local_id(id) do
-      {:ok, local_id} ->
-        {:ok, Chat.get_history_message(viewer, local_id)}
+  # Timeline-event nodes are viewer-scoped because retained history remains
+  # readable after a session ends, but only to viewers who still satisfy chat
+  # visibility rules. Hidden projections are intentionally not refetchable.
+  defp fetch_timeline_event_node(id, resolution, expected_event_type)
+       when expected_event_type in [
+              :chat_message_sent,
+              :live_session_started,
+              :live_session_ended
+            ] do
+    case {cast_node_local_id(id), resolution} do
+      {{:ok, local_id}, %{context: %{current_scope: %{user: %{id: _id} = viewer}}}} ->
+        case Chat.get_timeline_event(viewer, local_id) do
+          %{event_type: ^expected_event_type} = timeline_event -> {:ok, timeline_event}
+          _other -> {:ok, nil}
+        end
 
-      :error ->
+      _other ->
         {:ok, nil}
     end
   end
-
-  defp fetch_chat_message_node(_id, _resolution), do: {:ok, nil}
 
   # Export-request nodes are viewer-scoped because they carry private governance
   # workflow metadata; node refetch enforces ownership through the auth scope.

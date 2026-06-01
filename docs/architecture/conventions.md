@@ -59,5 +59,6 @@
 
 ## Realtime Transport
 
+- Durable live-session history is modeled as first-class timeline events. Store append-only event facts separately from mutable projection state, expose history/replay from the current projection, and use timeline-oriented channel events rather than overloading chat-message rows for lifecycle or moderation events.
 - Live-session Phoenix topic strings and parsing live in `LCTransport.LiveSessionTopics`. GraphQL resolvers, channels, and chat broadcast adapters must not reimplement `"live_session:"` or `"live_session_control:"` string construction or duplicate topic `Integer.parse/1` logic.
 - Client-facing live-session socket reason strings live in `LCTransport.LiveSessionReasons`. Channel telemetry reason normalization is a separate internal observability boundary, and GraphQL mutation errors must remain under GraphQL-specific helpers rather than sharing Phoenix Channel payload formatters.

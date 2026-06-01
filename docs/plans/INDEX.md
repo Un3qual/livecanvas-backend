@@ -7,10 +7,10 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Backend Lane
 
 - Lane pointer: `docs/plans/backend/NOW.md`
-- Status: active for backend code-quality cleanup
-- Current track: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
-- Current batch: `GQL-009` Stage 8 Task 2 data-governance resolver extraction
-- Next queued batch: `GQL-009` Stage 8 Task 3 user/profile/identity resolver extraction
+- Status: `GEN-001` chat timeline/event-object backend implementation complete; no unblocked backend implementation batch remains
+- Current track: none active after `GEN-001` closeout
+- Current batch: none
+- Next queued batch: none selected
 - Notes: backend lane owns backend code and backend planning docs only; shared dashboard/index updates stay with the coordinator unless explicitly assigned
 
 ### Mobile Lane
@@ -35,15 +35,24 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Release Roadmap And Planning Holes
 
 - Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Status: paused behind explicitly reprioritized backend code-quality cleanup
-- Notes: return to this roadmap after the active cleanup batch finishes or the backend lane is explicitly reprioritized again
+- Status: paused; no active backend implementation batch is selected
+- Notes: return to this roadmap only after the backend lane is explicitly reprioritized again
 
 ### Backend Code Quality Cleanup
 
 - Plan: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
-- Status: active for `GQL-009`
-- Current batch: split `LCGQL.Accounts.Resolver` by cohesive GraphQL API area after the narrower helper cleanups landed; contact resolver extraction is complete, and data-governance extraction is next
-- Notes: `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete; `SOCK-001` was merged into `SOCK-002`; `GEN-001` remains a separate chat timeline/event-object redesign
+- Status: cleanup-stage implementation complete
+- Current batch: none
+- Notes: `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GQL-009`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete; `SOCK-001` was merged into `SOCK-002`; `GEN-001` is now explicitly started as a separate redesign rather than through the cleanup-stage flow
+
+### GEN-001 Chat Timeline/Event Object Redesign
+
+- Source: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
+- Implementation plan: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+- Status: implementation complete
+- Current batch: none
+- Next queued batch: none
+- Notes: this work is intentionally separate from the completed code-quality cleanup stages
 
 ## Queued Candidate Work
 

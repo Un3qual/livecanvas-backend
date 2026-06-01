@@ -311,7 +311,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
         {:post_report, "post_reports"},
         {:live_session, "live_sessions"},
         {:follow_request, "follows"},
-        {:chat_message, "chat_messages"},
+        {:chat_message_event, "live_session_timeline_event_states"},
         {:data_export_request, "data_export_requests"},
         {:account_deletion_request, "account_deletion_requests"},
         {:contact_match, "user_contact_entries"}
@@ -726,28 +726,34 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                )
     end
 
-    test "refetches an authorized chat message from a relay global id" do
+    test "refetches an authorized chat message event from a relay global id" do
       host = user_fixture(privacy_mode: :public)
       viewer = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
-      assert {:ok, message} = Chat.create_message(live_session, host, %{body: "hello history"})
+
+      assert {:ok, event} =
+               Chat.create_timeline_chat_message(live_session, host, %{body: "hello history"})
+
       {:ok, ended_session} = Live.end_live_session(live_session)
 
       assert ended_session.status == :ended
 
-      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
-      sender_id = Absinthe.Relay.Node.to_global_id(:user, host.id, LCGQL.Schema)
+      event_id = Absinthe.Relay.Node.to_global_id(:chat_message_event, event.id, LCGQL.Schema)
+      actor_id = Absinthe.Relay.Node.to_global_id(:user, host.id, LCGQL.Schema)
 
       query = """
       query($id: ID!) {
         node(id: $id) {
           id
-          ... on ChatMessage {
+          ... on ChatMessageEvent {
             body
-            kind
-            insertedAt
-            sender {
+            eventType
+            occurredAt
+            edited
+            editCount
+            editedAt
+            actor {
               id
             }
           }
@@ -759,20 +765,23 @@ defmodule LCGQL.Relay.NodeQueriesTest do
               %{
                 data: %{
                   "node" => %{
-                    "id" => ^message_id,
+                    "id" => ^event_id,
                     "body" => "hello history",
-                    "kind" => "USER_MESSAGE",
-                    "insertedAt" => inserted_at,
-                    "sender" => %{"id" => ^sender_id}
+                    "eventType" => "CHAT_MESSAGE_SENT",
+                    "occurredAt" => occurred_at,
+                    "edited" => false,
+                    "editCount" => 0,
+                    "editedAt" => nil,
+                    "actor" => %{"id" => ^actor_id}
                   }
                 }
               }} =
                Absinthe.run(query, LCGQL.Schema,
-                 variables: %{"id" => message_id},
+                 variables: %{"id" => event_id},
                  context: context
                )
 
-      assert is_binary(inserted_at)
+      assert is_binary(occurred_at)
     end
 
     test "refetches a live session recording media asset through the live session node" do
@@ -1127,13 +1136,16 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       outsider = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(outsider)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :followers})
-      assert {:ok, message} = Chat.create_message(live_session, host, %{body: "private history"})
+
+      assert {:ok, event} =
+               Chat.create_timeline_chat_message(live_session, host, %{body: "private history"})
+
       {:ok, ended_session} = Live.end_live_session(live_session)
 
       live_session_id =
         Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
 
-      message_id = Absinthe.Relay.Node.to_global_id(:chat_message, message.id, LCGQL.Schema)
+      event_id = Absinthe.Relay.Node.to_global_id(:chat_message_event, event.id, LCGQL.Schema)
 
       live_session_query = """
       query($id: ID!) {
@@ -1159,12 +1171,12 @@ defmodule LCGQL.Relay.NodeQueriesTest do
 
       assert {:ok, %{data: %{"node" => nil}}} =
                Absinthe.run(node_query, LCGQL.Schema,
-                 variables: %{"id" => message_id},
+                 variables: %{"id" => event_id},
                  context: context
                )
 
       assert {:ok, %{data: %{"node" => nil}}} =
-               Absinthe.run(node_query, LCGQL.Schema, variables: %{"id" => message_id})
+               Absinthe.run(node_query, LCGQL.Schema, variables: %{"id" => event_id})
     end
 
     test "injects a loader into execution context without dropping viewer scope" do

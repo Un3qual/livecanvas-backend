@@ -5,12 +5,11 @@ defmodule LCWeb.LiveSessionChannelTest do
   import LC.AccountsFixtures
   import LC.SocialFixtures
 
-  alias LC.{Accounts, Live}
+  alias LC.{Accounts, Chat, Live}
   alias LC.Infra.Repo
   alias LC.Live.SessionServer
   alias LC.RealtimeRuntime
   alias LCTransport.LiveSessionTopics
-  alias LCSchemas.Chat.ChatMessage
   alias LCSchemas.Live.{LiveParticipant, LiveSession}
   alias LCWeb.{LiveSessionChannel, UserSocket}
 
@@ -163,56 +162,168 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
   end
 
-  test "sending chat:send persists and broadcasts the documented message payload" do
+  test "sending timeline:chat_message:send persists and broadcasts the timeline event payload" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
 
     assert {:ok, _join_payload, socket} =
              subscribe_and_join(
                socket_for(viewer),
                LiveSessionChannel,
-               LiveSessionTopics.live_session_topic(session.id)
+               session_topic
              )
 
-    ref = push(socket, "chat:send", %{"body" => "hello"})
+    ref = push(socket, "timeline:chat_message:send", %{"body" => "hello"})
 
     assert_reply ref, :ok, %{
-      message: %{
+      event: %{
+        __typename: "ChatMessageEvent",
+        event_type: "chat_message_sent",
         body: "hello",
-        id: message_id,
-        sender_id: sender_id,
-        inserted_at: inserted_at,
-        kind: "user_message",
-        status: "active",
-        moderated_at: nil,
-        metadata: %{}
+        id: event_global_id,
+        actor_id: actor_id,
+        occurred_at: occurred_at,
+        edited: false,
+        edit_count: 0,
+        edited_at: nil
       }
     }
 
-    assert sender_id == viewer.id
-    assert {:ok, _, 0} = DateTime.from_iso8601(inserted_at)
+    assert actor_id == viewer.id
+    assert is_binary(event_global_id)
+    event_id = decode_global_node_id(event_global_id, :chat_message_event)
+    assert {:ok, _, 0} = DateTime.from_iso8601(occurred_at)
 
-    assert_broadcast "chat:message", %{
-      message: %{
-        body: "hello",
-        id: ^message_id,
-        sender_id: ^sender_id,
-        inserted_at: ^inserted_at,
-        kind: "user_message",
-        status: "active",
-        moderated_at: nil,
-        metadata: %{}
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "timeline:event",
+      payload: %{
+        event: %{
+          __typename: "ChatMessageEvent",
+          event_type: "chat_message_sent",
+          body: "hello",
+          id: ^event_global_id,
+          actor_id: ^actor_id,
+          occurred_at: ^occurred_at,
+          edited: false,
+          edit_count: 0,
+          edited_at: nil
+        }
       }
     }
 
-    assert %ChatMessage{id: ^message_id, body: "hello", sender_id: ^sender_id} =
-             Repo.get!(ChatMessage, message_id)
+    assert %{
+             id: ^event_id,
+             body: "hello",
+             actor_user_id: ^actor_id,
+             event_type: :chat_message_sent
+           } = Chat.get_timeline_event(viewer, event_id)
   end
 
-  test "removeLiveChatMessage broadcasts a redacted update only to the owning live session" do
+  test "sending timeline:chat_message:send rejects stale sockets after session end" do
     host = user_fixture(privacy_mode: :public)
-    host_id = host.id
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               session_topic
+             )
+
+    {:ok, _ended_session} = Live.end_live_session(session)
+
+    ref = push(socket, "timeline:chat_message:send", %{"body" => "too late"})
+
+    assert_reply ref, :error, %{reason: "session_ended"}
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "timeline:event"
+    }
+  end
+
+  test "editLiveChatMessage broadcasts timeline event updates to joined clients" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               session_topic
+             )
+
+    send_ref = push(socket, "timeline:chat_message:send", %{"body" => "hello"})
+
+    assert_reply send_ref, :ok, %{
+      event: %{
+        body: "hello",
+        id: event_global_id,
+        actor_id: actor_id
+      }
+    }
+
+    assert actor_id == viewer.id
+    _event_id = decode_global_node_id(event_global_id, :chat_message_event)
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "timeline:event",
+      payload: %{event: %{id: ^event_global_id, body: "hello"}}
+    }
+
+    chat_message_event_id = event_global_id
+
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    assert {:ok,
+            %{
+              data: %{
+                "editLiveChatMessage" => %{
+                  "chatMessageEvent" => %{
+                    "id" => ^chat_message_event_id,
+                    "body" => "hello, world",
+                    "edited" => true,
+                    "editCount" => 1
+                  },
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(
+               edit_message_mutation(),
+               LCGQL.Schema,
+               context: context,
+               variables: %{
+                 "chatMessageEventId" => chat_message_event_id,
+                 "body" => "hello, world"
+               }
+             )
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "timeline:event_updated",
+      payload: %{
+        event: %{
+          __typename: "ChatMessageEvent",
+          id: ^event_global_id,
+          body: "hello, world",
+          edited: true,
+          edit_count: 1
+        }
+      }
+    }
+  end
+
+  test "removeLiveChatMessageEvent accepts a chat message event id from a channel context" do
+    host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
     other_host = user_fixture(privacy_mode: :public)
     other_viewer = user_fixture()
@@ -233,39 +344,36 @@ defmodule LCWeb.LiveSessionChannelTest do
                LiveSessionTopics.live_session_topic(other_session.id)
              )
 
-    send_ref = push(viewer_socket, "chat:send", %{"body" => "abusive message"})
+    send_ref = push(viewer_socket, "timeline:chat_message:send", %{"body" => "abusive message"})
 
     assert_reply send_ref, :ok, %{
-      message: %{
+      event: %{
         body: "abusive message",
-        id: message_id,
-        inserted_at: inserted_at,
-        sender_id: sender_id
+        id: event_global_id,
+        actor_id: actor_id
       }
     }
 
-    assert sender_id == viewer.id
-    assert_broadcast "chat:message", %{message: %{body: "abusive message", id: ^message_id}}
-
-    chat_message_id =
-      Absinthe.Relay.Node.to_global_id(:chat_message, message_id, LCGQL.Schema)
-
-    sender_node_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
-    context = %{current_scope: Accounts.scope_for_user(host)}
+    assert actor_id == viewer.id
+    event_id = decode_global_node_id(event_global_id, :chat_message_event)
     session_topic = LiveSessionTopics.live_session_topic(session.id)
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "timeline:event",
+      payload: %{event: %{body: "abusive message", id: ^event_global_id}}
+    }
+
+    chat_message_event_id = event_global_id
+
+    context = %{current_scope: Accounts.scope_for_user(host)}
     other_session_topic = LiveSessionTopics.live_session_topic(other_session.id)
 
     assert {:ok,
             %{
               data: %{
-                "removeLiveChatMessage" => %{
-                  "chatMessage" => %{
-                    "id" => ^chat_message_id,
-                    "body" => nil,
-                    "status" => "REMOVED",
-                    "moderatedAt" => moderated_at,
-                    "sender" => %{"id" => ^sender_node_id}
-                  },
+                "removeLiveChatMessageEvent" => %{
+                  "removedTimelineEventId" => ^chat_message_event_id,
                   "errors" => []
                 }
               }
@@ -274,68 +382,31 @@ defmodule LCWeb.LiveSessionChannelTest do
                remove_message_mutation(),
                LCGQL.Schema,
                context: context,
-               variables: %{"chatMessageId" => chat_message_id}
+               variables: %{"chatMessageEventId" => chat_message_event_id}
              )
 
-    assert_receive %Phoenix.Socket.Message{
-      topic: ^session_topic,
-      event: "chat:message_updated",
-      payload: %{
-        message: %{
-          id: ^message_id,
-          body: nil,
-          sender_id: ^sender_id,
-          inserted_at: ^inserted_at,
-          kind: "user_message",
-          status: "removed",
-          moderated_at: channel_moderated_at,
-          metadata: %{}
-        }
-      }
-    }
-
-    assert is_binary(moderated_at)
-    assert is_binary(channel_moderated_at)
-
-    assert_receive %Phoenix.Socket.Message{
-      topic: ^session_topic,
-      event: "chat:message",
-      payload: %{
-        message: %{
-          body: "A chat message was removed.",
-          sender_id: ^host_id,
-          inserted_at: system_event_inserted_at,
-          kind: "system_event",
-          status: "active",
-          moderated_at: nil,
-          metadata: %{
-            "details" => %{
-              "chat_message_entropy_id" => chat_message_entropy_id,
-              "chat_message_id" => ^message_id
-            },
-            "event_type" => "message_removed"
-          }
-        }
-      }
-    }
-
-    assert is_binary(system_event_inserted_at)
-    assert chat_message_entropy_id == Repo.get!(ChatMessage, message_id).entropy_id
+    assert Chat.get_timeline_event(host, event_id) == nil
 
     refute_receive %Phoenix.Socket.Message{
       topic: ^other_session_topic,
-      event: "chat:message_updated"
+      event: "timeline:event_removed"
+    }
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "timeline:event_removed",
+      payload: %{removed_timeline_event_id: ^chat_message_event_id}
     }
 
     refute_receive %Phoenix.Socket.Message{
-      topic: ^other_session_topic,
-      event: "chat:message"
+      topic: ^session_topic,
+      event: "timeline:event",
+      payload: %{event: %{event_type: "chat_message_removed"}}
     }
   end
 
-  test "removeLiveChatMessage rebroadcasts the redacted payload on repeated removals" do
+  test "removeLiveChatMessageEvent returns not_found for repeated hidden event removals" do
     host = user_fixture(privacy_mode: :public)
-    host_id = host.id
     viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
 
@@ -346,41 +417,34 @@ defmodule LCWeb.LiveSessionChannelTest do
                LiveSessionTopics.live_session_topic(session.id)
              )
 
-    send_ref = push(viewer_socket, "chat:send", %{"body" => "remove once"})
+    send_ref = push(viewer_socket, "timeline:chat_message:send", %{"body" => "remove once"})
 
     assert_reply send_ref, :ok, %{
-      message: %{
-        id: message_id,
-        inserted_at: inserted_at,
-        sender_id: sender_id
+      event: %{
+        id: event_global_id,
+        actor_id: actor_id
       }
     }
 
-    assert sender_id == viewer.id
+    assert actor_id == viewer.id
+    _event_id = decode_global_node_id(event_global_id, :chat_message_event)
     session_topic = LiveSessionTopics.live_session_topic(session.id)
-    assert_broadcast "chat:message", %{message: %{body: "remove once", id: ^message_id}}
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
-      event: "chat:message",
-      payload: %{message: %{body: "remove once", id: ^message_id}}
+      event: "timeline:event",
+      payload: %{event: %{body: "remove once", id: ^event_global_id}}
     }
 
-    chat_message_id =
-      Absinthe.Relay.Node.to_global_id(:chat_message, message_id, LCGQL.Schema)
+    chat_message_event_id = event_global_id
 
     context = %{current_scope: Accounts.scope_for_user(host)}
 
     assert {:ok,
             %{
               data: %{
-                "removeLiveChatMessage" => %{
-                  "chatMessage" => %{
-                    "id" => ^chat_message_id,
-                    "body" => nil,
-                    "status" => "REMOVED",
-                    "moderatedAt" => moderated_at
-                  },
+                "removeLiveChatMessageEvent" => %{
+                  "removedTimelineEventId" => ^chat_message_event_id,
                   "errors" => []
                 }
               }
@@ -389,63 +453,21 @@ defmodule LCWeb.LiveSessionChannelTest do
                remove_message_mutation(),
                LCGQL.Schema,
                context: context,
-               variables: %{"chatMessageId" => chat_message_id}
+               variables: %{"chatMessageEventId" => chat_message_event_id}
              )
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
-      event: "chat:message_updated",
-      payload: %{
-        message: %{
-          id: ^message_id,
-          body: nil,
-          sender_id: ^sender_id,
-          inserted_at: ^inserted_at,
-          status: "removed",
-          moderated_at: channel_moderated_at
-        }
-      }
+      event: "timeline:event_removed",
+      payload: %{removed_timeline_event_id: ^chat_message_event_id}
     }
-
-    assert is_binary(moderated_at)
-    assert is_binary(channel_moderated_at)
-
-    assert_receive %Phoenix.Socket.Message{
-      topic: ^session_topic,
-      event: "chat:message",
-      payload: %{
-        message: %{
-          body: "A chat message was removed.",
-          sender_id: ^host_id,
-          inserted_at: system_event_inserted_at,
-          kind: "system_event",
-          status: "active",
-          moderated_at: nil,
-          metadata: %{
-            "details" => %{
-              "chat_message_entropy_id" => chat_message_entropy_id,
-              "chat_message_id" => ^message_id
-            },
-            "event_type" => "message_removed"
-          }
-        }
-      }
-    }
-
-    assert is_binary(system_event_inserted_at)
-    assert chat_message_entropy_id == Repo.get!(ChatMessage, message_id).entropy_id
 
     assert {:ok,
             %{
               data: %{
-                "removeLiveChatMessage" => %{
-                  "chatMessage" => %{
-                    "id" => ^chat_message_id,
-                    "body" => nil,
-                    "status" => "REMOVED",
-                    "moderatedAt" => ^moderated_at
-                  },
-                  "errors" => []
+                "removeLiveChatMessageEvent" => %{
+                  "removedTimelineEventId" => nil,
+                  "errors" => [%{"field" => nil, "message" => "not_found"}]
                 }
               }
             }} =
@@ -453,31 +475,19 @@ defmodule LCWeb.LiveSessionChannelTest do
                remove_message_mutation(),
                LCGQL.Schema,
                context: context,
-               variables: %{"chatMessageId" => chat_message_id}
+               variables: %{"chatMessageEventId" => chat_message_event_id}
              )
 
     refute_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
-      event: "chat:message"
+      event: "timeline:event_removed"
     }
 
-    assert_receive %Phoenix.Socket.Message{
+    refute_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
-      event: "chat:message_updated",
-      payload: %{
-        message: %{
-          id: ^message_id,
-          body: nil,
-          sender_id: ^sender_id,
-          inserted_at: ^inserted_at,
-          status: "removed",
-          moderated_at: channel_moderated_at
-        }
-      }
+      event: "timeline:event",
+      payload: %{event: %{event_type: "chat_message_removed"}}
     }
-
-    assert is_binary(moderated_at)
-    assert is_binary(channel_moderated_at)
   end
 
   test "viewer who muted host cannot join a live session topic" do
@@ -653,8 +663,8 @@ defmodule LCWeb.LiveSessionChannelTest do
                LiveSessionTopics.live_session_topic(session.id)
              )
 
-    first_ref = push(socket, "chat:send", %{"body" => "first"})
-    assert_reply first_ref, :ok, %{message: %{body: "first"}}
+    first_ref = push(socket, "timeline:chat_message:send", %{"body" => "first"})
+    assert_reply first_ref, :ok, %{event: %{body: "first"}}
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
                     %{
@@ -666,7 +676,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert session_id == session.id
     assert user_id == viewer.id
 
-    second_ref = push(socket, "chat:send", %{"body" => "second"})
+    second_ref = push(socket, "timeline:chat_message:send", %{"body" => "second"})
     assert_reply second_ref, :error, %{reason: "rate_limited"}
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
@@ -693,7 +703,7 @@ defmodule LCWeb.LiveSessionChannelTest do
                LiveSessionTopics.live_session_topic(session.id)
              )
 
-    ref = push(socket, "chat:send", %{"body" => 42})
+    ref = push(socket, "timeline:chat_message:send", %{"body" => 42})
     assert_reply ref, :error, %{reason: "invalid_body"}
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
@@ -746,9 +756,9 @@ defmodule LCWeb.LiveSessionChannelTest do
                       result: :ok
                     }}
 
-    ref = push(joined_socket, "chat:send", %{"body" => "hello with trace"})
+    ref = push(joined_socket, "timeline:chat_message:send", %{"body" => "hello with trace"})
 
-    assert_reply ref, :ok, %{message: %{body: "hello with trace"}}
+    assert_reply ref, :ok, %{event: %{body: "hello with trace"}}
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
                     %{
@@ -791,9 +801,9 @@ defmodule LCWeb.LiveSessionChannelTest do
       :erlang.trace_pattern({:crypto, :strong_rand_bytes, 1}, false, [:local])
     end)
 
-    ref = push(joined_socket, "chat:send", %{"body" => "no new ids"})
+    ref = push(joined_socket, "timeline:chat_message:send", %{"body" => "no new ids"})
 
-    assert_reply ref, :ok, %{message: %{body: "no new ids"}}
+    assert_reply ref, :ok, %{event: %{body: "no new ids"}}
 
     refute_receive {:trace, ^channel_pid, :call, {:crypto, :strong_rand_bytes, [_]}}, 50
   end
@@ -910,21 +920,21 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
-      event: "chat:message",
+      event: "timeline:event",
       payload: %{
-        message: %{
-          body: "The live session started.",
-          sender_id: ^host_id,
-          inserted_at: go_live_inserted_at,
-          kind: "system_event",
-          status: "active",
-          moderated_at: nil,
-          metadata: %{"details" => %{}, "event_type" => "session_live"}
+        event: %{
+          __typename: "LiveSessionStartedEvent",
+          id: go_live_event_id,
+          event_type: "live_session_started",
+          occurred_at: go_live_occurred_at,
+          actor_id: ^host_id
         }
       }
     }
 
-    assert is_binary(go_live_inserted_at)
+    assert is_binary(go_live_event_id)
+    _go_live_local_id = decode_global_node_id(go_live_event_id, :live_session_started_event)
+    assert is_binary(go_live_occurred_at)
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
@@ -956,21 +966,21 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
-      event: "chat:message",
+      event: "timeline:event",
       payload: %{
-        message: %{
-          body: "The live session ended.",
-          sender_id: ^host_id,
-          inserted_at: end_inserted_at,
-          kind: "system_event",
-          status: "active",
-          moderated_at: nil,
-          metadata: %{"details" => %{}, "event_type" => "session_ended"}
+        event: %{
+          __typename: "LiveSessionEndedEvent",
+          id: end_event_id,
+          event_type: "live_session_ended",
+          occurred_at: end_occurred_at,
+          actor_id: ^host_id
         }
       }
     }
 
-    assert is_binary(end_inserted_at)
+    assert is_binary(end_event_id)
+    _end_local_id = decode_global_node_id(end_event_id, :live_session_ended_event)
+    assert is_binary(end_occurred_at)
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^session_topic,
@@ -1104,6 +1114,13 @@ defmodule LCWeb.LiveSessionChannelTest do
     end
   end
 
+  defp decode_global_node_id(global_id, expected_type) when is_binary(global_id) do
+    assert {:ok, %{type: ^expected_type, id: local_id}} =
+             Absinthe.Relay.Node.from_global_id(global_id, LCGQL.Schema)
+
+    String.to_integer(local_id)
+  end
+
   defp live_session_fixture(host_id) when is_integer(host_id) do
     Repo.insert!(%LiveSession{
       host_id: host_id,
@@ -1165,16 +1182,27 @@ defmodule LCWeb.LiveSessionChannelTest do
 
   defp remove_message_mutation do
     """
-    mutation($chatMessageId: ID!) {
-      removeLiveChatMessage(input: { chatMessageId: $chatMessageId }) {
-        chatMessage {
+    mutation($chatMessageEventId: ID!) {
+      removeLiveChatMessageEvent(input: { chatMessageEventId: $chatMessageEventId }) {
+        removedTimelineEventId
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+  end
+
+  defp edit_message_mutation do
+    """
+    mutation($chatMessageEventId: ID!, $body: String!) {
+      editLiveChatMessage(input: { chatMessageEventId: $chatMessageEventId, body: $body }) {
+        chatMessageEvent {
           id
           body
-          status
-          moderatedAt
-          sender {
-            id
-          }
+          edited
+          editCount
         }
         errors {
           field

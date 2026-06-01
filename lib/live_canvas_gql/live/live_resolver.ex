@@ -68,18 +68,12 @@ defmodule LCGQL.Live.Resolver do
          {:ok, live_session} <- fetch_live_session(decoded_id),
          :ok <- ensure_host_owned(live_session, viewer),
          :ok <- ensure_joinable_state(live_session),
-         {:ok, updated_live_session, transitioned?} <-
-           Live.mark_session_live_with_transition(live_session) do
-      # Emit from the adapter after the Live boundary succeeds so `LC.Live`
-      # stays decoupled from durable chat history and channel transport details.
-      :ok =
-        maybe_emit_lifecycle_system_event(
-          updated_live_session,
-          :session_live,
-          transitioned?,
-          viewer
-        )
-
+         {:ok, updated_live_session, transitioned?, timeline_event} <-
+           Live.mark_session_live_with_transition(
+             live_session,
+             lifecycle_timeline_recorder(:live_session_started, viewer)
+           ) do
+      :ok = maybe_broadcast_lifecycle_timeline_event(timeline_event)
       :ok = maybe_broadcast_lifecycle_state(updated_live_session, transitioned?)
       {:ok, %{live_session: updated_live_session, errors: []}}
     else
@@ -198,18 +192,14 @@ defmodule LCGQL.Live.Resolver do
              :ok <- ensure_not_ended(live_session),
              # Keep ownership and processing-state validation in `LC.Live`; the
              # GraphQL layer only decodes Relay IDs before forwarding them.
-             {:ok, ended_live_session, transitioned?} <-
-               Live.end_live_session_with_transition(live_session, end_attrs) do
-          # Broadcast the persisted terminal event before disconnecting joined
-          # channels so they can reconcile one last durable history row in order.
-          :ok =
-            maybe_emit_lifecycle_system_event(
-              ended_live_session,
-              :session_ended,
-              transitioned?,
-              viewer
-            )
-
+             {:ok, ended_live_session, transitioned?, timeline_event} <-
+               Live.end_live_session_with_transition(
+                 live_session,
+                 end_attrs,
+                 [],
+                 lifecycle_timeline_recorder(:live_session_ended, viewer)
+               ) do
+          :ok = maybe_broadcast_lifecycle_timeline_event(timeline_event)
           :ok = maybe_broadcast_lifecycle_state(ended_live_session, transitioned?)
 
           :ok =
@@ -346,35 +336,48 @@ defmodule LCGQL.Live.Resolver do
     Map.take(args, [:visibility])
   end
 
-  defp maybe_emit_lifecycle_system_event(live_session, event_type, true, viewer)
-       when event_type in [:session_ended, :session_live] and is_map(live_session) and
-              is_map(viewer) do
-    # Emit only when the persisted reload still matches the lifecycle event.
-    # This suppresses stale `session_live` rows if a concurrent end wins before
-    # the go-live caller reloads the row after owning the DB transition.
-    if emit_matching_lifecycle_event?(live_session, event_type) do
-      live_session
-      |> Chat.record_system_event(event_type, actor: viewer)
-      |> broadcast_system_event()
-    else
-      :ok
+  @spec lifecycle_timeline_recorder(atom(), map()) :: Live.live_session_transition_effect()
+  defp lifecycle_timeline_recorder(event_type, viewer)
+       when event_type in [:live_session_ended, :live_session_started] and is_map(viewer) do
+    fn live_session, transitioned? ->
+      record_lifecycle_timeline_event(live_session, event_type, transitioned?, viewer)
     end
   end
 
-  defp maybe_emit_lifecycle_system_event(_live_session, _event_type, _transitioned?, _viewer),
-    do: :ok
-
-  defp emit_matching_lifecycle_event?(%{status: :live}, :session_live), do: true
-  defp emit_matching_lifecycle_event?(%{status: :ended}, :session_ended), do: true
-  defp emit_matching_lifecycle_event?(_live_session, _event_type), do: false
-
-  defp broadcast_system_event({:ok, %{live_session_id: live_session_id} = system_event})
-       when is_integer(live_session_id) do
-    Chat.broadcast_message(system_event, LiveSessionTopics.live_session_topic(live_session_id))
+  defp record_lifecycle_timeline_event(live_session, event_type, true, viewer)
+       when event_type in [:live_session_ended, :live_session_started] and is_map(live_session) and
+              is_map(viewer) do
+    # Record only when the persisted reload still matches the lifecycle event.
+    # This suppresses stale `live_session_started` rows if a concurrent end wins before
+    # the go-live caller reloads the row after owning the DB transition.
+    if emit_matching_lifecycle_event?(live_session, event_type) do
+      case Chat.record_lifecycle_timeline_event(live_session, event_type, actor: viewer) do
+        {:ok, timeline_event} -> {:ok, timeline_event}
+        {:error, _reason} -> {:error, :invalid_state}
+      end
+    else
+      {:ok, nil}
+    end
   end
 
-  defp broadcast_system_event({:ok, _system_event}), do: :ok
-  defp broadcast_system_event({:error, _reason}), do: :ok
+  defp record_lifecycle_timeline_event(_live_session, _event_type, _transitioned?, _viewer),
+    do: {:ok, nil}
+
+  defp emit_matching_lifecycle_event?(%{status: :live}, :live_session_started), do: true
+  defp emit_matching_lifecycle_event?(%{status: :ended}, :live_session_ended), do: true
+  defp emit_matching_lifecycle_event?(_live_session, _event_type), do: false
+
+  defp maybe_broadcast_lifecycle_timeline_event(
+         %{live_session_id: live_session_id} = timeline_event
+       )
+       when is_integer(live_session_id) do
+    Chat.broadcast_timeline_event(
+      timeline_event,
+      LiveSessionTopics.live_session_topic(live_session_id)
+    )
+  end
+
+  defp maybe_broadcast_lifecycle_timeline_event(_timeline_event), do: :ok
 
   defp maybe_broadcast_lifecycle_state(live_session, true) when is_map(live_session) do
     broadcast_live_session_state(live_session)

@@ -14,8 +14,8 @@ Status: active
 
 ### Backend Lane
 
-- Status: active for backend code-quality cleanup
-- Current batch: `docs/plans/backend/NOW.md` -> `docs/plans/backend/2026-05-22-code-quality-cleanup.md` -> `GQL-009` Stage 8 Task 2 data-governance resolver extraction
+- Status: `GEN-001` chat timeline/event-object backend implementation complete; no unblocked backend implementation batch remains
+- Current batch: none; `docs/plans/backend/NOW.md` reports no active backend implementation batch after the completed `GEN-001` redesign and completed cleanup-stage implementation
 - Lane write scope: backend code and backend planning docs only
 
 ### Mobile Lane
@@ -31,7 +31,7 @@ Status: active
 
 ## Next Up
 
-- Once the backend lane finishes the current `GQL-009` slice, refresh this dashboard only if `docs/plans/backend/NOW.md` advances to another cleanup slice or a different backend track.
+- Once the backend lane selects new implementation work, refresh this dashboard from `docs/plans/backend/NOW.md` and `docs/plans/INDEX.md`.
 - Once the mobile lane finishes `Task 1`, refresh the mobile lane summary here only if `docs/plans/mobile/NOW.md` advances to a new batch or status.
 
 ## Repair Conditions

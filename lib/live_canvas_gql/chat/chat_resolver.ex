@@ -1,98 +1,188 @@
 defmodule LCGQL.Chat.Resolver do
   @moduledoc false
 
-  import Ecto.Query, warn: false
-
   alias LC.Chat
-  alias LCGQL.Chat.SystemEventProjection
+  alias LC.Chat.TimelineProjection
   alias LCGQL.MutationErrors
   alias LCGQL.Relay
   alias LCTransport.LiveSessionTopics
 
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
   @type mutation_error :: MutationErrors.user_error()
-  @type remove_message_payload :: %{chat_message: map() | nil, errors: [mutation_error()]}
+  @type edit_message_payload :: %{chat_message_event: map() | nil, errors: [mutation_error()]}
+  @type edit_message_result :: {:ok, edit_message_payload()}
+  @type remove_message_payload :: %{
+          removed_timeline_event_id: String.t() | nil,
+          errors: [mutation_error()]
+        }
   @type remove_message_result :: {:ok, remove_message_payload()}
-  @type remove_message_reason ::
-          :invalid_id | :invalid_type | :not_found | :not_authorized | :unauthenticated
+  @type timeline_event_reason ::
+          :hidden
+          | :invalid_id
+          | :invalid_type
+          | :not_authorized
+          | :not_chat_message
+          | :not_found
+          | :session_ended
+          | :unauthenticated
 
-  @spec chat_messages(map(), map(), Absinthe.Resolution.t()) :: connection_result()
-  def chat_messages(%{id: _id} = live_session, args, resolution) do
+  @spec timeline_events(map(), map(), Absinthe.Resolution.t()) :: connection_result()
+  def timeline_events(%{id: _id} = live_session, args, resolution) do
     with {:ok, viewer} <- viewer_from_resolution(resolution),
          # History reads stay valid after a session ends, so GraphQL must
          # consult the dedicated history policy instead of join-only rules.
          :ok <- Chat.authorize_history_access(viewer, live_session) do
-      query =
-        live_session
-        |> Chat.history_query()
-        |> preload(:sender)
-
-      # Relay cursors depend on the Chat boundary's inserted_at/id total order,
-      # so keep GraphQL pagination on the same query shape.
-      Absinthe.Relay.Connection.from_query(query, &Chat.run_query/1, args)
+      live_session
+      |> Chat.timeline_history_query()
+      |> Absinthe.Relay.Connection.from_query(&Chat.run_query/1, args)
     else
       _other -> Absinthe.Relay.Connection.from_list([], args)
     end
   end
 
-  @spec remove_live_chat_message(
-          term(),
-          %{optional(:input) => map(), optional(:chat_message_id) => term()},
-          Absinthe.Resolution.t()
-        ) ::
-          remove_message_result()
-  def remove_live_chat_message(parent, %{input: input}, resolution),
-    do: remove_live_chat_message(parent, input, resolution)
+  @spec timeline_event_type(map(), Absinthe.Resolution.t()) ::
+          :chat_message_event | :live_session_started_event | :live_session_ended_event | nil
+  def timeline_event_type(%{event_type: :chat_message_sent}, _resolution),
+    do: :chat_message_event
 
-  def remove_live_chat_message(
+  def timeline_event_type(%{event_type: "chat_message_sent"}, _resolution),
+    do: :chat_message_event
+
+  def timeline_event_type(%{event_type: :live_session_started}, _resolution),
+    do: :live_session_started_event
+
+  def timeline_event_type(%{event_type: "live_session_started"}, _resolution),
+    do: :live_session_started_event
+
+  def timeline_event_type(%{event_type: :live_session_ended}, _resolution),
+    do: :live_session_ended_event
+
+  def timeline_event_type(%{event_type: "live_session_ended"}, _resolution),
+    do: :live_session_ended_event
+
+  def timeline_event_type(_timeline_event, _resolution), do: nil
+
+  @spec edit_live_chat_message(
+          term(),
+          %{
+            optional(:input) => map(),
+            optional(:chat_message_event_id) => term(),
+            optional(:body) => term()
+          },
+          Absinthe.Resolution.t()
+        ) :: edit_message_result()
+  def edit_live_chat_message(parent, %{input: input}, resolution),
+    do: edit_live_chat_message(parent, input, resolution)
+
+  def edit_live_chat_message(
         _parent,
-        %{chat_message_id: chat_message_id},
+        %{chat_message_event_id: chat_message_event_id, body: body},
         %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
       ) do
-    with {:ok, decoded_id} <- Relay.decode_global_id(chat_message_id, :chat_message, LCGQL.Schema),
-         %{} = chat_message <- Chat.get_history_message(viewer, decoded_id),
-         {:ok, removed_message, transitioned?} <-
-           Chat.remove_message_with_transition(chat_message, viewer) do
-      # Durable redaction fixes future history reads, but joined viewers keep
-      # rendering the original channel event until they reconcile an update.
-      :ok = broadcast_message_update(removed_message)
-      # Emit from the moderation adapter after the state transition succeeds so
-      # `LC.Chat` stays responsible for persistence without owning its callers.
-      :ok = maybe_broadcast_removal_system_event(removed_message, transitioned?, viewer)
-      {:ok, %{chat_message: removed_message, errors: []}}
+    with {:ok, event_id} <- decode_chat_message_event_id(chat_message_event_id),
+         %{event_type: event_type} = timeline_event when event_type in [:chat_message_sent] <-
+           Chat.get_timeline_event(viewer, event_id),
+         {:ok, edited_event} <-
+           Chat.edit_timeline_chat_message(timeline_event, viewer, %{body: body}) do
+      :ok = broadcast_timeline_event_update(edited_event)
+
+      {:ok, %{chat_message_event: edited_event, errors: []}}
     else
       nil ->
-        {:ok, %{chat_message: nil, errors: [remove_message_error(:chat_message_id, :not_found)]}}
+        {:ok, %{chat_message_event: nil, errors: [timeline_event_error(nil, :not_found)]}}
 
-      {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized] ->
-        {:ok, %{chat_message: nil, errors: [remove_message_error(:chat_message_id, reason)]}}
+      %{event_type: _other_event_type} ->
+        {:ok,
+         %{
+           chat_message_event: nil,
+           errors: [timeline_event_error(:chat_message_event_id, :not_chat_message)]
+         }}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok,
+         %{
+           chat_message_event: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
+
+      {:error, reason}
+      when reason in [
+             :hidden,
+             :invalid_id,
+             :invalid_type,
+             :not_authorized,
+             :not_found,
+             :session_ended
+           ] ->
+        {:ok,
+         %{
+           chat_message_event: nil,
+           errors: [timeline_event_error(:chat_message_event_id, reason)]
+         }}
     end
   end
 
-  def remove_live_chat_message(_parent, _args, _resolution) do
-    {:ok, %{chat_message: nil, errors: [remove_message_error(nil, :unauthenticated)]}}
+  def edit_live_chat_message(_parent, _args, _resolution) do
+    {:ok, %{chat_message_event: nil, errors: [timeline_event_error(nil, :unauthenticated)]}}
   end
 
-  @spec chat_message_body(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
-  def chat_message_body(chat_message, _args, _resolution) when is_map(chat_message) do
-    # Moderated rows stay in Relay connections so clients can reconcile an
-    # existing edge in place without shifting cursors; only the visible body is
-    # redacted at the GraphQL boundary.
-    {:ok, Chat.visible_body(chat_message)}
+  @spec remove_live_chat_message_event(
+          term(),
+          %{optional(:input) => map(), optional(:chat_message_event_id) => term()},
+          Absinthe.Resolution.t()
+        ) :: remove_message_result()
+  def remove_live_chat_message_event(parent, %{input: input}, resolution),
+    do: remove_live_chat_message_event(parent, input, resolution)
+
+  def remove_live_chat_message_event(
+        _parent,
+        %{chat_message_event_id: chat_message_event_id},
+        %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
+      ) do
+    with {:ok, event_id} <- decode_chat_message_event_id(chat_message_event_id),
+         %{} = timeline_event <- Chat.get_timeline_event(viewer, event_id),
+         {:ok, %{removed_event_id: removed_event_id, transitioned?: transitioned?}} <-
+           Chat.remove_timeline_chat_message(timeline_event, viewer, %{}) do
+      :ok =
+        maybe_broadcast_timeline_event_removed(
+          timeline_event,
+          removed_event_id,
+          transitioned?
+        )
+
+      {:ok,
+       %{
+         removed_timeline_event_id: timeline_event_global_id(removed_event_id),
+         errors: []
+       }}
+    else
+      nil ->
+        {:ok,
+         %{
+           removed_timeline_event_id: nil,
+           errors: [timeline_event_error(nil, :not_found)]
+         }}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok,
+         %{
+           removed_timeline_event_id: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
+
+      {:error, reason}
+      when reason in [:invalid_id, :invalid_type, :not_authorized, :not_chat_message, :not_found] ->
+        {:ok,
+         %{
+           removed_timeline_event_id: nil,
+           errors: [timeline_event_error(:chat_message_event_id, reason)]
+         }}
+    end
   end
 
-  @spec chat_message_system_event_type(map(), map(), Absinthe.Resolution.t()) ::
-          {:ok, LCSchemas.Chat.chat_system_event_type() | nil}
-  def chat_message_system_event_type(chat_message, _args, _resolution)
-      when is_map(chat_message) do
-    {:ok, SystemEventProjection.event_type(chat_message)}
-  end
-
-  @spec chat_message_system_event_details(map(), map(), Absinthe.Resolution.t()) ::
-          {:ok, SystemEventProjection.details() | nil}
-  def chat_message_system_event_details(chat_message, _args, _resolution)
-      when is_map(chat_message) do
-    {:ok, SystemEventProjection.details(chat_message)}
+  def remove_live_chat_message_event(_parent, _args, _resolution) do
+    {:ok,
+     %{removed_timeline_event_id: nil, errors: [timeline_event_error(nil, :unauthenticated)]}}
   end
 
   @spec viewer_from_resolution(Absinthe.Resolution.t()) :: {:ok, map()} | :error
@@ -105,52 +195,46 @@ defmodule LCGQL.Chat.Resolver do
 
   defp viewer_from_resolution(_resolution), do: :error
 
-  defp maybe_broadcast_removal_system_event(
-         %{live_session: live_session} = removed_message,
-         true,
-         viewer
-       )
-       when is_map(live_session) and is_map(viewer) do
-    # Moderating durable system events should redact the row in place without
-    # recursively persisting another moderation event about the prior event.
-    if user_message_kind?(removed_message) do
-      live_session
-      |> Chat.record_system_event(:message_removed,
-        actor: viewer,
-        metadata: %{chat_message: removed_message}
-      )
-      |> broadcast_system_event()
-    else
-      :ok
-    end
+  defp decode_chat_message_event_id(chat_message_event_id) do
+    Relay.decode_global_id(chat_message_event_id, :chat_message_event, LCGQL.Schema)
   end
 
-  defp maybe_broadcast_removal_system_event(_removed_message, _transitioned?, _viewer), do: :ok
-
-  defp broadcast_system_event({:ok, %{live_session_id: live_session_id} = system_event})
+  @spec broadcast_timeline_event_update(TimelineProjection.t()) :: :ok
+  defp broadcast_timeline_event_update(%{live_session_id: live_session_id} = timeline_event)
        when is_integer(live_session_id) do
-    Chat.broadcast_message(system_event, LiveSessionTopics.live_session_topic(live_session_id))
-  end
-
-  defp broadcast_system_event({:ok, _system_event}), do: :ok
-  defp broadcast_system_event({:error, _reason}), do: :ok
-
-  defp broadcast_message_update(%{live_session_id: live_session_id} = chat_message)
-       when is_integer(live_session_id) do
-    Chat.broadcast_message_update(
-      chat_message,
+    Chat.broadcast_timeline_event_update(
+      timeline_event,
       LiveSessionTopics.live_session_topic(live_session_id)
     )
   end
 
-  defp broadcast_message_update(_chat_message), do: :ok
+  @spec maybe_broadcast_timeline_event_removed(TimelineProjection.t(), pos_integer(), boolean()) ::
+          :ok
+  defp maybe_broadcast_timeline_event_removed(
+         %{live_session_id: live_session_id},
+         removed_event_id,
+         true
+       )
+       when is_integer(live_session_id) and is_integer(removed_event_id) do
+    Chat.broadcast_timeline_event_removed(
+      removed_event_id,
+      LiveSessionTopics.live_session_topic(live_session_id)
+    )
+  end
 
-  defp user_message_kind?(%{kind: kind}) when kind in [:user_message, "user_message"], do: true
-  defp user_message_kind?(_chat_message), do: false
+  defp maybe_broadcast_timeline_event_removed(_timeline_event, _removed_event_id, _transitioned?),
+    do: :ok
 
-  @spec remove_message_error(:chat_message_id | nil, remove_message_reason()) :: mutation_error()
-  defp remove_message_error(:chat_message_id, reason) when reason in [:invalid_id, :invalid_type],
-    do: MutationErrors.invalid_error("chatMessageId")
+  @spec timeline_event_global_id(pos_integer()) :: String.t()
+  defp timeline_event_global_id(event_id) when is_integer(event_id) and event_id > 0 do
+    Absinthe.Relay.Node.to_global_id(:chat_message_event, event_id, LCGQL.Schema)
+  end
 
-  defp remove_message_error(_field, reason), do: MutationErrors.user_error(nil, reason)
+  @spec timeline_event_error(:chat_message_event_id | nil, timeline_event_reason()) ::
+          mutation_error()
+  defp timeline_event_error(:chat_message_event_id, reason)
+       when reason in [:invalid_id, :invalid_type, :not_chat_message],
+       do: MutationErrors.invalid_error("chatMessageEventId")
+
+  defp timeline_event_error(_field, reason), do: MutationErrors.user_error(nil, reason)
 end

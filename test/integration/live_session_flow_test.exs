@@ -31,16 +31,19 @@ defmodule LC.Integration.LiveSessionFlowTest do
                LiveSessionTopics.live_session_topic(live_session.id)
              )
 
-    ref = Phoenix.ChannelTest.push(live_socket, "chat:send", %{"body" => "integration hello"})
+    ref =
+      Phoenix.ChannelTest.push(live_socket, "timeline:chat_message:send", %{
+        "body" => "integration hello"
+      })
 
     assert_reply ref, :ok, %{
-      message: %{id: message_id, body: "integration hello", sender_id: sender_id}
+      event: %{id: event_id, body: "integration hello", actor_id: sender_id}
     }
 
     assert sender_id == follower.id
 
-    assert_broadcast "chat:message", %{
-      message: %{id: ^message_id, body: "integration hello", sender_id: ^sender_id}
+    assert_broadcast "timeline:event", %{
+      event: %{id: ^event_id, body: "integration hello", actor_id: ^sender_id}
     }
   end
 end

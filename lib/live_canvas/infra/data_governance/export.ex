@@ -6,6 +6,12 @@ defmodule LC.Infra.DataGovernance.Export do
 
   alias LC.Infra.{AsyncJobs, Payload, Repo}
   alias LCSchemas.Accounts.User
+  alias LCSchemas.Chat.{
+    LiveSessionTimelineChatMessageState,
+    LiveSessionTimelineEvent,
+    LiveSessionTimelineEventState
+  }
+
   alias LCSchemas.Infra.{AsyncJob, DataExportRequest}
 
   @behaviour LC.Infra.AsyncJobs.Handler
@@ -16,6 +22,19 @@ defmodule LC.Infra.DataGovernance.Export do
   @type changeset :: Ecto.Changeset.t()
   @type request_opts :: [{:format, LCSchemas.Infra.data_export_request_format()}]
   @type request_result :: {:ok, DataExportRequest.t()} | {:error, changeset() | :enqueue_failed}
+  @typep timeline_chat_export_row :: %{
+           required(:event_id) => Ecto.UUID.t(),
+           required(:live_session_id) => pos_integer(),
+           required(:body) => String.t() | nil,
+           required(:occurred_at) => DateTime.t(),
+           required(:edited) => boolean(),
+           required(:edit_count) => non_neg_integer()
+         }
+  @typep timeline_chat_export_record :: %{
+           required(String.t()) =>
+             String.t() | pos_integer() | boolean() | non_neg_integer() | nil
+         }
+  @typep export_records :: %{required(String.t()) => [timeline_chat_export_record()]}
 
   @spec request(User.t(), request_opts()) :: request_result()
   def request(%User{id: user_id}, opts \\ []) when is_integer(user_id) and user_id > 0 do
@@ -183,7 +202,53 @@ defmodule LC.Infra.DataGovernance.Export do
     %{
       "object_key" => "exports/users/#{user_id}/requests/#{entropy_id}.json",
       "content_type" => "application/json",
-      "generated_at" => DateTime.to_iso8601(utc_now())
+      "generated_at" => DateTime.to_iso8601(utc_now()),
+      "records" => export_records(user_id)
+    }
+  end
+
+  @spec export_records(pos_integer()) :: export_records()
+  defp export_records(user_id) when is_integer(user_id) and user_id > 0 do
+    %{
+      "live_session_timeline_events" => timeline_chat_projection_records(user_id)
+    }
+  end
+
+  @spec timeline_chat_projection_records(pos_integer()) :: [timeline_chat_export_record()]
+  defp timeline_chat_projection_records(user_id) when is_integer(user_id) and user_id > 0 do
+    from(event in LiveSessionTimelineEvent,
+      join: event_state in LiveSessionTimelineEventState,
+      on: event_state.timeline_event_id == event.id,
+      join: chat_message_state in LiveSessionTimelineChatMessageState,
+      on: chat_message_state.timeline_event_id == event.id,
+      where:
+        event.actor_user_id == ^user_id and event.event_type == :chat_message_sent and
+          event_state.projection_state in [:visible, :redacted_placeholder],
+      order_by: [asc: event.occurred_at, asc: event.id],
+      select: %{
+        event_id: event.entropy_id,
+        live_session_id: event.live_session_id,
+        body: chat_message_state.current_body,
+        occurred_at: event.occurred_at,
+        edited: fragment("coalesce(?, 0) > 0", chat_message_state.edit_count),
+        edit_count: type(fragment("coalesce(?, 0)", chat_message_state.edit_count), :integer)
+      }
+    )
+    |> Repo.all()
+    |> Enum.map(&timeline_chat_projection_record/1)
+  end
+
+  @spec timeline_chat_projection_record(timeline_chat_export_row()) ::
+          timeline_chat_export_record()
+  defp timeline_chat_projection_record(row) do
+    %{
+      "type" => "chat_message",
+      "event_id" => row.event_id,
+      "live_session_id" => row.live_session_id,
+      "body" => row.body,
+      "occurred_at" => DateTime.to_iso8601(row.occurred_at),
+      "edited" => row.edited,
+      "edit_count" => row.edit_count
     }
   end
 
