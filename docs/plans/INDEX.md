@@ -7,10 +7,10 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Backend Lane
 
 - Lane pointer: `docs/plans/backend/NOW.md`
-- Status: dedicated `GEN-001` chat timeline/event-object implementation plan written; awaiting approval before code
-- Current track: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
-- Current batch: approve and execute implementation plan
-- Next queued batch: implementation after plan approval
+- Status: `GEN-001` chat timeline/event-object backend implementation complete; no unblocked backend implementation batch remains
+- Current track: none active after `GEN-001` closeout
+- Current batch: none
+- Next queued batch: none selected
 - Notes: backend lane owns backend code and backend planning docs only; shared dashboard/index updates stay with the coordinator unless explicitly assigned
 
 ### Mobile Lane
@@ -35,8 +35,8 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Release Roadmap And Planning Holes
 
 - Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Status: paused behind explicitly reprioritized `GEN-001` chat timeline/event-object redesign
-- Notes: return to this roadmap after the active `GEN-001` redesign finishes or the backend lane is explicitly reprioritized again
+- Status: paused; no active backend implementation batch is selected
+- Notes: return to this roadmap only after the backend lane is explicitly reprioritized again
 
 ### Backend Code Quality Cleanup
 
@@ -49,9 +49,9 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 
 - Source: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
 - Implementation plan: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
-- Status: implementation plan written; awaiting approval before code
-- Current batch: approve and execute implementation plan
-- Next queued batch: implement the approved plan
+- Status: implementation complete
+- Current batch: none
+- Next queued batch: none
 - Notes: this work is intentionally separate from the completed code-quality cleanup stages
 
 ## Queued Candidate Work

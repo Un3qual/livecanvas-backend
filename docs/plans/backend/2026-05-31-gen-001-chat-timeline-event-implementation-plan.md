@@ -1,6 +1,6 @@
 # GEN-001 Chat Timeline/Event Object Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Historical execution note:** This plan was implemented with `superpowers:subagent-driven-development`. All checklist items are complete; do not restart this plan unless the user explicitly reopens `GEN-001`.
 
 **Goal:** Replace client-facing chat-message system events with first-class live-session timeline events backed by append-only facts and current projection tables.
 
@@ -103,7 +103,7 @@ Update transport and operational edges:
 - Modify: `lib/live_canvas_schemas.ex`
 - Test: `test/live_canvas_schemas/chat/timeline_event_schema_test.exs`
 
-- [ ] **Step 1: Write failing schema tests**
+- [x] **Step 1: Write failing schema tests**
 
 Add `test/live_canvas_schemas/chat/timeline_event_schema_test.exs`:
 
@@ -222,7 +222,7 @@ defmodule LCSchemas.Chat.TimelineEventSchemaTest do
 end
 ```
 
-- [ ] **Step 2: Run the schema tests and verify they fail**
+- [x] **Step 2: Run the schema tests and verify they fail**
 
 Run:
 
@@ -232,7 +232,7 @@ mix test test/live_canvas_schemas/chat/timeline_event_schema_test.exs
 
 Expected: compile failure because the timeline schema modules do not exist.
 
-- [ ] **Step 3: Create the migration**
+- [x] **Step 3: Create the migration**
 
 Add `priv/repo/migrations/20260531120000_create_live_session_timeline_events.exs` with these table contracts:
 
@@ -425,7 +425,7 @@ defmodule LiveCanvas.Repo.Migrations.CreateLiveSessionTimelineEvents do
 end
 ```
 
-- [ ] **Step 4: Add schema modules and type vocabularies**
+- [x] **Step 4: Add schema modules and type vocabularies**
 
 In `lib/live_canvas_schemas/chat.ex`, replace the legacy chat-message types with timeline types:
 
@@ -505,7 +505,7 @@ end
 
 Use the same pattern for subtype/state schemas. Add all new modules to `lib/live_canvas_schemas.ex` exports.
 
-- [ ] **Step 5: Run the schema tests and migration**
+- [x] **Step 5: Run the schema tests and migration**
 
 Run:
 
@@ -523,7 +523,7 @@ mix compile
 
 Expected: compile passes with no warnings.
 
-- [ ] **Step 6: Commit Task 1**
+- [x] **Step 6: Commit Task 1**
 
 ```bash
 git add priv/repo/migrations/20260531120000_create_live_session_timeline_events.exs lib/live_canvas_schemas/chat.ex lib/live_canvas_schemas.ex lib/live_canvas_schemas/chat/live_session_timeline_*.ex lib/live_canvas_schemas/chat/live_session_moderation_action.ex test/live_canvas_schemas/chat/timeline_event_schema_test.exs
@@ -539,7 +539,7 @@ git commit -m "feat: add live session timeline schemas"
 - Modify: `lib/live_canvas/chat.ex`
 - Test: `test/live_canvas/chat_timeline_test.exs`
 
-- [ ] **Step 1: Write failing send/history tests**
+- [x] **Step 1: Write failing send/history tests**
 
 Create `test/live_canvas/chat_timeline_test.exs` with a new `describe "create_timeline_chat_message/3"` block:
 
@@ -632,7 +632,7 @@ defmodule LC.ChatTimelineTest do
 end
 ```
 
-- [ ] **Step 2: Run the new tests and verify they fail**
+- [x] **Step 2: Run the new tests and verify they fail**
 
 Run:
 
@@ -642,7 +642,7 @@ mix test test/live_canvas/chat_timeline_test.exs
 
 Expected: compile failure because `Chat.create_timeline_chat_message/3` and `Chat.timeline_history_query/1` do not exist.
 
-- [ ] **Step 3: Implement projection and transaction modules**
+- [x] **Step 3: Implement projection and transaction modules**
 
 Add a projection map contract in `LC.Chat.TimelineProjection`:
 
@@ -756,7 +756,7 @@ Expose these public functions from `LC.Chat` with typespecs:
 
 Keep `authorize_join/2`, `authorize_history_access/2`, and `run_query/1` as the policy/query gates.
 
-- [ ] **Step 4: Run the focused tests**
+- [x] **Step 4: Run the focused tests**
 
 Run:
 
@@ -766,7 +766,7 @@ mix test test/live_canvas/chat_timeline_test.exs
 
 Expected: tests pass.
 
-- [ ] **Step 5: Commit Task 2**
+- [x] **Step 5: Commit Task 2**
 
 ```bash
 git add lib/live_canvas/chat.ex lib/live_canvas/chat/timeline_event_changes.ex lib/live_canvas/chat/timeline_projection.ex lib/live_canvas/chat/timeline_events.ex test/live_canvas/chat_timeline_test.exs
@@ -781,7 +781,7 @@ git commit -m "feat: add timeline chat send projection"
 - Modify: `lib/live_canvas/chat/timeline_event_changes.ex`
 - Test: `test/live_canvas/chat_timeline_test.exs`
 
-- [ ] **Step 1: Write failing edit tests**
+- [x] **Step 1: Write failing edit tests**
 
 Add this `describe` block to `test/live_canvas/chat_timeline_test.exs`:
 
@@ -842,7 +842,7 @@ describe "edit_timeline_chat_message/3" do
 end
 ```
 
-- [ ] **Step 2: Run the edit tests and verify they fail**
+- [x] **Step 2: Run the edit tests and verify they fail**
 
 Run:
 
@@ -852,7 +852,7 @@ mix test test/live_canvas/chat_timeline_test.exs
 
 Expected: compile failure because `Chat.edit_timeline_chat_message/3` does not exist.
 
-- [ ] **Step 3: Implement edit transactions**
+- [x] **Step 3: Implement edit transactions**
 
 Add a public `LC.Chat.edit_timeline_chat_message/3` wrapper with this contract:
 
@@ -884,7 +884,7 @@ from(state in LiveSessionTimelineChatMessageState,
 )
 ```
 
-- [ ] **Step 4: Run the edit tests**
+- [x] **Step 4: Run the edit tests**
 
 Run:
 
@@ -894,7 +894,7 @@ mix test test/live_canvas/chat_timeline_test.exs
 
 Expected: tests pass.
 
-- [ ] **Step 5: Commit Task 3**
+- [x] **Step 5: Commit Task 3**
 
 ```bash
 git add lib/live_canvas/chat.ex lib/live_canvas/chat/timeline_events.ex lib/live_canvas/chat/timeline_event_changes.ex test/live_canvas/chat_timeline_test.exs
@@ -911,7 +911,7 @@ git commit -m "feat: add timeline chat edit projections"
 - Test: `test/live_canvas/chat_timeline_test.exs`
 - Test: `test/live_canvas_gql/live/live_mutations_test.exs`
 
-- [ ] **Step 1: Write failing removal and lifecycle tests**
+- [x] **Step 1: Write failing removal and lifecycle tests**
 
 Add removal tests to `test/live_canvas/chat_timeline_test.exs`:
 
@@ -980,7 +980,7 @@ end
 
 Update live mutation tests so go-live and end-session expect `timeline:event` broadcasts with event types `live_session_started` and `live_session_ended`, not `chat:message` system events.
 
-- [ ] **Step 2: Run removal and lifecycle tests and verify they fail**
+- [x] **Step 2: Run removal and lifecycle tests and verify they fail**
 
 Run:
 
@@ -990,7 +990,7 @@ mix test test/live_canvas/chat_timeline_test.exs test/live_canvas_gql/live/live_
 
 Expected: failures because removal/lifecycle timeline APIs and broadcasts are not implemented.
 
-- [ ] **Step 3: Implement message removal**
+- [x] **Step 3: Implement message removal**
 
 Add `LC.Chat.remove_timeline_chat_message/3`:
 
@@ -1013,7 +1013,7 @@ Transaction rules:
 - Update original event state to `projection_state: :hidden`, `superseded_by_event_id`, `moderation_action_id`, and `updated_at`.
 - Insert state for the removal event with `projection_state: :internal`.
 
-- [ ] **Step 4: Implement lifecycle timeline facts**
+- [x] **Step 4: Implement lifecycle timeline facts**
 
 Replace `Chat.record_system_event/3` usage with:
 
@@ -1037,7 +1037,7 @@ Update `LCGQL.Live.Resolver` helpers:
 - Replace `broadcast_system_event/1` with `broadcast_timeline_event/1`.
 - Keep the existing race guard in `emit_matching_lifecycle_event?/2`.
 
-- [ ] **Step 5: Run focused tests**
+- [x] **Step 5: Run focused tests**
 
 Run:
 
@@ -1047,7 +1047,7 @@ mix test test/live_canvas/chat_timeline_test.exs test/live_canvas_gql/live/live_
 
 Expected: tests pass.
 
-- [ ] **Step 6: Commit Task 4**
+- [x] **Step 6: Commit Task 4**
 
 ```bash
 git add lib/live_canvas/chat.ex lib/live_canvas/chat/timeline_events.ex lib/live_canvas/chat/timeline_event_changes.ex lib/live_canvas_gql/live/live_resolver.ex test/live_canvas/chat_timeline_test.exs test/live_canvas_gql/live/live_mutations_test.exs
@@ -1068,7 +1068,7 @@ git commit -m "feat: add timeline moderation and lifecycle events"
 - Test: `test/live_canvas_gql/relay/node_queries_test.exs`
 - Test: `test/live_canvas_gql/relay/graphql_rate_limit_test.exs`
 
-- [ ] **Step 1: Rewrite GraphQL query tests to the new public shape**
+- [x] **Step 1: Rewrite GraphQL query tests to the new public shape**
 
 In `test/live_canvas_gql/chat/chat_queries_test.exs`, replace `chatMessages` queries with `timelineEvents` queries.
 
@@ -1125,7 +1125,7 @@ Add assertions that:
 - edited messages return once with the latest body and edit metadata
 - lifecycle events return as `LiveSessionStartedEvent` / `LiveSessionEndedEvent`
 
-- [ ] **Step 2: Rewrite GraphQL mutation tests**
+- [x] **Step 2: Rewrite GraphQL mutation tests**
 
 In `test/live_canvas_gql/chat/chat_mutations_test.exs`, replace `removeLiveChatMessage` with `removeLiveChatMessageEvent`:
 
@@ -1168,7 +1168,7 @@ Expected mutation behavior:
 - Removed events return `removedTimelineEventId`; they do not return a hidden event node.
 - Invalid ID type maps to `MutationErrors.invalid_error("chatMessageEventId")`.
 
-- [ ] **Step 3: Run GraphQL tests and verify they fail**
+- [x] **Step 3: Run GraphQL tests and verify they fail**
 
 Run:
 
@@ -1178,7 +1178,7 @@ mix test test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/ch
 
 Expected: failures because schema/resolvers still expose `ChatMessage` and old mutation names.
 
-- [ ] **Step 4: Implement GraphQL types and resolvers**
+- [x] **Step 4: Implement GraphQL types and resolvers**
 
 Replace the old chat type definitions with:
 
@@ -1236,7 +1236,7 @@ Resolver rules:
 - Node refetch in `LCGQL.Schema` must decode concrete event IDs, call `Chat.get_timeline_event/2`, and return `nil` if the projection is hidden or unauthorized.
 - Remove old `:chat_message` node fetch after all callers use event IDs.
 
-- [ ] **Step 5: Update mutation rate limits**
+- [x] **Step 5: Update mutation rate limits**
 
 In `lib/live_canvas_web/plugs/graphql_mutation_rate_limit.ex`, replace `removeLiveChatMessage` with:
 
@@ -1247,7 +1247,7 @@ In `lib/live_canvas_web/plugs/graphql_mutation_rate_limit.ex`, replace `removeLi
 
 Keep both under the existing moderation/chat mutation limit family if the plug uses a flat high-cost list.
 
-- [ ] **Step 6: Run focused GraphQL tests**
+- [x] **Step 6: Run focused GraphQL tests**
 
 Run:
 
@@ -1257,7 +1257,7 @@ mix test test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/ch
 
 Expected: tests pass.
 
-- [ ] **Step 7: Commit Task 5**
+- [x] **Step 7: Commit Task 5**
 
 ```bash
 git add lib/live_canvas_gql/chat/chat_types.ex lib/live_canvas_gql/chat/chat_resolver.ex lib/live_canvas_gql/chat/chat_mutations.ex lib/live_canvas_gql/feed/feed_types.ex lib/live_canvas_gql/schema.ex lib/live_canvas_web/plugs/graphql_mutation_rate_limit.ex test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs
@@ -1274,7 +1274,7 @@ git commit -m "feat: expose live session timeline events in GraphQL"
 - Modify: `lib/live_canvas_gql/live/live_resolver.ex`
 - Test: `test/live_canvas_web/channels/live_session_channel_test.exs`
 
-- [ ] **Step 1: Rewrite channel tests to timeline events**
+- [x] **Step 1: Rewrite channel tests to timeline events**
 
 Update send tests to push the new command:
 
@@ -1338,7 +1338,7 @@ assert_receive %Phoenix.Socket.Message{
 }
 ```
 
-- [ ] **Step 2: Run channel tests and verify they fail**
+- [x] **Step 2: Run channel tests and verify they fail**
 
 Run:
 
@@ -1348,7 +1348,7 @@ mix test test/live_canvas_web/channels/live_session_channel_test.exs
 
 Expected: failures because channel code still uses `chat:send`, `chat:message`, and `chat:message_updated`.
 
-- [ ] **Step 3: Implement timeline broadcast payloads**
+- [x] **Step 3: Implement timeline broadcast payloads**
 
 Add `LC.Chat.TimelineBroadcasts`:
 
@@ -1383,7 +1383,7 @@ Payload type mapping:
 - `:live_session_started` -> `"LiveSessionStartedEvent"`
 - `:live_session_ended` -> `"LiveSessionEndedEvent"`
 
-- [ ] **Step 4: Update channel command handling**
+- [x] **Step 4: Update channel command handling**
 
 In `LCWeb.LiveSessionChannel`:
 
@@ -1395,14 +1395,14 @@ In `LCWeb.LiveSessionChannel`:
 
 Do not add a channel-side edit command in this slice. GraphQL owns `editLiveChatMessage`, and successful GraphQL edits broadcast `timeline:event_updated` to joined channel clients.
 
-- [ ] **Step 5: Update GraphQL broadcast callers**
+- [x] **Step 5: Update GraphQL broadcast callers**
 
 - `editLiveChatMessage` broadcasts `timeline:event_updated` only after the edit transaction commits.
 - `removeLiveChatMessageEvent` broadcasts `timeline:event_removed` only when `transitioned? == true`.
 - Lifecycle mutations broadcast `timeline:event` for `live_session_started` and `live_session_ended`.
 - Repeated removals do not broadcast another remove event.
 
-- [ ] **Step 6: Run channel tests**
+- [x] **Step 6: Run channel tests**
 
 Run:
 
@@ -1412,7 +1412,7 @@ mix test test/live_canvas_web/channels/live_session_channel_test.exs
 
 Expected: tests pass.
 
-- [ ] **Step 7: Commit Task 6**
+- [x] **Step 7: Commit Task 6**
 
 ```bash
 git add lib/live_canvas/chat.ex lib/live_canvas/chat/timeline_broadcasts.ex lib/live_canvas_web/channels/live_session_channel.ex lib/live_canvas_gql/chat/chat_resolver.ex lib/live_canvas_gql/live/live_resolver.ex test/live_canvas_web/channels/live_session_channel_test.exs
@@ -1442,7 +1442,7 @@ git commit -m "feat: broadcast timeline events over live channels"
 - Test: `test/live_canvas/infra/data_governance_export_test.exs`
 - Test: `test/live_canvas/infra/data_governance_retention_test.exs`
 
-- [ ] **Step 1: Rewrite or remove legacy tests**
+- [x] **Step 1: Rewrite or remove legacy tests**
 
 Delete `test/live_canvas_schemas/chat/chat_message_test.exs` after all schema behavior it covered is represented by `test/live_canvas_schemas/chat/timeline_event_schema_test.exs`.
 
@@ -1468,7 +1468,7 @@ If user-facing exports previously included chat message rows, export timeline pr
 }
 ```
 
-- [ ] **Step 2: Run cleanup tests and verify they fail**
+- [x] **Step 2: Run cleanup tests and verify they fail**
 
 Run:
 
@@ -1478,7 +1478,7 @@ mix test test/live_canvas_schemas/chat/timeline_event_schema_test.exs test/live_
 
 Expected: failures until the legacy schema/table references are removed.
 
-- [ ] **Step 3: Drop legacy chat table**
+- [x] **Step 3: Drop legacy chat table**
 
 Add `priv/repo/migrations/20260531123000_drop_legacy_chat_messages.exs`:
 
@@ -1494,7 +1494,7 @@ end
 
 The app is unreleased, so this migration does not need to backfill legacy chat data. If local seed/dev flows still need sample chat history, update them to create timeline events through `LC.Chat`.
 
-- [ ] **Step 4: Remove old modules and exports**
+- [x] **Step 4: Remove old modules and exports**
 
 Remove:
 
@@ -1515,7 +1515,7 @@ rg -n "ChatMessage|chat_messages|system_event|chat:message|chat:message_updated|
 
 Expected remaining hits are only historical plan references in `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md` and this implementation plan.
 
-- [ ] **Step 5: Add architecture convention**
+- [x] **Step 5: Add architecture convention**
 
 Append this durable rule to `docs/architecture/conventions.md` under `Realtime Transport` or `GraphQL And Relay`:
 
@@ -1523,7 +1523,7 @@ Append this durable rule to `docs/architecture/conventions.md` under `Realtime T
 - Durable live-session history is modeled as first-class timeline events. Store append-only event facts separately from mutable projection state, expose history/replay from the current projection, and use timeline-oriented channel events rather than overloading chat-message rows for lifecycle or moderation events.
 ```
 
-- [ ] **Step 6: Run cleanup verification**
+- [x] **Step 6: Run cleanup verification**
 
 Run:
 
@@ -1533,7 +1533,7 @@ mix test test/live_canvas_schemas/chat/timeline_event_schema_test.exs test/live_
 
 Expected: tests pass.
 
-- [ ] **Step 7: Commit Task 7**
+- [x] **Step 7: Commit Task 7**
 
 ```bash
 git add priv/repo/migrations/20260531123000_drop_legacy_chat_messages.exs lib/live_canvas_schemas/chat.ex lib/live_canvas_schemas.ex lib/live_canvas/chat.ex lib/live_canvas/infra/data_governance/deletion.ex lib/live_canvas/infra/data_governance/export.ex lib/live_canvas/infra/data_governance/retention.ex docs/architecture/conventions.md test/live_canvas_schemas/chat/timeline_event_schema_test.exs test/live_canvas/chat_timeline_test.exs test/live_canvas/infra/data_governance_deletion_test.exs test/live_canvas/infra/data_governance_export_test.exs test/live_canvas/infra/data_governance_retention_test.exs
@@ -1546,9 +1546,10 @@ git commit -m "refactor: remove legacy chat message history model"
 **Files:**
 - Modify: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
 - Modify: `docs/plans/backend/NOW.md`
-- Modify only if coordinator repair is still explicitly assigned: `docs/plans/NOW.md`, `docs/plans/INDEX.md`
+- Modify: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+- Do not modify coordinator-owned shared docs in this closeout pass unless explicitly assigned: `docs/plans/NOW.md`, `docs/plans/INDEX.md`
 
-- [ ] **Step 1: Run focused verification**
+- [x] **Step 1: Run focused verification**
 
 Run:
 
@@ -1558,7 +1559,7 @@ mix test test/live_canvas/chat_timeline_test.exs test/live_canvas_gql/chat/chat_
 
 Expected: all listed tests pass.
 
-- [ ] **Step 2: Run compile and type checks**
+- [x] **Step 2: Run compile and type checks**
 
 Run:
 
@@ -1569,7 +1570,7 @@ mix typecheck
 
 Expected: both commands pass.
 
-- [ ] **Step 3: Run stale-surface search**
+- [x] **Step 3: Run stale-surface search**
 
 Run:
 
@@ -1579,7 +1580,7 @@ rg -n "ChatMessage|chat_messages|chat:message|chat:message_updated|system_event|
 
 Expected: no implementation or current-test hits. Historical references may remain only in locked plan/design docs that explicitly describe the removed legacy model.
 
-- [ ] **Step 4: Update plan status**
+- [x] **Step 4: Update plan status**
 
 In `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`, change status to implementation complete and add the verification commands from Steps 1-3.
 
@@ -1587,10 +1588,10 @@ In `docs/plans/backend/NOW.md`, move the backend lane to the next unblocked back
 
 Only update shared coordinator docs if the user has explicitly assigned coordinator repair for this pass.
 
-- [ ] **Step 5: Final commit**
+- [x] **Step 5: Final commit**
 
 ```bash
-git add docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md docs/plans/backend/NOW.md
+git add docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md docs/plans/backend/NOW.md docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md
 git commit -m "docs: close GEN-001 timeline redesign"
 ```
 
@@ -1601,7 +1602,20 @@ git add docs/plans/NOW.md docs/plans/INDEX.md
 git commit --amend --no-edit
 ```
 
-## Execution Notes
+## Final Verification Record
+
+Task 8 closeout verification on 2026-05-31:
+
+- `mix test test/live_canvas/chat_timeline_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas/infra/data_governance_deletion_test.exs test/live_canvas/infra/data_governance_export_test.exs test/live_canvas/infra/data_governance_retention_test.exs` -> passed, 126 tests, 0 failures.
+- `mix compile` -> passed.
+- `mix typecheck` -> passed with `Total errors: 0, Skipped: 0, Unnecessary Skips: 0`.
+- `git diff --check` -> passed.
+- `rg -n "ChatMessage|chat_messages|chat:message|chat:message_updated|system_event|removeLiveChatMessage|chatMessages" lib test docs/architecture docs/plans/backend` -> remaining hits are current timeline names and locked plan/design history; no legacy current implementation/test surface was identified.
+- `rg -n "\bChatMessage\b|\bchat_messages\b|chat:message(_updated)?\b|\bsystem_event\b|\bremoveLiveChatMessage\b|\bchatMessages\b" config lib test docs/architecture` -> no hits.
+
+## Historical Execution Notes
+
+These notes are retained for implementation audit history only. Task 8 is complete, and this section is not an active instruction to reopen `GEN-001`.
 
 - Execute tasks in order. Later tasks intentionally delete or rename legacy API surfaces.
 - Do not preserve `ChatMessage` GraphQL compatibility. The app is unreleased and the locked design allows breaking API changes.
@@ -1610,12 +1624,12 @@ git commit --amend --no-edit
 - If Absinthe interface connection support blocks Task 5, solve that inside Task 5 by defining explicit `LiveSessionTimelineEventConnection` and `LiveSessionTimelineEventEdge` objects; do not weaken the public `timelineEvents` API.
 - If PostgreSQL rejects a migration constraint form, replace only that constraint with explicit `execute/2` SQL and keep the same table/index/constraint names.
 
-## Approval Gate
+## Historical Approval Gate
 
-Implementation code should not start until this plan is approved. The first implementation command after approval should be:
+This gate was satisfied before implementation. Future backend workers should not restart execution from this plan unless the user explicitly reopens `GEN-001`. The first implementation command after approval was:
 
 ```bash
 mix test test/live_canvas_schemas/chat/timeline_event_schema_test.exs
 ```
 
-Expected first result: compile failure for missing timeline schema modules.
+Expected first result at the time: compile failure for missing timeline schema modules.

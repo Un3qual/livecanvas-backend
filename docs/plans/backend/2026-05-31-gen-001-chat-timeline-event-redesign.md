@@ -1,18 +1,31 @@
 # GEN-001 Chat Timeline/Event Object Redesign
 
 Last reviewed: 2026-05-31
-Status: design locked; executable implementation plan written and awaiting approval
+Status: implementation complete; final backend verification passed
 Owner lane: backend
 
 ## Goal
 
-Replace the client-facing model where system events are overloaded as chat messages with a first-class live-session timeline event model. The app is unreleased, so this redesign may break the current GraphQL and Phoenix Channel APIs to get the durable model right.
+Replace the client-facing model where system events are overloaded as chat messages with a first-class live-session timeline event model. The app was unreleased when this plan was written, so the redesign was allowed to break the former GraphQL and Phoenix Channel APIs to get the durable model right.
+
+## Implementation Closeout
+
+The backend implementation is complete. The old `chat_messages` model and `chat:message`/`chat:message_updated` realtime surface have been replaced by first-class live-session timeline event facts, current projection tables, Relay timeline event GraphQL types, and timeline-oriented channel broadcasts.
+
+Final verification on 2026-05-31:
+
+- `mix test test/live_canvas/chat_timeline_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas/infra/data_governance_deletion_test.exs test/live_canvas/infra/data_governance_export_test.exs test/live_canvas/infra/data_governance_retention_test.exs` -> passed, 126 tests, 0 failures.
+- `mix compile` -> passed.
+- `mix typecheck` -> passed with `Total errors: 0, Skipped: 0, Unnecessary Skips: 0`.
+- `git diff --check` -> passed.
+- Broad stale-surface search with `rg -n "ChatMessage|chat_messages|chat:message|chat:message_updated|system_event|removeLiveChatMessage|chatMessages" lib test docs/architecture docs/plans/backend` -> remaining current hits are timeline names such as `ChatMessageEvent`, `LiveSessionTimelineChatMessage*`, `live_session_timeline_chat_messages`, and `removeLiveChatMessageEvent`; remaining docs hits are locked design/implementation history.
+- Precise stale-surface search with `rg -n "\bChatMessage\b|\bchat_messages\b|chat:message(_updated)?\b|\bsystem_event\b|\bremoveLiveChatMessage\b|\bchatMessages\b" config lib test docs/architecture` -> no hits.
 
 ## Source Context
 
-`GEN-001` came from `docs/plans/backend/2026-05-22-code-quality-cleanup.md`: system events should become first-class client-facing timeline/event objects with matching GraphQL and websocket shapes. The old compatibility constraint is gone for this redesign; the current `ChatMessage`/`chat:message` API may be replaced.
+`GEN-001` came from `docs/plans/backend/2026-05-22-code-quality-cleanup.md`: system events should become first-class client-facing timeline/event objects with matching GraphQL and websocket shapes. The old compatibility constraint was removed for this redesign, and the former `ChatMessage`/`chat:message` API was replaced.
 
-Current implementation to replace:
+Legacy implementation that this redesign replaced:
 
 - `chat_messages.kind` stores both `:user_message` and `:system_event`.
 - GraphQL exposes system-event fields on `ChatMessage`.

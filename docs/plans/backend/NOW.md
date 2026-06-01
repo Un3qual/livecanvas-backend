@@ -1,7 +1,7 @@
 # Backend Lane Execution
 
 Last reviewed: 2026-05-31
-Status: `GEN-001` chat timeline/event-object implementation plan written; awaiting approval before code
+Status: `GEN-001` chat timeline/event-object backend implementation complete; no unblocked backend implementation batch remains
 
 ## Lane Scope
 
@@ -10,10 +10,10 @@ Status: `GEN-001` chat timeline/event-object implementation plan written; awaiti
 
 ## Current Batch
 
-- Track: `gen_001_chat_timeline_event_objects`
-- Source: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`; `docs/plans/backend/2026-05-22-code-quality-cleanup.md` remains background only.
-- Batch: approve and execute the written implementation plan; do not touch implementation code until the implementation plan is approved.
-- Why now: The cleanup inventory is the source of truth for per-issue stage status. `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GQL-009`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete. The user explicitly asked to start `GEN-001`, so it now proceeds as a dedicated chat timeline/event-object redesign rather than through the cleanup-stage flow.
+- Track: none active after `GEN-001` closeout.
+- Source: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`; `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`; `docs/plans/backend/2026-05-22-code-quality-cleanup.md` remains background only.
+- Batch: no active backend implementation batch remains.
+- Why now: `GEN-001` was explicitly started as a dedicated chat timeline/event-object redesign and is now implemented and verified.
 - Current status:
   - Stage 1 is complete for all user-reported issues.
   - `GQL-001`: Stage 2, Stage 3, Stage 7, and Stage 8 complete; resolver-only timestamp formatting has been removed from GraphQL fields.
@@ -33,17 +33,16 @@ Status: `GEN-001` chat timeline/event-object implementation plan written; awaiti
   - `SOCK-003`: Stage 2 and Stage 3 complete with a partially-valid decision; Stage 7 complete; Stage 8 complete; client-facing live-session socket reason strings now live in `LCTransport.LiveSessionReasons`.
   - `LIVE-001`: Stage 2 complete with a valid OTP-native ownership redesign decision; Stage 3 complete; Stage 7 complete; Stage 8 complete; live-session runtime ownership now routes through `LC.RealtimeRuntime` shard ownership and shard-local runtime supervision. The first slice kept the existing `DNSCluster` discovery path instead of adding `libcluster`.
   - `DOC-001`: Stage 2 complete and marked valid; Stage 3 complete; Stage 7 complete; Stage 8 complete with no implementation code touched.
-  - `GEN-001`: Stage 2 complete with a deferred-valid decision and a required future fix through a dedicated chat timeline/event-object redesign.
+  - `GEN-001`: dedicated chat timeline/event-object backend implementation complete; old chat-message system-event coupling has been replaced with first-class timeline events, timeline GraphQL, timeline channel broadcasts, and data-governance timeline handling.
   - Stage 4 is complete.
   - `GQL-008`, `GEN-002`, `WEB-001`, and `GQL-009`: Stage 5 and Stage 6 complete.
   - `GQL-009`: Stage 7 complete; Stage 8 complete. Contact responsibilities live in `LCGQL.Accounts.ContactResolver`, data-governance responsibilities live in `LCGQL.Accounts.DataGovernanceResolver`, user/profile/identity responsibilities live in `LCGQL.Accounts.UserResolver`, auth/recovery/token responsibilities live in `LCGQL.Accounts.AuthResolver`, and the old `LCGQL.Accounts.Resolver` module has been removed.
 
 ## Do This Now
 
-- Review the executable implementation plan in `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`.
-- After approval, execute it task-by-task with TDD and milestone commits.
-- Keep implementation code untouched until the implementation plan is approved.
+- No unblocked backend implementation batch remains in this lane.
 - No further cleanup-stage implementation is currently unblocked in `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
+- If shared coordinator docs still point at active backend `GEN-001` work, report that dashboard repair is needed instead of editing `docs/plans/NOW.md` or `docs/plans/INDEX.md` from the backend lane unless explicitly assigned.
 - `SOCK-002` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `SOCK-003` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `LIVE-001` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
@@ -52,20 +51,21 @@ Status: `GEN-001` chat timeline/event-object implementation plan written; awaiti
 - `WEB-001` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `DOC-001` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `GQL-005` Stage 8 is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
-- `GEN-001` has been explicitly started by the user; keep it as a dedicated chat timeline/event-object redesign, not a cleanup-stage scan.
+- `GEN-001` is complete; do not reopen it unless the user explicitly asks for a follow-up adjustment.
 - `GQL-009` has been explicitly revisited by the user; keep scope to the Accounts resolver structural split and do not broaden into unrelated Accounts behavior changes.
 - `SOCK-001` is complete for Stage 2 and should not get separate Stage 3, Stage 7, or Stage 8 work; `SOCK-002` owns the combined live-session topic generation and parsing cleanup.
 - If the user redirects to another issue, preserve the one-issue-at-a-time rule.
 - Do not edit implementation code for blocked/deferred cleanup issues.
-- Shared dashboard/index repair was explicitly assigned for this turn; otherwise, report future shared-doc repairs instead of editing `docs/plans/NOW.md` or `docs/plans/INDEX.md` from the backend lane.
+- Shared dashboard/index repair is coordinator-owned; report future shared-doc repairs instead of editing `docs/plans/NOW.md` or `docs/plans/INDEX.md` from the backend lane unless explicitly assigned.
 
 ## Verification Scope
 
-- This implementation-planning batch should not require Mix verification unless it touches implementation code.
+- No active backend implementation batch is selected.
 - Stage 2 is discussion and documentation only.
 - Stage 3 and Stage 6 scans should use focused `rg` searches first, then code reads for matched areas.
 - Stage 7 planning should record the intended fix, prevention checks, verification scope, and Stage 6 watchpoints before implementation.
 - Stage 8 implementation batches must define and run focused verification for each issue; if typed code is touched, run `mix typecheck`.
+- Final `GEN-001` verification passed with the focused chat/live/relay/data-governance test suite, `mix compile`, `mix typecheck`, `git diff --check`, broad stale-surface search, and precise stale-surface search.
 
 ## Completed Batch Evidence
 
@@ -137,6 +137,7 @@ Status: `GEN-001` chat timeline/event-object implementation plan written; awaiti
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` `GQL-009` Stage 8 Task 2 completed on 2026-05-31; `LCGQL.Accounts.DataGovernanceResolver` now owns data-export/account-deletion query and mutation responsibilities, data-governance ID decoding, option filtering, and error mapping. Verification: `mix test test/live_canvas_gql/accounts/data_governance_resolver_test.exs`, `mix test test/live_canvas_gql/accounts/account_mutations_test.exs`, `mix compile`, and `mix typecheck`.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` `GQL-009` Stage 8 Task 3 completed on 2026-05-31; `LCGQL.Accounts.UserResolver` now owns viewer lookup, private user email, profile child connections, user identity fields, profile/privacy mutations, identity unlinking, owner re-authorization helpers, and identity ID/error mapping. Verification: `mix test test/live_canvas_gql/accounts/user_resolver_test.exs test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs`, `mix compile`, and `mix typecheck`.
 - `docs/plans/backend/2026-05-22-code-quality-cleanup.md` `GQL-009` Stage 8 Task 4 completed on 2026-05-31; `LCGQL.Accounts.AuthResolver` now owns auth challenge/sign-up/login, viewer token issue/refresh/revoke, password reset request/reset, deterministic auth URL builders, auth validation, token projection, and auth-entry payload projection. The old `LCGQL.Accounts.Resolver` module was removed after schema references moved to focused resolver modules. Verification: `mix test test/live_canvas_gql/accounts/auth_resolver_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs test/integration/accounts_login_flow_test.exs`, `mix compile`, and `mix typecheck`.
+- `GEN-001` dedicated chat timeline/event-object redesign implementation completed on 2026-05-31. Verification: `mix test test/live_canvas/chat_timeline_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas/infra/data_governance_deletion_test.exs test/live_canvas/infra/data_governance_export_test.exs test/live_canvas/infra/data_governance_retention_test.exs` passed with 126 tests and 0 failures; `mix compile` passed; `mix typecheck` passed with `Total errors: 0, Skipped: 0, Unnecessary Skips: 0`; `git diff --check` passed; precise stale-surface search across `config lib test docs/architecture` returned no exact legacy table/API/broadcast hits.
 - Initial checks: `git status --short --branch`, `docs/plans/NOW.md`, `docs/plans/backend/NOW.md`, source conventions doc, and targeted reads/searches across GraphQL resolvers/types, live channel/topic code, chat system events, runtime ownership, and schema files.
 - `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` Task 3 passed on 2026-04-24.
 - `mix compile` -> PASS.
@@ -149,15 +150,17 @@ Status: `GEN-001` chat timeline/event-object implementation plan written; awaiti
 
 ## Next Up
 
-- No unblocked backend code-quality cleanup task remains in `docs/plans/backend/2026-05-22-code-quality-cleanup.md`.
-- Continue the explicitly requested dedicated `GEN-001` chat timeline/event-object redesign by approving and executing the written implementation plan.
+- No unblocked backend implementation batch remains in this lane.
+- If the shared coordinator dashboard still lists active backend `GEN-001` implementation, report it as stale and leave repair to a coordinator-assigned pass.
 
 ## Completed Shared Coordinator Repairs
 
 - `docs/plans/NOW.md`: repaired on 2026-05-31 to point the backend lane at active `GQL-009` cleanup work.
 - `docs/plans/INDEX.md`: repaired on 2026-05-31 to add completed live-session client-contract and post-reporting entries, mark development seed data complete, remove the stale active live-session lane note, and point the backend lane at active `GQL-009` cleanup work.
 - `docs/plans/NOW.md`: repaired on 2026-05-31 to point the backend lane at the explicitly requested dedicated `GEN-001` chat timeline/event-object redesign.
-- `docs/plans/INDEX.md`: repaired on 2026-05-31 to mark backend code-quality cleanup implementation complete and add the active `GEN-001` redesign track.
+- `docs/plans/INDEX.md`: repaired on 2026-05-31 to mark backend code-quality cleanup implementation complete and add the explicitly requested `GEN-001` redesign track.
+- `docs/plans/NOW.md`: repaired on 2026-05-31 after `GEN-001` closeout to report no active backend implementation batch.
+- `docs/plans/INDEX.md`: repaired on 2026-05-31 after `GEN-001` closeout to mark the redesign implementation complete and clear the backend queued batch.
 
 ## Repair Conditions
 
