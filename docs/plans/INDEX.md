@@ -18,9 +18,9 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Status: active for execution
 - Current track: `docs/plans/mobile/TRACK.md`
-- Current batch: `docs/plans/mobile/2026-06-01-live-discovery-viewer-watch-flow.md` -> `Task 1`
-- Next queued batch: `docs/plans/mobile/2026-06-01-live-discovery-viewer-watch-flow.md` -> `Task 2`
-- Notes: mobile lane owns `mobile/` and `docs/plans/mobile/**` only; report backend contract dependencies instead of editing backend code directly
+- Current batch: `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md` -> `Task 1`
+- Next queued batch: `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md` -> `Task 2`
+- Notes: live discovery plus durable viewer watch flow is complete; channel transport contract repair is explicitly prioritized before host broadcast/native media planning so mobile gets a client-safe live-session channel topic and an up-to-date timeline-event realtime contract
 
 ## Track Status
 
@@ -65,8 +65,8 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Mobile Expo Frontend Planning Track
 
 - Source: `docs/plans/mobile/TRACK.md`
-- Status: live discovery plus viewer watch flow plan ready for execution
-- Notes: the shell, Relay/auth session lifecycle, and profiles/social basics plans are complete; the next mobile step is the Relay-first live discovery and durable viewer watch flow
+- Status: channel transport contract repair plan ready for execution
+- Notes: the shell, Relay/auth session lifecycle, profiles/social basics, and live discovery plus durable viewer watch flow plans are complete; the next mobile step repairs the mobile realtime/channel contract before host broadcast/native media planning
 
 ## Paused Or Deferred
 
