@@ -58,7 +58,7 @@ Verified before drafting this plan:
 - [x] Task 2: Expose `LiveSession.channelTopic` through GraphQL
 - [x] Task 3: Refresh mobile Relay schema and request the topic
 - [x] Task 4: Add mobile topic and realtime-event helpers
-- [ ] Task 5: Verify, close docs, and hand off to host broadcast planning
+- [x] Task 5: Verify, close docs, and hand off to host broadcast planning
 
 ### Task 1: Pin The Repaired Mobile Realtime Contract
 
@@ -959,7 +959,7 @@ git commit -m "feat(mobile): add live realtime contract helpers"
 - Modify: `docs/plans/NOW.md`
 - Modify: `docs/plans/INDEX.md`
 
-- [ ] **Step 1: Run backend verification**
+- [x] **Step 1: Run backend verification**
 
 Run:
 
@@ -971,7 +971,7 @@ mix typecheck
 
 Expected: PASS.
 
-- [ ] **Step 2: Run mobile verification**
+- [x] **Step 2: Run mobile verification**
 
 Run:
 
@@ -984,7 +984,7 @@ bun test src/live/liveSessionChannelTopic.test.ts src/live/liveSessionRealtimeEv
 
 Expected: PASS.
 
-- [ ] **Step 3: Run contract stale-surface search**
+- [x] **Step 3: Run contract stale-surface search**
 
 Run:
 
@@ -994,7 +994,7 @@ rg -n "chat:message|chat:message_updated|removed_timeline_event_id|timeline:even
 
 Expected: no stale `chat:message` or `chat:message_updated` hits outside archived historical plans; `timeline:event`, `removed_timeline_event_id`, and `channelTopic` hits should be current contract, test, helper, schema, or plan references.
 
-- [ ] **Step 4: Run whitespace verification**
+- [x] **Step 4: Run whitespace verification**
 
 Run:
 
@@ -1004,7 +1004,7 @@ git diff --check
 
 Expected: PASS.
 
-- [ ] **Step 5: Close the plan and advance pointers**
+- [x] **Step 5: Close the plan and advance pointers**
 
 In this plan, mark all completed task checkboxes.
 
@@ -1020,12 +1020,14 @@ In `docs/plans/mobile/NOW.md`, change status to `channel transport contract repa
 
 In `docs/plans/NOW.md` and `docs/plans/INDEX.md`, update the mobile current batch to the host broadcast planning handoff only after the mobile lane docs are updated.
 
-- [ ] **Step 6: Commit Task 5**
+- [x] **Step 6: Commit Task 5**
 
 ```bash
 git add docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md docs/plans/mobile/TRACK.md docs/plans/mobile/NOW.md docs/plans/NOW.md docs/plans/INDEX.md
 git commit -m "docs: hand off to host broadcast planning"
 ```
+
+Closeout note: final backend and mobile verification passed on 2026-06-02. Relay compiler required an unsandboxed rerun because Watchman could not update its local state inside the sandbox, then compiled 11 documents successfully. The remaining `chat:message` and `chat:message_updated` search hits are historical task-spec text in this completed plan, not active contract, source, or test drift.
 
 ## Final Verification Commands
 

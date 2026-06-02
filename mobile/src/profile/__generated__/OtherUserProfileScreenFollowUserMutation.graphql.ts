@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d83987c8dd46cdbc896978972a5c2b23>>
+ * @generated SignedSource<<6cfae7bc284c2baee986dda3af81fd36>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -84,7 +84,7 @@ v1 = [
       {
         "alias": null,
         "args": null,
-        "concreteType": "SocialError",
+        "concreteType": "UserError",
         "kind": "LinkedField",
         "name": "errors",
         "plural": true,

@@ -16,11 +16,11 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Mobile Lane
 
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Status: active for execution
+- Status: channel transport contract repair complete; host broadcast planning handoff is next
 - Current track: `docs/plans/mobile/TRACK.md`
-- Current batch: `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md` -> `Task 1`
-- Next queued batch: `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md` -> `Task 2`
-- Notes: live discovery plus durable viewer watch flow is complete; channel transport contract repair is explicitly prioritized before host broadcast/native media planning so mobile gets a client-safe live-session channel topic and an up-to-date timeline-event realtime contract
+- Current batch: none
+- Next queued batch: create the host broadcast native capability and preflight planning plan
+- Notes: live discovery plus durable viewer watch flow and channel transport contract repair are complete; mobile now has an opaque `LiveSession.channelTopic` and an up-to-date timeline-event realtime contract
 
 ## Track Status
 
@@ -65,8 +65,8 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 ### Mobile Expo Frontend Planning Track
 
 - Source: `docs/plans/mobile/TRACK.md`
-- Status: channel transport contract repair plan ready for execution
-- Notes: the shell, Relay/auth session lifecycle, profiles/social basics, and live discovery plus durable viewer watch flow plans are complete; the next mobile step repairs the mobile realtime/channel contract before host broadcast/native media planning
+- Status: channel transport contract repair complete; host broadcast native capability and preflight planning is next
+- Notes: the shell, Relay/auth session lifecycle, profiles/social basics, live discovery plus durable viewer watch flow, and channel transport contract repair plans are complete; the next mobile step is host broadcast/native media planning
 
 ## Paused Or Deferred
 

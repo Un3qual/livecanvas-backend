@@ -1,6 +1,6 @@
 # Current Execution
 
-Last reviewed: 2026-06-01
+Last reviewed: 2026-06-02
 Status: active
 
 ## Coordinator Dashboard
@@ -20,10 +20,10 @@ Status: active
 
 ### Mobile Lane
 
-- Status: active for execution
-- Current batch: `docs/plans/mobile/NOW.md` -> `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md` -> `Task 1: Pin the repaired mobile realtime contract`
-- Lane write scope: `mobile/`, `docs/plans/mobile/**`, and the explicitly assigned shared contract docs needed for the realtime contract repair
-- Notes: the live discovery/watch flow is complete; channel transport contract repair is prioritized before host broadcast/native media planning because mobile still needs a client-safe live-session channel topic derived from a Relay `LiveSession`
+- Status: channel transport contract repair complete; host broadcast planning handoff is next
+- Current batch: none; `docs/plans/mobile/NOW.md` points to creating or activating the host broadcast native capability and preflight planning plan
+- Lane write scope: `mobile/` and `docs/plans/mobile/**`; shared contract docs require explicit assignment.
+- Notes: the live discovery/watch flow and channel transport contract repair are complete; mobile now needs host broadcast/native media planning before media capture, playback, socket lifecycle, or chat stream UI work
 
 ## Shared File Policy
 
@@ -33,7 +33,7 @@ Status: active
 ## Next Up
 
 - Once the backend lane selects new implementation work, refresh this dashboard from `docs/plans/backend/NOW.md` and `docs/plans/INDEX.md`.
-- Once the mobile lane finishes channel transport contract repair, create or activate the host broadcast native capability and preflight planning plan.
+- Create or activate the host broadcast native capability and preflight planning plan.
 
 ## Repair Conditions
 
