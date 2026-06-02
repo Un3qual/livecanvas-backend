@@ -236,6 +236,22 @@ defmodule LCGQL.Live.Resolver do
     {:ok, %{live_session: nil, errors: [live_session_error(nil, :unauthenticated)]}}
   end
 
+  @spec live_session_channel_topic(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, String.t() | nil}
+  def live_session_channel_topic(
+        %{id: session_id, status: status} = live_session,
+        _args,
+        %Absinthe.Resolution{context: %{current_scope: %{user: %{id: user_id} = viewer}}}
+      )
+      when is_integer(session_id) and is_integer(user_id) and status in [:starting, :live] do
+    case Chat.authorize_join(viewer, live_session) do
+      :ok -> {:ok, LiveSessionTopics.live_session_topic(session_id)}
+      {:error, _reason} -> {:ok, nil}
+    end
+  end
+
+  def live_session_channel_topic(_live_session, _args, _resolution), do: {:ok, nil}
+
   defp decode_optional_recording_media_asset_id(nil), do: {:ok, nil}
 
   defp decode_optional_recording_media_asset_id(recording_media_asset_id) do

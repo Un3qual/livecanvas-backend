@@ -55,7 +55,7 @@ Verified before drafting this plan:
 ## Progress
 
 - [x] Task 1: Pin the repaired mobile realtime contract
-- [ ] Task 2: Expose `LiveSession.channelTopic` through GraphQL
+- [x] Task 2: Expose `LiveSession.channelTopic` through GraphQL
 - [ ] Task 3: Refresh mobile Relay schema and request the topic
 - [ ] Task 4: Add mobile topic and realtime-event helpers
 - [ ] Task 5: Verify, close docs, and hand off to host broadcast planning
@@ -201,7 +201,7 @@ git commit -m "docs: repair mobile live realtime contract"
 - Create: `test/live_canvas_gql/live/live_resolver_test.exs`
 - Modify: `test/live_canvas_gql/live/live_mutations_test.exs`
 
-- [ ] **Step 1: Document `channelTopic`**
+- [x] **Step 1: Document `channelTopic`**
 
 In `docs/contracts/mobile-live-session-graphql.md`, add `channelTopic: String` to the supported `LiveSession` fields and add this field rule:
 
@@ -212,7 +212,7 @@ In `docs/contracts/mobile-live-session-graphql.md`, add `channelTopic: String` t
 - Channel joins still re-apply viewer authorization and session-state checks.
 ```
 
-- [ ] **Step 2: Write failing query coverage**
+- [x] **Step 2: Write failing query coverage**
 
 In `test/live_canvas_gql/feed/feed_queries_test.exs`, add `alias LCTransport.LiveSessionTopics` near the existing aliases, then add coverage that queries `channelTopic` from `liveNow`:
 
@@ -322,7 +322,7 @@ test "ended live session node reads return a null channel topic" do
 end
 ```
 
-- [ ] **Step 3: Write direct child-resolver authorization coverage**
+- [x] **Step 3: Write direct child-resolver authorization coverage**
 
 Create `test/live_canvas_gql/live/live_resolver_test.exs`:
 
@@ -382,7 +382,7 @@ defmodule LCGQL.Live.ResolverTest do
 end
 ```
 
-- [ ] **Step 4: Write failing mutation payload coverage**
+- [x] **Step 4: Write failing mutation payload coverage**
 
 In `test/live_canvas_gql/live/live_mutations_test.exs`, extend the `startLiveSession`, `goLiveSession`, and `joinLiveSession` success selections to include `channelTopic`:
 
@@ -396,7 +396,7 @@ liveSession {
 
 Assert that `channelTopic` equals `LiveSessionTopics.live_session_topic(session.id)` for returned `STARTING` and `LIVE` sessions.
 
-- [ ] **Step 5: Run focused GraphQL tests and verify RED**
+- [x] **Step 5: Run focused GraphQL tests and verify RED**
 
 Run:
 
@@ -406,7 +406,7 @@ mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/re
 
 Expected: FAIL with a GraphQL validation error that `channelTopic` does not exist on `LiveSession` and an undefined `Resolver.live_session_channel_topic/3` failure in the direct resolver test.
 
-- [ ] **Step 6: Implement the resolver**
+- [x] **Step 6: Implement the resolver**
 
 In `lib/live_canvas_gql/live/live_resolver.ex`, add:
 
@@ -428,7 +428,7 @@ end
 def live_session_channel_topic(_live_session, _args, _resolution), do: {:ok, nil}
 ```
 
-- [ ] **Step 7: Add the GraphQL field**
+- [x] **Step 7: Add the GraphQL field**
 
 In `lib/live_canvas_gql/feed/feed_types.ex`, inside `object :live_session`, add:
 
@@ -438,7 +438,7 @@ field :channel_topic, :string do
 end
 ```
 
-- [ ] **Step 8: Run focused GraphQL tests**
+- [x] **Step 8: Run focused GraphQL tests**
 
 Run:
 
@@ -448,7 +448,7 @@ mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/re
 
 Expected: PASS.
 
-- [ ] **Step 9: Run compile and typecheck**
+- [x] **Step 9: Run compile and typecheck**
 
 Run:
 
@@ -459,7 +459,7 @@ mix typecheck
 
 Expected: both PASS.
 
-- [ ] **Step 10: Commit Task 2**
+- [x] **Step 10: Commit Task 2**
 
 ```bash
 git add docs/contracts/mobile-live-session-graphql.md lib/live_canvas_gql/feed/feed_types.ex lib/live_canvas_gql/live/live_resolver.ex test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_resolver_test.exs test/live_canvas_gql/live/live_mutations_test.exs

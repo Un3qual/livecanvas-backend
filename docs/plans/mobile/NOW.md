@@ -1,7 +1,7 @@
 # Mobile Lane Execution
 
 Last reviewed: 2026-06-02
-Status: channel transport contract repair Task 2 ready for execution
+Status: channel transport contract repair Task 3 ready for execution
 
 ## Lane Scope
 
@@ -12,9 +12,9 @@ Status: channel transport contract repair Task 2 ready for execution
 
 - Track: `docs/plans/mobile/TRACK.md`
 - Source: `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md`
-- Batch: `Task 2: Expose LiveSession.channelTopic through GraphQL`
-- Why now: Task 1 pinned the repaired `timeline:*` realtime contract; the next blocker is exposing an authorized opaque channel topic from visible Relay `LiveSession` data before mobile clients can join channels safely.
-- Scope: `docs/contracts/mobile-live-session-graphql.md`, backend GraphQL `LiveSession` field/resolver code, and focused GraphQL feed/node/resolver/mutation tests. Do not start mobile Relay refresh, mobile helper work, media capture, playback, or full Phoenix Channel client UI in this batch.
+- Batch: `Task 3: Refresh Mobile Relay Schema And Request The Topic`
+- Why now: Task 2 exposed an authorized opaque `LiveSession.channelTopic` from backend GraphQL; the next blocker is refreshing the mobile Relay schema and requesting the field in the mobile live-session queries.
+- Scope: mobile Relay schema and generated artifacts plus the live discovery/watch query selections listed in the plan. Do not start mobile helper work, media capture, playback, or full Phoenix Channel client UI in this batch.
 
 ## Verification Scope
 

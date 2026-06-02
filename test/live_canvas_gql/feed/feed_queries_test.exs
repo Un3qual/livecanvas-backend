@@ -5,6 +5,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
   import LC.SocialFixtures
 
   alias LC.{Accounts, Content, Live, Social}
+  alias LCTransport.LiveSessionTopics
 
   describe "homeFeed" do
     test "excludes visible story posts from the timeline connection" do
@@ -453,6 +454,72 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       assert {:ok, _, 0} = DateTime.from_iso8601(public_started_at)
       assert {:ok, _, 0} = DateTime.from_iso8601(followed_inserted_at)
       assert {:ok, _, 0} = DateTime.from_iso8601(followed_started_at)
+    end
+
+    test "live sessions expose an opaque channel topic for active sessions" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, live_session} = Live.mark_session_live(session)
+
+      query = """
+      query LiveNowWithChannelTopic {
+        liveNow(first: 10) {
+          edges {
+            node {
+              id
+              channelTopic
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "liveNow" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => _relay_id,
+                          "channelTopic" => channel_topic
+                        }
+                      }
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 context: %{current_scope: Accounts.scope_for_user(viewer)}
+               )
+
+      assert channel_topic == LiveSessionTopics.live_session_topic(live_session.id)
+    end
+
+    test "liveNow does not expose channel topics for non-visible followers-only sessions" do
+      host = user_fixture()
+      outsider = user_fixture()
+      {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
+      {:ok, _live_session} = Live.mark_session_live(session)
+
+      query = """
+      query HiddenLiveNowWithChannelTopic {
+        liveNow(first: 10) {
+          edges {
+            node {
+              id
+              channelTopic
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"liveNow" => %{"edges" => []}}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 context: %{current_scope: Accounts.scope_for_user(outsider)}
+               )
     end
 
     test "excludes sessions hosted by suspended users" do
