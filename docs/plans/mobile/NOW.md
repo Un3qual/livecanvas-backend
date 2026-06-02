@@ -1,7 +1,7 @@
 # Mobile Lane Execution
 
 Last reviewed: 2026-06-02
-Status: channel transport contract repair complete
+Status: host broadcast native capability/preflight plan active
 
 ## Lane Scope
 
@@ -11,9 +11,9 @@ Status: channel transport contract repair complete
 ## Current Batch
 
 - Track: `docs/plans/mobile/TRACK.md`
-- Source: none active
-- Batch: none; channel transport contract repair is complete
-- Handoff: create or activate the host broadcast native capability and preflight planning plan before starting media capture, playback, socket lifecycle, or chat stream UI work.
+- Source: `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
+- Batch: Task 1, add the native development-build and WebRTC dependency boundary
+- Handoff: execute the host broadcast native capability/preflight plan before starting media publish, viewer playback, full socket lifecycle, or chat stream UI work.
 
 ## Completed Verification Scope
 
@@ -27,9 +27,9 @@ Status: channel transport contract repair complete
 
 ## Next Up
 
-- Create or activate the host broadcast native capability and preflight planning plan.
+- Execute Task 1 of `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`.
 - Do not decode Relay IDs client-side.
-- Do not add media capture, playback, or full chat stream UI before host broadcast/native media planning.
+- Do not enable mobile go-live, media publish, viewer playback, or full chat stream UI before host broadcast/native media preflight is complete and backend media signaling is explicitly planned.
 
 ## Repair Conditions
 

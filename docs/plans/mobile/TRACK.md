@@ -8,7 +8,7 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
 
 ## Track Status
 
-- Status: channel transport contract repair complete; host broadcast native capability and preflight planning is next
+- Status: host broadcast native capability and preflight plan active
 - Approved overview: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
 - Approved bootstrap design:
   `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
@@ -20,11 +20,12 @@ Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durabl
   - `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
   - `docs/plans/mobile/2026-06-01-live-discovery-viewer-watch-flow.md`
   - `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md`
-- Current detailed plan: none; next detailed plan should cover host broadcast native capability and preflight planning.
+- Current detailed plan: `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
 - Lane execution pointer: `docs/plans/mobile/NOW.md`
 - Coordinator dashboard: `docs/plans/NOW.md`
-- Next lane batch: create the host broadcast native capability and preflight planning plan.
+- Next lane batch: execute Task 1 of the host broadcast native capability and preflight plan.
 - Backend contract dependency for future channel work: complete. Mobile now receives an opaque `LiveSession.channelTopic`; do not decode Relay IDs client-side.
+- Backend media dependency for true mobile go-live: not complete. The host preflight plan keeps go-live disabled until backend media signaling, ICE/TURN configuration, and Membrane/WebRTC negotiation contracts are explicitly planned.
 
 ## Recommended Detailed Plan Order
 
