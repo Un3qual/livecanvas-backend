@@ -98,6 +98,7 @@ function LiveDiscoveryContent() {
           edges {
             node {
               id
+              channelTopic
               status
               visibility
               insertedAt
@@ -114,6 +115,7 @@ function LiveDiscoveryContent() {
           id
           currentLiveSession {
             id
+            channelTopic
             status
             visibility
             insertedAt

@@ -45,11 +45,13 @@ type RootMutationType {
   issueViewerAuthTokens(input: IssueViewerAuthTokensInput!): IssueViewerAuthTokensPayload
   refreshAuthTokens(input: RefreshAuthTokensInput!): RefreshAuthTokensPayload
   revokeRefreshToken(input: RevokeRefreshTokenInput!): RevokeRefreshTokenPayload
-  removeLiveChatMessage(input: RemoveLiveChatMessageInput!): RemoveLiveChatMessagePayload
+  editLiveChatMessage(input: EditLiveChatMessageInput!): EditLiveChatMessagePayload
+  removeLiveChatMessageEvent(input: RemoveLiveChatMessageEventInput!): RemoveLiveChatMessageEventPayload
   createPost(input: CreatePostInput!): CreatePostPayload
   requestMediaUpload(input: RequestMediaUploadInput!): RequestMediaUploadPayload
   updatePost(input: UpdatePostInput!): UpdatePostPayload
   deletePost(input: DeletePostInput!): DeletePostPayload
+  reportPost(input: ReportPostInput!): ReportPostPayload
   startLiveSession(input: StartLiveSessionInput!): StartLiveSessionPayload
   goLiveSession(input: GoLiveSessionInput!): GoLiveSessionPayload
   joinLiveSession(input: JoinLiveSessionInput!): JoinLiveSessionPayload
@@ -69,7 +71,7 @@ input FollowUserInput {
 
 type FollowUserPayload {
   follow: SocialFollowPayload
-  errors: [SocialError!]!
+  errors: [UserError!]!
 }
 
 input AcceptFollowRequestInput {
@@ -78,7 +80,7 @@ input AcceptFollowRequestInput {
 
 type AcceptFollowRequestPayload {
   follow: SocialFollowPayload
-  errors: [SocialError!]!
+  errors: [UserError!]!
 }
 
 input DeclineFollowRequestInput {
@@ -86,7 +88,7 @@ input DeclineFollowRequestInput {
 }
 
 type DeclineFollowRequestPayload {
-  errors: [SocialError!]!
+  errors: [UserError!]!
 }
 
 input BlockUserInput {
@@ -94,7 +96,7 @@ input BlockUserInput {
 }
 
 type BlockUserPayload {
-  errors: [SocialError!]!
+  errors: [UserError!]!
 }
 
 input MuteUserInput {
@@ -102,7 +104,7 @@ input MuteUserInput {
 }
 
 type MuteUserPayload {
-  errors: [SocialError!]!
+  errors: [UserError!]!
 }
 
 input UnmuteUserInput {
@@ -110,7 +112,7 @@ input UnmuteUserInput {
 }
 
 type UnmuteUserPayload {
-  errors: [SocialError!]!
+  errors: [UserError!]!
 }
 
 input StartLiveSessionInput {
@@ -168,7 +170,7 @@ input CreatePostInput {
 
 type CreatePostPayload {
   post: Post
-  errors: [ContentError!]!
+  errors: [UserError!]!
 }
 
 input RequestMediaUploadInput {
@@ -178,7 +180,7 @@ input RequestMediaUploadInput {
 type RequestMediaUploadPayload {
   mediaAsset: MediaAsset
   signedUpload: SignedUpload
-  errors: [ContentError!]!
+  errors: [UserError!]!
 }
 
 input UpdatePostInput {
@@ -189,7 +191,7 @@ input UpdatePostInput {
 
 type UpdatePostPayload {
   post: Post
-  errors: [ContentError!]!
+  errors: [UserError!]!
 }
 
 input DeletePostInput {
@@ -198,15 +200,36 @@ input DeletePostInput {
 
 type DeletePostPayload {
   deletedPostId: ID
-  errors: [ContentError!]!
+  errors: [UserError!]!
 }
 
-input RemoveLiveChatMessageInput {
-  chatMessageId: ID!
+input ReportPostInput {
+  postId: ID!
+  reason: PostReportReason!
+  details: String
 }
 
-type RemoveLiveChatMessagePayload {
-  chatMessage: ChatMessage
+type ReportPostPayload {
+  report: PostReport
+  errors: [UserError!]!
+}
+
+input EditLiveChatMessageInput {
+  chatMessageEventId: ID!
+  body: String!
+}
+
+type EditLiveChatMessagePayload {
+  chatMessageEvent: ChatMessageEvent
+  errors: [UserError!]!
+}
+
+input RemoveLiveChatMessageEventInput {
+  chatMessageEventId: ID!
+}
+
+type RemoveLiveChatMessageEventPayload {
+  removedTimelineEventId: ID
   errors: [UserError!]!
 }
 
@@ -416,11 +439,6 @@ type FollowRequest implements Node {
   follower: User!
 }
 
-type SocialError {
-  field: String
-  message: String!
-}
-
 type LiveSessionConnection {
   pageInfo: PageInfo!
   edges: [LiveSessionEdge]
@@ -462,11 +480,13 @@ type LiveSession implements Node {
 
   insertedAt: String!
 
+  channelTopic: String
+
   host: User!
 
   recordingMediaAsset: LiveSessionRecordingMediaAsset
 
-  chatMessages(after: String, first: Int, before: String, last: Int): ChatMessageConnection
+  timelineEvents(after: String, first: Int, before: String, last: Int): LiveSessionTimelineEventConnection
 }
 
 enum PostKind {
@@ -489,6 +509,24 @@ enum MediaProcessingState {
   UPLOADED
   PROCESSED
   FAILED
+}
+
+enum PostReportReason {
+  SPAM
+  HARASSMENT
+  HATE
+  VIOLENCE
+  SEXUAL_CONTENT
+  SELF_HARM
+  ILLEGAL
+  OTHER
+}
+
+enum PostReportStatus {
+  OPEN
+  REVIEWED
+  DISMISSED
+  ACTIONED
 }
 
 enum UploadHttpMethod {
@@ -552,56 +590,80 @@ type MediaAsset implements Node {
   insertedAt: String!
 }
 
-type ContentError {
-  field: String
-  message: String!
-}
-
-type ChatMessageConnection {
-  pageInfo: PageInfo!
-  edges: [ChatMessageEdge]
-}
-
-enum ChatMessageKind {
-  USER_MESSAGE
-  SYSTEM_EVENT
-}
-
-enum ChatMessageStatus {
-  ACTIVE
-  REMOVED
-}
-
-enum ChatSystemEventType {
-  MESSAGE_REMOVED
-  SESSION_ENDED
-  SESSION_LIVE
-}
-
-type ChatSystemEventDetails {
-  chatMessageId: ID
-  chatMessageEntropyId: String
-}
-
-type ChatMessage implements Node {
+type PostReport implements Node {
   "The ID of an object"
   id: ID!
 
-  body: String
+  postId: ID!
 
-  kind: ChatMessageKind!
+  reporterId: ID!
 
-  status: ChatMessageStatus!
+  reason: PostReportReason!
 
-  systemEventType: ChatSystemEventType
+  details: String
 
-  systemEventDetails: ChatSystemEventDetails
-
-  moderatedAt: String
+  status: PostReportStatus!
 
   insertedAt: String!
+}
 
-  sender: User
+type LiveSessionTimelineEventConnection {
+  pageInfo: PageInfo!
+  edges: [LiveSessionTimelineEventEdge]
+}
+
+enum LiveSessionTimelineEventType {
+  CHAT_MESSAGE_SENT
+  LIVE_SESSION_STARTED
+  LIVE_SESSION_ENDED
+}
+
+interface LiveSessionTimelineEvent {
+  id: ID!
+  eventType: LiveSessionTimelineEventType!
+  occurredAt: String!
+  actor: User
+}
+
+type ChatMessageEvent implements LiveSessionTimelineEvent & Node {
+  "The ID of an object"
+  id: ID!
+
+  eventType: LiveSessionTimelineEventType!
+
+  occurredAt: String!
+
+  actor: User
+
+  body: String!
+
+  edited: Boolean!
+
+  editCount: Int!
+
+  editedAt: String
+}
+
+type LiveSessionStartedEvent implements LiveSessionTimelineEvent & Node {
+  "The ID of an object"
+  id: ID!
+
+  eventType: LiveSessionTimelineEventType!
+
+  occurredAt: String!
+
+  actor: User
+}
+
+type LiveSessionEndedEvent implements LiveSessionTimelineEvent & Node {
+  "The ID of an object"
+  id: ID!
+
+  eventType: LiveSessionTimelineEventType!
+
+  occurredAt: String!
+
+  actor: User
 }
 
 type UserConnection {
@@ -636,18 +698,6 @@ enum AuthProvider {
 enum AuthChallengePurpose {
   SIGN_UP
   LOG_IN
-}
-
-enum AuthErrorCode {
-  UNAUTHENTICATED
-  INVALID_INPUT
-  INVALID_CREDENTIALS
-  EMAIL_TAKEN
-  TOKEN_EXPIRED
-  TOKEN_REVOKED
-  UNSUPPORTED_PROVIDER
-  PROVIDER_VERIFICATION_FAILED
-  PASSKEY_VERIFICATION_FAILED
 }
 
 "List of supported OAuth providers for logging in."
@@ -716,10 +766,6 @@ type User implements Node {
   followers(after: String, first: Int!): UserConnection
 
   following(after: String, first: Int!): UserConnection
-
-  freshAccessToken: Token
-
-  refreshToken: Token
 }
 
 type UserIdentity implements Node {
@@ -834,6 +880,18 @@ input DeviceInfoInput {
   clientLaunchCount: Int
 }
 
+enum AuthErrorCode {
+  UNAUTHENTICATED
+  INVALID_INPUT
+  INVALID_CREDENTIALS
+  EMAIL_TAKEN
+  TOKEN_EXPIRED
+  TOKEN_REVOKED
+  UNSUPPORTED_PROVIDER
+  PROVIDER_VERIFICATION_FAILED
+  PASSKEY_VERIFICATION_FAILED
+}
+
 type UserError {
   field: String
   message: String!
@@ -879,8 +937,8 @@ type UserEdge {
   cursor: String
 }
 
-type ChatMessageEdge {
-  node: ChatMessage
+type LiveSessionTimelineEventEdge {
+  node: LiveSessionTimelineEvent
   cursor: String
 }
 

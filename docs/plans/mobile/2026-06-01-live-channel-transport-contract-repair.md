@@ -56,7 +56,7 @@ Verified before drafting this plan:
 
 - [x] Task 1: Pin the repaired mobile realtime contract
 - [x] Task 2: Expose `LiveSession.channelTopic` through GraphQL
-- [ ] Task 3: Refresh mobile Relay schema and request the topic
+- [x] Task 3: Refresh mobile Relay schema and request the topic
 - [ ] Task 4: Add mobile topic and realtime-event helpers
 - [ ] Task 5: Verify, close docs, and hand off to host broadcast planning
 
@@ -474,7 +474,7 @@ git commit -m "feat: expose live session channel topic"
 - Modify: `mobile/src/live/LiveSessionWatchScreen.tsx`
 - Modify generated Relay files under `mobile/src/live/__generated__/`
 
-- [ ] **Step 1: Refresh the mobile schema snapshot**
+- [x] **Step 1: Refresh the mobile schema snapshot**
 
 Run:
 
@@ -498,7 +498,7 @@ type LiveSession implements Node {
 }
 ```
 
-- [ ] **Step 2: Request `channelTopic` in live discovery**
+- [x] **Step 2: Request `channelTopic` in live discovery**
 
 In `mobile/src/live/LiveDiscoveryScreen.tsx`, add `channelTopic` to the `LiveSession` selection used for `liveNow` cards:
 
@@ -518,7 +518,7 @@ node {
 }
 ```
 
-- [ ] **Step 3: Request `channelTopic` in watch reads**
+- [x] **Step 3: Request `channelTopic` in watch reads**
 
 In `mobile/src/live/LiveSessionWatchScreen.tsx`, add `channelTopic` to the `LiveSession` selection:
 
@@ -543,7 +543,7 @@ In `mobile/src/live/LiveSessionWatchScreen.tsx`, add `channelTopic` to the `Live
 }
 ```
 
-- [ ] **Step 4: Run Relay compiler**
+- [x] **Step 4: Run Relay compiler**
 
 Run:
 
@@ -554,7 +554,7 @@ cd mobile
 
 Expected: PASS and generated artifacts include `channelTopic?: string | null`.
 
-- [ ] **Step 5: Run mobile TypeScript**
+- [x] **Step 5: Run mobile TypeScript**
 
 Run:
 
@@ -565,7 +565,7 @@ cd mobile
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit Task 3**
+- [x] **Step 6: Commit Task 3**
 
 ```bash
 git add mobile/schema.graphql mobile/src/live/LiveDiscoveryScreen.tsx mobile/src/live/LiveSessionWatchScreen.tsx mobile/src/live/__generated__

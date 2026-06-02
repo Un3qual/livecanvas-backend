@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<159f434024e2a75a13d7ac338b9e3083>>
+ * @generated SignedSource<<aa54762da37e97488c1e5f3319826ab0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,6 +18,7 @@ export type LiveSessionWatchScreenQuery$variables = {
 export type LiveSessionWatchScreenQuery$data = {
   readonly node: {
     readonly __typename: "LiveSession";
+    readonly channelTopic: string | null | undefined;
     readonly endedAt: string | null | undefined;
     readonly host: {
       readonly email: string | null | undefined;
@@ -77,38 +78,45 @@ v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "status",
+  "name": "channelTopic",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "visibility",
+  "name": "status",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "insertedAt",
+  "name": "visibility",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "startedAt",
+  "name": "insertedAt",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "endedAt",
+  "name": "startedAt",
   "storageKey": null
 },
 v9 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "endedAt",
+  "storageKey": null
+},
+v10 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -127,7 +135,7 @@ v9 = {
   ],
   "storageKey": null
 },
-v10 = {
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "LiveSessionRecordingMediaAsset",
@@ -179,7 +187,8 @@ return {
               (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
-              (v10/*: any*/)
+              (v10/*: any*/),
+              (v11/*: any*/)
             ],
             "type": "LiveSession",
             "abstractKey": null
@@ -216,7 +225,8 @@ return {
               (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
-              (v10/*: any*/)
+              (v10/*: any*/),
+              (v11/*: any*/)
             ],
             "type": "LiveSession",
             "abstractKey": null
@@ -227,16 +237,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "b0c7ded6676b0b57800c756195520c27",
+    "cacheID": "63f715dcf31b3b3d1005be0a596d92d7",
     "id": null,
     "metadata": {},
     "name": "LiveSessionWatchScreenQuery",
     "operationKind": "query",
-    "text": "query LiveSessionWatchScreenQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on LiveSession {\n      id\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n      recordingMediaAsset {\n        id\n        processingState\n        publicUrl\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query LiveSessionWatchScreenQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on LiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n      recordingMediaAsset {\n        id\n        processingState\n        publicUrl\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1832a189d294c76312e013fac9f56b7b";
+(node as any).hash = "57bcd12a35f80e3c63c95f59be195bd7";
 
 export default node;
