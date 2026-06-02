@@ -11,9 +11,12 @@ export type LiveSessionChannelTopicSource = {
 export function readJoinableLiveSessionChannelTopic(
   source: LiveSessionChannelTopicSource,
 ): string | null {
-  const topic = source.channelTopic?.trim();
+  const topic = source.channelTopic;
 
-  if (!topic || !canEnterLiveSession(normalizeLiveSessionStatus(source.status))) {
+  if (
+    !topic?.trim() ||
+    !canEnterLiveSession(normalizeLiveSessionStatus(source.status))
+  ) {
     return null;
   }
 

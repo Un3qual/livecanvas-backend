@@ -12,6 +12,15 @@ describe('liveSessionChannelTopic', () => {
     ).toBe('live_session:123');
   });
 
+  test('returns the exact opaque topic unchanged for active sessions', () => {
+    expect(
+      readJoinableLiveSessionChannelTopic({
+        channelTopic: ' live_session:123 ',
+        status: 'LIVE',
+      }),
+    ).toBe(' live_session:123 ');
+  });
+
   test('does not expose a topic for ended sessions', () => {
     expect(
       readJoinableLiveSessionChannelTopic({
