@@ -54,7 +54,7 @@ Verified before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Pin the repaired mobile realtime contract
+- [x] Task 1: Pin the repaired mobile realtime contract
 - [ ] Task 2: Expose `LiveSession.channelTopic` through GraphQL
 - [ ] Task 3: Refresh mobile Relay schema and request the topic
 - [ ] Task 4: Add mobile topic and realtime-event helpers
@@ -66,7 +66,7 @@ Verified before drafting this plan:
 - Modify: `docs/contracts/mobile-live-session-realtime.md`
 - Modify: `test/live_canvas_web/channels/live_session_channel_test.exs`
 
-- [ ] **Step 1: Update the realtime contract doc**
+- [x] **Step 1: Update the realtime contract doc**
 
 Replace the stale `chat:message` and `chat:message_updated` sections with these event sections:
 
@@ -125,7 +125,7 @@ Mobile clients do not join these control topics directly. The client-observable 
 - `leaveLiveSession` closes only the caller's joined channel with `reason: "viewer_left"`
 ```
 
-- [ ] **Step 2: Run the existing channel contract test**
+- [x] **Step 2: Run the existing channel contract test**
 
 Run:
 
@@ -135,7 +135,7 @@ mix test test/live_canvas_web/channels/live_session_channel_test.exs
 
 Expected: PASS before implementation because the backend already emits the current `timeline:*` channel surface. If it fails, stop and investigate before changing GraphQL.
 
-- [ ] **Step 3: Add or tighten channel assertions**
+- [x] **Step 3: Add or tighten channel assertions**
 
 In `test/live_canvas_web/channels/live_session_channel_test.exs`, ensure the existing `timeline:chat_message:send` test asserts all of these reply and broadcast keys:
 
@@ -173,7 +173,7 @@ assert_receive %Phoenix.Socket.Message{
 }
 ```
 
-- [ ] **Step 4: Re-run the channel contract test**
+- [x] **Step 4: Re-run the channel contract test**
 
 Run:
 
@@ -183,7 +183,7 @@ mix test test/live_canvas_web/channels/live_session_channel_test.exs
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit Task 1**
+- [x] **Step 5: Commit Task 1**
 
 ```bash
 git add docs/contracts/mobile-live-session-realtime.md test/live_canvas_web/channels/live_session_channel_test.exs

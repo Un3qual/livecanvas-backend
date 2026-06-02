@@ -6,14 +6,14 @@ This contract freezes the mobile-facing Phoenix Channel surface for ephemeral li
 
 ## Topic Naming And Join
 
-- Join topic: `live_session:<session_id>`
-- `session_id` is the current positive integer live-session identifier segment used by the transport. The realtime topic does not accept Relay/global IDs.
+- Join topic: the exact `LiveSession.channelTopic` value returned by GraphQL.
+- Clients must treat the topic as opaque and must not construct, parse, or persist topic identifier segments.
 - Join params are currently ignored; authorization comes from the authenticated socket identity.
 
 Join prerequisites:
 
 - The socket must authenticate as an active viewer.
-- The topic suffix must parse as a positive integer, or the join fails with `reason: "invalid_session_id"`.
+- The topic must be a server-issued live-session topic, or the join fails with `reason: "invalid_session_id"`.
 - The session must exist and still be joinable. Missing sessions fail with `reason: "session_not_found"`. Ended sessions fail with `reason: "session_ended"`.
 - Audience, mute, block, and suspension policies must allow the viewer to join, or the join fails with `reason: "not_authorized"`.
 - Join attempts are rate-limited per viewer and fail with `reason: "rate_limited"` when exceeded.
@@ -62,65 +62,45 @@ The joined topic broadcasts `session:state` with the same bounded payload shape 
 
 The server re-reads persisted session state before publishing so lifecycle broadcasts reflect the durable session status and visibility rather than stale channel assigns.
 
-## `chat:message`
+## `timeline:event`
 
-`chat:message` broadcasts both user chat rows and bounded system events on the joined `live_session:<session_id>` topic.
+The joined topic broadcasts `timeline:event` whenever a visible timeline event is created.
 
 Stable payload shape:
 
 ```json
 {
-  "message": {
-    "id": 123,
+  "event": {
+    "__typename": "ChatMessageEvent",
+    "id": "Q2hhdE1lc3NhZ2VFdmVudDoxMjM=",
+    "event_type": "chat_message_sent",
     "body": "hello",
-    "sender_id": 456,
-    "inserted_at": "2026-04-10T23:17:09Z",
-    "kind": "user_message",
-    "status": "active",
-    "moderated_at": null,
-    "metadata": {}
+    "actor_id": 456,
+    "occurred_at": "2026-06-01T23:17:09Z",
+    "edited": false,
+    "edit_count": 0,
+    "edited_at": null
   }
 }
 ```
 
-Field rules:
+`event.id` is a Relay global ID when the event type has a mobile GraphQL node type. Clients must treat it as opaque.
 
-- `id` is the retained chat-message database identifier
-- `body` is a string for visible messages and may be `null` for redacted content
-- `sender_id` is the integer sender identifier and may be `null` when the backing message has no sender
-- `inserted_at` and `moderated_at` are ISO 8601 UTC timestamp strings when present
-- `kind` is currently `user_message` or `system_event`
-- `status` is currently `active` or `removed`
-- `metadata` is always a JSON object
+## `timeline:event_updated`
 
-Current bounded system-event cases delivered through `chat:message`:
+The joined topic broadcasts `timeline:event_updated` when a visible timeline event changes in place, such as a chat-message edit or moderation state change. The payload uses the same `{"event": {...}}` envelope as `timeline:event`.
 
-- `metadata.event_type == "session_live"` for the host transition to live
-- `metadata.event_type == "session_ended"` for the host terminal transition
-- `metadata.event_type == "message_removed"` for the follow-up moderation system event after a chat redaction
+## `timeline:event_removed`
 
-## `chat:message_updated`
-
-`chat:message_updated` rebroadcasts an in-place update for an existing retained message on the same joined topic.
+The joined topic broadcasts `timeline:event_removed` when a timeline event should be removed from the active client view.
 
 Stable payload shape:
 
 ```json
 {
-  "message": {
-    "id": 123,
-    "body": null,
-    "sender_id": 456,
-    "inserted_at": "2026-04-10T23:17:09Z",
-    "kind": "user_message",
-    "status": "removed",
-    "moderated_at": "2026-04-10T23:18:02Z",
-    "metadata": {}
-  }
+  "removed_timeline_event_id": "Q2hhdE1lc3NhZ2VFdmVudDoxMjM="
 }
 ```
-
-The current mobile-facing use is moderation redaction: the original message keeps its ID and sender, `body` becomes `null`, and `status` becomes `removed`.
 
 ## Disconnect Control
 
@@ -135,7 +115,7 @@ Stable control events:
 
 Mobile clients do not join these control topics directly. The client-observable contract is:
 
-- `endLiveSession` publishes the terminal `chat:message` system event first
+- `endLiveSession` publishes the terminal `timeline:event` lifecycle event first
 - then publishes the terminal `session:state`
 - only after those events does the server close already-joined viewers with `reason: "session_ended"`
 - `leaveLiveSession` closes only the caller's joined channel with `reason: "viewer_left"`
@@ -147,4 +127,4 @@ Clients should treat the server-driven close as authoritative and reconcile dura
 - Live-session GraphQL: `docs/contracts/mobile-live-session-graphql.md`
 - Retained chat history: `docs/contracts/mobile-graphql-chat-history.md`
 
-Any change to the topic naming, join error reasons, aggregate state shape, message payload fields, or disconnect ordering should be treated as a mobile API change and planned explicitly before landing downstream client work.
+Any change to the topic naming, join error reasons, aggregate state shape, timeline event payload fields, or disconnect ordering should be treated as a mobile API change and planned explicitly before landing downstream client work.
