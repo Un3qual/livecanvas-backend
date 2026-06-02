@@ -57,7 +57,7 @@ Verified before drafting this plan:
 - [x] Task 1: Pin the repaired mobile realtime contract
 - [x] Task 2: Expose `LiveSession.channelTopic` through GraphQL
 - [x] Task 3: Refresh mobile Relay schema and request the topic
-- [ ] Task 4: Add mobile topic and realtime-event helpers
+- [x] Task 4: Add mobile topic and realtime-event helpers
 - [ ] Task 5: Verify, close docs, and hand off to host broadcast planning
 
 ### Task 1: Pin The Repaired Mobile Realtime Contract
@@ -580,7 +580,7 @@ git commit -m "chore(mobile): request live channel topic"
 - Create: `mobile/src/live/liveSessionRealtimeEvents.test.ts`
 - Create: `mobile/src/live/liveSessionRealtimeEvents.ts`
 
-- [ ] **Step 1: Write channel topic helper tests**
+- [x] **Step 1: Write channel topic helper tests**
 
 Create `mobile/src/live/liveSessionChannelTopic.test.ts`:
 
@@ -625,7 +625,7 @@ describe('liveSessionChannelTopic', () => {
 });
 ```
 
-- [ ] **Step 2: Implement the channel topic helper**
+- [x] **Step 2: Implement the channel topic helper**
 
 Create `mobile/src/live/liveSessionChannelTopic.ts`:
 
@@ -650,7 +650,7 @@ export function readJoinableLiveSessionChannelTopic(
 }
 ```
 
-- [ ] **Step 3: Write realtime event helper tests**
+- [x] **Step 3: Write realtime event helper tests**
 
 Create `mobile/src/live/liveSessionRealtimeEvents.test.ts`:
 
@@ -757,7 +757,7 @@ describe('liveSessionRealtimeEvents', () => {
 });
 ```
 
-- [ ] **Step 4: Implement realtime event normalization**
+- [x] **Step 4: Implement realtime event normalization**
 
 Create `mobile/src/live/liveSessionRealtimeEvents.ts`:
 
@@ -921,7 +921,7 @@ function isNullableNumber(value: unknown): value is number | null {
 }
 ```
 
-- [ ] **Step 5: Run mobile helper tests**
+- [x] **Step 5: Run mobile helper tests**
 
 Run:
 
@@ -932,7 +932,7 @@ bun test src/live/liveSessionChannelTopic.test.ts src/live/liveSessionRealtimeEv
 
 Expected: PASS.
 
-- [ ] **Step 6: Run mobile TypeScript**
+- [x] **Step 6: Run mobile TypeScript**
 
 Run:
 
@@ -943,7 +943,7 @@ cd mobile
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit Task 4**
+- [x] **Step 7: Commit Task 4**
 
 ```bash
 git add mobile/src/live/liveSessionChannelTopic.test.ts mobile/src/live/liveSessionChannelTopic.ts mobile/src/live/liveSessionRealtimeEvents.test.ts mobile/src/live/liveSessionRealtimeEvents.ts
