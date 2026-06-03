@@ -19,6 +19,7 @@ Supported `LiveSession` fields for mobile clients:
 - `id: ID!`
 - `status: LiveSessionStatus!`
 - `visibility: LiveSessionVisibility!`
+- `channelTopic: String`
 - `insertedAt: String!`
 - `startedAt: String`
 - `endedAt: String`
@@ -35,6 +36,10 @@ Field semantics:
 - `insertedAt`, `startedAt`, and `endedAt` are ISO 8601 UTC timestamp strings.
 - `startedAt` is `null` until the host successfully transitions the session to `LIVE`.
 - `endedAt` is `null` until the session reaches `ENDED`.
+- `channelTopic` is an opaque Phoenix Channel topic string for visible `STARTING` and `LIVE` sessions.
+- `channelTopic` is `null` for `ENDED` sessions.
+- Mobile clients must pass `channelTopic` to the Phoenix Channel client exactly as returned; they must not parse it or derive it from a Relay ID.
+- Channel joins still re-apply viewer authorization and session-state checks.
 - `host.id` is always a Relay `User` ID.
 - `recordingMediaAsset` is `null` when no durable recording is linked.
 

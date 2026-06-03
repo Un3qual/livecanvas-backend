@@ -54,11 +54,11 @@ Verified before drafting this plan:
 
 ## Progress
 
-- [ ] Task 1: Pin the repaired mobile realtime contract
-- [ ] Task 2: Expose `LiveSession.channelTopic` through GraphQL
-- [ ] Task 3: Refresh mobile Relay schema and request the topic
-- [ ] Task 4: Add mobile topic and realtime-event helpers
-- [ ] Task 5: Verify, close docs, and hand off to host broadcast planning
+- [x] Task 1: Pin the repaired mobile realtime contract
+- [x] Task 2: Expose `LiveSession.channelTopic` through GraphQL
+- [x] Task 3: Refresh mobile Relay schema and request the topic
+- [x] Task 4: Add mobile topic and realtime-event helpers
+- [x] Task 5: Verify, close docs, and hand off to host broadcast planning
 
 ### Task 1: Pin The Repaired Mobile Realtime Contract
 
@@ -66,7 +66,7 @@ Verified before drafting this plan:
 - Modify: `docs/contracts/mobile-live-session-realtime.md`
 - Modify: `test/live_canvas_web/channels/live_session_channel_test.exs`
 
-- [ ] **Step 1: Update the realtime contract doc**
+- [x] **Step 1: Update the realtime contract doc**
 
 Replace the stale `chat:message` and `chat:message_updated` sections with these event sections:
 
@@ -125,7 +125,7 @@ Mobile clients do not join these control topics directly. The client-observable 
 - `leaveLiveSession` closes only the caller's joined channel with `reason: "viewer_left"`
 ```
 
-- [ ] **Step 2: Run the existing channel contract test**
+- [x] **Step 2: Run the existing channel contract test**
 
 Run:
 
@@ -135,7 +135,7 @@ mix test test/live_canvas_web/channels/live_session_channel_test.exs
 
 Expected: PASS before implementation because the backend already emits the current `timeline:*` channel surface. If it fails, stop and investigate before changing GraphQL.
 
-- [ ] **Step 3: Add or tighten channel assertions**
+- [x] **Step 3: Add or tighten channel assertions**
 
 In `test/live_canvas_web/channels/live_session_channel_test.exs`, ensure the existing `timeline:chat_message:send` test asserts all of these reply and broadcast keys:
 
@@ -173,7 +173,7 @@ assert_receive %Phoenix.Socket.Message{
 }
 ```
 
-- [ ] **Step 4: Re-run the channel contract test**
+- [x] **Step 4: Re-run the channel contract test**
 
 Run:
 
@@ -183,7 +183,7 @@ mix test test/live_canvas_web/channels/live_session_channel_test.exs
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit Task 1**
+- [x] **Step 5: Commit Task 1**
 
 ```bash
 git add docs/contracts/mobile-live-session-realtime.md test/live_canvas_web/channels/live_session_channel_test.exs
@@ -201,7 +201,7 @@ git commit -m "docs: repair mobile live realtime contract"
 - Create: `test/live_canvas_gql/live/live_resolver_test.exs`
 - Modify: `test/live_canvas_gql/live/live_mutations_test.exs`
 
-- [ ] **Step 1: Document `channelTopic`**
+- [x] **Step 1: Document `channelTopic`**
 
 In `docs/contracts/mobile-live-session-graphql.md`, add `channelTopic: String` to the supported `LiveSession` fields and add this field rule:
 
@@ -212,7 +212,7 @@ In `docs/contracts/mobile-live-session-graphql.md`, add `channelTopic: String` t
 - Channel joins still re-apply viewer authorization and session-state checks.
 ```
 
-- [ ] **Step 2: Write failing query coverage**
+- [x] **Step 2: Write failing query coverage**
 
 In `test/live_canvas_gql/feed/feed_queries_test.exs`, add `alias LCTransport.LiveSessionTopics` near the existing aliases, then add coverage that queries `channelTopic` from `liveNow`:
 
@@ -322,7 +322,7 @@ test "ended live session node reads return a null channel topic" do
 end
 ```
 
-- [ ] **Step 3: Write direct child-resolver authorization coverage**
+- [x] **Step 3: Write direct child-resolver authorization coverage**
 
 Create `test/live_canvas_gql/live/live_resolver_test.exs`:
 
@@ -382,7 +382,7 @@ defmodule LCGQL.Live.ResolverTest do
 end
 ```
 
-- [ ] **Step 4: Write failing mutation payload coverage**
+- [x] **Step 4: Write failing mutation payload coverage**
 
 In `test/live_canvas_gql/live/live_mutations_test.exs`, extend the `startLiveSession`, `goLiveSession`, and `joinLiveSession` success selections to include `channelTopic`:
 
@@ -396,7 +396,7 @@ liveSession {
 
 Assert that `channelTopic` equals `LiveSessionTopics.live_session_topic(session.id)` for returned `STARTING` and `LIVE` sessions.
 
-- [ ] **Step 5: Run focused GraphQL tests and verify RED**
+- [x] **Step 5: Run focused GraphQL tests and verify RED**
 
 Run:
 
@@ -406,7 +406,7 @@ mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/re
 
 Expected: FAIL with a GraphQL validation error that `channelTopic` does not exist on `LiveSession` and an undefined `Resolver.live_session_channel_topic/3` failure in the direct resolver test.
 
-- [ ] **Step 6: Implement the resolver**
+- [x] **Step 6: Implement the resolver**
 
 In `lib/live_canvas_gql/live/live_resolver.ex`, add:
 
@@ -428,7 +428,7 @@ end
 def live_session_channel_topic(_live_session, _args, _resolution), do: {:ok, nil}
 ```
 
-- [ ] **Step 7: Add the GraphQL field**
+- [x] **Step 7: Add the GraphQL field**
 
 In `lib/live_canvas_gql/feed/feed_types.ex`, inside `object :live_session`, add:
 
@@ -438,7 +438,7 @@ field :channel_topic, :string do
 end
 ```
 
-- [ ] **Step 8: Run focused GraphQL tests**
+- [x] **Step 8: Run focused GraphQL tests**
 
 Run:
 
@@ -448,7 +448,7 @@ mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/re
 
 Expected: PASS.
 
-- [ ] **Step 9: Run compile and typecheck**
+- [x] **Step 9: Run compile and typecheck**
 
 Run:
 
@@ -459,7 +459,7 @@ mix typecheck
 
 Expected: both PASS.
 
-- [ ] **Step 10: Commit Task 2**
+- [x] **Step 10: Commit Task 2**
 
 ```bash
 git add docs/contracts/mobile-live-session-graphql.md lib/live_canvas_gql/feed/feed_types.ex lib/live_canvas_gql/live/live_resolver.ex test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_resolver_test.exs test/live_canvas_gql/live/live_mutations_test.exs
@@ -474,7 +474,7 @@ git commit -m "feat: expose live session channel topic"
 - Modify: `mobile/src/live/LiveSessionWatchScreen.tsx`
 - Modify generated Relay files under `mobile/src/live/__generated__/`
 
-- [ ] **Step 1: Refresh the mobile schema snapshot**
+- [x] **Step 1: Refresh the mobile schema snapshot**
 
 Run:
 
@@ -498,7 +498,7 @@ type LiveSession implements Node {
 }
 ```
 
-- [ ] **Step 2: Request `channelTopic` in live discovery**
+- [x] **Step 2: Request `channelTopic` in live discovery**
 
 In `mobile/src/live/LiveDiscoveryScreen.tsx`, add `channelTopic` to the `LiveSession` selection used for `liveNow` cards:
 
@@ -518,7 +518,7 @@ node {
 }
 ```
 
-- [ ] **Step 3: Request `channelTopic` in watch reads**
+- [x] **Step 3: Request `channelTopic` in watch reads**
 
 In `mobile/src/live/LiveSessionWatchScreen.tsx`, add `channelTopic` to the `LiveSession` selection:
 
@@ -543,7 +543,7 @@ In `mobile/src/live/LiveSessionWatchScreen.tsx`, add `channelTopic` to the `Live
 }
 ```
 
-- [ ] **Step 4: Run Relay compiler**
+- [x] **Step 4: Run Relay compiler**
 
 Run:
 
@@ -554,7 +554,7 @@ cd mobile
 
 Expected: PASS and generated artifacts include `channelTopic?: string | null`.
 
-- [ ] **Step 5: Run mobile TypeScript**
+- [x] **Step 5: Run mobile TypeScript**
 
 Run:
 
@@ -565,7 +565,7 @@ cd mobile
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit Task 3**
+- [x] **Step 6: Commit Task 3**
 
 ```bash
 git add mobile/schema.graphql mobile/src/live/LiveDiscoveryScreen.tsx mobile/src/live/LiveSessionWatchScreen.tsx mobile/src/live/__generated__
@@ -580,7 +580,7 @@ git commit -m "chore(mobile): request live channel topic"
 - Create: `mobile/src/live/liveSessionRealtimeEvents.test.ts`
 - Create: `mobile/src/live/liveSessionRealtimeEvents.ts`
 
-- [ ] **Step 1: Write channel topic helper tests**
+- [x] **Step 1: Write channel topic helper tests**
 
 Create `mobile/src/live/liveSessionChannelTopic.test.ts`:
 
@@ -625,7 +625,7 @@ describe('liveSessionChannelTopic', () => {
 });
 ```
 
-- [ ] **Step 2: Implement the channel topic helper**
+- [x] **Step 2: Implement the channel topic helper**
 
 Create `mobile/src/live/liveSessionChannelTopic.ts`:
 
@@ -650,7 +650,7 @@ export function readJoinableLiveSessionChannelTopic(
 }
 ```
 
-- [ ] **Step 3: Write realtime event helper tests**
+- [x] **Step 3: Write realtime event helper tests**
 
 Create `mobile/src/live/liveSessionRealtimeEvents.test.ts`:
 
@@ -757,7 +757,7 @@ describe('liveSessionRealtimeEvents', () => {
 });
 ```
 
-- [ ] **Step 4: Implement realtime event normalization**
+- [x] **Step 4: Implement realtime event normalization**
 
 Create `mobile/src/live/liveSessionRealtimeEvents.ts`:
 
@@ -921,7 +921,7 @@ function isNullableNumber(value: unknown): value is number | null {
 }
 ```
 
-- [ ] **Step 5: Run mobile helper tests**
+- [x] **Step 5: Run mobile helper tests**
 
 Run:
 
@@ -932,7 +932,7 @@ bun test src/live/liveSessionChannelTopic.test.ts src/live/liveSessionRealtimeEv
 
 Expected: PASS.
 
-- [ ] **Step 6: Run mobile TypeScript**
+- [x] **Step 6: Run mobile TypeScript**
 
 Run:
 
@@ -943,7 +943,7 @@ cd mobile
 
 Expected: PASS.
 
-- [ ] **Step 7: Commit Task 4**
+- [x] **Step 7: Commit Task 4**
 
 ```bash
 git add mobile/src/live/liveSessionChannelTopic.test.ts mobile/src/live/liveSessionChannelTopic.ts mobile/src/live/liveSessionRealtimeEvents.test.ts mobile/src/live/liveSessionRealtimeEvents.ts
@@ -959,7 +959,7 @@ git commit -m "feat(mobile): add live realtime contract helpers"
 - Modify: `docs/plans/NOW.md`
 - Modify: `docs/plans/INDEX.md`
 
-- [ ] **Step 1: Run backend verification**
+- [x] **Step 1: Run backend verification**
 
 Run:
 
@@ -971,7 +971,7 @@ mix typecheck
 
 Expected: PASS.
 
-- [ ] **Step 2: Run mobile verification**
+- [x] **Step 2: Run mobile verification**
 
 Run:
 
@@ -984,7 +984,7 @@ bun test src/live/liveSessionChannelTopic.test.ts src/live/liveSessionRealtimeEv
 
 Expected: PASS.
 
-- [ ] **Step 3: Run contract stale-surface search**
+- [x] **Step 3: Run contract stale-surface search**
 
 Run:
 
@@ -994,7 +994,7 @@ rg -n "chat:message|chat:message_updated|removed_timeline_event_id|timeline:even
 
 Expected: no stale `chat:message` or `chat:message_updated` hits outside archived historical plans; `timeline:event`, `removed_timeline_event_id`, and `channelTopic` hits should be current contract, test, helper, schema, or plan references.
 
-- [ ] **Step 4: Run whitespace verification**
+- [x] **Step 4: Run whitespace verification**
 
 Run:
 
@@ -1004,7 +1004,7 @@ git diff --check
 
 Expected: PASS.
 
-- [ ] **Step 5: Close the plan and advance pointers**
+- [x] **Step 5: Close the plan and advance pointers**
 
 In this plan, mark all completed task checkboxes.
 
@@ -1020,12 +1020,14 @@ In `docs/plans/mobile/NOW.md`, change status to `channel transport contract repa
 
 In `docs/plans/NOW.md` and `docs/plans/INDEX.md`, update the mobile current batch to the host broadcast planning handoff only after the mobile lane docs are updated.
 
-- [ ] **Step 6: Commit Task 5**
+- [x] **Step 6: Commit Task 5**
 
 ```bash
 git add docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md docs/plans/mobile/TRACK.md docs/plans/mobile/NOW.md docs/plans/NOW.md docs/plans/INDEX.md
 git commit -m "docs: hand off to host broadcast planning"
 ```
+
+Closeout note: final backend and mobile verification passed on 2026-06-02. Relay compiler required an unsandboxed rerun because Watchman could not update its local state inside the sandbox, then compiled 11 documents successfully. The remaining `chat:message` and `chat:message_updated` search hits are historical task-spec text in this completed plan, not active contract, source, or test drift.
 
 ## Final Verification Commands
 

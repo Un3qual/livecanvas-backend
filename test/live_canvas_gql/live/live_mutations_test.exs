@@ -33,6 +33,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
           liveSession {
             id
             status
+            channelTopic
             visibility
             host {
               id
@@ -55,6 +56,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                     "liveSession" => %{
                       "id" => live_session_id,
                       "status" => "STARTING",
+                      "channelTopic" => channel_topic,
                       "visibility" => "FOLLOWERS",
                       "host" => %{"id" => ^viewer_id}
                     },
@@ -70,6 +72,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
       assert %{id: ^local_id, host_id: host_id} = Live.get_live_session!(local_id)
 
       assert host_id == viewer.id
+      assert channel_topic == LiveSessionTopics.live_session_topic(local_id)
     end
 
     test "returns an unauthenticated error when no viewer scope is present" do
@@ -123,6 +126,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
           liveSession {
             id
             status
+            channelTopic
             visibility
             insertedAt
             startedAt
@@ -145,6 +149,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
           liveSession {
             id
             status
+            channelTopic
             visibility
             insertedAt
             startedAt
@@ -167,6 +172,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
           liveSession {
             id
             status
+            channelTopic
             visibility
             host {
               id
@@ -218,6 +224,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                     "liveSession" => %{
                       "id" => live_session_id,
                       "status" => "STARTING",
+                      "channelTopic" => starting_channel_topic,
                       "visibility" => "PUBLIC",
                       "insertedAt" => inserted_at,
                       "startedAt" => nil,
@@ -240,6 +247,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
 
       local_id = String.to_integer(local_id)
       assert {:ok, _, 0} = DateTime.from_iso8601(inserted_at)
+      assert starting_channel_topic == LiveSessionTopics.live_session_topic(local_id)
 
       assert {:ok,
               %{
@@ -248,6 +256,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                     "liveSession" => %{
                       "id" => ^live_session_id,
                       "status" => "LIVE",
+                      "channelTopic" => live_channel_topic,
                       "visibility" => "PUBLIC",
                       "insertedAt" => ^inserted_at,
                       "startedAt" => started_at,
@@ -266,6 +275,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                )
 
       assert {:ok, _, 0} = DateTime.from_iso8601(started_at)
+      assert live_channel_topic == LiveSessionTopics.live_session_topic(local_id)
 
       assert {:ok,
               %{
@@ -274,6 +284,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                     "liveSession" => %{
                       "id" => ^live_session_id,
                       "status" => "LIVE",
+                      "channelTopic" => joined_channel_topic,
                       "visibility" => "PUBLIC",
                       "host" => %{"id" => ^host_id}
                     },
@@ -287,6 +298,8 @@ defmodule LCGQL.Live.LiveMutationsTest do
                  context: viewer_context,
                  variables: %{"liveSessionId" => live_session_id}
                )
+
+      assert joined_channel_topic == LiveSessionTopics.live_session_topic(local_id)
 
       assert {:ok,
               %{

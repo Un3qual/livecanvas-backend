@@ -224,6 +224,7 @@ function LiveSessionWatchContent({
           __typename
           ... on LiveSession {
             id
+            channelTopic
             status
             visibility
             insertedAt

@@ -176,6 +176,8 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
 
     ref = push(socket, "timeline:chat_message:send", %{"body" => "hello"})
+    actor_id = viewer.id
+    actor_global_id = Absinthe.Relay.Node.to_global_id(:user, actor_id, LCGQL.Schema)
 
     assert_reply ref, :ok, %{
       event: %{
@@ -183,7 +185,7 @@ defmodule LCWeb.LiveSessionChannelTest do
         event_type: "chat_message_sent",
         body: "hello",
         id: event_global_id,
-        actor_id: actor_id,
+        actor: %{id: ^actor_global_id},
         occurred_at: occurred_at,
         edited: false,
         edit_count: 0,
@@ -191,7 +193,6 @@ defmodule LCWeb.LiveSessionChannelTest do
       }
     }
 
-    assert actor_id == viewer.id
     assert is_binary(event_global_id)
     event_id = decode_global_node_id(event_global_id, :chat_message_event)
     assert {:ok, _, 0} = DateTime.from_iso8601(occurred_at)
@@ -205,7 +206,7 @@ defmodule LCWeb.LiveSessionChannelTest do
           event_type: "chat_message_sent",
           body: "hello",
           id: ^event_global_id,
-          actor_id: ^actor_id,
+          actor: %{id: ^actor_global_id},
           occurred_at: ^occurred_at,
           edited: false,
           edit_count: 0,
@@ -261,16 +262,16 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
 
     send_ref = push(socket, "timeline:chat_message:send", %{"body" => "hello"})
+    actor_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
     assert_reply send_ref, :ok, %{
       event: %{
         body: "hello",
         id: event_global_id,
-        actor_id: actor_id
+        actor: %{id: ^actor_global_id}
       }
     }
 
-    assert actor_id == viewer.id
     _event_id = decode_global_node_id(event_global_id, :chat_message_event)
 
     assert_receive %Phoenix.Socket.Message{
@@ -315,6 +316,7 @@ defmodule LCWeb.LiveSessionChannelTest do
           __typename: "ChatMessageEvent",
           id: ^event_global_id,
           body: "hello, world",
+          actor: %{id: ^actor_global_id},
           edited: true,
           edit_count: 1
         }
@@ -345,16 +347,16 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
 
     send_ref = push(viewer_socket, "timeline:chat_message:send", %{"body" => "abusive message"})
+    actor_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
     assert_reply send_ref, :ok, %{
       event: %{
         body: "abusive message",
         id: event_global_id,
-        actor_id: actor_id
+        actor: %{id: ^actor_global_id}
       }
     }
 
-    assert actor_id == viewer.id
     event_id = decode_global_node_id(event_global_id, :chat_message_event)
     session_topic = LiveSessionTopics.live_session_topic(session.id)
 
@@ -418,15 +420,15 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
 
     send_ref = push(viewer_socket, "timeline:chat_message:send", %{"body" => "remove once"})
+    actor_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
     assert_reply send_ref, :ok, %{
       event: %{
         id: event_global_id,
-        actor_id: actor_id
+        actor: %{id: ^actor_global_id}
       }
     }
 
-    assert actor_id == viewer.id
     _event_id = decode_global_node_id(event_global_id, :chat_message_event)
     session_topic = LiveSessionTopics.live_session_topic(session.id)
 
@@ -856,6 +858,7 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     host = user_fixture(privacy_mode: :public)
     host_id = host.id
+    host_global_id = Absinthe.Relay.Node.to_global_id(:user, host_id, LCGQL.Schema)
     viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
 
@@ -927,7 +930,7 @@ defmodule LCWeb.LiveSessionChannelTest do
           id: go_live_event_id,
           event_type: "live_session_started",
           occurred_at: go_live_occurred_at,
-          actor_id: ^host_id
+          actor: %{id: ^host_global_id}
         }
       }
     }
@@ -973,7 +976,7 @@ defmodule LCWeb.LiveSessionChannelTest do
           id: end_event_id,
           event_type: "live_session_ended",
           occurred_at: end_occurred_at,
-          actor_id: ^host_id
+          actor: %{id: ^host_global_id}
         }
       }
     }

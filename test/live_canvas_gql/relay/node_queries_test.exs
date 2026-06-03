@@ -1019,6 +1019,40 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                )
     end
 
+    test "ended live session node reads return a null channel topic" do
+      host = user_fixture(privacy_mode: :public)
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, ended_session} = Live.end_live_session(session)
+      relay_id = Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+
+      query = """
+      query EndedLiveSessionChannelTopic($id: ID!) {
+        node(id: $id) {
+          ... on LiveSession {
+            id
+            channelTopic
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^relay_id,
+                    "channelTopic" => nil
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => relay_id},
+                 context: context
+               )
+    end
+
     test "returns nil for unauthorized follower-only ended live session node lookups" do
       host = user_fixture()
       outsider = user_fixture()

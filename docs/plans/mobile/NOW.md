@@ -1,7 +1,7 @@
 # Mobile Lane Execution
 
-Last reviewed: 2026-06-01
-Status: channel transport contract repair plan ready for execution
+Last reviewed: 2026-06-02
+Status: host broadcast native capability/preflight plan active
 
 ## Lane Scope
 
@@ -11,30 +11,29 @@ Status: channel transport contract repair plan ready for execution
 ## Current Batch
 
 - Track: `docs/plans/mobile/TRACK.md`
-- Source: `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md`
-- Batch: `Task 1: Pin the repaired mobile realtime contract`
-- Why now: the live discovery/watch flow is complete, but the published mobile realtime contract still describes the old `chat:message` channel surface and exposes no client-safe topic derived from a Relay `LiveSession`. Repair this before host broadcast/native media planning or chat channel implementation.
-- Scope: shared contract docs, backend GraphQL/channel contract code, mobile schema snapshot, mobile generated Relay artifacts, and narrow mobile topic/event helper tests. Do not start media capture, playback, or full Phoenix Channel client UI in this batch.
+- Source: `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
+- Batch: Task 1, add the native development-build and WebRTC dependency boundary
+- Handoff: execute the host broadcast native capability/preflight plan before starting media publish, viewer playback, full socket lifecycle, or chat stream UI work.
 
-## Verification Scope
+## Completed Verification Scope
 
 - Backend focused tests: `mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_resolver_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs`.
-- Backend compile/type checks if typed code changes: `mix compile`; `mix typecheck`.
-- Mobile focused tests: `cd mobile && bun test src/live/liveSessionChannelTopic.test.ts src/live/liveSessionRealtimeEvents.test.ts`.
-- Relay: `cd mobile && ./node_modules/.bin/relay-compiler`.
-- TypeScript: `cd mobile && ./node_modules/.bin/tsc --noEmit`.
+- Backend compile/typecheck: `mix compile` and `mix typecheck`.
+- Mobile focused tests: `cd mobile && bun test src/live/liveSessionChannelTopic.test.ts src/live/liveSessionRealtimeEvents.test.ts src/live/liveSessionPresentation.test.ts src/live/liveSessionNavigation.test.ts src/live/liveSessionWatchReducer.test.ts`.
+- Relay and TypeScript: `cd mobile && ./node_modules/.bin/relay-compiler` and `cd mobile && ./node_modules/.bin/tsc --noEmit`.
+- Contract stale-surface search: `rg -n "chat:message|chat:message_updated|removed_timeline_event_id|timeline:event|channelTopic" docs/contracts docs/plans/mobile mobile/src/live lib/live_canvas_web/channels test/live_canvas_web/channels`.
 - Whitespace: `git diff --check`.
-- Nix note: the Nix-wrapped Relay and TypeScript commands were blocked in this environment by `/nix/var/nix/daemon-socket/socket: Connection refused` during the prior mobile closeout; use the local mobile toolchain unless the Nix daemon is available.
+- Relay note: Relay compiler passed after an unsandboxed rerun because Watchman could not update its local state inside the sandbox.
 
 ## Next Up
 
-- After channel transport contract repair lands, create or activate the host broadcast native capability and preflight planning plan.
+- Execute Task 1 of `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`.
 - Do not decode Relay IDs client-side.
-- Do not add media capture, playback, or full chat stream UI before the repaired channel contract is implemented and verified.
+- Do not enable mobile go-live, media publish, viewer playback, or full chat stream UI before host broadcast/native media preflight is complete and backend media signaling is explicitly planned.
 
 ## Repair Conditions
 
 Repair this lane pointer from `docs/plans/mobile/TRACK.md` and `docs/plans/INDEX.md` when:
 
-- another mobile slice is explicitly reprioritized ahead of channel transport contract repair
+- another mobile slice is explicitly reprioritized ahead of host broadcast/native media planning
 - the selected next plan no longer matches the codebase
