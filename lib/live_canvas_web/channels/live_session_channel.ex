@@ -164,12 +164,12 @@ defmodule LCWeb.LiveSessionChannel do
   @spec normalize_timeline_channel_payload(String.t(), map()) :: map()
   defp normalize_timeline_channel_payload("timeline:event", %{event: event} = payload)
        when is_map(event) do
-    %{payload | event: normalize_timeline_event_id(event)}
+    %{payload | event: normalize_timeline_event_payload(event)}
   end
 
   defp normalize_timeline_channel_payload("timeline:event_updated", %{event: event} = payload)
        when is_map(event) do
-    %{payload | event: normalize_timeline_event_id(event)}
+    %{payload | event: normalize_timeline_event_payload(event)}
   end
 
   defp normalize_timeline_channel_payload(
@@ -190,7 +190,14 @@ defmodule LCWeb.LiveSessionChannel do
   defp timeline_event_channel_payload(timeline_event) when is_map(timeline_event) do
     timeline_event
     |> Chat.timeline_event_payload()
+    |> normalize_timeline_event_payload()
+  end
+
+  @spec normalize_timeline_event_payload(map()) :: map()
+  defp normalize_timeline_event_payload(event) when is_map(event) do
+    event
     |> normalize_timeline_event_id()
+    |> normalize_timeline_event_actor()
   end
 
   @spec normalize_timeline_event_id(map()) :: map()
@@ -210,6 +217,24 @@ defmodule LCWeb.LiveSessionChannel do
   end
 
   defp normalize_timeline_event_id(event), do: event
+
+  @spec normalize_timeline_event_actor(map()) :: map()
+  defp normalize_timeline_event_actor(%{actor_id: actor_id} = event)
+       when is_integer(actor_id) do
+    event
+    |> Map.delete(:actor_id)
+    |> Map.put(:actor, %{
+      id: Absinthe.Relay.Node.to_global_id(:user, actor_id, LCGQL.Schema)
+    })
+  end
+
+  defp normalize_timeline_event_actor(%{actor_id: nil} = event) do
+    event
+    |> Map.delete(:actor_id)
+    |> Map.put(:actor, nil)
+  end
+
+  defp normalize_timeline_event_actor(event), do: event
 
   @spec timeline_event_node_type(atom() | String.t() | nil) :: atom() | nil
   defp timeline_event_node_type(:chat_message_sent), do: :chat_message_event

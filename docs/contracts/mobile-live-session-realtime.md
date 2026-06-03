@@ -75,7 +75,9 @@ Stable payload shape:
     "id": "Q2hhdE1lc3NhZ2VFdmVudDoxMjM=",
     "event_type": "chat_message_sent",
     "body": "hello",
-    "actor_id": 456,
+    "actor": {
+      "id": "VXNlcjo0NTY="
+    },
     "occurred_at": "2026-06-01T23:17:09Z",
     "edited": false,
     "edit_count": 0,
@@ -85,10 +87,31 @@ Stable payload shape:
 ```
 
 `event.id` is a Relay global ID when the event type has a mobile GraphQL node type. Clients must treat it as opaque.
+`event.actor` is `null` or an object containing the actor's Relay `User.id`. Clients must not expect or derive raw actor database IDs from realtime payloads.
 
 ## `timeline:event_updated`
 
 The joined topic broadcasts `timeline:event_updated` when a visible timeline event changes in place, such as a chat-message edit or moderation state change. The payload uses the same `{"event": {...}}` envelope as `timeline:event`.
+
+Stable payload shape:
+
+```json
+{
+  "event": {
+    "__typename": "ChatMessageEvent",
+    "id": "Q2hhdE1lc3NhZ2VFdmVudDoxMjM=",
+    "event_type": "chat_message_sent",
+    "body": "hello, edited",
+    "actor": {
+      "id": "VXNlcjo0NTY="
+    },
+    "occurred_at": "2026-06-01T23:19:09Z",
+    "edited": true,
+    "edit_count": 1,
+    "edited_at": "2026-06-01T23:20:09Z"
+  }
+}
+```
 
 ## `timeline:event_removed`
 

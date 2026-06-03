@@ -43,7 +43,7 @@ defmodule LCGQL.Feed.Types do
     field :inserted_at, non_null(:string)
 
     field :channel_topic, :string do
-      resolve(&LCGQL.Live.Resolver.live_session_channel_topic/3)
+      resolve(&LCGQL.Live.Resolver.live_session_channel_topic_field/3)
     end
 
     field :host, non_null(:user) do

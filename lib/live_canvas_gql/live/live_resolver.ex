@@ -5,6 +5,7 @@ defmodule LCGQL.Live.Resolver do
   alias LCGQL.Relay
   alias LC.RateLimiter
   alias LCTransport.{LiveSessionReasons, LiveSessionTopics}
+  alias LCSchemas.Accounts.User
   alias Phoenix.Socket.Broadcast
 
   @type mutation_error :: MutationErrors.user_error()
@@ -12,6 +13,9 @@ defmodule LCGQL.Live.Resolver do
   @type leave_live_session_payload :: %{left: boolean(), errors: [mutation_error()]}
   @type live_session_result :: {:ok, live_session_payload()}
   @type leave_live_session_result :: {:ok, leave_live_session_payload()}
+  @type channel_topic_result :: {:ok, String.t() | nil}
+  @type channel_topic_field_result ::
+          channel_topic_result() | {:middleware, Absinthe.Middleware.Batch, term()}
   @type mutation_error_field :: :live_session_id | :recording_media_asset_id | nil
   @type mutation_reason ::
           :invalid_id
@@ -236,21 +240,61 @@ defmodule LCGQL.Live.Resolver do
     {:ok, %{live_session: nil, errors: [live_session_error(nil, :unauthenticated)]}}
   end
 
-  @spec live_session_channel_topic(map(), map(), Absinthe.Resolution.t()) ::
-          {:ok, String.t() | nil}
-  def live_session_channel_topic(
-        %{id: session_id, status: status} = live_session,
-        _args,
-        %Absinthe.Resolution{context: %{current_scope: %{user: %{id: user_id} = viewer}}}
+  @spec live_session_channel_topic_field(map(), map(), Absinthe.Resolution.t()) ::
+          channel_topic_field_result()
+  def live_session_channel_topic_field(live_session, _args, resolution) do
+    with {:ok, session_id, viewer} <- channel_topic_source(live_session, resolution) do
+      Absinthe.Resolution.Helpers.batch(
+        {Live, :authorized_live_session_channel_topic_ids, viewer},
+        live_session,
+        fn authorized_ids ->
+          {:ok, channel_topic_for_authorized_id(session_id, authorized_ids)}
+        end
       )
-      when is_integer(session_id) and is_integer(user_id) and status in [:starting, :live] do
-    case Chat.authorize_join(viewer, live_session) do
-      :ok -> {:ok, LiveSessionTopics.live_session_topic(session_id)}
-      {:error, _reason} -> {:ok, nil}
+    else
+      :error -> {:ok, nil}
     end
   end
 
-  def live_session_channel_topic(_live_session, _args, _resolution), do: {:ok, nil}
+  @spec live_session_channel_topic(map(), map(), Absinthe.Resolution.t()) ::
+          channel_topic_result()
+  def live_session_channel_topic(
+        live_session,
+        _args,
+        resolution
+      ) do
+    with {:ok, session_id, viewer} <- channel_topic_source(live_session, resolution),
+         authorized_ids <- Live.authorized_live_session_channel_topic_ids(viewer, [live_session]),
+         topic when is_binary(topic) <-
+           channel_topic_for_authorized_id(session_id, authorized_ids) do
+      {:ok, topic}
+    else
+      _other -> {:ok, nil}
+    end
+  end
+
+  @spec channel_topic_source(map(), Absinthe.Resolution.t()) ::
+          {:ok, pos_integer(), User.t()} | :error
+  defp channel_topic_source(
+         %{id: session_id, status: status},
+         %Absinthe.Resolution{context: %{current_scope: %{user: %User{id: user_id} = viewer}}}
+       )
+       when is_integer(session_id) and is_integer(user_id) and status in [:starting, :live] do
+    {:ok, session_id, viewer}
+  end
+
+  defp channel_topic_source(_live_session, _resolution), do: :error
+
+  @spec channel_topic_for_authorized_id(pos_integer(), %{optional(pos_integer()) => true}) ::
+          String.t() | nil
+  defp channel_topic_for_authorized_id(session_id, authorized_ids)
+       when is_integer(session_id) and is_map(authorized_ids) do
+    if Map.has_key?(authorized_ids, session_id) do
+      LiveSessionTopics.live_session_topic(session_id)
+    end
+  end
+
+  defp channel_topic_for_authorized_id(_session_id, _authorized_ids), do: nil
 
   defp decode_optional_recording_media_asset_id(nil), do: {:ok, nil}
 

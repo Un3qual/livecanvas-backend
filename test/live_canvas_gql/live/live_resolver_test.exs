@@ -32,6 +32,19 @@ defmodule LCGQL.Live.ResolverTest do
                Resolver.live_session_channel_topic(live_session, %{}, resolution_for(outsider))
     end
 
+    test "returns nil when the viewer scope is stale after suspension" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      stale_resolution = resolution_for(viewer)
+      {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, live_session} = Live.mark_session_live(session)
+
+      assert {:ok, _viewer} = Accounts.suspend_user(viewer)
+
+      assert {:ok, nil} =
+               Resolver.live_session_channel_topic(live_session, %{}, stale_resolution)
+    end
+
     test "returns nil for ended sessions and missing viewer scope" do
       host = user_fixture(privacy_mode: :public)
       {:ok, session} = Live.start_live_session(host, %{visibility: :public})

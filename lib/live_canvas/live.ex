@@ -3,11 +3,12 @@ defmodule LC.Live do
   The Live context.
   """
 
-  use Boundary, deps: [LC.Content, LC.Infra, LC.RealtimeRuntime, LCSchemas]
+  use Boundary, deps: [LC.Content, LC.Infra, LC.ReadPolicy, LC.RealtimeRuntime, LCSchemas]
   import Ecto.Query, warn: false
 
   alias LC.Content
   alias LC.Infra.Repo
+  alias LC.ReadPolicy
   alias LC.Live.{RuntimeRPC, SessionSupervisor}
   alias LC.RealtimeRuntime.SessionServer
   alias LC.Live.LiveParticipant, as: LiveParticipantChanges
@@ -52,6 +53,7 @@ defmodule LC.Live do
   @type leave_live_session_option :: {:runtime_rpc, runtime_rpc_adapter()}
   @type session_server_lookup_result ::
           {:ok, pid()} | {:error, :not_found | {:owned_by_remote, String.t()}}
+  @type authorized_live_session_id_map :: %{optional(pos_integer()) => true}
 
   @doc """
   Starts a persisted live session and boots its runtime process.
@@ -426,6 +428,20 @@ defmodule LC.Live do
       nil -> {:error, :not_found}
     end
   end
+
+  @doc """
+  Returns the active visible session IDs that may expose a channel topic to the viewer.
+  """
+  @spec authorized_live_session_channel_topic_ids(User.t(), [map()]) ::
+          authorized_live_session_id_map()
+  def authorized_live_session_channel_topic_ids(%User{id: viewer_id} = viewer, live_sessions)
+      when is_integer(viewer_id) and is_list(live_sessions) do
+    live_sessions
+    |> live_session_channel_topic_ids()
+    |> visible_active_live_session_ids(viewer)
+  end
+
+  def authorized_live_session_channel_topic_ids(_viewer, _live_sessions), do: %{}
 
   @doc false
   @spec remote_live_session_state_snapshot(pos_integer()) ::
@@ -1116,6 +1132,44 @@ defmodule LC.Live do
           is_nil(live_participant.left_at)
     )
     |> Repo.aggregate(:count, :id)
+  end
+
+  @spec live_session_channel_topic_ids([map()]) :: [pos_integer()]
+  defp live_session_channel_topic_ids(live_sessions) when is_list(live_sessions) do
+    live_sessions
+    |> Enum.flat_map(fn
+      %{id: session_id, status: status}
+      when is_integer(session_id) and status in [:starting, :live] ->
+        [session_id]
+
+      _live_session ->
+        []
+    end)
+    |> Enum.uniq()
+  end
+
+  @spec visible_active_live_session_ids([pos_integer()], User.t()) ::
+          authorized_live_session_id_map()
+  defp visible_active_live_session_ids([], %User{}), do: %{}
+
+  defp visible_active_live_session_ids(session_ids, %User{} = viewer)
+       when is_list(session_ids) do
+    if active_user?(viewer.id) do
+      LiveSession
+      |> where(
+        [live_session],
+        live_session.id in ^session_ids and live_session.status in [:starting, :live]
+      )
+      |> ReadPolicy.viewer_visible_query(viewer,
+        owner_key: :host_id,
+        visibility_key: :visibility
+      )
+      |> select([live_session], live_session.id)
+      |> Repo.all()
+      |> Map.new(&{&1, true})
+    else
+      %{}
+    end
   end
 
   @spec active_user?(pos_integer()) :: boolean()

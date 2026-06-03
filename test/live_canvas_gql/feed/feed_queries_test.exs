@@ -497,6 +497,45 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       assert channel_topic == LiveSessionTopics.live_session_topic(live_session.id)
     end
 
+    test "batches channel topic authorization for liveNow rows" do
+      viewer = user_fixture()
+
+      for _ <- 1..3 do
+        host = user_fixture(privacy_mode: :public)
+        {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+        assert {:ok, _live_session} = Live.mark_session_live(session)
+      end
+
+      query = """
+      query LiveNowChannelTopics {
+        liveNow(first: 10) {
+          edges {
+            node {
+              id
+              channelTopic
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      {result, queries} =
+        capture_repo_queries(fn ->
+          Absinthe.run(query, LCGQL.Schema, context: context)
+        end)
+
+      assert {:ok, %{data: %{"liveNow" => %{"edges" => edges}}}} = result
+      assert length(edges) == 3
+
+      assert Enum.all?(edges, fn %{"node" => %{"channelTopic" => topic}} ->
+               is_binary(topic) and String.starts_with?(topic, "live_session:")
+             end)
+
+      assert count_table_queries(queries, "users") <= 3
+    end
+
     test "liveNow does not expose channel topics for non-visible followers-only sessions" do
       host = user_fixture()
       outsider = user_fixture()

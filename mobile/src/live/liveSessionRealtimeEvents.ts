@@ -1,11 +1,15 @@
 type JsonRecord = Record<string, unknown>;
 
+export type LiveSessionTimelineEventActor = {
+  readonly id: string;
+};
+
 export type LiveSessionTimelineEventPayload = {
   readonly __typename: string;
   readonly id: string;
   readonly eventType: string;
   readonly body: string | null;
-  readonly actorId: number | null;
+  readonly actor: LiveSessionTimelineEventActor | null;
   readonly occurredAt: string;
   readonly edited: boolean | null;
   readonly editCount: number | null;
@@ -109,7 +113,7 @@ function normalizeTimelineEvent(
     typeof value.event_type !== 'string' ||
     typeof value.occurred_at !== 'string' ||
     !isNullableString(value.body) ||
-    !isNullablePositiveInteger(value.actor_id) ||
+    !isNullableTimelineEventActor(value.actor) ||
     !isNullableBoolean(value.edited) ||
     !isNullableNonNegativeInteger(value.edit_count) ||
     !isNullableString(value.edited_at)
@@ -122,7 +126,7 @@ function normalizeTimelineEvent(
     id: value.id,
     eventType: value.event_type,
     body: value.body,
-    actorId: value.actor_id,
+    actor: value.actor,
     occurredAt: value.occurred_at,
     edited: value.edited,
     editCount: value.edit_count,
@@ -170,6 +174,18 @@ function isNullableString(value: unknown): value is string | null {
   return typeof value === 'string' || value === null;
 }
 
+function isTimelineEventActor(
+  value: unknown,
+): value is LiveSessionTimelineEventActor {
+  return isRecord(value) && isNonBlankString(value.id);
+}
+
+function isNullableTimelineEventActor(
+  value: unknown,
+): value is LiveSessionTimelineEventActor | null {
+  return value === null || isTimelineEventActor(value);
+}
+
 function isNullableBoolean(value: unknown): value is boolean | null {
   return typeof value === 'boolean' || value === null;
 }
@@ -187,12 +203,4 @@ function isNullableNonNegativeInteger(
   value: unknown,
 ): value is number | null {
   return value === null || isNonNegativeInteger(value);
-}
-
-function isPositiveInteger(value: unknown): value is number {
-  return isNonNegativeInteger(value) && value > 0;
-}
-
-function isNullablePositiveInteger(value: unknown): value is number | null {
-  return value === null || isPositiveInteger(value);
 }
