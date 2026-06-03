@@ -11,15 +11,36 @@
 
 ## Batching And Commit Policy
 
-- Treat `docs/plans/NOW.md` as the coordinator dashboard for multi-lane execution rather than the only executable pointer.
-- In ordinary execution turns, open the lane-specific pointer listed in `docs/plans/NOW.md`: backend work starts from `docs/plans/backend/NOW.md`, and mobile work starts from `docs/plans/mobile/NOW.md`.
-- Use `docs/plans/INDEX.md` only when a lane `NOW.md` is stale, blocked, or empty, or when the coordinator dashboard needs repair.
-- If the selected work belongs to a multi-plan track, consult that track's `TRACK.md` before opening unrelated plan files.
+- Treat each lane `NOW.md` as the only executable source of truth for the
+  current batch. `docs/plans/NOW.md` is a dashboard, `docs/plans/INDEX.md` is a
+  registry/backlog, and track `TRACK.md` files are ordering/dependency guides.
+- In ordinary execution turns, open `docs/plans/NOW.md` only to pick the lane,
+  then execute from the lane-specific `NOW.md`: backend work starts from
+  `docs/plans/backend/NOW.md`, and mobile work starts from
+  `docs/plans/mobile/NOW.md`.
+- Do not use `docs/plans/INDEX.md`, archived plans, or unrelated track docs
+  unless the lane `NOW.md` says the current batch is stale, blocked, empty, or
+  explicitly points there.
+- If duplicated status conflicts, prefer the lane `NOW.md` for execution and
+  repair the stale pointer/registry text only when the user assigns a
+  coordination/docs repair or the active task itself includes lane closure.
+- Keep lane `NOW.md` files short: current batch, source plan, write scope, done
+  condition, verification, and the next action. Historical evidence belongs in
+  the detailed plan or archive, not in the executable pointer.
+- If the selected work belongs to a multi-plan track, consult that track's
+  `TRACK.md` for ordering and dependencies only; do not let it duplicate the
+  lane's current-batch checklist.
 - Verify implementation status before acting; do not assume an unchecked plan item is unimplemented.
 - Prefer the next meaningful batch over a single micro-step: execute one full task section or 3-5 related steps when safe.
-- If a lane `NOW.md` has no current batch, review the relevant track plus `ARCHITECTURE.md` when needed, create the next implementation plan for that lane, then update that lane's `NOW.md`; reserve shared dashboard/index edits for the coordinator.
+- If a lane `NOW.md` has no current batch, review the relevant track plus
+  `ARCHITECTURE.md` when needed, create or promote the next implementation plan
+  for that lane, then update that lane's `NOW.md`. Update shared dashboard/index
+  docs only when the lane lineup or registry actually changes.
 - Keep progress checkboxes up to date as work proceeds.
-- Do not create standalone checkbox-only or docs-only progress commits; bundle progress updates with related code/test changes in the same commit.
+- Do not create standalone checkbox-only or docs-only progress commits during
+  implementation; bundle progress updates with related code/test changes in the
+  same commit. Explicit planning, docs-redesign, lane-activation, and lane-closure
+  tasks are allowed to be docs-only when the user asked for that work.
 - Commit at milestone boundaries: completed task section, user-visible behavior change, or required verification checkpoint.
 - Favor more frequent milestone commits during execution (avoid long stretches without a commit) while still keeping each commit scoped to meaningful completed work.
 - Dispatch subagents only when there are 2+ substantial independent tracks; when parallelizing, give each lane its own worktree, branch, and disjoint write scope. Do not send multiple agents into the same write scope.
@@ -31,9 +52,18 @@
 
 - Until further notice, prioritize product feature completeness over observability, automation, and other non-product follow-up work unless the user explicitly directs otherwise.
 - When creating plans, use docs subfolders intelligently so related plans stay organized.
-- Plans must be detailed and specific while still allowing executors to make informed decisions based on their own research.
+- Plans must be detailed and specific while still allowing executors to make
+  informed decisions based on their own research. Prefer concise executable
+  briefs over copy-paste scripts; include exact code only for non-obvious
+  contracts, tricky tests, or API shapes.
+- Detailed plans should start with an executor brief and should normally stay
+  under one focused screen per task. Split or summarize plans that become long
+  enough to hide the current action.
 - Split plans into multiple steps and/or multiple files when that improves clarity or execution safety.
 - If a plan or requirement is not specific enough to execute safely, ask clarifying questions before implementation.
+- Handoff prompts should name the lane `NOW.md`, source plan, current task, write
+  scope, and verification commands. Do not ask executors to rediscover priority
+  from the whole docs tree.
 
 ## Implementation Quality
 
