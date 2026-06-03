@@ -54,6 +54,7 @@ defmodule LC.Live do
   @type session_server_lookup_result ::
           {:ok, pid()} | {:error, :not_found | {:owned_by_remote, String.t()}}
   @type authorized_live_session_id_map :: %{optional(pos_integer()) => true}
+  @type viewer_ref :: User.t() | %{required(:id) => pos_integer()}
 
   @doc """
   Starts a persisted live session and boots its runtime process.
@@ -432,13 +433,13 @@ defmodule LC.Live do
   @doc """
   Returns the active visible session IDs that may expose a channel topic to the viewer.
   """
-  @spec authorized_live_session_channel_topic_ids(User.t(), [map()]) ::
+  @spec authorized_live_session_channel_topic_ids(viewer_ref(), [map()]) ::
           authorized_live_session_id_map()
-  def authorized_live_session_channel_topic_ids(%User{id: viewer_id} = viewer, live_sessions)
-      when is_integer(viewer_id) and is_list(live_sessions) do
+  def authorized_live_session_channel_topic_ids(viewer, live_sessions)
+      when is_list(live_sessions) do
     live_sessions
     |> live_session_channel_topic_ids()
-    |> visible_active_live_session_ids(viewer)
+    |> visible_active_live_session_ids(viewer_ref_to_user(viewer))
   end
 
   def authorized_live_session_channel_topic_ids(_viewer, _live_sessions), do: %{}
@@ -1151,6 +1152,7 @@ defmodule LC.Live do
   @spec visible_active_live_session_ids([pos_integer()], User.t()) ::
           authorized_live_session_id_map()
   defp visible_active_live_session_ids([], %User{}), do: %{}
+  defp visible_active_live_session_ids(_session_ids, nil), do: %{}
 
   defp visible_active_live_session_ids(session_ids, %User{} = viewer)
        when is_list(session_ids) do
@@ -1171,6 +1173,11 @@ defmodule LC.Live do
       %{}
     end
   end
+
+  @spec viewer_ref_to_user(viewer_ref() | term()) :: User.t() | nil
+  defp viewer_ref_to_user(%User{id: viewer_id} = viewer) when is_integer(viewer_id), do: viewer
+  defp viewer_ref_to_user(%{id: viewer_id}) when is_integer(viewer_id), do: %User{id: viewer_id}
+  defp viewer_ref_to_user(_viewer), do: nil
 
   @spec active_user?(pos_integer()) :: boolean()
   defp active_user?(user_id) when is_integer(user_id) do

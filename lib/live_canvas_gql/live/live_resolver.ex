@@ -5,7 +5,6 @@ defmodule LCGQL.Live.Resolver do
   alias LCGQL.Relay
   alias LC.RateLimiter
   alias LCTransport.{LiveSessionReasons, LiveSessionTopics}
-  alias LCSchemas.Accounts.User
   alias Phoenix.Socket.Broadcast
 
   @type mutation_error :: MutationErrors.user_error()
@@ -274,10 +273,10 @@ defmodule LCGQL.Live.Resolver do
   end
 
   @spec channel_topic_source(map(), Absinthe.Resolution.t()) ::
-          {:ok, pos_integer(), User.t()} | :error
+          {:ok, pos_integer(), Live.viewer_ref()} | :error
   defp channel_topic_source(
          %{id: session_id, status: status},
-         %Absinthe.Resolution{context: %{current_scope: %{user: %User{id: user_id} = viewer}}}
+         %Absinthe.Resolution{context: %{current_scope: %{user: %{id: user_id} = viewer}}}
        )
        when is_integer(session_id) and is_integer(user_id) and status in [:starting, :live] do
     {:ok, session_id, viewer}

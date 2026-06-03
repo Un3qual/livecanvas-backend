@@ -124,6 +124,37 @@ describe('liveSessionRealtimeEvents', () => {
     });
   });
 
+  test('accepts lifecycle timeline events without an actor', () => {
+    expect(
+      normalizeLiveSessionRealtimeEvent('timeline:event', {
+        event: {
+          __typename: 'LiveSessionEndedEvent',
+          id: 'ended-event-id',
+          event_type: 'live_session_ended',
+          body: null,
+          actor: null,
+          occurred_at: '2026-06-01T23:21:09Z',
+          edited: null,
+          edit_count: null,
+          edited_at: null,
+        },
+      }),
+    ).toEqual({
+      kind: 'timeline_event',
+      event: {
+        __typename: 'LiveSessionEndedEvent',
+        id: 'ended-event-id',
+        eventType: 'live_session_ended',
+        body: null,
+        actor: null,
+        occurredAt: '2026-06-01T23:21:09Z',
+        edited: null,
+        editCount: null,
+        editedAt: null,
+      },
+    });
+  });
+
   test('ignores malformed or unknown payloads', () => {
     expect(normalizeLiveSessionRealtimeEvent('session:state', {})).toBeNull();
     expect(normalizeLiveSessionRealtimeEvent('session:state', [])).toBeNull();

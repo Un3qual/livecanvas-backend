@@ -533,7 +533,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
                is_binary(topic) and String.starts_with?(topic, "live_session:")
              end)
 
-      assert count_table_queries(queries, "users") <= 3
+      assert count_table_queries(queries, "live_sessions") <= 2
     end
 
     test "liveNow does not expose channel topics for non-visible followers-only sessions" do
