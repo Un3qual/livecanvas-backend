@@ -251,10 +251,15 @@ defmodule LC.Live.MediaSignaling do
   end
 
   defp fetch_provider_ice_servers(provider, provider_config) do
-    provider.ice_servers(provider_config)
-  rescue
-    _exception ->
-      {:error, :ice_server_provider_failed}
+    try do
+      provider.ice_servers(provider_config)
+    rescue
+      _exception ->
+        {:error, :ice_server_provider_failed}
+    catch
+      :exit, _reason ->
+        {:error, :ice_server_provider_failed}
+    end
   end
 
   defp log_provider_failure(provider) do
@@ -288,7 +293,8 @@ defmodule LC.Live.MediaSignaling do
     valid_urls?(urls) and
       valid_optional_string?(ice_server, :username) and
       valid_optional_string?(ice_server, :credential) and
-      valid_credential_type?(Map.get(ice_server, :credential_type))
+      valid_credential_type?(Map.get(ice_server, :credential_type)) and
+      valid_credential_fields?(ice_server)
   end
 
   defp valid_ice_server?(_ice_server), do: false
@@ -322,6 +328,19 @@ defmodule LC.Live.MediaSignaling do
   defp valid_credential_type?(:password), do: true
   defp valid_credential_type?(:oauth), do: true
   defp valid_credential_type?(_credential_type), do: false
+
+  @spec valid_credential_fields?(%{required(:urls) => term(), optional(atom()) => term()}) ::
+          boolean()
+  defp valid_credential_fields?(ice_server) do
+    username = Map.get(ice_server, :username)
+    credential = Map.get(ice_server, :credential)
+    credential_type = Map.get(ice_server, :credential_type)
+
+    no_credentials? = is_nil(username) and is_nil(credential) and is_nil(credential_type)
+    complete_credentials? = non_empty_string?(username) and non_empty_string?(credential)
+
+    no_credentials? or complete_credentials?
+  end
 
   @spec non_empty_string?(term()) :: boolean()
   defp non_empty_string?(value) when is_binary(value), do: String.trim(value) != ""
