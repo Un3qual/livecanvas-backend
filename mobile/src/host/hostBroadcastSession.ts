@@ -13,6 +13,7 @@ export type HostBroadcastSessionState = {
 
 export type HostBroadcastPreflightCleanupState = {
   readonly hasEndLiveSessionRequestInFlight: boolean;
+  readonly hasGoLiveRequestInFlight: boolean;
   readonly hasGoLiveSucceeded: boolean;
 };
 
@@ -63,8 +64,19 @@ export function canRequestHostPreflightBackCleanup(
   return (
     hostBroadcastPreflightCleanupLiveSessionId(state, {
       hasEndLiveSessionRequestInFlight: false,
+      hasGoLiveRequestInFlight: false,
       hasGoLiveSucceeded: false,
     }) !== null
+  );
+}
+
+export function canRequestAbandonedHostPreflightCleanup(
+  cleanupState: HostBroadcastPreflightCleanupState,
+): boolean {
+  return (
+    !cleanupState.hasEndLiveSessionRequestInFlight &&
+    !cleanupState.hasGoLiveRequestInFlight &&
+    !cleanupState.hasGoLiveSucceeded
   );
 }
 
@@ -73,8 +85,7 @@ export function hostBroadcastPreflightCleanupLiveSessionId(
   cleanupState: HostBroadcastPreflightCleanupState,
 ): string | null {
   if (
-    cleanupState.hasEndLiveSessionRequestInFlight ||
-    cleanupState.hasGoLiveSucceeded ||
+    !canRequestAbandonedHostPreflightCleanup(cleanupState) ||
     state.status !== 'starting'
   ) {
     return null;

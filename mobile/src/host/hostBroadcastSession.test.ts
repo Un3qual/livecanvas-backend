@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  canRequestAbandonedHostPreflightCleanup,
   canRequestHostGoLive,
   canRequestHostPreflightBackCleanup,
   canSubmitHostPreflightStartRequest,
@@ -200,45 +201,90 @@ describe('hostBroadcastSessionReducer', () => {
     expect(
       hostBroadcastPreflightCleanupLiveSessionId(starting, {
         hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveRequestInFlight: false,
         hasGoLiveSucceeded: false,
       }),
     ).toBe('TGl2ZVNlc3Npb246MQ==');
     expect(
       hostBroadcastPreflightCleanupLiveSessionId(idle, {
         hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveRequestInFlight: false,
         hasGoLiveSucceeded: false,
       }),
     ).toBeNull();
     expect(
       hostBroadcastPreflightCleanupLiveSessionId(creating, {
         hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveRequestInFlight: false,
         hasGoLiveSucceeded: false,
       }),
     ).toBeNull();
     expect(
       hostBroadcastPreflightCleanupLiveSessionId(ending, {
         hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveRequestInFlight: false,
         hasGoLiveSucceeded: false,
       }),
     ).toBeNull();
     expect(
       hostBroadcastPreflightCleanupLiveSessionId(ended, {
         hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveRequestInFlight: false,
         hasGoLiveSucceeded: false,
       }),
     ).toBeNull();
     expect(
       hostBroadcastPreflightCleanupLiveSessionId(starting, {
         hasEndLiveSessionRequestInFlight: true,
+        hasGoLiveRequestInFlight: false,
         hasGoLiveSucceeded: false,
       }),
     ).toBeNull();
     expect(
       hostBroadcastPreflightCleanupLiveSessionId(starting, {
         hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveRequestInFlight: true,
+        hasGoLiveSucceeded: false,
+      }),
+    ).toBeNull();
+    expect(
+      hostBroadcastPreflightCleanupLiveSessionId(starting, {
+        hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveRequestInFlight: false,
         hasGoLiveSucceeded: true,
       }),
     ).toBeNull();
+  });
+
+  test('only allows abandoned cleanup when no end or go-live transition is in flight', () => {
+    expect(
+      canRequestAbandonedHostPreflightCleanup({
+        hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveRequestInFlight: false,
+        hasGoLiveSucceeded: false,
+      }),
+    ).toBe(true);
+    expect(
+      canRequestAbandonedHostPreflightCleanup({
+        hasEndLiveSessionRequestInFlight: true,
+        hasGoLiveRequestInFlight: false,
+        hasGoLiveSucceeded: false,
+      }),
+    ).toBe(false);
+    expect(
+      canRequestAbandonedHostPreflightCleanup({
+        hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveRequestInFlight: true,
+        hasGoLiveSucceeded: false,
+      }),
+    ).toBe(false);
+    expect(
+      canRequestAbandonedHostPreflightCleanup({
+        hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveRequestInFlight: false,
+        hasGoLiveSucceeded: true,
+      }),
+    ).toBe(false);
   });
 
   test('blocks back action while lifecycle transitions can race cleanup', () => {

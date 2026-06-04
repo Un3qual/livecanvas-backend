@@ -25,6 +25,7 @@ import {
 } from './hostBroadcastMediaSignaling';
 import { createHostBroadcastNative } from './hostBroadcastNative';
 import {
+  canRequestAbandonedHostPreflightCleanup,
   canRequestHostGoLive,
   canSubmitHostPreflightStartRequest,
   canUseHostPreflightBackAction,
@@ -197,8 +198,10 @@ export function HostBroadcastPreflightScreen() {
     );
   const latestSessionStateRef = useRef(sessionState);
   const commitEndLiveSessionRef = useRef(commitEndLiveSession);
+  const isPreflightScreenMountedRef = useRef(true);
   const hasStartLiveSessionRequestInFlightRef = useRef(false);
   const hasEndLiveSessionRequestInFlightRef = useRef(false);
+  const hasGoLiveRequestInFlightRef = useRef(false);
   const hasGoLiveSucceededRef = useRef(false);
   const hasPreparedMedia = preparedMedia !== null;
   const canCreateSession =
@@ -235,6 +238,25 @@ export function HostBroadcastPreflightScreen() {
     });
   }
 
+  function readPreflightCleanupState() {
+    return {
+      hasEndLiveSessionRequestInFlight:
+        hasEndLiveSessionRequestInFlightRef.current,
+      hasGoLiveRequestInFlight: hasGoLiveRequestInFlightRef.current,
+      hasGoLiveSucceeded: hasGoLiveSucceededRef.current,
+    };
+  }
+
+  function requestAbandonedPreflightEndLiveSession(liveSessionId: string) {
+    if (!canRequestAbandonedHostPreflightCleanup(readPreflightCleanupState())) {
+      return;
+    }
+
+    requestPreflightEndLiveSession(liveSessionId, {
+      navigateBackOnSuccess: false,
+    });
+  }
+
   function handleCreateSessionPress() {
     if (
       !canSubmitHostPreflightStartRequest(canCreateSession, {
@@ -260,13 +282,25 @@ export function HostBroadcastPreflightScreen() {
         const result = payload.startLiveSession;
 
         if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
+          hasStartLiveSessionRequestInFlightRef.current = false;
+
+          if (!isPreflightScreenMountedRef.current) {
+            return;
+          }
+
           const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
           dispatchSessionAction({
             type: 'start_failed',
             viewerSafeErrorText,
           });
-          hasStartLiveSessionRequestInFlightRef.current = false;
           setHostActionError(viewerSafeErrorText);
+          return;
+        }
+
+        hasStartLiveSessionRequestInFlightRef.current = false;
+
+        if (!isPreflightScreenMountedRef.current) {
+          requestAbandonedPreflightEndLiveSession(result.liveSession.id);
           return;
         }
 
@@ -276,8 +310,13 @@ export function HostBroadcastPreflightScreen() {
         });
       },
       onError: () => {
-        const viewerSafeErrorText = formatLiveMutationErrors([]);
         hasStartLiveSessionRequestInFlightRef.current = false;
+
+        if (!isPreflightScreenMountedRef.current) {
+          return;
+        }
+
+        const viewerSafeErrorText = formatLiveMutationErrors([]);
         dispatchSessionAction({
           type: 'start_failed',
           viewerSafeErrorText,
@@ -333,6 +372,7 @@ export function HostBroadcastPreflightScreen() {
     }
 
     setIsGoingLive(true);
+    hasGoLiveRequestInFlightRef.current = true;
     setHostActionError(null);
 
     commitGoLive({
@@ -342,10 +382,16 @@ export function HostBroadcastPreflightScreen() {
         },
       },
       onCompleted: (payload) => {
-        setIsGoingLive(false);
+        hasGoLiveRequestInFlightRef.current = false;
         const result = payload.goLiveSession;
 
         if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
+          if (!isPreflightScreenMountedRef.current) {
+            requestAbandonedPreflightEndLiveSession(liveSessionId);
+            return;
+          }
+
+          setIsGoingLive(false);
           const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
 
           if (isRetryableHostGoLiveMediaReadinessError(result?.errors)) {
@@ -359,9 +405,18 @@ export function HostBroadcastPreflightScreen() {
         }
 
         hasGoLiveSucceededRef.current = true;
+        if (isPreflightScreenMountedRef.current) {
+          setIsGoingLive(false);
+        }
         router.replace(liveSessionHref(result.liveSession.id));
       },
       onError: () => {
+        hasGoLiveRequestInFlightRef.current = false;
+
+        if (!isPreflightScreenMountedRef.current) {
+          return;
+        }
+
         setIsGoingLive(false);
         setHostActionError(formatLiveMutationErrors([]));
       },
@@ -375,6 +430,7 @@ export function HostBroadcastPreflightScreen() {
 
     if (
       hasEndLiveSessionRequestInFlightRef.current ||
+      hasGoLiveRequestInFlightRef.current ||
       hasGoLiveSucceededRef.current
     ) {
       return;
@@ -382,11 +438,7 @@ export function HostBroadcastPreflightScreen() {
 
     const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
       sessionState,
-      {
-        hasEndLiveSessionRequestInFlight:
-          hasEndLiveSessionRequestInFlightRef.current,
-        hasGoLiveSucceeded: hasGoLiveSucceededRef.current,
-      },
+      readPreflightCleanupState(),
     );
 
     if (!liveSessionId) {
@@ -414,7 +466,7 @@ export function HostBroadcastPreflightScreen() {
       setHostActionError(null);
     }
 
-    commitEndLiveSession({
+    commitEndLiveSessionRef.current({
       variables: {
         input: {
           liveSessionId,
@@ -500,24 +552,14 @@ export function HostBroadcastPreflightScreen() {
 
     return () => {
       isMounted = false;
+      isPreflightScreenMountedRef.current = false;
       const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
         latestSessionStateRef.current,
-        {
-          hasEndLiveSessionRequestInFlight:
-            hasEndLiveSessionRequestInFlightRef.current,
-          hasGoLiveSucceeded: hasGoLiveSucceededRef.current,
-        },
+        readPreflightCleanupState(),
       );
 
       if (liveSessionId) {
-        hasEndLiveSessionRequestInFlightRef.current = true;
-        commitEndLiveSessionRef.current({
-          variables: {
-            input: {
-              liveSessionId,
-            },
-          },
-        });
+        requestAbandonedPreflightEndLiveSession(liveSessionId);
       }
 
       native.dispose();
