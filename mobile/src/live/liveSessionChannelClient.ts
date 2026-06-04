@@ -20,6 +20,8 @@ export type LiveSessionChannel = {
     eventName: string,
     callback: (payload: unknown) => void,
   ) => number;
+  readonly onClose?: (callback: () => void) => number;
+  readonly onError?: (callback: (payload: unknown) => void) => number;
   readonly push: (
     eventName: string,
     payload: Record<string, unknown>,
@@ -54,6 +56,8 @@ export type LiveSessionTimelineEventRemoved = Extract<
 >;
 
 export type LiveSessionChannelClientOptions = {
+  readonly onClose?: () => void;
+  readonly onError?: (reason: string) => void;
   readonly onSessionState?: (event: LiveSessionSessionStateEvent) => void;
   readonly onTimelineEvent?: (event: LiveSessionTimelineEvent) => void;
   readonly onTimelineEventRemoved?: (
@@ -97,8 +101,11 @@ export type LiveSessionChannelClient = {
 const GENERIC_JOIN_FAILURE_REASON = 'Could not join live chat. Please try again.';
 const GENERIC_SEND_FAILURE_REASON =
   'Could not send message. Please try again.';
+const GENERIC_CHANNEL_ERROR_REASON = 'Chat connection failed.';
 
 export function createLiveSessionChannelClient({
+  onClose,
+  onError,
   onSessionState,
   onTimelineEvent,
   onTimelineEventRemoved,
@@ -137,6 +144,12 @@ export function createLiveSessionChannelClient({
     if (event?.kind === 'timeline_event_removed') {
       onTimelineEventRemoved?.(event);
     }
+  });
+  channel.onClose?.(() => {
+    onClose?.();
+  });
+  channel.onError?.((payload) => {
+    onError?.(viewerSafeReason(payload, GENERIC_CHANNEL_ERROR_REASON));
   });
 
   return {

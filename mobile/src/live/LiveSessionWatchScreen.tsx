@@ -26,6 +26,7 @@ import {
   type LiveSessionChannelClient,
 } from './liveSessionChannelClient';
 import {
+  canStartLiveSessionChatSend,
   createLiveSessionChatState,
   liveSessionChatReducer,
   selectLiveSessionChatChannelStatus,
@@ -73,6 +74,10 @@ type LiveSessionWatchScreenProps = {
 
 type PendingMutationRef = {
   current: LiveSessionWatchPendingMutation | null;
+};
+
+type PendingChatSendRef = {
+  current: { readonly sessionId: string; readonly token: number } | null;
 };
 
 type AutoLeaveOnUnmountRef = {
@@ -325,6 +330,8 @@ function LiveSessionWatchContent({
     AutoLeaveOnUnmountRef['current']
   >(null);
   const chatChannelClientRef = useRef<LiveSessionChannelClient | null>(null);
+  const chatSendPendingRef = useRef<PendingChatSendRef['current']>(null);
+  const chatSendTokenRef = useRef(0);
   const didUnmountRef = useRef(false);
   const leaveMutationRef = useRef(commitLeaveLiveSession);
 
@@ -361,6 +368,7 @@ function LiveSessionWatchContent({
   useEffect(() => {
     dispatchWatchAction({ type: 'session_changed', sessionId });
     dispatchChatAction({ type: 'session_changed', sessionId });
+    chatSendPendingRef.current = null;
   }, [sessionId]);
 
   useEffect(() => {
@@ -416,8 +424,49 @@ function LiveSessionWatchContent({
       websocketUrl: environment.websocketUrl,
     });
     const client = createLiveSessionChannelClient({
-      onSessionState: () => {
+      onClose: () => {
         if (!isActive) {
+          return;
+        }
+
+        chatChannelClientRef.current = null;
+        failPendingChatSend(
+          session.id,
+          'Chat disconnected before the message was sent.',
+        );
+        dispatchChatAction({
+          sessionId: session.id,
+          status: 'closed',
+          type: 'channel_status_changed',
+        });
+      },
+      onError: (reason) => {
+        if (!isActive) {
+          return;
+        }
+
+        chatChannelClientRef.current = null;
+        failPendingChatSend(session.id, reason);
+        dispatchChatAction({
+          error: reason,
+          sessionId: session.id,
+          status: 'errored',
+          type: 'channel_status_changed',
+        });
+      },
+      onSessionState: (event) => {
+        if (!isActive) {
+          return;
+        }
+
+        if (event.status === 'ENDED') {
+          chatChannelClientRef.current = null;
+          failPendingChatSend(session.id, 'This live session has ended.');
+          dispatchChatAction({
+            sessionId: session.id,
+            status: 'closed',
+            type: 'channel_status_changed',
+          });
           return;
         }
 
@@ -480,7 +529,8 @@ function LiveSessionWatchContent({
       if (result.status === 'joined') {
         dispatchChatAction({
           sessionId: session.id,
-          status: 'joined',
+          status:
+            result.sessionState?.status === 'ENDED' ? 'closed' : 'joined',
           type: 'channel_status_changed',
         });
         return;
@@ -540,6 +590,19 @@ function LiveSessionWatchContent({
           'leave',
         );
       },
+    });
+  }
+
+  function failPendingChatSend(sessionId: string, error: string) {
+    if (chatSendPendingRef.current?.sessionId !== sessionId) {
+      return;
+    }
+
+    chatSendPendingRef.current = null;
+    dispatchChatAction({
+      error,
+      sessionId,
+      type: 'send_failed',
     });
   }
 
@@ -727,7 +790,14 @@ function LiveSessionWatchContent({
   }
 
   async function handleSendChatMessage(body: string) {
-    if (chatChannelStatus !== 'joined') {
+    if (
+      !canStartLiveSessionChatSend({
+        channelStatus: chatChannelStatus,
+        hasPendingSend:
+          chatSendPendingRef.current?.sessionId === liveSessionId,
+        sendStatus: chatSendStatus,
+      })
+    ) {
       return;
     }
 
@@ -737,11 +807,24 @@ function LiveSessionWatchContent({
       return;
     }
 
+    const sendToken = chatSendTokenRef.current + 1;
+    chatSendTokenRef.current = sendToken;
+    chatSendPendingRef.current = {
+      sessionId: liveSessionId,
+      token: sendToken,
+    };
     dispatchChatAction({ sessionId: liveSessionId, type: 'send_started' });
 
     const result = await client.sendChatMessage(body);
+    const isActiveSend =
+      chatSendPendingRef.current?.sessionId === liveSessionId &&
+      chatSendPendingRef.current.token === sendToken;
 
-    if (didUnmountRef.current) {
+    if (isActiveSend) {
+      chatSendPendingRef.current = null;
+    }
+
+    if (didUnmountRef.current || !isActiveSend) {
       return;
     }
 

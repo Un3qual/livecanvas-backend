@@ -67,6 +67,12 @@ export type LiveSessionChatPaginationCursors = {
   readonly startCursor: string | null;
 };
 
+export type LiveSessionChatSendStartInput = {
+  readonly channelStatus: LiveSessionChatChannelStatus;
+  readonly hasPendingSend: boolean;
+  readonly sendStatus: LiveSessionChatSendStatus;
+};
+
 export function createLiveSessionChatState(): LiveSessionChatState {
   return {
     activeSessionId: null,
@@ -104,7 +110,9 @@ export function liveSessionChatReducer(
 
       return {
         ...state,
-        ...replaceWithRows(action.history.rows),
+        ...(state.eventIds.length === 0
+          ? replaceWithRows(action.history.rows)
+          : mergeRetainedRefreshRows(state, action.history.rows)),
         pageInfo: action.history.pageInfo,
       };
 
@@ -229,6 +237,18 @@ export function selectLiveSessionChatSendError(
   return state.sendError;
 }
 
+export function canStartLiveSessionChatSend({
+  channelStatus,
+  hasPendingSend,
+  sendStatus,
+}: LiveSessionChatSendStartInput): boolean {
+  return (
+    channelStatus === 'joined' &&
+    !hasPendingSend &&
+    sendStatus !== 'sending'
+  );
+}
+
 function isActiveSessionAction(
   state: LiveSessionChatState,
   sessionId: string,
@@ -251,6 +271,60 @@ function replaceWithRows(
   }
 
   return { eventIds, eventsById };
+}
+
+function mergeRetainedRefreshRows(
+  state: LiveSessionChatState,
+  rows: ReadonlyArray<LiveSessionTimelineHistoryRow>,
+): Pick<LiveSessionChatState, 'eventIds' | 'eventsById'> {
+  const eventsById = { ...state.eventsById };
+  const existingIds = new Set(state.eventIds);
+  const incomingIds = new Set<string>();
+  const newIncomingIds: Array<string> = [];
+
+  for (const row of rows) {
+    if (incomingIds.has(row.id)) {
+      eventsById[row.id] = row;
+      continue;
+    }
+
+    incomingIds.add(row.id);
+
+    if (!existingIds.has(row.id)) {
+      newIncomingIds.push(row.id);
+    }
+
+    eventsById[row.id] = row;
+  }
+
+  if (newIncomingIds.length === 0) {
+    return {
+      eventIds: state.eventIds,
+      eventsById,
+    };
+  }
+
+  const firstRealtimeIndex = state.eventIds.findIndex((eventId) => {
+    const row = state.eventsById[eventId];
+
+    return row?.cursor === null && !incomingIds.has(eventId);
+  });
+
+  if (firstRealtimeIndex === -1) {
+    return {
+      eventIds: [...state.eventIds, ...newIncomingIds],
+      eventsById,
+    };
+  }
+
+  return {
+    eventIds: [
+      ...state.eventIds.slice(0, firstRealtimeIndex),
+      ...newIncomingIds,
+      ...state.eventIds.slice(firstRealtimeIndex),
+    ],
+    eventsById,
+  };
 }
 
 function prependRows(

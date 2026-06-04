@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  canStartLiveSessionChatSend,
   createLiveSessionChatState,
   liveSessionChatReducer,
   selectLiveSessionChatChannelStatus,
@@ -73,6 +74,55 @@ describe('liveSessionChatReducer', () => {
       endCursor: 'cursor-2',
       startCursor: 'cursor-1',
     });
+  });
+
+  test('retained initial refresh preserves realtime rows already merged into chat', () => {
+    const retained = liveSessionChatReducer(activeState('session-1'), {
+      history: history(
+        [
+          chatRow('event-1', 'retained'),
+          chatRow('event-2', 'retained before live'),
+        ],
+        pageInfo('cursor-1', 'cursor-2'),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+    const withRealtime = liveSessionChatReducer(retained, {
+      event: realtimeTimelineEvent('event-3', 'live message'),
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+
+    const refreshed = liveSessionChatReducer(withRealtime, {
+      history: history(
+        [
+          chatRow('event-1', 'retained refreshed'),
+          chatRow('event-2', 'retained refreshed before live'),
+        ],
+        pageInfo('cursor-1-refresh', 'cursor-2-refresh'),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+
+    expect(refreshed.eventIds).toEqual(['event-1', 'event-2', 'event-3']);
+    expect(selectLiveSessionChatVisibleRows(refreshed).map((row) => row.id)).toEqual(
+      ['event-1', 'event-2', 'event-3'],
+    );
+    expect(selectLiveSessionChatVisibleRows(refreshed)[0]).toMatchObject({
+      body: 'retained refreshed',
+      cursor: 'cursor-event-1',
+      id: 'event-1',
+    });
+    expect(selectLiveSessionChatVisibleRows(refreshed)[2]).toMatchObject({
+      body: 'live message',
+      cursor: null,
+      id: 'event-3',
+    });
+    expect(selectLiveSessionChatPaginationPageInfo(refreshed)).toEqual(
+      pageInfo('cursor-1-refresh', 'cursor-2-refresh'),
+    );
   });
 
   test('older retained page prepends rows without duplicate IDs', () => {
@@ -312,6 +362,40 @@ describe('liveSessionChatReducer', () => {
     expect(selectLiveSessionChatSendStatus(reset)).toBe('idle');
     expect(selectLiveSessionChatSendError(reset)).toBeNull();
     expect(selectLiveSessionChatChannelStatus(reset)).toBe('idle');
+  });
+
+  test('chat send start decision closes same-render pending sends', () => {
+    expect(
+      canStartLiveSessionChatSend({
+        channelStatus: 'joined',
+        hasPendingSend: false,
+        sendStatus: 'idle',
+      }),
+    ).toBe(true);
+
+    expect(
+      canStartLiveSessionChatSend({
+        channelStatus: 'joined',
+        hasPendingSend: true,
+        sendStatus: 'idle',
+      }),
+    ).toBe(false);
+
+    expect(
+      canStartLiveSessionChatSend({
+        channelStatus: 'joined',
+        hasPendingSend: false,
+        sendStatus: 'sending',
+      }),
+    ).toBe(false);
+
+    expect(
+      canStartLiveSessionChatSend({
+        channelStatus: 'closed',
+        hasPendingSend: false,
+        sendStatus: 'idle',
+      }),
+    ).toBe(false);
   });
 });
 

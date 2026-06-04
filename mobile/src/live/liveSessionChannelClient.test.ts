@@ -29,6 +29,8 @@ class FakePush implements LiveSessionChannelPush {
 }
 
 class FakeChannel implements LiveSessionChannel {
+  readonly closeHandlers: Array<() => void> = [];
+  readonly errorHandlers: Array<(payload: unknown) => void> = [];
   readonly handlers = new Map<string, Array<(payload: unknown) => void>>();
   readonly joinPush = new FakePush();
   readonly leavePush = new FakePush();
@@ -53,6 +55,16 @@ class FakeChannel implements LiveSessionChannel {
     return existing.length;
   }
 
+  onClose(callback: () => void): number {
+    this.closeHandlers.push(callback);
+    return this.closeHandlers.length;
+  }
+
+  onError(callback: (payload: unknown) => void): number {
+    this.errorHandlers.push(callback);
+    return this.errorHandlers.length;
+  }
+
   push(
     eventName: string,
     payload: Record<string, unknown>,
@@ -64,6 +76,18 @@ class FakeChannel implements LiveSessionChannel {
 
   emit(eventName: string, payload: unknown): void {
     for (const callback of this.handlers.get(eventName) ?? []) {
+      callback(payload);
+    }
+  }
+
+  close(): void {
+    for (const callback of this.closeHandlers) {
+      callback();
+    }
+  }
+
+  error(payload: unknown = {}): void {
+    for (const callback of this.errorHandlers) {
       callback(payload);
     }
   }
@@ -91,6 +115,8 @@ function createHarness(topic = ' live_session:opaque:topic/with-segments ') {
   const timelineEvents: LiveSessionRealtimeEvent[] = [];
   const updatedTimelineEvents: LiveSessionRealtimeEvent[] = [];
   const removedTimelineEvents: LiveSessionRealtimeEvent[] = [];
+  const closeEvents: string[] = [];
+  const errorEvents: string[] = [];
   const socket = {
     channel: (nextTopic: string) => {
       topics.push(nextTopic);
@@ -98,6 +124,8 @@ function createHarness(topic = ' live_session:opaque:topic/with-segments ') {
     },
   };
   const client = createLiveSessionChannelClient({
+    onClose: () => closeEvents.push('closed'),
+    onError: (reason) => errorEvents.push(reason),
     onSessionState: (event) => sessionStates.push(event),
     onTimelineEvent: (event) => timelineEvents.push(event),
     onTimelineEventRemoved: (event) => removedTimelineEvents.push(event),
@@ -109,6 +137,8 @@ function createHarness(topic = ' live_session:opaque:topic/with-segments ') {
   return {
     channel,
     client,
+    closeEvents,
+    errorEvents,
     removedTimelineEvents,
     sessionStates,
     timelineEvents,
@@ -231,6 +261,16 @@ describe('createLiveSessionChannelClient', () => {
         removedTimelineEventId: 'removed-timeline-event-id',
       },
     ]);
+  });
+
+  test('notifies channel close and error callbacks', () => {
+    const { channel, closeEvents, errorEvents } = createHarness();
+
+    channel.close();
+    channel.error({ reason: 'transport_down' });
+
+    expect(closeEvents).toEqual(['closed']);
+    expect(errorEvents).toEqual(['Chat connection failed.']);
   });
 
   test('pushes chat message sends and normalizes successful replies', async () => {
