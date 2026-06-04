@@ -24,12 +24,14 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active
+- State: idle
 - Track: `docs/plans/mobile/TRACK.md`
-- Current product theme: chat realtime stream plus retained history
+- Current product theme: chat realtime stream plus retained history complete
 - Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
   payload normalization, and a completed backend media runtime foundation. The
-  active batch adds retained timeline history and live chat channel integration.
+  completed chat batch adds retained timeline history and live chat channel
+  integration. The next documented mobile theme is testing, beta distribution,
+  and release readiness.
 
 ## Track Registry
 
@@ -51,10 +53,9 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: active
-- Current theme: chat realtime stream plus retained history
-- Active detailed plan:
-  `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
+- State: idle
+- Current theme: chat realtime stream plus retained history complete
+- Active detailed plan: none selected
 
 ### Backend Code Quality Cleanup
 

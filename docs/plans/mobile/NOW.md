@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-04
-Status: active
+Status: idle
 
 ## Lane Scope
 
@@ -11,25 +11,15 @@ Status: active
 
 ## Current Batch
 
-- Source plan:
+- Last completed source plan:
   `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: chat realtime stream plus retained history
-- Write scope:
-  - `mobile/package.json`
-  - `mobile/pnpm-lock.yaml`
-  - `mobile/schema.graphql`
-  - `mobile/src/live/**`
-  - `mobile/src/realtime/**`
-  - `docs/plans/mobile/**`
-  - coordinator-assigned contract repair in `docs/contracts/mobile-graphql-chat-history.md`
-    and `docs/contracts/mobile-live-session-graphql.md`
+- Task: chat realtime stream plus retained history complete
+- Write scope: none selected
 
 ## Do This Now
 
-Execute the five tasks in
-`docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md` with
-subagent-driven TDD. Use `gpt-5.5` with `xhigh` reasoning for every subagent.
+No mobile implementation batch is currently selected.
 
 ## Guardrails
 
@@ -42,5 +32,6 @@ subagent-driven TDD. Use `gpt-5.5` with `xhigh` reasoning for every subagent.
 
 ## Next Action
 
-Start Task 1: retained timeline history contract repair and mobile presentation
-helpers.
+If the mobile lane remains the product priority, promote the next concrete
+implementation batch from `docs/plans/mobile/TRACK.md`: testing, beta
+distribution, and release readiness.

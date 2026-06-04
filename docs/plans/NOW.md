@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-06-04
-Status: active
+Status: idle
 
 ## Purpose
 
@@ -22,9 +22,9 @@ details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active; chat realtime stream plus retained history
+- State: idle; chat realtime stream plus retained history is complete
 - Scope: `mobile/` and `docs/plans/mobile/**`
-- Current source plan:
+- Completed source plan:
   `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
 
 ## Execution Rule
@@ -42,8 +42,9 @@ track docs.
 
 ## Next Coordinator Decision
 
-Execute the active mobile chat realtime stream plus retained history batch from
-`docs/plans/mobile/NOW.md`.
+Select the next product-completeness batch. If the mobile lane remains the
+priority, promote testing, beta distribution, and release readiness from
+`docs/plans/mobile/TRACK.md`.
 
 ## Repair Conditions
 

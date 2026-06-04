@@ -121,7 +121,7 @@
 - Create: `mobile/src/live/liveSessionChannelClient.ts`
 - Create: `mobile/src/live/liveSessionChannelClient.test.ts`
 
-- [ ] **Step 1: Add the Phoenix JavaScript dependency**
+- [x] **Step 1: Add the Phoenix JavaScript dependency**
 
   Use pnpm so the existing lockfile remains authoritative:
 
@@ -130,7 +130,7 @@
   pnpm add phoenix
   ```
 
-- [ ] **Step 2: Write failing tests for socket creation and channel events**
+- [x] **Step 2: Write failing tests for socket creation and channel events**
 
   Cover:
 
@@ -141,17 +141,25 @@
   - `timeline:chat_message:send` pushes `{body}` and normalizes successful replies
   - push failures return viewer-safe reason strings
 
-- [ ] **Step 3: Implement the socket and channel boundary**
+- [x] **Step 3: Implement the socket and channel boundary**
 
   Keep Phoenix imports isolated to `mobile/src/realtime/phoenixSocket.ts`. Keep `liveSessionChannelClient.ts` testable with an injected channel factory so tests do not need a real socket.
 
-- [ ] **Step 4: Verify Task 3**
+- [x] **Step 4: Verify Task 3**
 
   Run:
 
   ```bash
   bun test mobile/src/realtime/phoenixSocket.test.ts mobile/src/live/liveSessionChannelClient.test.ts mobile/src/live/liveSessionRealtimeEvents.test.ts
   ```
+
+  Evidence:
+
+  - `pnpm add phoenix` updated `mobile/package.json` and `mobile/pnpm-lock.yaml`.
+  - Red runs before implementation failed on the missing channel/socket boundary.
+  - `bun test mobile/src/realtime/phoenixSocket.test.ts mobile/src/live/liveSessionChannelClient.test.ts mobile/src/live/liveSessionRealtimeEvents.test.ts` passed after the injectable channel client was implemented.
+  - Follow-up review hardening added `session:state` callback coverage and a compile-time proof that `createPhoenixSocket` satisfies the channel socket boundary.
+  - `cd mobile && pnpm exec tsc --noEmit` passed.
 
 ## Task 4: Watch Screen Chat Panel Integration
 
@@ -196,6 +204,9 @@
   - `cd mobile && pnpm relay` passed after Watchman sandbox escalation.
   - `bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host` passed 94 tests.
   - `cd mobile && pnpm exec tsc --noEmit` passed.
+  - Post-review hardening preserved realtime rows across retained refreshes, disables chat on channel close/error/session-ended, closes same-render duplicate sends with an in-memory token, and clears pending chat sends during channel cleanup.
+  - `bun test mobile/src/live/liveSessionChatReducer.test.ts mobile/src/live/liveSessionChannelClient.test.ts mobile/src/live/LiveSessionChatPanel.test.ts` passed 24 tests after the channel-cleanup fix.
+  - `cd mobile && pnpm exec tsc --noEmit` passed after the channel-cleanup fix.
 
 ## Task 5: Status Closure And Final Verification
 
@@ -206,15 +217,15 @@
 - Modify: `docs/plans/NOW.md`
 - Modify: `docs/plans/INDEX.md`
 
-- [ ] **Step 1: Mark completed steps in this plan**
+- [x] **Step 1: Mark completed steps in this plan**
 
   Check off completed task steps with evidence summaries.
 
-- [ ] **Step 2: Update lane status**
+- [x] **Step 2: Update lane status**
 
   Mark the mobile lane idle when implementation and verification are complete. Keep backend lane idle.
 
-- [ ] **Step 3: Run final verification**
+- [x] **Step 3: Run final verification**
 
   Run:
 
@@ -224,6 +235,14 @@
   pnpm relay
   pnpm exec tsc --noEmit
   ```
+
+  Evidence:
+
+  - `bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host` passed 98 tests.
+  - `cd mobile && pnpm relay` passed after Watchman sandbox escalation.
+  - `cd mobile && pnpm exec tsc --noEmit` passed.
+  - `test -x scripts/check-docs.sh && scripts/check-docs.sh || test ! -e scripts/check-docs.sh` passed.
+  - `git diff --check` passed.
 
 - [ ] **Step 4: Commit, push, and open PR**
 
