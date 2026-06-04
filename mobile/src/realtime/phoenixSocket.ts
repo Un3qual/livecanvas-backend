@@ -1,5 +1,6 @@
 // @ts-expect-error Phoenix does not ship TypeScript declarations.
 import { Socket } from 'phoenix';
+import type { LiveSessionChannelSocket } from '../live/liveSessionChannelClient';
 
 export type PhoenixAccessTokenProvider = () => string | null;
 
@@ -8,8 +9,7 @@ export type PhoenixSocketOptions = {
   readonly websocketUrl: string;
 };
 
-export type PhoenixSocket = {
-  readonly channel: (topic: string, params?: Record<string, unknown>) => unknown;
+export type PhoenixSocket = LiveSessionChannelSocket & {
   readonly connect: () => void;
   readonly disconnect: (callback?: () => void) => void;
 };
@@ -31,3 +31,8 @@ export function createPhoenixSocket({
     params: () => ({ token: getAccessToken() }),
   });
 }
+
+// Compile-time proof that the Phoenix boundary can feed live-session channels.
+createPhoenixSocket satisfies (
+  options: PhoenixSocketOptions,
+) => LiveSessionChannelSocket;
