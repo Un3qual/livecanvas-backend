@@ -319,6 +319,8 @@ defmodule LCWeb.LiveSessionChannelTest do
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
     signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
 
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
     assert {:ok, _join_payload, socket} =
              subscribe_and_join(
                socket_for(viewer),
@@ -339,6 +341,31 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
 
     assert :ready = Live.media_negotiation_ready?(session.id)
+  end
+
+  test "media:answer requires an active live-session participant before marking readiness" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    ref = push(socket, "media:answer", %{"type" => "answer", "sdp" => "v=0\r\n"})
+
+    assert_reply ref, :error, %{reason: "not_authorized"}, @channel_reply_timeout
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:answer"
+    }
+
+    assert {:not_ready, :media_not_ready} = Live.media_negotiation_ready?(session.id)
   end
 
   test "closing media signaling sockets preserves joined live-session participants" do

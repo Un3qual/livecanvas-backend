@@ -97,6 +97,22 @@ defmodule LC.Live do
   end
 
   @doc """
+  Returns whether a user currently has an active participant row for a live session.
+  """
+  @spec active_live_participant?(pos_integer(), pos_integer()) :: boolean()
+  def active_live_participant?(session_id, user_id)
+      when is_integer(session_id) and is_integer(user_id) do
+    LiveParticipant
+    |> where(
+      [live_participant],
+      live_participant.live_session_id == ^session_id and
+        live_participant.user_id == ^user_id and
+        is_nil(live_participant.left_at)
+    )
+    |> Repo.exists?()
+  end
+
+  @doc """
   Starts a persisted live session and boots its runtime process.
   """
   @spec start_live_session(User.t(), map()) :: live_session_result()
