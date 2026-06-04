@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-03
-Status: active
+Status: idle
 
 ## Lane Scope
 
@@ -11,33 +11,14 @@ Status: active
 
 ## Current Batch
 
-- Source plan:
-  `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
+- Source plan: none selected
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: Task 1, add the native development-build and WebRTC dependency boundary.
-- Files: `mobile/package.json`, `mobile/pnpm-lock.yaml`, `mobile/app.json`,
-  `mobile/index.ts`.
+- Task: none selected
+- Files: none
 
 ## Do This Now
 
-1. Install native/development dependencies in `mobile/`:
-   `pnpm exec expo install expo-dev-client expo-keep-awake`
-2. Add WebRTC dependencies in `mobile/`:
-   `pnpm add react-native-webrtc @config-plugins/react-native-webrtc`
-3. Import `expo-dev-client` before `expo-router/entry` in `mobile/index.ts`.
-4. Add the WebRTC config plugin plus explicit camera/microphone permission copy
-   in `mobile/app.json`, preserving existing metadata.
-5. Run focused verification:
-   `pnpm exec expo config --type public`
-   `./node_modules/.bin/tsc --noEmit`
-6. Mark Task 1 complete in the source plan and commit the dependency-boundary
-   change.
-
-## Done Condition
-
-Task 1 is done when package files, app config, and entrypoint are updated, Expo
-public config resolves, TypeScript passes, and the source plan records the
-completed task.
+No mobile implementation batch is currently selected.
 
 ## Guardrails
 
@@ -49,5 +30,7 @@ completed task.
 
 ## Next Action
 
-After Task 1, continue the same source plan with the pure TypeScript host
-preflight and host session state tasks before building the UI route.
+Coordinate the next product batch. True mobile go-live remains blocked until the
+backend media signaling, ICE/TURN, and WebRTC negotiation contracts are planned.
+The next explicitly selectable mobile batch is chat realtime stream plus
+retained history.

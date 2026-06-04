@@ -13,9 +13,8 @@ streaming, and chat.
 
 - Track state: active
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Active detailed plan:
-  `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
-- Current theme: host broadcast native media preflight
+- Active detailed plan: none selected
+- Current theme: host broadcast native media preflight complete
 - Backend channel-topic dependency: complete. Mobile receives opaque
   `LiveSession.channelTopic`; do not decode Relay IDs client-side.
 - Backend media dependency: incomplete. True go-live remains blocked until
@@ -29,6 +28,7 @@ streaming, and chat.
 - `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
 - `docs/plans/mobile/2026-06-01-live-discovery-viewer-watch-flow.md`
 - `docs/plans/mobile/2026-06-01-live-channel-transport-contract-repair.md`
+- `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
 
 ## Recommended Plan Order
 
