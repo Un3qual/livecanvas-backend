@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<aa54762da37e97488c1e5f3319826ab0>>
+ * @generated SignedSource<<7af37f4ff944ff7dc73134f935d5a97a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,10 +10,13 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type LiveSessionStatus = "ENDED" | "LIVE" | "STARTING" | "%future added value";
+export type LiveSessionTimelineEventType = "CHAT_MESSAGE_SENT" | "LIVE_SESSION_ENDED" | "LIVE_SESSION_STARTED" | "%future added value";
 export type LiveSessionVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
 export type MediaProcessingState = "FAILED" | "PENDING_UPLOAD" | "PROCESSED" | "UPLOADED" | "%future added value";
 export type LiveSessionWatchScreenQuery$variables = {
   id: string;
+  timelineBefore?: string | null | undefined;
+  timelineLast: number;
 };
 export type LiveSessionWatchScreenQuery$data = {
   readonly node: {
@@ -33,6 +36,30 @@ export type LiveSessionWatchScreenQuery$data = {
     } | null | undefined;
     readonly startedAt: string | null | undefined;
     readonly status: LiveSessionStatus;
+    readonly timelineEvents: {
+      readonly edges: ReadonlyArray<{
+        readonly cursor: string | null | undefined;
+        readonly node: {
+          readonly __typename: string;
+          readonly actor: {
+            readonly id: string;
+          } | null | undefined;
+          readonly body?: string;
+          readonly editCount?: number;
+          readonly edited?: boolean;
+          readonly editedAt?: string | null | undefined;
+          readonly eventType: LiveSessionTimelineEventType;
+          readonly id: string;
+          readonly occurredAt: string;
+        } | null | undefined;
+      } | null | undefined> | null | undefined;
+      readonly pageInfo: {
+        readonly endCursor: string | null | undefined;
+        readonly hasNextPage: boolean;
+        readonly hasPreviousPage: boolean;
+        readonly startCursor: string | null | undefined;
+      };
+    } | null | undefined;
     readonly visibility: LiveSessionVisibility;
   } | {
     // This will never be '%other', but we need some
@@ -46,77 +73,85 @@ export type LiveSessionWatchScreenQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "id"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "id"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "timelineBefore"
+},
+v2 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "timelineLast"
+},
+v3 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v2 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v3 = {
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "channelTopic",
   "storageKey": null
 },
-v5 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "status",
   "storageKey": null
 },
-v6 = {
+v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "visibility",
   "storageKey": null
 },
-v7 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "insertedAt",
   "storageKey": null
 },
-v8 = {
+v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "startedAt",
   "storageKey": null
 },
-v9 = {
+v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "endedAt",
   "storageKey": null
 },
-v10 = {
+v12 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -124,7 +159,7 @@ v10 = {
   "name": "host",
   "plural": false,
   "selections": [
-    (v3/*: any*/),
+    (v5/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -135,7 +170,7 @@ v10 = {
   ],
   "storageKey": null
 },
-v11 = {
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "LiveSessionRecordingMediaAsset",
@@ -143,7 +178,7 @@ v11 = {
   "name": "recordingMediaAsset",
   "plural": false,
   "selections": [
-    (v3/*: any*/),
+    (v5/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -160,35 +195,193 @@ v11 = {
     }
   ],
   "storageKey": null
+},
+v14 = {
+  "alias": null,
+  "args": [
+    {
+      "kind": "Variable",
+      "name": "before",
+      "variableName": "timelineBefore"
+    },
+    {
+      "kind": "Variable",
+      "name": "last",
+      "variableName": "timelineLast"
+    }
+  ],
+  "concreteType": "LiveSessionTimelineEventConnection",
+  "kind": "LinkedField",
+  "name": "timelineEvents",
+  "plural": false,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "LiveSessionTimelineEventEdge",
+      "kind": "LinkedField",
+      "name": "edges",
+      "plural": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "cursor",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": null,
+          "kind": "LinkedField",
+          "name": "node",
+          "plural": false,
+          "selections": [
+            (v4/*: any*/),
+            (v5/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "eventType",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "occurredAt",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "User",
+              "kind": "LinkedField",
+              "name": "actor",
+              "plural": false,
+              "selections": [
+                (v5/*: any*/)
+              ],
+              "storageKey": null
+            },
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "body",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "edited",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "editCount",
+                  "storageKey": null
+                },
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "editedAt",
+                  "storageKey": null
+                }
+              ],
+              "type": "ChatMessageEvent",
+              "abstractKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "PageInfo",
+      "kind": "LinkedField",
+      "name": "pageInfo",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "startCursor",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "endCursor",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "hasNextPage",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "hasPreviousPage",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/),
+      (v2/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "LiveSessionWatchScreenQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v4/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
               (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
               (v10/*: any*/),
-              (v11/*: any*/)
+              (v11/*: any*/),
+              (v12/*: any*/),
+              (v13/*: any*/),
+              (v14/*: any*/)
             ],
             "type": "LiveSession",
             "abstractKey": null
@@ -202,31 +395,36 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v2/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Operation",
     "name": "LiveSessionWatchScreenQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/),
+          (v4/*: any*/),
+          (v5/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v4/*: any*/),
-              (v5/*: any*/),
               (v6/*: any*/),
               (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
               (v10/*: any*/),
-              (v11/*: any*/)
+              (v11/*: any*/),
+              (v12/*: any*/),
+              (v13/*: any*/),
+              (v14/*: any*/)
             ],
             "type": "LiveSession",
             "abstractKey": null
@@ -237,16 +435,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "63f715dcf31b3b3d1005be0a596d92d7",
+    "cacheID": "749aefdb2c3e5905824b33f1faa39b06",
     "id": null,
     "metadata": {},
     "name": "LiveSessionWatchScreenQuery",
     "operationKind": "query",
-    "text": "query LiveSessionWatchScreenQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on LiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n      recordingMediaAsset {\n        id\n        processingState\n        publicUrl\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query LiveSessionWatchScreenQuery(\n  $id: ID!\n  $timelineLast: Int!\n  $timelineBefore: String\n) {\n  node(id: $id) {\n    __typename\n    ... on LiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n      recordingMediaAsset {\n        id\n        processingState\n        publicUrl\n      }\n      timelineEvents(last: $timelineLast, before: $timelineBefore) {\n        edges {\n          cursor\n          node {\n            __typename\n            id\n            eventType\n            occurredAt\n            actor {\n              id\n            }\n            ... on ChatMessageEvent {\n              body\n              edited\n              editCount\n              editedAt\n            }\n          }\n        }\n        pageInfo {\n          startCursor\n          endCursor\n          hasNextPage\n          hasPreviousPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "57bcd12a35f80e3c63c95f59be195bd7";
+(node as any).hash = "4b3d75efd00794393546016b66f17351";
 
 export default node;

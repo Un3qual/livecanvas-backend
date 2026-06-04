@@ -1,6 +1,7 @@
 import React, {
   Suspense,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   type PropsWithChildren,
@@ -9,13 +10,29 @@ import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
 
+import { useAuth } from '../auth/AuthProvider';
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
 import { formatProfileIdentity } from '../profile/profilePresentation';
+import { useStartupState } from '../providers/StartupGate';
 import { useAppTheme } from '../providers/ThemeProvider';
+import { createPhoenixSocket } from '../realtime/phoenixSocket';
 import { radius, spacing, typography } from '../theme/tokens';
+import { LiveSessionChatPanel } from './LiveSessionChatPanel';
+import {
+  createLiveSessionChannelClient,
+  type LiveSessionChannelClient,
+} from './liveSessionChannelClient';
+import {
+  createLiveSessionChatState,
+  liveSessionChatReducer,
+  selectLiveSessionChatChannelStatus,
+  selectLiveSessionChatSendError,
+  selectLiveSessionChatSendStatus,
+  selectLiveSessionChatVisibleRows,
+} from './liveSessionChatReducer';
 import {
   badgeColorsForLiveStatusTone,
   canEnterLiveSession,
@@ -36,6 +53,10 @@ import {
   shouldAutoLeaveLiveSession,
   type LiveSessionWatchPendingMutation,
 } from './liveSessionWatchReducer';
+import {
+  readLiveSessionTimelineHistory,
+  type LiveSessionTimelineHistoryConnection,
+} from './liveSessionTimelineHistory';
 import type { LiveSessionWatchScreenJoinMutation } from './__generated__/LiveSessionWatchScreenJoinMutation.graphql';
 import type { LiveSessionWatchScreenLeaveMutation } from './__generated__/LiveSessionWatchScreenLeaveMutation.graphql';
 import type { LiveSessionWatchScreenQuery } from './__generated__/LiveSessionWatchScreenQuery.graphql';
@@ -61,6 +82,8 @@ type AutoLeaveOnUnmountRef = {
 type LiveSessionWatchContentProps = LiveSessionWatchScreenProps & {
   pendingMutationRef: PendingMutationRef;
 };
+
+const INITIAL_TIMELINE_HISTORY_COUNT = 30;
 
 const liveSessionWatchScreenJoinMutation = graphql`
   mutation LiveSessionWatchScreenJoinMutation(
@@ -217,9 +240,15 @@ function LiveSessionWatchContent({
 }: LiveSessionWatchContentProps) {
   const theme = useAppTheme();
   const router = useRouter();
+  const auth = useAuth();
+  const { environment } = useStartupState();
   const data = useLazyLoadQuery<LiveSessionWatchScreenQuery>(
     graphql`
-      query LiveSessionWatchScreenQuery($id: ID!) {
+      query LiveSessionWatchScreenQuery(
+        $id: ID!
+        $timelineLast: Int!
+        $timelineBefore: String
+      ) {
         node(id: $id) {
           __typename
           ... on LiveSession {
@@ -239,16 +268,50 @@ function LiveSessionWatchContent({
               processingState
               publicUrl
             }
+            timelineEvents(last: $timelineLast, before: $timelineBefore) {
+              edges {
+                cursor
+                node {
+                  __typename
+                  id
+                  eventType
+                  occurredAt
+                  actor {
+                    id
+                  }
+                  ... on ChatMessageEvent {
+                    body
+                    edited
+                    editCount
+                    editedAt
+                  }
+                }
+              }
+              pageInfo {
+                startCursor
+                endCursor
+                hasNextPage
+                hasPreviousPage
+              }
+            }
           }
         }
       }
     `,
-    { id: sessionId },
+    {
+      id: sessionId,
+      timelineBefore: null,
+      timelineLast: INITIAL_TIMELINE_HISTORY_COUNT,
+    },
     { fetchPolicy: 'store-and-network' },
   );
   const [watchState, dispatchWatchAction] = useReducer(
     liveSessionWatchReducer,
     createLiveSessionWatchState(),
+  );
+  const [chatState, dispatchChatAction] = useReducer(
+    liveSessionChatReducer,
+    createLiveSessionChatState(),
   );
   const [commitJoinLiveSession] =
     useMutation<LiveSessionWatchScreenJoinMutation>(
@@ -261,14 +324,56 @@ function LiveSessionWatchContent({
   const autoLeaveOnUnmountRef = useRef<
     AutoLeaveOnUnmountRef['current']
   >(null);
+  const chatChannelClientRef = useRef<LiveSessionChannelClient | null>(null);
   const didUnmountRef = useRef(false);
   const leaveMutationRef = useRef(commitLeaveLiveSession);
 
   leaveMutationRef.current = commitLeaveLiveSession;
 
+  const session =
+    data.node?.__typename === 'LiveSession' ? data.node : null;
+  const retainedTimelineConnection = session?.timelineEvents ?? null;
+  const retainedTimelineHistory = useMemo(
+    () =>
+      readLiveSessionTimelineHistory(
+        retainedTimelineConnection as LiveSessionTimelineHistoryConnection,
+      ),
+    [retainedTimelineConnection],
+  );
+  const normalizedStatus = normalizeLiveSessionStatus(
+    session?.status ?? 'ENDED',
+  );
+  const enterable = canEnterLiveSession(normalizedStatus);
+  const isCurrentSession =
+    session !== null && watchState.activeSessionId === session.id;
+  const isJoined = isCurrentSession && watchState.isJoined;
+  const visibleSubmission = session
+    ? readLiveSessionWatchSubmission(watchState, session.id)
+    : 'idle';
+  const isJoining = visibleSubmission === 'joining';
+  const isLeaving = visibleSubmission === 'leaving';
+  const hasActiveSubmission = visibleSubmission !== 'idle';
+  const chatRows = selectLiveSessionChatVisibleRows(chatState);
+  const chatChannelStatus = selectLiveSessionChatChannelStatus(chatState);
+  const chatSendStatus = selectLiveSessionChatSendStatus(chatState);
+  const chatSendError = selectLiveSessionChatSendError(chatState);
+
   useEffect(() => {
     dispatchWatchAction({ type: 'session_changed', sessionId });
+    dispatchChatAction({ type: 'session_changed', sessionId });
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    dispatchChatAction({
+      history: retainedTimelineHistory,
+      sessionId: session.id,
+      type: 'retained_initial_loaded',
+    });
+  }, [retainedTimelineHistory, session?.id]);
 
   useEffect(() => {
     didUnmountRef.current = false;
@@ -284,6 +389,125 @@ function LiveSessionWatchContent({
       commitDetachedLeaveLiveSession(autoLeave.sessionId);
     };
   }, [pendingMutationRef]);
+
+  useEffect(() => {
+    if (
+      !session ||
+      !isJoined ||
+      !session.channelTopic ||
+      auth.state.status !== 'authenticated'
+    ) {
+      chatChannelClientRef.current = null;
+
+      if (session) {
+        dispatchChatAction({
+          sessionId: session.id,
+          status: 'idle',
+          type: 'channel_status_changed',
+        });
+      }
+
+      return;
+    }
+
+    let isActive = true;
+    const socket = createPhoenixSocket({
+      getAccessToken: auth.getAccessToken,
+      websocketUrl: environment.websocketUrl,
+    });
+    const client = createLiveSessionChannelClient({
+      onSessionState: () => {
+        if (!isActive) {
+          return;
+        }
+
+        dispatchChatAction({
+          sessionId: session.id,
+          status: 'joined',
+          type: 'channel_status_changed',
+        });
+      },
+      onTimelineEvent: (event) => {
+        if (!isActive) {
+          return;
+        }
+
+        dispatchChatAction({
+          event,
+          sessionId: session.id,
+          type: 'realtime_event_received',
+        });
+      },
+      onTimelineEventRemoved: (event) => {
+        if (!isActive) {
+          return;
+        }
+
+        dispatchChatAction({
+          event,
+          sessionId: session.id,
+          type: 'realtime_event_received',
+        });
+      },
+      onTimelineEventUpdated: (event) => {
+        if (!isActive) {
+          return;
+        }
+
+        dispatchChatAction({
+          event,
+          sessionId: session.id,
+          type: 'realtime_event_received',
+        });
+      },
+      socket,
+      topic: session.channelTopic,
+    });
+
+    chatChannelClientRef.current = client;
+    dispatchChatAction({
+      sessionId: session.id,
+      status: 'joining',
+      type: 'channel_status_changed',
+    });
+    socket.connect();
+
+    void client.join().then((result) => {
+      if (!isActive) {
+        return;
+      }
+
+      if (result.status === 'joined') {
+        dispatchChatAction({
+          sessionId: session.id,
+          status: 'joined',
+          type: 'channel_status_changed',
+        });
+        return;
+      }
+
+      dispatchChatAction({
+        error: result.reason,
+        sessionId: session.id,
+        status: 'errored',
+        type: 'channel_status_changed',
+      });
+    });
+
+    return () => {
+      isActive = false;
+      chatChannelClientRef.current = null;
+      client.leave();
+      socket.disconnect();
+    };
+  }, [
+    auth.getAccessToken,
+    auth.state.status,
+    environment.websocketUrl,
+    isJoined,
+    session?.channelTopic,
+    session?.id,
+  ]);
 
   function commitDetachedLeaveLiveSession(sessionId: string) {
     if (
@@ -319,29 +543,20 @@ function LiveSessionWatchContent({
     });
   }
 
-  if (data.node?.__typename !== 'LiveSession') {
+  const liveSession = session;
+
+  if (!liveSession) {
     return <UnavailableLiveSession onBack={() => router.back()} />;
   }
 
-  const session = data.node;
-  const normalizedStatus = normalizeLiveSessionStatus(session.status);
+  const liveSessionId = liveSession.id;
   const status = formatLiveSessionStatus(normalizedStatus);
-  const enterable = canEnterLiveSession(normalizedStatus);
-  const isCurrentSession = watchState.activeSessionId === session.id;
-  const isJoined = isCurrentSession && watchState.isJoined;
-  const visibleSubmission = readLiveSessionWatchSubmission(
-    watchState,
-    session.id,
-  );
-  const isJoining = visibleSubmission === 'joining';
-  const isLeaving = visibleSubmission === 'leaving';
-  const hasActiveSubmission = visibleSubmission !== 'idle';
 
   autoLeaveOnUnmountRef.current = {
-    sessionId: session.id,
+    sessionId: liveSessionId,
     shouldLeave: shouldAutoLeaveLiveSession(
       watchState,
-      session.id,
+      liveSessionId,
       pendingMutationRef.current,
     ),
   };
@@ -355,26 +570,26 @@ function LiveSessionWatchContent({
       isJoined ||
       isLiveSessionWatchAnyMutationPending(
         pendingMutationRef.current,
-        session.id,
+        liveSessionId,
       )
     ) {
       return;
     }
 
-    pendingMutationRef.current = { kind: 'join', sessionId: session.id };
-    dispatchWatchAction({ type: 'join_started', sessionId: session.id });
+    pendingMutationRef.current = { kind: 'join', sessionId: liveSessionId };
+    dispatchWatchAction({ type: 'join_started', sessionId: liveSessionId });
 
     commitJoinLiveSession({
       variables: {
         input: {
-          liveSessionId: session.id,
+          liveSessionId,
         },
       },
       onCompleted: (payload) => {
         const result = payload.joinLiveSession;
         pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
           pendingMutationRef.current,
-          session.id,
+          liveSessionId,
           'join',
         );
 
@@ -385,30 +600,30 @@ function LiveSessionWatchContent({
 
           dispatchWatchAction({
             error: formatLiveMutationErrors(result?.errors),
-            sessionId: session.id,
+            sessionId: liveSessionId,
             type: 'join_failed',
           });
           return;
         }
 
         if (didUnmountRef.current) {
-          commitDetachedLeaveLiveSession(session.id);
+          commitDetachedLeaveLiveSession(liveSessionId);
           return;
         }
 
         autoLeaveOnUnmountRef.current = {
-          sessionId: session.id,
+          sessionId: liveSessionId,
           shouldLeave: true,
         };
         dispatchWatchAction({
-          sessionId: session.id,
+          sessionId: liveSessionId,
           type: 'join_succeeded',
         });
       },
       onError: () => {
         pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
           pendingMutationRef.current,
-          session.id,
+          liveSessionId,
           'join',
         );
 
@@ -418,7 +633,7 @@ function LiveSessionWatchContent({
 
         dispatchWatchAction({
           error: formatLiveMutationErrors([]),
-          sessionId: session.id,
+          sessionId: liveSessionId,
           type: 'join_failed',
         });
       },
@@ -431,36 +646,36 @@ function LiveSessionWatchContent({
       hasActiveSubmission ||
       isLiveSessionWatchAnyMutationPending(
         pendingMutationRef.current,
-        session.id,
+        liveSessionId,
       )
     ) {
       return;
     }
 
-    pendingMutationRef.current = { kind: 'leave', sessionId: session.id };
+    pendingMutationRef.current = { kind: 'leave', sessionId: liveSessionId };
     autoLeaveOnUnmountRef.current = {
-      sessionId: session.id,
+      sessionId: liveSessionId,
       shouldLeave: false,
     };
-    dispatchWatchAction({ type: 'leave_started', sessionId: session.id });
+    dispatchWatchAction({ type: 'leave_started', sessionId: liveSessionId });
 
     commitLeaveLiveSession({
       variables: {
         input: {
-          liveSessionId: session.id,
+          liveSessionId,
         },
       },
       onCompleted: (payload) => {
         const result = payload.leaveLiveSession;
         pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
           pendingMutationRef.current,
-          session.id,
+          liveSessionId,
           'leave',
         );
 
         if (!result?.left || (result.errors?.length ?? 0) > 0) {
           autoLeaveOnUnmountRef.current = {
-            sessionId: session.id,
+            sessionId: liveSessionId,
             shouldLeave: true,
           };
           if (didUnmountRef.current) {
@@ -469,14 +684,14 @@ function LiveSessionWatchContent({
 
           dispatchWatchAction({
             error: formatLiveMutationErrors(result?.errors),
-            sessionId: session.id,
+            sessionId: liveSessionId,
             type: 'leave_failed',
           });
           return;
         }
 
         autoLeaveOnUnmountRef.current = {
-          sessionId: session.id,
+          sessionId: liveSessionId,
           shouldLeave: false,
         };
         if (didUnmountRef.current) {
@@ -484,18 +699,18 @@ function LiveSessionWatchContent({
         }
 
         dispatchWatchAction({
-          sessionId: session.id,
+          sessionId: liveSessionId,
           type: 'leave_succeeded',
         });
       },
       onError: () => {
         pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
           pendingMutationRef.current,
-          session.id,
+          liveSessionId,
           'leave',
         );
         autoLeaveOnUnmountRef.current = {
-          sessionId: session.id,
+          sessionId: liveSessionId,
           shouldLeave: true,
         };
         if (didUnmountRef.current) {
@@ -504,10 +719,52 @@ function LiveSessionWatchContent({
 
         dispatchWatchAction({
           error: formatLiveMutationErrors([]),
-          sessionId: session.id,
+          sessionId: liveSessionId,
           type: 'leave_failed',
         });
       },
+    });
+  }
+
+  async function handleSendChatMessage(body: string) {
+    if (chatChannelStatus !== 'joined') {
+      return;
+    }
+
+    const client = chatChannelClientRef.current;
+
+    if (!client) {
+      return;
+    }
+
+    dispatchChatAction({ sessionId: liveSessionId, type: 'send_started' });
+
+    const result = await client.sendChatMessage(body);
+
+    if (didUnmountRef.current) {
+      return;
+    }
+
+    if (result.status === 'ok') {
+      dispatchChatAction({
+        event: {
+          event: result.event,
+          kind: 'timeline_event',
+        },
+        sessionId: liveSessionId,
+        type: 'realtime_event_received',
+      });
+      dispatchChatAction({
+        sessionId: liveSessionId,
+        type: 'send_succeeded',
+      });
+      return;
+    }
+
+    dispatchChatAction({
+      error: result.reason,
+      sessionId: liveSessionId,
+      type: 'send_failed',
     });
   }
 
@@ -518,7 +775,7 @@ function LiveSessionWatchContent({
     >
       <LiveSessionHero
         isJoined={isJoined}
-        session={session}
+        session={liveSession}
         status={status}
         normalizedStatus={normalizedStatus}
       />
@@ -529,20 +786,20 @@ function LiveSessionWatchContent({
         <MetadataRow
           label="Visibility"
           value={formatLiveSessionVisibility(
-            normalizeLiveSessionVisibility(session.visibility),
+            normalizeLiveSessionVisibility(liveSession.visibility),
           )}
         />
         <MetadataRow
           label="Timing"
           value={formatLiveSessionTiming({
-            endedAt: session.endedAt,
-            insertedAt: session.insertedAt,
-            startedAt: session.startedAt,
+            endedAt: liveSession.endedAt,
+            insertedAt: liveSession.insertedAt,
+            startedAt: liveSession.startedAt,
             status: normalizedStatus,
           })}
         />
-        {session.recordingMediaAsset ? (
-          <RecordingMetadata asset={session.recordingMediaAsset} />
+        {liveSession.recordingMediaAsset ? (
+          <RecordingMetadata asset={liveSession.recordingMediaAsset} />
         ) : null}
       </AppCard>
 
@@ -588,6 +845,15 @@ function LiveSessionWatchContent({
           />
         )}
       </AppCard>
+
+      <LiveSessionChatPanel
+        channelStatus={chatChannelStatus}
+        isJoined={isJoined}
+        onSendMessage={handleSendChatMessage}
+        rows={chatRows}
+        sendError={chatSendError}
+        sendStatus={chatSendStatus}
+      />
     </ScrollView>
   );
 }

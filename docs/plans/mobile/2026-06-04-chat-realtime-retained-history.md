@@ -161,11 +161,11 @@
 - Modify: `mobile/src/live/LiveSessionWatchScreen.tsx`
 - Modify: `mobile/src/live/__generated__/LiveSessionWatchScreenQuery.graphql.ts`
 
-- [ ] **Step 1: Write failing presentation/integration tests**
+- [x] **Step 1: Write failing presentation/integration tests**
 
   Add pure tests for chat panel props where possible. If TSX tests need mocks, avoid module mocks that leak into unrelated tests.
 
-- [ ] **Step 2: Extend the watch query**
+- [x] **Step 2: Extend the watch query**
 
   Query:
 
@@ -175,11 +175,11 @@
 
   Keep the existing live-session metadata fields.
 
-- [ ] **Step 3: Render the chat panel**
+- [x] **Step 3: Render the chat panel**
 
   Show retained timeline rows, lifecycle rows, empty state, join/channel status, composer disabled states, pending send state, and viewer-safe send errors. Preserve existing join/leave controls.
 
-- [ ] **Step 4: Run Relay compiler and verify Task 4**
+- [x] **Step 4: Run Relay compiler and verify Task 4**
 
   Run:
 
@@ -189,6 +189,13 @@
   cd ..
   bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host
   ```
+
+  Evidence:
+
+  - Red run before implementation failed with missing `./LiveSessionChatPanel`.
+  - `cd mobile && pnpm relay` passed after Watchman sandbox escalation.
+  - `bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host` passed 94 tests.
+  - `cd mobile && pnpm exec tsc --noEmit` passed.
 
 ## Task 5: Status Closure And Final Verification
 
