@@ -26,6 +26,7 @@ import {
 import { createHostBroadcastNative } from './hostBroadcastNative';
 import {
   canRequestHostGoLive,
+  canSubmitHostPreflightStartRequest,
   canUseHostPreflightBackAction,
   createHostBroadcastSessionState,
   hostBroadcastPreflightCleanupLiveSessionId,
@@ -196,6 +197,7 @@ export function HostBroadcastPreflightScreen() {
     );
   const latestSessionStateRef = useRef(sessionState);
   const commitEndLiveSessionRef = useRef(commitEndLiveSession);
+  const hasStartLiveSessionRequestInFlightRef = useRef(false);
   const hasEndLiveSessionRequestInFlightRef = useRef(false);
   const hasGoLiveSucceededRef = useRef(false);
   const hasPreparedMedia = preparedMedia !== null;
@@ -234,10 +236,16 @@ export function HostBroadcastPreflightScreen() {
   }
 
   function handleCreateSessionPress() {
-    if (!canCreateSession) {
+    if (
+      !canSubmitHostPreflightStartRequest(canCreateSession, {
+        hasStartLiveSessionRequestInFlight:
+          hasStartLiveSessionRequestInFlightRef.current,
+      })
+    ) {
       return;
     }
 
+    hasStartLiveSessionRequestInFlightRef.current = true;
     dispatchSessionAction({ type: 'start_requested' });
     resetPreparedMedia();
     setHostActionError(null);
@@ -257,6 +265,7 @@ export function HostBroadcastPreflightScreen() {
             type: 'start_failed',
             viewerSafeErrorText,
           });
+          hasStartLiveSessionRequestInFlightRef.current = false;
           setHostActionError(viewerSafeErrorText);
           return;
         }
@@ -268,6 +277,7 @@ export function HostBroadcastPreflightScreen() {
       },
       onError: () => {
         const viewerSafeErrorText = formatLiveMutationErrors([]);
+        hasStartLiveSessionRequestInFlightRef.current = false;
         dispatchSessionAction({
           type: 'start_failed',
           viewerSafeErrorText,

@@ -258,6 +258,23 @@ defmodule LCWeb.LiveSessionChannel do
     end
   end
 
+  defp authorize_live_media_event_role("media:ice_candidate", %{id: user_id}, %{
+         id: live_session_id,
+         host_id: host_id
+       })
+       when is_integer(user_id) and is_integer(live_session_id) and is_integer(host_id) do
+    cond do
+      user_id == host_id ->
+        :ok
+
+      Live.active_live_participant?(live_session_id, user_id) ->
+        :ok
+
+      true ->
+        {:error, :not_authorized}
+    end
+  end
+
   defp authorize_live_media_event_role(_event, _current_user, _live_session), do: :ok
 
   defp maybe_mark_live_media_ready(

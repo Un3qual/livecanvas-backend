@@ -16,6 +16,10 @@ export type HostBroadcastPreflightCleanupState = {
   readonly hasGoLiveSucceeded: boolean;
 };
 
+export type HostBroadcastPreflightStartSubmissionState = {
+  readonly hasStartLiveSessionRequestInFlight: boolean;
+};
+
 export type HostBroadcastSessionAction =
   | { readonly type: 'start_requested' }
   | { readonly type: 'start_succeeded'; readonly liveSessionId: string }
@@ -40,6 +44,16 @@ export function canRequestHostGoLive(
     state.status === 'starting' &&
     state.liveSessionId !== null &&
     backendMediaReady
+  );
+}
+
+export function canSubmitHostPreflightStartRequest(
+  canCreateSession: boolean,
+  submissionState: HostBroadcastPreflightStartSubmissionState,
+): boolean {
+  return (
+    canCreateSession &&
+    !submissionState.hasStartLiveSessionRequestInFlight
   );
 }
 

@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   canRequestHostGoLive,
   canRequestHostPreflightBackCleanup,
+  canSubmitHostPreflightStartRequest,
   canUseHostPreflightBackAction,
   createHostBroadcastSessionState,
   hostBroadcastPreflightCleanupLiveSessionId,
@@ -78,6 +79,24 @@ describe('hostBroadcastSessionReducer', () => {
     );
     expect(canRequestHostGoLive(starting, false)).toBe(false);
     expect(canRequestHostGoLive(starting, true)).toBe(true);
+  });
+
+  test('blocks duplicate start submission while a request is already in flight', () => {
+    expect(
+      canSubmitHostPreflightStartRequest(true, {
+        hasStartLiveSessionRequestInFlight: false,
+      }),
+    ).toBe(true);
+    expect(
+      canSubmitHostPreflightStartRequest(true, {
+        hasStartLiveSessionRequestInFlight: true,
+      }),
+    ).toBe(false);
+    expect(
+      canSubmitHostPreflightStartRequest(false, {
+        hasStartLiveSessionRequestInFlight: false,
+      }),
+    ).toBe(false);
   });
 
   test('tracks end request and clears session state on end success', () => {

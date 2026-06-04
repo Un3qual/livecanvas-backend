@@ -497,6 +497,55 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
   end
 
+  test "media:ice_candidate requires the host or an active live-session participant" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    candidate =
+      "candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ srflx raddr 0.0.0.0 rport 0"
+
+    ref =
+      push(socket, "media:ice_candidate", %{
+        "candidate" => candidate
+      })
+
+    assert_reply ref, :error, %{reason: "not_authorized"}, @channel_reply_timeout
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:ice_candidate"
+    }
+
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
+    expected_payload = %{
+      candidate: candidate,
+      sender_role: "viewer"
+    }
+
+    active_ref =
+      push(socket, "media:ice_candidate", %{
+        "candidate" => candidate
+      })
+
+    assert_reply active_ref, :ok, ^expected_payload, @channel_reply_timeout
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:ice_candidate",
+      payload: ^expected_payload
+    }
+  end
+
   test "media offers are host-only and media events are rejected on the shared session topic" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
