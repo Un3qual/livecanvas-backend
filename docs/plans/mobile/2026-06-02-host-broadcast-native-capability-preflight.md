@@ -41,7 +41,7 @@ route and UI entry point. Task 6 verifies and closes the lane handoff.
 
 - [x] Task 1: Add the native development-build and WebRTC dependency boundary
 - [x] Task 2: Add host preflight state and permission gating
-- [ ] Task 3: Add a mockable native media adapter boundary
+- [x] Task 3: Add a mockable native media adapter boundary
 - [ ] Task 4: Add host session lifecycle state with media-contract gating
 - [ ] Task 5: Build the host preflight route and home entry point
 - [ ] Task 6: Verify, close lane docs, and hand off backend media signaling
