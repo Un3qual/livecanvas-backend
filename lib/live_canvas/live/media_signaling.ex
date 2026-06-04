@@ -3,6 +3,8 @@ defmodule LC.Live.MediaSignaling do
   Pure boundary for mobile live media signaling setup and payload validation.
   """
 
+  require Logger
+
   @offer_event "media:offer"
   @answer_event "media:answer"
   @ice_candidate_event "media:ice_candidate"
@@ -69,14 +71,23 @@ defmodule LC.Live.MediaSignaling do
     provider = Keyword.get(opts, :provider, configured_provider())
     provider_config = Keyword.get(opts, :provider_config, configured_provider_config())
 
-    case provider.ice_servers(provider_config) do
+    case fetch_provider_ice_servers(provider, provider_config) do
       {:ok, ice_servers} ->
-        validate_ice_servers(ice_servers)
+        case validate_ice_servers(ice_servers) do
+          {:ok, ice_servers} ->
+            {:ok, ice_servers}
+
+          {:error, :invalid_ice_server_config} ->
+            log_invalid_ice_server_config(provider)
+            {:error, :invalid_ice_server_config}
+        end
 
       {:error, _reason} ->
+        log_provider_failure(provider)
         {:error, :ice_server_provider_failed}
 
       _other ->
+        log_provider_failure(provider)
         {:error, :ice_server_provider_failed}
     end
   end
@@ -238,6 +249,28 @@ defmodule LC.Live.MediaSignaling do
   defp reject_nil_values(payload) do
     Map.reject(payload, fn {_key, value} -> is_nil(value) end)
   end
+
+  defp fetch_provider_ice_servers(provider, provider_config) do
+    provider.ice_servers(provider_config)
+  rescue
+    _exception ->
+      {:error, :ice_server_provider_failed}
+  end
+
+  defp log_provider_failure(provider) do
+    Logger.warning(
+      "live media ICE server provider failed provider=#{provider_log_name(provider)}"
+    )
+  end
+
+  defp log_invalid_ice_server_config(provider) do
+    Logger.warning(
+      "live media ICE server provider returned invalid server configuration provider=#{provider_log_name(provider)}"
+    )
+  end
+
+  defp provider_log_name(provider) when is_atom(provider), do: inspect(provider)
+  defp provider_log_name(_provider), do: "invalid_provider"
 
   @spec validate_ice_servers(term()) :: ice_server_result()
   defp validate_ice_servers(ice_servers) when is_list(ice_servers) and ice_servers != [] do
