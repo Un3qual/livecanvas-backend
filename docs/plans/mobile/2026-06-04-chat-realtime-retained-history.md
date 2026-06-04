@@ -244,6 +244,11 @@
   - `test -x scripts/check-docs.sh && scripts/check-docs.sh || test ! -e scripts/check-docs.sh` passed.
   - `git diff --check` passed.
 
-- [ ] **Step 4: Commit, push, and open PR**
+- [x] **Step 4: Commit, push, and open PR**
 
   Commit scoped milestones as tasks finish. After final verification, push `codex/mobile-chat-realtime-history` and open a PR unless the user explicitly redirects.
+
+  Evidence:
+
+  - Branch pushed to `origin/codex/mobile-chat-realtime-history`.
+  - PR opened: https://github.com/Un3qual/livecanvas-backend/pull/99
