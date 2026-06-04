@@ -22,6 +22,29 @@ defmodule LCGQL.Live.LiveMutationsTest do
   }
   """
 
+  @prepare_live_media_session_mutation """
+  mutation PrepareLiveMediaSession($liveSessionId: ID!) {
+    prepareLiveMediaSession(input: {liveSessionId: $liveSessionId}) {
+      liveSession {
+        id
+        status
+        channelTopic
+      }
+      signalingTopic
+      iceServers {
+        urls
+        username
+        credential
+        credentialType
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+  """
+
   describe "startLiveSession" do
     test "starts a live session for the authenticated viewer" do
       viewer = user_fixture()
@@ -349,6 +372,179 @@ defmodule LCGQL.Live.LiveMutationsTest do
                Live.get_live_session!(local_id)
 
       assert recording_media_asset_local_id == recording_asset.id
+    end
+  end
+
+  describe "prepareLiveMediaSession" do
+    test "returns live media setup metadata to the host" do
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      expected_topic = LiveSessionTopics.live_session_topic(started_session.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => %{
+                      "id" => ^session_id,
+                      "status" => "STARTING",
+                      "channelTopic" => ^expected_topic
+                    },
+                    "signalingTopic" => ^expected_topic,
+                    "iceServers" => [
+                      %{
+                        "urls" => ["stun:stun.l.google.com:19302"],
+                        "username" => nil,
+                        "credential" => nil,
+                        "credentialType" => nil
+                      }
+                    ],
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+    end
+
+    test "returns an unauthenticated payload error without a viewer scope" do
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => nil,
+                    "signalingTopic" => nil,
+                    "iceServers" => [],
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 variables: %{"liveSessionId" => session_id}
+               )
+    end
+
+    test "rejects non-host viewers" do
+      host = user_fixture()
+      other_viewer = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(other_viewer)}
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => nil,
+                    "signalingTopic" => nil,
+                    "iceServers" => [],
+                    "errors" => [%{"field" => nil, "message" => "not_authorized"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+    end
+
+    test "returns structured invalid-id errors for malformed IDs" do
+      host = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => nil,
+                    "signalingTopic" => nil,
+                    "iceServers" => [],
+                    "errors" => [%{"field" => "liveSessionId", "message" => "is invalid"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => "not-a-relay-id"}
+               )
+    end
+
+    test "returns structured invalid-id errors for non-live-session global IDs" do
+      host = user_fixture()
+      other_user = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      non_session_id = Absinthe.Relay.Node.to_global_id(:user, other_user.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => nil,
+                    "signalingTopic" => nil,
+                    "iceServers" => [],
+                    "errors" => [%{"field" => "liveSessionId", "message" => "is invalid"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => non_session_id}
+               )
+    end
+
+    test "rejects ended sessions" do
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
+      {:ok, ended_session} = Live.end_live_session(started_session)
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, ended_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => nil,
+                    "signalingTopic" => nil,
+                    "iceServers" => [],
+                    "errors" => [%{"field" => nil, "message" => "ended"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
     end
   end
 

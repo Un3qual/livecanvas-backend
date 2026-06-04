@@ -9,7 +9,7 @@ defmodule LC.Live do
   alias LC.Content
   alias LC.Infra.Repo
   alias LC.ReadPolicy
-  alias LC.Live.{RuntimeRPC, SessionSupervisor}
+  alias LC.Live.{MediaSignaling, RuntimeRPC, SessionSupervisor}
   alias LC.RealtimeRuntime.SessionServer
   alias LC.Live.LiveParticipant, as: LiveParticipantChanges
   alias LC.Live.LiveSession, as: LiveSessionChanges
@@ -44,6 +44,8 @@ defmodule LC.Live do
           visibility: LCSchemas.Live.live_session_visibility(),
           viewer_count: non_neg_integer()
         }
+  @type live_media_ice_server :: MediaSignaling.ice_server()
+  @type live_media_prepare_payload :: MediaSignaling.prepare_payload()
   @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type runtime_rpc_error :: :remote_not_found | :remote_timeout | :remote_unreachable
   @type runtime_target :: {:local, pid()} | {:remote, String.t()}
@@ -55,6 +57,12 @@ defmodule LC.Live do
           {:ok, pid()} | {:error, :not_found | {:owned_by_remote, String.t()}}
   @type authorized_live_session_id_map :: %{optional(pos_integer()) => true}
   @type viewer_ref :: User.t() | %{required(:id) => pos_integer()}
+
+  @doc """
+  Returns the host media setup metadata for a live-session negotiation.
+  """
+  @spec prepare_live_media_session() :: live_media_prepare_payload()
+  def prepare_live_media_session, do: MediaSignaling.prepare_live_media_session()
 
   @doc """
   Starts a persisted live session and boots its runtime process.

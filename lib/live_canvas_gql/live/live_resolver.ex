@@ -9,8 +9,15 @@ defmodule LCGQL.Live.Resolver do
 
   @type mutation_error :: MutationErrors.user_error()
   @type live_session_payload :: %{live_session: map() | nil, errors: [mutation_error()]}
+  @type prepare_live_media_session_payload :: %{
+          live_session: map() | nil,
+          signaling_topic: String.t() | nil,
+          ice_servers: [Live.live_media_ice_server()],
+          errors: [mutation_error()]
+        }
   @type leave_live_session_payload :: %{left: boolean(), errors: [mutation_error()]}
   @type live_session_result :: {:ok, live_session_payload()}
+  @type prepare_live_media_session_result :: {:ok, prepare_live_media_session_payload()}
   @type leave_live_session_result :: {:ok, leave_live_session_payload()}
   @type channel_topic_result :: {:ok, String.t() | nil}
   @type channel_topic_field_result ::
@@ -98,6 +105,47 @@ defmodule LCGQL.Live.Resolver do
 
   def go_live_session(_parent, _args, _resolution) do
     {:ok, %{live_session: nil, errors: [live_session_error(nil, :unauthenticated)]}}
+  end
+
+  @spec prepare_live_media_session(
+          term(),
+          %{optional(:input) => map(), optional(:live_session_id) => term()},
+          Absinthe.Resolution.t()
+        ) :: prepare_live_media_session_result()
+  def prepare_live_media_session(parent, %{input: input}, resolution),
+    do: prepare_live_media_session(parent, input, resolution)
+
+  def prepare_live_media_session(
+        _parent,
+        %{live_session_id: live_session_id},
+        %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
+      ) do
+    with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
+         {:ok, live_session} <- fetch_live_session(decoded_id),
+         :ok <- ensure_host_owned(live_session, viewer),
+         :ok <- ensure_not_ended(live_session) do
+      %{ice_servers: ice_servers} = Live.prepare_live_media_session()
+
+      {:ok,
+       %{
+         live_session: live_session,
+         signaling_topic: LiveSessionTopics.live_session_topic(live_session.id),
+         ice_servers: ice_servers,
+         errors: []
+       }}
+    else
+      {:error, reason}
+      when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
+        {:ok,
+         prepare_live_media_session_error_payload(live_session_error(:live_session_id, reason))}
+
+      _other ->
+        {:ok, prepare_live_media_session_error_payload(live_session_error(nil, :invalid_state))}
+    end
+  end
+
+  def prepare_live_media_session(_parent, _args, _resolution) do
+    {:ok, prepare_live_media_session_error_payload(live_session_error(nil, :unauthenticated))}
   end
 
   @spec join_live_session(
@@ -294,6 +342,17 @@ defmodule LCGQL.Live.Resolver do
   end
 
   defp channel_topic_for_authorized_id(_session_id, _authorized_ids), do: nil
+
+  @spec prepare_live_media_session_error_payload(mutation_error()) ::
+          prepare_live_media_session_payload()
+  defp prepare_live_media_session_error_payload(error) do
+    %{
+      live_session: nil,
+      signaling_topic: nil,
+      ice_servers: [],
+      errors: [error]
+    }
+  end
 
   defp decode_optional_recording_media_asset_id(nil), do: {:ok, nil}
 

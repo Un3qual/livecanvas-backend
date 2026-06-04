@@ -13,36 +13,35 @@ Status: active
 
 Source plan: `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
 
-Task: Task 1, define the mobile-facing media signaling contract and typed backend
-boundary.
+Task: Task 3, add live-session channel validation and forwarding for media
+signaling events.
 
 ## Write Scope
 
-- `docs/contracts/mobile-live-media-signaling.md`
-- `docs/contracts/mobile-live-session-realtime.md`
-- `lib/live_canvas/live/media_signaling.ex`
-- `test/live_canvas/live/media_signaling_test.exs`
+- `lib/live_canvas_web/channels/live_session_channel.ex`
+- `test/live_canvas_web/channels/live_session_channel_test.exs`
 
 ## Done Condition
 
-- The mobile-facing media signaling contract names the GraphQL prepare mutation,
-  ICE/TURN response shape, live-session signaling topic, and Phoenix channel
-  media events.
-- `LC.Live.MediaSignaling` exposes a pure, typed boundary for deterministic ICE
-  server data and payload validation.
-- Focused tests cover the boundary behavior.
+- The existing authorized live-session channel accepts `media:offer`,
+  `media:answer`, and `media:ice_candidate`.
+- Payloads are validated through `LC.Live.MediaSignaling` via the `LC.Live`
+  boundary, and malformed payloads return structured errors.
+- Broadcast payloads include server-derived sender role metadata and do not trust
+  client-provided role fields.
 
 ## Verification
 
 ```bash
-mix test test/live_canvas/live/media_signaling_test.exs
+mix test test/live_canvas_web/channels/live_session_channel_test.exs
 mix typecheck
 ```
 
 ## Next Action
 
-Execute Task 1 from the source plan. Do not broaden into Membrane startup,
-recording, viewer playback, or mobile implementation in this batch.
+Execute Task 3 from the source plan. Do not broaden into Membrane startup,
+recording, viewer playback, go-live readiness gating, or mobile implementation
+in this batch.
 
 ## References
 
