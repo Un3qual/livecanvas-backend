@@ -33,7 +33,7 @@ disjoint worktrees. Do not send multiple workers into the same files.
 - [x] Task 2: Expose host prepare data through a Relay-first GraphQL mutation.
 - [x] Task 3: Add live-session channel validation and forwarding for media
   signaling events.
-- [ ] Task 4: Tie negotiation readiness into lifecycle behavior without starting
+- [x] Task 4: Tie negotiation readiness into lifecycle behavior without starting
   a real media pipeline.
 - [ ] Task 5: Close the backend batch and hand off the mobile integration
   surface.

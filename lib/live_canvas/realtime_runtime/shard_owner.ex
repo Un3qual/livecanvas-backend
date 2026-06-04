@@ -103,6 +103,26 @@ defmodule LC.RealtimeRuntime.ShardOwner do
     {:reply, result, state}
   end
 
+  def handle_call({:mark_media_negotiation_ready, session_id}, _from, state)
+      when is_integer(session_id) do
+    result =
+      with {:ok, pid} <- lookup_local_session_runtime(session_id) do
+        SessionServer.mark_media_negotiation_ready(pid)
+      end
+
+    {:reply, result, state}
+  end
+
+  def handle_call({:media_negotiation_ready?, session_id}, _from, state)
+      when is_integer(session_id) do
+    result =
+      with {:ok, pid} <- lookup_local_session_runtime(session_id) do
+        SessionServer.media_negotiation_ready?(pid)
+      end
+
+    {:reply, result, state}
+  end
+
   @impl true
   @spec handle_info(term(), state()) :: {:noreply, state()}
   def handle_info(:claim_global_name, %{registered?: false, shard_id: shard_id} = state) do

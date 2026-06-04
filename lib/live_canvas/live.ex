@@ -49,6 +49,9 @@ defmodule LC.Live do
   @type live_media_prepare_payload :: MediaSignaling.prepare_payload()
   @type live_media_validation_result ::
           MediaSignaling.validation_result(live_media_payload()) | {:error, :unknown_event}
+  @type media_negotiation_readiness ::
+          :ready | {:not_ready, :media_not_ready} | {:error, SessionSupervisor.lookup_error()}
+  @type mark_media_negotiation_ready_result :: :ok | {:error, SessionSupervisor.lookup_error()}
   @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type runtime_rpc_error :: :remote_not_found | :remote_timeout | :remote_unreachable
   @type runtime_target :: {:local, pid()} | {:remote, String.t()}
@@ -73,6 +76,22 @@ defmodule LC.Live do
   @spec validate_live_media_signal_payload(String.t(), term()) :: live_media_validation_result()
   def validate_live_media_signal_payload(event, payload) when is_binary(event),
     do: MediaSignaling.validate_event_payload(event, payload)
+
+  @doc """
+  Marks the in-process media negotiation seam ready for a live session.
+  """
+  @spec mark_media_negotiation_ready(pos_integer()) :: mark_media_negotiation_ready_result()
+  def mark_media_negotiation_ready(session_id) when is_integer(session_id) do
+    SessionSupervisor.mark_media_negotiation_ready(session_id)
+  end
+
+  @doc """
+  Returns whether the in-process media negotiation seam is ready.
+  """
+  @spec media_negotiation_ready?(pos_integer()) :: media_negotiation_readiness()
+  def media_negotiation_ready?(session_id) when is_integer(session_id) do
+    SessionSupervisor.media_negotiation_ready?(session_id)
+  end
 
   @doc """
   Starts a persisted live session and boots its runtime process.
@@ -718,7 +737,7 @@ defmodule LC.Live do
 
   @spec safe_runtime_leave(pid(), pos_integer()) :: :ok
   defp safe_runtime_leave(pid, user_id) when is_pid(pid) and is_integer(user_id) do
-    SessionServer.leave(pid, user_id)
+    _result = SessionServer.leave(pid, user_id)
     :ok
   catch
     :exit, _reason ->
@@ -981,7 +1000,13 @@ defmodule LC.Live do
 
   @spec local_runtime_viewer_count(pid()) :: {:ok, non_neg_integer()} | {:error, :not_found}
   defp local_runtime_viewer_count(pid) when is_pid(pid) do
-    {:ok, pid |> SessionServer.snapshot() |> snapshot_viewer_count()}
+    case SessionServer.snapshot(pid) do
+      %{participants: _participants} = snapshot ->
+        {:ok, snapshot_viewer_count(snapshot)}
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+    end
   catch
     :exit, _reason ->
       {:error, :not_found}

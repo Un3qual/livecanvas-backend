@@ -14,6 +14,7 @@ defmodule LCWeb.LiveSessionChannelTest do
   alias LCWeb.{LiveSessionChannel, UserSocket}
 
   @endpoint LCWeb.Endpoint
+  @channel_reply_timeout 1_000
   @live_channel_telemetry_events [
     [:live_canvas, :live, :channel, :join],
     [:live_canvas, :live, :channel, :chat_send]
@@ -179,19 +180,22 @@ defmodule LCWeb.LiveSessionChannelTest do
     actor_id = viewer.id
     actor_global_id = Absinthe.Relay.Node.to_global_id(:user, actor_id, LCGQL.Schema)
 
-    assert_reply ref, :ok, %{
-      event: %{
-        __typename: "ChatMessageEvent",
-        event_type: "chat_message_sent",
-        body: "hello",
-        id: event_global_id,
-        actor: %{id: ^actor_global_id},
-        occurred_at: occurred_at,
-        edited: false,
-        edit_count: 0,
-        edited_at: nil
-      }
-    }
+    assert_reply ref,
+                 :ok,
+                 %{
+                   event: %{
+                     __typename: "ChatMessageEvent",
+                     event_type: "chat_message_sent",
+                     body: "hello",
+                     id: event_global_id,
+                     actor: %{id: ^actor_global_id},
+                     occurred_at: occurred_at,
+                     edited: false,
+                     edit_count: 0,
+                     edited_at: nil
+                   }
+                 },
+                 @channel_reply_timeout
 
     assert is_binary(event_global_id)
     event_id = decode_global_node_id(event_global_id, :chat_message_event)
@@ -416,13 +420,16 @@ defmodule LCWeb.LiveSessionChannelTest do
     send_ref = push(socket, "timeline:chat_message:send", %{"body" => "hello"})
     actor_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
-    assert_reply send_ref, :ok, %{
-      event: %{
-        body: "hello",
-        id: event_global_id,
-        actor: %{id: ^actor_global_id}
-      }
-    }
+    assert_reply send_ref,
+                 :ok,
+                 %{
+                   event: %{
+                     body: "hello",
+                     id: event_global_id,
+                     actor: %{id: ^actor_global_id}
+                   }
+                 },
+                 @channel_reply_timeout
 
     _event_id = decode_global_node_id(event_global_id, :chat_message_event)
 
@@ -501,13 +508,16 @@ defmodule LCWeb.LiveSessionChannelTest do
     send_ref = push(viewer_socket, "timeline:chat_message:send", %{"body" => "abusive message"})
     actor_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
-    assert_reply send_ref, :ok, %{
-      event: %{
-        body: "abusive message",
-        id: event_global_id,
-        actor: %{id: ^actor_global_id}
-      }
-    }
+    assert_reply send_ref,
+                 :ok,
+                 %{
+                   event: %{
+                     body: "abusive message",
+                     id: event_global_id,
+                     actor: %{id: ^actor_global_id}
+                   }
+                 },
+                 @channel_reply_timeout
 
     event_id = decode_global_node_id(event_global_id, :chat_message_event)
     session_topic = LiveSessionTopics.live_session_topic(session.id)
@@ -574,12 +584,15 @@ defmodule LCWeb.LiveSessionChannelTest do
     send_ref = push(viewer_socket, "timeline:chat_message:send", %{"body" => "remove once"})
     actor_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
-    assert_reply send_ref, :ok, %{
-      event: %{
-        id: event_global_id,
-        actor: %{id: ^actor_global_id}
-      }
-    }
+    assert_reply send_ref,
+                 :ok,
+                 %{
+                   event: %{
+                     id: event_global_id,
+                     actor: %{id: ^actor_global_id}
+                   }
+                 },
+                 @channel_reply_timeout
 
     _event_id = decode_global_node_id(event_global_id, :chat_message_event)
     session_topic = LiveSessionTopics.live_session_topic(session.id)
@@ -818,7 +831,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
 
     first_ref = push(socket, "timeline:chat_message:send", %{"body" => "first"})
-    assert_reply first_ref, :ok, %{event: %{body: "first"}}
+    assert_reply first_ref, :ok, %{event: %{body: "first"}}, @channel_reply_timeout
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
                     %{
@@ -831,7 +844,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert user_id == viewer.id
 
     second_ref = push(socket, "timeline:chat_message:send", %{"body" => "second"})
-    assert_reply second_ref, :error, %{reason: "rate_limited"}
+    assert_reply second_ref, :error, %{reason: "rate_limited"}, @channel_reply_timeout
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
                     %{
@@ -858,7 +871,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
 
     ref = push(socket, "timeline:chat_message:send", %{"body" => 42})
-    assert_reply ref, :error, %{reason: "invalid_body"}
+    assert_reply ref, :error, %{reason: "invalid_body"}, @channel_reply_timeout
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
                     %{
@@ -912,7 +925,7 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     ref = push(joined_socket, "timeline:chat_message:send", %{"body" => "hello with trace"})
 
-    assert_reply ref, :ok, %{event: %{body: "hello with trace"}}
+    assert_reply ref, :ok, %{event: %{body: "hello with trace"}}, @channel_reply_timeout
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
                     %{
@@ -957,7 +970,7 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     ref = push(joined_socket, "timeline:chat_message:send", %{"body" => "no new ids"})
 
-    assert_reply ref, :ok, %{event: %{body: "no new ids"}}
+    assert_reply ref, :ok, %{event: %{body: "no new ids"}}, @channel_reply_timeout
 
     refute_receive {:trace, ^channel_pid, :call, {:crypto, :strong_rand_bytes, [_]}}, 50
   end
@@ -1028,6 +1041,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     session_topic = LiveSessionTopics.live_session_topic(session.id)
     control_topic = LiveSessionTopics.session_control_topic(session.id)
     :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
+    assert :ok = Live.mark_media_negotiation_ready(session.id)
 
     go_live_mutation = """
     mutation GoLiveSession($liveSessionId: ID!) {

@@ -39,4 +39,42 @@ defmodule LC.Live.SessionServerTest do
     assert %{session_id: ^session_id, participants: participants} = SessionServer.snapshot(pid)
     assert participants == initial_participants
   end
+
+  test "starts media negotiation as not ready" do
+    session_id = System.unique_integer([:positive])
+    registry = Module.concat(__MODULE__, "Registry#{session_id}")
+
+    {:ok, _registry_pid} = start_supervised({Registry, keys: :unique, name: registry})
+
+    {:ok, pid} = start_supervised({SessionServer, session_id: session_id, registry: registry})
+
+    assert {:not_ready, :media_not_ready} = SessionServer.media_negotiation_ready?(pid)
+  end
+
+  test "marks media negotiation ready in memory" do
+    session_id = System.unique_integer([:positive])
+    registry = Module.concat(__MODULE__, "Registry#{session_id}")
+
+    {:ok, _registry_pid} = start_supervised({Registry, keys: :unique, name: registry})
+
+    {:ok, pid} = start_supervised({SessionServer, session_id: session_id, registry: registry})
+
+    assert :ok = SessionServer.mark_media_negotiation_ready(pid)
+    assert :ready = SessionServer.media_negotiation_ready?(pid)
+  end
+
+  test "readiness calls return not_found when the runtime exits before call" do
+    session_id = System.unique_integer([:positive])
+    registry = Module.concat(__MODULE__, "Registry#{session_id}")
+
+    {:ok, _registry_pid} = start_supervised({Registry, keys: :unique, name: registry})
+    {:ok, pid} = start_supervised({SessionServer, session_id: session_id, registry: registry})
+
+    monitor_ref = Process.monitor(pid)
+    Process.exit(pid, :kill)
+    assert_receive {:DOWN, ^monitor_ref, :process, ^pid, :killed}
+
+    assert {:error, :not_found} = SessionServer.media_negotiation_ready?(pid)
+    assert {:error, :not_found} = SessionServer.mark_media_negotiation_ready(pid)
+  end
 end

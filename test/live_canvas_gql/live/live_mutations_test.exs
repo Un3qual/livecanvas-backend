@@ -271,6 +271,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
       local_id = String.to_integer(local_id)
       assert {:ok, _, 0} = DateTime.from_iso8601(inserted_at)
       assert starting_channel_topic == LiveSessionTopics.live_session_topic(local_id)
+      assert :ok = Live.mark_media_negotiation_ready(local_id)
 
       assert {:ok,
               %{
@@ -549,6 +550,113 @@ defmodule LCGQL.Live.LiveMutationsTest do
   end
 
   describe "goLiveSession and endLiveSession" do
+    test "goLiveSession rejects sessions before media negotiation is ready" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      topic = LiveSessionTopics.live_session_topic(started_session.id)
+      :ok = Phoenix.PubSub.subscribe(LC.PubSub, topic)
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      mutation = """
+      mutation GoLiveSession($liveSessionId: ID!) {
+        goLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "goLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [%{"field" => nil, "message" => "media_not_ready"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+
+      assert %LiveSession{status: :starting} = Live.get_live_session!(started_session.id)
+
+      assert 0 ==
+               from(timeline_event in LiveSessionTimelineEvent,
+                 where:
+                   timeline_event.live_session_id == ^started_session.id and
+                     timeline_event.event_type == :live_session_started
+               )
+               |> Repo.aggregate(:count)
+
+      refute_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "timeline:event"
+      }
+
+      refute_receive %Phoenix.Socket.Broadcast{
+        topic: ^topic,
+        event: "session:state"
+      }
+    end
+
+    test "goLiveSession rejects sessions when the runtime is unavailable" do
+      host = user_fixture(privacy_mode: :public)
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      assert :ok = LC.Live.SessionSupervisor.stop_session_server(started_session.id)
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      mutation = """
+      mutation GoLiveSession($liveSessionId: ID!) {
+        goLiveSession(input: {liveSessionId: $liveSessionId}) {
+          liveSession {
+            id
+            status
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "goLiveSession" => %{
+                    "liveSession" => nil,
+                    "errors" => [%{"field" => nil, "message" => "media_not_ready"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+
+      assert %LiveSession{status: :starting} = Live.get_live_session!(started_session.id)
+    end
+
     test "allows only the host to transition lifecycle states" do
       host = user_fixture()
       other_viewer = user_fixture()
@@ -606,6 +714,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                )
 
       host_context = %{current_scope: Accounts.scope_for_user(host)}
+      assert :ok = Live.mark_media_negotiation_ready(started_session.id)
 
       assert {:ok,
               %{
@@ -650,6 +759,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
         Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
 
       context = %{current_scope: Accounts.scope_for_user(host)}
+      assert :ok = Live.mark_media_negotiation_ready(started_session.id)
 
       go_live_mutation = """
       mutation GoLiveSession($liveSessionId: ID!) {
@@ -816,6 +926,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
         Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
 
       context = %{current_scope: Accounts.scope_for_user(host)}
+      assert :ok = Live.mark_media_negotiation_ready(started_session.id)
       {:ok, _suspended_host} = Accounts.suspend_user(host)
 
       mutation = """
@@ -920,6 +1031,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
         Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
 
       context = %{current_scope: Accounts.scope_for_user(host)}
+      assert :ok = Live.mark_media_negotiation_ready(started_session.id)
       test_pid = self()
 
       go_live_mutation = """
@@ -1423,6 +1535,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
         Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
 
       context = %{current_scope: Accounts.scope_for_user(host)}
+      assert :ok = Live.mark_media_negotiation_ready(started_session.id)
       test_pid = self()
 
       go_live_mutation = """

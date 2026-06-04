@@ -7,6 +7,10 @@ defmodule LC.RealtimeRuntime.SessionServer do
 
   @type media_bootstrap_result :: :ok | {:error, term()}
   @type media_bootstrap :: (LiveSession.t() -> media_bootstrap_result())
+  @type media_negotiation_not_ready_reason :: :media_not_ready
+  @type media_negotiation_readiness ::
+          :ready | {:not_ready, media_negotiation_not_ready_reason()}
+  @type call_error :: :not_found
 
   @type participant :: %{
           joined_at: DateTime.t(),
@@ -15,6 +19,7 @@ defmodule LC.RealtimeRuntime.SessionServer do
         }
 
   @type state :: %{
+          media_negotiation_readiness: media_negotiation_readiness(),
           participants: %{optional(pos_integer()) => participant()},
           session_id: pos_integer()
         }
@@ -37,18 +42,28 @@ defmodule LC.RealtimeRuntime.SessionServer do
     )
   end
 
-  @spec join(pid(), pos_integer(), LCSchemas.Live.live_participant_role()) :: :ok
+  @spec join(pid(), pos_integer(), LCSchemas.Live.live_participant_role()) :: :ok | {:error, call_error()}
   def join(pid, user_id, role) when is_pid(pid) and is_integer(user_id) and is_atom(role) do
-    GenServer.call(pid, {:join, user_id, role})
+    safe_call(pid, {:join, user_id, role})
   end
 
-  @spec leave(pid(), pos_integer()) :: :ok
+  @spec leave(pid(), pos_integer()) :: :ok | {:error, call_error()}
   def leave(pid, user_id) when is_pid(pid) and is_integer(user_id) do
-    GenServer.call(pid, {:leave, user_id})
+    safe_call(pid, {:leave, user_id})
   end
 
-  @spec snapshot(pid()) :: state()
-  def snapshot(pid) when is_pid(pid), do: GenServer.call(pid, :snapshot)
+  @spec mark_media_negotiation_ready(pid()) :: :ok | {:error, call_error()}
+  def mark_media_negotiation_ready(pid) when is_pid(pid) do
+    safe_call(pid, :mark_media_negotiation_ready)
+  end
+
+  @spec media_negotiation_ready?(pid()) :: media_negotiation_readiness() | {:error, call_error()}
+  def media_negotiation_ready?(pid) when is_pid(pid) do
+    safe_call(pid, :media_negotiation_ready?)
+  end
+
+  @spec snapshot(pid()) :: state() | {:error, call_error()}
+  def snapshot(pid) when is_pid(pid), do: safe_call(pid, :snapshot)
 
   @impl true
   @spec init(%{
@@ -68,6 +83,7 @@ defmodule LC.RealtimeRuntime.SessionServer do
       :ok ->
         state = %{
           session_id: session_id,
+          media_negotiation_readiness: {:not_ready, :media_not_ready},
           participants: initial_participants
         }
 
@@ -106,8 +122,28 @@ defmodule LC.RealtimeRuntime.SessionServer do
   end
 
   @impl true
+  @spec handle_call(:mark_media_negotiation_ready, GenServer.from(), state()) ::
+          {:reply, :ok, state()}
+  def handle_call(:mark_media_negotiation_ready, _from, state) do
+    {:reply, :ok, %{state | media_negotiation_readiness: :ready}}
+  end
+
+  @impl true
+  @spec handle_call(:media_negotiation_ready?, GenServer.from(), state()) ::
+          {:reply, media_negotiation_readiness(), state()}
+  def handle_call(:media_negotiation_ready?, _from, state) do
+    {:reply, state.media_negotiation_readiness, state}
+  end
+
+  @impl true
   @spec handle_call(:snapshot, GenServer.from(), state()) :: {:reply, state(), state()}
   def handle_call(:snapshot, _from, state), do: {:reply, state, state}
+
+  defp safe_call(pid, message) when is_pid(pid) do
+    GenServer.call(pid, message)
+  catch
+    :exit, _reason -> {:error, :not_found}
+  end
 
   defp via_tuple(registry, session_id), do: {:via, Registry, {registry, session_id}}
 

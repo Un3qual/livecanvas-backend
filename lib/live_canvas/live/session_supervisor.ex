@@ -6,8 +6,10 @@ defmodule LC.Live.SessionSupervisor do
   alias LC.RealtimeRuntime.SessionServer
 
   @type initial_participants :: %{optional(pos_integer()) => SessionServer.participant()}
+  @type media_negotiation_readiness :: RealtimeRuntime.media_negotiation_readiness_result()
   @type remote_owner_error :: {:owned_by_remote, String.t()}
   @type lookup_error :: :not_found | remote_owner_error()
+  @type mark_media_negotiation_ready_result :: RealtimeRuntime.mark_media_negotiation_ready_result()
   @type start_option ::
           {:shard_id, RealtimeRuntime.shard_id()}
           | {:media_bootstrap, SessionServer.media_bootstrap()}
@@ -47,6 +49,16 @@ defmodule LC.Live.SessionSupervisor do
           {:ok, pid()} | {:error, lookup_error()}
   def lookup_session_server(session_id) when is_integer(session_id) do
     RealtimeRuntime.lookup_session_runtime(session_id)
+  end
+
+  @spec mark_media_negotiation_ready(pos_integer()) :: mark_media_negotiation_ready_result()
+  def mark_media_negotiation_ready(session_id) when is_integer(session_id) do
+    RealtimeRuntime.mark_media_negotiation_ready(session_id)
+  end
+
+  @spec media_negotiation_ready?(pos_integer()) :: media_negotiation_readiness()
+  def media_negotiation_ready?(session_id) when is_integer(session_id) do
+    RealtimeRuntime.media_negotiation_ready?(session_id)
   end
 
   @spec join_session_server(

@@ -13,35 +13,35 @@ Status: active
 
 Source plan: `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
 
-Task: Task 3, add live-session channel validation and forwarding for media
-signaling events.
+Task: Task 5, close the backend batch and hand off the mobile integration
+surface.
 
 ## Write Scope
 
-- `lib/live_canvas_web/channels/live_session_channel.ex`
-- `test/live_canvas_web/channels/live_session_channel_test.exs`
+- `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
+- `docs/plans/backend/NOW.md`
+- `docs/contracts/mobile-live-media-signaling.md`
+- `docs/contracts/mobile-live-session-graphql.md`
 
 ## Done Condition
 
-- The existing authorized live-session channel accepts `media:offer`,
-  `media:answer`, and `media:ice_candidate`.
-- Payloads are validated through `LC.Live.MediaSignaling` via the `LC.Live`
-  boundary, and malformed payloads return structured errors.
-- Broadcast payloads include server-derived sender role metadata and do not trust
-  client-provided role fields.
+- The source plan checklist is complete.
+- Mobile-facing contract docs describe the prepare mutation, media channel
+  events, and `goLiveSession` media-readiness error.
+- The backend lane returns to idle or points at the next concrete media batch.
 
 ## Verification
 
 ```bash
-mix test test/live_canvas_web/channels/live_session_channel_test.exs
+mix test test/live_canvas/live/media_signaling_test.exs test/live_canvas/live/session_server_test.exs test/live_canvas/live/session_supervisor_test.exs test/live_canvas/live/session_ownership_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
 mix typecheck
+mix boundary.spec
 ```
 
 ## Next Action
 
-Execute Task 3 from the source plan. Do not broaden into Membrane startup,
-recording, viewer playback, go-live readiness gating, or mobile implementation
-in this batch.
+Execute Task 5 from the source plan. Do not broaden into Membrane startup,
+recording, viewer playback, or mobile implementation in this batch.
 
 ## References
 

@@ -31,6 +31,7 @@ defmodule LCGQL.Live.Resolver do
           | :not_authorized
           | :rate_limited
           | :ended
+          | :media_not_ready
           | :invalid_state
 
   @spec start_live_session(
@@ -78,6 +79,7 @@ defmodule LCGQL.Live.Resolver do
          {:ok, live_session} <- fetch_live_session(decoded_id),
          :ok <- ensure_host_owned(live_session, viewer),
          :ok <- ensure_joinable_state(live_session),
+         :ok <- ensure_media_negotiation_ready(live_session),
          {:ok, updated_live_session, transitioned?, timeline_event} <-
            Live.mark_session_live_with_transition(
              live_session,
@@ -90,6 +92,9 @@ defmodule LCGQL.Live.Resolver do
       {:error, reason}
       when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
         {:ok, %{live_session: nil, errors: [live_session_error(:live_session_id, reason)]}}
+
+      {:error, :media_not_ready} ->
+        {:ok, %{live_session: nil, errors: [live_session_error(nil, :media_not_ready)]}}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         if ended_go_live_changeset?(changeset) do
@@ -384,6 +389,14 @@ defmodule LCGQL.Live.Resolver do
   defp ensure_joinable_state(%{status: :ended}), do: {:error, :ended}
   defp ensure_joinable_state(_live_session), do: :ok
 
+  defp ensure_media_negotiation_ready(%{id: session_id}) when is_integer(session_id) do
+    case Live.media_negotiation_ready?(session_id) do
+      :ready -> :ok
+      {:not_ready, :media_not_ready} -> {:error, :media_not_ready}
+      {:error, _reason} -> {:error, :media_not_ready}
+    end
+  end
+
   defp ensure_not_ended(%{status: :ended}), do: {:error, :ended}
   defp ensure_not_ended(_live_session), do: :ok
 
@@ -519,7 +532,6 @@ defmodule LCGQL.Live.Resolver do
     )
   end
 
-  @spec live_session_error(mutation_error_field(), mutation_reason()) :: mutation_error()
   defp live_session_error(:live_session_id, reason) when reason in [:invalid_id, :invalid_type],
     do: MutationErrors.invalid_error("liveSessionId")
 

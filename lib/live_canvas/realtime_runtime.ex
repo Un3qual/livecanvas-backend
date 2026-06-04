@@ -14,6 +14,10 @@ defmodule LC.RealtimeRuntime do
   @type runtime_lookup_result :: {:ok, pid()} | {:error, lookup_error()}
   @type runtime_start_result :: {:ok, pid()} | {:error, term() | lookup_error()}
   @type runtime_stop_result :: :ok | {:error, remote_owner_error()}
+  @type media_negotiation_readiness :: SessionServer.media_negotiation_readiness()
+  @type media_negotiation_readiness_result ::
+          media_negotiation_readiness() | {:error, lookup_error()}
+  @type mark_media_negotiation_ready_result :: :ok | {:error, lookup_error()}
   @type start_option ::
           {:shard_id, shard_id()} | {:media_bootstrap, SessionServer.media_bootstrap()}
 
@@ -83,6 +87,20 @@ defmodule LC.RealtimeRuntime do
     session_id
     |> shard_id()
     |> call_shard({:join_session_runtime, session_id, user_id, role})
+  end
+
+  @spec mark_media_negotiation_ready(pos_integer()) :: mark_media_negotiation_ready_result()
+  def mark_media_negotiation_ready(session_id) when is_integer(session_id) and session_id > 0 do
+    session_id
+    |> shard_id()
+    |> call_shard({:mark_media_negotiation_ready, session_id})
+  end
+
+  @spec media_negotiation_ready?(pos_integer()) :: media_negotiation_readiness_result()
+  def media_negotiation_ready?(session_id) when is_integer(session_id) and session_id > 0 do
+    session_id
+    |> shard_id()
+    |> call_shard({:media_negotiation_ready?, session_id})
   end
 
   @spec global_shard_name(shard_id()) :: {LC.RealtimeRuntime.ShardOwner, shard_id()}
