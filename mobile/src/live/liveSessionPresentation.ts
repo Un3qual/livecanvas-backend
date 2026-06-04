@@ -181,6 +181,10 @@ export function formatLiveMutationErrors(
     return 'Too many live-session attempts. Wait a moment and try again.';
   }
 
+  if (messages.includes('media_not_ready')) {
+    return 'Media negotiation is not ready yet. Prepare media and try again.';
+  }
+
   if (
     messages.some((message) =>
       ['not_authorized', 'not_found', 'ended'].includes(message),

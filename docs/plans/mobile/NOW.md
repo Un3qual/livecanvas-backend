@@ -1,6 +1,6 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-03
+Last reviewed: 2026-06-04
 Status: idle
 
 ## Lane Scope
@@ -11,26 +11,32 @@ Status: idle
 
 ## Current Batch
 
-- Source plan: none selected
+- Source plan:
+  `docs/plans/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: none selected
-- Files: none
+- Task: complete
+- Files:
+  - `mobile/schema.graphql`
+  - `mobile/src/host/**`
+  - `mobile/src/live/liveSessionPresentation.*`
+  - `mobile/src/live/liveSessionRealtimeEvents.*`
 
 ## Do This Now
 
-No mobile implementation batch is currently selected.
+Keep the mobile lane idle until backend media runtime readiness is implemented
+or explicitly deferred.
 
 ## Guardrails
 
-- Do not enable mobile go-live, media publishing, viewer playback, or full chat
-  stream UI in this batch.
+- Do not add real mobile media publishing, viewer playback, or full chat stream
+  UI from this lane while it is idle.
 - Do not decode Relay IDs client-side.
-- Keep true media signaling blocked until backend ICE/TURN/WebRTC negotiation
-  contracts are planned.
+- Keep true go-live blocked by backend runtime readiness until the backend live
+  media runtime foundation plan is implemented.
 
 ## Next Action
 
-Coordinate the next product batch. True mobile go-live remains blocked until the
-backend media signaling, ICE/TURN, and WebRTC negotiation contracts are planned.
-The next explicitly selectable mobile batch is chat realtime stream plus
-retained history.
+Coordinate the backend media runtime foundation in
+`docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`. The next
+explicitly selectable mobile batch after that blocker is handled or deferred is
+chat realtime stream plus retained history.

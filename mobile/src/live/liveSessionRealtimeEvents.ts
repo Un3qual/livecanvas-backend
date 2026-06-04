@@ -16,6 +16,20 @@ export type LiveSessionTimelineEventPayload = {
   readonly editedAt: string | null;
 };
 
+export type LiveSessionRealtimeMediaSenderRole = 'host' | 'viewer';
+
+export type LiveSessionRealtimeMediaDescription = {
+  readonly sdp: string;
+  readonly type: 'offer' | 'answer';
+};
+
+export type LiveSessionRealtimeIceCandidate = {
+  readonly candidate: string;
+  readonly sdpMLineIndex?: number;
+  readonly sdpMid?: string;
+  readonly usernameFragment?: string;
+};
+
 export type LiveSessionRealtimeEvent =
   | {
       readonly kind: 'session_state';
@@ -34,6 +48,16 @@ export type LiveSessionRealtimeEvent =
   | {
       readonly kind: 'timeline_event_removed';
       readonly removedTimelineEventId: string;
+    }
+  | {
+      readonly description: LiveSessionRealtimeMediaDescription;
+      readonly kind: 'media_offer' | 'media_answer';
+      readonly senderRole: LiveSessionRealtimeMediaSenderRole;
+    }
+  | {
+      readonly candidate: LiveSessionRealtimeIceCandidate;
+      readonly kind: 'media_ice_candidate';
+      readonly senderRole: LiveSessionRealtimeMediaSenderRole;
     };
 
 export function normalizeLiveSessionRealtimeEvent(
@@ -70,6 +94,14 @@ export function normalizeLiveSessionRealtimeEvent(
           removedTimelineEventId: payload.removed_timeline_event_id,
         }
       : null;
+  }
+
+  if (eventName === 'media:offer' || eventName === 'media:answer') {
+    return normalizeMediaDescriptionEvent(eventName, payload);
+  }
+
+  if (eventName === 'media:ice_candidate') {
+    return normalizeMediaIceCandidateEvent(payload);
   }
 
   return null;
@@ -134,6 +166,68 @@ function normalizeTimelineEvent(
   };
 }
 
+function normalizeMediaDescriptionEvent(
+  eventName: 'media:offer' | 'media:answer',
+  payload: JsonRecord,
+): LiveSessionRealtimeEvent | null {
+  const expectedType = eventName === 'media:offer' ? 'offer' : 'answer';
+  const senderRole = normalizeSenderRole(payload.sender_role);
+
+  if (
+    !senderRole ||
+    payload.type !== expectedType ||
+    !isNonBlankString(payload.sdp)
+  ) {
+    return null;
+  }
+
+  return {
+    description: {
+      sdp: payload.sdp,
+      type: expectedType,
+    },
+    kind: eventName === 'media:offer' ? 'media_offer' : 'media_answer',
+    senderRole,
+  };
+}
+
+function normalizeMediaIceCandidateEvent(
+  payload: JsonRecord,
+): LiveSessionRealtimeEvent | null {
+  const senderRole = normalizeSenderRole(payload.sender_role);
+
+  if (
+    !senderRole ||
+    !isNonBlankString(payload.candidate) ||
+    !isOptionalString(payload.sdp_mid) ||
+    !isOptionalNonNegativeInteger(payload.sdp_m_line_index) ||
+    !isOptionalString(payload.username_fragment)
+  ) {
+    return null;
+  }
+
+  return {
+    candidate: {
+      candidate: payload.candidate,
+      ...(payload.sdp_m_line_index === undefined
+        ? {}
+        : { sdpMLineIndex: payload.sdp_m_line_index }),
+      ...(payload.sdp_mid === undefined ? {} : { sdpMid: payload.sdp_mid }),
+      ...(payload.username_fragment === undefined
+        ? {}
+        : { usernameFragment: payload.username_fragment }),
+    },
+    kind: 'media_ice_candidate',
+    senderRole,
+  };
+}
+
+function normalizeSenderRole(
+  value: unknown,
+): LiveSessionRealtimeMediaSenderRole | null {
+  return value === 'host' || value === 'viewer' ? value : null;
+}
+
 function normalizeRealtimeStatus(
   value: unknown,
 ): 'STARTING' | 'LIVE' | 'ENDED' | null {
@@ -174,6 +268,10 @@ function isNullableString(value: unknown): value is string | null {
   return typeof value === 'string' || value === null;
 }
 
+function isOptionalString(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === 'string';
+}
+
 function isTimelineEventActor(
   value: unknown,
 ): value is LiveSessionTimelineEventActor {
@@ -197,6 +295,12 @@ function isNonNegativeInteger(value: unknown): value is number {
     Number.isInteger(value) &&
     value >= 0
   );
+}
+
+function isOptionalNonNegativeInteger(
+  value: unknown,
+): value is number | undefined {
+  return value === undefined || isNonNegativeInteger(value);
 }
 
 function isNullableNonNegativeInteger(

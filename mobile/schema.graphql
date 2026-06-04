@@ -54,6 +54,7 @@ type RootMutationType {
   reportPost(input: ReportPostInput!): ReportPostPayload
   startLiveSession(input: StartLiveSessionInput!): StartLiveSessionPayload
   goLiveSession(input: GoLiveSessionInput!): GoLiveSessionPayload
+  prepareLiveMediaSession(input: PrepareLiveMediaSessionInput!): PrepareLiveMediaSessionPayload
   joinLiveSession(input: JoinLiveSessionInput!): JoinLiveSessionPayload
   leaveLiveSession(input: LeaveLiveSessionInput!): LeaveLiveSessionPayload
   endLiveSession(input: EndLiveSessionInput!): EndLiveSessionPayload
@@ -130,6 +131,17 @@ input GoLiveSessionInput {
 
 type GoLiveSessionPayload {
   liveSession: LiveSession
+  errors: [UserError!]!
+}
+
+input PrepareLiveMediaSessionInput {
+  liveSessionId: ID!
+}
+
+type PrepareLiveMediaSessionPayload {
+  liveSession: LiveSession
+  signalingTopic: String
+  iceServers: [LiveMediaIceServer!]!
   errors: [UserError!]!
 }
 
@@ -458,6 +470,18 @@ enum LiveSessionStatus {
 enum LiveSessionVisibility {
   FOLLOWERS
   PUBLIC
+}
+
+enum LiveMediaIceServerCredentialType {
+  OAUTH
+  PASSWORD
+}
+
+type LiveMediaIceServer {
+  urls: [String!]!
+  username: String
+  credential: String
+  credentialType: LiveMediaIceServerCredentialType
 }
 
 type LiveSessionRecordingMediaAsset {

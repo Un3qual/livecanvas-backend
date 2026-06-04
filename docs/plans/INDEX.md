@@ -16,9 +16,9 @@ Use this file when:
 
 - Pointer: `docs/plans/backend/NOW.md`
 - State: active
-- Active track: Live Media Signaling Contract
+- Active track: Live Media Runtime Foundation
 - Source plan:
-  `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
+  `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
 - Notes: backend lane owns backend code and backend planning docs only
 
 ### Mobile Lane
@@ -26,27 +26,35 @@ Use this file when:
 - Pointer: `docs/plans/mobile/NOW.md`
 - State: idle
 - Track: `docs/plans/mobile/TRACK.md`
-- Current product theme: host broadcast native capability/preflight complete
-- Notes: the lane now has an opaque `LiveSession.channelTopic`; do not decode
-  Relay IDs client-side. True mobile go-live remains blocked until backend media
-  signaling, ICE/TURN delivery, and WebRTC negotiation contracts are implemented.
+- Current product theme: host broadcast media signaling integration complete
+- Notes: mobile has Relay prepare/go-live retry wiring and tested media channel
+  payload normalization. True mobile go-live remains blocked until backend
+  runtime readiness, TURN/ICE delivery, and WebRTC negotiation are implemented.
 
 ## Track Registry
 
 ### Backend Live Media Signaling Contract
 
 - Plan: `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
-- State: active
+- State: complete
 - Current theme: native mobile host broadcasting backend signaling contract
+- Notes: completed and handed off to mobile media signaling integration
+
+### Backend Live Media Runtime Foundation
+
+- Plan: `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
+- State: active
+- Current theme: durable media readiness, ICE/TURN credential provider, and
+  negotiation-driven runtime readiness
 - Notes: Task 1 is selected in `docs/plans/backend/NOW.md`
 
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
 - State: idle
-- Current theme: host broadcast/native media preflight complete
-- Next dependency after preflight: backend media signaling contract
-  implementation, selected in the backend lane
+- Current theme: host broadcast media signaling integration complete
+- Next dependency after media signaling: backend media runtime foundation,
+  selected in the backend lane
 
 ### Backend Code Quality Cleanup
 

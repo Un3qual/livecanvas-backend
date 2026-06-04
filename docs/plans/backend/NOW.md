@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
-Last reviewed: 2026-06-03
-Status: idle
+Last reviewed: 2026-06-04
+Status: active
 
 ## Lane Scope
 
@@ -11,34 +11,32 @@ Status: idle
 
 ## Current Batch
 
-No active backend implementation batch. The live media signaling contract batch
-is complete.
+- Source plan:
+  `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
+- Track: live media runtime foundation
+- Task: Task 1, durable media readiness storage and typed backend boundary
+- Write scope: backend live runtime code, backend tests, migrations, and backend
+  planning docs
+- Done condition: media readiness is durable enough for lifecycle code to query
+  after runtime restarts, and focused backend tests plus `mix typecheck` pass.
 
-## Handoff
+## Handoff Context
 
-Completed source plan:
+Completed prerequisite:
 `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
+
+Mobile integration:
+`docs/plans/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
 
 Mobile-facing contracts:
 
 - `docs/contracts/mobile-live-media-signaling.md`
 - `docs/contracts/mobile-live-session-graphql.md`
 
-The recommended next product batch is mobile media integration against the
-backend prepare mutation and channel signaling contract. If the coordinator wants
-deeper backend media first, select a separate backend Membrane/WebRTC runtime
-plan before activating this lane again.
-
-## Verification Evidence
-
-Focused verification for the completed batch already passed before closure:
-media signaling boundary tests, runtime/session tests, live mutations, channel
-tests, `mix typecheck`, `mix boundary.spec`, and diff check.
-
 ## Next Action
 
-Remain idle until the coordinator assigns the mobile media integration handoff or
-selects a concrete backend media runtime plan.
+Execute Task 1 from
+`docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`.
 
 ## References
 
