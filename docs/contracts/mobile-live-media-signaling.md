@@ -6,6 +6,10 @@ This contract freezes the mobile-facing setup and Phoenix Channel message shapes
 
 Durable authorization and session lookup stay in GraphQL. Ephemeral WebRTC negotiation messages stay on the authorized live-session Phoenix Channel.
 
+Hosts should prepare media setup, join the returned signaling topic, exchange
+WebRTC negotiation messages, and only then retry `goLiveSession` if it returns a
+media readiness error.
+
 ## `prepareLiveMediaSession`
 
 Mobile hosts prepare media negotiation through a Relay-style GraphQL mutation:
@@ -38,6 +42,27 @@ Stable failure behavior:
 - Missing viewer scope returns `errors: [{field: null, message: "unauthenticated"}]`.
 - Invalid or wrong-type `liveSessionId` returns `errors: [{field: "liveSessionId", message: "is invalid"}]`.
 - Foreign, hidden, non-host, or terminal sessions return payload errors instead of top-level crashes.
+
+## `goLiveSession` Media Readiness
+
+`goLiveSession` remains the host-only transition from `STARTING` to `LIVE`, but
+the backend now gates it on media negotiation readiness. Until the runtime marks
+the session media-ready, the mutation returns:
+
+```json
+{
+  "liveSession": null,
+  "errors": [{ "field": null, "message": "media_not_ready" }]
+}
+```
+
+Mobile should treat `media_not_ready` as a retryable negotiation state, not as a
+terminal session failure. Complete the prepare/channel/WebRTC negotiation flow
+and retry `goLiveSession`.
+
+The current readiness signal is an in-process v1 runtime marker. It can reset if
+the backend runtime restarts, so mobile clients should be prepared to renegotiate
+or retry setup instead of assuming readiness is durable.
 
 ## ICE Server Shape
 

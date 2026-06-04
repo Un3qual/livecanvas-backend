@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-06-03
-Status: active
+Status: idle
 
 ## Lane Scope
 
@@ -11,37 +11,34 @@ Status: active
 
 ## Current Batch
 
-Source plan: `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
+No active backend implementation batch. The live media signaling contract batch
+is complete.
 
-Task: Task 5, close the backend batch and hand off the mobile integration
-surface.
+## Handoff
 
-## Write Scope
+Completed source plan:
+`docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
 
-- `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
-- `docs/plans/backend/NOW.md`
+Mobile-facing contracts:
+
 - `docs/contracts/mobile-live-media-signaling.md`
 - `docs/contracts/mobile-live-session-graphql.md`
 
-## Done Condition
+The recommended next product batch is mobile media integration against the
+backend prepare mutation and channel signaling contract. If the coordinator wants
+deeper backend media first, select a separate backend Membrane/WebRTC runtime
+plan before activating this lane again.
 
-- The source plan checklist is complete.
-- Mobile-facing contract docs describe the prepare mutation, media channel
-  events, and `goLiveSession` media-readiness error.
-- The backend lane returns to idle or points at the next concrete media batch.
+## Verification Evidence
 
-## Verification
-
-```bash
-mix test test/live_canvas/live/media_signaling_test.exs test/live_canvas/live/session_server_test.exs test/live_canvas/live/session_supervisor_test.exs test/live_canvas/live/session_ownership_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
-mix typecheck
-mix boundary.spec
-```
+Focused verification for the completed batch already passed before closure:
+media signaling boundary tests, runtime/session tests, live mutations, channel
+tests, `mix typecheck`, `mix boundary.spec`, and diff check.
 
 ## Next Action
 
-Execute Task 5 from the source plan. Do not broaden into Membrane startup,
-recording, viewer playback, or mobile implementation in this batch.
+Remain idle until the coordinator assigns the mobile media integration handoff or
+selects a concrete backend media runtime plan.
 
 ## References
 

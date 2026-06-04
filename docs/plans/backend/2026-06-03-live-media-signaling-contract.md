@@ -35,8 +35,22 @@ disjoint worktrees. Do not send multiple workers into the same files.
   signaling events.
 - [x] Task 4: Tie negotiation readiness into lifecycle behavior without starting
   a real media pipeline.
-- [ ] Task 5: Close the backend batch and hand off the mobile integration
+- [x] Task 5: Close the backend batch and hand off the mobile integration
   surface.
+
+## Closure Notes
+
+- `prepareLiveMediaSession` now returns the authorized `liveSession`,
+  `signalingTopic`, deterministic `iceServers`, and payload `errors`.
+- The live-session channel accepts and validates `media:offer`, `media:answer`,
+  and `media:ice_candidate`, then broadcasts server-derived `sender_role`
+  metadata.
+- `goLiveSession` returns a stable `media_not_ready` payload error until the
+  runtime marks media negotiation ready. Readiness is an in-process v1 signal and
+  is not durable across runtime restarts.
+- Focused verification for the signaling boundary, runtime/session behavior,
+  live mutations, channel events, typecheck, boundary spec, and diff check passed
+  before closure handoff.
 
 ## Task 1: Contract Doc And Typed Boundary
 
@@ -165,5 +179,4 @@ Done condition:
 - Backend tests for the signaling boundary, prepare mutation, channel events, and
   lifecycle guard pass.
 - `mix typecheck` passes after typed code changes.
-- The backend lane either points to the next concrete media batch or returns to
-  idle with a mobile handoff note.
+- The backend lane returns to idle with a mobile handoff note.
