@@ -74,6 +74,12 @@ describe('routeHrefFromUrl', () => {
     ).toBe('/live-session?sessionId=TGl2ZVNlc3Npb246MTIz');
   });
 
+  test('accepts the host-broadcast modal deep link route', () => {
+    expect(routeHrefFromUrl('livecanvas-mobile://host-broadcast')).toBe(
+      '/host-broadcast',
+    );
+  });
+
   test('strips query params from known non-live routes', () => {
     expect(routeHrefFromUrl('livecanvas-mobile://sign-in?x=1')).toBe(
       '/sign-in',
@@ -209,6 +215,38 @@ describe('resolveLandingHrefForAuth', () => {
       ),
     ).toBe('/live-session?sessionId=TGl2ZVNlc3Npb246MTIz');
   });
+
+  test('sends unauthenticated host-broadcast deep links to sign-in with a return target', () => {
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          initialUrl: 'livecanvas-mobile://host-broadcast',
+          initialHref: '/host-broadcast',
+          landingHref: '/host-broadcast',
+          defaultHref: '/sign-in',
+          bootSessionState: 'signed_out',
+          resetReason: null,
+        },
+        'unauthenticated',
+      ),
+    ).toBe('/sign-in?returnTo=%2Fhost-broadcast');
+  });
+
+  test('preserves authenticated host-broadcast deep links after auth settles', () => {
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          initialUrl: 'livecanvas-mobile://host-broadcast',
+          initialHref: '/host-broadcast',
+          landingHref: '/host-broadcast',
+          defaultHref: '/home',
+          bootSessionState: 'authenticated',
+          resetReason: null,
+        },
+        'authenticated',
+      ),
+    ).toBe('/host-broadcast');
+  });
 });
 
 describe('auth return targets', () => {
@@ -223,6 +261,12 @@ describe('auth return targets', () => {
     );
   });
 
+  test('encodes host-broadcast return targets on auth routes', () => {
+    expect(authRouteHref('/sign-in', '/host-broadcast')).toBe(
+      '/sign-in?returnTo=%2Fhost-broadcast',
+    );
+  });
+
   test('reads only the first live-session return target', () => {
     expect(
       readAuthReturnToParam([
@@ -230,6 +274,10 @@ describe('auth return targets', () => {
         '/profile',
       ]),
     ).toBe('/live-session?sessionId=TGl2ZVNlc3Npb246MTIz');
+  });
+
+  test('reads host-broadcast return targets', () => {
+    expect(readAuthReturnToParam('/host-broadcast')).toBe('/host-broadcast');
   });
 
   test('rejects external and auth-route return targets', () => {

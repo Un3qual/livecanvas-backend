@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { graphql, useLazyLoadQuery } from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
+import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
 import { useAppTheme } from '../providers/ThemeProvider';
@@ -34,9 +35,17 @@ const styles = StyleSheet.create({
   list: {
     gap: spacing.md,
   },
+  actions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'center',
+  },
   profileAction: {
     alignSelf: 'center',
   },
+  emptyText: typography.body,
 });
 
 export function LiveDiscoveryScreen() {
@@ -147,15 +156,8 @@ function LiveDiscoveryContent() {
     router.push('/profile');
   }
 
-  if (!currentSession && liveNowSessions.length === 0) {
-    return (
-      <ScreenState
-        state="empty"
-        message="No live sessions are available right now."
-        actionLabel="Open profile"
-        onAction={openViewerProfile}
-      />
-    );
+  function openHostBroadcast() {
+    router.push('/host-broadcast');
   }
 
   return (
@@ -168,12 +170,15 @@ function LiveDiscoveryContent() {
         title="Live now"
         subtitle="Join active sessions from people you can watch."
       />
-      <AppButton
-        label="Open profile"
-        onPress={openViewerProfile}
-        style={styles.profileAction}
-        variant="secondary"
-      />
+      <View style={styles.actions}>
+        <AppButton label="Host a live session" onPress={openHostBroadcast} />
+        <AppButton
+          label="Open profile"
+          onPress={openViewerProfile}
+          style={styles.profileAction}
+          variant="secondary"
+        />
+      </View>
 
       {currentSession ? (
         <View style={styles.section}>
@@ -200,7 +205,16 @@ function LiveDiscoveryContent() {
             ))}
           </View>
         </View>
-      ) : null}
+      ) : (
+        <View style={styles.section}>
+          <SectionTitle title="Discover live sessions" />
+          <AppCard>
+            <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
+              No live sessions are available right now.
+            </Text>
+          </AppCard>
+        </View>
+      )}
     </ScrollView>
   );
 }

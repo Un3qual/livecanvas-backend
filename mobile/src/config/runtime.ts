@@ -8,10 +8,14 @@ const KNOWN_ROUTE_HREFS = new Set([
   '/home',
   '/profile',
   '/live-session',
+  '/host-broadcast',
 ]);
 
 const AUTH_ROUTE_HREFS = new Set(['/sign-in', '/sign-up']);
-const AUTH_RETURN_TO_ROUTE_HREFS = new Set(['/live-session']);
+const AUTH_RETURN_TO_ROUTE_HREFS = new Set([
+  '/live-session',
+  '/host-broadcast',
+]);
 
 type ResolvedAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
