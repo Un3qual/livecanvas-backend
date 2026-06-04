@@ -43,11 +43,11 @@
 
   Replace stale `chatMessages`/`ChatMessage` language with `timelineEvents` and `ChatMessageEvent`.
 
-- [ ] **Step 2: Write failing tests for retained connection normalization**
+- [x] **Step 2: Write failing tests for retained connection normalization**
 
   Cover nullable connection edges, nullable event nodes, `ChatMessageEvent`, `LiveSessionStartedEvent`, `LiveSessionEndedEvent`, pageInfo preservation, chronological order preservation, and future `__typename` fallback.
 
-- [ ] **Step 3: Implement minimal retained timeline helpers**
+- [x] **Step 3: Implement minimal retained timeline helpers**
 
   Add pure types and helpers that:
 
@@ -57,13 +57,19 @@
   - normalize lifecycle rows with no chat body
   - format compact viewer-facing labels for system lifecycle events
 
-- [ ] **Step 4: Verify Task 1**
+- [x] **Step 4: Verify Task 1**
 
   Run:
 
   ```bash
   bun test mobile/src/live/liveSessionTimelineHistory.test.ts
   ```
+
+  Evidence:
+
+  - Red run before implementation failed with missing `./liveSessionTimelineHistory`.
+  - `bun test mobile/src/live/liveSessionTimelineHistory.test.ts` passed 3 tests.
+  - `bun test mobile/src/live/liveSessionTimelineHistory.test.ts mobile/src/live/liveSessionRealtimeEvents.test.ts mobile/src/relay/readConnectionNodes.test.ts` passed 17 tests.
 
 ## Task 2: Chat Reducer State And Realtime Merges
 
