@@ -307,6 +307,10 @@ describe('liveSessionChatReducer', () => {
         type: 'send_started' as const,
       },
       {
+        sessionId: 'session-2',
+        type: 'send_cancelled' as const,
+      },
+      {
         error: 'stale failure',
         sessionId: 'session-2',
         type: 'send_failed' as const,
@@ -362,6 +366,21 @@ describe('liveSessionChatReducer', () => {
     expect(selectLiveSessionChatSendStatus(reset)).toBe('idle');
     expect(selectLiveSessionChatSendError(reset)).toBeNull();
     expect(selectLiveSessionChatChannelStatus(reset)).toBe('idle');
+  });
+
+  test('send cancellation clears an in-flight send for channel cleanup', () => {
+    const sending = liveSessionChatReducer(activeState('session-1'), {
+      sessionId: 'session-1',
+      type: 'send_started',
+    });
+
+    const cancelled = liveSessionChatReducer(sending, {
+      sessionId: 'session-1',
+      type: 'send_cancelled',
+    });
+
+    expect(selectLiveSessionChatSendStatus(cancelled)).toBe('idle');
+    expect(selectLiveSessionChatSendError(cancelled)).toBeNull();
   });
 
   test('chat send start decision closes same-render pending sends', () => {

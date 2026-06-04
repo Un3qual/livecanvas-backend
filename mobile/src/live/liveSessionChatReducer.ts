@@ -54,7 +54,7 @@ export type LiveSessionChatAction =
     }
   | {
       readonly sessionId: string;
-      readonly type: 'send_started' | 'send_succeeded';
+      readonly type: 'send_cancelled' | 'send_started' | 'send_succeeded';
     }
   | {
       readonly error: string;
@@ -168,6 +168,17 @@ export function liveSessionChatReducer(
       };
 
     case 'send_succeeded':
+      if (!isActiveSessionAction(state, action.sessionId)) {
+        return state;
+      }
+
+      return {
+        ...state,
+        sendError: null,
+        sendStatus: 'idle',
+      };
+
+    case 'send_cancelled':
       if (!isActiveSessionAction(state, action.sessionId)) {
         return state;
       }

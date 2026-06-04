@@ -545,6 +545,7 @@ function LiveSessionWatchContent({
     });
 
     return () => {
+      cancelPendingChatSend(session.id);
       isActive = false;
       chatChannelClientRef.current = null;
       client.leave();
@@ -603,6 +604,22 @@ function LiveSessionWatchContent({
       error,
       sessionId,
       type: 'send_failed',
+    });
+  }
+
+  function cancelPendingChatSend(sessionId: string) {
+    if (chatSendPendingRef.current?.sessionId !== sessionId) {
+      return;
+    }
+
+    chatSendPendingRef.current = null;
+    if (didUnmountRef.current) {
+      return;
+    }
+
+    dispatchChatAction({
+      sessionId,
+      type: 'send_cancelled',
     });
   }
 
