@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-06-04
-Status: active
+Status: idle
 
 ## Lane Scope
 
@@ -14,13 +14,12 @@ Status: active
 - Source plan:
   `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
 - Track: live media runtime foundation
-- Task: Task 3, runtime readiness from negotiation events
-- Write scope: backend live runtime code, backend tests, migrations, and backend
-  planning docs
-- Done condition: validated `media:offer`, `media:answer`, and
-  `media:ice_candidate` events advance durable media readiness through a typed
-  runtime boundary without trusting client-provided roles, and focused backend
-  tests plus `mix typecheck` pass.
+- Task: complete
+- Write scope: backend live runtime code, backend tests, migrations, backend
+  planning docs, and the media signaling contract
+- Done condition: final verification passed for durable media readiness,
+  provider-backed ICE/TURN setup, validated signaling-driven readiness, and
+  `goLiveSession` retry semantics.
 
 ## Handoff Context
 
@@ -37,8 +36,10 @@ Mobile-facing contracts:
 
 ## Next Action
 
-Execute Task 3 from
-`docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`.
+No backend lane batch is currently selected. The next documented product batch
+is mobile chat realtime stream plus retained history from
+`docs/plans/mobile/TRACK.md`, unless the coordinator explicitly reprioritizes a
+new backend plan.
 
 ## References
 
