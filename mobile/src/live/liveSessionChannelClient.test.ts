@@ -147,6 +147,27 @@ describe('createLiveSessionChannelClient', () => {
     });
   });
 
+  test('normalizes session state broadcast callbacks', () => {
+    const { channel, sessionStates } = createHarness();
+
+    channel.emit('session:state', {
+      session_state: {
+        status: 'ended',
+        visibility: 'public',
+        viewer_count: 3,
+      },
+    });
+
+    expect(sessionStates).toEqual([
+      {
+        kind: 'session_state',
+        status: 'ENDED',
+        viewerCount: 3,
+        visibility: 'PUBLIC',
+      },
+    ]);
+  });
+
   test('normalizes timeline broadcast callbacks', () => {
     const {
       channel,
