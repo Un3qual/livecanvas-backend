@@ -147,6 +147,7 @@ Clients should treat the server-driven close as authoritative and reconcile dura
 
 ## Related Contracts
 
+- Live media signaling: `docs/contracts/mobile-live-media-signaling.md`
 - Live-session GraphQL: `docs/contracts/mobile-live-session-graphql.md`
 - Retained chat history: `docs/contracts/mobile-graphql-chat-history.md`
 
