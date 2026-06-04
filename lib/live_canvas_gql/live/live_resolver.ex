@@ -79,9 +79,8 @@ defmodule LCGQL.Live.Resolver do
          {:ok, live_session} <- fetch_live_session(decoded_id),
          :ok <- ensure_host_owned(live_session, viewer),
          :ok <- ensure_joinable_state(live_session),
-         :ok <- ensure_media_negotiation_ready(live_session),
          {:ok, updated_live_session, transitioned?, timeline_event} <-
-           Live.mark_session_live_with_transition(
+           Live.mark_session_live_when_media_ready(
              live_session,
              lifecycle_timeline_recorder(:live_session_started, viewer)
            ) do
@@ -388,14 +387,6 @@ defmodule LCGQL.Live.Resolver do
 
   defp ensure_joinable_state(%{status: :ended}), do: {:error, :ended}
   defp ensure_joinable_state(_live_session), do: :ok
-
-  defp ensure_media_negotiation_ready(%{id: session_id}) when is_integer(session_id) do
-    case Live.media_negotiation_ready?(session_id) do
-      :ready -> :ok
-      {:not_ready, :media_not_ready} -> {:error, :media_not_ready}
-      {:error, _reason} -> {:error, :media_not_ready}
-    end
-  end
 
   defp ensure_not_ended(%{status: :ended}), do: {:error, :ended}
   defp ensure_not_ended(_live_session), do: :ok

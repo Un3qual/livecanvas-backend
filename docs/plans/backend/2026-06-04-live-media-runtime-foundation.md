@@ -28,7 +28,7 @@ worktrees for schema/runtime/channel tasks.
 
 ## Progress
 
-- [ ] Task 1: Add durable media readiness storage and a typed backend boundary.
+- [x] Task 1: Add durable media readiness storage and a typed backend boundary.
 - [ ] Task 2: Add configurable ICE/TURN credential provider behavior.
 - [ ] Task 3: Connect signaling/channel negotiation events to runtime readiness.
 - [ ] Task 4: Rewire `goLiveSession` to durable readiness and preserve

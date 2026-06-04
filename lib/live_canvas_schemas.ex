@@ -39,6 +39,7 @@ defmodule LCSchemas do
       Chat.LiveSessionTimelineEventState,
       Chat.LiveSessionTimelineModerationEvent,
       Live,
+      Live.LiveMediaSession,
       Live.LiveParticipant,
       Live.LiveSession,
       Infra,
