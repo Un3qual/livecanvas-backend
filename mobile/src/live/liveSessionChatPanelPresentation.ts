@@ -81,7 +81,7 @@ function formatLiveSessionChatPanelRow(
         title: row.label,
         tone: 'lifecycle',
       };
-    case 'unknown':
+    default:
       return {
         detail: 'System',
         id: row.id,

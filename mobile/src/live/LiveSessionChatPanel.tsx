@@ -24,6 +24,53 @@ type LiveSessionChatPanelProps = {
   readonly sendStatus: LiveSessionChatSendStatus;
 };
 
+const styles = StyleSheet.create({
+  headerRow: {
+    gap: spacing.xs,
+  },
+  sectionTitle: typography.label,
+  statusText: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  timeline: {
+    gap: spacing.sm,
+  },
+  timelineRow: {
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    gap: spacing.xs,
+    padding: spacing.sm,
+  },
+  rowDetail: {
+    ...typography.label,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  rowTitle: typography.body,
+  emptyText: typography.body,
+  errorText: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  composer: {
+    gap: spacing.sm,
+  },
+  input: {
+    ...typography.body,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  sendButton: {
+    alignSelf: 'stretch',
+  },
+});
+
 export function LiveSessionChatPanel({
   channelStatus,
   isJoined,
@@ -129,50 +176,3 @@ export function LiveSessionChatPanel({
     </AppCard>
   );
 }
-
-const styles = StyleSheet.create({
-  headerRow: {
-    gap: spacing.xs,
-  },
-  sectionTitle: typography.label,
-  statusText: {
-    ...typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  timeline: {
-    gap: spacing.sm,
-  },
-  timelineRow: {
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.sm,
-  },
-  rowDetail: {
-    ...typography.label,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  rowTitle: typography.body,
-  emptyText: typography.body,
-  errorText: {
-    ...typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  composer: {
-    gap: spacing.sm,
-  },
-  input: {
-    ...typography.body,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  sendButton: {
-    alignSelf: 'stretch',
-  },
-});

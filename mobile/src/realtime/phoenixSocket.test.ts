@@ -27,7 +27,7 @@ class FakePhoenixSocket {
   }
 }
 
-async function importPhoenixSocketModule() {
+function importPhoenixSocketModule() {
   return import(`./phoenixSocket?test=${crypto.randomUUID()}`);
 }
 

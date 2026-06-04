@@ -415,7 +415,7 @@ function LiveSessionWatchContent({
         });
       }
 
-      return;
+      return undefined;
     }
 
     let isActive = true;
@@ -521,28 +521,43 @@ function LiveSessionWatchContent({
     });
     socket.connect();
 
-    void client.join().then((result) => {
-      if (!isActive) {
-        return;
-      }
+    client
+      .join()
+      .then((result) => {
+        if (!isActive) {
+          return;
+        }
 
-      if (result.status === 'joined') {
+        if (result.status === 'joined') {
+          dispatchChatAction({
+            sessionId: session.id,
+            status:
+              result.sessionState?.status === 'ENDED' ? 'closed' : 'joined',
+            type: 'channel_status_changed',
+          });
+          return;
+        }
+
         dispatchChatAction({
+          error: result.reason,
           sessionId: session.id,
-          status:
-            result.sessionState?.status === 'ENDED' ? 'closed' : 'joined',
+          status: 'errored',
           type: 'channel_status_changed',
         });
-        return;
-      }
+      })
+      .catch((error: unknown) => {
+        if (!isActive) {
+          return;
+        }
 
-      dispatchChatAction({
-        error: result.reason,
-        sessionId: session.id,
-        status: 'errored',
-        type: 'channel_status_changed',
+        dispatchChatAction({
+          error:
+            error instanceof Error ? error.message : 'Chat connection failed.',
+          sessionId: session.id,
+          status: 'errored',
+          type: 'channel_status_changed',
+        });
       });
-    });
 
     return () => {
       cancelPendingChatSend(session.id);

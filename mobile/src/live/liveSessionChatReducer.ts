@@ -438,8 +438,13 @@ function removeRealtimeTimelineEvent(
     return state;
   }
 
-  const eventsById = { ...state.eventsById };
-  delete eventsById[removedTimelineEventId];
+  const eventsById: Record<string, LiveSessionTimelineHistoryRow> = {};
+
+  for (const [eventId, row] of Object.entries(state.eventsById)) {
+    if (eventId !== removedTimelineEventId) {
+      eventsById[eventId] = row;
+    }
+  }
 
   return {
     ...state,
