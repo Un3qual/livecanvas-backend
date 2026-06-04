@@ -31,7 +31,7 @@ disjoint worktrees. Do not send multiple workers into the same files.
 - [x] Task 1: Define the mobile-facing media signaling contract and typed backend
   boundary.
 - [x] Task 2: Expose host prepare data through a Relay-first GraphQL mutation.
-- [ ] Task 3: Add live-session channel validation and forwarding for media
+- [x] Task 3: Add live-session channel validation and forwarding for media
   signaling events.
 - [ ] Task 4: Tie negotiation readiness into lifecycle behavior without starting
   a real media pipeline.

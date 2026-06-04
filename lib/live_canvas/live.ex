@@ -45,7 +45,10 @@ defmodule LC.Live do
           viewer_count: non_neg_integer()
         }
   @type live_media_ice_server :: MediaSignaling.ice_server()
+  @type live_media_payload :: MediaSignaling.media_payload()
   @type live_media_prepare_payload :: MediaSignaling.prepare_payload()
+  @type live_media_validation_result ::
+          MediaSignaling.validation_result(live_media_payload()) | {:error, :unknown_event}
   @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type runtime_rpc_error :: :remote_not_found | :remote_timeout | :remote_unreachable
   @type runtime_target :: {:local, pid()} | {:remote, String.t()}
@@ -63,6 +66,13 @@ defmodule LC.Live do
   """
   @spec prepare_live_media_session() :: live_media_prepare_payload()
   def prepare_live_media_session, do: MediaSignaling.prepare_live_media_session()
+
+  @doc """
+  Validates an inbound live media signaling payload.
+  """
+  @spec validate_live_media_signal_payload(String.t(), term()) :: live_media_validation_result()
+  def validate_live_media_signal_payload(event, payload) when is_binary(event),
+    do: MediaSignaling.validate_event_payload(event, payload)
 
   @doc """
   Starts a persisted live session and boots its runtime process.

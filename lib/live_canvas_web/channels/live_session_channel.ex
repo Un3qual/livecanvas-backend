@@ -11,6 +11,7 @@ defmodule LCWeb.LiveSessionChannel do
   alias Phoenix.Socket.Broadcast
 
   @disconnect_event "disconnect"
+  @media_events Live.prepare_live_media_session().events |> Map.values()
 
   @impl true
   @spec join(String.t(), map(), Phoenix.Socket.t()) ::
@@ -102,8 +103,43 @@ defmodule LCWeb.LiveSessionChannel do
   end
 
   @impl true
-  @spec handle_in(String.t(), map(), Phoenix.Socket.t()) ::
+  @spec handle_in(String.t(), term(), Phoenix.Socket.t()) ::
           {:reply, {:error | :ok, map()}, Phoenix.Socket.t()}
+  def handle_in(
+        event,
+        payload,
+        %Phoenix.Socket{
+          assigns: %{
+            current_user: %{id: user_id} = current_user,
+            live_session: %{id: live_session_id} = live_session
+          }
+        } = socket
+      )
+      when event in @media_events and is_integer(user_id) and is_integer(live_session_id) do
+    socket = ensure_observability_context(socket)
+
+    result =
+      with :ok <- authorize_live_media_signal(current_user, live_session_id),
+           {:ok, media_payload} <- validate_live_media_payload(event, payload) do
+        {:ok, media_channel_payload(media_payload, current_user, live_session)}
+      else
+        {:error, reason} -> {:error, reason}
+      end
+
+    case result do
+      {:ok, broadcast_payload} ->
+        :ok = broadcast(socket, event, broadcast_payload)
+        {:reply, {:ok, broadcast_payload}, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, media_signaling_error_payload(reason)}, socket}
+    end
+  end
+
+  def handle_in(event, _payload, socket) when event in @media_events do
+    {:reply, {:error, media_signaling_error_payload(:not_authorized)}, socket}
+  end
+
   def handle_in(
         "timeline:chat_message:send",
         %{"body" => body},
@@ -157,6 +193,62 @@ defmodule LCWeb.LiveSessionChannel do
 
     {:reply, {:error, %{reason: LiveSessionReasons.chat_send_error_reason(:invalid_body)}},
      socket}
+  end
+
+  defp authorize_live_media_signal(current_user, live_session_id)
+       when is_map(current_user) and is_integer(live_session_id) do
+    with {:ok, persisted_live_session} <- Live.fetch_joinable_session(live_session_id),
+         :ok <- Chat.authorize_join(current_user, persisted_live_session) do
+      :ok
+    else
+      {:error, :ended} -> {:error, :session_ended}
+      {:error, :not_found} -> {:error, :session_ended}
+      {:error, :session_ended} -> {:error, :session_ended}
+      {:error, :not_authorized} -> {:error, :not_authorized}
+    end
+  end
+
+  defp validate_live_media_payload(event, payload) when event in @media_events do
+    case Live.validate_live_media_signal_payload(event, payload) do
+      {:ok, media_payload} ->
+        {:ok, media_payload}
+
+      {:error, validation_errors} when is_list(validation_errors) ->
+        {:error, {:invalid_media_payload, validation_errors}}
+    end
+  end
+
+  defp media_channel_payload(media_payload, current_user, live_session)
+       when is_map(media_payload) and is_map(current_user) and is_map(live_session) do
+    media_payload
+    |> Map.new(fn {key, value} -> {key, media_channel_payload_value(key, value)} end)
+    |> Map.put(:sender_role, live_media_sender_role(current_user, live_session))
+  end
+
+  defp media_channel_payload_value(:type, value) when is_atom(value), do: Atom.to_string(value)
+  defp media_channel_payload_value(_key, value), do: value
+
+  defp live_media_sender_role(%{id: user_id}, %{host_id: host_id})
+       when is_integer(user_id) and is_integer(host_id) and user_id == host_id,
+       do: "host"
+
+  defp live_media_sender_role(_current_user, _live_session), do: "viewer"
+
+  defp media_signaling_error_payload({:invalid_media_payload, validation_errors})
+       when is_list(validation_errors) do
+    %{
+      reason: "invalid_media_payload",
+      errors: Enum.map(validation_errors, &media_validation_error_payload/1)
+    }
+  end
+
+  defp media_signaling_error_payload(:session_ended), do: %{reason: "session_ended"}
+  defp media_signaling_error_payload(:not_authorized), do: %{reason: "not_authorized"}
+
+  defp media_validation_error_payload(%{field: field, reason: reason}) do
+    reason = if is_atom(reason), do: Atom.to_string(reason), else: reason
+
+    %{field: field, reason: reason}
   end
 
   # PubSub carries domain-shaped integer IDs inside the backend; the socket API
