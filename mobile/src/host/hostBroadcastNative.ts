@@ -80,8 +80,13 @@ export function createHostBroadcastNative(
   const getUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
   let previewStream: HostBroadcastMediaStream | null = null;
   let previewStreamRequest: Promise<HostBroadcastMediaStream> | null = null;
+  let disposed = false;
 
   async function ensurePreviewStream() {
+    if (disposed) {
+      throw new Error('native_media_disposed');
+    }
+
     if (previewStream) {
       return previewStream;
     }
@@ -94,6 +99,11 @@ export function createHostBroadcastNative(
         .then((stream) => {
           if (!stream) {
             throw new Error('native_media_unavailable');
+          }
+
+          if (disposed) {
+            stopPreviewStream(stream);
+            throw new Error('native_media_disposed');
           }
 
           previewStream = stream;
@@ -140,6 +150,7 @@ export function createHostBroadcastNative(
       }
     },
     dispose() {
+      disposed = true;
       stopPreviewStream(previewStream);
       previewStream = null;
     },

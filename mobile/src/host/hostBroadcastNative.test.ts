@@ -109,6 +109,47 @@ describe('hostBroadcastNative', () => {
     expect(stoppedTrackCount).toBe(1);
   });
 
+  test('stops an in-flight preview stream that resolves after dispose', async () => {
+    let stoppedTrackCount = 0;
+    let resolvePreviewStream: (stream: {
+      getTracks: () => Array<{ stop: () => void }>;
+    }) => void = () => {
+      throw new Error('preview stream resolver was not initialized');
+    };
+    const track = {
+      stop() {
+        stoppedTrackCount += 1;
+      },
+    };
+    const stream = {
+      getTracks() {
+        return [track];
+      },
+    };
+    const native = createHostBroadcastNative({
+      mediaDevices: {
+        getUserMedia() {
+          return new Promise<typeof stream>((resolve) => {
+            resolvePreviewStream = resolve;
+          });
+        },
+      },
+    });
+
+    const permissions = native.requestPermissions();
+    native.dispose();
+    resolvePreviewStream(stream);
+
+    await expect(permissions).resolves.toEqual({
+      camera: 'denied',
+      microphone: 'denied',
+    });
+    await expect(native.preparePreview()).resolves.toEqual({
+      status: 'native_media_unavailable',
+    });
+    expect(stoppedTrackCount).toBe(1);
+  });
+
   test('falls back when media devices are unavailable', async () => {
     const native = createHostBroadcastNative({ mediaDevices: null });
 
