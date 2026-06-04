@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   canRequestHostGoLive,
+  canRequestHostPreflightBackCleanup,
+  canUseHostPreflightBackAction,
   createHostBroadcastSessionState,
   hostBroadcastSessionReducer,
 } from './hostBroadcastSession';
@@ -134,6 +136,53 @@ describe('hostBroadcastSessionReducer', () => {
       status: 'starting',
       viewerSafeErrorText: 'We could not end this live session.',
     });
+  });
+
+  test('only requests back cleanup for a created starting session', () => {
+    const idle = createHostBroadcastSessionState();
+    const creating = hostBroadcastSessionReducer(idle, {
+      type: 'start_requested',
+    });
+    const starting = hostBroadcastSessionReducer(creating, {
+      liveSessionId: 'TGl2ZVNlc3Npb246MQ==',
+      type: 'start_succeeded',
+    });
+    const ending = hostBroadcastSessionReducer(starting, {
+      type: 'end_requested',
+    });
+    const ended = hostBroadcastSessionReducer(ending, {
+      type: 'end_succeeded',
+    });
+
+    expect(canRequestHostPreflightBackCleanup(idle)).toBe(false);
+    expect(canRequestHostPreflightBackCleanup(creating)).toBe(false);
+    expect(canRequestHostPreflightBackCleanup(starting)).toBe(true);
+    expect(canRequestHostPreflightBackCleanup(ending)).toBe(false);
+    expect(canRequestHostPreflightBackCleanup(ended)).toBe(false);
+  });
+
+  test('blocks back action while lifecycle transitions can race cleanup', () => {
+    const idle = createHostBroadcastSessionState();
+    const creating = hostBroadcastSessionReducer(idle, {
+      type: 'start_requested',
+    });
+    const starting = hostBroadcastSessionReducer(creating, {
+      liveSessionId: 'TGl2ZVNlc3Npb246MQ==',
+      type: 'start_succeeded',
+    });
+    const ending = hostBroadcastSessionReducer(starting, {
+      type: 'end_requested',
+    });
+    const ended = hostBroadcastSessionReducer(ending, {
+      type: 'end_succeeded',
+    });
+
+    expect(canUseHostPreflightBackAction(idle, false)).toBe(true);
+    expect(canUseHostPreflightBackAction(creating, false)).toBe(false);
+    expect(canUseHostPreflightBackAction(starting, false)).toBe(true);
+    expect(canUseHostPreflightBackAction(ending, false)).toBe(false);
+    expect(canUseHostPreflightBackAction(ended, false)).toBe(true);
+    expect(canUseHostPreflightBackAction(starting, true)).toBe(false);
   });
 
   test('ignores stale lifecycle completions and duplicate requests', () => {

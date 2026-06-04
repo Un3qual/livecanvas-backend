@@ -38,6 +38,23 @@ export function canRequestHostGoLive(
   );
 }
 
+export function canRequestHostPreflightBackCleanup(
+  state: HostBroadcastSessionState,
+): boolean {
+  return state.status === 'starting' && state.liveSessionId !== null;
+}
+
+export function canUseHostPreflightBackAction(
+  state: HostBroadcastSessionState,
+  isGoingLive: boolean,
+): boolean {
+  return (
+    state.status !== 'creating' &&
+    state.status !== 'ending' &&
+    !isGoingLive
+  );
+}
+
 export function hostBroadcastSessionReducer(
   state: HostBroadcastSessionState,
   action: HostBroadcastSessionAction,

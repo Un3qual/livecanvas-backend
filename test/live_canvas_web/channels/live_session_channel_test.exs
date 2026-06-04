@@ -289,7 +289,7 @@ defmodule LCWeb.LiveSessionChannelTest do
       event: "media:offer"
     }
 
-    assert :ready = Live.media_negotiation_ready?(session.id)
+    assert {:not_ready, :media_not_ready} = Live.media_negotiation_ready?(session.id)
   end
 
   test "media signaling topic join does not create live participants or session-state broadcasts" do
@@ -330,13 +330,52 @@ defmodule LCWeb.LiveSessionChannelTest do
     expected_payload = %{type: "answer", sdp: sdp, sender_role: "viewer"}
     ref = push(socket, "media:answer", %{"type" => "answer", "sdp" => sdp})
 
-    assert_reply ref, :ok, ^expected_payload
+    assert_reply ref, :ok, ^expected_payload, @channel_reply_timeout
 
     assert_receive %Phoenix.Socket.Message{
       topic: ^signaling_topic,
       event: "media:answer",
       payload: ^expected_payload
     }
+
+    assert :ready = Live.media_negotiation_ready?(session.id)
+  end
+
+  test "closing media signaling sockets preserves joined live-session participants" do
+    Process.flag(:trap_exit, true)
+
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:ok, _join_payload, _session_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               LiveSessionTopics.live_session_topic(session.id)
+             )
+
+    assert {:ok, runtime_pid} = Live.lookup_session_server(session.id)
+    assert %{participants: participants_before_close} = SessionServer.snapshot(runtime_pid)
+    assert Map.has_key?(participants_before_close, viewer.id)
+
+    assert {:ok, _join_payload, media_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               LiveSessionTopics.media_signaling_topic(session.id)
+             )
+
+    monitor_ref = Process.monitor(media_socket.channel_pid)
+
+    assert :ok = close(media_socket)
+    assert_receive {:DOWN, ^monitor_ref, :process, _, _}
+
+    assert %LiveParticipant{left_at: nil} =
+             Repo.get_by!(LiveParticipant, live_session_id: session.id, user_id: viewer.id)
+
+    assert %{participants: participants_after_close} = SessionServer.snapshot(runtime_pid)
+    assert Map.has_key?(participants_after_close, viewer.id)
   end
 
   test "media:ice_candidate broadcasts validated candidate fields" do

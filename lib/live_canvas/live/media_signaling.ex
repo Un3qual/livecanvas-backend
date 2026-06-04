@@ -82,8 +82,12 @@ defmodule LC.Live.MediaSignaling do
       []
       |> append_required_string_error("candidate", candidate, @max_ice_candidate_bytes)
       |> append_optional_non_neg_integer_error("sdp_m_line_index", sdp_m_line_index)
-      |> append_optional_string_error("sdp_mid", sdp_mid)
-      |> append_optional_string_error("username_fragment", username_fragment)
+      |> append_optional_string_error("sdp_mid", sdp_mid, @max_ice_candidate_bytes)
+      |> append_optional_string_error(
+        "username_fragment",
+        username_fragment,
+        @max_ice_candidate_bytes
+      )
       |> Enum.reverse()
 
     case errors do
@@ -160,12 +164,17 @@ defmodule LC.Live.MediaSignaling do
     end
   end
 
-  @spec append_optional_string_error([validation_error()], String.t(), term()) ::
-          [validation_error()]
-  defp append_optional_string_error(errors, _field, nil), do: errors
+  defp append_optional_string_error(errors, _field, nil, _max_bytes), do: errors
 
-  defp append_optional_string_error(errors, field, value) do
-    if present_string?(value), do: errors, else: [%{field: field, reason: :invalid} | errors]
+  defp append_optional_string_error(errors, field, value, _max_bytes) when not is_binary(value),
+    do: [%{field: field, reason: :invalid} | errors]
+
+  defp append_optional_string_error(errors, field, value, max_bytes) do
+    cond do
+      String.trim(value) == "" -> [%{field: field, reason: :invalid} | errors]
+      byte_size(value) > max_bytes -> [%{field: field, reason: :too_large} | errors]
+      true -> errors
+    end
   end
 
   @spec append_optional_non_neg_integer_error([validation_error()], String.t(), term()) ::
@@ -191,10 +200,6 @@ defmodule LC.Live.MediaSignaling do
   defp missing_string?(nil), do: true
   defp missing_string?(value) when is_binary(value), do: String.trim(value) == ""
   defp missing_string?(_value), do: false
-
-  @spec present_string?(term()) :: boolean()
-  defp present_string?(value) when is_binary(value), do: String.trim(value) != ""
-  defp present_string?(_value), do: false
 
   # Phoenix channel payloads arrive with string keys, while internal tests and
   # callers may use atom keys. Keep both forms supported at this boundary.

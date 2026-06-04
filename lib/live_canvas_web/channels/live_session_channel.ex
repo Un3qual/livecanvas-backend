@@ -245,11 +245,12 @@ defmodule LCWeb.LiveSessionChannel do
 
   defp authorize_live_media_event_role(_event, _current_user, _live_session), do: :ok
 
-  defp maybe_mark_live_media_ready("media:offer", %{id: user_id}, %{
+  defp maybe_mark_live_media_ready("media:answer", %{id: user_id}, %{
          id: live_session_id,
          host_id: host_id
        })
-       when is_integer(user_id) and is_integer(live_session_id) and user_id == host_id do
+       when is_integer(user_id) and is_integer(live_session_id) and is_integer(host_id) and
+              user_id != host_id do
     case Live.mark_media_negotiation_ready(live_session_id) do
       :ok -> :ok
       {:error, :ended} -> {:error, :session_ended}
@@ -398,7 +399,13 @@ defmodule LCWeb.LiveSessionChannel do
   @spec terminate(term(), Phoenix.Socket.t()) :: :ok
   def terminate(
         _reason,
-        %Phoenix.Socket{assigns: %{current_user: current_user, live_session: live_session}}
+        %Phoenix.Socket{
+          assigns: %{
+            current_user: current_user,
+            live_session: live_session,
+            live_session_topic_scope: :live_session
+          }
+        }
       )
       when is_map(current_user) and is_map(live_session) do
     # Disconnect cleanup is best-effort because channel termination can race

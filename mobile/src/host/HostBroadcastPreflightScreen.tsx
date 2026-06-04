@@ -26,10 +26,13 @@ import {
 import { createHostBroadcastNative } from './hostBroadcastNative';
 import {
   canRequestHostGoLive,
+  canRequestHostPreflightBackCleanup,
+  canUseHostPreflightBackAction,
   createHostBroadcastSessionState,
   hostBroadcastSessionReducer,
 } from './hostBroadcastSession';
 import type { HostBroadcastPreflightScreenGoLiveMutation } from './__generated__/HostBroadcastPreflightScreenGoLiveMutation.graphql';
+import type { HostBroadcastPreflightScreenEndMutation } from './__generated__/HostBroadcastPreflightScreenEndMutation.graphql';
 import type { HostBroadcastPreflightScreenPrepareMediaMutation } from './__generated__/HostBroadcastPreflightScreenPrepareMediaMutation.graphql';
 import type { HostBroadcastPreflightScreenStartMutation } from './__generated__/HostBroadcastPreflightScreenStartMutation.graphql';
 
@@ -81,6 +84,24 @@ const hostBroadcastPreflightScreenGoLiveMutation = graphql`
     $input: GoLiveSessionInput!
   ) {
     goLiveSession(input: $input) {
+      liveSession {
+        id
+        status
+        channelTopic
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const hostBroadcastPreflightScreenEndMutation = graphql`
+  mutation HostBroadcastPreflightScreenEndMutation(
+    $input: EndLiveSessionInput!
+  ) {
+    endLiveSession(input: $input) {
       liveSession {
         id
         status
@@ -169,6 +190,10 @@ export function HostBroadcastPreflightScreen() {
     useMutation<HostBroadcastPreflightScreenGoLiveMutation>(
       hostBroadcastPreflightScreenGoLiveMutation,
     );
+  const [commitEndLiveSession] =
+    useMutation<HostBroadcastPreflightScreenEndMutation>(
+      hostBroadcastPreflightScreenEndMutation,
+    );
   const hasPreparedMedia = preparedMedia !== null;
   const canCreateSession =
     canCreateHostPreflightSession(preflightState) &&
@@ -183,6 +208,10 @@ export function HostBroadcastPreflightScreen() {
     canGoLiveFromHostPreflight(preflightState) &&
     canRequestHostGoLive(sessionState, hasPreparedMedia) &&
     !isGoingLive;
+  const canUseBackAction = canUseHostPreflightBackAction(
+    sessionState,
+    isGoingLive,
+  );
 
   function resetPreparedMedia() {
     setPreparedMedia(null);
@@ -312,6 +341,57 @@ export function HostBroadcastPreflightScreen() {
       onError: () => {
         setIsGoingLive(false);
         setHostActionError(formatLiveMutationErrors([]));
+      },
+    });
+  }
+
+  function handleBackPress() {
+    const liveSessionId = sessionState.liveSessionId;
+
+    if (!canUseBackAction) {
+      return;
+    }
+
+    if (
+      !canRequestHostPreflightBackCleanup(sessionState) ||
+      !liveSessionId
+    ) {
+      router.back();
+      return;
+    }
+
+    dispatchSessionAction({ type: 'end_requested' });
+    setHostActionError(null);
+
+    commitEndLiveSession({
+      variables: {
+        input: {
+          liveSessionId,
+        },
+      },
+      onCompleted: (payload) => {
+        const result = payload.endLiveSession;
+
+        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
+          const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
+          dispatchSessionAction({
+            type: 'end_failed',
+            viewerSafeErrorText,
+          });
+          setHostActionError(viewerSafeErrorText);
+          return;
+        }
+
+        dispatchSessionAction({ type: 'end_succeeded' });
+        router.back();
+      },
+      onError: () => {
+        const viewerSafeErrorText = formatLiveMutationErrors([]);
+        dispatchSessionAction({
+          type: 'end_failed',
+          viewerSafeErrorText,
+        });
+        setHostActionError(viewerSafeErrorText);
       },
     });
   }
@@ -463,8 +543,9 @@ export function HostBroadcastPreflightScreen() {
             onPress={handleGoLivePress}
           />
           <AppButton
+            disabled={!canUseBackAction}
             label="Go back"
-            onPress={() => router.back()}
+            onPress={handleBackPress}
             variant="secondary"
           />
         </View>

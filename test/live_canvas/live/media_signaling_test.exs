@@ -99,6 +99,24 @@ defmodule LC.Live.MediaSignalingTest do
                  "candidate" => oversized_candidate
                })
     end
+
+    test "rejects oversized optional ICE candidate strings" do
+      candidate =
+        "candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ srflx raddr 0.0.0.0 rport 0"
+
+      oversized_value = String.duplicate("a", 4_097)
+
+      assert {:error,
+              [
+                %{field: "sdp_mid", reason: :too_large},
+                %{field: "username_fragment", reason: :too_large}
+              ]} =
+               MediaSignaling.validate_ice_candidate_payload(%{
+                 "candidate" => candidate,
+                 "sdp_mid" => oversized_value,
+                 "username_fragment" => oversized_value
+               })
+    end
   end
 
   describe "validate_event_payload/2" do
