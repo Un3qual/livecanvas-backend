@@ -1,39 +1,53 @@
-# Mobile Lane Execution
+# Mobile Lane NOW
 
-Last reviewed: 2026-06-02
-Status: host broadcast native capability/preflight plan active
+Last reviewed: 2026-06-03
+Status: active
 
 ## Lane Scope
 
-- Own `mobile/` and `docs/plans/mobile/**` only.
-- Do not edit backend Elixir/GraphQL code or coordinator-owned shared docs such as `docs/plans/NOW.md` and `docs/plans/INDEX.md` unless explicitly assigned.
+- Own `mobile/` and `docs/plans/mobile/**`.
+- Do not edit backend Elixir/GraphQL code, shared contract docs, or coordinator
+  docs unless explicitly assigned.
 
 ## Current Batch
 
+- Source plan:
+  `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Source: `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
-- Batch: Task 1, add the native development-build and WebRTC dependency boundary
-- Handoff: execute the host broadcast native capability/preflight plan before starting media publish, viewer playback, full socket lifecycle, or chat stream UI work.
+- Task: Task 1, add the native development-build and WebRTC dependency boundary.
+- Files: `mobile/package.json`, `mobile/pnpm-lock.yaml`, `mobile/app.json`,
+  `mobile/index.ts`.
 
-## Completed Verification Scope
+## Do This Now
 
-- Backend focused tests: `mix test test/live_canvas_gql/feed/feed_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/live/live_resolver_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs`.
-- Backend compile/typecheck: `mix compile` and `mix typecheck`.
-- Mobile focused tests: `cd mobile && bun test src/live/liveSessionChannelTopic.test.ts src/live/liveSessionRealtimeEvents.test.ts src/live/liveSessionPresentation.test.ts src/live/liveSessionNavigation.test.ts src/live/liveSessionWatchReducer.test.ts`.
-- Relay and TypeScript: `cd mobile && ./node_modules/.bin/relay-compiler` and `cd mobile && ./node_modules/.bin/tsc --noEmit`.
-- Contract stale-surface search: `rg -n "chat:message|chat:message_updated|removed_timeline_event_id|timeline:event|channelTopic" docs/contracts docs/plans/mobile mobile/src/live lib/live_canvas_web/channels test/live_canvas_web/channels`.
-- Whitespace: `git diff --check`.
-- Relay note: Relay compiler passed after an unsandboxed rerun because Watchman could not update its local state inside the sandbox.
+1. Install native/development dependencies in `mobile/`:
+   `pnpm exec expo install expo-dev-client expo-keep-awake`
+2. Add WebRTC dependencies in `mobile/`:
+   `pnpm add react-native-webrtc @config-plugins/react-native-webrtc`
+3. Import `expo-dev-client` before `expo-router/entry` in `mobile/index.ts`.
+4. Add the WebRTC config plugin plus explicit camera/microphone permission copy
+   in `mobile/app.json`, preserving existing metadata.
+5. Run focused verification:
+   `pnpm exec expo config --type public`
+   `./node_modules/.bin/tsc --noEmit`
+6. Mark Task 1 complete in the source plan and commit the dependency-boundary
+   change.
 
-## Next Up
+## Done Condition
 
-- Execute Task 1 of `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`.
+Task 1 is done when package files, app config, and entrypoint are updated, Expo
+public config resolves, TypeScript passes, and the source plan records the
+completed task.
+
+## Guardrails
+
+- Do not enable mobile go-live, media publishing, viewer playback, or full chat
+  stream UI in this batch.
 - Do not decode Relay IDs client-side.
-- Do not enable mobile go-live, media publish, viewer playback, or full chat stream UI before host broadcast/native media preflight is complete and backend media signaling is explicitly planned.
+- Keep true media signaling blocked until backend ICE/TURN/WebRTC negotiation
+  contracts are planned.
 
-## Repair Conditions
+## Next Action
 
-Repair this lane pointer from `docs/plans/mobile/TRACK.md` and `docs/plans/INDEX.md` when:
-
-- another mobile slice is explicitly reprioritized ahead of host broadcast/native media planning
-- the selected next plan no longer matches the codebase
+After Task 1, continue the same source plan with the pure TypeScript host
+preflight and host session state tasks before building the UI route.

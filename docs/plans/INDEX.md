@@ -1,72 +1,74 @@
 # Plans Index
 
-Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or when `docs/plans/NOW.md` needs coordinator repair.
+This file is a registry and backlog map. It does not own executable current-batch
+state; lane `NOW.md` files do.
 
-## Execution Lanes
+Use this file when:
+
+- a lane `NOW.md` is stale, blocked, or empty
+- a new plan needs registry placement
+- the coordinator dashboard needs repair
+- a lane needs backlog context before promoting new work
+
+## Lane Registry
 
 ### Backend Lane
 
-- Lane pointer: `docs/plans/backend/NOW.md`
-- Status: `GEN-001` chat timeline/event-object backend implementation complete; no unblocked backend implementation batch remains
-- Current track: none active after `GEN-001` closeout
-- Current batch: none
-- Next queued batch: none selected
-- Notes: backend lane owns backend code and backend planning docs only; shared dashboard/index updates stay with the coordinator unless explicitly assigned
+- Pointer: `docs/plans/backend/NOW.md`
+- State: idle; no backend implementation batch is selected
+- Active track: none
+- Selection source when resumed: product priority in `ARCHITECTURE.md`, this
+  registry, and any user-directed backend track
+- Notes: backend lane owns backend code and backend planning docs only
 
 ### Mobile Lane
 
-- Lane pointer: `docs/plans/mobile/NOW.md`
-- Status: channel transport contract repair complete; host broadcast planning handoff is next
-- Current track: `docs/plans/mobile/TRACK.md`
-- Current batch: none
-- Next queued batch: create the host broadcast native capability and preflight planning plan
-- Notes: live discovery plus durable viewer watch flow and channel transport contract repair are complete; mobile now has an opaque `LiveSession.channelTopic` and an up-to-date timeline-event realtime contract
+- Pointer: `docs/plans/mobile/NOW.md`
+- State: active
+- Track: `docs/plans/mobile/TRACK.md`
+- Current product theme: host broadcast native capability/preflight
+- Notes: the lane now has an opaque `LiveSession.channelTopic`; do not decode
+  Relay IDs client-side
 
-## Track Status
+## Track Registry
 
-### Live Session Channel State And Presence
+### Mobile Expo Frontend Planning Track
 
-- Plan: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
-- Status: completed
-- Current batch: completed through `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 3`
-- Next queued batch: none; backend lane returns to roadmap-driven planning
-- Notes: closed the remaining architecture gap around channel-level live-room state by publishing bounded aggregate status/viewer-count updates on the existing `live_session:<id>` topic
-
-### Release Roadmap And Planning Holes
-
-- Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
-- Status: paused; no active backend implementation batch is selected
-- Notes: return to this roadmap only after the backend lane is explicitly reprioritized again
+- Track: `docs/plans/mobile/TRACK.md`
+- State: active
+- Current theme: host broadcast/native media preflight
+- Next dependency after preflight: backend media signaling contract planning,
+  unless the coordinator explicitly defers media and selects mobile chat
 
 ### Backend Code Quality Cleanup
 
 - Plan: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
-- Status: cleanup-stage implementation complete
-- Current batch: none
-- Notes: `GQL-001`, `GQL-002`, `GQL-003`, `GQL-004`, `GQL-005`, `GQL-006`, `GQL-007`, `GQL-008`, `GQL-009`, `GEN-002`, `WEB-001`, `ECTO-001`, `CTX-001`, `SOCK-002`, `SOCK-003`, `LIVE-001`, and `DOC-001` have Stage 8 complete; `SOCK-001` was merged into `SOCK-002`; `GEN-001` is now explicitly started as a separate redesign rather than through the cleanup-stage flow
+- State: complete
+- Notes: all valid or partially valid cleanup issues have completed implementation
+  stages; `SOCK-001` was merged into `SOCK-002`; `GEN-001` was split into its own
+  completed redesign track
 
 ### GEN-001 Chat Timeline/Event Object Redesign
 
-- Source: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
-- Implementation plan: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
-- Status: implementation complete
-- Current batch: none
-- Next queued batch: none
-- Notes: this work is intentionally separate from the completed code-quality cleanup stages
+- Design: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
+- Implementation: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+- State: complete
+- Notes: first-class timeline events, timeline GraphQL, timeline channel
+  broadcasts, and data-governance handling are implemented
 
-## Queued Candidate Work
+### Live Session Channel State And Presence
 
-### Development Seed Data
+- Plan: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
+- State: complete
+- Notes: bounded aggregate room state and viewer-count updates are implemented on
+  the existing live-session topic
 
-- Plan: `docs/plans/2026-03-22-development-seed-data.md`
-- Status: completed through Task 2
-- Notes: deterministic development-only seed accounts, social graph edges, feed posts, and a local live-session fixture are implemented and documented.
+### Release Roadmap And Planning Holes
 
-### Mobile Expo Frontend Planning Track
-
-- Source: `docs/plans/mobile/TRACK.md`
-- Status: channel transport contract repair complete; host broadcast native capability and preflight planning is next
-- Notes: the shell, Relay/auth session lifecycle, profiles/social basics, live discovery plus durable viewer watch flow, and channel transport contract repair plans are complete; the next mobile step is host broadcast/native media planning
+- Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
+- State: paused
+- Notes: return to this roadmap only after the backend lane is explicitly
+  reprioritized
 
 ## Paused Or Deferred
 
@@ -74,15 +76,23 @@ Use this file only when a lane-specific `NOW.md` is stale, blocked, or empty, or
 
 ## Completed Work
 
-- User Profile Content And Live Entry is complete through `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md` -> `Task 3`.
-- Post Media Attachments And Story Feed is complete through `docs/plans/content/2026-03-18-post-media-attachments-and-story-feed.md` -> `Task 3`.
-- Shared Read-Policy Query Composition is complete through `docs/plans/2026-03-18-query-policy-composition-and-reuse.md` -> `Task 3`.
-- GraphQL batching and N+1 reduction is complete through `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md` -> `Task 3`.
-- Chat product surface track is complete through `docs/plans/chat/2026-03-17-chat-system-events.md` -> `Task 3`.
-- Live session channel state/presence is complete through `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md` -> `Task 3`.
-- Live session client contract stabilization is complete through `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md` -> `Task 3`.
-- Post reporting is complete through `docs/plans/content/2026-04-24-post-reporting.md` -> `Task 2`.
-- Development seed data is complete through `docs/plans/2026-03-22-development-seed-data.md` -> `Task 2`.
-- Live replay and recording track is complete through `docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md` -> `Task 3`.
-- Checklist-complete plans belong in `docs/plans/archive/completed/`.
-- Archived plans are historical context, not the default starting point for a new execution turn.
+- User Profile Content And Live Entry:
+  `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md`
+- Post Media Attachments And Story Feed:
+  `docs/plans/content/2026-03-18-post-media-attachments-and-story-feed.md`
+- Shared Read-Policy Query Composition:
+  `docs/plans/2026-03-18-query-policy-composition-and-reuse.md`
+- GraphQL batching and N+1 reduction:
+  `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md`
+- Chat product surface:
+  `docs/plans/chat/2026-03-17-chat-system-events.md`
+- Live session client contract stabilization:
+  `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md`
+- Post reporting:
+  `docs/plans/content/2026-04-24-post-reporting.md`
+- Development seed data:
+  `docs/plans/2026-03-22-development-seed-data.md`
+- Live replay and recording:
+  `docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md`
+
+Checklist-complete plans belong in `docs/plans/archive/completed/`.
