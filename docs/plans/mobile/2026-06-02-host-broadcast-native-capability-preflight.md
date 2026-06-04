@@ -84,8 +84,8 @@ the WebRTC plugin plus camera/microphone permission copy.
 
 **Files**
 
-- Create: `mobile/src/host/hostBroadcastPreflight.ts`
 - Create: `mobile/src/host/hostBroadcastPreflight.test.ts`
+- Create: `mobile/src/host/hostBroadcastPreflight.ts`
 
 **Model**
 
@@ -125,8 +125,8 @@ bun test src/host/hostBroadcastPreflight.test.ts
 
 **Files**
 
-- Create: `mobile/src/host/hostBroadcastNative.ts`
 - Create: `mobile/src/host/hostBroadcastNative.test.ts`
+- Create: `mobile/src/host/hostBroadcastNative.ts`
 
 **Model**
 
@@ -159,8 +159,8 @@ bun test src/host/hostBroadcastNative.test.ts
 
 **Files**
 
-- Create: `mobile/src/host/hostBroadcastSession.ts`
 - Create: `mobile/src/host/hostBroadcastSession.test.ts`
+- Create: `mobile/src/host/hostBroadcastSession.ts`
 
 **Model**
 

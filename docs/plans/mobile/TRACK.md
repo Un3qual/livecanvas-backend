@@ -55,6 +55,10 @@ streaming, and chat.
 ## Source Rationale
 
 - Overview design: `docs/plans/mobile/2026-03-18-mobile-app-overview-design.md`
+- Bootstrap design:
+  `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap-design.md`
+- Bootstrap implementation plan:
+  `docs/plans/mobile/2026-03-19-mobile-expo-bootstrap.md`
 - Backend architecture: `ARCHITECTURE.md`
 - Mobile GraphQL contract: `docs/contracts/mobile-graphql-phase2.md`
 - Mobile chat-history contract: `docs/contracts/mobile-graphql-chat-history.md`
