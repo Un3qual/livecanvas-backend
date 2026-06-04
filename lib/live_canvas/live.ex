@@ -113,6 +113,22 @@ defmodule LC.Live do
   end
 
   @doc """
+  Returns active viewer user IDs for a live session in deterministic join order.
+  """
+  @spec active_live_viewer_ids(pos_integer()) :: [pos_integer()]
+  def active_live_viewer_ids(session_id) when is_integer(session_id) do
+    from(live_participant in LiveParticipant,
+      where:
+        live_participant.live_session_id == ^session_id and
+          live_participant.role == :viewer and
+          is_nil(live_participant.left_at),
+      order_by: [asc: live_participant.joined_at, asc: live_participant.id],
+      select: live_participant.user_id
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Starts a persisted live session and boots its runtime process.
   """
   @spec start_live_session(User.t(), map()) :: live_session_result()

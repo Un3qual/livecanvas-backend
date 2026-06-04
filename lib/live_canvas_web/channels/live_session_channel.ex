@@ -12,8 +12,10 @@ defmodule LCWeb.LiveSessionChannel do
 
   @disconnect_event "disconnect"
   @media_events Live.prepare_live_media_session().events |> Map.values()
+  @media_target_user_ids_key :__live_media_target_user_ids__
+  @media_internal_payload_keys [@media_target_user_ids_key]
 
-  intercept ["media:offer"]
+  intercept @media_events
 
   @impl true
   @spec join(String.t(), map(), Phoenix.Socket.t()) ::
@@ -99,9 +101,14 @@ defmodule LCWeb.LiveSessionChannel do
 
   @impl true
   @spec handle_out(String.t(), map(), Phoenix.Socket.t()) :: {:noreply, Phoenix.Socket.t()}
+  def handle_out(event, payload, socket) when event in @media_events and is_map(payload) do
+    socket = maybe_push_live_media_payload(event, payload, socket)
+
+    {:noreply, socket}
+  end
+
   def handle_out(event, payload, socket) when is_binary(event) and is_map(payload) do
     payload = normalize_timeline_channel_payload(event, payload)
-    socket = maybe_note_live_media_host_offer(event, socket)
 
     push(socket, event, payload)
     {:noreply, socket}
@@ -129,15 +136,20 @@ defmodule LCWeb.LiveSessionChannel do
            :ok <- authorize_live_media_signal(event, current_user, live_session_id),
            {:ok, media_payload} <- validate_live_media_payload(event, payload),
            :ok <- maybe_mark_live_media_ready(event, current_user, live_session, socket) do
-        {:ok, media_channel_payload(media_payload, current_user, live_session)}
+        reply_payload = media_channel_payload(media_payload, current_user, live_session)
+
+        broadcast_payload =
+          media_channel_broadcast_payload(event, reply_payload, current_user, live_session)
+
+        {:ok, reply_payload, broadcast_payload}
       else
         {:error, reason} -> {:error, reason}
       end
 
     case result do
-      {:ok, broadcast_payload} ->
+      {:ok, reply_payload, broadcast_payload} ->
         :ok = broadcast(socket, event, broadcast_payload)
-        {:reply, {:ok, broadcast_payload}, socket}
+        {:reply, {:ok, reply_payload}, socket}
 
       {:error, reason} ->
         {:reply, {:error, media_signaling_error_payload(reason)}, socket}
@@ -319,6 +331,33 @@ defmodule LCWeb.LiveSessionChannel do
 
   defp maybe_note_live_media_host_offer(_event, socket), do: socket
 
+  defp maybe_push_live_media_payload(
+         event,
+         payload,
+         %Phoenix.Socket{assigns: %{current_user: %{id: user_id}}} = socket
+       )
+       when event in @media_events and is_integer(user_id) do
+    if live_media_payload_targets_user?(payload, user_id) do
+      push(socket, event, public_live_media_payload(payload))
+      maybe_note_live_media_host_offer(event, socket)
+    else
+      socket
+    end
+  end
+
+  defp maybe_push_live_media_payload(_event, _payload, socket), do: socket
+
+  defp live_media_payload_targets_user?(%{@media_target_user_ids_key => target_user_ids}, user_id)
+       when is_integer(user_id) and is_list(target_user_ids) do
+    user_id in target_user_ids
+  end
+
+  defp live_media_payload_targets_user?(_payload, _user_id), do: false
+
+  defp public_live_media_payload(payload) when is_map(payload) do
+    Map.drop(payload, @media_internal_payload_keys)
+  end
+
   defp validate_live_media_payload(event, payload) when event in @media_events do
     case Live.validate_live_media_signal_payload(event, payload) do
       {:ok, media_payload} ->
@@ -336,6 +375,16 @@ defmodule LCWeb.LiveSessionChannel do
     |> Map.put(:sender_role, live_media_sender_role(current_user, live_session))
   end
 
+  defp media_channel_broadcast_payload(event, reply_payload, current_user, live_session)
+       when event in @media_events and is_map(reply_payload) and is_map(current_user) and
+              is_map(live_session) do
+    Map.put(
+      reply_payload,
+      @media_target_user_ids_key,
+      live_media_target_user_ids(event, current_user, live_session)
+    )
+  end
+
   defp media_channel_payload_value(:type, value) when is_atom(value), do: Atom.to_string(value)
   defp media_channel_payload_value(_key, value), do: value
 
@@ -344,6 +393,34 @@ defmodule LCWeb.LiveSessionChannel do
        do: "host"
 
   defp live_media_sender_role(_current_user, _live_session), do: "viewer"
+
+  defp live_media_target_user_ids("media:offer", %{id: user_id}, %{
+         id: live_session_id,
+         host_id: host_id
+       })
+       when is_integer(user_id) and is_integer(live_session_id) and is_integer(host_id) and
+              user_id == host_id do
+    Live.active_live_viewer_ids(live_session_id)
+  end
+
+  defp live_media_target_user_ids("media:answer", %{id: user_id}, %{host_id: host_id})
+       when is_integer(user_id) and is_integer(host_id) and user_id != host_id do
+    [host_id]
+  end
+
+  defp live_media_target_user_ids("media:ice_candidate", %{id: user_id}, %{
+         id: live_session_id,
+         host_id: host_id
+       })
+       when is_integer(user_id) and is_integer(live_session_id) and is_integer(host_id) do
+    if user_id == host_id do
+      Live.active_live_viewer_ids(live_session_id)
+    else
+      [host_id]
+    end
+  end
+
+  defp live_media_target_user_ids(_event, _current_user, _live_session), do: []
 
   defp media_signaling_error_payload({:invalid_media_payload, validation_errors})
        when is_list(validation_errors) do

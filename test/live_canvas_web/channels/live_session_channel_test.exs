@@ -252,15 +252,33 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
   end
 
-  test "media:offer uses the server-derived host sender role" do
+  test "media:offer targets active viewers with the server-derived host sender role" do
     host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    passive_viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
     session_topic = LiveSessionTopics.live_session_topic(session.id)
     signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
 
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
     assert {:ok, _join_payload, socket} =
              subscribe_and_join(
                socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, _viewer_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, _passive_socket} =
+             subscribe_and_join(
+               socket_for(passive_viewer),
                LiveSessionChannel,
                signaling_topic
              )
@@ -282,6 +300,11 @@ defmodule LCWeb.LiveSessionChannelTest do
       topic: ^signaling_topic,
       event: "media:offer",
       payload: ^expected_payload
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:offer"
     }
 
     refute_receive %Phoenix.Socket.Message{
@@ -343,10 +366,12 @@ defmodule LCWeb.LiveSessionChannelTest do
   test "media:answer uses the server-derived viewer sender role after a host offer" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
+    second_viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
     signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
 
     assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+    assert {:ok, _participant} = Live.join_live_session(session, second_viewer, :viewer)
 
     assert {:ok, _join_payload, host_socket} =
              subscribe_and_join(
@@ -358,6 +383,13 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert {:ok, _join_payload, socket} =
              subscribe_and_join(
                socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, _second_viewer_socket} =
+             subscribe_and_join(
+               socket_for(second_viewer),
                LiveSessionChannel,
                signaling_topic
              )
@@ -380,6 +412,11 @@ defmodule LCWeb.LiveSessionChannelTest do
       payload: ^offer_payload
     }
 
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:offer"
+    }
+
     sdp = "v=0\r\no=- 4611733053425433520 2 IN IP4 127.0.0.1\r\n"
     expected_payload = %{type: "answer", sdp: sdp, sender_role: "viewer"}
     ref = push(socket, "media:answer", %{"type" => "answer", "sdp" => sdp})
@@ -390,6 +427,11 @@ defmodule LCWeb.LiveSessionChannelTest do
       topic: ^signaling_topic,
       event: "media:answer",
       payload: ^expected_payload
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:answer"
     }
 
     assert :ready = Live.media_negotiation_ready?(session.id)
@@ -459,12 +501,22 @@ defmodule LCWeb.LiveSessionChannelTest do
 
   test "media:ice_candidate broadcasts validated candidate fields" do
     host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
     signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
 
     assert {:ok, _join_payload, socket} =
              subscribe_and_join(
                socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, _viewer_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
                LiveSessionChannel,
                signaling_topic
              )
@@ -502,6 +554,13 @@ defmodule LCWeb.LiveSessionChannelTest do
     viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
     signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _join_payload, _host_socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
 
     assert {:ok, _join_payload, socket} =
              subscribe_and_join(

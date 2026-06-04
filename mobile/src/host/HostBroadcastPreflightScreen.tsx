@@ -248,6 +248,8 @@ export function HostBroadcastPreflightScreen() {
   }
 
   function requestAbandonedPreflightEndLiveSession(liveSessionId: string) {
+    // Abandoned preflight cleanup is best-effort and non-navigating; the shared
+    // cleanup gate makes duplicate end/go-live races no-ops.
     if (!canRequestAbandonedHostPreflightCleanup(readPreflightCleanupState())) {
       return;
     }
@@ -455,6 +457,8 @@ export function HostBroadcastPreflightScreen() {
     liveSessionId: string,
     options: { readonly navigateBackOnSuccess: boolean },
   ) {
+    // Back cleanup reports failures to the mounted screen, while abandoned
+    // cleanup only attempts non-blocking teardown after unmount.
     if (hasEndLiveSessionRequestInFlightRef.current) {
       return;
     }
@@ -490,6 +494,7 @@ export function HostBroadcastPreflightScreen() {
           return;
         }
 
+        hasEndLiveSessionRequestInFlightRef.current = false;
         dispatchSessionAction({ type: 'end_succeeded' });
         router.back();
       },
@@ -553,6 +558,8 @@ export function HostBroadcastPreflightScreen() {
     return () => {
       isMounted = false;
       isPreflightScreenMountedRef.current = false;
+      // Component unmount may race with start/go-live callbacks; only tear down
+      // a created STARTING session when no transition already owns cleanup.
       const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
         latestSessionStateRef.current,
         readPreflightCleanupState(),

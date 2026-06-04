@@ -61,6 +61,8 @@ export function canSubmitHostPreflightStartRequest(
 export function canRequestHostPreflightBackCleanup(
   state: HostBroadcastSessionState,
 ): boolean {
+  // State-only UI predicate; runtime in-flight cleanup guards are checked
+  // separately by hostBroadcastPreflightCleanupLiveSessionId callers.
   return (
     hostBroadcastPreflightCleanupLiveSessionId(state, {
       hasEndLiveSessionRequestInFlight: false,
