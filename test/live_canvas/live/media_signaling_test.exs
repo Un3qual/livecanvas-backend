@@ -1,14 +1,92 @@
 defmodule LC.Live.MediaSignalingTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias LC.Live.MediaSignaling
+
+  defmodule EphemeralIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(opts) do
+      nonce = Keyword.fetch!(opts, :nonce)
+
+      {:ok,
+       [
+         %{
+           urls: ["turns:turn.livecanvas.test:443"],
+           username: "live-session:#{nonce}",
+           credential: "turn-credential:#{nonce}",
+           credential_type: :password
+         }
+       ]}
+    end
+  end
+
+  defmodule ConfigurableIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(opts), do: {:ok, [Keyword.fetch!(opts, :ice_server)]}
+  end
+
+  defmodule FailingIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: {:error, :turn_unavailable}
+  end
+
+  defmodule RaisingIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: raise(RuntimeError, "turn secret leaked")
+  end
+
+  defmodule ExitingIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: exit({:turn_secret_leaked, "turn secret leaked"})
+  end
+
+  defmodule ThrowingIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: throw({:turn_secret_leaked, "turn secret leaked"})
+  end
+
+  defmodule InvalidIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: {:ok, [%{urls: []}]}
+  end
+
+  defmodule InvalidIceServerSchemeProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: {:ok, [%{urls: ["https://turn.livecanvas.test"]}]}
+  end
+
+  defmodule EmptyIceServerSchemeProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: {:ok, [%{urls: ["turns:"]}]}
+  end
 
   describe "prepare_live_media_session/0" do
     test "returns deterministic media setup data" do
-      assert %{
-               ice_servers: ice_servers,
-               events: events
-             } = MediaSignaling.prepare_live_media_session()
+      assert {:ok,
+              %{
+                ice_servers: ice_servers,
+                events: events
+              }} = MediaSignaling.prepare_live_media_session()
 
       assert ice_servers == [%{urls: ["stun:stun.l.google.com:19302"]}]
 
@@ -18,6 +96,132 @@ defmodule LC.Live.MediaSignalingTest do
                ice_candidate: "media:ice_candidate"
              }
     end
+
+    test "returns ICE servers from an explicit configured provider" do
+      assert {:ok,
+              %{
+                ice_servers: [
+                  %{
+                    urls: ["turns:turn.livecanvas.test:443"],
+                    username: "live-session:test-nonce",
+                    credential: "turn-credential:test-nonce",
+                    credential_type: :password
+                  }
+                ]
+              }} =
+               MediaSignaling.prepare_live_media_session(
+                 provider: EphemeralIceServerProvider,
+                 provider_config: [nonce: "test-nonce"]
+               )
+    end
+
+    test "returns provider failures as tagged errors" do
+      log =
+        capture_log(fn ->
+          assert {:error, :ice_server_provider_failed} =
+                   MediaSignaling.prepare_live_media_session(provider: FailingIceServerProvider)
+        end)
+
+      assert log =~ "live media ICE server provider failed"
+      refute log =~ "turn_unavailable"
+    end
+
+    test "returns provider exceptions as tagged errors" do
+      log =
+        capture_log(fn ->
+          assert {:error, :ice_server_provider_failed} =
+                   MediaSignaling.prepare_live_media_session(provider: RaisingIceServerProvider)
+        end)
+
+      assert log =~ "live media ICE server provider failed"
+      refute log =~ "turn secret leaked"
+    end
+
+    test "returns provider exits as tagged errors" do
+      log =
+        capture_log(fn ->
+          assert {:error, :ice_server_provider_failed} =
+                   MediaSignaling.prepare_live_media_session(provider: ExitingIceServerProvider)
+        end)
+
+      assert log =~ "live media ICE server provider failed"
+      refute log =~ "turn secret leaked"
+    end
+
+    test "returns provider throws as tagged errors" do
+      log =
+        capture_log(fn ->
+          assert {:error, :ice_server_provider_failed} =
+                   MediaSignaling.prepare_live_media_session(provider: ThrowingIceServerProvider)
+        end)
+
+      assert log =~ "live media ICE server provider failed"
+      refute log =~ "turn secret leaked"
+    end
+
+    test "rejects malformed ICE server payloads from providers" do
+      log =
+        capture_log(fn ->
+          assert {:error, :invalid_ice_server_config} =
+                   MediaSignaling.prepare_live_media_session(provider: InvalidIceServerProvider)
+        end)
+
+      assert log =~ "live media ICE server provider returned invalid server configuration"
+    end
+
+    test "rejects incomplete ICE server credential fields from providers" do
+      assert_invalid_ice_server(%{
+        urls: ["turns:turn.livecanvas.test:443"],
+        credential_type: :password
+      })
+
+      assert_invalid_ice_server(%{
+        urls: ["turns:turn.livecanvas.test:443"],
+        username: "live-session:test-nonce"
+      })
+
+      assert_invalid_ice_server(%{
+        urls: ["turns:turn.livecanvas.test:443"],
+        credential: "turn-credential:test-nonce"
+      })
+    end
+
+    test "rejects unsupported ICE server URL schemes from providers" do
+      log =
+        capture_log(fn ->
+          assert {:error, :invalid_ice_server_config} =
+                   MediaSignaling.prepare_live_media_session(
+                     provider: InvalidIceServerSchemeProvider
+                   )
+        end)
+
+      assert log =~ "live media ICE server provider returned invalid server configuration"
+    end
+
+    test "rejects ICE server URLs without a scheme body" do
+      log =
+        capture_log(fn ->
+          assert {:error, :invalid_ice_server_config} =
+                   MediaSignaling.prepare_live_media_session(
+                     provider: EmptyIceServerSchemeProvider
+                   )
+        end)
+
+      assert log =~ "live media ICE server provider returned invalid server configuration"
+    end
+  end
+
+  defp assert_invalid_ice_server(ice_server) do
+    log =
+      capture_log(fn ->
+        assert {:error, :invalid_ice_server_config} =
+                 MediaSignaling.prepare_live_media_session(
+                   provider: ConfigurableIceServerProvider,
+                   provider_config: [ice_server: ice_server]
+                 )
+      end)
+
+    assert log =~ "live media ICE server provider returned invalid server configuration"
   end
 
   describe "validate_offer_payload/1" do

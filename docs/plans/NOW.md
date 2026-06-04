@@ -14,10 +14,10 @@ details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: active; live media runtime foundation is selected as the next product
-  batch
+- State: idle; live media runtime foundation is complete
 - Scope: backend code and backend planning docs
-- Source plan: `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
+- Completed source plan:
+  `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
 
 ### Mobile Lane
 
@@ -42,10 +42,9 @@ track docs.
 
 ## Next Coordinator Decision
 
-Execute the backend lane Task 1 from `docs/plans/backend/NOW.md`: durable media
-readiness storage for the live media runtime foundation. Mobile chat realtime
-stream plus retained history stays next after the media runtime blocker is
-handled or explicitly deferred.
+Select the next product batch. The currently documented next mobile-lane batch
+is chat realtime stream plus retained history from `docs/plans/mobile/TRACK.md`,
+unless a new backend plan is explicitly reprioritized.
 
 ## Repair Conditions
 

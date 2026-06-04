@@ -18,6 +18,16 @@ defmodule LC.LiveTest do
     :ok
   end
 
+  describe "media_events/0" do
+    test "returns media signaling event names without preparing ICE servers" do
+      assert Live.media_events() == %{
+               offer: "media:offer",
+               answer: "media:answer",
+               ice_candidate: "media:ice_candidate"
+             }
+    end
+  end
+
   describe "start_live_session/2" do
     test "emits telemetry for successful and rejected session starts" do
       host = user_fixture()
@@ -145,6 +155,7 @@ defmodule LC.LiveTest do
 
       assert {:ok, _lock_result} = Task.await(lock_task, 5_000)
       assert {:ok, %LiveSession{started_at: %DateTime{}}, true} = Task.await(go_live_task, 5_000)
+
       assert {:ok, %LiveSession{status: :ended, ended_reason: :host_ended}, true} =
                Task.await(end_task, 5_000)
 
@@ -284,7 +295,9 @@ defmodule LC.LiveTest do
 
       tasks =
         Enum.map(1..2, fn _attempt ->
-          Task.async(fn -> Live.end_live_session_with_transition(session, %{ended_reason: :host_ended}) end)
+          Task.async(fn ->
+            Live.end_live_session_with_transition(session, %{ended_reason: :host_ended})
+          end)
         end)
 
       Enum.each(tasks, &allow_live_db(&1.pid))
@@ -527,9 +540,7 @@ defmodule LC.LiveTest do
 
       {1, _rows} =
         from(live_session in LiveSession, where: live_session.id == ^session.id)
-        |> Repo.update_all(
-          set: [status: :ended, ended_at: ended_at, ended_reason: :host_ended]
-        )
+        |> Repo.update_all(set: [status: :ended, ended_at: ended_at, ended_reason: :host_ended])
 
       assert {:ok,
               %LiveSession{

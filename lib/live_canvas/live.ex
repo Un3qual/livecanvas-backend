@@ -47,6 +47,8 @@ defmodule LC.Live do
   @type live_media_ice_server :: MediaSignaling.ice_server()
   @type live_media_payload :: MediaSignaling.media_payload()
   @type live_media_prepare_payload :: MediaSignaling.prepare_payload()
+  @type live_media_prepare_result :: MediaSignaling.prepare_result()
+  @type live_media_events :: MediaSignaling.media_events()
   @type live_media_validation_result ::
           MediaSignaling.validation_result(live_media_payload()) | {:error, :unknown_event}
   @type media_negotiation_readiness :: MediaSession.readiness()
@@ -67,8 +69,14 @@ defmodule LC.Live do
   @doc """
   Returns the host media setup metadata for a live-session negotiation.
   """
-  @spec prepare_live_media_session() :: live_media_prepare_payload()
+  @spec prepare_live_media_session() :: live_media_prepare_result()
   def prepare_live_media_session, do: MediaSignaling.prepare_live_media_session()
+
+  @doc """
+  Returns the media signaling Phoenix event names without preparing ICE servers.
+  """
+  @spec media_events() :: live_media_events()
+  def media_events, do: MediaSignaling.media_events()
 
   @doc """
   Validates an inbound live media signaling payload.

@@ -19,9 +19,9 @@ streaming, and chat.
   `LiveSession.channelTopic`; do not decode Relay IDs client-side.
 - Backend media signaling dependency: complete. Mobile has prepare/go-live retry
   wiring and media channel payload normalization against the backend contract.
-- Backend media runtime dependency: incomplete. True go-live remains blocked
-  until durable readiness, ICE/TURN configuration, and Membrane/WebRTC
-  negotiation runtime are implemented.
+- Backend media runtime dependency: complete. Durable readiness, provider-backed
+  ICE/TURN configuration, and signaling-driven readiness are implemented in the
+  backend lane.
 
 ## Completed Detailed Plans
 

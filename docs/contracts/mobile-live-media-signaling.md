@@ -82,7 +82,7 @@ Field rules:
 - `urls` is required and contains one or more `stun:`, `turn:`, or `turns:` URLs.
 - `username`, `credential`, and `credentialType` are nullable and present only when a TURN server requires credentials.
 - `credentialType` is `PASSWORD` for normal TURN username/password credentials and `OAUTH` for OAuth-style TURN credentials.
-- This batch returns deterministic STUN setup data from `LC.Live.MediaSignaling`; later TURN providers may mint short-lived credentials at request time.
+- `LC.Live.MediaSignaling` serves the list from a typed, configurable ICE/TURN provider. The default development configuration still returns deterministic STUN setup data, while deployed providers may mint short-lived TURN credentials at request time.
 - TURN secrets must not be persisted as live-session records or client-reusable durable secrets.
 
 ## Signaling Topic
@@ -199,8 +199,10 @@ Validation rules:
 
 `LC.Live.MediaSignaling` is the typed backend boundary for this contract slice:
 
-- `prepare_live_media_session/0` returns deterministic ICE setup data and event names.
-- `ice_servers/0` returns the current deterministic ICE server list.
+- `prepare_live_media_session/0` returns `{:ok, setup}` with configured ICE
+  setup data and event names, or a tagged error when provider setup fails.
+- `ice_servers/0` returns `{:ok, ice_servers}` for the current
+  provider-backed ICE server list, or a tagged provider/config error.
 - `media_events/0` returns the Phoenix Channel event names.
 - `validate_offer_payload/1`, `validate_answer_payload/1`, `validate_ice_candidate_payload/1`, and `validate_event_payload/2` validate payload shape and return structured field errors.
 

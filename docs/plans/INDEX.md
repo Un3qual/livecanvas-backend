@@ -15,9 +15,9 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: active
-- Active track: Live Media Runtime Foundation
-- Source plan:
+- State: idle
+- Completed track: Live Media Runtime Foundation
+- Completed source plan:
   `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
 - Notes: backend lane owns backend code and backend planning docs only
 
@@ -28,8 +28,8 @@ Use this file when:
 - Track: `docs/plans/mobile/TRACK.md`
 - Current product theme: host broadcast media signaling integration complete
 - Notes: mobile has Relay prepare/go-live retry wiring and tested media channel
-  payload normalization. True mobile go-live remains blocked until backend
-  runtime readiness, TURN/ICE delivery, and WebRTC negotiation are implemented.
+  payload normalization. Backend media runtime foundation is complete; the next
+  documented mobile-lane batch is chat realtime stream plus retained history.
 
 ## Track Registry
 
@@ -43,10 +43,10 @@ Use this file when:
 ### Backend Live Media Runtime Foundation
 
 - Plan: `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
-- State: active
+- State: complete
 - Current theme: durable media readiness, ICE/TURN credential provider, and
   negotiation-driven runtime readiness
-- Notes: Task 1 is selected in `docs/plans/backend/NOW.md`
+- Notes: completed and handed off to the coordinator for the next product batch
 
 ### Mobile Expo Frontend Planning Track
 
@@ -54,7 +54,7 @@ Use this file when:
 - State: idle
 - Current theme: host broadcast media signaling integration complete
 - Next dependency after media signaling: backend media runtime foundation,
-  selected in the backend lane
+  completed in the backend lane
 
 ### Backend Code Quality Cleanup
 

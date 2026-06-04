@@ -13,28 +13,28 @@ Required sub-skill for implementation: use `superpowers:test-driven-development`
 for each backend behavior slice. Use subagents only if splitting into disjoint
 worktrees for schema/runtime/channel tasks.
 
-## Current Context
+## Initial Context
 
 - Completed contract plan:
   `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
 - Mobile integration plan:
   `docs/plans/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
-- Current backend readiness is an in-process v1 marker and can reset on runtime
-  restart.
-- `prepareLiveMediaSession` returns deterministic STUN data; production TURN
-  credential delivery is not implemented.
-- `goLiveSession` is intentionally blocked by `media_not_ready` until runtime
-  readiness is marked.
+- Backend readiness started as an in-process v1 marker that could reset on
+  runtime restart.
+- `prepareLiveMediaSession` initially returned deterministic STUN data; this
+  plan adds the provider boundary for production TURN credential delivery.
+- `goLiveSession` stays intentionally blocked by retryable `media_not_ready`
+  until runtime readiness is marked.
 
 ## Progress
 
 - [x] Task 1: Add durable media readiness storage and a typed backend boundary.
-- [ ] Task 2: Add configurable ICE/TURN credential provider behavior.
-- [ ] Task 3: Connect signaling/channel negotiation events to runtime readiness.
-- [ ] Task 4: Rewire `goLiveSession` to durable readiness and preserve
+- [x] Task 2: Add configurable ICE/TURN credential provider behavior.
+- [x] Task 3: Connect signaling/channel negotiation events to runtime readiness.
+- [x] Task 4: Rewire `goLiveSession` to durable readiness and preserve
   retryable `media_not_ready` semantics.
-- [ ] Task 5: Verify, update contracts if needed, and hand off the next mobile
-  socket/WebRTC runtime batch.
+- [x] Task 5: Verify, update contracts if needed, and hand off the next mobile
+  lane batch.
 
 ## Task 1: Durable Media Readiness Storage
 
@@ -136,3 +136,13 @@ mix typecheck
 mix boundary.spec
 git diff --check
 ```
+
+Closure handoff:
+
+- Backend media runtime foundation is complete for durable readiness,
+  provider-backed ICE/TURN setup, validated signaling-driven readiness, and
+  `goLiveSession` retry semantics.
+- The mobile-facing GraphQL and channel API shape did not change; contract text
+  now documents provider-backed ICE/TURN behavior.
+- The next currently documented mobile-lane batch is chat realtime stream plus
+  retained history from `docs/plans/mobile/TRACK.md`.
