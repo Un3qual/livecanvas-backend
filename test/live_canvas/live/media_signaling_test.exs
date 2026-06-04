@@ -22,12 +22,41 @@ defmodule LC.Live.MediaSignalingTest do
     end
   end
 
+  defmodule FailingIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: {:error, :turn_unavailable}
+  end
+
+  defmodule InvalidIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: {:ok, [%{urls: []}]}
+  end
+
+  defmodule InvalidIceServerSchemeProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: {:ok, [%{urls: ["https://turn.livecanvas.test"]}]}
+  end
+
+  defmodule EmptyIceServerSchemeProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: {:ok, [%{urls: ["turns:"]}]}
+  end
+
   describe "prepare_live_media_session/0" do
     test "returns deterministic media setup data" do
-      assert %{
-               ice_servers: ice_servers,
-               events: events
-             } = MediaSignaling.prepare_live_media_session()
+      assert {:ok,
+              %{
+                ice_servers: ice_servers,
+                events: events
+              }} = MediaSignaling.prepare_live_media_session()
 
       assert ice_servers == [%{urls: ["stun:stun.l.google.com:19302"]}]
 
@@ -39,20 +68,41 @@ defmodule LC.Live.MediaSignalingTest do
     end
 
     test "returns ICE servers from an explicit configured provider" do
-      assert %{
-               ice_servers: [
-                 %{
-                   urls: ["turns:turn.livecanvas.test:443"],
-                   username: "live-session:test-nonce",
-                   credential: "turn-credential:test-nonce",
-                   credential_type: :password
-                 }
-               ]
-             } =
+      assert {:ok,
+              %{
+                ice_servers: [
+                  %{
+                    urls: ["turns:turn.livecanvas.test:443"],
+                    username: "live-session:test-nonce",
+                    credential: "turn-credential:test-nonce",
+                    credential_type: :password
+                  }
+                ]
+              }} =
                MediaSignaling.prepare_live_media_session(
                  provider: EphemeralIceServerProvider,
                  provider_config: [nonce: "test-nonce"]
                )
+    end
+
+    test "returns provider failures as tagged errors" do
+      assert {:error, :ice_server_provider_failed} =
+               MediaSignaling.prepare_live_media_session(provider: FailingIceServerProvider)
+    end
+
+    test "rejects malformed ICE server payloads from providers" do
+      assert {:error, :invalid_ice_server_config} =
+               MediaSignaling.prepare_live_media_session(provider: InvalidIceServerProvider)
+    end
+
+    test "rejects unsupported ICE server URL schemes from providers" do
+      assert {:error, :invalid_ice_server_config} =
+               MediaSignaling.prepare_live_media_session(provider: InvalidIceServerSchemeProvider)
+    end
+
+    test "rejects ICE server URLs without a scheme body" do
+      assert {:error, :invalid_ice_server_config} =
+               MediaSignaling.prepare_live_media_session(provider: EmptyIceServerSchemeProvider)
     end
   end
 

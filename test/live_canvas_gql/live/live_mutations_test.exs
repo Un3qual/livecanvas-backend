@@ -29,6 +29,13 @@ defmodule LCGQL.Live.LiveMutationsTest do
     end
   end
 
+  defmodule FailingIceServerProvider do
+    @behaviour LC.Live.MediaSignaling
+
+    @impl LC.Live.MediaSignaling
+    def ice_servers(_opts), do: {:error, :turn_unavailable}
+  end
+
   @leave_live_session_mutation """
   mutation LeaveLiveSession($liveSessionId: ID!) {
     leaveLiveSession(input: {liveSessionId: $liveSessionId}) {
@@ -467,6 +474,36 @@ defmodule LCGQL.Live.LiveMutationsTest do
                       }
                     ],
                     "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+    end
+
+    test "returns payload errors when the ICE provider fails" do
+      with_media_signaling_config(provider: FailingIceServerProvider)
+
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => nil,
+                    "signalingTopic" => nil,
+                    "iceServers" => [],
+                    "errors" => [%{"field" => nil, "message" => "media_signaling_unavailable"}]
                   }
                 }
               }} =
@@ -2006,7 +2043,11 @@ defmodule LCGQL.Live.LiveMutationsTest do
     Application.put_env(:live_canvas, LC.Live.MediaSignaling, config)
 
     on_exit(fn ->
-      Application.put_env(:live_canvas, LC.Live.MediaSignaling, previous_config)
+      if is_nil(previous_config) do
+        Application.delete_env(:live_canvas, LC.Live.MediaSignaling)
+      else
+        Application.put_env(:live_canvas, LC.Live.MediaSignaling, previous_config)
+      end
     end)
   end
 end

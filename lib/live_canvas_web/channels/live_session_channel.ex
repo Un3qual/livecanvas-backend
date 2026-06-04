@@ -11,7 +11,7 @@ defmodule LCWeb.LiveSessionChannel do
   alias Phoenix.Socket.Broadcast
 
   @disconnect_event "disconnect"
-  @media_events Live.prepare_live_media_session().events |> Map.values()
+  @media_events Live.media_events() |> Map.values()
   @media_target_user_ids_key :__live_media_target_user_ids__
   @media_internal_payload_keys [@media_target_user_ids_key]
 

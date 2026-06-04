@@ -199,8 +199,10 @@ Validation rules:
 
 `LC.Live.MediaSignaling` is the typed backend boundary for this contract slice:
 
-- `prepare_live_media_session/0` returns configured ICE setup data and event names.
-- `ice_servers/0` returns the current provider-backed ICE server list.
+- `prepare_live_media_session/0` returns `{:ok, setup}` with configured ICE
+  setup data and event names, or a tagged error when provider setup fails.
+- `ice_servers/0` returns `{:ok, ice_servers}` for the current
+  provider-backed ICE server list, or a tagged provider/config error.
 - `media_events/0` returns the Phoenix Channel event names.
 - `validate_offer_payload/1`, `validate_answer_payload/1`, `validate_ice_candidate_payload/1`, and `validate_event_payload/2` validate payload shape and return structured field errors.
 

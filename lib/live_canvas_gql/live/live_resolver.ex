@@ -32,6 +32,7 @@ defmodule LCGQL.Live.Resolver do
           | :rate_limited
           | :ended
           | :media_not_ready
+          | :media_signaling_unavailable
           | :invalid_state
 
   @spec start_live_session(
@@ -127,9 +128,8 @@ defmodule LCGQL.Live.Resolver do
     with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
          {:ok, live_session} <- fetch_live_session(decoded_id),
          :ok <- ensure_host_owned(live_session, viewer),
-         :ok <- ensure_not_ended(live_session) do
-      %{ice_servers: ice_servers} = Live.prepare_live_media_session()
-
+         :ok <- ensure_not_ended(live_session),
+         {:ok, %{ice_servers: ice_servers}} <- Live.prepare_live_media_session() do
       {:ok,
        %{
          live_session: live_session,
@@ -142,6 +142,13 @@ defmodule LCGQL.Live.Resolver do
       when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :ended] ->
         {:ok,
          prepare_live_media_session_error_payload(live_session_error(:live_session_id, reason))}
+
+      {:error, reason}
+      when reason in [:ice_server_provider_failed, :invalid_ice_server_config] ->
+        {:ok,
+         prepare_live_media_session_error_payload(
+           live_session_error(nil, :media_signaling_unavailable)
+         )}
 
       _other ->
         {:ok, prepare_live_media_session_error_payload(live_session_error(nil, :invalid_state))}

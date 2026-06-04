@@ -7,11 +7,14 @@ defmodule LC.Live.MediaSignaling do
   @answer_event "media:answer"
   @ice_candidate_event "media:ice_candidate"
   @default_ice_servers [%{urls: ["stun:stun.l.google.com:19302"]}]
+  @ice_server_url_schemes ["stun:", "turn:", "turns:"]
   @max_sdp_bytes 64 * 1024
   @max_ice_candidate_bytes 4 * 1024
 
   @type provider_config :: keyword()
-  @type ice_server_result :: {:ok, [ice_server()]} | {:error, term()}
+  @type ice_server_error :: :ice_server_provider_failed | :invalid_ice_server_config
+  @type ice_server_result :: {:ok, [ice_server()]} | {:error, ice_server_error()}
+  @type provider_ice_server_result :: {:ok, term()} | {:error, term()}
   @type credential_type :: :password | :oauth
   @type ice_server :: %{
           required(:urls) => [String.t()],
@@ -28,6 +31,7 @@ defmodule LC.Live.MediaSignaling do
           required(:ice_servers) => [ice_server()],
           required(:events) => media_events()
         }
+  @type prepare_result :: {:ok, prepare_payload()} | {:error, ice_server_error()}
   @type description_type :: :offer | :answer
   @type description_payload :: %{
           required(:type) => description_type(),
@@ -47,27 +51,33 @@ defmodule LC.Live.MediaSignaling do
   @type validation_result(payload) :: {:ok, payload} | {:error, [validation_error()]}
   @type media_payload :: description_payload() | ice_candidate_payload()
 
-  @callback ice_servers(provider_config()) :: ice_server_result()
+  @callback ice_servers(provider_config()) :: provider_ice_server_result()
 
-  @spec prepare_live_media_session(provider_config()) :: prepare_payload()
+  @spec prepare_live_media_session(provider_config()) :: prepare_result()
   def prepare_live_media_session(opts \\ []) when is_list(opts) do
-    %{
-      ice_servers: ice_servers(opts),
-      events: media_events()
-    }
+    with {:ok, ice_servers} <- ice_servers(opts) do
+      {:ok,
+       %{
+         ice_servers: ice_servers,
+         events: media_events()
+       }}
+    end
   end
 
-  @spec ice_servers(provider_config()) :: [ice_server()]
+  @spec ice_servers(provider_config()) :: ice_server_result()
   def ice_servers(opts \\ []) when is_list(opts) do
     provider = Keyword.get(opts, :provider, configured_provider())
     provider_config = Keyword.get(opts, :provider_config, configured_provider_config())
 
     case provider.ice_servers(provider_config) do
-      {:ok, ice_servers} when is_list(ice_servers) ->
-        ice_servers
+      {:ok, ice_servers} ->
+        validate_ice_servers(ice_servers)
 
-      {:error, reason} ->
-        raise ArgumentError, "live media ICE server provider failed: #{inspect(reason)}"
+      {:error, _reason} ->
+        {:error, :ice_server_provider_failed}
+
+      _other ->
+        {:error, :ice_server_provider_failed}
     end
   end
 
@@ -228,6 +238,61 @@ defmodule LC.Live.MediaSignaling do
   defp reject_nil_values(payload) do
     Map.reject(payload, fn {_key, value} -> is_nil(value) end)
   end
+
+  @spec validate_ice_servers(term()) :: ice_server_result()
+  defp validate_ice_servers(ice_servers) when is_list(ice_servers) and ice_servers != [] do
+    if Enum.all?(ice_servers, &valid_ice_server?/1) do
+      {:ok, ice_servers}
+    else
+      {:error, :invalid_ice_server_config}
+    end
+  end
+
+  defp validate_ice_servers(_ice_servers), do: {:error, :invalid_ice_server_config}
+
+  @spec valid_ice_server?(term()) :: boolean()
+  defp valid_ice_server?(%{urls: urls} = ice_server) do
+    valid_urls?(urls) and
+      valid_optional_string?(ice_server, :username) and
+      valid_optional_string?(ice_server, :credential) and
+      valid_credential_type?(Map.get(ice_server, :credential_type))
+  end
+
+  defp valid_ice_server?(_ice_server), do: false
+
+  @spec valid_urls?(term()) :: boolean()
+  defp valid_urls?(urls) when is_list(urls) and urls != [] do
+    Enum.all?(urls, &valid_ice_server_url?/1)
+  end
+
+  defp valid_urls?(_urls), do: false
+
+  @spec valid_ice_server_url?(term()) :: boolean()
+  defp valid_ice_server_url?(url) when is_binary(url) do
+    String.trim(url) == url and
+      Enum.any?(@ice_server_url_schemes, fn scheme ->
+        String.starts_with?(url, scheme) and byte_size(url) > byte_size(scheme)
+      end)
+  end
+
+  defp valid_ice_server_url?(_url), do: false
+
+  defp valid_optional_string?(payload, key) when is_map(payload) and is_atom(key) do
+    case Map.fetch(payload, key) do
+      :error -> true
+      {:ok, value} -> non_empty_string?(value)
+    end
+  end
+
+  @spec valid_credential_type?(term()) :: boolean()
+  defp valid_credential_type?(nil), do: true
+  defp valid_credential_type?(:password), do: true
+  defp valid_credential_type?(:oauth), do: true
+  defp valid_credential_type?(_credential_type), do: false
+
+  @spec non_empty_string?(term()) :: boolean()
+  defp non_empty_string?(value) when is_binary(value), do: String.trim(value) != ""
+  defp non_empty_string?(_value), do: false
 
   @spec configured_provider() :: module()
   defp configured_provider do
