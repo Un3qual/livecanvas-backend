@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-06-03
-Status: idle
+Status: active
 
 ## Lane Scope
 
@@ -11,34 +11,38 @@ Status: idle
 
 ## Current Batch
 
-None. No unblocked backend implementation batch is currently selected.
+Source plan: `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
 
-## Why Idle
+Task: Task 1, define the mobile-facing media signaling contract and typed backend
+boundary.
 
-- `GEN-001` chat timeline/event-object redesign is implemented and verified.
-- Backend code-quality cleanup is complete for all valid or partially valid items.
-- No backend follow-up has been promoted into this lane yet.
+## Write Scope
 
-## Resume Path
+- `docs/contracts/mobile-live-media-signaling.md`
+- `docs/contracts/mobile-live-session-realtime.md`
+- `lib/live_canvas/live/media_signaling.ex`
+- `test/live_canvas/live/media_signaling_test.exs`
 
-When backend work is explicitly requested:
+## Done Condition
 
-1. Check `docs/plans/INDEX.md` for registry context.
-2. Check the relevant backend track or source plan if one is named.
-3. Use `ARCHITECTURE.md` only when product priority or architecture direction is
-   unclear.
-4. Create or promote one concrete backend implementation plan.
-5. Update this file with the first executable batch.
-
-Do not reopen completed cleanup, `GQL-*`, `SOCK-*`, `LIVE-001`, `WEB-001`,
-`GEN-002`, `DOC-001`, or `GEN-001` work unless the user explicitly asks for a
-follow-up adjustment.
+- The mobile-facing media signaling contract names the GraphQL prepare mutation,
+  ICE/TURN response shape, live-session signaling topic, and Phoenix channel
+  media events.
+- `LC.Live.MediaSignaling` exposes a pure, typed boundary for deterministic ICE
+  server data and payload validation.
+- Focused tests cover the boundary behavior.
 
 ## Verification
 
-No backend verification is required while this lane is idle. Future backend
-implementation batches must define focused tests and run `mix typecheck` when
-typed code is touched.
+```bash
+mix test test/live_canvas/live/media_signaling_test.exs
+mix typecheck
+```
+
+## Next Action
+
+Execute Task 1 from the source plan. Do not broaden into Membrane startup,
+recording, viewer playback, or mobile implementation in this batch.
 
 ## References
 
@@ -47,3 +51,5 @@ typed code is touched.
   `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
 - GEN-001 implementation:
   `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+- Live media signaling contract:
+  `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`

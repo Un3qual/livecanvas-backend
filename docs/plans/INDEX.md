@@ -15,30 +15,38 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: idle; no backend implementation batch is selected
-- Active track: none
-- Selection source when resumed: product priority in `ARCHITECTURE.md`, this
-  registry, and any user-directed backend track
+- State: active
+- Active track: Live Media Signaling Contract
+- Source plan:
+  `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
 - Notes: backend lane owns backend code and backend planning docs only
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active
+- State: idle
 - Track: `docs/plans/mobile/TRACK.md`
-- Current product theme: host broadcast native capability/preflight
+- Current product theme: host broadcast native capability/preflight complete
 - Notes: the lane now has an opaque `LiveSession.channelTopic`; do not decode
-  Relay IDs client-side
+  Relay IDs client-side. True mobile go-live remains blocked until backend media
+  signaling, ICE/TURN delivery, and WebRTC negotiation contracts are implemented.
 
 ## Track Registry
+
+### Backend Live Media Signaling Contract
+
+- Plan: `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
+- State: active
+- Current theme: native mobile host broadcasting backend signaling contract
+- Notes: Task 1 is selected in `docs/plans/backend/NOW.md`
 
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: active
-- Current theme: host broadcast/native media preflight
-- Next dependency after preflight: backend media signaling contract planning,
-  unless the coordinator explicitly defers media and selects mobile chat
+- State: idle
+- Current theme: host broadcast/native media preflight complete
+- Next dependency after preflight: backend media signaling contract
+  implementation, selected in the backend lane
 
 ### Backend Code Quality Cleanup
 

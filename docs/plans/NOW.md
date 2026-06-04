@@ -14,13 +14,15 @@ details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: idle; no backend implementation batch is currently selected
+- State: active; live media signaling contract is selected as the next product
+  batch
 - Scope: backend code and backend planning docs
+- Source plan: `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active; host broadcast native capability/preflight is in progress
+- State: idle; host broadcast native capability/preflight is complete
 - Scope: `mobile/` and `docs/plans/mobile/**`
 
 ## Execution Rule
@@ -38,9 +40,13 @@ track docs.
 
 ## Next Coordinator Decision
 
-After the mobile host broadcast preflight closes, choose whether the next product
-batch is backend media signaling contract planning or an explicitly deferred
-mobile chat batch.
+Execute the backend lane Task 1 from `docs/plans/backend/NOW.md`. After the
+backend media signaling contract plan closes, choose exactly one follow-up:
+
+1. Mobile media integration against the backend signaling contract.
+2. Backend Membrane/WebRTC media runtime implementation.
+3. Mobile chat realtime stream plus retained history, if media remains
+   intentionally deferred.
 
 ## Repair Conditions
 
