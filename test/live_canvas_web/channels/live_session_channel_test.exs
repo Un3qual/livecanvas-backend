@@ -14,6 +14,7 @@ defmodule LCWeb.LiveSessionChannelTest do
   alias LCWeb.{LiveSessionChannel, UserSocket}
 
   @endpoint LCWeb.Endpoint
+  @channel_reply_timeout 1_000
   @live_channel_telemetry_events [
     [:live_canvas, :live, :channel, :join],
     [:live_canvas, :live, :channel, :chat_send]
@@ -179,19 +180,22 @@ defmodule LCWeb.LiveSessionChannelTest do
     actor_id = viewer.id
     actor_global_id = Absinthe.Relay.Node.to_global_id(:user, actor_id, LCGQL.Schema)
 
-    assert_reply ref, :ok, %{
-      event: %{
-        __typename: "ChatMessageEvent",
-        event_type: "chat_message_sent",
-        body: "hello",
-        id: event_global_id,
-        actor: %{id: ^actor_global_id},
-        occurred_at: occurred_at,
-        edited: false,
-        edit_count: 0,
-        edited_at: nil
-      }
-    }
+    assert_reply ref,
+                 :ok,
+                 %{
+                   event: %{
+                     __typename: "ChatMessageEvent",
+                     event_type: "chat_message_sent",
+                     body: "hello",
+                     id: event_global_id,
+                     actor: %{id: ^actor_global_id},
+                     occurred_at: occurred_at,
+                     edited: false,
+                     edit_count: 0,
+                     edited_at: nil
+                   }
+                 },
+                 @channel_reply_timeout
 
     assert is_binary(event_global_id)
     event_id = decode_global_node_id(event_global_id, :chat_message_event)
@@ -248,6 +252,487 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
   end
 
+  test "media:offer targets active viewers with the server-derived host sender role" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    passive_viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, _viewer_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, _passive_socket} =
+             subscribe_and_join(
+               socket_for(passive_viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    sdp = "v=0\r\no=- 4611733053425433520 2 IN IP4 127.0.0.1\r\n"
+
+    payload = %{
+      "type" => "offer",
+      "sdp" => sdp,
+      "sender_role" => "viewer"
+    }
+
+    expected_payload = %{type: "offer", sdp: sdp, sender_role: "host"}
+    ref = push(socket, "media:offer", payload)
+
+    assert_reply ref, :ok, ^expected_payload
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:offer",
+      payload: ^expected_payload
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:offer"
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "media:offer"
+    }
+
+    assert {:not_ready, :media_not_ready} = Live.media_negotiation_ready?(session.id)
+  end
+
+  test "media signaling topic join does not create live participants or session-state broadcasts" do
+    host = user_fixture(privacy_mode: :public)
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _join_payload, _socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert Repo.get_by(LiveParticipant, live_session_id: session.id, user_id: host.id) == nil
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "session:state"
+    }
+  end
+
+  test "media:answer requires a backend-observed host offer before marking readiness" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    ref = push(socket, "media:answer", %{"type" => "answer", "sdp" => "v=0\r\n"})
+
+    assert_reply ref, :error, %{reason: "not_authorized"}, @channel_reply_timeout
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:answer"
+    }
+
+    assert {:not_ready, :media_not_ready} = Live.media_negotiation_ready?(session.id)
+  end
+
+  test "media:answer uses the server-derived viewer sender role after a host offer" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    second_viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+    assert {:ok, _participant} = Live.join_live_session(session, second_viewer, :viewer)
+
+    assert {:ok, _join_payload, host_socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, _second_viewer_socket} =
+             subscribe_and_join(
+               socket_for(second_viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    offer_sdp = "v=0\r\no=- 4611733053425433520 2 IN IP4 127.0.0.1\r\n"
+    offer_payload = %{type: "offer", sdp: offer_sdp, sender_role: "host"}
+    offer_ref = push(host_socket, "media:offer", %{"type" => "offer", "sdp" => offer_sdp})
+
+    assert_reply offer_ref, :ok, ^offer_payload, @channel_reply_timeout
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:offer",
+      payload: ^offer_payload
+    }
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:offer",
+      payload: ^offer_payload
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:offer"
+    }
+
+    sdp = "v=0\r\no=- 4611733053425433520 2 IN IP4 127.0.0.1\r\n"
+    expected_payload = %{type: "answer", sdp: sdp, sender_role: "viewer"}
+    ref = push(socket, "media:answer", %{"type" => "answer", "sdp" => sdp})
+
+    assert_reply ref, :ok, ^expected_payload, @channel_reply_timeout
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:answer",
+      payload: ^expected_payload
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:answer"
+    }
+
+    assert :ready = Live.media_negotiation_ready?(session.id)
+  end
+
+  test "media:answer requires an active live-session participant before marking readiness" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    ref = push(socket, "media:answer", %{"type" => "answer", "sdp" => "v=0\r\n"})
+
+    assert_reply ref, :error, %{reason: "not_authorized"}, @channel_reply_timeout
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:answer"
+    }
+
+    assert {:not_ready, :media_not_ready} = Live.media_negotiation_ready?(session.id)
+  end
+
+  test "closing media signaling sockets preserves joined live-session participants" do
+    Process.flag(:trap_exit, true)
+
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:ok, _join_payload, _session_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               LiveSessionTopics.live_session_topic(session.id)
+             )
+
+    assert {:ok, runtime_pid} = Live.lookup_session_server(session.id)
+    assert %{participants: participants_before_close} = SessionServer.snapshot(runtime_pid)
+    assert Map.has_key?(participants_before_close, viewer.id)
+
+    assert {:ok, _join_payload, media_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               LiveSessionTopics.media_signaling_topic(session.id)
+             )
+
+    monitor_ref = Process.monitor(media_socket.channel_pid)
+
+    assert :ok = close(media_socket)
+    assert_receive {:DOWN, ^monitor_ref, :process, _, _}
+
+    assert %LiveParticipant{left_at: nil} =
+             Repo.get_by!(LiveParticipant, live_session_id: session.id, user_id: viewer.id)
+
+    assert %{participants: participants_after_close} = SessionServer.snapshot(runtime_pid)
+    assert Map.has_key?(participants_after_close, viewer.id)
+  end
+
+  test "media:ice_candidate broadcasts validated candidate fields" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, _viewer_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    candidate =
+      "candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ srflx raddr 0.0.0.0 rport 0"
+
+    expected_payload = %{
+      candidate: candidate,
+      sdp_mid: "0",
+      sdp_m_line_index: 0,
+      username_fragment: "ufrag",
+      sender_role: "host"
+    }
+
+    ref =
+      push(socket, "media:ice_candidate", %{
+        "candidate" => candidate,
+        "sdp_mid" => "0",
+        "sdp_m_line_index" => 0,
+        "username_fragment" => "ufrag"
+      })
+
+    assert_reply ref, :ok, ^expected_payload
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:ice_candidate",
+      payload: ^expected_payload
+    }
+  end
+
+  test "media:ice_candidate requires the host or an active live-session participant" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _join_payload, _host_socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    candidate =
+      "candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ srflx raddr 0.0.0.0 rport 0"
+
+    ref =
+      push(socket, "media:ice_candidate", %{
+        "candidate" => candidate
+      })
+
+    assert_reply ref, :error, %{reason: "not_authorized"}, @channel_reply_timeout
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:ice_candidate"
+    }
+
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
+    expected_payload = %{
+      candidate: candidate,
+      sender_role: "viewer"
+    }
+
+    active_ref =
+      push(socket, "media:ice_candidate", %{
+        "candidate" => candidate
+      })
+
+    assert_reply active_ref, :ok, ^expected_payload, @channel_reply_timeout
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:ice_candidate",
+      payload: ^expected_payload
+    }
+  end
+
+  test "media offers are host-only and media events are rejected on the shared session topic" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _join_payload, viewer_signal_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, host_session_socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               session_topic
+             )
+
+    sdp = "v=0\r\n"
+
+    viewer_ref = push(viewer_signal_socket, "media:offer", %{"type" => "offer", "sdp" => sdp})
+    assert_reply viewer_ref, :error, %{reason: "not_authorized"}, @channel_reply_timeout
+
+    host_ref = push(host_session_socket, "media:offer", %{"type" => "offer", "sdp" => sdp})
+    assert_reply host_ref, :error, %{reason: "not_authorized"}, @channel_reply_timeout
+
+    refute_receive %Phoenix.Socket.Message{
+      event: "media:offer"
+    }
+  end
+
+  test "rate limits repeated media signaling events for the same viewer" do
+    previous_rate_limit_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
+
+    Application.put_env(
+      :live_canvas,
+      LC.RateLimiter,
+      Keyword.put(previous_rate_limit_config, :limits,
+        channel_join: [limit: 10, window_ms: 60_000],
+        media_signal: [limit: 1, window_ms: 60_000]
+      )
+    )
+
+    LC.RateLimiter.reset!()
+
+    on_exit(fn ->
+      Application.put_env(:live_canvas, LC.RateLimiter, previous_rate_limit_config)
+      LC.RateLimiter.reset!()
+    end)
+
+    host = user_fixture(privacy_mode: :public)
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    first_ref = push(socket, "media:offer", %{"type" => "offer", "sdp" => "v=0\r\n"})
+    assert_reply first_ref, :ok, %{sender_role: "host"}, @channel_reply_timeout
+
+    second_ref =
+      push(socket, "media:ice_candidate", %{
+        "candidate" => "candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ host"
+      })
+
+    assert_reply second_ref, :error, %{reason: "rate_limited"}, @channel_reply_timeout
+  end
+
+  test "media signaling returns structured validation errors" do
+    host = user_fixture(privacy_mode: :public)
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    ref = push(socket, "media:offer", %{"type" => "answer", "sdp" => ""})
+
+    assert_reply ref, :error, %{
+      reason: "invalid_media_payload",
+      errors: [
+        %{field: "type", reason: "invalid"},
+        %{field: "sdp", reason: "required"}
+      ]
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:offer"
+    }
+  end
+
+  test "media signaling rejects stale sockets after session end" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    {:ok, _ended_session} = Live.end_live_session(session)
+
+    ref = push(socket, "media:answer", %{"type" => "answer", "sdp" => "v=0\r\n"})
+
+    assert_reply ref, :error, %{reason: "session_ended"}
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:answer"
+    }
+  end
+
   test "editLiveChatMessage broadcasts timeline event updates to joined clients" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
@@ -264,13 +749,16 @@ defmodule LCWeb.LiveSessionChannelTest do
     send_ref = push(socket, "timeline:chat_message:send", %{"body" => "hello"})
     actor_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
-    assert_reply send_ref, :ok, %{
-      event: %{
-        body: "hello",
-        id: event_global_id,
-        actor: %{id: ^actor_global_id}
-      }
-    }
+    assert_reply send_ref,
+                 :ok,
+                 %{
+                   event: %{
+                     body: "hello",
+                     id: event_global_id,
+                     actor: %{id: ^actor_global_id}
+                   }
+                 },
+                 @channel_reply_timeout
 
     _event_id = decode_global_node_id(event_global_id, :chat_message_event)
 
@@ -349,13 +837,16 @@ defmodule LCWeb.LiveSessionChannelTest do
     send_ref = push(viewer_socket, "timeline:chat_message:send", %{"body" => "abusive message"})
     actor_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
-    assert_reply send_ref, :ok, %{
-      event: %{
-        body: "abusive message",
-        id: event_global_id,
-        actor: %{id: ^actor_global_id}
-      }
-    }
+    assert_reply send_ref,
+                 :ok,
+                 %{
+                   event: %{
+                     body: "abusive message",
+                     id: event_global_id,
+                     actor: %{id: ^actor_global_id}
+                   }
+                 },
+                 @channel_reply_timeout
 
     event_id = decode_global_node_id(event_global_id, :chat_message_event)
     session_topic = LiveSessionTopics.live_session_topic(session.id)
@@ -422,12 +913,15 @@ defmodule LCWeb.LiveSessionChannelTest do
     send_ref = push(viewer_socket, "timeline:chat_message:send", %{"body" => "remove once"})
     actor_global_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
-    assert_reply send_ref, :ok, %{
-      event: %{
-        id: event_global_id,
-        actor: %{id: ^actor_global_id}
-      }
-    }
+    assert_reply send_ref,
+                 :ok,
+                 %{
+                   event: %{
+                     id: event_global_id,
+                     actor: %{id: ^actor_global_id}
+                   }
+                 },
+                 @channel_reply_timeout
 
     _event_id = decode_global_node_id(event_global_id, :chat_message_event)
     session_topic = LiveSessionTopics.live_session_topic(session.id)
@@ -666,7 +1160,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
 
     first_ref = push(socket, "timeline:chat_message:send", %{"body" => "first"})
-    assert_reply first_ref, :ok, %{event: %{body: "first"}}
+    assert_reply first_ref, :ok, %{event: %{body: "first"}}, @channel_reply_timeout
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
                     %{
@@ -679,7 +1173,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert user_id == viewer.id
 
     second_ref = push(socket, "timeline:chat_message:send", %{"body" => "second"})
-    assert_reply second_ref, :error, %{reason: "rate_limited"}
+    assert_reply second_ref, :error, %{reason: "rate_limited"}, @channel_reply_timeout
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
                     %{
@@ -706,7 +1200,7 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
 
     ref = push(socket, "timeline:chat_message:send", %{"body" => 42})
-    assert_reply ref, :error, %{reason: "invalid_body"}
+    assert_reply ref, :error, %{reason: "invalid_body"}, @channel_reply_timeout
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
                     %{
@@ -760,7 +1254,7 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     ref = push(joined_socket, "timeline:chat_message:send", %{"body" => "hello with trace"})
 
-    assert_reply ref, :ok, %{event: %{body: "hello with trace"}}
+    assert_reply ref, :ok, %{event: %{body: "hello with trace"}}, @channel_reply_timeout
 
     assert_receive {:telemetry_event, [:live_canvas, :live, :channel, :chat_send], %{count: 1},
                     %{
@@ -805,7 +1299,7 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     ref = push(joined_socket, "timeline:chat_message:send", %{"body" => "no new ids"})
 
-    assert_reply ref, :ok, %{event: %{body: "no new ids"}}
+    assert_reply ref, :ok, %{event: %{body: "no new ids"}}, @channel_reply_timeout
 
     refute_receive {:trace, ^channel_pid, :call, {:crypto, :strong_rand_bytes, [_]}}, 50
   end
@@ -876,6 +1370,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     session_topic = LiveSessionTopics.live_session_topic(session.id)
     control_topic = LiveSessionTopics.session_control_topic(session.id)
     :ok = Phoenix.PubSub.subscribe(LC.PubSub, control_topic)
+    assert :ok = Live.mark_media_negotiation_ready(session.id)
 
     go_live_mutation = """
     mutation GoLiveSession($liveSessionId: ID!) {

@@ -109,8 +109,16 @@ mutation StartLiveSession($visibility: LiveSessionVisibility) {
 
 - Host-only transition from `STARTING` to `LIVE`.
 - On success, `startedAt` is populated and the returned session keeps the same Relay ID.
+- If media negotiation is not ready yet, callers receive
+  `errors: [{field: null, message: "media_not_ready"}]`.
 - Non-host callers receive `errors: [{field: null, message: "not_authorized"}]`.
 - If an end transition wins first, callers receive `errors: [{field: null, message: "ended"}]`.
+
+`media_not_ready` is a retryable setup state. Mobile hosts should call
+`prepareLiveMediaSession`, join the returned signaling topic, exchange the
+required media negotiation messages, and then retry `goLiveSession`. Backend v1
+readiness is tracked in durable live-media readiness storage, but clients should
+still handle `media_not_ready` by renegotiating or retrying setup.
 
 ### `joinLiveSession`
 
@@ -149,5 +157,6 @@ Stable recording-link validation outcomes use the standard `errors { field, mess
 
 - Retained chat history: `docs/contracts/mobile-graphql-chat-history.md`
 - Auth/social baseline: `docs/contracts/mobile-graphql-phase2.md`
+- Media signaling setup: `docs/contracts/mobile-live-media-signaling.md`
 
 Any change to the fields, authorization fallbacks, ID rules, or user-error messages documented here should be treated as a mobile API change and planned explicitly before landing downstream client work.

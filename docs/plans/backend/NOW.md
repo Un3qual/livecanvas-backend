@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
-Last reviewed: 2026-06-03
-Status: idle
+Last reviewed: 2026-06-04
+Status: active
 
 ## Lane Scope
 
@@ -11,34 +11,33 @@ Status: idle
 
 ## Current Batch
 
-None. No unblocked backend implementation batch is currently selected.
+- Source plan:
+  `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
+- Track: live media runtime foundation
+- Task: Task 2, configurable ICE/TURN credential provider behavior
+- Write scope: backend live runtime code, backend tests, migrations, and backend
+  planning docs
+- Done condition: `prepareLiveMediaSession` serves ICE servers through a typed,
+  configurable provider boundary without persisting TURN secrets, and focused
+  backend tests plus `mix typecheck` pass.
 
-## Why Idle
+## Handoff Context
 
-- `GEN-001` chat timeline/event-object redesign is implemented and verified.
-- Backend code-quality cleanup is complete for all valid or partially valid items.
-- No backend follow-up has been promoted into this lane yet.
+Completed prerequisite:
+`docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
 
-## Resume Path
+Mobile integration:
+`docs/plans/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
 
-When backend work is explicitly requested:
+Mobile-facing contracts:
 
-1. Check `docs/plans/INDEX.md` for registry context.
-2. Check the relevant backend track or source plan if one is named.
-3. Use `ARCHITECTURE.md` only when product priority or architecture direction is
-   unclear.
-4. Create or promote one concrete backend implementation plan.
-5. Update this file with the first executable batch.
+- `docs/contracts/mobile-live-media-signaling.md`
+- `docs/contracts/mobile-live-session-graphql.md`
 
-Do not reopen completed cleanup, `GQL-*`, `SOCK-*`, `LIVE-001`, `WEB-001`,
-`GEN-002`, `DOC-001`, or `GEN-001` work unless the user explicitly asks for a
-follow-up adjustment.
+## Next Action
 
-## Verification
-
-No backend verification is required while this lane is idle. Future backend
-implementation batches must define focused tests and run `mix typecheck` when
-typed code is touched.
+Execute Task 2 from
+`docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`.
 
 ## References
 
@@ -47,3 +46,5 @@ typed code is touched.
   `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
 - GEN-001 implementation:
   `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+- Live media signaling contract:
+  `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`

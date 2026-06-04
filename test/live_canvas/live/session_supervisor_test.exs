@@ -4,6 +4,7 @@ defmodule LC.Live.SessionSupervisorTest do
   import LC.AccountsFixtures, only: [user_fixture: 0]
 
   alias LC.Live.{SessionServer, SessionSupervisor}
+  alias LC.RealtimeRuntime
   alias LCSchemas.Live.LiveSession
 
   describe "start_session_server/2" do
@@ -64,6 +65,33 @@ defmodule LC.Live.SessionSupervisorTest do
       assert %{role: :viewer, user_id: 101} = Map.fetch!(participants, 101)
 
       assert :ok = SessionSupervisor.stop_session_server(session_id)
+    end
+  end
+
+  describe "media negotiation readiness" do
+    test "returns invalid_session_id for invalid readiness session IDs" do
+      assert {:error, :invalid_session_id} =
+               SessionSupervisor.mark_media_negotiation_ready(0)
+
+      assert {:error, :invalid_session_id} =
+               SessionSupervisor.media_negotiation_ready?(-1)
+    end
+
+    test "routes readiness operations through realtime runtime ownership" do
+      session_id = live_session_id_fixture()
+      shard_id = RealtimeRuntime.shard_id(session_id)
+
+      RealtimeRuntime.put_test_shard_owner(shard_id, {:remote, "live-canvas-remote@test"})
+
+      on_exit(fn ->
+        RealtimeRuntime.clear_test_shard_owner(shard_id)
+      end)
+
+      assert {:error, {:owned_by_remote, "live-canvas-remote@test"}} =
+               SessionSupervisor.mark_media_negotiation_ready(session_id)
+
+      assert {:error, {:owned_by_remote, "live-canvas-remote@test"}} =
+               SessionSupervisor.media_negotiation_ready?(session_id)
     end
   end
 

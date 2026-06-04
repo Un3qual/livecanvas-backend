@@ -15,30 +15,46 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: idle; no backend implementation batch is selected
-- Active track: none
-- Selection source when resumed: product priority in `ARCHITECTURE.md`, this
-  registry, and any user-directed backend track
+- State: active
+- Active track: Live Media Runtime Foundation
+- Source plan:
+  `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
 - Notes: backend lane owns backend code and backend planning docs only
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active
+- State: idle
 - Track: `docs/plans/mobile/TRACK.md`
-- Current product theme: host broadcast native capability/preflight
-- Notes: the lane now has an opaque `LiveSession.channelTopic`; do not decode
-  Relay IDs client-side
+- Current product theme: host broadcast media signaling integration complete
+- Notes: mobile has Relay prepare/go-live retry wiring and tested media channel
+  payload normalization. True mobile go-live remains blocked until backend
+  runtime readiness, TURN/ICE delivery, and WebRTC negotiation are implemented.
 
 ## Track Registry
+
+### Backend Live Media Signaling Contract
+
+- Plan: `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
+- State: complete
+- Current theme: native mobile host broadcasting backend signaling contract
+- Notes: completed and handed off to mobile media signaling integration
+
+### Backend Live Media Runtime Foundation
+
+- Plan: `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
+- State: active
+- Current theme: durable media readiness, ICE/TURN credential provider, and
+  negotiation-driven runtime readiness
+- Notes: Task 1 is selected in `docs/plans/backend/NOW.md`
 
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: active
-- Current theme: host broadcast/native media preflight
-- Next dependency after preflight: backend media signaling contract planning,
-  unless the coordinator explicitly defers media and selects mobile chat
+- State: idle
+- Current theme: host broadcast media signaling integration complete
+- Next dependency after media signaling: backend media runtime foundation,
+  selected in the backend lane
 
 ### Backend Code Quality Cleanup
 

@@ -142,6 +142,11 @@ describe('liveSessionPresentation', () => {
         expected: 'Sign in again to keep watching live sessions.',
       },
       {
+        errors: [{ field: null, message: 'media_not_ready' }],
+        expected:
+          'Media negotiation is not ready yet. Prepare media and try again.',
+      },
+      {
         errors: [
           { field: null, message: 'unexpected_error' },
           { field: null, message: 'unauthenticated' },

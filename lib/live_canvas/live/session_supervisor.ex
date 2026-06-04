@@ -6,8 +6,15 @@ defmodule LC.Live.SessionSupervisor do
   alias LC.RealtimeRuntime.SessionServer
 
   @type initial_participants :: %{optional(pos_integer()) => SessionServer.participant()}
+  @type invalid_session_id_error :: :invalid_session_id
+  @type media_negotiation_readiness ::
+          RealtimeRuntime.media_negotiation_readiness_result()
+          | {:error, invalid_session_id_error()}
   @type remote_owner_error :: {:owned_by_remote, String.t()}
   @type lookup_error :: :not_found | remote_owner_error()
+  @type mark_media_negotiation_ready_result ::
+          RealtimeRuntime.mark_media_negotiation_ready_result()
+          | {:error, invalid_session_id_error()}
   @type start_option ::
           {:shard_id, RealtimeRuntime.shard_id()}
           | {:media_bootstrap, SessionServer.media_bootstrap()}
@@ -48,6 +55,20 @@ defmodule LC.Live.SessionSupervisor do
   def lookup_session_server(session_id) when is_integer(session_id) do
     RealtimeRuntime.lookup_session_runtime(session_id)
   end
+
+  @spec mark_media_negotiation_ready(term()) :: mark_media_negotiation_ready_result()
+  def mark_media_negotiation_ready(session_id) when is_integer(session_id) and session_id > 0 do
+    RealtimeRuntime.mark_media_negotiation_ready(session_id)
+  end
+
+  def mark_media_negotiation_ready(_session_id), do: {:error, :invalid_session_id}
+
+  @spec media_negotiation_ready?(term()) :: media_negotiation_readiness()
+  def media_negotiation_ready?(session_id) when is_integer(session_id) and session_id > 0 do
+    RealtimeRuntime.media_negotiation_ready?(session_id)
+  end
+
+  def media_negotiation_ready?(_session_id), do: {:error, :invalid_session_id}
 
   @spec join_session_server(
           pos_integer(),

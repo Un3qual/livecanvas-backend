@@ -3,7 +3,7 @@ defmodule LCSchemas.Live.LiveSession do
 
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.MediaAsset
-  alias LCSchemas.Live.LiveParticipant
+  alias LCSchemas.Live.{LiveMediaSession, LiveParticipant}
 
   @moduledoc """
   Schema for the `live_sessions` table.
@@ -27,6 +27,7 @@ defmodule LCSchemas.Live.LiveSession do
           ended_reason: LCSchemas.Live.live_session_end_reason() | nil,
           recording_media_asset_id: pos_integer() | nil,
           recording_media_asset: MediaAsset.t() | Ecto.Association.NotLoaded.t(),
+          live_media_session: LiveMediaSession.t() | Ecto.Association.NotLoaded.t(),
           live_participants: [LiveParticipant.t()] | Ecto.Association.NotLoaded.t(),
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
@@ -43,6 +44,7 @@ defmodule LCSchemas.Live.LiveSession do
 
     belongs_to :host, User
     belongs_to :recording_media_asset, MediaAsset
+    has_one :live_media_session, LiveMediaSession
     has_many :live_participants, LiveParticipant
 
     timestamps()

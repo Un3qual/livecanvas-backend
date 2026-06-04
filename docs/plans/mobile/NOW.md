@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-03
-Status: active
+Last reviewed: 2026-06-04
+Status: idle
 
 ## Lane Scope
 
@@ -12,42 +12,31 @@ Status: active
 ## Current Batch
 
 - Source plan:
-  `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
+  `docs/plans/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: Task 1, add the native development-build and WebRTC dependency boundary.
-- Files: `mobile/package.json`, `mobile/pnpm-lock.yaml`, `mobile/app.json`,
-  `mobile/index.ts`.
+- Task: complete
+- Files:
+  - `mobile/schema.graphql`
+  - `mobile/src/host/**`
+  - `mobile/src/live/liveSessionPresentation.*`
+  - `mobile/src/live/liveSessionRealtimeEvents.*`
 
 ## Do This Now
 
-1. Install native/development dependencies in `mobile/`:
-   `pnpm exec expo install expo-dev-client expo-keep-awake`
-2. Add WebRTC dependencies in `mobile/`:
-   `pnpm add react-native-webrtc @config-plugins/react-native-webrtc`
-3. Import `expo-dev-client` before `expo-router/entry` in `mobile/index.ts`.
-4. Add the WebRTC config plugin plus explicit camera/microphone permission copy
-   in `mobile/app.json`, preserving existing metadata.
-5. Run focused verification:
-   `pnpm exec expo config --type public`
-   `./node_modules/.bin/tsc --noEmit`
-6. Mark Task 1 complete in the source plan and commit the dependency-boundary
-   change.
-
-## Done Condition
-
-Task 1 is done when package files, app config, and entrypoint are updated, Expo
-public config resolves, TypeScript passes, and the source plan records the
-completed task.
+Keep the mobile lane idle until backend media runtime readiness is implemented
+or explicitly deferred.
 
 ## Guardrails
 
-- Do not enable mobile go-live, media publishing, viewer playback, or full chat
-  stream UI in this batch.
+- Do not add real mobile media publishing, viewer playback, or full chat stream
+  UI from this lane while it is idle.
 - Do not decode Relay IDs client-side.
-- Keep true media signaling blocked until backend ICE/TURN/WebRTC negotiation
-  contracts are planned.
+- Keep true go-live blocked by backend runtime readiness until the backend live
+  media runtime foundation plan is implemented.
 
 ## Next Action
 
-After Task 1, continue the same source plan with the pure TypeScript host
-preflight and host session state tasks before building the UI route.
+Coordinate the backend media runtime foundation in
+`docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`. The next
+explicitly selectable mobile batch after that blocker is handled or deferred is
+chat realtime stream plus retained history.

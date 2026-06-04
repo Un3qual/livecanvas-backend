@@ -1,7 +1,7 @@
 {
   "name": "livecanvas-mobile",
   "version": "1.0.0",
-  "main": "expo-router/entry",
+  "main": "./index.ts",
   "scripts": {
     "start": "expo start --clear",
     "android": "expo start --android",
@@ -10,10 +10,13 @@
     "relay": "relay-compiler"
   },
   "dependencies": {
+    "@config-plugins/react-native-webrtc": "^14.0.0",
     "expo": "~55.0.8",
     "expo-apple-authentication": "~55.0.13",
     "expo-auth-session": "~55.0.13",
     "expo-crypto": "~55.0.14",
+    "expo-dev-client": "~55.0.35",
+    "expo-keep-awake": "~55.0.8",
     "expo-router": "^55.0.7",
     "expo-secure-store": "~55.0.9",
     "expo-status-bar": "~55.0.4",
@@ -21,6 +24,7 @@
     "graphql": "^16.13.2",
     "react": "19.2.0",
     "react-native": "0.83.2",
+    "react-native-webrtc": "^124.0.7",
     "react-relay": "^20.1.1",
     "relay-runtime": "^20.1.1"
   },

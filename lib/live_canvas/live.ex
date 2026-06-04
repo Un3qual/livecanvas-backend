@@ -9,7 +9,7 @@ defmodule LC.Live do
   alias LC.Content
   alias LC.Infra.Repo
   alias LC.ReadPolicy
-  alias LC.Live.{RuntimeRPC, SessionSupervisor}
+  alias LC.Live.{MediaSession, MediaSignaling, RuntimeRPC, SessionSupervisor}
   alias LC.RealtimeRuntime.SessionServer
   alias LC.Live.LiveParticipant, as: LiveParticipantChanges
   alias LC.Live.LiveSession, as: LiveSessionChanges
@@ -44,6 +44,14 @@ defmodule LC.Live do
           visibility: LCSchemas.Live.live_session_visibility(),
           viewer_count: non_neg_integer()
         }
+  @type live_media_ice_server :: MediaSignaling.ice_server()
+  @type live_media_payload :: MediaSignaling.media_payload()
+  @type live_media_prepare_payload :: MediaSignaling.prepare_payload()
+  @type live_media_validation_result ::
+          MediaSignaling.validation_result(live_media_payload()) | {:error, :unknown_event}
+  @type media_negotiation_readiness :: MediaSession.readiness()
+  @type mark_media_negotiation_ready_result ::
+          :ok | {:error, MediaSession.readiness_error() | Ecto.Changeset.t()}
   @type runtime_participants :: %{optional(pos_integer()) => SessionServer.participant()}
   @type runtime_rpc_error :: :remote_not_found | :remote_timeout | :remote_unreachable
   @type runtime_target :: {:local, pid()} | {:remote, String.t()}
@@ -55,6 +63,70 @@ defmodule LC.Live do
           {:ok, pid()} | {:error, :not_found | {:owned_by_remote, String.t()}}
   @type authorized_live_session_id_map :: %{optional(pos_integer()) => true}
   @type viewer_ref :: User.t() | %{required(:id) => pos_integer()}
+
+  @doc """
+  Returns the host media setup metadata for a live-session negotiation.
+  """
+  @spec prepare_live_media_session() :: live_media_prepare_payload()
+  def prepare_live_media_session, do: MediaSignaling.prepare_live_media_session()
+
+  @doc """
+  Validates an inbound live media signaling payload.
+  """
+  @spec validate_live_media_signal_payload(String.t(), term()) :: live_media_validation_result()
+  def validate_live_media_signal_payload(event, payload) when is_binary(event),
+    do: MediaSignaling.validate_event_payload(event, payload)
+
+  @doc """
+  Marks the in-process media negotiation seam ready for a live session.
+  """
+  @spec mark_media_negotiation_ready(pos_integer()) :: mark_media_negotiation_ready_result()
+  def mark_media_negotiation_ready(session_id) when is_integer(session_id) do
+    case MediaSession.mark_ready(session_id) do
+      {:ok, _media_session} -> :ok
+      {:error, _reason} = error -> error
+    end
+  end
+
+  @doc """
+  Returns whether durable media negotiation has been marked ready.
+  """
+  @spec media_negotiation_ready?(pos_integer()) :: media_negotiation_readiness()
+  def media_negotiation_ready?(session_id) when is_integer(session_id) do
+    MediaSession.readiness(session_id)
+  end
+
+  @doc """
+  Returns whether a user currently has an active participant row for a live session.
+  """
+  @spec active_live_participant?(pos_integer(), pos_integer()) :: boolean()
+  def active_live_participant?(session_id, user_id)
+      when is_integer(session_id) and is_integer(user_id) do
+    LiveParticipant
+    |> where(
+      [live_participant],
+      live_participant.live_session_id == ^session_id and
+        live_participant.user_id == ^user_id and
+        is_nil(live_participant.left_at)
+    )
+    |> Repo.exists?()
+  end
+
+  @doc """
+  Returns active viewer user IDs for a live session in deterministic join order.
+  """
+  @spec active_live_viewer_ids(pos_integer()) :: [pos_integer()]
+  def active_live_viewer_ids(session_id) when is_integer(session_id) do
+    from(live_participant in LiveParticipant,
+      where:
+        live_participant.live_session_id == ^session_id and
+          live_participant.role == :viewer and
+          is_nil(live_participant.left_at),
+      order_by: [asc: live_participant.joined_at, asc: live_participant.id],
+      select: live_participant.user_id
+    )
+    |> Repo.all()
+  end
 
   @doc """
   Starts a persisted live session and boots its runtime process.
@@ -159,6 +231,55 @@ defmodule LC.Live do
 
              {_updated_count, nil} ->
                Repo.rollback(:not_found)
+           end
+         end) do
+      {:ok, {%LiveSession{} = persisted_session, transitioned?, effect_result}} ->
+        {:ok, persisted_session, transitioned?, effect_result}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Marks a live session as started only when durable media negotiation is ready.
+  """
+  @spec mark_session_live_when_media_ready(
+          persisted_live_session(),
+          live_session_transition_effect()
+        ) :: live_session_transition_effect_result()
+  def mark_session_live_when_media_ready(%LiveSession{id: session_id}, transition_effect)
+      when is_integer(session_id) and is_function(transition_effect, 2) do
+    now = now_utc()
+
+    case Repo.transact(fn ->
+           case lock_live_session_for_update(session_id) do
+             nil ->
+               Repo.rollback(:not_found)
+
+             %LiveSession{status: :ended} = ended_session ->
+               Repo.rollback(LiveSessionChanges.mark_live_changeset(ended_session, now))
+
+             %LiveSession{status: :starting} = persisted_session ->
+               case MediaSession.readiness(session_id) do
+                 :ready ->
+                   persisted_session
+                   |> LiveSessionChanges.mark_live_changeset(now)
+                   |> Repo.update()
+                   |> case do
+                     {:ok, updated_session} ->
+                       {:ok, run_transition_effect(transition_effect, updated_session, true)}
+
+                     {:error, %Ecto.Changeset{} = changeset} ->
+                       Repo.rollback(changeset)
+                   end
+
+                 {:not_ready, :media_not_ready} ->
+                   Repo.rollback(:media_not_ready)
+               end
+
+             %LiveSession{} = persisted_session ->
+               {:ok, run_transition_effect(transition_effect, persisted_session, false)}
            end
          end) do
       {:ok, {%LiveSession{} = persisted_session, transitioned?, effect_result}} ->
@@ -610,6 +731,11 @@ defmodule LC.Live do
 
   @spec lock_live_session_for_end(pos_integer()) :: LiveSession.t() | nil
   defp lock_live_session_for_end(session_id) when is_integer(session_id) do
+    lock_live_session_for_update(session_id)
+  end
+
+  @spec lock_live_session_for_update(pos_integer()) :: LiveSession.t() | nil
+  defp lock_live_session_for_update(session_id) when is_integer(session_id) do
     from(live_session in LiveSession,
       where: live_session.id == ^session_id,
       lock: "FOR UPDATE"
@@ -700,7 +826,7 @@ defmodule LC.Live do
 
   @spec safe_runtime_leave(pid(), pos_integer()) :: :ok
   defp safe_runtime_leave(pid, user_id) when is_pid(pid) and is_integer(user_id) do
-    SessionServer.leave(pid, user_id)
+    _result = SessionServer.leave(pid, user_id)
     :ok
   catch
     :exit, _reason ->
@@ -963,7 +1089,13 @@ defmodule LC.Live do
 
   @spec local_runtime_viewer_count(pid()) :: {:ok, non_neg_integer()} | {:error, :not_found}
   defp local_runtime_viewer_count(pid) when is_pid(pid) do
-    {:ok, pid |> SessionServer.snapshot() |> snapshot_viewer_count()}
+    case SessionServer.snapshot(pid) do
+      %{participants: _participants} = snapshot ->
+        {:ok, snapshot_viewer_count(snapshot)}
+
+      {:error, :not_found} ->
+        {:error, :not_found}
+    end
   catch
     :exit, _reason ->
       {:error, :not_found}

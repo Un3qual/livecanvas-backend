@@ -17,7 +17,7 @@ Phoenix Channels, `react-native-webrtc`, Bun tests, Relay Compiler, `tsc`.
 
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current batch: Task 1
+- Current batch: complete
 - Write scope: `mobile/` and `docs/plans/mobile/**`
 - Out of scope: backend Elixir/GraphQL code, shared contracts, real go-live,
   media publishing, viewer playback, and Relay ID decoding
@@ -39,12 +39,12 @@ route and UI entry point. Task 6 verifies and closes the lane handoff.
 
 ## Progress
 
-- [ ] Task 1: Add the native development-build and WebRTC dependency boundary
-- [ ] Task 2: Add host preflight state and permission gating
-- [ ] Task 3: Add a mockable native media adapter boundary
-- [ ] Task 4: Add host session lifecycle state with media-contract gating
-- [ ] Task 5: Build the host preflight route and home entry point
-- [ ] Task 6: Verify, close lane docs, and hand off backend media signaling
+- [x] Task 1: Add the native development-build and WebRTC dependency boundary
+- [x] Task 2: Add host preflight state and permission gating
+- [x] Task 3: Add a mockable native media adapter boundary
+- [x] Task 4: Add host session lifecycle state with media-contract gating
+- [x] Task 5: Build the host preflight route and home entry point
+- [x] Task 6: Verify, close lane docs, and hand off backend media signaling
 
 ## Task 1: Native Development-Build And WebRTC Boundary
 
@@ -276,3 +276,18 @@ The next backend/media plan must define:
 - how backend negotiation marks a session `LIVE`
 - viewer playback contract
 - recording-to-`MediaAsset` handoff for ended sessions
+
+## Closure Evidence
+
+Closed on 2026-06-03. Final verification passed:
+
+```bash
+bun test src/host/hostBroadcastPreflight.test.ts src/host/hostBroadcastNative.test.ts src/host/hostBroadcastSession.test.ts src/live/liveSessionChannelTopic.test.ts src/live/liveSessionRealtimeEvents.test.ts src/live/liveSessionPresentation.test.ts src/live/liveSessionNavigation.test.ts src/live/liveSessionWatchReducer.test.ts
+./node_modules/.bin/relay-compiler
+./node_modules/.bin/tsc --noEmit
+pnpm exec expo config --type public
+git diff --check
+```
+
+True media signaling remains blocked by backend ICE/TURN and WebRTC negotiation
+contract planning.

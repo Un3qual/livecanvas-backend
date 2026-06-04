@@ -23,6 +23,18 @@ defmodule LCGQL.Feed.Types do
     value(:public)
   end
 
+  enum :live_media_ice_server_credential_type do
+    value(:oauth)
+    value(:password)
+  end
+
+  object :live_media_ice_server do
+    field :urls, non_null(list_of(non_null(:string)))
+    field :username, :string
+    field :credential, :string
+    field :credential_type, :live_media_ice_server_credential_type
+  end
+
   object :live_session_recording_media_asset do
     field :id, non_null(:id) do
       resolve(&Resolver.recording_media_asset_id/3)

@@ -31,6 +31,21 @@ defmodule LCGQL.Live.Mutations do
       resolve(&Resolver.go_live_session/3)
     end
 
+    payload field :prepare_live_media_session do
+      input do
+        field :live_session_id, non_null(:id)
+      end
+
+      output do
+        field :live_session, :live_session
+        field :signaling_topic, :string
+        field :ice_servers, non_null(list_of(non_null(:live_media_ice_server)))
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.prepare_live_media_session/3)
+    end
+
     payload field :join_live_session do
       input do
         field :live_session_id, non_null(:id)

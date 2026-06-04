@@ -93,6 +93,59 @@ describe('liveSessionRealtimeEvents', () => {
     });
   });
 
+  test('normalizes media offer and answer broadcasts', () => {
+    expect(
+      normalizeLiveSessionRealtimeEvent('media:offer', {
+        sender_role: 'host',
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      }),
+    ).toEqual({
+      description: {
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      },
+      kind: 'media_offer',
+      senderRole: 'host',
+    });
+    expect(
+      normalizeLiveSessionRealtimeEvent('media:answer', {
+        sender_role: 'viewer',
+        sdp: 'v=0\r\nviewer-answer',
+        type: 'answer',
+      }),
+    ).toEqual({
+      description: {
+        sdp: 'v=0\r\nviewer-answer',
+        type: 'answer',
+      },
+      kind: 'media_answer',
+      senderRole: 'viewer',
+    });
+  });
+
+  test('normalizes media ICE candidate broadcasts', () => {
+    expect(
+      normalizeLiveSessionRealtimeEvent('media:ice_candidate', {
+        candidate: 'candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ srflx',
+        sdp_m_line_index: 0,
+        sdp_mid: '0',
+        sender_role: 'host',
+        username_fragment: 'ufrag',
+      }),
+    ).toEqual({
+      candidate: {
+        candidate:
+          'candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ srflx',
+        sdpMLineIndex: 0,
+        sdpMid: '0',
+        usernameFragment: 'ufrag',
+      },
+      kind: 'media_ice_candidate',
+      senderRole: 'host',
+    });
+  });
+
   test('accepts lifecycle timeline events with nullable chat fields', () => {
     expect(
       normalizeLiveSessionRealtimeEvent('timeline:event', {
@@ -160,6 +213,19 @@ describe('liveSessionRealtimeEvents', () => {
     expect(normalizeLiveSessionRealtimeEvent('session:state', [])).toBeNull();
     expect(normalizeLiveSessionRealtimeEvent('timeline:event', null)).toBeNull();
     expect(normalizeLiveSessionRealtimeEvent('unknown:event', {})).toBeNull();
+    expect(
+      normalizeLiveSessionRealtimeEvent('media:offer', {
+        sender_role: 'host',
+        sdp: 'v=0\r\nwrong-type',
+        type: 'answer',
+      }),
+    ).toBeNull();
+    expect(
+      normalizeLiveSessionRealtimeEvent('media:ice_candidate', {
+        candidate: 'candidate',
+        sender_role: 'publisher',
+      }),
+    ).toBeNull();
   });
 
   test('rejects blank opaque ids', () => {

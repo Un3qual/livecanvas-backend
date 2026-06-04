@@ -7,16 +7,25 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "plugins": ["expo-router", "expo-apple-authentication"],
+    "plugins": [
+      "expo-router",
+      "expo-apple-authentication",
+      "@config-plugins/react-native-webrtc"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "LiveCanvas uses the camera so hosts can preview and broadcast live sessions.",
+        "NSMicrophoneUsageDescription": "LiveCanvas uses the microphone so hosts can include audio in live sessions."
+      }
     },
     "android": {
+      "permissions": ["CAMERA", "RECORD_AUDIO"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
