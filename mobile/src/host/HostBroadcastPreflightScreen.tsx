@@ -320,10 +320,11 @@ export function HostBroadcastPreflightScreen() {
     let isMounted = true;
 
     async function refreshNativeReadiness() {
-      const [permissions, preview] = await Promise.all([
-        native.requestPermissions(),
-        native.preparePreview(),
-      ]);
+      const permissions = await native.requestPermissions();
+      const preview =
+        permissions.camera === 'granted' && permissions.microphone === 'granted'
+          ? await native.preparePreview()
+          : { status: 'native_media_unavailable' as const };
 
       if (!isMounted) {
         return;

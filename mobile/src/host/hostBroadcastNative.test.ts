@@ -24,6 +24,7 @@ describe('hostBroadcastNative', () => {
   });
 
   test('creates a real native boundary when media devices are available', async () => {
+    let getUserMediaCallCount = 0;
     let stoppedTrackCount = 0;
     const track = {
       stop() {
@@ -38,6 +39,7 @@ describe('hostBroadcastNative', () => {
     const native = createHostBroadcastNative({
       mediaDevices: {
         async getUserMedia() {
+          getUserMediaCallCount += 1;
           return stream;
         },
       },
@@ -54,6 +56,56 @@ describe('hostBroadcastNative', () => {
     native.dispose();
     native.dispose();
 
+    expect(getUserMediaCallCount).toBe(1);
+    expect(stoppedTrackCount).toBe(1);
+  });
+
+  test('shares an in-flight preview request across preflight calls', async () => {
+    let getUserMediaCallCount = 0;
+    let stoppedTrackCount = 0;
+    let isCapturing = false;
+    const track = {
+      stop() {
+        stoppedTrackCount += 1;
+      },
+    };
+    const stream = {
+      getTracks() {
+        return [track];
+      },
+    };
+    const native = createHostBroadcastNative({
+      mediaDevices: {
+        async getUserMedia() {
+          getUserMediaCallCount += 1;
+
+          if (isCapturing) {
+            throw new Error('native_media_busy');
+          }
+
+          isCapturing = true;
+          await Promise.resolve();
+          isCapturing = false;
+          return stream;
+        },
+      },
+    });
+
+    await expect(
+      Promise.all([native.requestPermissions(), native.preparePreview()]),
+    ).resolves.toEqual([
+      {
+        camera: 'granted',
+        microphone: 'granted',
+      },
+      {
+        status: 'native_media_ready',
+      },
+    ]);
+
+    native.dispose();
+
+    expect(getUserMediaCallCount).toBe(1);
     expect(stoppedTrackCount).toBe(1);
   });
 

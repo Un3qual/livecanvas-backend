@@ -79,29 +79,38 @@ export function createHostBroadcastNative(
 
   const getUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
   let previewStream: HostBroadcastMediaStream | null = null;
+  let previewStreamRequest: Promise<HostBroadcastMediaStream> | null = null;
 
-  async function requestPreviewStream() {
-    const stream = await getUserMedia({
-      audio: true,
-      video: true,
-    });
-
-    if (!stream) {
-      throw new Error('native_media_unavailable');
+  async function ensurePreviewStream() {
+    if (previewStream) {
+      return previewStream;
     }
 
-    return stream;
-  }
+    if (!previewStreamRequest) {
+      previewStreamRequest = getUserMedia({
+        audio: true,
+        video: true,
+      })
+        .then((stream) => {
+          if (!stream) {
+            throw new Error('native_media_unavailable');
+          }
 
-  function replacePreviewStream(stream: HostBroadcastMediaStream) {
-    stopPreviewStream(previewStream);
-    previewStream = stream;
+          previewStream = stream;
+          return stream;
+        })
+        .finally(() => {
+          previewStreamRequest = null;
+        });
+    }
+
+    return previewStreamRequest;
   }
 
   return {
     async requestPermissions() {
       try {
-        replacePreviewStream(await requestPreviewStream());
+        await ensurePreviewStream();
 
         return {
           camera: 'granted',
@@ -116,9 +125,7 @@ export function createHostBroadcastNative(
     },
     async preparePreview() {
       try {
-        if (!previewStream) {
-          replacePreviewStream(await requestPreviewStream());
-        }
+        await ensurePreviewStream();
 
         return {
           status: 'native_media_ready',
