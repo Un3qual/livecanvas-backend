@@ -10,6 +10,8 @@ defmodule LC.Live.MediaSignaling do
   @max_sdp_bytes 64 * 1024
   @max_ice_candidate_bytes 4 * 1024
 
+  @type provider_config :: keyword()
+  @type ice_server_result :: {:ok, [ice_server()]} | {:error, term()}
   @type credential_type :: :password | :oauth
   @type ice_server :: %{
           required(:urls) => [String.t()],
@@ -45,16 +47,29 @@ defmodule LC.Live.MediaSignaling do
   @type validation_result(payload) :: {:ok, payload} | {:error, [validation_error()]}
   @type media_payload :: description_payload() | ice_candidate_payload()
 
-  @spec prepare_live_media_session() :: prepare_payload()
-  def prepare_live_media_session do
+  @callback ice_servers(provider_config()) :: ice_server_result()
+
+  @spec prepare_live_media_session(provider_config()) :: prepare_payload()
+  def prepare_live_media_session(opts \\ []) when is_list(opts) do
     %{
-      ice_servers: ice_servers(),
+      ice_servers: ice_servers(opts),
       events: media_events()
     }
   end
 
-  @spec ice_servers() :: [ice_server()]
-  def ice_servers, do: @default_ice_servers
+  @spec ice_servers(provider_config()) :: [ice_server()]
+  def ice_servers(opts \\ []) when is_list(opts) do
+    provider = Keyword.get(opts, :provider, configured_provider())
+    provider_config = Keyword.get(opts, :provider_config, configured_provider_config())
+
+    case provider.ice_servers(provider_config) do
+      {:ok, ice_servers} when is_list(ice_servers) ->
+        ice_servers
+
+      {:error, reason} ->
+        raise ArgumentError, "live media ICE server provider failed: #{inspect(reason)}"
+    end
+  end
 
   @spec media_events() :: media_events()
   def media_events do
@@ -212,5 +227,38 @@ defmodule LC.Live.MediaSignaling do
 
   defp reject_nil_values(payload) do
     Map.reject(payload, fn {_key, value} -> is_nil(value) end)
+  end
+
+  @spec configured_provider() :: module()
+  defp configured_provider do
+    config()
+    |> Keyword.get(:provider, __MODULE__.StaticIceServerProvider)
+  end
+
+  @spec configured_provider_config() :: provider_config()
+  defp configured_provider_config do
+    config()
+    |> Keyword.get(:provider_config, ice_servers: @default_ice_servers)
+  end
+
+  @spec config() :: keyword()
+  defp config do
+    Application.get_env(:live_canvas, __MODULE__, [])
+  end
+end
+
+defmodule LC.Live.MediaSignaling.StaticIceServerProvider do
+  @moduledoc false
+
+  @behaviour LC.Live.MediaSignaling
+
+  @impl LC.Live.MediaSignaling
+  @spec ice_servers(LC.Live.MediaSignaling.provider_config()) ::
+          LC.Live.MediaSignaling.ice_server_result()
+  def ice_servers(opts) when is_list(opts) do
+    case Keyword.fetch(opts, :ice_servers) do
+      {:ok, ice_servers} when is_list(ice_servers) -> {:ok, ice_servers}
+      _other -> {:error, :invalid_ice_server_config}
+    end
   end
 end

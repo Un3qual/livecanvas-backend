@@ -3,6 +3,25 @@ defmodule LC.Live.MediaSignalingTest do
 
   alias LC.Live.MediaSignaling
 
+  defmodule EphemeralIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(opts) do
+      nonce = Keyword.fetch!(opts, :nonce)
+
+      {:ok,
+       [
+         %{
+           urls: ["turns:turn.livecanvas.test:443"],
+           username: "live-session:#{nonce}",
+           credential: "turn-credential:#{nonce}",
+           credential_type: :password
+         }
+       ]}
+    end
+  end
+
   describe "prepare_live_media_session/0" do
     test "returns deterministic media setup data" do
       assert %{
@@ -17,6 +36,23 @@ defmodule LC.Live.MediaSignalingTest do
                answer: "media:answer",
                ice_candidate: "media:ice_candidate"
              }
+    end
+
+    test "returns ICE servers from an explicit configured provider" do
+      assert %{
+               ice_servers: [
+                 %{
+                   urls: ["turns:turn.livecanvas.test:443"],
+                   username: "live-session:test-nonce",
+                   credential: "turn-credential:test-nonce",
+                   credential_type: :password
+                 }
+               ]
+             } =
+               MediaSignaling.prepare_live_media_session(
+                 provider: EphemeralIceServerProvider,
+                 provider_config: [nonce: "test-nonce"]
+               )
     end
   end
 

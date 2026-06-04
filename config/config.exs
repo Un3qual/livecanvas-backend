@@ -95,6 +95,12 @@ config :live_canvas, LC.Infra.Mailer, adapter: Swoosh.Adapters.Local
 
 config :live_canvas, LC.Content.MediaProcessing, adapter: LC.Content.MediaProcessing.FakeAdapter
 
+config :live_canvas, LC.Live.MediaSignaling,
+  provider: LC.Live.MediaSignaling.StaticIceServerProvider,
+  provider_config: [
+    ice_servers: [%{urls: ["stun:stun.l.google.com:19302"]}]
+  ]
+
 config :live_canvas, LC.Infra.ObjectStorage, adapter: LC.Infra.ObjectStorage.FakeAdapter
 config :live_canvas, LC.Infra.ObjectStorage.ConfigurableAdapter, upload_ttl_seconds: 900
 

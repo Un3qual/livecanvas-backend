@@ -14,12 +14,13 @@ Status: active
 - Source plan:
   `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
 - Track: live media runtime foundation
-- Task: Task 2, configurable ICE/TURN credential provider behavior
+- Task: Task 3, runtime readiness from negotiation events
 - Write scope: backend live runtime code, backend tests, migrations, and backend
   planning docs
-- Done condition: `prepareLiveMediaSession` serves ICE servers through a typed,
-  configurable provider boundary without persisting TURN secrets, and focused
-  backend tests plus `mix typecheck` pass.
+- Done condition: validated `media:offer`, `media:answer`, and
+  `media:ice_candidate` events advance durable media readiness through a typed
+  runtime boundary without trusting client-provided roles, and focused backend
+  tests plus `mix typecheck` pass.
 
 ## Handoff Context
 
@@ -36,7 +37,7 @@ Mobile-facing contracts:
 
 ## Next Action
 
-Execute Task 2 from
+Execute Task 3 from
 `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`.
 
 ## References
