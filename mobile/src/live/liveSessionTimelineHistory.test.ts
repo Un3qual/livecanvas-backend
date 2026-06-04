@@ -143,6 +143,26 @@ describe('readLiveSessionTimelineHistory', () => {
     ]);
   });
 
+  test('rejects malformed chat message event rows without exporting undefined chat fields', () => {
+    expect(
+      readLiveSessionTimelineHistory({
+        edges: [
+          {
+            cursor: 'cursor-malformed-chat',
+            node: {
+              __typename: 'ChatMessageEvent',
+              actor: { id: 'relay-user-id:viewer' },
+              eventType: 'CHAT_MESSAGE_SENT',
+              id: 'relay-event-id:malformed-chat/opaque',
+              occurredAt: '2026-06-04T17:10:00.000000Z',
+            },
+          },
+        ],
+        pageInfo: null,
+      }).rows,
+    ).toEqual([]);
+  });
+
   test('returns an empty history when the connection is missing', () => {
     expect(readLiveSessionTimelineHistory(null)).toEqual({
       pageInfo: null,

@@ -133,15 +133,17 @@ function normalizeTimelineHistoryRow(
 
   switch (node.__typename) {
     case 'ChatMessageEvent': {
-      const chatNode = node as LiveSessionTimelineChatMessageEventNode;
+      if (!isChatMessageEventNode(node)) {
+        return null;
+      }
 
       return {
         ...base,
         __typename: 'ChatMessageEvent',
-        body: chatNode.body,
-        editCount: chatNode.editCount,
-        edited: chatNode.edited,
-        editedAt: chatNode.editedAt,
+        body: node.body,
+        editCount: node.editCount,
+        edited: node.edited,
+        editedAt: node.editedAt,
         kind: 'chat_message',
       };
     }
@@ -166,4 +168,21 @@ function normalizeTimelineHistoryRow(
         label: 'Timeline event',
       };
   }
+}
+
+function isChatMessageEventNode(
+  node: LiveSessionTimelineEventNode,
+): node is LiveSessionTimelineChatMessageEventNode {
+  if (node.__typename !== 'ChatMessageEvent') {
+    return false;
+  }
+
+  const chatNode = node as Partial<LiveSessionTimelineChatMessageEventNode>;
+
+  return (
+    typeof chatNode.body === 'string' &&
+    typeof chatNode.editCount === 'number' &&
+    typeof chatNode.edited === 'boolean' &&
+    (chatNode.editedAt === null || typeof chatNode.editedAt === 'string')
+  );
 }
