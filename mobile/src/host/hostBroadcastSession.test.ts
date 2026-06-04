@@ -5,6 +5,7 @@ import {
   canRequestHostPreflightBackCleanup,
   canUseHostPreflightBackAction,
   createHostBroadcastSessionState,
+  hostBroadcastPreflightCleanupLiveSessionId,
   hostBroadcastSessionReducer,
 } from './hostBroadcastSession';
 
@@ -159,6 +160,66 @@ describe('hostBroadcastSessionReducer', () => {
     expect(canRequestHostPreflightBackCleanup(starting)).toBe(true);
     expect(canRequestHostPreflightBackCleanup(ending)).toBe(false);
     expect(canRequestHostPreflightBackCleanup(ended)).toBe(false);
+  });
+
+  test('returns cleanup target only for an abandoned starting preflight session', () => {
+    const idle = createHostBroadcastSessionState();
+    const creating = hostBroadcastSessionReducer(idle, {
+      type: 'start_requested',
+    });
+    const starting = hostBroadcastSessionReducer(creating, {
+      liveSessionId: 'TGl2ZVNlc3Npb246MQ==',
+      type: 'start_succeeded',
+    });
+    const ending = hostBroadcastSessionReducer(starting, {
+      type: 'end_requested',
+    });
+    const ended = hostBroadcastSessionReducer(ending, {
+      type: 'end_succeeded',
+    });
+
+    expect(
+      hostBroadcastPreflightCleanupLiveSessionId(starting, {
+        hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveSucceeded: false,
+      }),
+    ).toBe('TGl2ZVNlc3Npb246MQ==');
+    expect(
+      hostBroadcastPreflightCleanupLiveSessionId(idle, {
+        hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveSucceeded: false,
+      }),
+    ).toBeNull();
+    expect(
+      hostBroadcastPreflightCleanupLiveSessionId(creating, {
+        hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveSucceeded: false,
+      }),
+    ).toBeNull();
+    expect(
+      hostBroadcastPreflightCleanupLiveSessionId(ending, {
+        hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveSucceeded: false,
+      }),
+    ).toBeNull();
+    expect(
+      hostBroadcastPreflightCleanupLiveSessionId(ended, {
+        hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveSucceeded: false,
+      }),
+    ).toBeNull();
+    expect(
+      hostBroadcastPreflightCleanupLiveSessionId(starting, {
+        hasEndLiveSessionRequestInFlight: true,
+        hasGoLiveSucceeded: false,
+      }),
+    ).toBeNull();
+    expect(
+      hostBroadcastPreflightCleanupLiveSessionId(starting, {
+        hasEndLiveSessionRequestInFlight: false,
+        hasGoLiveSucceeded: true,
+      }),
+    ).toBeNull();
   });
 
   test('blocks back action while lifecycle transitions can race cleanup', () => {

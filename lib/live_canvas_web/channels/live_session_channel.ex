@@ -13,6 +13,8 @@ defmodule LCWeb.LiveSessionChannel do
   @disconnect_event "disconnect"
   @media_events Live.prepare_live_media_session().events |> Map.values()
 
+  intercept ["media:offer"]
+
   @impl true
   @spec join(String.t(), map(), Phoenix.Socket.t()) ::
           {:ok, map(), Phoenix.Socket.t()} | {:error, map()}
@@ -99,6 +101,7 @@ defmodule LCWeb.LiveSessionChannel do
   @spec handle_out(String.t(), map(), Phoenix.Socket.t()) :: {:noreply, Phoenix.Socket.t()}
   def handle_out(event, payload, socket) when is_binary(event) and is_map(payload) do
     payload = normalize_timeline_channel_payload(event, payload)
+    socket = maybe_note_live_media_host_offer(event, socket)
 
     push(socket, event, payload)
     {:noreply, socket}
@@ -125,7 +128,7 @@ defmodule LCWeb.LiveSessionChannel do
            :ok <- rate_limit_media_signal(user_id, live_session_id),
            :ok <- authorize_live_media_signal(event, current_user, live_session_id),
            {:ok, media_payload} <- validate_live_media_payload(event, payload),
-           :ok <- maybe_mark_live_media_ready(event, current_user, live_session) do
+           :ok <- maybe_mark_live_media_ready(event, current_user, live_session, socket) do
         {:ok, media_channel_payload(media_payload, current_user, live_session)}
       else
         {:error, reason} -> {:error, reason}
@@ -257,22 +260,47 @@ defmodule LCWeb.LiveSessionChannel do
 
   defp authorize_live_media_event_role(_event, _current_user, _live_session), do: :ok
 
-  defp maybe_mark_live_media_ready("media:answer", %{id: user_id}, %{
-         id: live_session_id,
-         host_id: host_id
-       })
+  defp maybe_mark_live_media_ready(
+         "media:answer",
+         %{id: user_id},
+         %{
+           id: live_session_id,
+           host_id: host_id
+         },
+         socket
+       )
        when is_integer(user_id) and is_integer(live_session_id) and is_integer(host_id) and
               user_id != host_id do
-    case Live.mark_media_negotiation_ready(live_session_id) do
-      :ok -> :ok
-      {:error, :ended} -> {:error, :session_ended}
-      {:error, :not_found} -> {:error, :session_ended}
-      {:error, :not_authorized} -> {:error, :not_authorized}
-      {:error, %Ecto.Changeset{}} -> {:error, :invalid_media_readiness}
+    with :ok <- require_live_media_host_offer(socket) do
+      case Live.mark_media_negotiation_ready(live_session_id) do
+        :ok -> :ok
+        {:error, :ended} -> {:error, :session_ended}
+        {:error, :not_found} -> {:error, :session_ended}
+        {:error, :not_authorized} -> {:error, :not_authorized}
+        {:error, %Ecto.Changeset{}} -> {:error, :invalid_media_readiness}
+      end
     end
   end
 
-  defp maybe_mark_live_media_ready(_event, _current_user, _live_session), do: :ok
+  defp maybe_mark_live_media_ready(_event, _current_user, _live_session, _socket), do: :ok
+
+  defp require_live_media_host_offer(%Phoenix.Socket{
+         assigns: %{live_media_host_offer_seen?: true}
+       }),
+       do: :ok
+
+  defp require_live_media_host_offer(_socket), do: {:error, :not_authorized}
+
+  defp maybe_note_live_media_host_offer(
+         "media:offer",
+         %Phoenix.Socket{assigns: %{live_session_topic_scope: :media_signaling}} = socket
+       ) do
+    # Viewer answers only trust an offer observed through this backend-authorized
+    # signaling topic, not any client-supplied role flag.
+    assign(socket, :live_media_host_offer_seen?, true)
+  end
+
+  defp maybe_note_live_media_host_offer(_event, socket), do: socket
 
   defp validate_live_media_payload(event, payload) when event in @media_events do
     case Live.validate_live_media_signal_payload(event, payload) do

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { graphql, useMutation } from 'react-relay';
@@ -26,9 +26,9 @@ import {
 import { createHostBroadcastNative } from './hostBroadcastNative';
 import {
   canRequestHostGoLive,
-  canRequestHostPreflightBackCleanup,
   canUseHostPreflightBackAction,
   createHostBroadcastSessionState,
+  hostBroadcastPreflightCleanupLiveSessionId,
   hostBroadcastSessionReducer,
 } from './hostBroadcastSession';
 import type { HostBroadcastPreflightScreenGoLiveMutation } from './__generated__/HostBroadcastPreflightScreenGoLiveMutation.graphql';
@@ -194,6 +194,10 @@ export function HostBroadcastPreflightScreen() {
     useMutation<HostBroadcastPreflightScreenEndMutation>(
       hostBroadcastPreflightScreenEndMutation,
     );
+  const latestSessionStateRef = useRef(sessionState);
+  const commitEndLiveSessionRef = useRef(commitEndLiveSession);
+  const hasEndLiveSessionRequestInFlightRef = useRef(false);
+  const hasGoLiveSucceededRef = useRef(false);
   const hasPreparedMedia = preparedMedia !== null;
   const canCreateSession =
     canCreateHostPreflightSession(preflightState) &&
@@ -212,6 +216,14 @@ export function HostBroadcastPreflightScreen() {
     sessionState,
     isGoingLive,
   );
+
+  useEffect(() => {
+    latestSessionStateRef.current = sessionState;
+  }, [sessionState]);
+
+  useEffect(() => {
+    commitEndLiveSessionRef.current = commitEndLiveSession;
+  }, [commitEndLiveSession]);
 
   function resetPreparedMedia() {
     setPreparedMedia(null);
@@ -336,6 +348,7 @@ export function HostBroadcastPreflightScreen() {
           return;
         }
 
+        hasGoLiveSucceededRef.current = true;
         router.replace(liveSessionHref(result.liveSession.id));
       },
       onError: () => {
@@ -346,22 +359,50 @@ export function HostBroadcastPreflightScreen() {
   }
 
   function handleBackPress() {
-    const liveSessionId = sessionState.liveSessionId;
-
     if (!canUseBackAction) {
       return;
     }
 
     if (
-      !canRequestHostPreflightBackCleanup(sessionState) ||
-      !liveSessionId
+      hasEndLiveSessionRequestInFlightRef.current ||
+      hasGoLiveSucceededRef.current
     ) {
+      return;
+    }
+
+    const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
+      sessionState,
+      {
+        hasEndLiveSessionRequestInFlight:
+          hasEndLiveSessionRequestInFlightRef.current,
+        hasGoLiveSucceeded: hasGoLiveSucceededRef.current,
+      },
+    );
+
+    if (!liveSessionId) {
       router.back();
       return;
     }
 
-    dispatchSessionAction({ type: 'end_requested' });
-    setHostActionError(null);
+    requestPreflightEndLiveSession(liveSessionId, {
+      navigateBackOnSuccess: true,
+    });
+  }
+
+  function requestPreflightEndLiveSession(
+    liveSessionId: string,
+    options: { readonly navigateBackOnSuccess: boolean },
+  ) {
+    if (hasEndLiveSessionRequestInFlightRef.current) {
+      return;
+    }
+
+    hasEndLiveSessionRequestInFlightRef.current = true;
+
+    if (options.navigateBackOnSuccess) {
+      dispatchSessionAction({ type: 'end_requested' });
+      setHostActionError(null);
+    }
 
     commitEndLiveSession({
       variables: {
@@ -370,10 +411,15 @@ export function HostBroadcastPreflightScreen() {
         },
       },
       onCompleted: (payload) => {
+        if (!options.navigateBackOnSuccess) {
+          return;
+        }
+
         const result = payload.endLiveSession;
 
         if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
           const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
+          hasEndLiveSessionRequestInFlightRef.current = false;
           dispatchSessionAction({
             type: 'end_failed',
             viewerSafeErrorText,
@@ -386,7 +432,12 @@ export function HostBroadcastPreflightScreen() {
         router.back();
       },
       onError: () => {
+        if (!options.navigateBackOnSuccess) {
+          return;
+        }
+
         const viewerSafeErrorText = formatLiveMutationErrors([]);
+        hasEndLiveSessionRequestInFlightRef.current = false;
         dispatchSessionAction({
           type: 'end_failed',
           viewerSafeErrorText,
@@ -439,6 +490,26 @@ export function HostBroadcastPreflightScreen() {
 
     return () => {
       isMounted = false;
+      const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
+        latestSessionStateRef.current,
+        {
+          hasEndLiveSessionRequestInFlight:
+            hasEndLiveSessionRequestInFlightRef.current,
+          hasGoLiveSucceeded: hasGoLiveSucceededRef.current,
+        },
+      );
+
+      if (liveSessionId) {
+        hasEndLiveSessionRequestInFlightRef.current = true;
+        commitEndLiveSessionRef.current({
+          variables: {
+            input: {
+              liveSessionId,
+            },
+          },
+        });
+      }
+
       native.dispose();
     };
   }, [native]);

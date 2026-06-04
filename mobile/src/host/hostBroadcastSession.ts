@@ -11,6 +11,11 @@ export type HostBroadcastSessionState = {
   readonly viewerSafeErrorText: string | null;
 };
 
+export type HostBroadcastPreflightCleanupState = {
+  readonly hasEndLiveSessionRequestInFlight: boolean;
+  readonly hasGoLiveSucceeded: boolean;
+};
+
 export type HostBroadcastSessionAction =
   | { readonly type: 'start_requested' }
   | { readonly type: 'start_succeeded'; readonly liveSessionId: string }
@@ -41,7 +46,27 @@ export function canRequestHostGoLive(
 export function canRequestHostPreflightBackCleanup(
   state: HostBroadcastSessionState,
 ): boolean {
-  return state.status === 'starting' && state.liveSessionId !== null;
+  return (
+    hostBroadcastPreflightCleanupLiveSessionId(state, {
+      hasEndLiveSessionRequestInFlight: false,
+      hasGoLiveSucceeded: false,
+    }) !== null
+  );
+}
+
+export function hostBroadcastPreflightCleanupLiveSessionId(
+  state: HostBroadcastSessionState,
+  cleanupState: HostBroadcastPreflightCleanupState,
+): string | null {
+  if (
+    cleanupState.hasEndLiveSessionRequestInFlight ||
+    cleanupState.hasGoLiveSucceeded ||
+    state.status !== 'starting'
+  ) {
+    return null;
+  }
+
+  return state.liveSessionId;
 }
 
 export function canUseHostPreflightBackAction(

@@ -64,6 +64,12 @@ export function LiveDiscoveryScreen() {
   );
 }
 
+export function shouldShowHostCreationAction(
+  currentSession: LiveSessionSummary | null | undefined,
+): boolean {
+  return currentSession == null;
+}
+
 type LiveDiscoveryErrorBoundaryProps = PropsWithChildren<{
   onRetry: () => void;
 }>;
@@ -144,6 +150,7 @@ function LiveDiscoveryContent() {
 
   const currentSession = data.viewer?.currentLiveSession ?? null;
   const currentSessionId = currentSession?.id;
+  const showHostCreationAction = shouldShowHostCreationAction(currentSession);
   const liveNowSessions = readConnectionNodes(data.liveNow).filter(
     (session) => session.id !== currentSessionId,
   );
@@ -171,7 +178,9 @@ function LiveDiscoveryContent() {
         subtitle="Join active sessions from people you can watch."
       />
       <View style={styles.actions}>
-        <AppButton label="Host a live session" onPress={openHostBroadcast} />
+        {showHostCreationAction ? (
+          <AppButton label="Host a live session" onPress={openHostBroadcast} />
+        ) : null}
         <AppButton
           label="Open profile"
           onPress={openViewerProfile}

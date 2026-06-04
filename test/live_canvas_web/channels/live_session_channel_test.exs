@@ -313,7 +313,7 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
   end
 
-  test "media:answer uses the server-derived viewer sender role" do
+  test "media:answer requires a backend-observed host offer before marking readiness" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
@@ -327,6 +327,58 @@ defmodule LCWeb.LiveSessionChannelTest do
                LiveSessionChannel,
                signaling_topic
              )
+
+    ref = push(socket, "media:answer", %{"type" => "answer", "sdp" => "v=0\r\n"})
+
+    assert_reply ref, :error, %{reason: "not_authorized"}, @channel_reply_timeout
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:answer"
+    }
+
+    assert {:not_ready, :media_not_ready} = Live.media_negotiation_ready?(session.id)
+  end
+
+  test "media:answer uses the server-derived viewer sender role after a host offer" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
+    assert {:ok, _join_payload, host_socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    offer_sdp = "v=0\r\no=- 4611733053425433520 2 IN IP4 127.0.0.1\r\n"
+    offer_payload = %{type: "offer", sdp: offer_sdp, sender_role: "host"}
+    offer_ref = push(host_socket, "media:offer", %{"type" => "offer", "sdp" => offer_sdp})
+
+    assert_reply offer_ref, :ok, ^offer_payload, @channel_reply_timeout
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:offer",
+      payload: ^offer_payload
+    }
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:offer",
+      payload: ^offer_payload
+    }
 
     sdp = "v=0\r\no=- 4611733053425433520 2 IN IP4 127.0.0.1\r\n"
     expected_payload = %{type: "answer", sdp: sdp, sender_role: "viewer"}
