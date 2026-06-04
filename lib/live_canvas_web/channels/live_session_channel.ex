@@ -17,27 +17,29 @@ defmodule LCWeb.LiveSessionChannel do
   @spec join(String.t(), map(), Phoenix.Socket.t()) ::
           {:ok, map(), Phoenix.Socket.t()} | {:error, map()}
   def join(
-        "live_session:" <> _raw_session_id = topic,
+        topic,
         _params,
         %Phoenix.Socket{assigns: %{current_user: %{id: user_id} = current_user}} = socket
-      ) do
+      )
+      when is_binary(topic) do
     socket = ensure_observability_context(socket)
     session_id_hint = LiveSessionTopics.session_id_hint(topic)
 
     result =
-      with {:ok, session_id} <- LiveSessionTopics.parse_live_session_topic(topic),
+      with {:ok, session_id, topic_scope} <- LiveSessionTopics.parse_channel_topic(topic),
            true <- is_integer(user_id) || {:error, :not_authorized},
            :ok <- rate_limit_join(user_id),
            {:ok, live_session} <- Live.fetch_joinable_session(session_id),
            :ok <- Chat.authorize_join(current_user, live_session),
-           {:ok, _participant} <- Live.join_live_session(live_session, current_user, :viewer),
+           :ok <- maybe_join_live_session(topic_scope, live_session, current_user),
            :ok <- subscribe_to_control_topics(session_id, user_id) do
         joined_socket =
           socket
           |> assign(:live_session, live_session)
+          |> assign(:live_session_topic_scope, topic_scope)
           |> put_live_session_observability_context(session_id)
 
-        :ok = broadcast_session_state(session_id, live_session)
+        :ok = maybe_broadcast_joined_session_state(topic_scope, session_id, live_session)
 
         {:ok, joined_socket, session_id}
       else
@@ -68,7 +70,7 @@ defmodule LCWeb.LiveSessionChannel do
     end
   end
 
-  def join("live_session:" <> _raw_session_id = topic, _params, socket) do
+  def join(topic, _params, socket) when is_binary(topic) do
     socket = ensure_observability_context(socket)
 
     :ok =
@@ -119,8 +121,11 @@ defmodule LCWeb.LiveSessionChannel do
     socket = ensure_observability_context(socket)
 
     result =
-      with :ok <- authorize_live_media_signal(current_user, live_session_id),
-           {:ok, media_payload} <- validate_live_media_payload(event, payload) do
+      with :ok <- require_media_signaling_topic(socket),
+           :ok <- rate_limit_media_signal(user_id, live_session_id),
+           :ok <- authorize_live_media_signal(event, current_user, live_session_id),
+           {:ok, media_payload} <- validate_live_media_payload(event, payload),
+           :ok <- maybe_mark_live_media_ready(event, current_user, live_session) do
         {:ok, media_channel_payload(media_payload, current_user, live_session)}
       else
         {:error, reason} -> {:error, reason}
@@ -195,10 +200,35 @@ defmodule LCWeb.LiveSessionChannel do
      socket}
   end
 
-  defp authorize_live_media_signal(current_user, live_session_id)
-       when is_map(current_user) and is_integer(live_session_id) do
+  defp maybe_join_live_session(:live_session, live_session, current_user)
+       when is_map(live_session) and is_map(current_user) do
+    with {:ok, _participant} <- Live.join_live_session(live_session, current_user, :viewer) do
+      :ok
+    end
+  end
+
+  defp maybe_join_live_session(:media_signaling, _live_session, _current_user), do: :ok
+
+  defp maybe_broadcast_joined_session_state(:live_session, session_id, live_session)
+       when is_integer(session_id) and is_map(live_session) do
+    broadcast_session_state(session_id, live_session)
+  end
+
+  defp maybe_broadcast_joined_session_state(:media_signaling, _session_id, _live_session),
+    do: :ok
+
+  defp require_media_signaling_topic(%Phoenix.Socket{
+         assigns: %{live_session_topic_scope: :media_signaling}
+       }),
+       do: :ok
+
+  defp require_media_signaling_topic(_socket), do: {:error, :not_authorized}
+
+  defp authorize_live_media_signal(event, current_user, live_session_id)
+       when is_binary(event) and is_map(current_user) and is_integer(live_session_id) do
     with {:ok, persisted_live_session} <- Live.fetch_joinable_session(live_session_id),
-         :ok <- Chat.authorize_join(current_user, persisted_live_session) do
+         :ok <- Chat.authorize_join(current_user, persisted_live_session),
+         :ok <- authorize_live_media_event_role(event, current_user, persisted_live_session) do
       :ok
     else
       {:error, :ended} -> {:error, :session_ended}
@@ -207,6 +237,29 @@ defmodule LCWeb.LiveSessionChannel do
       {:error, :not_authorized} -> {:error, :not_authorized}
     end
   end
+
+  defp authorize_live_media_event_role("media:offer", %{id: user_id}, %{host_id: host_id})
+       when is_integer(user_id) and is_integer(host_id) do
+    if user_id == host_id, do: :ok, else: {:error, :not_authorized}
+  end
+
+  defp authorize_live_media_event_role(_event, _current_user, _live_session), do: :ok
+
+  defp maybe_mark_live_media_ready("media:offer", %{id: user_id}, %{
+         id: live_session_id,
+         host_id: host_id
+       })
+       when is_integer(user_id) and is_integer(live_session_id) and user_id == host_id do
+    case Live.mark_media_negotiation_ready(live_session_id) do
+      :ok -> :ok
+      {:error, :ended} -> {:error, :session_ended}
+      {:error, :not_found} -> {:error, :session_ended}
+      {:error, :not_authorized} -> {:error, :not_authorized}
+      {:error, %Ecto.Changeset{}} -> {:error, :invalid_media_readiness}
+    end
+  end
+
+  defp maybe_mark_live_media_ready(_event, _current_user, _live_session), do: :ok
 
   defp validate_live_media_payload(event, payload) when event in @media_events do
     case Live.validate_live_media_signal_payload(event, payload) do
@@ -244,6 +297,10 @@ defmodule LCWeb.LiveSessionChannel do
 
   defp media_signaling_error_payload(:session_ended), do: %{reason: "session_ended"}
   defp media_signaling_error_payload(:not_authorized), do: %{reason: "not_authorized"}
+  defp media_signaling_error_payload(:rate_limited), do: %{reason: "rate_limited"}
+
+  defp media_signaling_error_payload(:invalid_media_readiness),
+    do: %{reason: "invalid_media_readiness"}
 
   defp media_validation_error_payload(%{field: field, reason: reason}) do
     reason = if is_atom(reason), do: Atom.to_string(reason), else: reason
@@ -526,6 +583,14 @@ defmodule LCWeb.LiveSessionChannel do
     # Scope to a viewer within a specific live session so one chatty room does
     # not globally throttle the same user in other rooms.
     RateLimiter.allow(:chat_send, "session:#{live_session_id}:user:#{user_id}")
+  end
+
+  @spec rate_limit_media_signal(pos_integer(), pos_integer()) :: :ok | {:error, :rate_limited}
+  defp rate_limit_media_signal(user_id, live_session_id)
+       when is_integer(user_id) and is_integer(live_session_id) do
+    # ICE can burst during negotiation, but it still needs a per-session/user
+    # guard before any database reads or PubSub fan-out.
+    RateLimiter.allow(:media_signal, "session:#{live_session_id}:user:#{user_id}")
   end
 
   @spec subscribe_to_control_topics(pos_integer(), pos_integer()) :: :ok

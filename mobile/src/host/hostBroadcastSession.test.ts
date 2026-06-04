@@ -109,6 +109,33 @@ describe('hostBroadcastSessionReducer', () => {
     });
   });
 
+  test('returns to starting with viewer-safe error text on end failure', () => {
+    const starting = hostBroadcastSessionReducer(
+      hostBroadcastSessionReducer(createHostBroadcastSessionState(), {
+        type: 'start_requested',
+      }),
+      {
+        liveSessionId: 'TGl2ZVNlc3Npb246MQ==',
+        type: 'start_succeeded',
+      },
+    );
+
+    const ending = hostBroadcastSessionReducer(starting, {
+      type: 'end_requested',
+    });
+
+    expect(
+      hostBroadcastSessionReducer(ending, {
+        type: 'end_failed',
+        viewerSafeErrorText: 'We could not end this live session.',
+      }),
+    ).toEqual({
+      liveSessionId: 'TGl2ZVNlc3Npb246MQ==',
+      status: 'starting',
+      viewerSafeErrorText: 'We could not end this live session.',
+    });
+  });
+
   test('ignores stale lifecycle completions and duplicate requests', () => {
     const idle = createHostBroadcastSessionState();
     const creating = hostBroadcastSessionReducer(idle, {
@@ -139,6 +166,12 @@ describe('hostBroadcastSessionReducer', () => {
     expect(
       hostBroadcastSessionReducer(idle, {
         type: 'end_succeeded',
+      }),
+    ).toBe(idle);
+    expect(
+      hostBroadcastSessionReducer(idle, {
+        type: 'end_failed',
+        viewerSafeErrorText: 'This stale error should be ignored.',
       }),
     ).toBe(idle);
 

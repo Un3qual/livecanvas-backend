@@ -7,6 +7,8 @@ defmodule LC.Live.MediaSignaling do
   @answer_event "media:answer"
   @ice_candidate_event "media:ice_candidate"
   @default_ice_servers [%{urls: ["stun:stun.l.google.com:19302"]}]
+  @max_sdp_bytes 64 * 1024
+  @max_ice_candidate_bytes 4 * 1024
 
   @type credential_type :: :password | :oauth
   @type ice_server :: %{
@@ -35,7 +37,7 @@ defmodule LC.Live.MediaSignaling do
           optional(:sdp_m_line_index) => non_neg_integer(),
           optional(:username_fragment) => String.t()
         }
-  @type validation_reason :: :required | :invalid
+  @type validation_reason :: :required | :invalid | :too_large
   @type validation_error :: %{
           required(:field) => String.t(),
           required(:reason) => validation_reason()
@@ -78,7 +80,7 @@ defmodule LC.Live.MediaSignaling do
 
     errors =
       []
-      |> append_required_string_error("candidate", candidate)
+      |> append_required_string_error("candidate", candidate, @max_ice_candidate_bytes)
       |> append_optional_non_neg_integer_error("sdp_m_line_index", sdp_m_line_index)
       |> append_optional_string_error("sdp_mid", sdp_mid)
       |> append_optional_string_error("username_fragment", username_fragment)
@@ -122,7 +124,7 @@ defmodule LC.Live.MediaSignaling do
     errors =
       []
       |> append_description_type_error(expected_type, type)
-      |> append_required_string_error("sdp", sdp)
+      |> append_required_string_error("sdp", sdp, @max_sdp_bytes)
       |> Enum.reverse()
 
     case errors do
@@ -149,13 +151,12 @@ defmodule LC.Live.MediaSignaling do
     end
   end
 
-  @spec append_required_string_error([validation_error()], String.t(), term()) ::
-          [validation_error()]
-  defp append_required_string_error(errors, field, value) do
+  defp append_required_string_error(errors, field, value, max_bytes) do
     cond do
       missing_string?(value) -> [%{field: field, reason: :required} | errors]
-      is_binary(value) -> errors
-      true -> [%{field: field, reason: :invalid} | errors]
+      not is_binary(value) -> [%{field: field, reason: :invalid} | errors]
+      byte_size(value) > max_bytes -> [%{field: field, reason: :too_large} | errors]
+      true -> errors
     end
   end
 
@@ -164,7 +165,7 @@ defmodule LC.Live.MediaSignaling do
   defp append_optional_string_error(errors, _field, nil), do: errors
 
   defp append_optional_string_error(errors, field, value) do
-    if is_binary(value), do: errors, else: [%{field: field, reason: :invalid} | errors]
+    if present_string?(value), do: errors, else: [%{field: field, reason: :invalid} | errors]
   end
 
   @spec append_optional_non_neg_integer_error([validation_error()], String.t(), term()) ::
@@ -187,8 +188,16 @@ defmodule LC.Live.MediaSignaling do
   defp description_type_matches?(_type, _expected_type), do: false
 
   @spec missing_string?(term()) :: boolean()
-  defp missing_string?(value), do: value == nil or value == ""
+  defp missing_string?(nil), do: true
+  defp missing_string?(value) when is_binary(value), do: String.trim(value) == ""
+  defp missing_string?(_value), do: false
 
+  @spec present_string?(term()) :: boolean()
+  defp present_string?(value) when is_binary(value), do: String.trim(value) != ""
+  defp present_string?(_value), do: false
+
+  # Phoenix channel payloads arrive with string keys, while internal tests and
+  # callers may use atom keys. Keep both forms supported at this boundary.
   defp value_for(payload, key) when is_atom(key) do
     case Map.fetch(payload, key) do
       {:ok, value} -> value

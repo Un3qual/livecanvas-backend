@@ -1,6 +1,8 @@
 defmodule LC.Live.SessionServerTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias LC.Live.SessionServer
 
   test "tracks participant membership in memory" do
@@ -76,5 +78,20 @@ defmodule LC.Live.SessionServerTest do
 
     assert {:error, :not_found} = SessionServer.media_negotiation_ready?(pid)
     assert {:error, :not_found} = SessionServer.mark_media_negotiation_ready(pid)
+  end
+
+  test "readiness calls do not convert server crashes into not_found" do
+    session_id = System.unique_integer([:positive])
+    registry = Module.concat(__MODULE__, "Registry#{session_id}")
+
+    {:ok, _registry_pid} = start_supervised({Registry, keys: :unique, name: registry})
+    {:ok, pid} = start_supervised({SessionServer, session_id: session_id, registry: registry})
+
+    :sys.replace_state(pid, fn _state -> :corrupt_state end)
+
+    assert capture_log(fn ->
+             assert {{{:badmap, :corrupt_state}, _stacktrace}, _call} =
+                      catch_exit(SessionServer.mark_media_negotiation_ready(pid))
+           end) =~ "terminating"
   end
 end

@@ -4,7 +4,7 @@
 
 This contract freezes the mobile-facing setup and Phoenix Channel message shapes for native live-session media negotiation. It does not define a Membrane pipeline, persisted TURN credentials, recording storage, or viewer playback state.
 
-Durable authorization and session lookup stay in GraphQL. Ephemeral WebRTC negotiation messages stay on the authorized live-session Phoenix Channel.
+Durable authorization and session lookup stay in GraphQL. Ephemeral WebRTC negotiation messages stay on the authorized media-signaling Phoenix Channel.
 
 Hosts should prepare media setup, join the returned signaling topic, exchange
 WebRTC negotiation messages, and only then retry `goLiveSession` if it returns a
@@ -60,9 +60,9 @@ Mobile should treat `media_not_ready` as a retryable negotiation state, not as a
 terminal session failure. Complete the prepare/channel/WebRTC negotiation flow
 and retry `goLiveSession`.
 
-The current readiness signal is an in-process v1 runtime marker. It can reset if
-the backend runtime restarts, so mobile clients should be prepared to renegotiate
-or retry setup instead of assuming readiness is durable.
+The current readiness signal is a durable live-media readiness row. Mobile
+clients should still be prepared to renegotiate or retry setup when the backend
+reports `media_not_ready`.
 
 ## ICE Server Shape
 
@@ -87,16 +87,20 @@ Field rules:
 
 ## Signaling Topic
 
-`signalingTopic` is the same opaque live-session topic family as `LiveSession.channelTopic`.
+`signalingTopic` is a dedicated opaque media-signaling topic, separate from
+`LiveSession.channelTopic`.
 
-- The backend must derive it with `LCTransport.LiveSessionTopics.live_session_topic/1`.
+- The backend must derive it with `LCTransport.LiveSessionTopics.media_signaling_topic/1`.
 - Mobile clients must pass the returned topic to Phoenix Channels exactly as received.
 - Clients must not construct, parse, persist, or infer topic segments from Relay IDs.
 - Channel joins re-apply the same viewer authorization and session-state checks documented in `docs/contracts/mobile-live-session-realtime.md`.
+- Joining the media-signaling topic does not create a live participant or
+  broadcast live-session state; clients that need session-state events should
+  also join `LiveSession.channelTopic`.
 
 ## Phoenix Channel Events
 
-Media signaling uses the authorized live-session channel and these event names:
+Media signaling uses the authorized media-signaling channel and these event names:
 
 - `media:offer`
 - `media:answer`

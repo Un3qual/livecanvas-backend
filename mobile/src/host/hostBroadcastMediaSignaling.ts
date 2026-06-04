@@ -88,7 +88,10 @@ function normalizeIceServers(
 function normalizeIceServer(
   iceServer: HostBroadcastMediaIceServerSource,
 ): HostBroadcastMediaIceServer | null {
-  const urls = iceServer.urls?.filter((url) => url.trim().length > 0) ?? [];
+  const urls =
+    iceServer.urls
+      ?.map((url) => url.trim())
+      .filter((url) => url.length > 0) ?? [];
 
   if (urls.length === 0) {
     return null;

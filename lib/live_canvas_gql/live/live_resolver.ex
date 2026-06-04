@@ -133,7 +133,7 @@ defmodule LCGQL.Live.Resolver do
       {:ok,
        %{
          live_session: live_session,
-         signaling_topic: LiveSessionTopics.live_session_topic(live_session.id),
+         signaling_topic: LiveSessionTopics.media_signaling_topic(live_session.id),
          ice_servers: ice_servers,
          errors: []
        }}

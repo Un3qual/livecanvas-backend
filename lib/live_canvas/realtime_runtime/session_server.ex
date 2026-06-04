@@ -42,7 +42,8 @@ defmodule LC.RealtimeRuntime.SessionServer do
     )
   end
 
-  @spec join(pid(), pos_integer(), LCSchemas.Live.live_participant_role()) :: :ok | {:error, call_error()}
+  @spec join(pid(), pos_integer(), LCSchemas.Live.live_participant_role()) ::
+          :ok | {:error, call_error()}
   def join(pid, user_id, role) when is_pid(pid) and is_integer(user_id) and is_atom(role) do
     safe_call(pid, {:join, user_id, role})
   end
@@ -142,7 +143,8 @@ defmodule LC.RealtimeRuntime.SessionServer do
   defp safe_call(pid, message) when is_pid(pid) do
     GenServer.call(pid, message)
   catch
-    :exit, _reason -> {:error, :not_found}
+    :exit, {:noproc, _details} -> {:error, :not_found}
+    :exit, reason -> exit(reason)
   end
 
   defp via_tuple(registry, session_id), do: {:via, Registry, {registry, session_id}}

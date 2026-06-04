@@ -6,6 +6,7 @@ defmodule LCTransport.LiveSessionTopicsTest do
   describe "topic builders" do
     test "builds public live-session transport topics" do
       assert LiveSessionTopics.live_session_topic(123) == "live_session:123"
+      assert LiveSessionTopics.media_signaling_topic(123) == "live_session_media:123"
       assert LiveSessionTopics.session_control_topic(123) == "live_session_control:123"
 
       assert LiveSessionTopics.session_user_control_topic(123, 456) ==
@@ -36,9 +37,26 @@ defmodule LCTransport.LiveSessionTopicsTest do
     end
   end
 
+  describe "parse_media_signaling_topic/1" do
+    test "accepts positive integer media-signaling topics" do
+      assert LiveSessionTopics.parse_media_signaling_topic("live_session_media:123") == {:ok, 123}
+    end
+  end
+
+  describe "parse_channel_topic/1" do
+    test "accepts both live-session and media-signaling channel topics" do
+      assert LiveSessionTopics.parse_channel_topic("live_session:123") ==
+               {:ok, 123, :live_session}
+
+      assert LiveSessionTopics.parse_channel_topic("live_session_media:123") ==
+               {:ok, 123, :media_signaling}
+    end
+  end
+
   describe "session_id_hint/1" do
-    test "returns the parsed ID only for valid live-session topics" do
+    test "returns the parsed ID only for valid live-session channel topics" do
       assert LiveSessionTopics.session_id_hint("live_session:123") == 123
+      assert LiveSessionTopics.session_id_hint("live_session_media:123") == 123
       assert LiveSessionTopics.session_id_hint("live_session:not-a-session-id") == nil
       assert LiveSessionTopics.session_id_hint(:not_a_topic) == nil
     end

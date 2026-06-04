@@ -21,7 +21,10 @@ describe('hostBroadcastMediaSignaling', () => {
             credential: 'turn-secret',
             credentialType: 'PASSWORD',
             username: 'turn-user',
-            urls: ['turn:turn.example.com:3478', 'turns:turn.example.com:5349'],
+            urls: [
+              ' turn:turn.example.com:3478 ',
+              'turns:turn.example.com:5349',
+            ],
           },
         ],
         liveSession: {

@@ -166,6 +166,9 @@ function normalizeTimelineEvent(
   };
 }
 
+// Media payloads are server-authored: offer/answer event names must match
+// payload.type, sender_role is required, and ICE candidate fields stay strictly
+// validated before returning media_offer/media_answer/media_ice_candidate.
 function normalizeMediaDescriptionEvent(
   eventName: 'media:offer' | 'media:answer',
   payload: JsonRecord,

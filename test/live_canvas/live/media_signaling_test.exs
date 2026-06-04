@@ -35,6 +35,16 @@ defmodule LC.Live.MediaSignalingTest do
                 %{field: "sdp", reason: :required}
               ]} = MediaSignaling.validate_offer_payload(%{"type" => "answer", "sdp" => ""})
     end
+
+    test "rejects whitespace-only and oversized offer SDP" do
+      assert {:error, [%{field: "sdp", reason: :required}]} =
+               MediaSignaling.validate_offer_payload(%{"type" => "offer", "sdp" => " \n\t "})
+
+      oversized_sdp = String.duplicate("a", 65_537)
+
+      assert {:error, [%{field: "sdp", reason: :too_large}]} =
+               MediaSignaling.validate_offer_payload(%{"type" => "offer", "sdp" => oversized_sdp})
+    end
   end
 
   describe "validate_answer_payload/1" do
@@ -75,6 +85,18 @@ defmodule LC.Live.MediaSignalingTest do
                MediaSignaling.validate_ice_candidate_payload(%{
                  "candidate" => "",
                  "sdp_m_line_index" => -1
+               })
+    end
+
+    test "rejects whitespace-only and oversized ICE candidates" do
+      assert {:error, [%{field: "candidate", reason: :required}]} =
+               MediaSignaling.validate_ice_candidate_payload(%{"candidate" => " \n\t "})
+
+      oversized_candidate = String.duplicate("a", 4_097)
+
+      assert {:error, [%{field: "candidate", reason: :too_large}]} =
+               MediaSignaling.validate_ice_candidate_payload(%{
+                 "candidate" => oversized_candidate
                })
     end
   end

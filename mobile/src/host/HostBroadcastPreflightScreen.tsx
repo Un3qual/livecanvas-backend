@@ -23,7 +23,7 @@ import {
   readPreparedHostBroadcastMedia,
   type HostBroadcastMediaPreparation,
 } from './hostBroadcastMediaSignaling';
-import { createUnavailableHostBroadcastNative } from './hostBroadcastNative';
+import { createHostBroadcastNative } from './hostBroadcastNative';
 import {
   canRequestHostGoLive,
   createHostBroadcastSessionState,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
 export function HostBroadcastPreflightScreen() {
   const router = useRouter();
   const theme = useAppTheme();
-  const native = useMemo(() => createUnavailableHostBroadcastNative(), []);
+  const native = useMemo(() => createHostBroadcastNative(), []);
   const [preflightState, dispatchPreflightAction] = useReducer(
     hostBroadcastPreflightReducer,
     createHostBroadcastPreflightState(),
@@ -265,10 +265,6 @@ export function HostBroadcastPreflightScreen() {
         }
 
         setPreparedMedia(prepared);
-        dispatchPreflightAction({
-          ready: true,
-          type: 'backend_media_contract_changed',
-        });
       },
       onError: () => {
         setIsPreparingMedia(false);
@@ -349,7 +345,16 @@ export function HostBroadcastPreflightScreen() {
       });
     }
 
-    void refreshNativeReadiness();
+    refreshNativeReadiness().catch(() => {
+      if (!isMounted) {
+        return;
+      }
+
+      dispatchPreflightAction({
+        ready: false,
+        type: 'native_media_changed',
+      });
+    });
 
     return () => {
       isMounted = false;
@@ -483,6 +488,8 @@ function permissionStatus(
     case 'blocked':
       return { label: 'Blocked', tone: 'blocked' };
     case 'unknown':
+      return pendingStatus('Unknown');
+    default:
       return pendingStatus('Unknown');
   }
 }

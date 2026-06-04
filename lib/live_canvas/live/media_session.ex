@@ -107,6 +107,9 @@ defmodule LC.Live.MediaSession do
   defp with_active_session(session_id, fun)
        when is_integer(session_id) and is_function(fun, 1) do
     case Repo.transact(fn ->
+           # Readiness row inserts and updates are only safe under this parent
+           # live_session lock; keep lock_live_session/1 coupled to the child
+           # upsert path so concurrent readiness writers cannot race.
            case lock_live_session(session_id) do
              nil ->
                Repo.rollback(:not_found)

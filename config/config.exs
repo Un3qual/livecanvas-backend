@@ -17,7 +17,8 @@ config :live_canvas, LC.RateLimiter,
     graphql_mutation: [limit: 120, window_ms: 60_000],
     moderation_action: [limit: 30, window_ms: 60_000],
     channel_join: [limit: 60, window_ms: 60_000],
-    chat_send: [limit: 120, window_ms: 60_000]
+    chat_send: [limit: 120, window_ms: 60_000],
+    media_signal: [limit: 600, window_ms: 60_000]
   ]
 
 config :live_canvas, LCWeb.Plugs.WebhookSignature,

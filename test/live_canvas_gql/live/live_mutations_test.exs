@@ -385,7 +385,8 @@ defmodule LCGQL.Live.LiveMutationsTest do
         Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
 
       context = %{current_scope: Accounts.scope_for_user(host)}
-      expected_topic = LiveSessionTopics.live_session_topic(started_session.id)
+      expected_channel_topic = LiveSessionTopics.live_session_topic(started_session.id)
+      expected_signaling_topic = LiveSessionTopics.media_signaling_topic(started_session.id)
 
       assert {:ok,
               %{
@@ -394,9 +395,9 @@ defmodule LCGQL.Live.LiveMutationsTest do
                     "liveSession" => %{
                       "id" => ^session_id,
                       "status" => "STARTING",
-                      "channelTopic" => ^expected_topic
+                      "channelTopic" => ^expected_channel_topic
                     },
-                    "signalingTopic" => ^expected_topic,
+                    "signalingTopic" => ^expected_signaling_topic,
                     "iceServers" => [
                       %{
                         "urls" => ["stun:stun.l.google.com:19302"],

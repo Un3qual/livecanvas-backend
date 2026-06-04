@@ -117,8 +117,8 @@ mutation StartLiveSession($visibility: LiveSessionVisibility) {
 `media_not_ready` is a retryable setup state. Mobile hosts should call
 `prepareLiveMediaSession`, join the returned signaling topic, exchange the
 required media negotiation messages, and then retry `goLiveSession`. Backend v1
-readiness is tracked in process and can reset if the runtime restarts, so clients
-must not treat media readiness as durable session state.
+readiness is tracked in durable live-media readiness storage, but clients should
+still handle `media_not_ready` by renegotiating or retrying setup.
 
 ### `joinLiveSession`
 

@@ -69,6 +69,14 @@ defmodule LC.Live.SessionSupervisorTest do
   end
 
   describe "media negotiation readiness" do
+    test "returns invalid_session_id for invalid readiness session IDs" do
+      assert {:error, :invalid_session_id} =
+               SessionSupervisor.mark_media_negotiation_ready(0)
+
+      assert {:error, :invalid_session_id} =
+               SessionSupervisor.media_negotiation_ready?(-1)
+    end
+
     test "routes readiness operations through realtime runtime ownership" do
       session_id = live_session_id_fixture()
       shard_id = RealtimeRuntime.shard_id(session_id)

@@ -16,7 +16,8 @@ export type HostBroadcastSessionAction =
   | { readonly type: 'start_succeeded'; readonly liveSessionId: string }
   | { readonly type: 'start_failed'; readonly viewerSafeErrorText: string }
   | { readonly type: 'end_requested' }
-  | { readonly type: 'end_succeeded' };
+  | { readonly type: 'end_succeeded' }
+  | { readonly type: 'end_failed'; readonly viewerSafeErrorText: string };
 
 export function createHostBroadcastSessionState(): HostBroadcastSessionState {
   return {
@@ -93,6 +94,17 @@ export function hostBroadcastSessionReducer(
         liveSessionId: null,
         status: 'ended',
         viewerSafeErrorText: null,
+      };
+
+    case 'end_failed':
+      if (state.status !== 'ending') {
+        return state;
+      }
+
+      return {
+        liveSessionId: state.liveSessionId,
+        status: 'starting',
+        viewerSafeErrorText: action.viewerSafeErrorText,
       };
 
     default:
