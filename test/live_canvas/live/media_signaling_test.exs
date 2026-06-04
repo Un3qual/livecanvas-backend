@@ -52,6 +52,13 @@ defmodule LC.Live.MediaSignalingTest do
     def ice_servers(_opts), do: exit({:turn_secret_leaked, "turn secret leaked"})
   end
 
+  defmodule ThrowingIceServerProvider do
+    @behaviour MediaSignaling
+
+    @impl MediaSignaling
+    def ice_servers(_opts), do: throw({:turn_secret_leaked, "turn secret leaked"})
+  end
+
   defmodule InvalidIceServerProvider do
     @behaviour MediaSignaling
 
@@ -135,6 +142,17 @@ defmodule LC.Live.MediaSignalingTest do
         capture_log(fn ->
           assert {:error, :ice_server_provider_failed} =
                    MediaSignaling.prepare_live_media_session(provider: ExitingIceServerProvider)
+        end)
+
+      assert log =~ "live media ICE server provider failed"
+      refute log =~ "turn secret leaked"
+    end
+
+    test "returns provider throws as tagged errors" do
+      log =
+        capture_log(fn ->
+          assert {:error, :ice_server_provider_failed} =
+                   MediaSignaling.prepare_live_media_session(provider: ThrowingIceServerProvider)
         end)
 
       assert log =~ "live media ICE server provider failed"

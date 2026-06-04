@@ -257,7 +257,7 @@ defmodule LC.Live.MediaSignaling do
       _exception ->
         {:error, :ice_server_provider_failed}
     catch
-      :exit, _reason ->
+      _kind, _reason ->
         {:error, :ice_server_provider_failed}
     end
   end
