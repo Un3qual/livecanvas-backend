@@ -78,7 +78,7 @@
 - Create: `mobile/src/live/liveSessionChatReducer.ts`
 - Create: `mobile/src/live/liveSessionChatReducer.test.ts`
 
-- [ ] **Step 1: Write failing reducer tests**
+- [x] **Step 1: Write failing reducer tests**
 
   Cover:
 
@@ -92,17 +92,23 @@
   - stale session actions are ignored
   - send started/succeeded/failed state stays scoped to the active session
 
-- [ ] **Step 2: Implement reducer and selectors**
+- [x] **Step 2: Implement reducer and selectors**
 
   Keep state immutable and keyed by opaque event ID. Store ordered IDs separately from event map. Expose selectors for visible rows, pagination cursors, channel status, and send status.
 
-- [ ] **Step 3: Verify Task 2**
+- [x] **Step 3: Verify Task 2**
 
   Run:
 
   ```bash
   bun test mobile/src/live/liveSessionChatReducer.test.ts mobile/src/live/liveSessionTimelineHistory.test.ts
   ```
+
+  Evidence:
+
+  - Red run before implementation failed with missing `./liveSessionChatReducer`.
+  - `bun test mobile/src/live/liveSessionChatReducer.test.ts mobile/src/live/liveSessionTimelineHistory.test.ts mobile/src/live/liveSessionRealtimeEvents.test.ts` passed 25 tests.
+  - `cd mobile && pnpm exec tsc --noEmit` passed.
 
 ## Task 3: Phoenix Channel Client Boundary
 
