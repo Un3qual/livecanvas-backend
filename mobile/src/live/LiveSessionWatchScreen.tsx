@@ -820,7 +820,7 @@ function LiveSessionWatchContent({
     });
   }
 
-  async function handleSendChatMessage(body: string) {
+  async function handleSendChatMessage(body: string): Promise<boolean> {
     if (
       !canStartLiveSessionChatSend({
         channelStatus: chatChannelStatus,
@@ -829,13 +829,13 @@ function LiveSessionWatchContent({
         sendStatus: chatSendStatus,
       })
     ) {
-      return;
+      return false;
     }
 
     const client = chatChannelClientRef.current;
 
     if (!client) {
-      return;
+      return false;
     }
 
     const sendToken = chatSendTokenRef.current + 1;
@@ -856,7 +856,7 @@ function LiveSessionWatchContent({
     }
 
     if (didUnmountRef.current || !isActiveSend) {
-      return;
+      return false;
     }
 
     if (result.status === 'ok') {
@@ -872,7 +872,7 @@ function LiveSessionWatchContent({
         sessionId: liveSessionId,
         type: 'send_succeeded',
       });
-      return;
+      return true;
     }
 
     dispatchChatAction({
@@ -880,6 +880,7 @@ function LiveSessionWatchContent({
       sessionId: liveSessionId,
       type: 'send_failed',
     });
+    return false;
   }
 
   return (

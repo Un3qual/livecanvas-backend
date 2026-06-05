@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   createLiveSessionChatPanelModel,
   readLiveSessionChatPanelSendBody,
+  shouldClearLiveSessionChatPanelDraftAfterSend,
 } from './liveSessionChatPanelPresentation';
 import type { LiveSessionTimelineHistoryRow } from './liveSessionTimelineHistory';
 
@@ -151,6 +152,11 @@ describe('LiveSessionChatPanel presentation model', () => {
         sendStatus: 'idle',
       }).sendButtonDisabled,
     ).toBe(true);
+  });
+
+  test('clears the draft only after a confirmed send success', () => {
+    expect(shouldClearLiveSessionChatPanelDraftAfterSend(true)).toBe(true);
+    expect(shouldClearLiveSessionChatPanelDraftAfterSend(false)).toBe(false);
   });
 });
 

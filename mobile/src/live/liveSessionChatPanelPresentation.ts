@@ -63,6 +63,12 @@ export function readLiveSessionChatPanelSendBody(body: string): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+export function shouldClearLiveSessionChatPanelDraftAfterSend(
+  sendSucceeded: boolean,
+): boolean {
+  return sendSucceeded;
+}
+
 function formatLiveSessionChatPanelRow(
   row: LiveSessionTimelineHistoryRow,
 ): LiveSessionChatPanelRowModel {

@@ -163,6 +163,49 @@ describe('liveSessionChatReducer', () => {
     expect(refreshed.eventsById['event-101']?.cursor).toBe('cursor-event-101');
   });
 
+  test('retained initial refresh interleaves no-overlap rows by occurrence time', () => {
+    const withFirstRealtime = liveSessionChatReducer(activeState('session-1'), {
+      event: realtimeTimelineEventAt(
+        'event-r1',
+        'live message 10:00',
+        '2026-06-04T10:00:00.000000Z',
+      ),
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+    const withRealtime = liveSessionChatReducer(withFirstRealtime, {
+      event: realtimeTimelineEventAt(
+        'event-r2',
+        'live message 11:00',
+        '2026-06-04T11:00:00.000000Z',
+      ),
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+
+    const refreshed = liveSessionChatReducer(withRealtime, {
+      history: history(
+        [
+          chatRowAt('event-a', 'retained 09:00', '2026-06-04T09:00:00.000000Z'),
+          chatRowAt('event-b', 'retained 10:30', '2026-06-04T10:30:00.000000Z'),
+        ],
+        pageInfo('cursor-event-a', 'cursor-event-b'),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+
+    expect(refreshed.eventIds).toEqual([
+      'event-a',
+      'event-r1',
+      'event-b',
+      'event-r2',
+    ]);
+    expect(selectLiveSessionChatVisibleRows(refreshed).map((row) => row.id)).toEqual(
+      ['event-a', 'event-r1', 'event-b', 'event-r2'],
+    );
+  });
+
   test('retained initial refresh preserves loaded older-page cursors', () => {
     const initial = liveSessionChatReducer(activeState('session-1'), {
       history: history(
@@ -541,6 +584,14 @@ function chatRow(
   id: string,
   body: string,
 ): LiveSessionTimelineHistoryRow {
+  return chatRowAt(id, body, '2026-06-04T17:00:00.000000Z');
+}
+
+function chatRowAt(
+  id: string,
+  body: string,
+  occurredAt: string,
+): LiveSessionTimelineHistoryRow {
   return {
     __typename: 'ChatMessageEvent',
     actor: { id: `actor-${id}` },
@@ -552,7 +603,7 @@ function chatRow(
     eventType: 'CHAT_MESSAGE_SENT',
     id,
     kind: 'chat_message',
-    occurredAt: '2026-06-04T17:00:00.000000Z',
+    occurredAt,
   };
 }
 
@@ -579,6 +630,18 @@ function realtimeTimelineEvent(
   id: string,
   body: string,
 ): LiveSessionRealtimeEvent {
+  return realtimeTimelineEventAt(
+    id,
+    body,
+    '2026-06-04T18:00:00.000000Z',
+  );
+}
+
+function realtimeTimelineEventAt(
+  id: string,
+  body: string,
+  occurredAt: string,
+): LiveSessionRealtimeEvent {
   return {
     event: {
       __typename: 'ChatMessageEvent',
@@ -589,7 +652,7 @@ function realtimeTimelineEvent(
       editedAt: null,
       eventType: 'chat_message_sent',
       id,
-      occurredAt: '2026-06-04T18:00:00.000000Z',
+      occurredAt,
     },
     kind: 'timeline_event',
   };

@@ -12,13 +12,14 @@ import type {
 import {
   createLiveSessionChatPanelModel,
   readLiveSessionChatPanelSendBody,
+  shouldClearLiveSessionChatPanelDraftAfterSend,
 } from './liveSessionChatPanelPresentation';
 import type { LiveSessionTimelineHistoryRow } from './liveSessionTimelineHistory';
 
 type LiveSessionChatPanelProps = {
   readonly channelStatus: LiveSessionChatChannelStatus;
   readonly isJoined: boolean;
-  readonly onSendMessage: (body: string) => void;
+  readonly onSendMessage: (body: string) => Promise<boolean>;
   readonly rows: ReadonlyArray<LiveSessionTimelineHistoryRow>;
   readonly sendError: string | null;
   readonly sendStatus: LiveSessionChatSendStatus;
@@ -90,15 +91,18 @@ export function LiveSessionChatPanel({
     sendStatus,
   });
 
-  function handleSendPress() {
+  async function handleSendPress() {
     const body = readLiveSessionChatPanelSendBody(draftMessage);
 
     if (model.sendButtonDisabled || !body) {
       return;
     }
 
-    onSendMessage(body);
-    setDraftMessage('');
+    const sendSucceeded = await onSendMessage(body);
+
+    if (shouldClearLiveSessionChatPanelDraftAfterSend(sendSucceeded)) {
+      setDraftMessage('');
+    }
   }
 
   return (

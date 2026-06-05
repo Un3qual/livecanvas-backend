@@ -314,63 +314,98 @@ function mergeRetainedRefreshRows(
     };
   }
 
+  return {
+    eventIds: sortTimelineEventIds({
+      eventIds: mergeRetainedRefreshEventIds(
+        state.eventIds,
+        incomingEventIds,
+        incomingIds,
+      ),
+      eventsById,
+    }),
+    eventsById,
+  };
+}
+
+function mergeRetainedRefreshEventIds(
+  stateEventIds: ReadonlyArray<string>,
+  incomingEventIds: ReadonlyArray<string>,
+  incomingIds: ReadonlySet<string>,
+): ReadonlyArray<string> {
   const overlapIndexes = incomingEventIds
-    .map((eventId) => state.eventIds.indexOf(eventId))
+    .map((eventId) => stateEventIds.indexOf(eventId))
     .filter((index) => index >= 0);
 
   if (overlapIndexes.length > 0) {
     const firstOverlapIndex = Math.min(...overlapIndexes);
     const lastOverlapIndex = Math.max(...overlapIndexes);
 
-    return {
-      eventIds: [
-        ...state.eventIds
-          .slice(0, firstOverlapIndex)
-          .filter((eventId) => !incomingIds.has(eventId)),
-        ...incomingEventIds,
-        ...state.eventIds
-          .slice(lastOverlapIndex + 1)
-          .filter((eventId) => !incomingIds.has(eventId)),
-      ],
-      eventsById,
-    };
-  }
-
-  const insertionIndex = findRetainedRefreshInsertionIndex(
-    state,
-    eventsById[incomingEventIds[0]],
-  );
-
-  if (insertionIndex === -1) {
-    return {
-      eventIds: [...state.eventIds, ...incomingEventIds],
-      eventsById,
-    };
-  }
-
-  return {
-    eventIds: [
-      ...state.eventIds.slice(0, insertionIndex),
+    return [
+      ...stateEventIds
+        .slice(0, firstOverlapIndex)
+        .filter((eventId) => !incomingIds.has(eventId)),
       ...incomingEventIds,
-      ...state.eventIds.slice(insertionIndex),
-    ],
-    eventsById,
-  };
+      ...stateEventIds
+        .slice(lastOverlapIndex + 1)
+        .filter((eventId) => !incomingIds.has(eventId)),
+    ];
+  }
+
+  const mergedIds = [...stateEventIds];
+  const mergedIdSet = new Set(mergedIds);
+
+  for (const incomingEventId of incomingEventIds) {
+    if (!mergedIdSet.has(incomingEventId)) {
+      mergedIds.push(incomingEventId);
+      mergedIdSet.add(incomingEventId);
+    }
+  }
+
+  return mergedIds;
 }
 
-function findRetainedRefreshInsertionIndex(
-  state: LiveSessionChatState,
-  firstIncomingRow: LiveSessionTimelineHistoryRow | undefined,
-): number {
-  if (!firstIncomingRow) {
-    return -1;
-  }
+type SortTimelineEventIdsInput = {
+  readonly eventIds: ReadonlyArray<string>;
+  readonly eventsById: Readonly<Record<string, LiveSessionTimelineHistoryRow>>;
+};
 
-  return state.eventIds.findIndex((eventId) => {
-    const row = state.eventsById[eventId];
+function sortTimelineEventIds({
+  eventIds,
+  eventsById,
+}: SortTimelineEventIdsInput): ReadonlyArray<string> {
+  const eventOrder = readEventIdOrder(eventIds);
 
-    return row !== undefined && row.occurredAt >= firstIncomingRow.occurredAt;
+  return [...eventIds].sort((leftEventId, rightEventId) => {
+    const leftRow = eventsById[leftEventId];
+    const rightRow = eventsById[rightEventId];
+
+    if (!leftRow || !rightRow) {
+      return readEventOrder(leftEventId, eventOrder) -
+        readEventOrder(rightEventId, eventOrder);
+    }
+
+    const occurredAtOrder = leftRow.occurredAt.localeCompare(rightRow.occurredAt);
+
+    if (occurredAtOrder !== 0) {
+      return occurredAtOrder;
+    }
+
+    return readEventOrder(leftEventId, eventOrder) -
+      readEventOrder(rightEventId, eventOrder);
   });
+}
+
+function readEventIdOrder(
+  eventIds: ReadonlyArray<string>,
+): ReadonlyMap<string, number> {
+  return new Map(eventIds.map((eventId, index) => [eventId, index]));
+}
+
+function readEventOrder(
+  eventId: string,
+  eventOrder: ReadonlyMap<string, number>,
+): number {
+  return eventOrder.get(eventId) ?? Number.MAX_SAFE_INTEGER;
 }
 
 function prependRows(
