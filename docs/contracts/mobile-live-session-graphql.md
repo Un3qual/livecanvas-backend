@@ -25,6 +25,7 @@ Supported `LiveSession` fields for mobile clients:
 - `endedAt: String`
 - `host: User!`
 - `recordingMediaAsset: LiveSessionRecordingMediaAsset`
+- `timelineEvents(first, after, last, before): LiveSessionTimelineEventConnection`
 
 Current enum values:
 
@@ -42,6 +43,9 @@ Field semantics:
 - Channel joins still re-apply viewer authorization and session-state checks.
 - `host.id` is always a Relay `User` ID.
 - `recordingMediaAsset` is `null` when no durable recording is linked.
+- `timelineEvents` is the retained chat and lifecycle history connection for
+  the session. See `docs/contracts/mobile-graphql-chat-history.md` for event
+  fields, pagination semantics, and authorization fallbacks.
 
 Supported `recordingMediaAsset` fields:
 

@@ -29,9 +29,6 @@ mock.module('../providers/ThemeProvider', () => ({
     },
   }),
 }));
-mock.module('../relay/readConnectionNodes', () => ({
-  readConnectionNodes: () => [],
-}));
 mock.module('../theme/tokens', () => ({
   spacing: { lg: 16, md: 12, sm: 8 },
   typography: { body: {}, label: {} },

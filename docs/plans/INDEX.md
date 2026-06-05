@@ -26,10 +26,12 @@ Use this file when:
 - Pointer: `docs/plans/mobile/NOW.md`
 - State: idle
 - Track: `docs/plans/mobile/TRACK.md`
-- Current product theme: host broadcast media signaling integration complete
-- Notes: mobile has Relay prepare/go-live retry wiring and tested media channel
-  payload normalization. Backend media runtime foundation is complete; the next
-  documented mobile-lane batch is chat realtime stream plus retained history.
+- Current product theme: chat realtime stream plus retained history complete
+- Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
+  payload normalization, and a completed backend media runtime foundation. The
+  completed chat batch adds retained timeline history and live chat channel
+  integration. The next documented mobile theme is testing, beta distribution,
+  and release readiness.
 
 ## Track Registry
 
@@ -52,9 +54,8 @@ Use this file when:
 
 - Track: `docs/plans/mobile/TRACK.md`
 - State: idle
-- Current theme: host broadcast media signaling integration complete
-- Next dependency after media signaling: backend media runtime foundation,
-  completed in the backend lane
+- Current theme: chat realtime stream plus retained history complete
+- Active detailed plan: none selected
 
 ### Backend Code Quality Cleanup
 

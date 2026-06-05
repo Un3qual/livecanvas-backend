@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-06-04
-Status: active
+Status: idle
 
 ## Purpose
 
@@ -22,10 +22,10 @@ details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: idle; host broadcast media signaling integration is complete
+- State: idle; chat realtime stream plus retained history is complete
 - Scope: `mobile/` and `docs/plans/mobile/**`
 - Completed source plan:
-  `docs/plans/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
+  `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
 
 ## Execution Rule
 
@@ -42,9 +42,9 @@ track docs.
 
 ## Next Coordinator Decision
 
-Select the next product batch. The currently documented next mobile-lane batch
-is chat realtime stream plus retained history from `docs/plans/mobile/TRACK.md`,
-unless a new backend plan is explicitly reprioritized.
+Select the next product-completeness batch. If the mobile lane remains the
+priority, promote testing, beta distribution, and release readiness from
+`docs/plans/mobile/TRACK.md`.
 
 ## Repair Conditions
 
