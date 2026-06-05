@@ -206,6 +206,71 @@ describe('liveSessionChatReducer', () => {
     );
   });
 
+  test('retained initial refresh deduplicates incoming overlap before sorting', () => {
+    const withRealtime = liveSessionChatReducer(
+      liveSessionChatReducer(activeState('session-1'), {
+        event: realtimeTimelineEventAt(
+          'event-r1',
+          'live message 10:00',
+          '2026-06-04T10:00:00.000000Z',
+        ),
+        sessionId: 'session-1',
+        type: 'realtime_event_received',
+      }),
+      {
+        event: realtimeTimelineEventAt(
+          'event-r2',
+          'live message 11:00',
+          '2026-06-04T11:00:00.000000Z',
+        ),
+        sessionId: 'session-1',
+        type: 'realtime_event_received',
+      },
+    );
+
+    const refreshed = liveSessionChatReducer(withRealtime, {
+      history: history(
+        [
+          chatRowAt(
+            'event-a',
+            'retained 09:00',
+            '2026-06-04T09:00:00.000000Z',
+          ),
+          chatRowAt(
+            'event-r1',
+            'retained overlap 10:00',
+            '2026-06-04T10:00:00.000000Z',
+          ),
+          chatRowAt(
+            'event-r1',
+            'retained duplicate 10:00',
+            '2026-06-04T10:00:00.000000Z',
+          ),
+          chatRowAt(
+            'event-b',
+            'retained 10:30',
+            '2026-06-04T10:30:00.000000Z',
+          ),
+        ],
+        pageInfo('cursor-event-a', 'cursor-event-b'),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+
+    expect(refreshed.eventIds).toEqual([
+      'event-a',
+      'event-r1',
+      'event-b',
+      'event-r2',
+    ]);
+    expect(refreshed.eventsById['event-r1']).toMatchObject({
+      body: 'retained duplicate 10:00',
+      cursor: 'cursor-event-r1',
+      id: 'event-r1',
+    });
+  });
+
   test('retained initial refresh preserves loaded older-page cursors', () => {
     const initial = liveSessionChatReducer(activeState('session-1'), {
       history: history(

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   createLiveSessionChannelClient,
+  shouldCloseLiveSessionChatChannelAfterJoin,
   type LiveSessionChannel,
   type LiveSessionChannelPush,
 } from './liveSessionChannelClient';
@@ -185,6 +186,37 @@ describe('createLiveSessionChannelClient', () => {
       },
       status: 'joined',
     });
+  });
+
+  test('marks joined ended-session acknowledgements as immediately closable', () => {
+    expect(
+      shouldCloseLiveSessionChatChannelAfterJoin({
+        sessionState: {
+          kind: 'session_state',
+          status: 'ENDED',
+          viewerCount: 0,
+          visibility: 'PUBLIC',
+        },
+        status: 'joined',
+      }),
+    ).toBe(true);
+    expect(
+      shouldCloseLiveSessionChatChannelAfterJoin({
+        sessionState: {
+          kind: 'session_state',
+          status: 'LIVE',
+          viewerCount: 1,
+          visibility: 'PUBLIC',
+        },
+        status: 'joined',
+      }),
+    ).toBe(false);
+    expect(
+      shouldCloseLiveSessionChatChannelAfterJoin({
+        reason: 'Could not join live chat. Please try again.',
+        status: 'error',
+      }),
+    ).toBe(false);
   });
 
   test('maps join setup exceptions to error results', async () => {

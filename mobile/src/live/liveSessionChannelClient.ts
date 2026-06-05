@@ -159,6 +159,12 @@ export function createLiveSessionChannelClient({
   };
 }
 
+export function shouldCloseLiveSessionChatChannelAfterJoin(
+  result: LiveSessionJoinResult,
+): boolean {
+  return result.status === 'joined' && result.sessionState?.status === 'ENDED';
+}
+
 function joinChannel(channel: LiveSessionChannel): Promise<LiveSessionJoinResult> {
   return new Promise((resolve) => {
     try {

@@ -9,16 +9,26 @@ export type LiveSessionTimelineHistoryPageInfo = {
   readonly startCursor: string | null;
 };
 
-export type LiveSessionTimelineEventBaseNode = {
+type LiveSessionTimelineHistoryConnectionPageInfo = {
+  readonly endCursor?: string | null | undefined;
+  readonly hasNextPage: boolean;
+  readonly hasPreviousPage: boolean;
+  readonly startCursor?: string | null | undefined;
+};
+
+export type LiveSessionTimelineEventBaseNode<
+  EventType extends string = string,
+> = {
   readonly __typename: string;
-  readonly actor: LiveSessionTimelineHistoryActor | null;
-  readonly eventType: string;
+  readonly actor?: LiveSessionTimelineHistoryActor | null | undefined;
+  readonly eventType: EventType;
   readonly id: string;
   readonly occurredAt: string;
 };
 
-export type LiveSessionTimelineChatMessageEventNode =
-  LiveSessionTimelineEventBaseNode & {
+export type LiveSessionTimelineChatMessageEventNode<
+  EventType extends string = string,
+> = LiveSessionTimelineEventBaseNode<EventType> & {
     readonly __typename: 'ChatMessageEvent';
     readonly body: string;
     readonly edited: boolean;
@@ -26,33 +36,42 @@ export type LiveSessionTimelineChatMessageEventNode =
     readonly editedAt: string | null;
   };
 
-export type LiveSessionTimelineLifecycleEventNode =
-  LiveSessionTimelineEventBaseNode & {
+export type LiveSessionTimelineLifecycleEventNode<
+  EventType extends string = string,
+> = LiveSessionTimelineEventBaseNode<EventType> & {
     readonly __typename:
       | 'LiveSessionEndedEvent'
       | 'LiveSessionStartedEvent';
   };
 
-export type LiveSessionTimelineFutureEventNode =
-  LiveSessionTimelineEventBaseNode & {
-    readonly __typename: string;
+export type LiveSessionTimelineFutureEventNode<
+  EventType extends string = string,
+> = LiveSessionTimelineEventBaseNode<EventType> & {
+    readonly body?: string | undefined;
+    readonly editCount?: number | undefined;
+    readonly edited?: boolean | undefined;
+    readonly editedAt?: string | null | undefined;
   };
 
-export type LiveSessionTimelineEventNode =
-  | LiveSessionTimelineChatMessageEventNode
-  | LiveSessionTimelineFutureEventNode
-  | LiveSessionTimelineLifecycleEventNode;
+export type LiveSessionTimelineEventNode<
+  EventType extends string = string,
+> =
+  | LiveSessionTimelineChatMessageEventNode<EventType>
+  | LiveSessionTimelineFutureEventNode<EventType>
+  | LiveSessionTimelineLifecycleEventNode<EventType>;
 
-type LiveSessionTimelineHistoryEdge = {
+type LiveSessionTimelineHistoryEdge<EventType extends string = string> = {
   readonly cursor?: string | null;
-  readonly node?: LiveSessionTimelineEventNode | null;
+  readonly node?: LiveSessionTimelineEventNode<EventType> | null;
 };
 
-export type LiveSessionTimelineHistoryConnection = {
+export type LiveSessionTimelineHistoryConnection<
+  EventType extends string = string,
+> = {
   readonly edges?:
-    | ReadonlyArray<LiveSessionTimelineHistoryEdge | null | undefined>
+    | ReadonlyArray<LiveSessionTimelineHistoryEdge<EventType> | null | undefined>
     | null;
-  readonly pageInfo?: LiveSessionTimelineHistoryPageInfo | null;
+  readonly pageInfo?: LiveSessionTimelineHistoryConnectionPageInfo | null;
 } | null | undefined;
 
 type LiveSessionTimelineHistoryRowBase = {
@@ -103,13 +122,28 @@ export function readLiveSessionTimelineHistory(
   connection?: LiveSessionTimelineHistoryConnection,
 ): LiveSessionTimelineHistory {
   return {
-    pageInfo: connection?.pageInfo ?? null,
+    pageInfo: normalizeTimelineHistoryPageInfo(connection?.pageInfo),
     rows:
       connection?.edges
         ?.map((edge) => normalizeTimelineHistoryRow(edge))
         .filter(
           (row): row is LiveSessionTimelineHistoryRow => row != null,
         ) ?? [],
+  };
+}
+
+function normalizeTimelineHistoryPageInfo(
+  pageInfo?: LiveSessionTimelineHistoryConnectionPageInfo | null,
+): LiveSessionTimelineHistoryPageInfo | null {
+  if (!pageInfo) {
+    return null;
+  }
+
+  return {
+    endCursor: pageInfo.endCursor ?? null,
+    hasNextPage: pageInfo.hasNextPage,
+    hasPreviousPage: pageInfo.hasPreviousPage,
+    startCursor: pageInfo.startCursor ?? null,
   };
 }
 
@@ -124,7 +158,7 @@ function normalizeTimelineHistoryRow(
 
   const base = {
     __typename: node.__typename,
-    actor: node.actor,
+    actor: node.actor ?? null,
     cursor: edge.cursor ?? null,
     eventType: node.eventType,
     id: node.id,

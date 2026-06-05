@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 
 import { readLiveSessionTimelineHistory } from './liveSessionTimelineHistory';
+import type { LiveSessionWatchScreenQuery } from './__generated__/LiveSessionWatchScreenQuery.graphql';
+
+type LiveSessionWatchData = LiveSessionWatchScreenQuery['response'];
+type LiveSessionNode = Extract<
+  NonNullable<LiveSessionWatchData['node']>,
+  { readonly __typename: 'LiveSession' }
+>;
 
 describe('readLiveSessionTimelineHistory', () => {
   test('reads nullable Relay timeline edges into chronological rows and preserves pageInfo', () => {
@@ -57,7 +64,7 @@ describe('readLiveSessionTimelineHistory', () => {
       pageInfo,
     });
 
-    expect(history.pageInfo).toBe(pageInfo);
+    expect(history.pageInfo).toEqual(pageInfo);
     expect(history.rows.map((row) => row.cursor)).toEqual([
       'cursor-started',
       'cursor-chat',
@@ -141,6 +148,50 @@ describe('readLiveSessionTimelineHistory', () => {
         occurredAt: '2026-06-04T17:08:00.000000Z',
       },
     ]);
+  });
+
+  test('accepts generated Relay timeline connections and normalizes undefined fields', () => {
+    const relayConnection: NonNullable<LiveSessionNode['timelineEvents']> = {
+      edges: [
+        {
+          cursor: undefined,
+          node: {
+            __typename: 'LiveSessionPinnedEvent',
+            actor: undefined,
+            eventType: 'CHAT_MESSAGE_SENT',
+            id: 'relay-event-id:future/undefined-fields',
+            occurredAt: '2026-06-04T17:09:00.000000Z',
+          },
+        },
+      ],
+      pageInfo: {
+        endCursor: undefined,
+        hasNextPage: false,
+        hasPreviousPage: true,
+        startCursor: undefined,
+      },
+    };
+
+    expect(readLiveSessionTimelineHistory(relayConnection)).toEqual({
+      pageInfo: {
+        endCursor: null,
+        hasNextPage: false,
+        hasPreviousPage: true,
+        startCursor: null,
+      },
+      rows: [
+        {
+          __typename: 'LiveSessionPinnedEvent',
+          actor: null,
+          cursor: null,
+          eventType: 'CHAT_MESSAGE_SENT',
+          id: 'relay-event-id:future/undefined-fields',
+          kind: 'unknown',
+          label: 'Timeline event',
+          occurredAt: '2026-06-04T17:09:00.000000Z',
+        },
+      ],
+    });
   });
 
   test('rejects malformed chat message event rows without exporting undefined chat fields', () => {

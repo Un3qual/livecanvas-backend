@@ -332,14 +332,28 @@ function mergeRetainedRefreshEventIds(
   incomingEventIds: ReadonlyArray<string>,
   incomingIds: ReadonlySet<string>,
 ): ReadonlyArray<string> {
-  const overlapIndexes = incomingEventIds
-    .map((eventId) => stateEventIds.indexOf(eventId))
-    .filter((index) => index >= 0);
+  const stateEventIndex = readEventIdOrder(stateEventIds);
+  let firstOverlapIndex: number | null = null;
+  let lastOverlapIndex: number | null = null;
 
-  if (overlapIndexes.length > 0) {
-    const firstOverlapIndex = Math.min(...overlapIndexes);
-    const lastOverlapIndex = Math.max(...overlapIndexes);
+  for (const incomingEventId of incomingEventIds) {
+    const overlapIndex = stateEventIndex.get(incomingEventId);
 
+    if (overlapIndex === undefined) {
+      continue;
+    }
+
+    firstOverlapIndex =
+      firstOverlapIndex === null
+        ? overlapIndex
+        : Math.min(firstOverlapIndex, overlapIndex);
+    lastOverlapIndex =
+      lastOverlapIndex === null
+        ? overlapIndex
+        : Math.max(lastOverlapIndex, overlapIndex);
+  }
+
+  if (firstOverlapIndex !== null && lastOverlapIndex !== null) {
     return [
       ...stateEventIds
         .slice(0, firstOverlapIndex)

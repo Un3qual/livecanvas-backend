@@ -21,8 +21,10 @@ import { useAppTheme } from '../providers/ThemeProvider';
 import { createPhoenixSocket } from '../realtime/phoenixSocket';
 import { radius, spacing, typography } from '../theme/tokens';
 import { LiveSessionChatPanel } from './LiveSessionChatPanel';
+import { createLiveSessionChatChannelLifecycle } from './liveSessionChatChannelLifecycle';
 import {
   createLiveSessionChannelClient,
+  shouldCloseLiveSessionChatChannelAfterJoin,
   type LiveSessionChannelClient,
 } from './liveSessionChannelClient';
 import {
@@ -56,7 +58,6 @@ import {
 } from './liveSessionWatchReducer';
 import {
   readLiveSessionTimelineHistory,
-  type LiveSessionTimelineHistoryConnection,
 } from './liveSessionTimelineHistory';
 import type { LiveSessionWatchScreenJoinMutation } from './__generated__/LiveSessionWatchScreenJoinMutation.graphql';
 import type { LiveSessionWatchScreenLeaveMutation } from './__generated__/LiveSessionWatchScreenLeaveMutation.graphql';
@@ -342,9 +343,7 @@ function LiveSessionWatchContent({
   const retainedTimelineConnection = session?.timelineEvents ?? null;
   const retainedTimelineHistory = useMemo(
     () =>
-      readLiveSessionTimelineHistory(
-        retainedTimelineConnection as LiveSessionTimelineHistoryConnection,
-      ),
+      readLiveSessionTimelineHistory(retainedTimelineConnection),
     [retainedTimelineConnection],
   );
   const normalizedStatus = normalizeLiveSessionStatus(
@@ -418,14 +417,36 @@ function LiveSessionWatchContent({
       return undefined;
     }
 
-    let isActive = true;
+    let chatChannelClient: LiveSessionChannelClient | null = null;
     const socket = createPhoenixSocket({
       getAccessToken: auth.getAccessToken,
       websocketUrl: environment.websocketUrl,
     });
+    const chatChannelLifecycle = createLiveSessionChatChannelLifecycle({
+      clearClientRef: () => {
+        chatChannelClientRef.current = null;
+      },
+      disconnectSocket: () => {
+        socket.disconnect();
+      },
+      failPendingSendForEndedSession: () => {
+        failPendingChatSend(session.id, 'This live session has ended.');
+      },
+      leaveChannel: () => {
+        chatChannelClient?.leave();
+      },
+      markClosedForEndedSession: () => {
+        dispatchChatAction({
+          sessionId: session.id,
+          status: 'closed',
+          type: 'channel_status_changed',
+        });
+      },
+    });
+
     const client = createLiveSessionChannelClient({
       onClose: () => {
-        if (!isActive) {
+        if (!chatChannelLifecycle.isActive()) {
           return;
         }
 
@@ -441,7 +462,7 @@ function LiveSessionWatchContent({
         });
       },
       onError: (reason) => {
-        if (!isActive) {
+        if (!chatChannelLifecycle.isActive()) {
           return;
         }
 
@@ -454,18 +475,12 @@ function LiveSessionWatchContent({
         });
       },
       onSessionState: (event) => {
-        if (!isActive) {
+        if (!chatChannelLifecycle.isActive()) {
           return;
         }
 
         if (event.status === 'ENDED') {
-          chatChannelClientRef.current = null;
-          failPendingChatSend(session.id, 'This live session has ended.');
-          dispatchChatAction({
-            sessionId: session.id,
-            status: 'closed',
-            type: 'channel_status_changed',
-          });
+          chatChannelLifecycle.closeForEndedSession();
           return;
         }
 
@@ -476,7 +491,7 @@ function LiveSessionWatchContent({
         });
       },
       onTimelineEvent: (event) => {
-        if (!isActive) {
+        if (!chatChannelLifecycle.isActive()) {
           return;
         }
 
@@ -487,7 +502,7 @@ function LiveSessionWatchContent({
         });
       },
       onTimelineEventRemoved: (event) => {
-        if (!isActive) {
+        if (!chatChannelLifecycle.isActive()) {
           return;
         }
 
@@ -498,7 +513,7 @@ function LiveSessionWatchContent({
         });
       },
       onTimelineEventUpdated: (event) => {
-        if (!isActive) {
+        if (!chatChannelLifecycle.isActive()) {
           return;
         }
 
@@ -512,6 +527,7 @@ function LiveSessionWatchContent({
       topic: session.channelTopic,
     });
 
+    chatChannelClient = client;
     chatChannelClientRef.current = client;
     dispatchChatAction({
       sessionId: session.id,
@@ -523,15 +539,19 @@ function LiveSessionWatchContent({
     client
       .join()
       .then((result) => {
-        if (!isActive) {
+        if (!chatChannelLifecycle.isActive()) {
           return;
         }
 
         if (result.status === 'joined') {
+          if (shouldCloseLiveSessionChatChannelAfterJoin(result)) {
+            chatChannelLifecycle.closeForEndedSession();
+            return;
+          }
+
           dispatchChatAction({
             sessionId: session.id,
-            status:
-              result.sessionState?.status === 'ENDED' ? 'closed' : 'joined',
+            status: 'joined',
             type: 'channel_status_changed',
           });
           return;
@@ -545,7 +565,7 @@ function LiveSessionWatchContent({
         });
       })
       .catch((error: unknown) => {
-        if (!isActive) {
+        if (!chatChannelLifecycle.isActive()) {
           return;
         }
 
@@ -560,10 +580,7 @@ function LiveSessionWatchContent({
 
     return () => {
       cancelPendingChatSend(session.id);
-      isActive = false;
-      chatChannelClientRef.current = null;
-      client.leave();
-      socket.disconnect();
+      chatChannelLifecycle.cleanup();
     };
   }, [
     auth.getAccessToken,
