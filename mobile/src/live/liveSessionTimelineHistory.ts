@@ -168,6 +168,8 @@ function normalizeTimelineHistoryRow(
   switch (node.__typename) {
     case 'ChatMessageEvent': {
       if (!isChatMessageEventNode(node)) {
+        // Chat rows are user-visible content; drop malformed retained payloads
+        // instead of emitting partial rows with missing message fields.
         return null;
       }
 

@@ -13,9 +13,10 @@ streaming, and chat.
 
 - Track state: active
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Active detailed plan: none selected
-- Current theme: chat realtime stream plus retained history complete
-- Next recommended theme: testing, beta distribution, and release readiness
+- Active detailed plan:
+  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
+- Current theme: testing, beta distribution, and release readiness
+- Last completed theme: chat realtime stream plus retained history complete
 - Backend channel-topic dependency: complete. Mobile receives opaque
   `LiveSession.channelTopic`; do not decode Relay IDs client-side.
 - Backend media signaling dependency: complete. Mobile has prepare/go-live retry

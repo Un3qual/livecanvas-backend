@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-04
-Status: idle
+Last reviewed: 2026-06-05
+Status: ready
 
 ## Lane Scope
 
@@ -13,13 +13,25 @@ Status: idle
 
 - Last completed source plan:
   `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
+- Source plan:
+  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: chat realtime stream plus retained history complete
-- Write scope: none selected
+- Task: Task 1 - quality gate command alignment
+- Write scope: `mobile/package.json`, `mobile/pnpm-lock.yaml`,
+  `mobile/tsconfig.json`, `mobile/relay.config.js`, mobile test/config files as
+  needed, `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`, and
+  this lane NOW file.
+- Done condition: mobile package scripts expose repeatable test and typecheck
+  commands, the current live/relay/realtime/host suite still passes, and the
+  source plan plus lane NOW record the verification evidence.
+- Verification:
+  - `bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host`
+  - From `mobile/`: `./node_modules/.bin/tsc --noEmit`
 
 ## Do This Now
 
-No mobile implementation batch is currently selected.
+Execute Task 1 in
+`docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`.
 
 ## Guardrails
 
@@ -32,6 +44,5 @@ No mobile implementation batch is currently selected.
 
 ## Next Action
 
-If the mobile lane remains the product priority, promote the next concrete
-implementation batch from `docs/plans/mobile/TRACK.md`: testing, beta
-distribution, and release readiness.
+After Task 1 is verified, continue to the beta build path task in the same
+source plan.

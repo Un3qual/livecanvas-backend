@@ -38,6 +38,8 @@ export function createLiveSessionChatPanelModel({
   sendError,
   sendStatus,
 }: LiveSessionChatPanelModelInput): LiveSessionChatPanelModel {
+  // The composer opens only when membership, channel readiness, and send
+  // backpressure all agree; dropping any gate can lose or duplicate messages.
   const composerDisabled =
     !isJoined || channelStatus !== 'joined' || sendStatus === 'sending';
   const sendBody = readLiveSessionChatPanelSendBody(draftMessage);

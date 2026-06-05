@@ -332,6 +332,9 @@ function mergeRetainedRefreshEventIds(
   incomingEventIds: ReadonlyArray<string>,
   incomingIds: ReadonlySet<string>,
 ): ReadonlyArray<string> {
+  // Retained refreshes may overlap already-seen realtime rows. Replace only the
+  // overlapped window, then sort by occurrence time so missed retained rows can
+  // interleave with realtime messages outside the window.
   const stateEventIndex = readEventIdOrder(stateEventIds);
   let firstOverlapIndex: number | null = null;
   let lastOverlapIndex: number | null = null;
@@ -623,6 +626,9 @@ function mergeRetainedInitialPageInfo(
     (row) => row.id === firstLoadedEventId,
   );
 
+  // If the refresh still includes our oldest loaded row, its pageInfo describes
+  // the whole retained window. Otherwise, keep older-page knowledge and merge
+  // only the refreshed newer edge.
   if (refreshStillContainsFirstLoadedEvent) {
     return history.pageInfo;
   }

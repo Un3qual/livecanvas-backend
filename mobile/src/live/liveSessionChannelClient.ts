@@ -166,6 +166,8 @@ export function shouldCloseLiveSessionChatChannelAfterJoin(
 }
 
 function joinChannel(channel: LiveSessionChannel): Promise<LiveSessionJoinResult> {
+  // Keep the wrapper non-rejecting so screen reducers handle every join outcome
+  // through one typed result path instead of mixing callbacks with try/catch.
   return new Promise((resolve) => {
     try {
       channel
@@ -206,6 +208,8 @@ function sendChatMessage(
   channel: LiveSessionChannel,
   body: string,
 ): Promise<LiveSessionChatMessageSendResult> {
+  // Send failures are viewer-safe result values; callers should not rely on
+  // Promise rejection to restore UI state or preserve the draft.
   return new Promise((resolve) => {
     try {
       channel
