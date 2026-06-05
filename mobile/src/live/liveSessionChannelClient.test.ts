@@ -39,8 +39,14 @@ class FakeChannel implements LiveSessionChannel {
     readonly payload: Record<string, unknown>;
     readonly push: FakePush;
   }> = [];
+  joinError: Error | null = null;
+  pushError: Error | null = null;
 
   join(): LiveSessionChannelPush {
+    if (this.joinError) {
+      throw this.joinError;
+    }
+
     return this.joinPush;
   }
 
@@ -69,6 +75,10 @@ class FakeChannel implements LiveSessionChannel {
     eventName: string,
     payload: Record<string, unknown>,
   ): LiveSessionChannelPush {
+    if (this.pushError) {
+      throw this.pushError;
+    }
+
     const push = new FakePush();
     this.pushes.push({ eventName, payload, push });
     return push;
@@ -174,6 +184,16 @@ describe('createLiveSessionChannelClient', () => {
         visibility: 'FOLLOWERS',
       },
       status: 'joined',
+    });
+  });
+
+  test('maps join setup exceptions to error results', async () => {
+    const { channel, client } = createHarness();
+    channel.joinError = new Error('join setup failed');
+
+    await expect(client.join()).resolves.toEqual({
+      reason: 'Could not join live chat. Please try again.',
+      status: 'error',
     });
   });
 
@@ -325,6 +345,17 @@ describe('createLiveSessionChannelClient', () => {
       reason: 'Could not send message. Please try again.',
       status: 'error',
     });
+  });
+
+  test('maps chat send setup exceptions to error results', async () => {
+    const { channel, client } = createHarness();
+    channel.pushError = new Error('push setup failed');
+
+    await expect(client.sendChatMessage('hello')).resolves.toEqual({
+      reason: 'Could not send message. Please try again.',
+      status: 'error',
+    });
+    expect(channel.pushes).toHaveLength(0);
   });
 
   test('ignores malformed broadcast payloads', () => {

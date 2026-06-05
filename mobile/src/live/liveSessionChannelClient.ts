@@ -161,31 +161,38 @@ export function createLiveSessionChannelClient({
 
 function joinChannel(channel: LiveSessionChannel): Promise<LiveSessionJoinResult> {
   return new Promise((resolve) => {
-    channel
-      .join()
-      .receive('ok', (payload) => {
-        const event = normalizeLiveSessionRealtimeEvent(
-          'session:state',
-          payload,
-        );
+    try {
+      channel
+        .join()
+        .receive('ok', (payload) => {
+          const event = normalizeLiveSessionRealtimeEvent(
+            'session:state',
+            payload,
+          );
 
-        resolve({
-          sessionState: event?.kind === 'session_state' ? event : null,
-          status: 'joined',
+          resolve({
+            sessionState: event?.kind === 'session_state' ? event : null,
+            status: 'joined',
+          });
+        })
+        .receive('error', (payload) => {
+          resolve({
+            reason: viewerSafeReason(payload, GENERIC_JOIN_FAILURE_REASON),
+            status: 'error',
+          });
+        })
+        .receive('timeout', () => {
+          resolve({
+            reason: GENERIC_JOIN_FAILURE_REASON,
+            status: 'error',
+          });
         });
-      })
-      .receive('error', (payload) => {
-        resolve({
-          reason: viewerSafeReason(payload, GENERIC_JOIN_FAILURE_REASON),
-          status: 'error',
-        });
-      })
-      .receive('timeout', () => {
-        resolve({
-          reason: GENERIC_JOIN_FAILURE_REASON,
-          status: 'error',
-        });
+    } catch {
+      resolve({
+        reason: GENERIC_JOIN_FAILURE_REASON,
+        status: 'error',
       });
+    }
   });
 }
 
@@ -194,35 +201,42 @@ function sendChatMessage(
   body: string,
 ): Promise<LiveSessionChatMessageSendResult> {
   return new Promise((resolve) => {
-    channel
-      .push('timeline:chat_message:send', { body })
-      .receive('ok', (payload) => {
-        const event = normalizeLiveSessionRealtimeEvent(
-          'timeline:event',
-          payload,
-        );
+    try {
+      channel
+        .push('timeline:chat_message:send', { body })
+        .receive('ok', (payload) => {
+          const event = normalizeLiveSessionRealtimeEvent(
+            'timeline:event',
+            payload,
+          );
 
-        resolve(
-          event?.kind === 'timeline_event'
-            ? { event: event.event, status: 'ok' }
-            : {
-                reason: GENERIC_SEND_FAILURE_REASON,
-                status: 'error',
-              },
-        );
-      })
-      .receive('error', (payload) => {
-        resolve({
-          reason: viewerSafeReason(payload, GENERIC_SEND_FAILURE_REASON),
-          status: 'error',
+          resolve(
+            event?.kind === 'timeline_event'
+              ? { event: event.event, status: 'ok' }
+              : {
+                  reason: GENERIC_SEND_FAILURE_REASON,
+                  status: 'error',
+                },
+          );
+        })
+        .receive('error', (payload) => {
+          resolve({
+            reason: viewerSafeReason(payload, GENERIC_SEND_FAILURE_REASON),
+            status: 'error',
+          });
+        })
+        .receive('timeout', () => {
+          resolve({
+            reason: GENERIC_SEND_FAILURE_REASON,
+            status: 'error',
+          });
         });
-      })
-      .receive('timeout', () => {
-        resolve({
-          reason: GENERIC_SEND_FAILURE_REASON,
-          status: 'error',
-        });
+    } catch {
+      resolve({
+        reason: GENERIC_SEND_FAILURE_REASON,
+        status: 'error',
       });
+    }
   });
 }
 

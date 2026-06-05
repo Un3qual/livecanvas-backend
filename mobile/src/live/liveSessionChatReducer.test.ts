@@ -125,6 +125,96 @@ describe('liveSessionChatReducer', () => {
     );
   });
 
+  test('retained initial refresh inserts older rows before overlapping realtime rows', () => {
+    const withFirstRealtime = liveSessionChatReducer(activeState('session-1'), {
+      event: realtimeTimelineEvent('event-101', 'live message 101'),
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+    const withRealtime = liveSessionChatReducer(withFirstRealtime, {
+      event: realtimeTimelineEvent('event-102', 'live message 102'),
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+
+    const refreshed = liveSessionChatReducer(withRealtime, {
+      history: history(
+        [
+          chatRow('event-71', 'older retained'),
+          chatRow('event-101', 'retained live message 101'),
+          chatRow('event-102', 'retained live message 102'),
+          chatRow('event-103', 'missed newer retained'),
+        ],
+        pageInfo('cursor-event-71', 'cursor-event-103'),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+
+    expect(refreshed.eventIds).toEqual([
+      'event-71',
+      'event-101',
+      'event-102',
+      'event-103',
+    ]);
+    expect(selectLiveSessionChatVisibleRows(refreshed).map((row) => row.id)).toEqual(
+      ['event-71', 'event-101', 'event-102', 'event-103'],
+    );
+    expect(refreshed.eventsById['event-101']?.cursor).toBe('cursor-event-101');
+  });
+
+  test('retained initial refresh preserves loaded older-page cursors', () => {
+    const initial = liveSessionChatReducer(activeState('session-1'), {
+      history: history(
+        [chatRow('event-3', 'third'), chatRow('event-4', 'fourth')],
+        pageInfo('cursor-event-3', 'cursor-event-4', { hasPreviousPage: true }),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+    const withOlder = liveSessionChatReducer(initial, {
+      history: history(
+        [
+          chatRow('event-1', 'first'),
+          chatRow('event-2', 'second'),
+          chatRow('event-3', 'third overlap'),
+        ],
+        pageInfo('cursor-event-1', 'cursor-event-3', { hasPreviousPage: false }),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_older_loaded',
+    });
+
+    const refreshed = liveSessionChatReducer(withOlder, {
+      history: history(
+        [
+          chatRow('event-3', 'third refreshed'),
+          chatRow('event-4', 'fourth refreshed'),
+          chatRow('event-5', 'fifth'),
+        ],
+        pageInfo('cursor-event-3-refresh', 'cursor-event-5', {
+          hasPreviousPage: true,
+        }),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+
+    expect(refreshed.eventIds).toEqual([
+      'event-1',
+      'event-2',
+      'event-3',
+      'event-4',
+      'event-5',
+    ]);
+    expect(selectLiveSessionChatPaginationPageInfo(refreshed)).toEqual({
+      endCursor: 'cursor-event-5',
+      hasNextPage: false,
+      hasPreviousPage: false,
+      startCursor: 'cursor-event-1',
+    });
+  });
+
   test('older retained page prepends rows without duplicate IDs', () => {
     const initial = liveSessionChatReducer(activeState('session-1'), {
       history: history(
@@ -250,6 +340,7 @@ describe('liveSessionChatReducer', () => {
     );
     expect(selectLiveSessionChatVisibleRows(updated)[0]).toMatchObject({
       body: 'first edited',
+      cursor: 'cursor-event-1',
       editCount: 1,
       edited: true,
       editedAt: '2026-06-04T18:01:00.000000Z',

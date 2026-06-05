@@ -113,7 +113,10 @@ export function liveSessionChatReducer(
         ...(state.eventIds.length === 0
           ? replaceWithRows(action.history.rows)
           : mergeRetainedRefreshRows(state, action.history.rows)),
-        pageInfo: action.history.pageInfo,
+        pageInfo:
+          state.eventIds.length === 0
+            ? action.history.pageInfo
+            : mergeRetainedInitialPageInfo(state, action.history),
       };
 
     case 'retained_older_loaded':
@@ -289,9 +292,8 @@ function mergeRetainedRefreshRows(
   rows: ReadonlyArray<LiveSessionTimelineHistoryRow>,
 ): Pick<LiveSessionChatState, 'eventIds' | 'eventsById'> {
   const eventsById = { ...state.eventsById };
-  const existingIds = new Set(state.eventIds);
   const incomingIds = new Set<string>();
-  const newIncomingIds: Array<string> = [];
+  const incomingEventIds: Array<string> = [];
 
   for (const row of rows) {
     if (incomingIds.has(row.id)) {
@@ -300,42 +302,75 @@ function mergeRetainedRefreshRows(
     }
 
     incomingIds.add(row.id);
-
-    if (!existingIds.has(row.id)) {
-      newIncomingIds.push(row.id);
-    }
+    incomingEventIds.push(row.id);
 
     eventsById[row.id] = row;
   }
 
-  if (newIncomingIds.length === 0) {
+  if (incomingEventIds.length === 0) {
     return {
       eventIds: state.eventIds,
       eventsById,
     };
   }
 
-  const firstRealtimeIndex = state.eventIds.findIndex((eventId) => {
-    const row = state.eventsById[eventId];
+  const overlapIndexes = incomingEventIds
+    .map((eventId) => state.eventIds.indexOf(eventId))
+    .filter((index) => index >= 0);
 
-    return row?.cursor === null && !incomingIds.has(eventId);
-  });
+  if (overlapIndexes.length > 0) {
+    const firstOverlapIndex = Math.min(...overlapIndexes);
+    const lastOverlapIndex = Math.max(...overlapIndexes);
 
-  if (firstRealtimeIndex === -1) {
     return {
-      eventIds: [...state.eventIds, ...newIncomingIds],
+      eventIds: [
+        ...state.eventIds
+          .slice(0, firstOverlapIndex)
+          .filter((eventId) => !incomingIds.has(eventId)),
+        ...incomingEventIds,
+        ...state.eventIds
+          .slice(lastOverlapIndex + 1)
+          .filter((eventId) => !incomingIds.has(eventId)),
+      ],
+      eventsById,
+    };
+  }
+
+  const insertionIndex = findRetainedRefreshInsertionIndex(
+    state,
+    eventsById[incomingEventIds[0]],
+  );
+
+  if (insertionIndex === -1) {
+    return {
+      eventIds: [...state.eventIds, ...incomingEventIds],
       eventsById,
     };
   }
 
   return {
     eventIds: [
-      ...state.eventIds.slice(0, firstRealtimeIndex),
-      ...newIncomingIds,
-      ...state.eventIds.slice(firstRealtimeIndex),
+      ...state.eventIds.slice(0, insertionIndex),
+      ...incomingEventIds,
+      ...state.eventIds.slice(insertionIndex),
     ],
     eventsById,
   };
+}
+
+function findRetainedRefreshInsertionIndex(
+  state: LiveSessionChatState,
+  firstIncomingRow: LiveSessionTimelineHistoryRow | undefined,
+): number {
+  if (!firstIncomingRow) {
+    return -1;
+  }
+
+  return state.eventIds.findIndex((eventId) => {
+    const row = state.eventsById[eventId];
+
+    return row !== undefined && row.occurredAt >= firstIncomingRow.occurredAt;
+  });
 }
 
 function prependRows(
@@ -415,6 +450,12 @@ function mergeRealtimeTimelineEvent(
   }
 
   const eventExists = state.eventsById[row.id] !== undefined;
+  const nextRow = eventExists
+    ? {
+        ...row,
+        cursor: state.eventsById[row.id]?.cursor ?? row.cursor,
+      }
+    : row;
 
   if (!eventExists && mode === 'replace_existing') {
     return state;
@@ -422,10 +463,10 @@ function mergeRealtimeTimelineEvent(
 
   return {
     ...state,
-    eventIds: eventExists ? state.eventIds : [...state.eventIds, row.id],
+    eventIds: eventExists ? state.eventIds : [...state.eventIds, nextRow.id],
     eventsById: {
       ...state.eventsById,
-      [row.id]: row,
+      [nextRow.id]: nextRow,
     },
   };
 }
@@ -510,6 +551,34 @@ function readRealtimeTimelineRow(
         label: 'Timeline event',
       };
   }
+}
+
+function mergeRetainedInitialPageInfo(
+  state: LiveSessionChatState,
+  history: LiveSessionTimelineHistory,
+): LiveSessionTimelineHistoryPageInfo | null {
+  if (!history.pageInfo) {
+    return state.pageInfo;
+  }
+
+  if (!state.pageInfo) {
+    return history.pageInfo;
+  }
+
+  if (history.rows.length === 0) {
+    return state.pageInfo;
+  }
+
+  const firstLoadedEventId = state.eventIds[0];
+  const refreshStillContainsFirstLoadedEvent = history.rows.some(
+    (row) => row.id === firstLoadedEventId,
+  );
+
+  if (refreshStillContainsFirstLoadedEvent) {
+    return history.pageInfo;
+  }
+
+  return mergeNewerPageInfo(state.pageInfo, history.pageInfo);
 }
 
 function mergeOlderPageInfo(

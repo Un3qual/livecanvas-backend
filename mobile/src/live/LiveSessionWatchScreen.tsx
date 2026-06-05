@@ -445,7 +445,6 @@ function LiveSessionWatchContent({
           return;
         }
 
-        chatChannelClientRef.current = null;
         failPendingChatSend(session.id, reason);
         dispatchChatAction({
           error: reason,
