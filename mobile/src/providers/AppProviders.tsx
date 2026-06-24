@@ -7,6 +7,7 @@ import {
 } from '../config/environment';
 import { AuthProvider } from '../auth/AuthProvider';
 import { ViewerBootstrap } from '../auth/ViewerBootstrap';
+import { HostBroadcastPublishingSessionProvider } from '../host/HostBroadcastPublishingSessionProvider';
 import { RelayEnvironmentProvider } from '../relay/RelayEnvironmentProvider';
 import { StartupGate } from './StartupGate';
 import { ThemeProvider } from './ThemeProvider';
@@ -19,10 +20,11 @@ export function AppProviders({ children }: PropsWithChildren) {
       <ThemeProvider>
         <AuthProvider apiBaseUrl={environment.apiBaseUrl}>
           <StartupGate environment={environment}>
-            {/* Keep future channel providers outside the router tree seam. */}
-            <RelayEnvironmentProvider>
-              <ViewerBootstrap>{children}</ViewerBootstrap>
-            </RelayEnvironmentProvider>
+            <HostBroadcastPublishingSessionProvider>
+              <RelayEnvironmentProvider>
+                <ViewerBootstrap>{children}</ViewerBootstrap>
+              </RelayEnvironmentProvider>
+            </HostBroadcastPublishingSessionProvider>
           </StartupGate>
         </AuthProvider>
       </ThemeProvider>

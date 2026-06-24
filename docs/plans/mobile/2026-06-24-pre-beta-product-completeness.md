@@ -169,6 +169,10 @@ Completion evidence:
 - `mobile/src/host/HostBroadcastPreflightScreen.tsx` starts host publishing
   after media preparation and only marks backend media readiness for
   `goLiveSession` retry after the publishing runtime applies a viewer answer.
+- `mobile/src/host/HostBroadcastPublishingSessionProvider.tsx` retains the host
+  publishing resource across the preflight-to-live route replacement, and
+  `mobile/src/live/LiveSessionWatchScreen.tsx` releases any retained host
+  publishing resource when the live session is observed as ended.
 
 TDD evidence:
 

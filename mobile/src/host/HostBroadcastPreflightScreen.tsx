@@ -32,6 +32,11 @@ import {
   createHostBroadcastPublishingRuntime,
   type HostBroadcastPublishingRuntime,
 } from './hostBroadcastPublishingRuntime';
+import { useHostBroadcastPublishingSessions } from './HostBroadcastPublishingSessionProvider';
+import {
+  createHostBroadcastPublishingPreflightController,
+  type HostBroadcastPublishingPreflightController,
+} from './hostBroadcastPublishingSession';
 import {
   canRequestAbandonedHostPreflightCleanup,
   canRequestHostGoLive,
@@ -186,6 +191,12 @@ export function HostBroadcastPreflightScreen() {
   const auth = useAuth();
   const { environment } = useStartupState();
   const native = useMemo(() => createHostBroadcastNative(), []);
+  const hostPublishingSessions = useHostBroadcastPublishingSessions();
+  const publishingPreflightController =
+    useMemo<HostBroadcastPublishingPreflightController>(
+      () => createHostBroadcastPublishingPreflightController(),
+      [],
+    );
   const [preflightState, dispatchPreflightAction] = useReducer(
     hostBroadcastPreflightReducer,
     createHostBroadcastPreflightState(),
@@ -225,8 +236,7 @@ export function HostBroadcastPreflightScreen() {
   const hasEndLiveSessionRequestInFlightRef = useRef(false);
   const hasGoLiveRequestInFlightRef = useRef(false);
   const hasGoLiveSucceededRef = useRef(false);
-  const publishingRuntimeRef =
-    useRef<HostBroadcastPublishingRuntime | null>(null);
+  const hasRetainedHostPublishingResourceRef = useRef(false);
   const hasPreparedMedia = preparedMedia !== null;
   const canCreateSession =
     canCreateHostPreflightSession(preflightState) &&
@@ -432,6 +442,11 @@ export function HostBroadcastPreflightScreen() {
         }
 
         hasGoLiveSucceededRef.current = true;
+        hasRetainedHostPublishingResourceRef.current =
+          publishingPreflightController.retainForLiveSession(
+            result.liveSession.id,
+            hostPublishingSessions,
+          );
         if (isPreflightScreenMountedRef.current) {
           setIsGoingLive(false);
         }
@@ -594,13 +609,14 @@ export function HostBroadcastPreflightScreen() {
         requestAbandonedPreflightEndLiveSession(liveSessionId);
       }
 
-      native.dispose();
+      if (!hasRetainedHostPublishingResourceRef.current) {
+        native.dispose();
+      }
     };
   }, [native]);
 
   useEffect(() => {
     if (!preparedMedia || auth.state.status !== 'authenticated') {
-      publishingRuntimeRef.current = null;
       setPublishingStatus(preparedMedia ? 'errored' : 'idle');
 
       if (preparedMedia && auth.state.status !== 'authenticated') {
@@ -671,7 +687,12 @@ export function HostBroadcastPreflightScreen() {
         preparedMedia: mediaPreparation,
         socket,
       });
-      publishingRuntimeRef.current = runtime;
+      publishingPreflightController.attachResource({
+        disconnectSocket: () => {
+          socket.disconnect();
+        },
+        runtime,
+      });
       socket.connect();
 
       const result = await runtime.start();
@@ -681,6 +702,7 @@ export function HostBroadcastPreflightScreen() {
       }
 
       if (result.status === 'error') {
+        publishingPreflightController.cleanupAttachedResource();
         setPublishingStatus('errored');
         dispatchPreflightAction({
           ready: false,
@@ -700,6 +722,7 @@ export function HostBroadcastPreflightScreen() {
         return;
       }
 
+      publishingPreflightController.cleanupAttachedResource();
       setPublishingStatus('errored');
       dispatchPreflightAction({
         ready: false,
@@ -710,9 +733,7 @@ export function HostBroadcastPreflightScreen() {
 
     return () => {
       isActive = false;
-      publishingRuntimeRef.current = null;
-      runtime?.dispose();
-      socket.disconnect();
+      publishingPreflightController.cleanupAttachedResource();
     };
   }, [
     auth.getAccessToken,
@@ -720,6 +741,7 @@ export function HostBroadcastPreflightScreen() {
     environment.websocketUrl,
     native,
     preparedMedia,
+    publishingPreflightController,
   ]);
 
   return (

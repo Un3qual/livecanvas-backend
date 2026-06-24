@@ -15,6 +15,7 @@ import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
+import { useHostBroadcastPublishingSessions } from '../host/HostBroadcastPublishingSessionProvider';
 import { formatProfileIdentity } from '../profile/profilePresentation';
 import { useStartupState } from '../providers/StartupGate';
 import { useAppTheme } from '../providers/ThemeProvider';
@@ -248,6 +249,7 @@ function LiveSessionWatchContent({
   const router = useRouter();
   const auth = useAuth();
   const { environment } = useStartupState();
+  const hostPublishingSessions = useHostBroadcastPublishingSessions();
   const data = useLazyLoadQuery<LiveSessionWatchScreenQuery>(
     graphql`
       query LiveSessionWatchScreenQuery(
@@ -371,6 +373,12 @@ function LiveSessionWatchContent({
   }, [sessionId]);
 
   useEffect(() => {
+    if (session?.id && normalizedStatus === 'ENDED') {
+      hostPublishingSessions.release(session.id);
+    }
+  }, [hostPublishingSessions, normalizedStatus, session?.id]);
+
+  useEffect(() => {
     if (!session) {
       return;
     }
@@ -480,6 +488,7 @@ function LiveSessionWatchContent({
         }
 
         if (event.status === 'ENDED') {
+          hostPublishingSessions.release(session.id);
           chatChannelLifecycle.closeForEndedSession();
           return;
         }
@@ -586,6 +595,7 @@ function LiveSessionWatchContent({
     auth.getAccessToken,
     auth.state.status,
     environment.websocketUrl,
+    hostPublishingSessions,
     isJoined,
     session?.channelTopic,
     session?.id,
