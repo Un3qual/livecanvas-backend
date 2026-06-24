@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  createHostBroadcastMediaIceCandidatePayload,
+  createHostBroadcastMediaOfferPayload,
   isRetryableHostGoLiveMediaReadinessError,
   readPreparedHostBroadcastMedia,
 } from './hostBroadcastMediaSignaling';
@@ -106,5 +108,68 @@ describe('hostBroadcastMediaSignaling', () => {
     ).toBe(false);
     expect(isRetryableHostGoLiveMediaReadinessError([])).toBe(false);
     expect(isRetryableHostGoLiveMediaReadinessError(null)).toBe(false);
+  });
+
+  test('creates only validated host media offer payloads', () => {
+    expect(
+      createHostBroadcastMediaOfferPayload({
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      }),
+    ).toEqual({
+      sdp: 'v=0\r\nhost-offer',
+      type: 'offer',
+    });
+    expect(
+      createHostBroadcastMediaOfferPayload({
+        sdp: 'v=0\r\nviewer-answer',
+        type: 'answer',
+      }),
+    ).toBeNull();
+    expect(
+      createHostBroadcastMediaOfferPayload({
+        sdp: '   ',
+        type: 'offer',
+      }),
+    ).toBeNull();
+  });
+
+  test('creates host ICE payloads with signaling snake_case keys', () => {
+    expect(
+      createHostBroadcastMediaIceCandidatePayload({
+        candidate:
+          'candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ srflx',
+        sdpMLineIndex: 0,
+        sdpMid: '0',
+        usernameFragment: 'ufrag',
+      }),
+    ).toEqual({
+      candidate:
+        'candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ srflx',
+      sdp_m_line_index: 0,
+      sdp_mid: '0',
+      username_fragment: 'ufrag',
+    });
+    expect(
+      createHostBroadcastMediaIceCandidatePayload({
+        candidate: 'candidate:1 1 udp 1 192.0.2.10 54400 typ host',
+        sdpMLineIndex: null,
+        sdpMid: null,
+        usernameFragment: null,
+      }),
+    ).toEqual({
+      candidate: 'candidate:1 1 udp 1 192.0.2.10 54400 typ host',
+    });
+    expect(
+      createHostBroadcastMediaIceCandidatePayload({
+        candidate: '   ',
+      }),
+    ).toBeNull();
+    expect(
+      createHostBroadcastMediaIceCandidatePayload({
+        candidate: 'candidate',
+        sdpMLineIndex: -1,
+      }),
+    ).toBeNull();
   });
 });

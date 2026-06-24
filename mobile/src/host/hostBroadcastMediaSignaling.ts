@@ -35,6 +35,34 @@ export type HostBroadcastMediaPreparation = {
   readonly signalingTopic: string;
 };
 
+export type HostBroadcastMediaOfferPayload = {
+  readonly sdp: string;
+  readonly type: 'offer';
+};
+
+export type HostBroadcastMediaIceCandidatePayload = {
+  readonly candidate: string;
+  readonly sdp_m_line_index?: number;
+  readonly sdp_mid?: string;
+  readonly username_fragment?: string;
+};
+
+type HostBroadcastMediaDescriptionSource = Readonly<{
+  sdp?: unknown;
+  type?: unknown;
+}>;
+
+type HostBroadcastMediaIceCandidateSource = Readonly<{
+  candidate?: unknown;
+  sdpMLineIndex?: unknown;
+  sdpMid?: unknown;
+  sdp_m_line_index?: unknown;
+  sdp_mid?: unknown;
+  toJSON?: () => unknown;
+  usernameFragment?: unknown;
+  username_fragment?: unknown;
+}>;
+
 export function readPreparedHostBroadcastMedia(
   payload: PrepareLiveMediaSessionSource | null | undefined,
 ): HostBroadcastMediaPreparation | null {
@@ -62,6 +90,59 @@ export function readPreparedHostBroadcastMedia(
     iceServers,
     liveSessionId: payload.liveSession.id,
     signalingTopic: payload.signalingTopic,
+  };
+}
+
+export function createHostBroadcastMediaOfferPayload(
+  description: HostBroadcastMediaDescriptionSource | null | undefined,
+): HostBroadcastMediaOfferPayload | null {
+  if (
+    description?.type !== 'offer' ||
+    !isNonBlankString(description.sdp)
+  ) {
+    return null;
+  }
+
+  return {
+    sdp: description.sdp,
+    type: 'offer',
+  };
+}
+
+export function createHostBroadcastMediaIceCandidatePayload(
+  source: HostBroadcastMediaIceCandidateSource | null | undefined,
+): HostBroadcastMediaIceCandidatePayload | null {
+  const candidate = normalizeIceCandidateSource(source);
+
+  if (!candidate || !isNonBlankString(candidate.candidate)) {
+    return null;
+  }
+
+  const sdpMid = readOptionalString(candidate.sdpMid ?? candidate.sdp_mid);
+  const sdpMLineIndex = readOptionalNonNegativeInteger(
+    candidate.sdpMLineIndex ?? candidate.sdp_m_line_index,
+  );
+  const usernameFragment = readOptionalString(
+    candidate.usernameFragment ?? candidate.username_fragment,
+  );
+
+  if (
+    sdpMid === undefined ||
+    sdpMLineIndex === undefined ||
+    usernameFragment === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    candidate: candidate.candidate,
+    ...(sdpMLineIndex === null
+      ? {}
+      : { sdp_m_line_index: sdpMLineIndex }),
+    ...(sdpMid === null ? {} : { sdp_mid: sdpMid }),
+    ...(usernameFragment === null
+      ? {}
+      : { username_fragment: usernameFragment }),
   };
 }
 
@@ -117,4 +198,49 @@ function normalizeCredentialType(
     default:
       return '%future added value';
   }
+}
+
+function normalizeIceCandidateSource(
+  source: HostBroadcastMediaIceCandidateSource | null | undefined,
+): HostBroadcastMediaIceCandidateSource | null {
+  if (!source) {
+    return null;
+  }
+
+  const json = source.toJSON?.();
+
+  return isRecord(json) ? json : source;
+}
+
+function isRecord(
+  value: unknown,
+): value is Record<string, unknown> & HostBroadcastMediaIceCandidateSource {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function readOptionalString(value: unknown): string | null | undefined {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readOptionalNonNegativeInteger(
+  value: unknown,
+): number | null | undefined {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return typeof value === 'number' &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value >= 0
+    ? value
+    : undefined;
 }
