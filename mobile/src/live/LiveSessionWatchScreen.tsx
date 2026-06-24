@@ -63,6 +63,7 @@ import {
 import {
   readLiveSessionTimelineHistory,
 } from './liveSessionTimelineHistory';
+import { handleLiveSessionEndedRealtimeCleanup } from './liveSessionEndedRealtimeCleanup';
 import {
   createDefaultLiveSessionViewerPeerConnectionFactory,
   createLiveSessionViewerPlaybackRuntime,
@@ -831,8 +832,16 @@ function LiveSessionWatchContent({
         }
 
         if (event.status === 'ENDED') {
-          hostPublishingSessions.release(session.id);
-          chatChannelLifecycle.closeForEndedSession();
+          handleLiveSessionEndedRealtimeCleanup({
+            closeChatChannelForEndedSession: () => {
+              chatChannelLifecycle.closeForEndedSession();
+            },
+            liveSessionId: session.id,
+            releaseHostPublishing: (liveSessionId) => {
+              hostPublishingSessions.release(liveSessionId);
+            },
+            stopViewerPlayback,
+          });
           return;
         }
 
@@ -897,7 +906,16 @@ function LiveSessionWatchContent({
 
         if (result.status === 'joined') {
           if (shouldCloseLiveSessionChatChannelAfterJoin(result)) {
-            chatChannelLifecycle.closeForEndedSession();
+            handleLiveSessionEndedRealtimeCleanup({
+              closeChatChannelForEndedSession: () => {
+                chatChannelLifecycle.closeForEndedSession();
+              },
+              liveSessionId: session.id,
+              releaseHostPublishing: (liveSessionId) => {
+                hostPublishingSessions.release(liveSessionId);
+              },
+              stopViewerPlayback,
+            });
             return;
           }
 
