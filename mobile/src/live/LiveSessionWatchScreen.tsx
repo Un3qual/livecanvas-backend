@@ -70,6 +70,7 @@ import {
   readPreparedLiveSessionViewerMedia,
   type LiveSessionViewerPlaybackRuntime,
 } from './liveSessionViewerPlaybackRuntime';
+import { handleLiveSessionViewerPlaybackChannelTerminated } from './liveSessionViewerPlaybackLifecycle';
 import type { LiveSessionWatchScreenJoinMutation } from './__generated__/LiveSessionWatchScreenJoinMutation.graphql';
 import type { LiveSessionWatchScreenLeaveMutation } from './__generated__/LiveSessionWatchScreenLeaveMutation.graphql';
 import type { LiveSessionWatchScreenPrepareMediaMutation } from './__generated__/LiveSessionWatchScreenPrepareMediaMutation.graphql';
@@ -576,15 +577,17 @@ function LiveSessionWatchContent({
           });
           const runtime = createLiveSessionViewerPlaybackRuntime({
             onChannelTerminated: () => {
-              if (!isViewerPlaybackGenerationActive(generation)) {
-                return;
-              }
-
-              disposeViewerPlaybackResource(generation);
-              setViewerPlaybackState({
-                error: null,
-                remoteStreamUrl: null,
-                status: 'closed',
+              handleLiveSessionViewerPlaybackChannelTerminated({
+                generation,
+                isGenerationActive: isViewerPlaybackGenerationActive,
+                setClosed: () => {
+                  setViewerPlaybackState({
+                    error: null,
+                    remoteStreamUrl: null,
+                    status: 'closed',
+                  });
+                },
+                stopPlaybackGeneration: stopViewerPlaybackGeneration,
               });
             },
             onError: (reason) => {
@@ -592,6 +595,7 @@ function LiveSessionWatchContent({
                 return;
               }
 
+              stopViewerPlaybackGeneration(generation, { resetState: false });
               setViewerPlaybackState({
                 error: reason,
                 remoteStreamUrl: null,

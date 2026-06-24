@@ -129,11 +129,13 @@ class FakePeerConnection implements LiveSessionViewerPlaybackPeerConnection {
   readonly addIceCandidateCalls: LiveSessionViewerPlaybackIceCandidate[] = [];
   readonly localDescriptions: LiveSessionViewerPlaybackSessionDescription[] = [];
   readonly remoteDescriptions: LiveSessionViewerPlaybackSessionDescription[] = [];
+  addIceCandidateError: Error | null = null;
   answer: LiveSessionViewerPlaybackSessionDescription = {
     sdp: 'v=0\r\nviewer-answer',
     type: 'answer',
   };
   closeCount = 0;
+  createAnswerError: Error | null = null;
   createAnswerDeferred: Deferred<LiveSessionViewerPlaybackSessionDescription> | null =
     null;
   onicecandidate:
@@ -151,12 +153,18 @@ class FakePeerConnection implements LiveSessionViewerPlaybackPeerConnection {
       ) => void)
     | null = null;
   setLocalDescriptionDeferred: Deferred<void> | null = null;
+  setLocalDescriptionError: Error | null = null;
   setRemoteDescriptionDeferred: Deferred<void> | null = null;
+  setRemoteDescriptionError: Error | null = null;
 
   addIceCandidate(
     candidate: LiveSessionViewerPlaybackIceCandidate,
   ): Promise<void> {
     this.addIceCandidateCalls.push(candidate);
+    if (this.addIceCandidateError) {
+      return Promise.reject(this.addIceCandidateError);
+    }
+
     return Promise.resolve();
   }
 
@@ -165,6 +173,10 @@ class FakePeerConnection implements LiveSessionViewerPlaybackPeerConnection {
   }
 
   createAnswer(): Promise<LiveSessionViewerPlaybackSessionDescription> {
+    if (this.createAnswerError) {
+      return Promise.reject(this.createAnswerError);
+    }
+
     return this.createAnswerDeferred?.promise ?? Promise.resolve(this.answer);
   }
 
@@ -172,6 +184,10 @@ class FakePeerConnection implements LiveSessionViewerPlaybackPeerConnection {
     description: LiveSessionViewerPlaybackSessionDescription,
   ): Promise<void> {
     this.localDescriptions.push(description);
+    if (this.setLocalDescriptionError) {
+      return Promise.reject(this.setLocalDescriptionError);
+    }
+
     return this.setLocalDescriptionDeferred?.promise ?? Promise.resolve();
   }
 
@@ -179,6 +195,10 @@ class FakePeerConnection implements LiveSessionViewerPlaybackPeerConnection {
     description: LiveSessionViewerPlaybackSessionDescription,
   ): Promise<void> {
     this.remoteDescriptions.push(description);
+    if (this.setRemoteDescriptionError) {
+      return Promise.reject(this.setRemoteDescriptionError);
+    }
+
     return this.setRemoteDescriptionDeferred?.promise ?? Promise.resolve();
   }
 
@@ -574,5 +594,85 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
       channel.pushes.filter((push) => push.eventName === 'media:answer'),
     ).toHaveLength(0);
     expect(harness.errorReasons).toEqual([]);
+  });
+
+  test('disposes playback resources and clears remote stream after fatal answer negotiation failures', async () => {
+    const cases: ReadonlyArray<{
+      readonly fail: (peerConnection: FakePeerConnection) => void;
+      readonly name: string;
+    }> = [
+      {
+        fail: (peerConnection) => {
+          peerConnection.setRemoteDescriptionError = new Error(
+            'remote description failed',
+          );
+        },
+        name: 'setRemoteDescription',
+      },
+      {
+        fail: (peerConnection) => {
+          peerConnection.createAnswerError = new Error('create answer failed');
+        },
+        name: 'createAnswer',
+      },
+      {
+        fail: (peerConnection) => {
+          peerConnection.setLocalDescriptionError = new Error(
+            'local description failed',
+          );
+        },
+        name: 'setLocalDescription',
+      },
+    ];
+
+    for (const testCase of cases) {
+      const harness = createHarness();
+      const { channel, peerConnections, startRuntime } = harness;
+
+      await startRuntime();
+      peerConnections[0].emitRemoteStream({ id: `remote-${testCase.name}` });
+      testCase.fail(peerConnections[0]);
+
+      channel.emit('media:offer', {
+        sender_role: 'host',
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      });
+      await flushAsyncHandlers();
+
+      expect(harness.errorReasons).toEqual([
+        'Could not start live video playback. Please try again.',
+      ]);
+      expect(channel.leaveCount).toBe(1);
+      expect(peerConnections[0].closeCount).toBe(1);
+      expect(harness.remoteStreams).toEqual([
+        { id: `remote-${testCase.name}` },
+        null,
+      ]);
+    }
+  });
+
+  test('disposes playback resources and clears remote stream after fatal host ICE failures', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, startRuntime } = harness;
+
+    await startRuntime();
+    peerConnections[0].emitRemoteStream({ id: 'remote-stream' });
+    peerConnections[0].addIceCandidateError = new Error(
+      'add ice candidate failed',
+    );
+
+    channel.emit('media:ice_candidate', {
+      candidate: 'candidate:host 1 udp 1 192.0.2.10 54400 typ host',
+      sender_role: 'host',
+    });
+    await flushAsyncHandlers();
+
+    expect(harness.errorReasons).toEqual([
+      'Could not start live video playback. Please try again.',
+    ]);
+    expect(channel.leaveCount).toBe(1);
+    expect(peerConnections[0].closeCount).toBe(1);
+    expect(harness.remoteStreams).toEqual([{ id: 'remote-stream' }, null]);
   });
 });

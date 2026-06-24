@@ -362,6 +362,7 @@ export function createLiveSessionViewerPlaybackRuntime({
     } catch (error) {
       if (!disposed && error !== disposedDuringAsyncError) {
         onError?.(GENERIC_VIEWER_PLAYBACK_FAILURE_REASON);
+        dispose();
       }
     }
   }
@@ -388,6 +389,7 @@ export function createLiveSessionViewerPlaybackRuntime({
     } catch {
       if (!disposed) {
         onError?.(GENERIC_VIEWER_PLAYBACK_FAILURE_REASON);
+        dispose();
       }
     }
   }
