@@ -12,14 +12,14 @@ before adding distribution or app-store release scope.
 
 ## Task 1: Quality Gate Command Alignment
 
-- [ ] Verify the current mobile package manager, TypeScript, Relay, and Bun test
+- [x] Verify the current mobile package manager, TypeScript, Relay, and Bun test
       entrypoints from `mobile/package.json`, `mobile/tsconfig.json`, and
       `mobile/relay.config.js`.
-- [ ] Add or adjust package scripts so executors have one obvious command for
+- [x] Add or adjust package scripts so executors have one obvious command for
       mobile tests and one obvious command for mobile typechecking.
-- [ ] Keep any Relay codegen command aligned with the existing generated files;
+- [x] Keep any Relay codegen command aligned with the existing generated files;
       do not change GraphQL schema shape in this batch.
-- [ ] Run the focused mobile quality gate and record the exact evidence in this
+- [x] Run the focused mobile quality gate and record the exact evidence in this
       plan and `docs/plans/mobile/NOW.md`.
 
 Done condition: mobile package scripts expose repeatable test and typecheck
@@ -28,8 +28,25 @@ source plan plus lane NOW record the verification evidence.
 
 Verification:
 
-- `bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host`
-- From `mobile/`: `./node_modules/.bin/tsc --noEmit`
+- From `mobile/`: `bun run test:quality`
+- From `mobile/`: `bun run typecheck`
+- From repo root: `git diff --check`
+
+Evidence on 2026-06-24:
+
+- `mobile/package.json` declares `packageManager: pnpm@10.32.1`; the existing
+  `relay` script remains `relay-compiler`, and the added package scripts are
+  `test:quality` and `typecheck`.
+- `mobile/tsconfig.json` extends `expo/tsconfig.base`, keeps `strict: true`,
+  and excludes test/spec files from the app typecheck.
+- `mobile/relay.config.js` still points Relay at `src: './src'`,
+  `schema: './schema.graphql'`, TypeScript output, eager ES modules, and the
+  existing node_modules, mock, and generated-file excludes.
+- `bun run test:quality` ran `bun test src/live src/relay src/realtime src/host`
+  and passed: 141 tests across 23 files, 0 failures, 457 `expect()` calls.
+- `bun run typecheck` ran `./node_modules/.bin/tsc --noEmit` and exited 0 with
+  no diagnostics.
+- `git diff --check` exited 0.
 
 ## Task 2: Beta Build Path
 

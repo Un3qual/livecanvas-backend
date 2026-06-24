@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-24
-Status: ready
+Status: ready for next mobile batch
 
 ## Lane Scope
 
@@ -12,11 +12,11 @@ Status: ready
 ## Current Batch
 
 - Last completed source plan:
-  `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md` Task 5
+  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md` Task 1
 - Source plan:
   `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: Task 1 - quality gate command alignment
+- Task: Task 1 - quality gate command alignment (complete on 2026-06-24)
 - Write scope:
   - `docs/plans/mobile/**`
   - `mobile/package.json`
@@ -27,13 +27,31 @@ Status: ready
 - Done condition: mobile package scripts expose repeatable test and typecheck
   commands, the current live/relay/realtime/host suite still passes, and the
   source plan plus this lane NOW record exact verification evidence.
+  Met on 2026-06-24.
 - Verification:
-  - `bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host`
-  - `cd mobile && ./node_modules/.bin/tsc --noEmit`
+  - From `mobile/`: `bun run test:quality`
+  - From `mobile/`: `bun run typecheck`
+  - From repo root: `git diff --check`
+
+## Task 1 Evidence
+
+- `mobile/package.json` uses `packageManager: pnpm@10.32.1`; `relay` remains
+  `relay-compiler`; `test:quality` and `typecheck` are the executor-facing
+  package scripts for this gate.
+- `mobile/tsconfig.json` extends `expo/tsconfig.base`, keeps `strict: true`,
+  and excludes test/spec files from the app typecheck.
+- `mobile/relay.config.js` still targets `./src` and `./schema.graphql` with
+  TypeScript output and the existing generated-file excludes.
+- `bun run test:quality` passed on 2026-06-24: 141 tests across 23 files,
+  0 failures, 457 `expect()` calls.
+- `bun run typecheck` passed on 2026-06-24: `./node_modules/.bin/tsc --noEmit`
+  exited 0 with no diagnostics.
+- `git diff --check` exited 0 on 2026-06-24.
 
 ## Do This Now
 
-Implement Task 1 in
+Task 1 is complete. Do not start Task 2 in this Task 1 batch; the next mobile
+implementation turn can pick up Task 2 - beta build path from
 `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`.
 
 ## Guardrails
@@ -51,6 +69,5 @@ Implement Task 1 in
 
 ## Next Action
 
-Verify the current mobile package manager, TypeScript, Relay, and Bun test
-entrypoints from `mobile/package.json`, `mobile/tsconfig.json`, and
-`mobile/relay.config.js`, then add or adjust package scripts for Task 1.
+Pick up Task 2 - beta build path in the source plan without changing the Task 1
+quality gate scripts unless the package entrypoints drift again.
