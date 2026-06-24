@@ -4,10 +4,12 @@ import React, {
   useMemo,
   useReducer,
   useRef,
+  useState,
   type PropsWithChildren,
 } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RTCView } from 'react-native-webrtc';
 import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
 
 import { useAuth } from '../auth/AuthProvider';
@@ -61,8 +63,15 @@ import {
 import {
   readLiveSessionTimelineHistory,
 } from './liveSessionTimelineHistory';
+import {
+  createDefaultLiveSessionViewerPeerConnectionFactory,
+  createLiveSessionViewerPlaybackRuntime,
+  readPreparedLiveSessionViewerMedia,
+  type LiveSessionViewerPlaybackRuntime,
+} from './liveSessionViewerPlaybackRuntime';
 import type { LiveSessionWatchScreenJoinMutation } from './__generated__/LiveSessionWatchScreenJoinMutation.graphql';
 import type { LiveSessionWatchScreenLeaveMutation } from './__generated__/LiveSessionWatchScreenLeaveMutation.graphql';
+import type { LiveSessionWatchScreenPrepareMediaMutation } from './__generated__/LiveSessionWatchScreenPrepareMediaMutation.graphql';
 import type { LiveSessionWatchScreenQuery } from './__generated__/LiveSessionWatchScreenQuery.graphql';
 
 type LiveSessionWatchData = LiveSessionWatchScreenQuery['response'];
@@ -87,11 +96,39 @@ type AutoLeaveOnUnmountRef = {
   current: { readonly sessionId: string; readonly shouldLeave: boolean } | null;
 };
 
+type ViewerPlaybackStatus =
+  | 'idle'
+  | 'preparing'
+  | 'connecting'
+  | 'waiting_for_host'
+  | 'playing'
+  | 'errored'
+  | 'closed';
+
+type ViewerPlaybackState = {
+  readonly error: string | null;
+  readonly remoteStreamUrl: string | null;
+  readonly status: ViewerPlaybackStatus;
+};
+
+type ViewerPlaybackResource = {
+  readonly disconnectSocket: () => void;
+  readonly generation: number;
+  readonly runtime: LiveSessionViewerPlaybackRuntime;
+  readonly sessionId: string;
+};
+
 type LiveSessionWatchContentProps = LiveSessionWatchScreenProps & {
   pendingMutationRef: PendingMutationRef;
 };
 
 const INITIAL_TIMELINE_HISTORY_COUNT = 30;
+
+const INITIAL_VIEWER_PLAYBACK_STATE: ViewerPlaybackState = {
+  error: null,
+  remoteStreamUrl: null,
+  status: 'idle',
+};
 
 const liveSessionWatchScreenJoinMutation = graphql`
   mutation LiveSessionWatchScreenJoinMutation(
@@ -109,6 +146,30 @@ const liveSessionWatchScreenJoinMutation = graphql`
           id
           email
         }
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+const liveSessionWatchScreenPrepareMediaMutation = graphql`
+  mutation LiveSessionWatchScreenPrepareMediaMutation(
+    $input: PrepareLiveMediaSessionInput!
+  ) {
+    prepareLiveMediaSession(input: $input) {
+      liveSession {
+        id
+        status
+      }
+      signalingTopic
+      iceServers {
+        urls
+        username
+        credential
+        credentialType
       }
       errors {
         field
@@ -165,6 +226,21 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontSize: 14,
     lineHeight: 20,
+  },
+  mediaFrame: {
+    alignItems: 'center',
+    aspectRatio: 16 / 9,
+    borderRadius: radius.md,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    width: '100%',
+  },
+  mediaPlaceholder: {
+    padding: spacing.md,
+  },
+  remoteVideo: {
+    height: '100%',
+    width: '100%',
   },
   metadataRow: {
     borderTopWidth: 1,
@@ -326,10 +402,16 @@ function LiveSessionWatchContent({
     useMutation<LiveSessionWatchScreenJoinMutation>(
       liveSessionWatchScreenJoinMutation,
     );
+  const [commitPrepareLiveSessionMedia] =
+    useMutation<LiveSessionWatchScreenPrepareMediaMutation>(
+      liveSessionWatchScreenPrepareMediaMutation,
+    );
   const [commitLeaveLiveSession] =
     useMutation<LiveSessionWatchScreenLeaveMutation>(
       liveSessionWatchScreenLeaveMutation,
     );
+  const [viewerPlaybackState, setViewerPlaybackState] =
+    useState<ViewerPlaybackState>(INITIAL_VIEWER_PLAYBACK_STATE);
   const autoLeaveOnUnmountRef = useRef<
     AutoLeaveOnUnmountRef['current']
   >(null);
@@ -338,6 +420,8 @@ function LiveSessionWatchContent({
   const chatSendTokenRef = useRef(0);
   const didUnmountRef = useRef(false);
   const leaveMutationRef = useRef(commitLeaveLiveSession);
+  const viewerPlaybackGenerationRef = useRef(0);
+  const viewerPlaybackResourceRef = useRef<ViewerPlaybackResource | null>(null);
 
   leaveMutationRef.current = commitLeaveLiveSession;
 
@@ -375,6 +459,7 @@ function LiveSessionWatchContent({
 
   useEffect(() => {
     if (session?.id && normalizedStatus === 'ENDED') {
+      stopViewerPlayback({ resetState: true });
       hostPublishingSessions.release(session.id);
     }
   }, [hostPublishingSessions, normalizedStatus, session?.id]);
@@ -396,6 +481,7 @@ function LiveSessionWatchContent({
 
     return () => {
       didUnmountRef.current = true;
+      stopViewerPlayback({ resetState: false });
       const autoLeave = autoLeaveOnUnmountRef.current;
 
       if (!autoLeave?.shouldLeave) {
@@ -405,6 +491,262 @@ function LiveSessionWatchContent({
       commitDetachedLeaveLiveSession(autoLeave.sessionId);
     };
   }, [pendingMutationRef]);
+
+  useEffect(() => {
+    if (
+      !session ||
+      !isJoined ||
+      isLeaving ||
+      normalizedStatus === 'ENDED' ||
+      auth.state.status !== 'authenticated'
+    ) {
+      stopViewerPlayback({ resetState: true });
+      return undefined;
+    }
+
+    const generation = startViewerPlayback(session.id);
+
+    return () => {
+      stopViewerPlaybackGeneration(generation, { resetState: false });
+    };
+  }, [
+    auth.getAccessToken,
+    auth.state.status,
+    commitPrepareLiveSessionMedia,
+    environment.websocketUrl,
+    isJoined,
+    isLeaving,
+    normalizedStatus,
+    session?.id,
+  ]);
+
+  function startViewerPlayback(liveSessionId: string): number {
+    const generation = viewerPlaybackGenerationRef.current + 1;
+    viewerPlaybackGenerationRef.current = generation;
+    disposeViewerPlaybackResource();
+    setViewerPlaybackState({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'preparing',
+    });
+
+    try {
+      commitPrepareLiveSessionMedia({
+        variables: {
+          input: {
+            liveSessionId,
+          },
+        },
+        onCompleted: (payload) => {
+          if (!isViewerPlaybackGenerationActive(generation)) {
+            return;
+          }
+
+          const prepared = readPreparedLiveSessionViewerMedia(
+            payload.prepareLiveMediaSession,
+          );
+
+          if (!prepared) {
+            setViewerPlaybackState({
+              error: formatLiveMutationErrors(
+                payload.prepareLiveMediaSession?.errors,
+              ),
+              remoteStreamUrl: null,
+              status: 'errored',
+            });
+            return;
+          }
+
+          const peerConnectionFactory =
+            createDefaultLiveSessionViewerPeerConnectionFactory();
+
+          if (!peerConnectionFactory) {
+            setViewerPlaybackState({
+              error: 'Live video playback is not available on this device.',
+              remoteStreamUrl: null,
+              status: 'errored',
+            });
+            return;
+          }
+
+          const socket = createPhoenixSocket({
+            getAccessToken: auth.getAccessToken,
+            websocketUrl: environment.websocketUrl,
+          });
+          const runtime = createLiveSessionViewerPlaybackRuntime({
+            onChannelTerminated: () => {
+              if (!isViewerPlaybackGenerationActive(generation)) {
+                return;
+              }
+
+              disposeViewerPlaybackResource(generation);
+              setViewerPlaybackState({
+                error: null,
+                remoteStreamUrl: null,
+                status: 'closed',
+              });
+            },
+            onError: (reason) => {
+              if (!isViewerPlaybackGenerationActive(generation)) {
+                return;
+              }
+
+              setViewerPlaybackState({
+                error: reason,
+                remoteStreamUrl: null,
+                status: 'errored',
+              });
+            },
+            onRemoteStream: (stream) => {
+              if (!isViewerPlaybackGenerationActive(generation)) {
+                return;
+              }
+
+              const remoteStreamUrl = stream?.toURL?.() ?? null;
+
+              setViewerPlaybackState((current) => ({
+                error: current.error,
+                remoteStreamUrl,
+                status: remoteStreamUrl ? 'playing' : current.status,
+              }));
+            },
+            peerConnectionFactory,
+            preparedMedia: prepared,
+            socket,
+          });
+
+          viewerPlaybackResourceRef.current = {
+            disconnectSocket: () => {
+              socket.disconnect();
+            },
+            generation,
+            runtime,
+            sessionId: liveSessionId,
+          };
+
+          setViewerPlaybackState({
+            error: null,
+            remoteStreamUrl: null,
+            status: 'connecting',
+          });
+          socket.connect();
+
+          runtime
+            .start()
+            .then((result) => {
+              if (!isViewerPlaybackGenerationActive(generation)) {
+                return;
+              }
+
+              if (result.status === 'started') {
+                setViewerPlaybackState((current) => ({
+                  error: null,
+                  remoteStreamUrl: current.remoteStreamUrl,
+                  status: current.remoteStreamUrl
+                    ? 'playing'
+                    : 'waiting_for_host',
+                }));
+                return;
+              }
+
+              disposeViewerPlaybackResource(generation);
+              setViewerPlaybackState({
+                error: result.reason,
+                remoteStreamUrl: null,
+                status: 'errored',
+              });
+            })
+            .catch((error: unknown) => {
+              if (!isViewerPlaybackGenerationActive(generation)) {
+                return;
+              }
+
+              disposeViewerPlaybackResource(generation);
+              setViewerPlaybackState({
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : 'Could not start live video playback. Please try again.',
+                remoteStreamUrl: null,
+                status: 'errored',
+              });
+            });
+        },
+        onError: () => {
+          if (!isViewerPlaybackGenerationActive(generation)) {
+            return;
+          }
+
+          setViewerPlaybackState({
+            error: formatLiveMutationErrors([]),
+            remoteStreamUrl: null,
+            status: 'errored',
+          });
+        },
+      });
+    } catch {
+      if (isViewerPlaybackGenerationActive(generation)) {
+        setViewerPlaybackState({
+          error: formatLiveMutationErrors([]),
+          remoteStreamUrl: null,
+          status: 'errored',
+        });
+      }
+    }
+
+    return generation;
+  }
+
+  function isViewerPlaybackGenerationActive(generation: number): boolean {
+    return (
+      !didUnmountRef.current &&
+      viewerPlaybackGenerationRef.current === generation
+    );
+  }
+
+  function stopViewerPlayback({
+    resetState,
+  }: {
+    readonly resetState: boolean;
+  }) {
+    viewerPlaybackGenerationRef.current += 1;
+    disposeViewerPlaybackResource();
+
+    if (resetState && !didUnmountRef.current) {
+      setViewerPlaybackState(INITIAL_VIEWER_PLAYBACK_STATE);
+    }
+  }
+
+  function stopViewerPlaybackGeneration(
+    generation: number,
+    {
+      resetState,
+    }: {
+      readonly resetState: boolean;
+    },
+  ) {
+    if (viewerPlaybackGenerationRef.current === generation) {
+      viewerPlaybackGenerationRef.current += 1;
+    }
+
+    disposeViewerPlaybackResource(generation);
+
+    if (resetState && !didUnmountRef.current) {
+      setViewerPlaybackState(INITIAL_VIEWER_PLAYBACK_STATE);
+    }
+  }
+
+  function disposeViewerPlaybackResource(generation?: number) {
+    const resource = viewerPlaybackResourceRef.current;
+
+    if (!resource || (generation !== undefined && resource.generation !== generation)) {
+      return;
+    }
+
+    viewerPlaybackResourceRef.current = null;
+    resource.runtime.dispose();
+    resource.disconnectSocket();
+  }
 
   useEffect(() => {
     if (
@@ -785,6 +1127,7 @@ function LiveSessionWatchContent({
       shouldLeave: false,
     };
     dispatchWatchAction({ type: 'leave_started', sessionId: liveSessionId });
+    stopViewerPlayback({ resetState: true });
 
     commitLeaveLiveSession({
       variables: {
@@ -931,6 +1274,11 @@ function LiveSessionWatchContent({
         session={liveSession}
         status={status}
         normalizedStatus={normalizedStatus}
+      />
+
+      <LiveSessionViewerPlaybackSurface
+        isJoined={isJoined}
+        state={viewerPlaybackState}
       />
 
       <AppCard>
@@ -1084,6 +1432,80 @@ function LiveSessionHero({
       </Text>
     </AppCard>
   );
+}
+
+function LiveSessionViewerPlaybackSurface({
+  isJoined,
+  state,
+}: {
+  isJoined: boolean;
+  state: ViewerPlaybackState;
+}) {
+  const theme = useAppTheme();
+  const message = viewerPlaybackMessage(isJoined, state);
+
+  return (
+    <AppCard>
+      <SectionHeading title="Live video" />
+      <View style={[styles.mediaFrame, { backgroundColor: '#050505' }]}>
+        {state.remoteStreamUrl ? (
+          <RTCView
+            objectFit="cover"
+            streamURL={state.remoteStreamUrl}
+            style={styles.remoteVideo}
+          />
+        ) : (
+          <View style={styles.mediaPlaceholder}>
+            <Text
+              style={[
+                styles.bodyText,
+                {
+                  color:
+                    state.status === 'errored'
+                      ? theme.colors.error
+                      : theme.colors.surfaceMuted,
+                  textAlign: 'center',
+                },
+              ]}
+            >
+              {message}
+            </Text>
+          </View>
+        )}
+      </View>
+    </AppCard>
+  );
+}
+
+function viewerPlaybackMessage(
+  isJoined: boolean,
+  state: ViewerPlaybackState,
+): string {
+  if (!isJoined) {
+    return 'Join live to watch host video.';
+  }
+
+  if (state.error) {
+    return state.error;
+  }
+
+  switch (state.status) {
+    case 'preparing':
+      return 'Preparing live video...';
+    case 'connecting':
+      return 'Connecting live video...';
+    case 'waiting_for_host':
+      return 'Waiting for host video...';
+    case 'playing':
+      return 'Live video is playing.';
+    case 'closed':
+      return 'Live video disconnected.';
+    case 'errored':
+      return 'Could not start live video playback. Please try again.';
+    case 'idle':
+    default:
+      return 'Live video will start after you join.';
+  }
 }
 
 function SectionHeading({ title }: { title: string }) {

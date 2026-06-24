@@ -12,37 +12,34 @@ Status: ready
 ## Current Batch
 
 - Last completed source plan:
-  `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md` Task 3
+  `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md` Task 4
 - Source plan:
   `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: Task 4 - viewer playback runtime
+- Task: Task 5 - device smoke and beta mechanics return
 - Write scope:
-  - `mobile/src/live/LiveSessionWatchScreen.tsx`
-  - new focused viewer WebRTC runtime module and tests under `mobile/src/live/`
-  - `mobile/src/live/liveSessionChannelClient.ts`
-  - `mobile/src/live/liveSessionChannelClient.test.ts`
-  - `mobile/src/live/liveSessionRealtimeEvents.ts`
-  - `mobile/src/live/liveSessionRealtimeEvents.test.ts`
   - `docs/plans/mobile/**`
-- Done condition: joined viewers obtain media setup through the approved
-  contract after `joinLiveSession`, join the opaque media `signalingTopic`,
-  consume host `media:offer`, create and push `media:answer`, exchange ICE
-  candidates, render the remote stream in the watch screen, and tear down
-  playback on leave, unmount, channel close, or ended-session events.
+  - focused mobile smoke checklist or test-support files needed by Task 5
+- Done condition: add a concise device or simulator smoke checklist for one
+  host and one viewer covering auth, live discovery, host preflight, media
+  publish, viewer playback, chat send/receive, retained chat replay, leave, and
+  end; re-run the focused mobile gates; update this lane and track with exact
+  evidence; then promote beta release readiness if product blockers are closed
+  or explicitly deferred.
 - Verification:
-  - `bun test mobile/src/live mobile/src/relay mobile/src/realtime`
+  - `bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host`
   - `cd mobile && ./node_modules/.bin/tsc --noEmit`
+  - `git diff --check`
 
 ## Do This Now
 
-Implement Task 4 in
+Implement Task 5 in
 `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`.
 
 ## Guardrails
 
-- Do not add beta build mechanics or device smoke work while implementing the
-  viewer playback task.
+- Do not add beta build mechanics until the smoke checklist captures the core
+  host/viewer media loop evidence or the product owner explicitly defers it.
 - Do not decode Relay IDs client-side.
 - Do not construct media signaling topics client-side.
 - Backend live media runtime foundation and the viewer setup contract are
@@ -53,5 +50,5 @@ Implement Task 4 in
 
 ## Next Action
 
-Implement viewer playback runtime before device smoke work and before returning
-to beta build mechanics.
+Add the host/viewer device smoke checklist and then decide whether to return to
+beta release mechanics.

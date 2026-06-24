@@ -41,7 +41,7 @@ Treat these as launch blockers unless the product owner explicitly defers one:
   pre-beta product completeness and record the blocking evidence.
 - [x] Task 2: Promote or implement viewer media setup contract.
 - [x] Task 3: Implement host WebRTC publishing runtime.
-- [ ] Task 4: Implement viewer playback runtime.
+- [x] Task 4: Implement viewer playback runtime.
 - [ ] Task 5: Add device smoke coverage and return to beta release mechanics.
 
 ## Task 1: Lane Reclassification And Blocker Evidence
@@ -222,7 +222,48 @@ git diff --check
 
 ## Task 4: Viewer Playback Runtime
 
+Status: complete on 2026-06-24.
+
 Goal: make joined viewers receive and render host media.
+
+Completion evidence:
+
+- `mobile/src/live/liveSessionViewerPlaybackRuntime.ts` validates the viewer
+  prepare-media payload, preserves the opaque `signalingTopic`, joins the media
+  signaling channel, answers host `media:offer` events, pushes viewer
+  `media:answer`, exchanges ICE candidates, reports remote streams, and
+  disposes channel and peer-connection resources idempotently.
+- `mobile/src/live/LiveSessionWatchScreen.tsx` prepares viewer media only after
+  `joinLiveSession` succeeds, starts viewer playback with the returned
+  `signalingTopic`, renders the remote stream through `RTCView`, and tears down
+  playback on explicit leave, unmount/auto-leave, channel termination, or ended
+  session state while preserving the existing host publishing release hooks.
+- `mobile/src/live/__generated__/LiveSessionWatchScreenPrepareMediaMutation.graphql.ts`
+  was generated from the new viewer prepare-media operation.
+
+TDD evidence:
+
+- Red: `bun test mobile/src/live/liveSessionViewerPlaybackRuntime.test.ts`
+  failed because `liveSessionViewerPlaybackRuntime` did not exist.
+- Green: the focused viewer runtime test passed with 10 tests covering prepare
+  payload normalization, viewer answer and ICE payloads, opaque signaling topic
+  join, host offer handling, local and remote ICE, remote stream delivery,
+  channel termination cleanup, and disposed-during-answer race behavior.
+
+Verification:
+
+```bash
+bun test mobile/src/live/liveSessionViewerPlaybackRuntime.test.ts
+# 10 pass, 0 fail
+bun test mobile/src/live
+# 86 pass, 0 fail
+bun test mobile/src/live mobile/src/relay mobile/src/realtime
+# 92 pass, 0 fail
+cd mobile && ./node_modules/.bin/tsc --noEmit
+# exit 0
+git diff --check
+# exit 0
+```
 
 Expected mobile write scope:
 
