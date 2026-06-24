@@ -60,6 +60,41 @@ describe('hostBroadcastNative', () => {
     expect(stoppedTrackCount).toBe(1);
   });
 
+  test('exposes the cached preview stream without reacquiring media', async () => {
+    let getUserMediaCallCount = 0;
+    let stoppedTrackCount = 0;
+    const track = {
+      stop() {
+        stoppedTrackCount += 1;
+      },
+    };
+    const stream = {
+      getTracks() {
+        return [track];
+      },
+    };
+    const native = createHostBroadcastNative({
+      mediaDevices: {
+        async getUserMedia() {
+          getUserMediaCallCount += 1;
+          return stream;
+        },
+      },
+    });
+
+    await expect(native.preparePreview()).resolves.toEqual({
+      status: 'native_media_ready',
+    });
+    await expect(native.getPreviewStream()).resolves.toBe(stream);
+    await expect(native.getPreviewStream()).resolves.toBe(stream);
+
+    native.dispose();
+    native.dispose();
+
+    expect(getUserMediaCallCount).toBe(1);
+    expect(stoppedTrackCount).toBe(1);
+  });
+
   test('shares an in-flight preview request across preflight calls', async () => {
     let getUserMediaCallCount = 0;
     let stoppedTrackCount = 0;

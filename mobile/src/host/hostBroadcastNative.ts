@@ -16,14 +16,15 @@ export type HostBroadcastPreviewResult = Readonly<{
 export type HostBroadcastNative = Readonly<{
   requestPermissions: () => Promise<HostBroadcastPermissionSnapshot>;
   preparePreview: () => Promise<HostBroadcastPreviewResult>;
+  getPreviewStream: () => Promise<HostBroadcastMediaStream | null>;
   dispose: () => void;
 }>;
 
-type HostBroadcastMediaTrack = Readonly<{
+export type HostBroadcastMediaTrack = Readonly<{
   stop?: () => void;
 }>;
 
-type HostBroadcastMediaStream = Readonly<{
+export type HostBroadcastMediaStream = Readonly<{
   getTracks?: () => ReadonlyArray<HostBroadcastMediaTrack>;
 }>;
 
@@ -151,6 +152,13 @@ export function createHostBroadcastNative(
         };
       }
     },
+    async getPreviewStream() {
+      try {
+        return await ensurePreviewStream();
+      } catch {
+        return null;
+      }
+    },
     dispose() {
       disposed = true;
       stopPreviewStream(previewStream);
@@ -173,6 +181,9 @@ export function createUnavailableHostBroadcastNative(): HostBroadcastNative {
       return Promise.resolve({
         status: 'native_media_unavailable',
       });
+    },
+    getPreviewStream() {
+      return Promise.resolve(null);
     },
     dispose() {
       // No native resources exist in the unsupported fallback.
