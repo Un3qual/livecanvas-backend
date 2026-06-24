@@ -114,6 +114,9 @@ export function createHostBroadcastPublishingRuntime({
   let negotiationReady = false;
   let peerConnection: HostBroadcastPublishingPeerConnection | null = null;
   let started = false;
+  const disposedDuringStartError = new Error(
+    'host_broadcast_publishing_runtime_disposed',
+  );
 
   channel.on('media:answer', (payload) => {
     void applyViewerAnswer(payload);
@@ -161,12 +164,14 @@ export function createHostBroadcastPublishingRuntime({
       }
 
       const joinResult = await joinMediaSignalingChannel(channel);
+      throwIfDisposed();
 
       if (joinResult.status === 'error') {
         throw new Error(joinResult.reason);
       }
 
       const offer = await peerConnection.createOffer();
+      throwIfDisposed();
       const offerPayload = createHostBroadcastMediaOfferPayload(offer);
 
       if (!offerPayload) {
@@ -174,12 +179,15 @@ export function createHostBroadcastPublishingRuntime({
       }
 
       await peerConnection.setLocalDescription(offerPayload);
+      throwIfDisposed();
       channel.push('media:offer', offerPayload);
 
       return { status: 'started' };
-    } catch {
+    } catch (error) {
       const reason = GENERIC_START_FAILURE_REASON;
-      onError?.(reason);
+      if (error !== disposedDuringStartError) {
+        onError?.(reason);
+      }
       dispose();
       return {
         reason,
@@ -217,9 +225,15 @@ export function createHostBroadcastPublishingRuntime({
 
     try {
       await peerConnection.setRemoteDescription(event.description);
+      if (disposed) {
+        return;
+      }
+
       markNegotiationReady();
     } catch {
-      onError?.(GENERIC_START_FAILURE_REASON);
+      if (!disposed) {
+        onError?.(GENERIC_START_FAILURE_REASON);
+      }
     }
   }
 
@@ -243,12 +257,14 @@ export function createHostBroadcastPublishingRuntime({
     try {
       await peerConnection.addIceCandidate(event.candidate);
     } catch {
-      onError?.(GENERIC_START_FAILURE_REASON);
+      if (!disposed) {
+        onError?.(GENERIC_START_FAILURE_REASON);
+      }
     }
   }
 
   function markNegotiationReady() {
-    if (negotiationReady) {
+    if (disposed || negotiationReady) {
       return;
     }
 
@@ -273,6 +289,12 @@ export function createHostBroadcastPublishingRuntime({
     if (!localMediaDisposed) {
       localMediaDisposed = true;
       disposeLocalMedia?.();
+    }
+  }
+
+  function throwIfDisposed() {
+    if (disposed) {
+      throw disposedDuringStartError;
     }
   }
 

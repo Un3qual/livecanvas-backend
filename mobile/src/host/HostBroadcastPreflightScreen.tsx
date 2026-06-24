@@ -35,6 +35,8 @@ import {
 import { useHostBroadcastPublishingSessions } from './HostBroadcastPublishingSessionProvider';
 import {
   createHostBroadcastPublishingPreflightController,
+  releaseHostBroadcastPublishingRetainedResource,
+  type HostBroadcastPublishingResource,
   type HostBroadcastPublishingPreflightController,
 } from './hostBroadcastPublishingSession';
 import {
@@ -237,8 +239,11 @@ export function HostBroadcastPreflightScreen() {
   const hasGoLiveRequestInFlightRef = useRef(false);
   const hasGoLiveSucceededRef = useRef(false);
   const hasRetainedHostPublishingResourceRef = useRef(false);
-  const retainedHostPublishingLiveSessionIdRef = useRef<string | null>(null);
-  const didHandlePublishingChannelTerminationRef = useRef(false);
+  const retainedHostPublishingResourceRef =
+    useRef<HostBroadcastPublishingResource | null>(null);
+  const retainedHostPublishingLiveSessionIdsRef = useRef(
+    new Map<HostBroadcastPublishingResource, string>(),
+  );
   const hasPreparedMedia = preparedMedia !== null;
   const canCreateSession =
     canCreateHostPreflightSession(preflightState) &&
@@ -443,16 +448,35 @@ export function HostBroadcastPreflightScreen() {
           return;
         }
 
-        hasGoLiveSucceededRef.current = true;
-        hasRetainedHostPublishingResourceRef.current =
+        const retainedResource =
           publishingPreflightController.retainForLiveSession(
             result.liveSession.id,
             hostPublishingSessions,
           );
-        retainedHostPublishingLiveSessionIdRef.current =
-          hasRetainedHostPublishingResourceRef.current
-            ? result.liveSession.id
-            : null;
+
+        if (!retainedResource) {
+          if (!isPreflightScreenMountedRef.current) {
+            requestAbandonedPreflightEndLiveSession(result.liveSession.id);
+            return;
+          }
+
+          setIsGoingLive(false);
+          setPublishingStatus('errored');
+          dispatchPreflightAction({
+            ready: false,
+            type: 'backend_media_contract_changed',
+          });
+          setHostActionError(HOST_PUBLISHING_ERROR);
+          return;
+        }
+
+        hasGoLiveSucceededRef.current = true;
+        hasRetainedHostPublishingResourceRef.current = true;
+        retainedHostPublishingResourceRef.current = retainedResource;
+        retainedHostPublishingLiveSessionIdsRef.current.set(
+          retainedResource,
+          result.liveSession.id,
+        );
         if (isPreflightScreenMountedRef.current) {
           setIsGoingLive(false);
         }
@@ -635,6 +659,8 @@ export function HostBroadcastPreflightScreen() {
     const mediaPreparation = preparedMedia;
     let isActive = true;
     let runtime: HostBroadcastPublishingRuntime | null = null;
+    let publishingResource: HostBroadcastPublishingResource | null = null;
+    let didHandleChannelTermination = false;
     const socket = createPhoenixSocket({
       getAccessToken: auth.getAccessToken,
       websocketUrl: environment.websocketUrl,
@@ -642,7 +668,6 @@ export function HostBroadcastPreflightScreen() {
     const peerConnectionFactory =
       createDefaultHostBroadcastPeerConnectionFactory();
 
-    didHandlePublishingChannelTerminationRef.current = false;
     dispatchPreflightAction({
       ready: false,
       type: 'backend_media_contract_changed',
@@ -667,18 +692,29 @@ export function HostBroadcastPreflightScreen() {
         disposeLocalMedia: native.dispose,
         localStream,
         onChannelTerminated: () => {
-          if (didHandlePublishingChannelTerminationRef.current) {
+          if (didHandleChannelTermination) {
             return;
           }
 
-          didHandlePublishingChannelTerminationRef.current = true;
+          didHandleChannelTermination = true;
 
-          const retainedLiveSessionId =
-            retainedHostPublishingLiveSessionIdRef.current;
+          const resource = publishingResource;
+          const retainedLiveSessionId = resource
+            ? retainedHostPublishingLiveSessionIdsRef.current.get(resource)
+            : null;
 
-          if (retainedLiveSessionId) {
-            hostPublishingSessions.release(retainedLiveSessionId);
-            retainedHostPublishingLiveSessionIdRef.current = null;
+          if (resource && retainedLiveSessionId) {
+            retainedHostPublishingLiveSessionIdsRef.current.delete(resource);
+            releaseHostBroadcastPublishingRetainedResource(
+              retainedLiveSessionId,
+              resource,
+              hostPublishingSessions,
+            );
+
+            if (retainedHostPublishingResourceRef.current === resource) {
+              retainedHostPublishingResourceRef.current = null;
+              hasRetainedHostPublishingResourceRef.current = false;
+            }
             return;
           }
 
@@ -722,12 +758,13 @@ export function HostBroadcastPreflightScreen() {
         preparedMedia: mediaPreparation,
         socket,
       });
-      publishingPreflightController.attachResource({
+      publishingResource = {
         disconnectSocket: () => {
           socket.disconnect();
         },
         runtime,
-      });
+      };
+      publishingPreflightController.attachResource(publishingResource);
       socket.connect();
 
       const result = await runtime.start();

@@ -110,6 +110,20 @@ class FakeChannel implements LiveSessionChannel {
   }
 }
 
+type Deferred<T> = {
+  readonly promise: Promise<T>;
+  readonly resolve: (value: T) => void;
+};
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+
+  return { promise, resolve };
+}
+
 class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
   readonly addIceCandidateCalls: HostBroadcastPublishingIceCandidate[] = [];
   readonly addTrackCalls: Array<{ readonly stream: unknown; readonly track: unknown }> =
@@ -117,6 +131,8 @@ class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
   readonly localDescriptions: HostBroadcastPublishingSessionDescription[] = [];
   readonly remoteDescriptions: HostBroadcastPublishingSessionDescription[] = [];
   closeCount = 0;
+  createOfferDeferred: Deferred<HostBroadcastPublishingSessionDescription> | null =
+    null;
   onicecandidate:
     | ((
         event: Readonly<{
@@ -128,6 +144,8 @@ class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
     sdp: 'v=0\r\nhost-offer',
     type: 'offer',
   };
+  setLocalDescriptionDeferred: Deferred<void> | null = null;
+  setRemoteDescriptionDeferred: Deferred<void> | null = null;
 
   addTrack(track: unknown, stream: unknown): void {
     this.addTrackCalls.push({ stream, track });
@@ -145,6 +163,10 @@ class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
   }
 
   createOffer(): Promise<HostBroadcastPublishingSessionDescription> {
+    if (this.createOfferDeferred) {
+      return this.createOfferDeferred.promise;
+    }
+
     return Promise.resolve(this.offer);
   }
 
@@ -152,14 +174,14 @@ class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
     description: HostBroadcastPublishingSessionDescription,
   ): Promise<void> {
     this.localDescriptions.push(description);
-    return Promise.resolve();
+    return this.setLocalDescriptionDeferred?.promise ?? Promise.resolve();
   }
 
   setRemoteDescription(
     description: HostBroadcastPublishingSessionDescription,
   ): Promise<void> {
     this.remoteDescriptions.push(description);
-    return Promise.resolve();
+    return this.setRemoteDescriptionDeferred?.promise ?? Promise.resolve();
   }
 
   emitLocalIceCandidate(
@@ -190,7 +212,10 @@ const preparedMedia: HostBroadcastMediaPreparation = {
 };
 
 function createHarness(
-  options: { readonly onChannelTerminated?: () => void } = {},
+  options: {
+    readonly onChannelTerminated?: () => void;
+    readonly onError?: (reason: string) => void;
+  } = {},
 ) {
   const channel = new FakeChannel();
   const topics: string[] = [];
@@ -205,6 +230,7 @@ function createHarness(
   let localDisposeCount = 0;
   let readyCount = 0;
   let channelTerminatedCount = 0;
+  const errorReasons: string[] = [];
   const socket = {
     channel(topic: string) {
       topics.push(topic);
@@ -218,6 +244,10 @@ function createHarness(
     localStream: stream,
     onNegotiationReady: () => {
       readyCount += 1;
+    },
+    onError: (reason) => {
+      errorReasons.push(reason);
+      options.onError?.(reason);
     },
     onChannelTerminated: () => {
       channelTerminatedCount += 1;
@@ -249,6 +279,7 @@ function createHarness(
     },
     peerConnectionConfigs,
     peerConnections,
+    errorReasons,
     get readyCount() {
       return readyCount;
     },
@@ -430,6 +461,59 @@ describe('createHostBroadcastPublishingRuntime', () => {
 
     expect(runtime.isNegotiationReady()).toBe(true);
     expect(harness.readyCount).toBe(1);
+  });
+
+  test('does not report negotiation readiness when disposed while applying a viewer answer', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, runtime } = harness;
+
+    await startAndFlush(runtime, channel);
+    const remoteDescription = createDeferred<void>();
+    peerConnections[0].setRemoteDescriptionDeferred = remoteDescription;
+
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nviewer-answer',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+
+    runtime.dispose();
+    remoteDescription.resolve();
+    await flushAsyncHandlers();
+
+    expect(runtime.isNegotiationReady()).toBe(false);
+    expect(harness.readyCount).toBe(0);
+  });
+
+  test('does not push an offer or report started when disposed while setting the local description', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, runtime } = harness;
+    const start = runtime.start();
+    const localDescription = createDeferred<void>();
+
+    peerConnections[0].setLocalDescriptionDeferred = localDescription;
+    channel.joinPush.resolve('ok');
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].localDescriptions).toEqual([
+      {
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      },
+    ]);
+
+    runtime.dispose();
+    localDescription.resolve();
+
+    await expect(start).resolves.toEqual({
+      reason: 'Could not start host media publishing. Please try again.',
+      status: 'error',
+    });
+    expect(
+      channel.pushes.filter((push) => push.eventName === 'media:offer'),
+    ).toHaveLength(0);
+    expect(harness.errorReasons).toEqual([]);
   });
 
   test('disposes channel, peer connection, and local native media once', async () => {

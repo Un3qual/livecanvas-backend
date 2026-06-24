@@ -9,6 +9,10 @@ export type HostBroadcastPublishingSessionStore = {
   readonly has: (liveSessionId: string) => boolean;
   readonly release: (liveSessionId: string) => void;
   readonly releaseAll: () => void;
+  readonly releaseIfCurrent: (
+    liveSessionId: string,
+    resource: HostBroadcastPublishingResource,
+  ) => boolean;
   readonly retain: (
     liveSessionId: string,
     resource: HostBroadcastPublishingResource,
@@ -21,7 +25,7 @@ export type HostBroadcastPublishingPreflightController = {
   readonly retainForLiveSession: (
     liveSessionId: string,
     store: HostBroadcastPublishingSessionStore,
-  ) => boolean;
+  ) => HostBroadcastPublishingResource | null;
 };
 
 type HostBroadcastPublishingLeaveResult = {
@@ -55,6 +59,15 @@ export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublis
       for (const resource of retainedResources) {
         disposeHostBroadcastPublishingResource(resource);
       }
+    },
+    releaseIfCurrent(liveSessionId, resource) {
+      if (resources.get(liveSessionId) !== resource) {
+        return false;
+      }
+
+      resources.delete(liveSessionId);
+      disposeHostBroadcastPublishingResource(resource);
+      return true;
     },
     retain(liveSessionId, resource) {
       const existing = resources.get(liveSessionId);
@@ -94,13 +107,13 @@ export function createHostBroadcastPublishingPreflightController(): HostBroadcas
     },
     retainForLiveSession(liveSessionId, store) {
       if (!attachedResource) {
-        return false;
+        return null;
       }
 
       const resource = attachedResource;
       attachedResource = null;
       store.retain(liveSessionId, resource);
-      return true;
+      return resource;
     },
   };
 }
@@ -127,4 +140,12 @@ export function releaseHostBroadcastPublishingAfterSuccessfulLeave(
   }
 
   store.release(liveSessionId);
+}
+
+export function releaseHostBroadcastPublishingRetainedResource(
+  liveSessionId: string,
+  resource: HostBroadcastPublishingResource,
+  store: HostBroadcastPublishingSessionStore,
+): boolean {
+  return store.releaseIfCurrent(liveSessionId, resource);
 }
