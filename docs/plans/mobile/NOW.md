@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-24
-Status: blocked
+Status: ready
 
 ## Lane Scope
 
@@ -16,39 +16,39 @@ Status: blocked
 - Source plan:
   `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: Task 2 - viewer media setup contract
-- Write scope: backend GraphQL/media-signaling contract work must be promoted by
-  the coordinator before mobile implements playback; mobile lane write scope is
-  limited to `mobile/**` and `docs/plans/mobile/**` until that happens.
-- Blocker: viewers need an authorized Relay-first way to obtain the opaque media
-  `signalingTopic` and ICE server list. The current mobile schema exposes
-  `signalingTopic` only through the host-owned `prepareLiveMediaSession`
-  mutation, and mobile must not construct media topics from Relay IDs.
-- Done condition: a backend-supported viewer media setup contract is documented
-  and available to mobile, or the product owner explicitly defers viewer
-  playback from beta scope.
+- Task: Task 3 - host WebRTC publishing runtime
+- Write scope:
+  - `mobile/src/host/**`
+  - focused shared mobile realtime helpers/tests only when required by host
+    publishing
+  - `docs/plans/mobile/**`
+- Done condition: the host path creates a real peer connection from the prepared
+  ICE servers, keeps local media tracks long enough to publish, joins the opaque
+  media `signalingTopic`, pushes `media:offer` and local ICE candidates,
+  consumes viewer answers/candidates, retries `goLiveSession` after backend
+  readiness, and disposes runtime resources on exit.
 - Verification:
-  - If backend scope is promoted:
-    `mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs`
-  - `mix typecheck`
+  - `bun test mobile/src/host mobile/src/live/liveSessionRealtimeEvents.test.ts`
+  - `cd mobile && ./node_modules/.bin/tsc --noEmit`
 
 ## Do This Now
 
-Promote or implement Task 2 in
+Implement Task 3 in
 `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`.
 
 ## Guardrails
 
-- Do not add real mobile media publishing or viewer playback from this lane.
+- Do not add viewer playback or beta build mechanics while implementing the
+  host publishing task.
 - Do not decode Relay IDs client-side.
 - Do not construct media signaling topics client-side.
-- Backend live media runtime foundation is complete, but the viewer setup path
-  must be explicit before mobile playback work proceeds.
+- Backend live media runtime foundation and the viewer setup contract are
+  complete; do not change backend code unless a host-runtime blocker is
+  reproduced and promoted.
 - Implement retained history against the current `LiveSession.timelineEvents`
   schema, not the stale removed `chatMessages` API.
 
 ## Next Action
 
-After the viewer media setup contract exists, continue with host WebRTC
-publishing and viewer playback runtime work before returning to beta build
-mechanics.
+Implement host WebRTC publishing before viewer playback runtime work and before
+returning to beta build mechanics.

@@ -492,6 +492,49 @@ defmodule LCGQL.Live.LiveMutationsTest do
                )
     end
 
+    test "returns live media setup metadata to an active viewer participant" do
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      assert {:ok, _participant} = Live.join_live_session(started_session, viewer, :viewer)
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      expected_channel_topic = LiveSessionTopics.live_session_topic(started_session.id)
+      expected_signaling_topic = LiveSessionTopics.media_signaling_topic(started_session.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => %{
+                      "id" => ^session_id,
+                      "status" => "STARTING",
+                      "channelTopic" => ^expected_channel_topic
+                    },
+                    "signalingTopic" => ^expected_signaling_topic,
+                    "iceServers" => [
+                      %{
+                        "urls" => ["stun:stun.l.google.com:19302"],
+                        "username" => nil,
+                        "credential" => nil,
+                        "credentialType" => nil
+                      }
+                    ],
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+    end
+
     @tag :capture_log
     test "returns payload errors when the ICE provider fails" do
       with_media_signaling_config(provider: FailingIceServerProvider)
@@ -579,10 +622,39 @@ defmodule LCGQL.Live.LiveMutationsTest do
                )
     end
 
-    test "rejects non-host viewers" do
+    test "rejects non-host viewers without active participant rows" do
       host = user_fixture()
       other_viewer = user_fixture()
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(other_viewer)}
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => nil,
+                    "signalingTopic" => nil,
+                    "iceServers" => [],
+                    "errors" => [%{"field" => nil, "message" => "not_authorized"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+    end
+
+    test "rejects hidden foreign sessions for non-participants" do
+      host = user_fixture()
+      other_viewer = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
 
       session_id =
         Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)

@@ -44,7 +44,7 @@ Treat these as launch blockers unless the product owner explicitly defers one:
 
 - [x] Task 1: Reclassify the active lane from beta release mechanics to
   pre-beta product completeness and record the blocking evidence.
-- [ ] Task 2: Promote or implement viewer media setup contract.
+- [x] Task 2: Promote or implement viewer media setup contract.
 - [ ] Task 3: Implement host WebRTC publishing runtime.
 - [ ] Task 4: Implement viewer playback runtime.
 - [ ] Task 5: Add device smoke coverage and return to beta release mechanics.
@@ -78,8 +78,41 @@ git diff --check
 
 ## Task 2: Viewer Media Setup Contract
 
+Status: complete on 2026-06-24.
+
 Goal: give viewers an authorized media setup path before mobile implements
 playback.
+
+Decision: extend the existing Relay-style `prepareLiveMediaSession` mutation so
+it remains the single setup contract for both hosts and active joined viewers.
+Hosts can prepare their own non-ended sessions. Non-host viewers can prepare
+only after they have an active live participant row, and the viewer path
+rechecks current join authorization before returning `signalingTopic` or ICE
+servers.
+
+Completion evidence:
+
+- `test/live_canvas_gql/live/live_mutations_test.exs` covers host success,
+  unauthenticated access, malformed and wrong-type Relay IDs, active joined
+  viewer success, non-joined viewer rejection, hidden foreign session rejection,
+  ICE provider failures, and ended-session rejection.
+- `docs/contracts/mobile-live-media-signaling.md` documents that mobile clients
+  must use the returned opaque `signalingTopic` and must not construct or parse
+  media topics client-side.
+- `mobile/schema.graphql` and generated Relay artifacts did not need refresh
+  because the schema shape did not change.
+- No remaining lifecycle blocker was found for setup: `joinLiveSession` and the
+  live-session channel can create active participant rows before `LIVE`; media
+  readiness still requires a backend-observed host offer plus viewer answer.
+
+Verification:
+
+```bash
+mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
+# 67 tests, 0 failures
+mix typecheck
+# Total errors: 0, Skipped: 0, Unnecessary Skips: 0
+```
 
 Required decision:
 

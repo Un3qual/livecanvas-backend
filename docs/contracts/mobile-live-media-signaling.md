@@ -6,13 +6,14 @@ This contract freezes the mobile-facing setup and Phoenix Channel message shapes
 
 Durable authorization and session lookup stay in GraphQL. Ephemeral WebRTC negotiation messages stay on the authorized media-signaling Phoenix Channel.
 
-Hosts should prepare media setup, join the returned signaling topic, exchange
-WebRTC negotiation messages, and only then retry `goLiveSession` if it returns a
-media readiness error.
+Hosts and active joined viewers should prepare media setup through GraphQL, join
+the returned signaling topic, and exchange WebRTC negotiation messages. Hosts
+should only retry `goLiveSession` after the negotiation path has made media
+readiness observable.
 
 ## `prepareLiveMediaSession`
 
-Mobile hosts prepare media negotiation through a Relay-style GraphQL mutation:
+Mobile clients prepare media negotiation through a Relay-style GraphQL mutation:
 
 ```graphql
 mutation PrepareLiveMediaSession($liveSessionId: ID!) {
@@ -37,11 +38,20 @@ Stable successful payload fields:
 - `iceServers`: the ICE server list for WebRTC peer connection setup
 - `errors`: empty on success
 
+Authorization rules:
+
+- The host may prepare setup for their own non-ended session.
+- A non-host viewer may prepare setup only after they have joined the session
+  and still have an active live participant row.
+- The viewer path rechecks current join authorization before returning setup.
+- The mutation does not create or restore live participation; viewers that have
+  not joined must call `joinLiveSession` or join the live-session channel first.
+
 Stable failure behavior:
 
 - Missing viewer scope returns `errors: [{field: null, message: "unauthenticated"}]`.
 - Invalid or wrong-type `liveSessionId` returns `errors: [{field: "liveSessionId", message: "is invalid"}]`.
-- Foreign, hidden, non-host, or terminal sessions return payload errors instead of top-level crashes.
+- Foreign, hidden, non-joined, or terminal sessions return payload errors instead of top-level crashes.
 
 ## `goLiveSession` Media Readiness
 

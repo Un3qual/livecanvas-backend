@@ -127,7 +127,7 @@ defmodule LCGQL.Live.Resolver do
       ) do
     with {:ok, decoded_id} <- decode_live_session_id(live_session_id),
          {:ok, live_session} <- fetch_live_session(decoded_id),
-         :ok <- ensure_host_owned(live_session, viewer),
+         :ok <- ensure_media_setup_authorized(live_session, viewer),
          :ok <- ensure_not_ended(live_session),
          {:ok, %{ice_servers: ice_servers}} <- Live.prepare_live_media_session() do
       {:ok,
@@ -390,6 +390,23 @@ defmodule LCGQL.Live.Resolver do
   defp ensure_host_owned(%{host_id: host_id}, %{id: user_id})
        when is_integer(host_id) and is_integer(user_id) do
     if host_id == user_id, do: :ok, else: {:error, :not_authorized}
+  end
+
+  defp ensure_media_setup_authorized(
+         %{id: session_id, host_id: host_id} = live_session,
+         %{id: user_id} = viewer
+       )
+       when is_integer(session_id) and is_integer(host_id) and is_integer(user_id) do
+    cond do
+      host_id == user_id ->
+        :ok
+
+      Live.active_live_participant?(session_id, user_id) ->
+        authorize_join(viewer, live_session)
+
+      true ->
+        {:error, :not_authorized}
+    end
   end
 
   defp ensure_joinable_state(%{status: :ended}), do: {:error, :ended}
