@@ -3,12 +3,15 @@ import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { graphql, useMutation } from 'react-relay';
 
+import { useAuth } from '../auth/AuthProvider';
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { formatLiveMutationErrors } from '../live/liveSessionPresentation';
 import { liveSessionHref } from '../live/liveSessionNavigation';
 import { useAppTheme } from '../providers/ThemeProvider';
+import { useStartupState } from '../providers/StartupGate';
+import { createPhoenixSocket } from '../realtime/phoenixSocket';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
   canCreateHostPreflightSession,
@@ -24,6 +27,11 @@ import {
   type HostBroadcastMediaPreparation,
 } from './hostBroadcastMediaSignaling';
 import { createHostBroadcastNative } from './hostBroadcastNative';
+import {
+  createDefaultHostBroadcastPeerConnectionFactory,
+  createHostBroadcastPublishingRuntime,
+  type HostBroadcastPublishingRuntime,
+} from './hostBroadcastPublishingRuntime';
 import {
   canRequestAbandonedHostPreflightCleanup,
   canRequestHostGoLive,
@@ -162,9 +170,21 @@ const styles = StyleSheet.create({
   },
 });
 
+type HostBroadcastPublishingStatus =
+  | 'idle'
+  | 'starting'
+  | 'negotiating'
+  | 'ready'
+  | 'errored';
+
+const HOST_PUBLISHING_ERROR =
+  'Could not start host media publishing. Please try again.';
+
 export function HostBroadcastPreflightScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const auth = useAuth();
+  const { environment } = useStartupState();
   const native = useMemo(() => createHostBroadcastNative(), []);
   const [preflightState, dispatchPreflightAction] = useReducer(
     hostBroadcastPreflightReducer,
@@ -179,6 +199,8 @@ export function HostBroadcastPreflightScreen() {
     useState<HostBroadcastMediaPreparation | null>(null);
   const [isPreparingMedia, setIsPreparingMedia] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
+  const [publishingStatus, setPublishingStatus] =
+    useState<HostBroadcastPublishingStatus>('idle');
   const [hostActionError, setHostActionError] = useState<string | null>(null);
   const [commitStartLiveSession] =
     useMutation<HostBroadcastPreflightScreenStartMutation>(
@@ -203,6 +225,8 @@ export function HostBroadcastPreflightScreen() {
   const hasEndLiveSessionRequestInFlightRef = useRef(false);
   const hasGoLiveRequestInFlightRef = useRef(false);
   const hasGoLiveSucceededRef = useRef(false);
+  const publishingRuntimeRef =
+    useRef<HostBroadcastPublishingRuntime | null>(null);
   const hasPreparedMedia = preparedMedia !== null;
   const canCreateSession =
     canCreateHostPreflightSession(preflightState) &&
@@ -232,6 +256,7 @@ export function HostBroadcastPreflightScreen() {
 
   function resetPreparedMedia() {
     setPreparedMedia(null);
+    setPublishingStatus('idle');
     dispatchPreflightAction({
       ready: false,
       type: 'backend_media_contract_changed',
@@ -573,6 +598,130 @@ export function HostBroadcastPreflightScreen() {
     };
   }, [native]);
 
+  useEffect(() => {
+    if (!preparedMedia || auth.state.status !== 'authenticated') {
+      publishingRuntimeRef.current = null;
+      setPublishingStatus(preparedMedia ? 'errored' : 'idle');
+
+      if (preparedMedia && auth.state.status !== 'authenticated') {
+        setHostActionError(HOST_PUBLISHING_ERROR);
+      }
+
+      return undefined;
+    }
+
+    const mediaPreparation = preparedMedia;
+    let isActive = true;
+    let runtime: HostBroadcastPublishingRuntime | null = null;
+    const socket = createPhoenixSocket({
+      getAccessToken: auth.getAccessToken,
+      websocketUrl: environment.websocketUrl,
+    });
+    const peerConnectionFactory =
+      createDefaultHostBroadcastPeerConnectionFactory();
+
+    dispatchPreflightAction({
+      ready: false,
+      type: 'backend_media_contract_changed',
+    });
+    setPublishingStatus('starting');
+    setHostActionError(null);
+
+    async function startPublishingRuntime() {
+      const localStream = await native.getPreviewStream();
+
+      if (!isActive) {
+        return;
+      }
+
+      if (!localStream || !peerConnectionFactory) {
+        setPublishingStatus('errored');
+        setHostActionError(HOST_PUBLISHING_ERROR);
+        return;
+      }
+
+      runtime = createHostBroadcastPublishingRuntime({
+        disposeLocalMedia: native.dispose,
+        localStream,
+        onError: (reason) => {
+          if (!isActive) {
+            return;
+          }
+
+          setPublishingStatus('errored');
+          dispatchPreflightAction({
+            ready: false,
+            type: 'backend_media_contract_changed',
+          });
+          setHostActionError(reason);
+        },
+        onNegotiationReady: () => {
+          if (!isActive) {
+            return;
+          }
+
+          setPublishingStatus('ready');
+          dispatchPreflightAction({
+            ready: true,
+            type: 'backend_media_contract_changed',
+          });
+          setHostActionError(null);
+        },
+        peerConnectionFactory,
+        preparedMedia: mediaPreparation,
+        socket,
+      });
+      publishingRuntimeRef.current = runtime;
+      socket.connect();
+
+      const result = await runtime.start();
+
+      if (!isActive) {
+        return;
+      }
+
+      if (result.status === 'error') {
+        setPublishingStatus('errored');
+        dispatchPreflightAction({
+          ready: false,
+          type: 'backend_media_contract_changed',
+        });
+        setHostActionError(result.reason);
+        return;
+      }
+
+      setPublishingStatus(
+        runtime.isNegotiationReady() ? 'ready' : 'negotiating',
+      );
+    }
+
+    void startPublishingRuntime().catch(() => {
+      if (!isActive) {
+        return;
+      }
+
+      setPublishingStatus('errored');
+      dispatchPreflightAction({
+        ready: false,
+        type: 'backend_media_contract_changed',
+      });
+      setHostActionError(HOST_PUBLISHING_ERROR);
+    });
+
+    return () => {
+      isActive = false;
+      publishingRuntimeRef.current = null;
+      runtime?.dispose();
+      socket.disconnect();
+    };
+  }, [
+    auth.getAccessToken,
+    auth.state.status,
+    environment.websocketUrl,
+    native,
+    preparedMedia,
+  ]);
+
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
@@ -607,12 +756,14 @@ export function HostBroadcastPreflightScreen() {
             }
           />
           <StatusRow
-            detail="Backend negotiation"
+            detail="Host offer and viewer answer"
             label="Media signaling"
             state={
               preflightState.backendMediaContractReady
                 ? readyStatus()
-                : pendingStatus('Pending')
+                : publishingStatus === 'errored'
+                  ? { label: 'Blocked', tone: 'blocked' }
+                  : pendingStatus(publishingStatusLabel(publishingStatus))
             }
           />
           <StatusRow
@@ -642,8 +793,9 @@ export function HostBroadcastPreflightScreen() {
         </Text>
         {preparedMedia ? (
           <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-            Media signaling is prepared with {preparedMedia.iceServers.length}{' '}
-            ICE server{preparedMedia.iceServers.length === 1 ? '' : 's'}.
+            {publishingStatus === 'ready'
+              ? 'Host publishing negotiation is ready.'
+              : 'Host publishing is waiting for viewer negotiation.'}
           </Text>
         ) : null}
         {hostActionError || sessionState.viewerSafeErrorText ? (
@@ -712,6 +864,22 @@ function readyStatus(): StatusState {
 
 function pendingStatus(label: string): StatusState {
   return { label, tone: 'pending' };
+}
+
+function publishingStatusLabel(status: HostBroadcastPublishingStatus): string {
+  switch (status) {
+    case 'starting':
+      return 'Starting';
+    case 'negotiating':
+      return 'Negotiating';
+    case 'ready':
+      return 'Ready';
+    case 'errored':
+      return 'Blocked';
+    case 'idle':
+    default:
+      return 'Pending';
+  }
 }
 
 function SectionHeading({ title }: { title: string }) {
