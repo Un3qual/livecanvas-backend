@@ -12,43 +12,46 @@ Status: ready
 ## Current Batch
 
 - Last completed source plan:
-  `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
+  `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md` Task 3
 - Source plan:
   `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: Task 3 - host WebRTC publishing runtime
+- Task: Task 4 - viewer playback runtime
 - Write scope:
-  - `mobile/src/host/**`
-  - focused shared mobile realtime helpers/tests only when required by host
-    publishing
+  - `mobile/src/live/LiveSessionWatchScreen.tsx`
+  - new focused viewer WebRTC runtime module and tests under `mobile/src/live/`
+  - `mobile/src/live/liveSessionChannelClient.ts`
+  - `mobile/src/live/liveSessionChannelClient.test.ts`
+  - `mobile/src/live/liveSessionRealtimeEvents.ts`
+  - `mobile/src/live/liveSessionRealtimeEvents.test.ts`
   - `docs/plans/mobile/**`
-- Done condition: the host path creates a real peer connection from the prepared
-  ICE servers, keeps local media tracks long enough to publish, joins the opaque
-  media `signalingTopic`, pushes `media:offer` and local ICE candidates,
-  consumes viewer answers/candidates, retries `goLiveSession` after backend
-  readiness, and disposes runtime resources on exit.
+- Done condition: joined viewers obtain media setup through the approved
+  contract after `joinLiveSession`, join the opaque media `signalingTopic`,
+  consume host `media:offer`, create and push `media:answer`, exchange ICE
+  candidates, render the remote stream in the watch screen, and tear down
+  playback on leave, unmount, channel close, or ended-session events.
 - Verification:
-  - `bun test mobile/src/host mobile/src/live/liveSessionRealtimeEvents.test.ts`
+  - `bun test mobile/src/live mobile/src/relay mobile/src/realtime`
   - `cd mobile && ./node_modules/.bin/tsc --noEmit`
 
 ## Do This Now
 
-Implement Task 3 in
+Implement Task 4 in
 `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`.
 
 ## Guardrails
 
-- Do not add viewer playback or beta build mechanics while implementing the
-  host publishing task.
+- Do not add beta build mechanics or device smoke work while implementing the
+  viewer playback task.
 - Do not decode Relay IDs client-side.
 - Do not construct media signaling topics client-side.
 - Backend live media runtime foundation and the viewer setup contract are
-  complete; do not change backend code unless a host-runtime blocker is
+  complete; do not change backend code unless a viewer-runtime blocker is
   reproduced and promoted.
 - Implement retained history against the current `LiveSession.timelineEvents`
   schema, not the stale removed `chatMessages` API.
 
 ## Next Action
 
-Implement host WebRTC publishing before viewer playback runtime work and before
-returning to beta build mechanics.
+Implement viewer playback runtime before device smoke work and before returning
+to beta build mechanics.

@@ -5,8 +5,8 @@ Last reviewed: 2026-06-24
 Executor brief: beta distribution is premature until the app can prove the core
 live product loop on device. The current mobile app has auth, profiles, live
 discovery/watch shell, host preflight, host media setup preparation, go-live
-retry handling, realtime chat, and retained chat history. It does not yet have
-real host WebRTC publishing or viewer playback. The GraphQL setup path now
+retry handling, realtime chat, retained chat history, and host WebRTC
+publishing. It does not yet have viewer playback. The GraphQL setup path now
 exposes the media signaling topic through `prepareLiveMediaSession` for hosts
 and active joined viewers.
 
@@ -27,9 +27,6 @@ launch blockers below are closed or explicitly deferred by the product owner.
 
 Treat these as launch blockers unless the product owner explicitly defers one:
 
-- Host media publishing: the host path needs a real `RTCPeerConnection`, local
-  media tracks, signaling-channel join, offer push, ICE push, answer handling,
-  and go-live retry after backend readiness.
 - Viewer playback: joined viewers need media signaling setup, remote track
   rendering, answer creation, ICE exchange, disconnect cleanup, and ended-session
   teardown.
@@ -43,7 +40,7 @@ Treat these as launch blockers unless the product owner explicitly defers one:
 - [x] Task 1: Reclassify the active lane from beta release mechanics to
   pre-beta product completeness and record the blocking evidence.
 - [x] Task 2: Promote or implement viewer media setup contract.
-- [ ] Task 3: Implement host WebRTC publishing runtime.
+- [x] Task 3: Implement host WebRTC publishing runtime.
 - [ ] Task 4: Implement viewer playback runtime.
 - [ ] Task 5: Add device smoke coverage and return to beta release mechanics.
 
@@ -150,8 +147,38 @@ mix typecheck
 
 ## Task 3: Host WebRTC Publishing Runtime
 
+Status: complete on 2026-06-24.
+
 Goal: make the host actually publish local audio/video through the completed
 media signaling contract.
+
+Completion evidence:
+
+- `mobile/src/host/hostBroadcastNative.ts` exposes the cached preview stream so
+  the publishing runtime reuses the same local tracks and keeps disposal
+  idempotent.
+- `mobile/src/host/hostBroadcastMediaSignaling.ts` validates host offer and ICE
+  payloads before pushes and keeps ICE candidate keys in the backend signaling
+  contract's snake_case shape.
+- `mobile/src/host/hostBroadcastPublishingRuntime.ts` joins the opaque
+  `signalingTopic`, creates an injected peer connection from prepared ICE
+  servers, attaches local tracks, pushes host offers and local ICE candidates,
+  applies viewer answers and viewer ICE candidates, reports negotiation
+  readiness after a viewer answer is applied, and disposes the channel, peer
+  connection, and native media cleanup path once.
+- `mobile/src/host/HostBroadcastPreflightScreen.tsx` starts host publishing
+  after media preparation and only marks backend media readiness for
+  `goLiveSession` retry after the publishing runtime applies a viewer answer.
+
+TDD evidence:
+
+- Red: `bun test mobile/src/host/hostBroadcastNative.test.ts` failed with
+  `native.getPreviewStream is not a function`.
+- Red: `bun test mobile/src/host/hostBroadcastMediaSignaling.test.ts` failed
+  with missing host payload helper exports.
+- Red: `bun test mobile/src/host/hostBroadcastPublishingRuntime.test.ts` failed
+  because `hostBroadcastPublishingRuntime` did not exist.
+- Green: focused host tests passed after each implementation step.
 
 Expected mobile write scope:
 
@@ -181,6 +208,7 @@ Verification:
 ```bash
 bun test mobile/src/host mobile/src/live/liveSessionRealtimeEvents.test.ts
 cd mobile && ./node_modules/.bin/tsc --noEmit
+git diff --check
 ```
 
 ## Task 4: Viewer Playback Runtime
