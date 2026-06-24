@@ -174,6 +174,10 @@ Completion evidence:
   `mobile/src/live/LiveSessionWatchScreen.tsx` releases any retained host
   publishing resource after successful leave or when the live session is
   observed as ended.
+- `mobile/src/host/hostBroadcastPublishingRuntime.ts` also reports
+  media-signaling channel termination so retained hosts who have not joined the
+  viewer channel still release publishing resources when backend session control
+  closes the media channel.
 
 TDD evidence:
 

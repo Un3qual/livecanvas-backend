@@ -237,6 +237,8 @@ export function HostBroadcastPreflightScreen() {
   const hasGoLiveRequestInFlightRef = useRef(false);
   const hasGoLiveSucceededRef = useRef(false);
   const hasRetainedHostPublishingResourceRef = useRef(false);
+  const retainedHostPublishingLiveSessionIdRef = useRef<string | null>(null);
+  const didHandlePublishingChannelTerminationRef = useRef(false);
   const hasPreparedMedia = preparedMedia !== null;
   const canCreateSession =
     canCreateHostPreflightSession(preflightState) &&
@@ -447,6 +449,10 @@ export function HostBroadcastPreflightScreen() {
             result.liveSession.id,
             hostPublishingSessions,
           );
+        retainedHostPublishingLiveSessionIdRef.current =
+          hasRetainedHostPublishingResourceRef.current
+            ? result.liveSession.id
+            : null;
         if (isPreflightScreenMountedRef.current) {
           setIsGoingLive(false);
         }
@@ -636,6 +642,7 @@ export function HostBroadcastPreflightScreen() {
     const peerConnectionFactory =
       createDefaultHostBroadcastPeerConnectionFactory();
 
+    didHandlePublishingChannelTerminationRef.current = false;
     dispatchPreflightAction({
       ready: false,
       type: 'backend_media_contract_changed',
@@ -659,6 +666,34 @@ export function HostBroadcastPreflightScreen() {
       runtime = createHostBroadcastPublishingRuntime({
         disposeLocalMedia: native.dispose,
         localStream,
+        onChannelTerminated: () => {
+          if (didHandlePublishingChannelTerminationRef.current) {
+            return;
+          }
+
+          didHandlePublishingChannelTerminationRef.current = true;
+
+          const retainedLiveSessionId =
+            retainedHostPublishingLiveSessionIdRef.current;
+
+          if (retainedLiveSessionId) {
+            hostPublishingSessions.release(retainedLiveSessionId);
+            retainedHostPublishingLiveSessionIdRef.current = null;
+            return;
+          }
+
+          if (!isActive) {
+            return;
+          }
+
+          publishingPreflightController.cleanupAttachedResource();
+          setPublishingStatus('errored');
+          dispatchPreflightAction({
+            ready: false,
+            type: 'backend_media_contract_changed',
+          });
+          setHostActionError(HOST_PUBLISHING_ERROR);
+        },
         onError: (reason) => {
           if (!isActive) {
             return;

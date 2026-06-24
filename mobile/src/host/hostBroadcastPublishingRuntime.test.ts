@@ -6,6 +6,7 @@ import type {
   LiveSessionChannelPushStatus,
 } from '../live/liveSessionChannelClient';
 import type { HostBroadcastMediaPreparation } from './hostBroadcastMediaSignaling';
+import { createHostBroadcastPublishingSessionStore } from './hostBroadcastPublishingSession';
 import {
   createHostBroadcastPublishingRuntime,
   type HostBroadcastPublishingIceCandidate,
@@ -43,6 +44,8 @@ class FakePush implements LiveSessionChannelPush {
 }
 
 class FakeChannel implements LiveSessionChannel {
+  readonly closeHandlers: Array<() => void> = [];
+  readonly errorHandlers: Array<(payload: unknown) => void> = [];
   readonly handlers = new Map<string, Array<(payload: unknown) => void>>();
   readonly joinPush = new FakePush();
   readonly leavePush = new FakePush();
@@ -69,6 +72,16 @@ class FakeChannel implements LiveSessionChannel {
     return handlers.length;
   }
 
+  onClose(callback: () => void): number {
+    this.closeHandlers.push(callback);
+    return this.closeHandlers.length;
+  }
+
+  onError(callback: (payload: unknown) => void): number {
+    this.errorHandlers.push(callback);
+    return this.errorHandlers.length;
+  }
+
   push(
     eventName: string,
     payload: Record<string, unknown>,
@@ -80,6 +93,18 @@ class FakeChannel implements LiveSessionChannel {
 
   emit(eventName: string, payload: unknown): void {
     for (const callback of this.handlers.get(eventName) ?? []) {
+      callback(payload);
+    }
+  }
+
+  close(): void {
+    for (const callback of this.closeHandlers) {
+      callback();
+    }
+  }
+
+  error(payload: unknown = {}): void {
+    for (const callback of this.errorHandlers) {
       callback(payload);
     }
   }
@@ -164,7 +189,9 @@ const preparedMedia: HostBroadcastMediaPreparation = {
   signalingTopic: ' live_session_media:opaque/topic-with-segments ',
 };
 
-function createHarness() {
+function createHarness(
+  options: { readonly onChannelTerminated?: () => void } = {},
+) {
   const channel = new FakeChannel();
   const topics: string[] = [];
   const peerConnections: FakePeerConnection[] = [];
@@ -177,6 +204,7 @@ function createHarness() {
   };
   let localDisposeCount = 0;
   let readyCount = 0;
+  let channelTerminatedCount = 0;
   const socket = {
     channel(topic: string) {
       topics.push(topic);
@@ -190,6 +218,10 @@ function createHarness() {
     localStream: stream,
     onNegotiationReady: () => {
       readyCount += 1;
+    },
+    onChannelTerminated: () => {
+      channelTerminatedCount += 1;
+      options.onChannelTerminated?.();
     },
     peerConnectionFactory(config) {
       peerConnectionConfigs.push(config);
@@ -209,6 +241,9 @@ function createHarness() {
 
   return {
     channel,
+    get channelTerminatedCount() {
+      return channelTerminatedCount;
+    },
     get localDisposeCount() {
       return localDisposeCount;
     },
@@ -409,6 +444,45 @@ describe('createHostBroadcastPublishingRuntime', () => {
     expect(channel.leaveCount).toBe(1);
     expect(peerConnections[0].closeCount).toBe(1);
     expect(harness.localDisposeCount).toBe(1);
+  });
+
+  test('reports media signaling channel termination so retained sessions can release on end', async () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const harness = createHarness({
+      onChannelTerminated: () => {
+        store.release('live-session-id');
+      },
+    });
+    const { channel, peerConnections, runtime } = harness;
+    let disconnectCount = 0;
+
+    await startAndFlush(runtime, channel);
+
+    store.retain('live-session-id', {
+      disconnectSocket: () => {
+        disconnectCount += 1;
+      },
+      runtime,
+    });
+
+    expect(store.has('live-session-id')).toBe(true);
+
+    channel.close();
+
+    expect(harness.channelTerminatedCount).toBe(1);
+    expect(store.has('live-session-id')).toBe(false);
+    expect(channel.leaveCount).toBe(1);
+    expect(peerConnections[0].closeCount).toBe(1);
+    expect(harness.localDisposeCount).toBe(1);
+    expect(disconnectCount).toBe(1);
+
+    channel.error({ reason: 'session_ended' });
+
+    expect(harness.channelTerminatedCount).toBe(2);
+    expect(channel.leaveCount).toBe(1);
+    expect(peerConnections[0].closeCount).toBe(1);
+    expect(harness.localDisposeCount).toBe(1);
+    expect(disconnectCount).toBe(1);
   });
 });
 

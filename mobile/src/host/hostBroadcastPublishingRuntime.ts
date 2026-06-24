@@ -77,6 +77,7 @@ export type HostBroadcastPublishingRuntime = {
 export type HostBroadcastPublishingRuntimeOptions = {
   readonly disposeLocalMedia?: () => void;
   readonly localStream: HostBroadcastPublishingMediaStream;
+  readonly onChannelTerminated?: () => void;
   readonly onError?: (reason: string) => void;
   readonly onNegotiationReady?: () => void;
   readonly peerConnectionFactory: HostBroadcastPublishingPeerConnectionFactory;
@@ -100,6 +101,7 @@ const GENERIC_START_FAILURE_REASON =
 export function createHostBroadcastPublishingRuntime({
   disposeLocalMedia,
   localStream,
+  onChannelTerminated,
   onError,
   onNegotiationReady,
   peerConnectionFactory,
@@ -118,6 +120,12 @@ export function createHostBroadcastPublishingRuntime({
   });
   channel.on('media:ice_candidate', (payload) => {
     void applyViewerIceCandidate(payload);
+  });
+  channel.onClose?.(() => {
+    onChannelTerminated?.();
+  });
+  channel.onError?.(() => {
+    onChannelTerminated?.();
   });
 
   async function start(): Promise<HostBroadcastPublishingRuntimeStartResult> {
