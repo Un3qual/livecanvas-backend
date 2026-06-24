@@ -172,7 +172,8 @@ Completion evidence:
 - `mobile/src/host/HostBroadcastPublishingSessionProvider.tsx` retains the host
   publishing resource across the preflight-to-live route replacement, and
   `mobile/src/live/LiveSessionWatchScreen.tsx` releases any retained host
-  publishing resource when the live session is observed as ended.
+  publishing resource after successful leave or when the live session is
+  observed as ended.
 
 TDD evidence:
 

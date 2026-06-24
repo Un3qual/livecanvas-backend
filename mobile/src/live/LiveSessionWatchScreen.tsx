@@ -16,6 +16,7 @@ import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
 import { useHostBroadcastPublishingSessions } from '../host/HostBroadcastPublishingSessionProvider';
+import { releaseHostBroadcastPublishingAfterSuccessfulLeave } from '../host/hostBroadcastPublishingSession';
 import { formatProfileIdentity } from '../profile/profilePresentation';
 import { useStartupState } from '../providers/StartupGate';
 import { useAppTheme } from '../providers/ThemeProvider';
@@ -618,11 +619,16 @@ function LiveSessionWatchContent({
           liveSessionId: sessionId,
         },
       },
-      onCompleted: () => {
+      onCompleted: (payload) => {
         pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
           pendingMutationRef.current,
           sessionId,
           'leave',
+        );
+        releaseHostBroadcastPublishingAfterSuccessfulLeave(
+          sessionId,
+          payload.leaveLiveSession,
+          hostPublishingSessions,
         );
       },
       onError: () => {
@@ -815,6 +821,11 @@ function LiveSessionWatchContent({
           sessionId: liveSessionId,
           shouldLeave: false,
         };
+        releaseHostBroadcastPublishingAfterSuccessfulLeave(
+          liveSessionId,
+          result,
+          hostPublishingSessions,
+        );
         if (didUnmountRef.current) {
           return;
         }
