@@ -6,9 +6,9 @@ Executor brief: beta distribution is premature until the app can prove the core
 live product loop on device. The current mobile app has auth, profiles, live
 discovery/watch shell, host preflight, host media setup preparation, go-live
 retry handling, realtime chat, and retained chat history. It does not yet have
-real host WebRTC publishing or viewer playback, and the current GraphQL setup
-path exposes the media signaling topic only through the host-owned
-`prepareLiveMediaSession` mutation.
+real host WebRTC publishing or viewer playback. The GraphQL setup path now
+exposes the media signaling topic through `prepareLiveMediaSession` for hosts
+and active joined viewers.
 
 Keep this plan ahead of beta build mechanics. Return to
 `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md` only after the
@@ -27,8 +27,6 @@ launch blockers below are closed or explicitly deferred by the product owner.
 
 Treat these as launch blockers unless the product owner explicitly defers one:
 
-- Viewer media setup contract: viewers need an authorized way to obtain media
-  signaling setup without parsing or constructing `signalingTopic` client-side.
 - Host media publishing: the host path needs a real `RTCPeerConnection`, local
   media tracks, signaling-channel join, offer push, ICE push, answer handling,
   and go-live retry after backend readiness.
@@ -64,8 +62,9 @@ Evidence checked on 2026-06-24:
   realtime chat, but does not join media signaling or render remote media.
 - `mobile/schema.graphql` exposes `signalingTopic` only on
   `prepareLiveMediaSession`.
-- `lib/live_canvas_gql/live/live_resolver.ex` currently requires host ownership
-  in `prepare_live_media_session/3`.
+- `lib/live_canvas_gql/live/live_resolver.ex` now authorizes
+  `prepare_live_media_session/3` for hosts and active joined viewers, with
+  current join authorization rechecked before returning media setup.
 - `lib/live_canvas_web/channels/live_session_channel.ex` marks media readiness
   only after a backend-observed host offer and viewer answer on the authorized
   media-signaling topic.
@@ -95,7 +94,8 @@ Completion evidence:
 - `test/live_canvas_gql/live/live_mutations_test.exs` covers host success,
   unauthenticated access, malformed and wrong-type Relay IDs, active joined
   viewer success, non-joined viewer rejection, hidden foreign session rejection,
-  ICE provider failures, and ended-session rejection.
+  stale host and viewer suspension rejection, ICE provider failures, and
+  ended-session rejection.
 - `docs/contracts/mobile-live-media-signaling.md` documents that mobile clients
   must use the returned opaque `signalingTopic` and must not construct or parse
   media topics client-side.
@@ -109,12 +109,12 @@ Verification:
 
 ```bash
 mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs
-# 67 tests, 0 failures
+# 69 tests, 0 failures
 mix typecheck
 # Total errors: 0, Skipped: 0, Unnecessary Skips: 0
 ```
 
-Required decision:
+Resolved decision context:
 
 - Either add a backend-supported viewer setup mutation/field that returns the
   opaque media `signalingTopic` and ICE server list for authorized joined

@@ -399,7 +399,7 @@ defmodule LCGQL.Live.Resolver do
        when is_integer(session_id) and is_integer(host_id) and is_integer(user_id) do
     cond do
       host_id == user_id ->
-        :ok
+        authorize_join(viewer, live_session)
 
       Live.active_live_participant?(session_id, user_id) ->
         authorize_join(viewer, live_session)

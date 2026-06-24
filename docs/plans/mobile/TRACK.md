@@ -21,14 +21,13 @@ streaming, and chat.
   `LiveSession.channelTopic`; do not decode Relay IDs client-side.
 - Backend media signaling dependency: complete. Mobile has prepare/go-live retry
   wiring and media channel payload normalization against the backend contract.
-- Backend media runtime dependency: complete for host-owned setup and
-  signaling-driven readiness. Viewer playback still needs an authorized setup
-  contract before mobile can join media signaling without constructing topics.
+- Backend media runtime dependency: complete for host and active-viewer setup
+  plus signaling-driven readiness. Mobile must use the returned opaque media
+  signaling topic without constructing topics.
 - Retained chat history implementation uses the current `LiveSession.timelineEvents`
   schema and `ChatMessageEvent` nodes.
 - Beta distribution and release-candidate mechanics are deferred until host
-  publishing, viewer playback, and the viewer media setup contract are closed or
-  explicitly deferred.
+  publishing and viewer playback are closed or explicitly deferred.
 
 ## Completed Detailed Plans
 

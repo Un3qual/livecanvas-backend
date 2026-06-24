@@ -535,6 +535,66 @@ defmodule LCGQL.Live.LiveMutationsTest do
                )
     end
 
+    test "rejects a stale host context after the host is suspended" do
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      assert {:ok, _suspended_host} = Accounts.suspend_user(host)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => nil,
+                    "signalingTopic" => nil,
+                    "iceServers" => [],
+                    "errors" => [%{"field" => nil, "message" => "not_authorized"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+    end
+
+    test "rejects a stale active viewer participant context after viewer suspension" do
+      host = user_fixture()
+      viewer = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
+      assert {:ok, _participant} = Live.join_live_session(started_session, viewer, :viewer)
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      assert {:ok, _suspended_viewer} = Accounts.suspend_user(viewer)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => nil,
+                    "signalingTopic" => nil,
+                    "iceServers" => [],
+                    "errors" => [%{"field" => nil, "message" => "not_authorized"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+    end
+
     @tag :capture_log
     test "returns payload errors when the ICE provider fails" do
       with_media_signaling_config(provider: FailingIceServerProvider)
