@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-05
-Status: ready
+Last reviewed: 2026-06-24
+Status: blocked
 
 ## Lane Scope
 
@@ -14,35 +14,41 @@ Status: ready
 - Last completed source plan:
   `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
 - Source plan:
-  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
+  `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: Task 1 - quality gate command alignment
-- Write scope: `mobile/package.json`, `mobile/pnpm-lock.yaml`,
-  `mobile/tsconfig.json`, `mobile/relay.config.js`, mobile test/config files as
-  needed, `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`, and
-  this lane NOW file.
-- Done condition: mobile package scripts expose repeatable test and typecheck
-  commands, the current live/relay/realtime/host suite still passes, and the
-  source plan plus lane NOW record the verification evidence.
+- Task: Task 2 - viewer media setup contract
+- Write scope: backend GraphQL/media-signaling contract work must be promoted by
+  the coordinator before mobile implements playback; mobile lane write scope is
+  limited to `mobile/**` and `docs/plans/mobile/**` until that happens.
+- Blocker: viewers need an authorized Relay-first way to obtain the opaque media
+  `signalingTopic` and ICE server list. The current mobile schema exposes
+  `signalingTopic` only through the host-owned `prepareLiveMediaSession`
+  mutation, and mobile must not construct media topics from Relay IDs.
+- Done condition: a backend-supported viewer media setup contract is documented
+  and available to mobile, or the product owner explicitly defers viewer
+  playback from beta scope.
 - Verification:
-  - `bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host`
-  - From `mobile/`: `./node_modules/.bin/tsc --noEmit`
+  - If backend scope is promoted:
+    `mix test test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs`
+  - `mix typecheck`
 
 ## Do This Now
 
-Execute Task 1 in
-`docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`.
+Promote or implement Task 2 in
+`docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`.
 
 ## Guardrails
 
 - Do not add real mobile media publishing or viewer playback from this lane.
 - Do not decode Relay IDs client-side.
-- Backend live media runtime foundation is complete; keep true go-live behavior
-  aligned with the backend media signaling contract.
+- Do not construct media signaling topics client-side.
+- Backend live media runtime foundation is complete, but the viewer setup path
+  must be explicit before mobile playback work proceeds.
 - Implement retained history against the current `LiveSession.timelineEvents`
   schema, not the stale removed `chatMessages` API.
 
 ## Next Action
 
-After Task 1 is verified, continue to the beta build path task in the same
-source plan.
+After the viewer media setup contract exists, continue with host WebRTC
+publishing and viewer playback runtime work before returning to beta build
+mechanics.

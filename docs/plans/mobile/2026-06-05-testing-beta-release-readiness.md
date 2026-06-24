@@ -1,5 +1,10 @@
 # Mobile Testing, Beta Distribution, And Release Readiness
 
+Status: deferred on 2026-06-24. The active mobile lane moved to
+`docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md` because real
+host media publishing, viewer playback, and a viewer-authorized media setup
+contract are still pre-beta product blockers.
+
 Executor brief: turn the completed mobile auth/live/chat loop into a repeatable
 release-candidate workflow. Keep the first batch focused on local quality gates
 before adding distribution or app-store release scope.
