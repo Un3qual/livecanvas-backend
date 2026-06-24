@@ -1,9 +1,10 @@
 # Mobile Testing, Beta Distribution, And Release Readiness
 
-Status: deferred on 2026-06-24. The active mobile lane moved to
-`docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md` because real
-host media publishing, viewer playback, and a viewer-authorized media setup
-contract are still pre-beta product blockers.
+Status: active/ready on 2026-06-24. The pre-beta product completeness blockers
+that deferred this plan were closed by
+`docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`: viewer media
+setup, host WebRTC publishing, viewer playback, and the one-host/one-viewer
+device smoke checklist are complete.
 
 Executor brief: turn the completed mobile auth/live/chat loop into a repeatable
 release-candidate workflow. Keep the first batch focused on local quality gates

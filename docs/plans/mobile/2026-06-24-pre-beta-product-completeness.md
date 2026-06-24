@@ -2,17 +2,16 @@
 
 Last reviewed: 2026-06-24
 
-Executor brief: beta distribution is premature until the app can prove the core
-live product loop on device. The current mobile app has auth, profiles, live
-discovery/watch shell, host preflight, host media setup preparation, go-live
-retry handling, realtime chat, retained chat history, and host WebRTC
-publishing. It does not yet have viewer playback. The GraphQL setup path now
-exposes the media signaling topic through `prepareLiveMediaSession` for hosts
-and active joined viewers.
+Executor brief: beta distribution was premature until the app could prove the
+core live product loop on device. The mobile app now has auth, profiles, live
+discovery/watch shell, host preflight, host/viewer media setup preparation,
+go-live retry handling, realtime chat, retained chat history, host WebRTC
+publishing, viewer playback, and a repeatable one-host/one-viewer smoke
+checklist.
 
-Keep this plan ahead of beta build mechanics. Return to
-`docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md` only after the
-launch blockers below are closed or explicitly deferred by the product owner.
+This plan is complete. Return to
+`docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md` for beta
+quality-gate and build mechanics work.
 
 ## Write Scope
 
@@ -25,15 +24,15 @@ launch blockers below are closed or explicitly deferred by the product owner.
 
 ## Product Blockers
 
-Treat these as launch blockers unless the product owner explicitly defers one:
+Closed by this plan:
 
-- Viewer playback: joined viewers need media signaling setup, remote track
-  rendering, answer creation, ICE exchange, disconnect cleanup, and ended-session
-  teardown.
-- Device smoke path: host and viewer behavior needs a repeatable simulator or
-  device checklist after the runtime path exists.
-- Beta mechanics: package scripts, build identifiers, secrets handoff, and
-  release-candidate checklist should run after the core media blockers.
+- Viewer playback: closed by Task 4 with media signaling setup, answer
+  creation, ICE exchange, remote rendering, disconnect cleanup, and
+  ended-session teardown.
+- Device smoke path: closed by Task 5 with the checklist below.
+- Beta mechanics: unblocked for
+  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`; do not
+  implement those mechanics in this completed pre-beta plan.
 
 ## Progress
 
@@ -42,7 +41,7 @@ Treat these as launch blockers unless the product owner explicitly defers one:
 - [x] Task 2: Promote or implement viewer media setup contract.
 - [x] Task 3: Implement host WebRTC publishing runtime.
 - [x] Task 4: Implement viewer playback runtime.
-- [ ] Task 5: Add device smoke coverage and return to beta release mechanics.
+- [x] Task 5: Add device smoke coverage and return to beta release mechanics.
 
 ## Task 1: Lane Reclassification And Blocker Evidence
 
@@ -294,23 +293,58 @@ cd mobile && ./node_modules/.bin/tsc --noEmit
 
 ## Task 5: Device Smoke And Beta Mechanics Return
 
+Status: complete on 2026-06-24.
+
 Goal: move back to beta release readiness only after the core media loop exists.
 
-Steps:
+Completion evidence:
 
-1. Add a concise device or simulator smoke checklist for one host and one
-   viewer covering auth, live discovery, host preflight, media publish,
-   viewer playback, chat send/receive, retained chat replay, leave, and end.
-2. Re-run the focused mobile test and typecheck gates.
-3. Update this plan, `docs/plans/mobile/TRACK.md`, and
-   `docs/plans/mobile/NOW.md` with exact evidence.
-4. Promote `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
-   after product blockers are closed or explicitly deferred.
+- Tasks 2-4 closed the viewer setup contract, host publishing runtime, and
+  viewer playback runtime blockers.
+- The checklist below captures the minimum manual device/simulator smoke path
+  for one host and one viewer before beta build mechanics resume.
+- `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md` is active
+  again, with Task 1 promoted as the next executable batch.
 
-Verification:
+Smoke checklist for one host and one viewer:
+
+1. Host auth: launch the custom development build on the host device or
+   simulator, sign in as the host account, and confirm the authenticated home
+   state is visible.
+2. Viewer auth: launch the custom development build on the viewer device or
+   simulator, sign in as a different viewer account, and confirm the
+   authenticated home state is visible.
+3. Host preflight and permissions: start the host broadcast flow, allow camera
+   and microphone permissions, and confirm the local preview renders before
+   publishing.
+4. Live discovery: from the viewer account, open live discovery and confirm the
+   host session appears with the expected title/host metadata.
+5. Host media publish and readiness retry: start publishing from preflight,
+   verify the app prepares media with the returned opaque signaling topic, and
+   let the `goLiveSession` retry path continue until backend media readiness is
+   observed after the viewer answer.
+6. Viewer join and playback: join the session from live discovery, confirm the
+   viewer media setup succeeds after `joinLiveSession`, and confirm remote host
+   audio/video renders in the watch screen.
+7. Chat send/receive: send one message from the viewer and one from the host;
+   confirm each account sees both messages in realtime.
+8. Retained chat replay: have the viewer leave and rejoin the same live
+   session, then confirm the prior chat messages replay from retained history.
+9. Viewer leave: leave from the viewer watch screen and confirm remote playback
+   stops, the viewer returns out of the session, and the host session remains
+   active.
+10. Host/session end and ended cleanup: end the session from the host, then
+    confirm any viewer watch state observes the ended session, media/chat
+    resources are cleaned up, and the ended session no longer appears as live in
+    discovery.
+
+Verification on 2026-06-24:
 
 ```bash
 bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host
+# 141 pass, 0 fail; 457 expect() calls; ran 141 tests across 23 files
 cd mobile && ./node_modules/.bin/tsc --noEmit
+# exit 0, no diagnostics
 git diff --check
+# exit 0
 ```

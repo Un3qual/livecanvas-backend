@@ -12,34 +12,35 @@ Status: ready
 ## Current Batch
 
 - Last completed source plan:
-  `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md` Task 4
+  `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md` Task 5
 - Source plan:
-  `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`
+  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: Task 5 - device smoke and beta mechanics return
+- Task: Task 1 - quality gate command alignment
 - Write scope:
   - `docs/plans/mobile/**`
-  - focused mobile smoke checklist or test-support files needed by Task 5
-- Done condition: add a concise device or simulator smoke checklist for one
-  host and one viewer covering auth, live discovery, host preflight, media
-  publish, viewer playback, chat send/receive, retained chat replay, leave, and
-  end; re-run the focused mobile gates; update this lane and track with exact
-  evidence; then promote beta release readiness if product blockers are closed
-  or explicitly deferred.
+  - `mobile/package.json`
+  - `mobile/tsconfig.json`
+  - `mobile/relay.config.js`
+  - focused mobile test, Relay, or package config files needed to expose the
+    quality gate commands
+- Done condition: mobile package scripts expose repeatable test and typecheck
+  commands, the current live/relay/realtime/host suite still passes, and the
+  source plan plus this lane NOW record exact verification evidence.
 - Verification:
   - `bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host`
   - `cd mobile && ./node_modules/.bin/tsc --noEmit`
-  - `git diff --check`
 
 ## Do This Now
 
-Implement Task 5 in
-`docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`.
+Implement Task 1 in
+`docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`.
 
 ## Guardrails
 
-- Do not add beta build mechanics until the smoke checklist captures the core
-  host/viewer media loop evidence or the product owner explicitly defers it.
+- Do not add beta build mechanics until Task 1 aligns the local quality gate
+  commands.
+- Do not change GraphQL schema shape in the quality gate alignment batch.
 - Do not decode Relay IDs client-side.
 - Do not construct media signaling topics client-side.
 - Backend live media runtime foundation and the viewer setup contract are
@@ -50,5 +51,6 @@ Implement Task 5 in
 
 ## Next Action
 
-Add the host/viewer device smoke checklist and then decide whether to return to
-beta release mechanics.
+Verify the current mobile package manager, TypeScript, Relay, and Bun test
+entrypoints from `mobile/package.json`, `mobile/tsconfig.json`, and
+`mobile/relay.config.js`, then add or adjust package scripts for Task 1.

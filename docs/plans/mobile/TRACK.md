@@ -14,9 +14,11 @@ streaming, and chat.
 - Track state: active
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Active detailed plan:
-  `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`
-- Current theme: pre-beta product completeness and media playback blockers
-- Last completed theme: chat realtime stream plus retained history complete
+  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
+- Current theme: beta release readiness, starting with Task 1 quality gate
+  command alignment
+- Last completed theme: pre-beta product completeness closed viewer setup, host
+  publishing, viewer playback, and the one-host/one-viewer smoke checklist
 - Backend channel-topic dependency: complete. Mobile receives opaque
   `LiveSession.channelTopic`; do not decode Relay IDs client-side.
 - Backend media signaling dependency: complete. Mobile has prepare/go-live retry
@@ -26,8 +28,9 @@ streaming, and chat.
   signaling topic without constructing topics.
 - Retained chat history implementation uses the current `LiveSession.timelineEvents`
   schema and `ChatMessageEvent` nodes.
-- Beta distribution and release-candidate mechanics are deferred until host
-  publishing and viewer playback are closed or explicitly deferred.
+- Beta distribution and release-candidate mechanics are unblocked for the active
+  beta readiness plan; Task 1 should align local quality gate commands before
+  Task 2 adds beta build mechanics.
 
 ## Completed Detailed Plans
 
@@ -39,6 +42,7 @@ streaming, and chat.
 - `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
 - `docs/plans/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
 - `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
+- `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`
 
 ## Recommended Plan Order
 
