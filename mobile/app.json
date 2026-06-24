@@ -18,6 +18,8 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "bundleIdentifier": "com.livecanvas.mobile",
+      "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "LiveCanvas uses the camera so hosts can preview and broadcast live sessions.",
@@ -25,6 +27,8 @@
       }
     },
     "android": {
+      "package": "com.livecanvas.mobile",
+      "versionCode": 1,
       "permissions": ["CAMERA", "RECORD_AUDIO"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

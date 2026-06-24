@@ -15,8 +15,8 @@ streaming, and chat.
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Active detailed plan:
   `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
-- Current theme: beta release readiness; Task 1 quality gate command alignment
-  is complete, and Task 2 beta build path is next.
+- Current theme: beta release readiness; Task 2 beta build path is complete,
+  and Task 3 release candidate checklist is next.
 - Last completed theme: pre-beta product completeness closed viewer setup, host
   publishing, viewer playback, and the one-host/one-viewer smoke checklist
 - Backend channel-topic dependency: complete. Mobile receives opaque
@@ -29,8 +29,8 @@ streaming, and chat.
 - Retained chat history implementation uses the current `LiveSession.timelineEvents`
   schema and `ChatMessageEvent` nodes.
 - Beta distribution and release-candidate mechanics are unblocked for the active
-  beta readiness plan; Task 1 aligned local quality gate commands before Task 2
-  adds beta build mechanics.
+  beta readiness plan. Task 1 aligned local quality gate commands, and Task 2
+  added internal EAS build profiles plus explicit native identifiers.
 
 ## Completed Detailed Plans
 
