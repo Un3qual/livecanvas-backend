@@ -982,7 +982,7 @@ function LiveSessionWatchContent({
           liveSessionId: sessionId,
         },
       },
-      onCompleted: (payload) => {
+      onCompleted: () => {
         pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
           pendingMutationRef.current,
           sessionId,
