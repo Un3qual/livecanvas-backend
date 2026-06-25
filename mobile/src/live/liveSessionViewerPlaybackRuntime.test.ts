@@ -111,15 +111,17 @@ class FakeChannel implements LiveSessionChannel {
   }
 }
 
-type Deferred<T> = {
+type Deferred<T = undefined> = {
   readonly promise: Promise<T>;
-  readonly resolve: (value: T) => void;
+  readonly resolve: (value?: T) => void;
 };
 
-function createDeferred<T>(): Deferred<T> {
-  let resolve!: (value: T) => void;
+function createDeferred<T = undefined>(): Deferred<T> {
+  let resolve!: (value?: T) => void;
   const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise;
+    resolve = (value) => {
+      resolvePromise(value as T);
+    };
   });
 
   return { promise, resolve };
@@ -152,9 +154,9 @@ class FakePeerConnection implements LiveSessionViewerPlaybackPeerConnection {
         }>,
       ) => void)
     | null = null;
-  setLocalDescriptionDeferred: Deferred<void> | null = null;
+  setLocalDescriptionDeferred: Deferred | null = null;
   setLocalDescriptionError: Error | null = null;
-  setRemoteDescriptionDeferred: Deferred<void> | null = null;
+  setRemoteDescriptionDeferred: Deferred | null = null;
   setRemoteDescriptionError: Error | null = null;
 
   addIceCandidate(
@@ -440,6 +442,11 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
 
     channel.joinPush.resolve('ok');
     await expect(start).resolves.toEqual({ status: 'started' });
+    expect(channel.pushes).toContainEqual({
+      eventName: 'media:viewer_ready',
+      payload: {},
+      push: expect.any(FakePush),
+    });
 
     channel.emit('media:offer', {
       sender_role: 'host',
@@ -569,7 +576,7 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
     const { channel, peerConnections, runtime, startRuntime } = harness;
 
     await startRuntime();
-    const localDescription = createDeferred<void>();
+    const localDescription = createDeferred();
     peerConnections[0].setLocalDescriptionDeferred = localDescription;
 
     channel.emit('media:offer', {

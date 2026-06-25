@@ -93,7 +93,8 @@ defmodule LC.Live.MediaSignalingTest do
       assert events == %{
                offer: "media:offer",
                answer: "media:answer",
-               ice_candidate: "media:ice_candidate"
+               ice_candidate: "media:ice_candidate",
+               viewer_ready: "media:viewer_ready"
              }
     end
 
@@ -332,6 +333,9 @@ defmodule LC.Live.MediaSignalingTest do
                  "type" => "offer",
                  "sdp" => sdp
                })
+
+      assert {:ok, %{}} =
+               MediaSignaling.validate_event_payload("media:viewer_ready", %{})
 
       assert {:error, :unknown_event} =
                MediaSignaling.validate_event_payload("media:unknown", %{})

@@ -38,9 +38,9 @@ describe('hostBroadcastNative', () => {
     };
     const native = createHostBroadcastNative({
       mediaDevices: {
-        async getUserMedia() {
+        getUserMedia() {
           getUserMediaCallCount += 1;
-          return stream;
+          return Promise.resolve(stream);
         },
       },
     });
@@ -75,9 +75,9 @@ describe('hostBroadcastNative', () => {
     };
     const native = createHostBroadcastNative({
       mediaDevices: {
-        async getUserMedia() {
+        getUserMedia() {
           getUserMediaCallCount += 1;
-          return stream;
+          return Promise.resolve(stream);
         },
       },
     });

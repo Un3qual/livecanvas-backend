@@ -3,7 +3,6 @@ import { describe, expect, test } from 'bun:test';
 import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
-  releaseHostBroadcastPublishingAfterSuccessfulLeave,
   releaseHostBroadcastPublishingRetainedResource,
   type HostBroadcastPublishingResource,
 } from './hostBroadcastPublishingSession';
@@ -128,50 +127,4 @@ describe('hostBroadcastPublishingSession', () => {
     expect(store.has('live-session-id')).toBe(false);
   });
 
-  test('releases retained publishing resources after successful leave', () => {
-    const store = createHostBroadcastPublishingSessionStore();
-    const resource = createResource();
-    store.retain('live-session-id', resource);
-
-    releaseHostBroadcastPublishingAfterSuccessfulLeave(
-      'live-session-id',
-      { errors: [], left: true },
-      store,
-    );
-
-    expect(resource.disposeCount()).toBe(1);
-    expect(resource.disconnectCount()).toBe(1);
-    expect(store.has('live-session-id')).toBe(false);
-  });
-
-  test('keeps retained publishing resources after failed leave', () => {
-    const store = createHostBroadcastPublishingSessionStore();
-    const failedLeftResource = createResource();
-    const errorResource = createResource();
-    store.retain('failed-left-session-id', failedLeftResource);
-    store.retain('error-session-id', errorResource);
-
-    releaseHostBroadcastPublishingAfterSuccessfulLeave(
-      'failed-left-session-id',
-      { errors: [], left: false },
-      store,
-    );
-    releaseHostBroadcastPublishingAfterSuccessfulLeave(
-      'error-session-id',
-      { errors: [{ message: 'not_authorized' }], left: true },
-      store,
-    );
-    releaseHostBroadcastPublishingAfterSuccessfulLeave(
-      'missing-session-id',
-      { errors: [], left: true },
-      store,
-    );
-
-    expect(failedLeftResource.disposeCount()).toBe(0);
-    expect(failedLeftResource.disconnectCount()).toBe(0);
-    expect(store.has('failed-left-session-id')).toBe(true);
-    expect(errorResource.disposeCount()).toBe(0);
-    expect(errorResource.disconnectCount()).toBe(0);
-    expect(store.has('error-session-id')).toBe(true);
-  });
 });

@@ -280,6 +280,17 @@ export function HostBroadcastPreflightScreen() {
     });
   }
 
+  function failPreparedPublishing(reason: string) {
+    publishingPreflightController.cleanupAttachedResource();
+    setPreparedMedia(null);
+    setPublishingStatus('errored');
+    dispatchPreflightAction({
+      ready: false,
+      type: 'backend_media_contract_changed',
+    });
+    setHostActionError(reason);
+  }
+
   function readPreflightCleanupState() {
     return {
       hasEndLiveSessionRequestInFlight:
@@ -646,13 +657,13 @@ export function HostBroadcastPreflightScreen() {
   }, [native]);
 
   useEffect(() => {
-    if (!preparedMedia || auth.state.status !== 'authenticated') {
-      setPublishingStatus(preparedMedia ? 'errored' : 'idle');
+    if (!preparedMedia) {
+      setPublishingStatus((status) => (status === 'errored' ? status : 'idle'));
+      return undefined;
+    }
 
-      if (preparedMedia && auth.state.status !== 'authenticated') {
-        setHostActionError(HOST_PUBLISHING_ERROR);
-      }
-
+    if (auth.state.status !== 'authenticated') {
+      failPreparedPublishing(HOST_PUBLISHING_ERROR);
       return undefined;
     }
 
@@ -683,8 +694,7 @@ export function HostBroadcastPreflightScreen() {
       }
 
       if (!localStream || !peerConnectionFactory) {
-        setPublishingStatus('errored');
-        setHostActionError(HOST_PUBLISHING_ERROR);
+        failPreparedPublishing(HOST_PUBLISHING_ERROR);
         return;
       }
 
@@ -722,25 +732,14 @@ export function HostBroadcastPreflightScreen() {
             return;
           }
 
-          publishingPreflightController.cleanupAttachedResource();
-          setPublishingStatus('errored');
-          dispatchPreflightAction({
-            ready: false,
-            type: 'backend_media_contract_changed',
-          });
-          setHostActionError(HOST_PUBLISHING_ERROR);
+          failPreparedPublishing(HOST_PUBLISHING_ERROR);
         },
         onError: (reason) => {
           if (!isActive) {
             return;
           }
 
-          setPublishingStatus('errored');
-          dispatchPreflightAction({
-            ready: false,
-            type: 'backend_media_contract_changed',
-          });
-          setHostActionError(reason);
+          failPreparedPublishing(reason);
         },
         onNegotiationReady: () => {
           if (!isActive) {
@@ -774,13 +773,7 @@ export function HostBroadcastPreflightScreen() {
       }
 
       if (result.status === 'error') {
-        publishingPreflightController.cleanupAttachedResource();
-        setPublishingStatus('errored');
-        dispatchPreflightAction({
-          ready: false,
-          type: 'backend_media_contract_changed',
-        });
-        setHostActionError(result.reason);
+        failPreparedPublishing(result.reason);
         return;
       }
 
@@ -789,18 +782,12 @@ export function HostBroadcastPreflightScreen() {
       );
     }
 
-    void startPublishingRuntime().catch(() => {
+    startPublishingRuntime().catch(() => {
       if (!isActive) {
         return;
       }
 
-      publishingPreflightController.cleanupAttachedResource();
-      setPublishingStatus('errored');
-      dispatchPreflightAction({
-        ready: false,
-        type: 'backend_media_contract_changed',
-      });
-      setHostActionError(HOST_PUBLISHING_ERROR);
+      failPreparedPublishing(HOST_PUBLISHING_ERROR);
     });
 
     return () => {

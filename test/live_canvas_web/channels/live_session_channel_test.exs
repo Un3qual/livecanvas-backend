@@ -462,6 +462,47 @@ defmodule LCWeb.LiveSessionChannelTest do
     assert {:not_ready, :media_not_ready} = Live.media_negotiation_ready?(session.id)
   end
 
+  test "media:viewer_ready uses the server-derived viewer sender role and targets the host" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
+    assert {:ok, _join_payload, _host_socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, viewer_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    expected_payload = %{sender_role: "viewer"}
+    ref = push(viewer_socket, "media:viewer_ready", %{})
+
+    assert_reply ref, :ok, ^expected_payload, @channel_reply_timeout
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:viewer_ready",
+      payload: ^expected_payload
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:viewer_ready"
+    }
+
+    assert {:not_ready, :media_not_ready} = Live.media_negotiation_ready?(session.id)
+  end
+
   test "closing media signaling sockets preserves joined live-session participants" do
     Process.flag(:trap_exit, true)
 

@@ -110,15 +110,17 @@ class FakeChannel implements LiveSessionChannel {
   }
 }
 
-type Deferred<T> = {
+type Deferred<T = undefined> = {
   readonly promise: Promise<T>;
-  readonly resolve: (value: T) => void;
+  readonly resolve: (value?: T) => void;
 };
 
-function createDeferred<T>(): Deferred<T> {
-  let resolve!: (value: T) => void;
+function createDeferred<T = undefined>(): Deferred<T> {
+  let resolve!: (value?: T) => void;
   const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise;
+    resolve = (value) => {
+      resolvePromise(value as T);
+    };
   });
 
   return { promise, resolve };
@@ -144,8 +146,8 @@ class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
     sdp: 'v=0\r\nhost-offer',
     type: 'offer',
   };
-  setLocalDescriptionDeferred: Deferred<void> | null = null;
-  setRemoteDescriptionDeferred: Deferred<void> | null = null;
+  setLocalDescriptionDeferred: Deferred | null = null;
+  setRemoteDescriptionDeferred: Deferred | null = null;
 
   addTrack(track: unknown, stream: unknown): void {
     this.addTrackCalls.push({ stream, track });
@@ -263,12 +265,6 @@ function createHarness(
     socket,
   });
 
-  async function startRuntime() {
-    const start = runtime.start();
-    channel.joinPush.resolve('ok');
-    await expect(start).resolves.toEqual({ status: 'started' });
-  }
-
   return {
     channel,
     get channelTerminatedCount() {
@@ -382,6 +378,61 @@ describe('createHostBroadcastPublishingRuntime', () => {
     ).toHaveLength(1);
   });
 
+  test('re-sends the stored offer when a viewer becomes ready before negotiation completes', async () => {
+    const harness = createHarness();
+    const { channel, runtime } = harness;
+
+    await startAndFlush(runtime, channel);
+    expect(
+      channel.pushes.filter((push) => push.eventName === 'media:offer'),
+    ).toHaveLength(1);
+
+    channel.emit('media:viewer_ready', {
+      sender_role: 'host',
+    });
+    channel.emit('media:viewer_ready', {
+      sender_role: 'viewer',
+    });
+
+    expect(
+      channel.pushes.filter((push) => push.eventName === 'media:offer'),
+    ).toEqual([
+      {
+        eventName: 'media:offer',
+        payload: {
+          sdp: 'v=0\r\nhost-offer',
+          type: 'offer',
+        },
+        push: expect.any(FakePush),
+      },
+      {
+        eventName: 'media:offer',
+        payload: {
+          sdp: 'v=0\r\nhost-offer',
+          type: 'offer',
+        },
+        push: expect.any(FakePush),
+      },
+    ]);
+
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nviewer-answer',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+
+    channel.emit('media:viewer_ready', {
+      sender_role: 'viewer',
+    });
+
+    expect(runtime.isNegotiationReady()).toBe(true);
+    expect(harness.readyCount).toBe(1);
+    expect(
+      channel.pushes.filter((push) => push.eventName === 'media:offer'),
+    ).toHaveLength(2);
+  });
+
   test('applies viewer answers and ICE candidates while ignoring host-authored or invalid media events', async () => {
     const { channel, peerConnections, runtime } = createHarness();
 
@@ -468,7 +519,7 @@ describe('createHostBroadcastPublishingRuntime', () => {
     const { channel, peerConnections, runtime } = harness;
 
     await startAndFlush(runtime, channel);
-    const remoteDescription = createDeferred<void>();
+    const remoteDescription = createDeferred();
     peerConnections[0].setRemoteDescriptionDeferred = remoteDescription;
 
     channel.emit('media:answer', {
@@ -490,7 +541,7 @@ describe('createHostBroadcastPublishingRuntime', () => {
     const harness = createHarness();
     const { channel, peerConnections, runtime } = harness;
     const start = runtime.start();
-    const localDescription = createDeferred<void>();
+    const localDescription = createDeferred();
 
     peerConnections[0].setLocalDescriptionDeferred = localDescription;
     channel.joinPush.resolve('ok');

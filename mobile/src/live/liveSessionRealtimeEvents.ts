@@ -58,6 +58,10 @@ export type LiveSessionRealtimeEvent =
       readonly candidate: LiveSessionRealtimeIceCandidate;
       readonly kind: 'media_ice_candidate';
       readonly senderRole: LiveSessionRealtimeMediaSenderRole;
+    }
+  | {
+      readonly kind: 'media_viewer_ready';
+      readonly senderRole: LiveSessionRealtimeMediaSenderRole;
     };
 
 export function normalizeLiveSessionRealtimeEvent(
@@ -102,6 +106,10 @@ export function normalizeLiveSessionRealtimeEvent(
 
   if (eventName === 'media:ice_candidate') {
     return normalizeMediaIceCandidateEvent(payload);
+  }
+
+  if (eventName === 'media:viewer_ready') {
+    return normalizeMediaViewerReadyEvent(payload);
   }
 
   return null;
@@ -223,6 +231,19 @@ function normalizeMediaIceCandidateEvent(
     kind: 'media_ice_candidate',
     senderRole,
   };
+}
+
+function normalizeMediaViewerReadyEvent(
+  payload: JsonRecord,
+): LiveSessionRealtimeEvent | null {
+  const senderRole = normalizeSenderRole(payload.sender_role);
+
+  return senderRole
+    ? {
+        kind: 'media_viewer_ready',
+        senderRole,
+      }
+    : null;
 }
 
 function normalizeSenderRole(

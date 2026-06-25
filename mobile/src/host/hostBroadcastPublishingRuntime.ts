@@ -7,6 +7,7 @@ import {
   createHostBroadcastMediaIceCandidatePayload,
   createHostBroadcastMediaOfferPayload,
   type HostBroadcastMediaIceServer,
+  type HostBroadcastMediaOfferPayload,
   type HostBroadcastMediaPreparation,
 } from './hostBroadcastMediaSignaling';
 
@@ -112,6 +113,7 @@ export function createHostBroadcastPublishingRuntime({
   let disposed = false;
   let localMediaDisposed = false;
   let negotiationReady = false;
+  let localOfferPayload: HostBroadcastMediaOfferPayload | null = null;
   let peerConnection: HostBroadcastPublishingPeerConnection | null = null;
   let started = false;
   const disposedDuringStartError = new Error(
@@ -119,10 +121,13 @@ export function createHostBroadcastPublishingRuntime({
   );
 
   channel.on('media:answer', (payload) => {
-    void applyViewerAnswer(payload);
+    applyViewerAnswer(payload);
   });
   channel.on('media:ice_candidate', (payload) => {
-    void applyViewerIceCandidate(payload);
+    applyViewerIceCandidate(payload);
+  });
+  channel.on('media:viewer_ready', (payload) => {
+    replayOfferForReadyViewer(payload);
   });
   channel.onClose?.(() => {
     onChannelTerminated?.();
@@ -180,6 +185,7 @@ export function createHostBroadcastPublishingRuntime({
 
       await peerConnection.setLocalDescription(offerPayload);
       throwIfDisposed();
+      localOfferPayload = offerPayload;
       channel.push('media:offer', offerPayload);
 
       return { status: 'started' };
@@ -261,6 +267,20 @@ export function createHostBroadcastPublishingRuntime({
         onError?.(GENERIC_START_FAILURE_REASON);
       }
     }
+  }
+
+  function replayOfferForReadyViewer(payload: unknown) {
+    if (disposed || negotiationReady || !localOfferPayload) {
+      return;
+    }
+
+    const event = normalizeLiveSessionRealtimeEvent('media:viewer_ready', payload);
+
+    if (event?.kind !== 'media_viewer_ready' || event.senderRole !== 'viewer') {
+      return;
+    }
+
+    channel.push('media:offer', localOfferPayload);
   }
 
   function markNegotiationReady() {

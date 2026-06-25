@@ -28,11 +28,6 @@ export type HostBroadcastPublishingPreflightController = {
   ) => HostBroadcastPublishingResource | null;
 };
 
-type HostBroadcastPublishingLeaveResult = {
-  readonly errors?: ReadonlyArray<unknown> | null;
-  readonly left?: boolean | null;
-};
-
 const disposedResources = new WeakSet<HostBroadcastPublishingResource>();
 
 export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublishingSessionStore {
@@ -128,18 +123,6 @@ export function disposeHostBroadcastPublishingResource(
   disposedResources.add(resource);
   resource.runtime.dispose();
   resource.disconnectSocket();
-}
-
-export function releaseHostBroadcastPublishingAfterSuccessfulLeave(
-  liveSessionId: string,
-  result: HostBroadcastPublishingLeaveResult | null | undefined,
-  store: HostBroadcastPublishingSessionStore,
-): void {
-  if (result?.left !== true || (result.errors?.length ?? 0) > 0) {
-    return;
-  }
-
-  store.release(liveSessionId);
 }
 
 export function releaseHostBroadcastPublishingRetainedResource(

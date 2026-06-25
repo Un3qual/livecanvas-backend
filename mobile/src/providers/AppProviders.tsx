@@ -18,16 +18,33 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider apiBaseUrl={environment.apiBaseUrl}>
-          <StartupGate environment={environment}>
-            <HostBroadcastPublishingSessionProvider>
-              <RelayEnvironmentProvider>
-                <ViewerBootstrap>{children}</ViewerBootstrap>
-              </RelayEnvironmentProvider>
-            </HostBroadcastPublishingSessionProvider>
-          </StartupGate>
-        </AuthProvider>
+        <EnvironmentProviders environment={environment}>
+          {children}
+        </EnvironmentProviders>
       </ThemeProvider>
     </SafeAreaProvider>
+  );
+}
+
+function EnvironmentProviders({
+  children,
+  environment,
+}: PropsWithChildren<{ readonly environment: AppEnvironment }>) {
+  return (
+    <AuthProvider apiBaseUrl={environment.apiBaseUrl}>
+      <StartupGate environment={environment}>
+        <SessionProviders>{children}</SessionProviders>
+      </StartupGate>
+    </AuthProvider>
+  );
+}
+
+function SessionProviders({ children }: PropsWithChildren) {
+  return (
+    <HostBroadcastPublishingSessionProvider>
+      <RelayEnvironmentProvider>
+        <ViewerBootstrap>{children}</ViewerBootstrap>
+      </RelayEnvironmentProvider>
+    </HostBroadcastPublishingSessionProvider>
   );
 }

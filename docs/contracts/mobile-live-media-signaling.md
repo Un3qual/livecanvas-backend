@@ -115,8 +115,12 @@ Media signaling uses the authorized media-signaling channel and these event name
 - `media:offer`
 - `media:answer`
 - `media:ice_candidate`
+- `media:viewer_ready`
 
-These messages are ephemeral negotiation messages. They are not retained in timeline history and are not replayed after reconnect.
+These messages are ephemeral negotiation messages. They are not retained in
+timeline history and are not replayed after reconnect. Viewers that join media
+signaling after a host offer must push `media:viewer_ready` so the active host
+can re-send its current offer while negotiation is still pending.
 
 ### `media:offer`
 
@@ -205,6 +209,30 @@ Validation rules:
 - `username_fragment` is optional and must be a string when present.
 - The server derives `sender_role`.
 
+### `media:viewer_ready`
+
+Viewer push payload:
+
+```json
+{}
+```
+
+Server broadcast payload:
+
+```json
+{
+  "sender_role": "viewer"
+}
+```
+
+Validation rules:
+
+- Payload must be an object.
+- Only active live-session viewers may push this event.
+- The server targets this event to the host and derives `sender_role`.
+- Hosts use this event as an offer replay trigger only while negotiation is not
+  ready.
+
 ## Backend Boundary
 
 `LC.Live.MediaSignaling` is the typed backend boundary for this contract slice:
@@ -214,7 +242,9 @@ Validation rules:
 - `ice_servers/0` returns `{:ok, ice_servers}` for the current
   provider-backed ICE server list, or a tagged provider/config error.
 - `media_events/0` returns the Phoenix Channel event names.
-- `validate_offer_payload/1`, `validate_answer_payload/1`, `validate_ice_candidate_payload/1`, and `validate_event_payload/2` validate payload shape and return structured field errors.
+- `validate_offer_payload/1`, `validate_answer_payload/1`,
+  `validate_ice_candidate_payload/1`, and `validate_event_payload/2` validate
+  payload shape and return structured field errors.
 
 The boundary is intentionally pure. It does not start Membrane, allocate peer connections, write database rows, persist TURN secrets, or broadcast channel messages.
 

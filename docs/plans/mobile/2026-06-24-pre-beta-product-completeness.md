@@ -204,6 +204,8 @@ Behavior:
 - Join the opaque `signalingTopic` returned by media setup.
 - Create a peer connection from the returned ICE server list.
 - Push a validated `media:offer` from the host.
+- Re-send the current host offer after viewer `media:viewer_ready` while media
+  negotiation is still pending.
 - Push local ICE candidates as `media:ice_candidate`.
 - Consume viewer `media:answer` and viewer ICE candidates.
 - Retry `goLiveSession` only after the viewer answer path has made backend
@@ -229,9 +231,10 @@ Completion evidence:
 
 - `mobile/src/live/liveSessionViewerPlaybackRuntime.ts` validates the viewer
   prepare-media payload, preserves the opaque `signalingTopic`, joins the media
-  signaling channel, answers host `media:offer` events, pushes viewer
-  `media:answer`, exchanges ICE candidates, reports remote streams, and
-  disposes channel and peer-connection resources idempotently.
+  signaling channel, announces viewer readiness with `media:viewer_ready`,
+  answers host `media:offer` events, pushes viewer `media:answer`, exchanges ICE
+  candidates, reports remote streams, and disposes channel and peer-connection
+  resources idempotently.
 - `mobile/src/live/LiveSessionWatchScreen.tsx` prepares viewer media only after
   `joinLiveSession` succeeds, starts viewer playback with the returned
   `signalingTopic`, renders the remote stream through `RTCView`, and tears down
@@ -278,6 +281,7 @@ Behavior:
 - After a successful `joinLiveSession`, obtain viewer media setup through the
   approved contract from Task 2.
 - Join the opaque media signaling topic.
+- Push `media:viewer_ready` after joining so hosts can re-send pending offers.
 - Consume host `media:offer`.
 - Create and push a viewer `media:answer`.
 - Push local ICE candidates and consume host ICE candidates.

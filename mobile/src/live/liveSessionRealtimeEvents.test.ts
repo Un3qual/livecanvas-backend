@@ -146,6 +146,17 @@ describe('liveSessionRealtimeEvents', () => {
     });
   });
 
+  test('normalizes viewer media readiness broadcasts', () => {
+    expect(
+      normalizeLiveSessionRealtimeEvent('media:viewer_ready', {
+        sender_role: 'viewer',
+      }),
+    ).toEqual({
+      kind: 'media_viewer_ready',
+      senderRole: 'viewer',
+    });
+  });
+
   test('accepts lifecycle timeline events with nullable chat fields', () => {
     expect(
       normalizeLiveSessionRealtimeEvent('timeline:event', {

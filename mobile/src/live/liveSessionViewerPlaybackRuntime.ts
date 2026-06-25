@@ -252,10 +252,10 @@ export function createLiveSessionViewerPlaybackRuntime({
   );
 
   channel.on('media:offer', (payload) => {
-    void answerHostOffer(payload);
+    answerHostOffer(payload);
   });
   channel.on('media:ice_candidate', (payload) => {
-    void applyHostIceCandidate(payload);
+    applyHostIceCandidate(payload);
   });
   channel.onClose?.(() => {
     onChannelTerminated?.();
@@ -302,6 +302,8 @@ export function createLiveSessionViewerPlaybackRuntime({
       if (joinResult.status === 'error') {
         throw new Error(joinResult.reason);
       }
+
+      channel.push('media:viewer_ready', {});
 
       return { status: 'started' };
     } catch (error) {
