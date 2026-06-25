@@ -569,9 +569,13 @@ function readOptionalString(value: unknown): string | null | undefined {
     return null;
   }
 
-  return typeof value === 'string' && value.trim().length > 0
-    ? value
-    : undefined;
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+
+  return trimmedValue.length > 0 ? trimmedValue : null;
 }
 
 function readOptionalNonNegativeInteger(

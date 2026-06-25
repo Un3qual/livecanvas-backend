@@ -5,6 +5,7 @@ defmodule LCGQL.Live.Resolver do
   alias LCGQL.Relay
   alias LC.RateLimiter
   alias LCTransport.{LiveSessionReasons, LiveSessionTopics}
+  alias LCSchemas.Accounts.User
   alias Phoenix.Socket.Broadcast
 
   @type mutation_error :: MutationErrors.user_error()
@@ -394,7 +395,7 @@ defmodule LCGQL.Live.Resolver do
 
   defp ensure_media_setup_authorized(
          %{id: session_id, host_id: host_id} = live_session,
-         %{id: user_id} = viewer
+         %User{id: user_id} = viewer
        )
        when is_integer(session_id) and is_integer(host_id) and is_integer(user_id) do
     cond do
@@ -408,6 +409,8 @@ defmodule LCGQL.Live.Resolver do
         {:error, :not_authorized}
     end
   end
+
+  defp ensure_media_setup_authorized(_live_session, _viewer), do: {:error, :not_authorized}
 
   defp ensure_joinable_state(%{status: :ended}), do: {:error, :ended}
   defp ensure_joinable_state(_live_session), do: :ok

@@ -492,6 +492,34 @@ defmodule LCGQL.Live.LiveMutationsTest do
                )
     end
 
+    test "rejects id-only viewer scopes without raising" do
+      host = user_fixture()
+      {:ok, started_session} = Live.start_live_session(host, %{visibility: :followers})
+
+      session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
+
+      context = %{current_scope: %{user: %{id: host.id}}}
+
+      assert {:ok,
+              %{
+                data: %{
+                  "prepareLiveMediaSession" => %{
+                    "liveSession" => nil,
+                    "signalingTopic" => nil,
+                    "iceServers" => [],
+                    "errors" => [%{"field" => nil, "message" => "not_authorized"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 @prepare_live_media_session_mutation,
+                 LCGQL.Schema,
+                 context: context,
+                 variables: %{"liveSessionId" => session_id}
+               )
+    end
+
     test "returns live media setup metadata to an active viewer participant" do
       host = user_fixture()
       viewer = user_fixture()

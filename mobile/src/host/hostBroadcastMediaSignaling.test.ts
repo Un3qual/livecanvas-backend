@@ -162,6 +162,15 @@ describe('hostBroadcastMediaSignaling', () => {
     });
     expect(
       createHostBroadcastMediaIceCandidatePayload({
+        candidate: 'candidate:2 1 udp 1 192.0.2.11 54400 typ host',
+        sdpMid: '   ',
+        usernameFragment: '',
+      }),
+    ).toEqual({
+      candidate: 'candidate:2 1 udp 1 192.0.2.11 54400 typ host',
+    });
+    expect(
+      createHostBroadcastMediaIceCandidatePayload({
         candidate: '   ',
       }),
     ).toBeNull();
