@@ -156,6 +156,7 @@ declare const require:
 
 const GENERIC_VIEWER_PLAYBACK_FAILURE_REASON =
   'Could not start live video playback. Please try again.';
+const MAX_PENDING_HOST_ICE_CANDIDATES = 50;
 
 export function readPreparedLiveSessionViewerMedia(
   payload: PrepareLiveMediaSessionSource | null | undefined,
@@ -396,7 +397,7 @@ export function createLiveSessionViewerPlaybackRuntime({
 
     try {
       if (!remoteOfferApplied || applyingRemoteOffer) {
-        pendingHostIceCandidates.push(event.candidate);
+        queuePendingHostIceCandidate(event.candidate);
         return;
       }
 
@@ -407,6 +408,16 @@ export function createLiveSessionViewerPlaybackRuntime({
         dispose();
       }
     }
+  }
+
+  function queuePendingHostIceCandidate(
+    candidate: LiveSessionViewerPlaybackIceCandidate,
+  ) {
+    if (pendingHostIceCandidates.length >= MAX_PENDING_HOST_ICE_CANDIDATES) {
+      pendingHostIceCandidates.shift();
+    }
+
+    pendingHostIceCandidates.push(candidate);
   }
 
   async function flushPendingHostIceCandidates() {

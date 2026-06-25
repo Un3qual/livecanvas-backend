@@ -98,6 +98,7 @@ declare const require:
 
 const GENERIC_START_FAILURE_REASON =
   'Could not start host media publishing. Please try again.';
+const MAX_PENDING_VIEWER_ICE_CANDIDATES = 50;
 
 export function createHostBroadcastPublishingRuntime({
   disposeLocalMedia,
@@ -248,6 +249,10 @@ export function createHostBroadcastPublishingRuntime({
       return;
     }
 
+    if (applyingViewerAnswer || viewerAnswerApplied) {
+      return;
+    }
+
     try {
       applyingViewerAnswer = true;
       viewerAnswerApplied = false;
@@ -292,7 +297,7 @@ export function createHostBroadcastPublishingRuntime({
 
     try {
       if (!viewerAnswerApplied || applyingViewerAnswer) {
-        pendingViewerIceCandidates.push(event.candidate);
+        queuePendingViewerIceCandidate(event.candidate);
         return;
       }
 
@@ -302,6 +307,16 @@ export function createHostBroadcastPublishingRuntime({
         onError?.(GENERIC_START_FAILURE_REASON);
       }
     }
+  }
+
+  function queuePendingViewerIceCandidate(
+    candidate: HostBroadcastPublishingIceCandidate,
+  ) {
+    if (pendingViewerIceCandidates.length >= MAX_PENDING_VIEWER_ICE_CANDIDATES) {
+      pendingViewerIceCandidates.shift();
+    }
+
+    pendingViewerIceCandidates.push(candidate);
   }
 
   async function flushPendingViewerIceCandidates() {

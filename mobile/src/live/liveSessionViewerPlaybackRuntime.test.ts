@@ -291,7 +291,7 @@ function createHarness() {
 }
 
 async function flushAsyncHandlers(): Promise<void> {
-  for (let index = 0; index < 8; index += 1) {
+  for (let index = 0; index < 200; index += 1) {
     await Promise.resolve();
   }
 }
@@ -654,6 +654,29 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
         type: 'answer',
       },
       push: expect.any(FakePush),
+    });
+  });
+
+  test('bounds queued host ICE candidates while waiting for the host offer', async () => {
+    const { channel, peerConnections, startRuntime } = createHarness();
+
+    await startRuntime();
+
+    for (let index = 0; index < 55; index += 1) {
+      channel.emit('media:ice_candidate', {
+        candidate: `candidate:host-${index}`,
+        sender_role: 'host',
+      });
+    }
+
+    await applyHostOffer(channel);
+
+    expect(peerConnections[0].addIceCandidateCalls).toHaveLength(50);
+    expect(peerConnections[0].addIceCandidateCalls[0]).toEqual({
+      candidate: 'candidate:host-5',
+    });
+    expect(peerConnections[0].addIceCandidateCalls[49]).toEqual({
+      candidate: 'candidate:host-54',
     });
   });
 

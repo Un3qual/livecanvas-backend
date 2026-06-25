@@ -287,7 +287,7 @@ function createHarness(
 }
 
 async function flushAsyncHandlers(): Promise<void> {
-  for (let index = 0; index < 8; index += 1) {
+  for (let index = 0; index < 200; index += 1) {
     await Promise.resolve();
   }
 }
@@ -595,6 +595,77 @@ describe('createHostBroadcastPublishingRuntime', () => {
     ]);
     expect(runtime.isNegotiationReady()).toBe(true);
     expect(harness.readyCount).toBe(1);
+  });
+
+  test('ignores duplicate viewer answers while one is applying or already applied', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, runtime } = harness;
+
+    await startAndFlush(runtime, channel);
+    const remoteDescription = createDeferred();
+    peerConnections[0].setRemoteDescriptionDeferred = remoteDescription;
+
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nviewer-answer',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nduplicate-viewer-answer',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].remoteDescriptions).toEqual([
+      {
+        sdp: 'v=0\r\nviewer-answer',
+        type: 'answer',
+      },
+    ]);
+
+    remoteDescription.resolve();
+    await flushAsyncHandlers();
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nlate-duplicate-viewer-answer',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].remoteDescriptions).toHaveLength(1);
+    expect(runtime.isNegotiationReady()).toBe(true);
+    expect(harness.readyCount).toBe(1);
+    expect(harness.errorReasons).toEqual([]);
+  });
+
+  test('bounds queued viewer ICE candidates while waiting for the viewer answer', async () => {
+    const { channel, peerConnections, runtime } = createHarness();
+
+    await startAndFlush(runtime, channel);
+
+    for (let index = 0; index < 55; index += 1) {
+      channel.emit('media:ice_candidate', {
+        candidate: `candidate:viewer-${index}`,
+        sender_role: 'viewer',
+      });
+    }
+
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nviewer-answer',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].addIceCandidateCalls).toHaveLength(50);
+    expect(peerConnections[0].addIceCandidateCalls[0]).toEqual({
+      candidate: 'candidate:viewer-5',
+    });
+    expect(peerConnections[0].addIceCandidateCalls[49]).toEqual({
+      candidate: 'candidate:viewer-54',
+    });
   });
 
   test('reports negotiation readiness once after a viewer answer is applied', async () => {

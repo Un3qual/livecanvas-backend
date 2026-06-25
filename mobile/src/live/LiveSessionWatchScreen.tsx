@@ -9,7 +9,6 @@ import React, {
 } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { RTCView } from 'react-native-webrtc';
 import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
 
 import { useAuth } from '../auth/AuthProvider';
@@ -76,6 +75,14 @@ import type { LiveSessionWatchScreenPrepareMediaMutation } from './__generated__
 import type { LiveSessionWatchScreenQuery } from './__generated__/LiveSessionWatchScreenQuery.graphql';
 
 type LiveSessionWatchData = LiveSessionWatchScreenQuery['response'];
+type LiveSessionRTCViewProps = {
+  readonly objectFit?: 'contain' | 'cover';
+  readonly streamURL: string;
+  readonly style?: unknown;
+};
+type ReactNativeWebRtcViewModule = Readonly<{
+  RTCView?: React.ComponentType<LiveSessionRTCViewProps>;
+}>;
 type LiveSessionNode = Extract<
   NonNullable<LiveSessionWatchData['node']>,
   { readonly __typename: 'LiveSession' }
@@ -122,6 +129,24 @@ type ViewerPlaybackResource = {
 type LiveSessionWatchContentProps = LiveSessionWatchScreenProps & {
   pendingMutationRef: PendingMutationRef;
 };
+
+declare const require:
+  | undefined
+  | ((moduleName: 'react-native-webrtc') => ReactNativeWebRtcViewModule);
+
+const LiveSessionRTCView = resolveLiveSessionRTCView();
+
+function resolveLiveSessionRTCView(): React.ComponentType<LiveSessionRTCViewProps> | null {
+  if (typeof require === 'undefined') {
+    return null;
+  }
+
+  try {
+    return require('react-native-webrtc').RTCView ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const INITIAL_TIMELINE_HISTORY_COUNT = 30;
 
@@ -1454,13 +1479,14 @@ function LiveSessionViewerPlaybackSurface({
 }) {
   const theme = useAppTheme();
   const message = viewerPlaybackMessage(isJoined, state);
+  const RTCViewComponent = LiveSessionRTCView;
 
   return (
     <AppCard>
       <SectionHeading title="Live video" />
       <View style={[styles.mediaFrame, { backgroundColor: '#050505' }]}>
-        {state.remoteStreamUrl ? (
-          <RTCView
+        {state.remoteStreamUrl && RTCViewComponent ? (
+          <RTCViewComponent
             objectFit="cover"
             streamURL={state.remoteStreamUrl}
             style={styles.remoteVideo}
