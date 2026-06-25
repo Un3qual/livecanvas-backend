@@ -187,6 +187,11 @@ type HostBroadcastPublishingStatus =
 const HOST_PUBLISHING_ERROR =
   'Could not start host media publishing. Please try again.';
 
+type PreflightEndLiveSessionOptions = {
+  readonly navigateBackOnSuccess: boolean;
+  readonly updateSessionLifecycle?: boolean;
+};
+
 export function HostBroadcastPreflightScreen() {
   const router = useRouter();
   const theme = useAppTheme();
@@ -472,12 +477,13 @@ export function HostBroadcastPreflightScreen() {
           }
 
           setIsGoingLive(false);
-          setPublishingStatus('errored');
-          dispatchPreflightAction({
-            ready: false,
-            type: 'backend_media_contract_changed',
+          failPreparedPublishing(HOST_PUBLISHING_ERROR);
+          // Go-live already succeeded, so end the backend session if the host
+          // cannot retain the publishing runtime needed to serve viewers.
+          requestPreflightEndLiveSession(result.liveSession.id, {
+            navigateBackOnSuccess: false,
+            updateSessionLifecycle: true,
           });
-          setHostActionError(HOST_PUBLISHING_ERROR);
           return;
         }
 
@@ -536,7 +542,7 @@ export function HostBroadcastPreflightScreen() {
 
   function requestPreflightEndLiveSession(
     liveSessionId: string,
-    options: { readonly navigateBackOnSuccess: boolean },
+    options: PreflightEndLiveSessionOptions,
   ) {
     // Back cleanup reports failures to the mounted screen, while abandoned
     // cleanup only attempts non-blocking teardown after unmount.
@@ -545,10 +551,14 @@ export function HostBroadcastPreflightScreen() {
     }
 
     hasEndLiveSessionRequestInFlightRef.current = true;
+    const updateSessionLifecycle =
+      options.navigateBackOnSuccess || options.updateSessionLifecycle === true;
 
-    if (options.navigateBackOnSuccess) {
+    if (updateSessionLifecycle) {
       dispatchSessionAction({ type: 'end_requested' });
-      setHostActionError(null);
+      if (options.navigateBackOnSuccess) {
+        setHostActionError(null);
+      }
     }
 
     commitEndLiveSessionRef.current({
@@ -558,7 +568,9 @@ export function HostBroadcastPreflightScreen() {
         },
       },
       onCompleted: (payload) => {
-        if (!options.navigateBackOnSuccess) {
+        hasEndLiveSessionRequestInFlightRef.current = false;
+
+        if (!updateSessionLifecycle) {
           return;
         }
 
@@ -566,7 +578,6 @@ export function HostBroadcastPreflightScreen() {
 
         if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
           const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
-          hasEndLiveSessionRequestInFlightRef.current = false;
           dispatchSessionAction({
             type: 'end_failed',
             viewerSafeErrorText,
@@ -575,17 +586,19 @@ export function HostBroadcastPreflightScreen() {
           return;
         }
 
-        hasEndLiveSessionRequestInFlightRef.current = false;
         dispatchSessionAction({ type: 'end_succeeded' });
-        router.back();
+        if (options.navigateBackOnSuccess) {
+          router.back();
+        }
       },
       onError: () => {
-        if (!options.navigateBackOnSuccess) {
+        hasEndLiveSessionRequestInFlightRef.current = false;
+
+        if (!updateSessionLifecycle) {
           return;
         }
 
         const viewerSafeErrorText = formatLiveMutationErrors([]);
-        hasEndLiveSessionRequestInFlightRef.current = false;
         dispatchSessionAction({
           type: 'end_failed',
           viewerSafeErrorText,
