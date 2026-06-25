@@ -699,7 +699,7 @@ export function HostBroadcastPreflightScreen() {
       }
 
       runtime = createHostBroadcastPublishingRuntime({
-        disposeLocalMedia: native.dispose,
+        disposeLocalMedia: native.releasePreviewStream,
         localStream,
         onChannelTerminated: () => {
           if (didHandleChannelTermination) {

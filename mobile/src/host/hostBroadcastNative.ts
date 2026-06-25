@@ -17,6 +17,7 @@ export type HostBroadcastNative = Readonly<{
   requestPermissions: () => Promise<HostBroadcastPermissionSnapshot>;
   preparePreview: () => Promise<HostBroadcastPreviewResult>;
   getPreviewStream: () => Promise<HostBroadcastMediaStream | null>;
+  releasePreviewStream: () => void;
   dispose: () => void;
 }>;
 
@@ -159,6 +160,10 @@ export function createHostBroadcastNative(
         return null;
       }
     },
+    releasePreviewStream() {
+      stopPreviewStream(previewStream);
+      previewStream = null;
+    },
     dispose() {
       disposed = true;
       stopPreviewStream(previewStream);
@@ -184,6 +189,9 @@ export function createUnavailableHostBroadcastNative(): HostBroadcastNative {
     },
     getPreviewStream() {
       return Promise.resolve(null);
+    },
+    releasePreviewStream() {
+      // No native resources exist in the unsupported fallback.
     },
     dispose() {
       // No native resources exist in the unsupported fallback.
