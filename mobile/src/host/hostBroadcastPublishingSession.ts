@@ -19,6 +19,11 @@ export type HostBroadcastPublishingSessionStore = {
   ) => void;
 };
 
+export type HostBroadcastPublishingAuthStatus =
+  | 'authenticated'
+  | 'loading'
+  | 'unauthenticated';
+
 export type HostBroadcastPublishingPreflightController = {
   readonly attachResource: (resource: HostBroadcastPublishingResource) => void;
   readonly cleanupAttachedResource: () => void;
@@ -131,4 +136,14 @@ export function releaseHostBroadcastPublishingRetainedResource(
   store: HostBroadcastPublishingSessionStore,
 ): boolean {
   return store.releaseIfCurrent(liveSessionId, resource);
+}
+
+export function releaseHostBroadcastPublishingAfterAuthStateChange(
+  previousStatus: HostBroadcastPublishingAuthStatus,
+  nextStatus: HostBroadcastPublishingAuthStatus,
+  store: Pick<HostBroadcastPublishingSessionStore, 'releaseAll'>,
+): void {
+  if (previousStatus === 'authenticated' && nextStatus !== 'authenticated') {
+    store.releaseAll();
+  }
 }

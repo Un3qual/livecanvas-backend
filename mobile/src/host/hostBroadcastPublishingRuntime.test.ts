@@ -287,8 +287,9 @@ function createHarness(
 }
 
 async function flushAsyncHandlers(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 8; index += 1) {
+    await Promise.resolve();
+  }
 }
 
 describe('createHostBroadcastPublishingRuntime', () => {
@@ -314,7 +315,6 @@ describe('createHostBroadcastPublishingRuntime', () => {
           },
           {
             credential: 'turn-secret',
-            credentialType: 'PASSWORD',
             username: 'turn-user',
             urls: ['turn:turn.example.test:3478'],
           },
@@ -422,15 +422,85 @@ describe('createHostBroadcastPublishingRuntime', () => {
     });
     await flushAsyncHandlers();
 
-    channel.emit('media:viewer_ready', {
-      sender_role: 'viewer',
-    });
-
     expect(runtime.isNegotiationReady()).toBe(true);
     expect(harness.readyCount).toBe(1);
     expect(
       channel.pushes.filter((push) => push.eventName === 'media:offer'),
     ).toHaveLength(2);
+  });
+
+  test('restarts single-viewer negotiation when a viewer becomes ready after negotiation completes', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, runtime } = harness;
+
+    await startAndFlush(runtime, channel);
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nviewer-answer',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+
+    expect(runtime.isNegotiationReady()).toBe(true);
+    expect(harness.readyCount).toBe(1);
+
+    channel.emit('media:viewer_ready', {
+      sender_role: 'viewer',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections).toHaveLength(2);
+    expect(peerConnections[0].closeCount).toBe(1);
+    expect(peerConnections[1].addTrackCalls).toEqual([
+      { stream: harness.stream, track: harness.tracks[0] },
+      { stream: harness.stream, track: harness.tracks[1] },
+    ]);
+    expect(runtime.isNegotiationReady()).toBe(false);
+    expect(
+      channel.pushes.filter((push) => push.eventName === 'media:offer'),
+    ).toHaveLength(2);
+  });
+
+  test('replays gathered host ICE candidates after a late viewer readiness signal', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, runtime } = harness;
+
+    await startAndFlush(runtime, channel);
+    peerConnections[0].emitLocalIceCandidate({
+      candidate: 'candidate:host 1 udp 1 192.0.2.10 54400 typ host',
+      sdpMLineIndex: 0,
+      sdpMid: '0',
+      usernameFragment: 'host-ufrag',
+    });
+
+    expect(
+      channel.pushes.filter((push) => push.eventName === 'media:ice_candidate'),
+    ).toHaveLength(1);
+
+    channel.emit('media:viewer_ready', {
+      sender_role: 'viewer',
+    });
+
+    expect(channel.pushes.slice(-2)).toEqual([
+      {
+        eventName: 'media:offer',
+        payload: {
+          sdp: 'v=0\r\nhost-offer',
+          type: 'offer',
+        },
+        push: expect.any(FakePush),
+      },
+      {
+        eventName: 'media:ice_candidate',
+        payload: {
+          candidate: 'candidate:host 1 udp 1 192.0.2.10 54400 typ host',
+          sdp_m_line_index: 0,
+          sdp_mid: '0',
+          username_fragment: 'host-ufrag',
+        },
+        push: expect.any(FakePush),
+      },
+    ]);
   });
 
   test('applies viewer answers and ICE candidates while ignoring host-authored or invalid media events', async () => {
@@ -484,6 +554,47 @@ describe('createHostBroadcastPublishingRuntime', () => {
         usernameFragment: 'viewer-ufrag',
       },
     ]);
+  });
+
+  test('queues viewer ICE candidates until the viewer answer is applied', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, runtime } = harness;
+
+    await startAndFlush(runtime, channel);
+    const remoteDescription = createDeferred();
+    peerConnections[0].setRemoteDescriptionDeferred = remoteDescription;
+
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nviewer-answer',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+
+    channel.emit('media:ice_candidate', {
+      candidate: 'candidate:viewer 1 udp 1 192.0.2.11 54401 typ host',
+      sdp_m_line_index: 0,
+      sdp_mid: '0',
+      sender_role: 'viewer',
+      username_fragment: 'viewer-ufrag',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].addIceCandidateCalls).toEqual([]);
+
+    remoteDescription.resolve();
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].addIceCandidateCalls).toEqual([
+      {
+        candidate: 'candidate:viewer 1 udp 1 192.0.2.11 54401 typ host',
+        sdpMLineIndex: 0,
+        sdpMid: '0',
+        usernameFragment: 'viewer-ufrag',
+      },
+    ]);
+    expect(runtime.isNegotiationReady()).toBe(true);
+    expect(harness.readyCount).toBe(1);
   });
 
   test('reports negotiation readiness once after a viewer answer is applied', async () => {

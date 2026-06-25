@@ -7,8 +7,11 @@ import {
   type PropsWithChildren,
 } from 'react';
 
+import { useAuth } from '../auth/AuthProvider';
 import {
   createHostBroadcastPublishingSessionStore,
+  releaseHostBroadcastPublishingAfterAuthStateChange,
+  type HostBroadcastPublishingAuthStatus,
   type HostBroadcastPublishingSessionStore,
 } from './hostBroadcastPublishingSession';
 
@@ -18,6 +21,10 @@ const HostBroadcastPublishingSessionContext =
 export function HostBroadcastPublishingSessionProvider({
   children,
 }: PropsWithChildren) {
+  const auth = useAuth();
+  const previousAuthStatusRef = useRef<HostBroadcastPublishingAuthStatus>(
+    auth.state.status,
+  );
   const storeRef = useRef<HostBroadcastPublishingSessionStore | null>(null);
 
   if (!storeRef.current) {
@@ -25,6 +32,15 @@ export function HostBroadcastPublishingSessionProvider({
   }
 
   const store = storeRef.current;
+
+  useEffect(() => {
+    releaseHostBroadcastPublishingAfterAuthStateChange(
+      previousAuthStatusRef.current,
+      auth.state.status,
+      store,
+    );
+    previousAuthStatusRef.current = auth.state.status;
+  }, [auth.state.status, store]);
 
   useEffect(() => {
     return () => {

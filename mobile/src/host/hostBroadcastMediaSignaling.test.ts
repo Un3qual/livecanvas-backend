@@ -57,6 +57,66 @@ describe('hostBroadcastMediaSignaling', () => {
     });
   });
 
+  test('omits unsupported OAuth ICE servers from host media preparation', () => {
+    expect(
+      readPreparedHostBroadcastMedia({
+        errors: [],
+        iceServers: [
+          {
+            credential: 'oauth-token',
+            credentialType: 'OAUTH',
+            username: 'oauth-user',
+            urls: ['turn:oauth.example.test:3478'],
+          },
+          {
+            credential: 'future-secret',
+            credentialType: 'TOKEN',
+            username: 'future-user',
+            urls: ['turn:future.example.test:3478'],
+          },
+          {
+            credential: 'turn-secret',
+            credentialType: 'PASSWORD',
+            username: 'turn-user',
+            urls: ['turn:turn.example.test:3478'],
+          },
+        ],
+        liveSession: {
+          channelTopic: 'live_session:opaque-topic',
+          id: 'TGl2ZVNlc3Npb246MQ==',
+          status: 'STARTING',
+        },
+        signalingTopic: 'live_session_media:opaque-topic',
+      })?.iceServers,
+    ).toEqual([
+      {
+        credential: 'turn-secret',
+        credentialType: 'PASSWORD',
+        username: 'turn-user',
+        urls: ['turn:turn.example.test:3478'],
+      },
+    ]);
+    expect(
+      readPreparedHostBroadcastMedia({
+        errors: [],
+        iceServers: [
+          {
+            credential: 'oauth-token',
+            credentialType: 'OAUTH',
+            username: 'oauth-user',
+            urls: ['turn:oauth.example.test:3478'],
+          },
+        ],
+        liveSession: {
+          channelTopic: 'live_session:opaque-topic',
+          id: 'TGl2ZVNlc3Npb246MQ==',
+          status: 'STARTING',
+        },
+        signalingTopic: 'live_session_media:opaque-topic',
+      }),
+    ).toBeNull();
+  });
+
   test('rejects payloads with errors, ended sessions, blank topics, or missing ICE servers', () => {
     const valid = {
       errors: [],

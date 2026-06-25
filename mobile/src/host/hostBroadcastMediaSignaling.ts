@@ -178,9 +178,15 @@ function normalizeIceServer(
     return null;
   }
 
+  const credentialType = normalizeCredentialType(iceServer.credentialType);
+
+  if (credentialType === 'OAUTH' || credentialType === '%future added value') {
+    return null;
+  }
+
   return {
     credential: iceServer.credential ?? null,
-    credentialType: normalizeCredentialType(iceServer.credentialType),
+    credentialType,
     username: iceServer.username ?? null,
     urls,
   };

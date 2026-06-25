@@ -92,6 +92,10 @@ Field rules:
 - `urls` is required and contains one or more `stun:`, `turn:`, or `turns:` URLs.
 - `username`, `credential`, and `credentialType` are nullable and present only when a TURN server requires credentials.
 - `credentialType` is `PASSWORD` for normal TURN username/password credentials and `OAUTH` for OAuth-style TURN credentials.
+- The current mobile React Native WebRTC integration accepts only STUN entries
+  and normal TURN username/password credentials. Mobile must omit unsupported
+  `OAUTH` or future credential schemes rather than passing them to the native
+  peer-connection config as password credentials.
 - `LC.Live.MediaSignaling` serves the list from a typed, configurable ICE/TURN provider. The default development configuration still returns deterministic STUN setup data, while deployed providers may mint short-lived TURN credentials at request time.
 - TURN secrets must not be persisted as live-session records or client-reusable durable secrets.
 
@@ -118,9 +122,10 @@ Media signaling uses the authorized media-signaling channel and these event name
 - `media:viewer_ready`
 
 These messages are ephemeral negotiation messages. They are not retained in
-timeline history and are not replayed after reconnect. Viewers that join media
-signaling after a host offer must push `media:viewer_ready` so the active host
-can re-send its current offer while negotiation is still pending.
+timeline history or replayed by the backend. Viewers that join media signaling
+after a host offer must push `media:viewer_ready` so the active host can
+best-effort re-send its current offer and any locally gathered host ICE
+candidates still held by the in-memory host runtime.
 
 ### `media:offer`
 
@@ -230,8 +235,12 @@ Validation rules:
 - Payload must be an object.
 - Only active live-session viewers may push this event.
 - The server targets this event to the host and derives `sender_role`.
-- Hosts use this event as an offer replay trigger only while negotiation is not
-  ready.
+- Hosts use this event as an offer and host-ICE replay trigger within the
+  current in-memory runtime. In the one-host/one-viewer beta path, a ready
+  signal after negotiation is already marked ready resets the single retained
+  host peer connection and publishes a fresh offer. The current payload shape
+  does not carry per-viewer media identity for multi-viewer peer-connection
+  routing.
 
 ## Backend Boundary
 

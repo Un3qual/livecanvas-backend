@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
+  releaseHostBroadcastPublishingAfterAuthStateChange,
   releaseHostBroadcastPublishingRetainedResource,
   type HostBroadcastPublishingResource,
 } from './hostBroadcastPublishingSession';
@@ -127,4 +128,55 @@ describe('hostBroadcastPublishingSession', () => {
     expect(store.has('live-session-id')).toBe(false);
   });
 
+  test('releases retained publishing resources when auth leaves authenticated state', () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const resource = createResource();
+
+    store.retain('live-session-id', resource);
+    releaseHostBroadcastPublishingAfterAuthStateChange(
+      'authenticated',
+      'authenticated',
+      store,
+    );
+
+    expect(store.has('live-session-id')).toBe(true);
+    expect(resource.disposeCount()).toBe(0);
+    expect(resource.disconnectCount()).toBe(0);
+
+    releaseHostBroadcastPublishingAfterAuthStateChange(
+      'authenticated',
+      'unauthenticated',
+      store,
+    );
+
+    expect(store.has('live-session-id')).toBe(false);
+    expect(resource.disposeCount()).toBe(1);
+    expect(resource.disconnectCount()).toBe(1);
+  });
+
+  test('does not release retained publishing resources without auth loss', () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const resource = createResource();
+
+    store.retain('live-session-id', resource);
+    releaseHostBroadcastPublishingAfterAuthStateChange(
+      'loading',
+      'unauthenticated',
+      store,
+    );
+    releaseHostBroadcastPublishingAfterAuthStateChange(
+      'unauthenticated',
+      'unauthenticated',
+      store,
+    );
+    releaseHostBroadcastPublishingAfterAuthStateChange(
+      'loading',
+      'authenticated',
+      store,
+    );
+
+    expect(store.has('live-session-id')).toBe(true);
+    expect(resource.disposeCount()).toBe(0);
+    expect(resource.disconnectCount()).toBe(0);
+  });
 });

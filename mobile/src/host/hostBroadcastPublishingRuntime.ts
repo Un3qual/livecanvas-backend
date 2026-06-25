@@ -7,6 +7,7 @@ import {
   createHostBroadcastMediaIceCandidatePayload,
   createHostBroadcastMediaOfferPayload,
   type HostBroadcastMediaIceServer,
+  type HostBroadcastMediaIceCandidatePayload,
   type HostBroadcastMediaOfferPayload,
   type HostBroadcastMediaPreparation,
 } from './hostBroadcastMediaSignaling';
@@ -26,7 +27,6 @@ export type HostBroadcastPublishingIceCandidate = {
 
 export type HostBroadcastPublishingPeerConnectionIceServer = {
   readonly credential?: string;
-  readonly credentialType?: 'OAUTH' | 'PASSWORD';
   readonly username?: string;
   readonly urls: ReadonlyArray<string>;
 };
@@ -110,9 +110,13 @@ export function createHostBroadcastPublishingRuntime({
   socket,
 }: HostBroadcastPublishingRuntimeOptions): HostBroadcastPublishingRuntime {
   const channel = socket.channel(preparedMedia.signalingTopic);
+  let applyingViewerAnswer = false;
   let disposed = false;
   let localMediaDisposed = false;
+  let localIceCandidatePayloads: HostBroadcastMediaIceCandidatePayload[] = [];
   let negotiationReady = false;
+  let viewerAnswerApplied = false;
+  let pendingViewerIceCandidates: HostBroadcastPublishingIceCandidate[] = [];
   let localOfferPayload: HostBroadcastMediaOfferPayload | null = null;
   let peerConnection: HostBroadcastPublishingPeerConnection | null = null;
   let started = false;
@@ -151,22 +155,7 @@ export function createHostBroadcastPublishingRuntime({
     started = true;
 
     try {
-      peerConnection = peerConnectionFactory({
-        iceServers: preparedMedia.iceServers.map(toPeerConnectionIceServer),
-      });
-      peerConnection.onicecandidate = (event) => {
-        pushLocalIceCandidate(event.candidate ?? null);
-      };
-
-      const tracks = localStream.getTracks?.() ?? [];
-
-      if (tracks.length === 0) {
-        throw new Error('missing_local_media_tracks');
-      }
-
-      for (const track of tracks) {
-        peerConnection.addTrack(track, localStream);
-      }
+      peerConnection = createConfiguredPeerConnection();
 
       const joinResult = await joinMediaSignalingChannel(channel);
       throwIfDisposed();
@@ -175,18 +164,7 @@ export function createHostBroadcastPublishingRuntime({
         throw new Error(joinResult.reason);
       }
 
-      const offer = await peerConnection.createOffer();
-      throwIfDisposed();
-      const offerPayload = createHostBroadcastMediaOfferPayload(offer);
-
-      if (!offerPayload) {
-        throw new Error('invalid_host_media_offer');
-      }
-
-      await peerConnection.setLocalDescription(offerPayload);
-      throwIfDisposed();
-      localOfferPayload = offerPayload;
-      channel.push('media:offer', offerPayload);
+      await publishLocalOffer();
 
       return { status: 'started' };
     } catch (error) {
@@ -215,7 +193,48 @@ export function createHostBroadcastPublishingRuntime({
       return;
     }
 
+    localIceCandidatePayloads.push(payload);
     channel.push('media:ice_candidate', payload);
+  }
+
+  function createConfiguredPeerConnection(): HostBroadcastPublishingPeerConnection {
+    const nextPeerConnection = peerConnectionFactory({
+      iceServers: preparedMedia.iceServers.map(toPeerConnectionIceServer),
+    });
+    nextPeerConnection.onicecandidate = (event) => {
+      pushLocalIceCandidate(event.candidate ?? null);
+    };
+
+    const tracks = localStream.getTracks?.() ?? [];
+
+    if (tracks.length === 0) {
+      throw new Error('missing_local_media_tracks');
+    }
+
+    for (const track of tracks) {
+      nextPeerConnection.addTrack(track, localStream);
+    }
+
+    return nextPeerConnection;
+  }
+
+  async function publishLocalOffer() {
+    if (!peerConnection) {
+      throw new Error('missing_peer_connection');
+    }
+
+    const offer = await peerConnection.createOffer();
+    throwIfDisposed();
+    const offerPayload = createHostBroadcastMediaOfferPayload(offer);
+
+    if (!offerPayload) {
+      throw new Error('invalid_host_media_offer');
+    }
+
+    await peerConnection.setLocalDescription(offerPayload);
+    throwIfDisposed();
+    localOfferPayload = offerPayload;
+    channel.push('media:offer', offerPayload);
   }
 
   async function applyViewerAnswer(payload: unknown) {
@@ -230,13 +249,24 @@ export function createHostBroadcastPublishingRuntime({
     }
 
     try {
+      applyingViewerAnswer = true;
+      viewerAnswerApplied = false;
       await peerConnection.setRemoteDescription(event.description);
+      if (disposed) {
+        applyingViewerAnswer = false;
+        return;
+      }
+
+      viewerAnswerApplied = true;
+      applyingViewerAnswer = false;
+      await flushPendingViewerIceCandidates();
       if (disposed) {
         return;
       }
 
       markNegotiationReady();
     } catch {
+      applyingViewerAnswer = false;
       if (!disposed) {
         onError?.(GENERIC_START_FAILURE_REASON);
       }
@@ -261,7 +291,12 @@ export function createHostBroadcastPublishingRuntime({
     }
 
     try {
-      await peerConnection.addIceCandidate(event.candidate);
+      if (!viewerAnswerApplied || applyingViewerAnswer) {
+        pendingViewerIceCandidates.push(event.candidate);
+        return;
+      }
+
+      await addViewerIceCandidate(event.candidate);
     } catch {
       if (!disposed) {
         onError?.(GENERIC_START_FAILURE_REASON);
@@ -269,8 +304,28 @@ export function createHostBroadcastPublishingRuntime({
     }
   }
 
-  function replayOfferForReadyViewer(payload: unknown) {
-    if (disposed || negotiationReady || !localOfferPayload) {
+  async function flushPendingViewerIceCandidates() {
+    while (!disposed && pendingViewerIceCandidates.length > 0) {
+      const candidate = pendingViewerIceCandidates.shift();
+
+      if (candidate) {
+        await addViewerIceCandidate(candidate);
+      }
+    }
+  }
+
+  async function addViewerIceCandidate(
+    candidate: HostBroadcastPublishingIceCandidate,
+  ) {
+    if (!peerConnection) {
+      return;
+    }
+
+    await peerConnection.addIceCandidate(candidate);
+  }
+
+  async function replayOfferForReadyViewer(payload: unknown) {
+    if (disposed) {
       return;
     }
 
@@ -280,7 +335,41 @@ export function createHostBroadcastPublishingRuntime({
       return;
     }
 
+    if (negotiationReady) {
+      await restartNegotiationForReadyViewer();
+      return;
+    }
+
+    if (!localOfferPayload) {
+      return;
+    }
+
     channel.push('media:offer', localOfferPayload);
+
+    for (const iceCandidatePayload of localIceCandidatePayloads) {
+      channel.push('media:ice_candidate', iceCandidatePayload);
+    }
+  }
+
+  async function restartNegotiationForReadyViewer() {
+    closePeerConnection();
+    peerConnection = null;
+    applyingViewerAnswer = false;
+    localIceCandidatePayloads = [];
+    localOfferPayload = null;
+    negotiationReady = false;
+    pendingViewerIceCandidates = [];
+    viewerAnswerApplied = false;
+
+    try {
+      peerConnection = createConfiguredPeerConnection();
+      await publishLocalOffer();
+    } catch (error) {
+      if (error !== disposedDuringStartError && !disposed) {
+        onError?.(GENERIC_START_FAILURE_REASON);
+        dispose();
+      }
+    }
   }
 
   function markNegotiationReady() {
@@ -300,11 +389,8 @@ export function createHostBroadcastPublishingRuntime({
     disposed = true;
     channel.leave();
 
-    if (peerConnection) {
-      peerConnection.onicecandidate = null;
-      peerConnection.close();
-      peerConnection = null;
-    }
+    closePeerConnection();
+    peerConnection = null;
 
     if (!localMediaDisposed) {
       localMediaDisposed = true;
@@ -316,6 +402,15 @@ export function createHostBroadcastPublishingRuntime({
     if (disposed) {
       throw disposedDuringStartError;
     }
+  }
+
+  function closePeerConnection() {
+    if (!peerConnection) {
+      return;
+    }
+
+    peerConnection.onicecandidate = null;
+    peerConnection.close();
   }
 
   return {
@@ -381,10 +476,6 @@ function toPeerConnectionIceServer(
 ): HostBroadcastPublishingPeerConnectionIceServer {
   return {
     ...(server.credential === null ? {} : { credential: server.credential }),
-    ...(server.credentialType === null ||
-    server.credentialType === '%future added value'
-      ? {}
-      : { credentialType: server.credentialType }),
     ...(server.username === null ? {} : { username: server.username }),
     urls: server.urls,
   };

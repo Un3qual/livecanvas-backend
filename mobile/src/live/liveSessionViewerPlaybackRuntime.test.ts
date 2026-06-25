@@ -291,8 +291,18 @@ function createHarness() {
 }
 
 async function flushAsyncHandlers(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 8; index += 1) {
+    await Promise.resolve();
+  }
+}
+
+async function applyHostOffer(channel: FakeChannel): Promise<void> {
+  channel.emit('media:offer', {
+    sender_role: 'host',
+    sdp: 'v=0\r\nhost-offer',
+    type: 'offer',
+  });
+  await flushAsyncHandlers();
 }
 
 describe('live session viewer media helpers', () => {
@@ -308,6 +318,64 @@ describe('live session viewer media helpers', () => {
         signalingTopic: preparedMedia.signalingTopic,
       }),
     ).toEqual(preparedMedia);
+  });
+
+  test('omits unsupported OAuth ICE servers from viewer media preparation', () => {
+    expect(
+      readPreparedLiveSessionViewerMedia({
+        errors: [],
+        iceServers: [
+          {
+            credential: 'oauth-token',
+            credentialType: 'OAUTH',
+            username: 'oauth-user',
+            urls: ['turn:oauth.example.test:3478'],
+          },
+          {
+            credential: 'future-secret',
+            credentialType: 'TOKEN',
+            username: 'future-user',
+            urls: ['turn:future.example.test:3478'],
+          },
+          {
+            credential: 'turn-secret',
+            credentialType: 'PASSWORD',
+            username: 'turn-user',
+            urls: ['turn:turn.example.test:3478'],
+          },
+        ],
+        liveSession: {
+          id: preparedMedia.liveSessionId,
+          status: 'LIVE',
+        },
+        signalingTopic: preparedMedia.signalingTopic,
+      })?.iceServers,
+    ).toEqual([
+      {
+        credential: 'turn-secret',
+        credentialType: 'PASSWORD',
+        username: 'turn-user',
+        urls: ['turn:turn.example.test:3478'],
+      },
+    ]);
+    expect(
+      readPreparedLiveSessionViewerMedia({
+        errors: [],
+        iceServers: [
+          {
+            credential: 'oauth-token',
+            credentialType: 'OAUTH',
+            username: 'oauth-user',
+            urls: ['turn:oauth.example.test:3478'],
+          },
+        ],
+        liveSession: {
+          id: preparedMedia.liveSessionId,
+          status: 'LIVE',
+        },
+        signalingTopic: preparedMedia.signalingTopic,
+      }),
+    ).toBeNull();
   });
 
   test('rejects prepare payloads with errors, ended sessions, blank topics, or missing ICE servers', () => {
@@ -441,7 +509,6 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
           },
           {
             credential: 'turn-secret',
-            credentialType: 'PASSWORD',
             username: 'turn-user',
             urls: ['turn:turn.example.test:3478'],
           },
@@ -520,6 +587,7 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
     const { channel, peerConnections, startRuntime } = createHarness();
 
     await startRuntime();
+    await applyHostOffer(channel);
 
     channel.emit('media:ice_candidate', {
       candidate: 'candidate:viewer 1 udp 1 192.0.2.11 54401 typ host',
@@ -546,6 +614,47 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
         usernameFragment: 'host-ufrag',
       },
     ]);
+  });
+
+  test('queues host ICE candidates until the remote offer is applied', async () => {
+    const { channel, peerConnections, startRuntime } = createHarness();
+
+    await startRuntime();
+    const remoteDescription = createDeferred();
+    peerConnections[0].setRemoteDescriptionDeferred = remoteDescription;
+
+    await applyHostOffer(channel);
+
+    channel.emit('media:ice_candidate', {
+      candidate: 'candidate:host 1 udp 1 192.0.2.10 54400 typ host',
+      sdp_m_line_index: 0,
+      sdp_mid: '0',
+      sender_role: 'host',
+      username_fragment: 'host-ufrag',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].addIceCandidateCalls).toEqual([]);
+
+    remoteDescription.resolve();
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].addIceCandidateCalls).toEqual([
+      {
+        candidate: 'candidate:host 1 udp 1 192.0.2.10 54400 typ host',
+        sdpMLineIndex: 0,
+        sdpMid: '0',
+        usernameFragment: 'host-ufrag',
+      },
+    ]);
+    expect(channel.pushes).toContainEqual({
+      eventName: 'media:answer',
+      payload: {
+        sdp: 'v=0\r\nviewer-answer',
+        type: 'answer',
+      },
+      push: expect.any(FakePush),
+    });
   });
 
   test('reports remote streams from peer connection track events', async () => {
@@ -674,6 +783,7 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
 
     await startRuntime();
     peerConnections[0].emitRemoteStream({ id: 'remote-stream' });
+    await applyHostOffer(channel);
     peerConnections[0].addIceCandidateError = new Error(
       'add ice candidate failed',
     );

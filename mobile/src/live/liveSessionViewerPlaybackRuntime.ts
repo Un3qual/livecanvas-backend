@@ -52,7 +52,6 @@ export type LiveSessionViewerPlaybackIceCandidate = {
 
 export type LiveSessionViewerPlaybackPeerConnectionIceServer = {
   readonly credential?: string;
-  readonly credentialType?: 'OAUTH' | 'PASSWORD';
   readonly username?: string;
   readonly urls: ReadonlyArray<string>;
 };
@@ -244,8 +243,11 @@ export function createLiveSessionViewerPlaybackRuntime({
 }: LiveSessionViewerPlaybackRuntimeOptions): LiveSessionViewerPlaybackRuntime {
   const channel = socket.channel(preparedMedia.signalingTopic);
   let disposed = false;
+  let applyingRemoteOffer = false;
+  const pendingHostIceCandidates: LiveSessionViewerPlaybackIceCandidate[] = [];
   let peerConnection: LiveSessionViewerPlaybackPeerConnection | null = null;
   let remoteStreamAttached = false;
+  let remoteOfferApplied = false;
   let started = false;
   const disposedDuringAsyncError = new Error(
     'live_session_viewer_playback_runtime_disposed',
@@ -347,7 +349,12 @@ export function createLiveSessionViewerPlaybackRuntime({
     }
 
     try {
+      applyingRemoteOffer = true;
       await peerConnection.setRemoteDescription(event.description);
+      throwIfDisposed();
+      remoteOfferApplied = true;
+      applyingRemoteOffer = false;
+      await flushPendingHostIceCandidates();
       throwIfDisposed();
 
       const answer = await peerConnection.createAnswer();
@@ -362,6 +369,7 @@ export function createLiveSessionViewerPlaybackRuntime({
       throwIfDisposed();
       channel.push('media:answer', answerPayload);
     } catch (error) {
+      applyingRemoteOffer = false;
       if (!disposed && error !== disposedDuringAsyncError) {
         onError?.(GENERIC_VIEWER_PLAYBACK_FAILURE_REASON);
         dispose();
@@ -387,13 +395,38 @@ export function createLiveSessionViewerPlaybackRuntime({
     }
 
     try {
-      await peerConnection.addIceCandidate(event.candidate);
+      if (!remoteOfferApplied || applyingRemoteOffer) {
+        pendingHostIceCandidates.push(event.candidate);
+        return;
+      }
+
+      await addHostIceCandidate(event.candidate);
     } catch {
       if (!disposed) {
         onError?.(GENERIC_VIEWER_PLAYBACK_FAILURE_REASON);
         dispose();
       }
     }
+  }
+
+  async function flushPendingHostIceCandidates() {
+    while (!disposed && pendingHostIceCandidates.length > 0) {
+      const candidate = pendingHostIceCandidates.shift();
+
+      if (candidate) {
+        await addHostIceCandidate(candidate);
+      }
+    }
+  }
+
+  async function addHostIceCandidate(
+    candidate: LiveSessionViewerPlaybackIceCandidate,
+  ) {
+    if (!peerConnection) {
+      return;
+    }
+
+    await peerConnection.addIceCandidate(candidate);
   }
 
   function dispose() {
@@ -502,9 +535,15 @@ function normalizeIceServer(
     return null;
   }
 
+  const credentialType = normalizeCredentialType(iceServer.credentialType);
+
+  if (credentialType === 'OAUTH' || credentialType === '%future added value') {
+    return null;
+  }
+
   return {
     credential: iceServer.credential ?? null,
-    credentialType: normalizeCredentialType(iceServer.credentialType),
+    credentialType,
     username: iceServer.username ?? null,
     urls,
   };
@@ -529,10 +568,6 @@ function toPeerConnectionIceServer(
 ): LiveSessionViewerPlaybackPeerConnectionIceServer {
   return {
     ...(server.credential === null ? {} : { credential: server.credential }),
-    ...(server.credentialType === null ||
-    server.credentialType === '%future added value'
-      ? {}
-      : { credentialType: server.credentialType }),
     ...(server.username === null ? {} : { username: server.username }),
     urls: server.urls,
   };
