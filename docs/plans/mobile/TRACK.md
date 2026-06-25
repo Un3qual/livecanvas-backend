@@ -11,12 +11,14 @@ streaming, and chat.
 
 ## Status
 
-- Track state: active
+- Track state: active; beta execution ready
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Active detailed plan:
+- Completed detailed plan:
   `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
-- Current theme: beta release readiness; Task 2 beta build path is complete,
-  and Task 3 release candidate checklist is next.
+- Current theme: testing, beta distribution, and release readiness is complete.
+  Next action is release-candidate device QA from
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`, or a promoted
+  implementation batch if that checklist finds a launch blocker.
 - Last completed theme: pre-beta product completeness closed viewer setup, host
   publishing, viewer playback, and the one-host/one-viewer smoke checklist
 - Backend channel-topic dependency: complete. Mobile receives opaque
@@ -28,9 +30,10 @@ streaming, and chat.
   signaling topic without constructing topics.
 - Retained chat history implementation uses the current `LiveSession.timelineEvents`
   schema and `ChatMessageEvent` nodes.
-- Beta distribution and release-candidate mechanics are unblocked for the active
-  beta readiness plan. Task 1 aligned local quality gate commands, and Task 2
-  added internal EAS build profiles plus explicit native identifiers.
+- Beta distribution and release-candidate mechanics are unblocked. Task 1
+  aligned local quality gate commands, Task 2 added internal EAS build profiles
+  plus explicit native identifiers, and Task 3 added the release-candidate
+  checklist with launch blockers separated from deferred follow-up.
 
 ## Completed Detailed Plans
 
@@ -43,6 +46,7 @@ streaming, and chat.
 - `docs/plans/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
 - `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
 - `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`
+- `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
 
 ## Recommended Plan Order
 

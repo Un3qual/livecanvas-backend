@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-24
-Status: ready for next mobile batch
+Last reviewed: 2026-06-25
+Status: beta readiness plan complete; ready for release-candidate execution
 
 ## Lane Scope
 
@@ -11,70 +11,44 @@ Status: ready for next mobile batch
 
 ## Current Batch
 
-- Last completed source plan:
-  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md` Task 2
-- Source plan:
+- Completed source plan:
   `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: Task 2 - beta build path (complete on 2026-06-24)
+- Completed task: Task 3 - release candidate checklist (complete on
+  2026-06-25)
 - Write scope:
   - `docs/plans/mobile/**`
-  - `mobile/app.json`
-  - `mobile/eas.json`
-  - `mobile/.gitignore`
-- Done condition: mobile has explicit native identifiers plus a repeatable
-  local EAS profile handoff for internal development-client builds and internal
-  release-candidate builds. The source plan plus this lane NOW record
-  prerequisites, secrets handling, and local verification evidence without
-  committing secret values or running authenticated EAS commands.
-  Met on 2026-06-24.
+- Done condition: mobile has a focused release-candidate checklist that
+  separates launch blockers from deferred follow-up and covers manual
+  device/simulator checks for auth, profiles, live discovery/watch, host
+  preflight, media signaling, realtime chat, retained chat replay, app
+  background/foreground recovery, and ended-session cleanup. Met on
+  2026-06-25.
 - Verification:
-  - From `mobile/`: `node -e "for (const file of ['app.json', 'eas.json']) JSON.parse(require('fs').readFileSync(file, 'utf8'))"`
-  - From `mobile/`: `bun run test:quality`
-  - From `mobile/`: `bun run typecheck`
   - From repo root: `git diff --check`
 
-## Task 2 Evidence
+## Task 3 Evidence
 
-- Beta development builds use the `development` EAS profile: a custom
-  development-client build with `distribution: internal` for native-media QA.
-  Expo Go is not a valid path because the app uses `expo-dev-client` and
-  `react-native-webrtc`.
-- Release-candidate device QA uses the `preview` EAS profile:
-  `distribution: internal` without `developmentClient`.
-- Store/TestFlight submission stays separate from this local config task and
-  requires EAS Submit plus platform credentials after the app records exist.
-- `mobile/app.json` declares name `LiveCanvas Mobile`, slug
-  `livecanvas-mobile`, scheme `livecanvas-mobile`, iOS bundle identifier
-  `com.livecanvas.mobile`, iOS build number `1`, Android package
-  `com.livecanvas.mobile`, and Android version code `1`.
-- Required prerequisites are an Expo account, authenticated EAS CLI, installed
-  mobile dependencies, a paid Apple Developer account for iOS device builds, and
-  registered UDIDs for ad hoc iOS distribution.
-- Build-time values must be configured in EAS environments. Client-side
-  `EXPO_PUBLIC_*` values are readable in the app; local `.env` and `.env.local`
-  files are not available to remote EAS jobs.
-- `mobile/.gitignore` ignores `mobile/secrets/google-play-service-account*.json`
-  for local Play Console service-account files.
-- Local JSON validation passed for `mobile/app.json` and `mobile/eas.json`.
-- `bun run test:quality` passed on 2026-06-24: 141 tests across 23 files,
-  0 failures, 457 `expect()` calls.
-- `bun run typecheck` passed on 2026-06-24: `./node_modules/.bin/tsc --noEmit`
-  exited 0 with no diagnostics.
-- `git diff --check` exited 0 on 2026-06-24.
+- Release-candidate checklist:
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+- `git diff --check` exited 0 on 2026-06-25.
+- No mobile app code, package, or config files changed.
 - No remote or authenticated EAS build/submit commands were run.
 
 ## Do This Now
 
-Task 2 is complete. Do not start Task 3 in this Task 2 batch; the next mobile
-implementation turn can pick up Task 3 - release candidate checklist from
-`docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`.
+The testing, beta distribution, and release readiness plan is complete.
+Execute release-candidate device QA from
+`docs/plans/mobile/2026-06-25-release-candidate-checklist.md` when a beta
+operator is ready. Promote a new implementation batch only if that checklist
+finds a launch blocker.
 
 ## Guardrails
 
-- Do not create the release-candidate checklist until Task 3.
 - Do not run remote or authenticated EAS build/submit commands from this local
-  config handoff.
+  docs handoff.
+- Do not expand the completed release-candidate checklist into implementation
+  unless a launch blocker is reproduced and promoted.
 - Do not change GraphQL schema shape in the quality gate alignment batch.
 - Do not decode Relay IDs client-side.
 - Do not construct media signaling topics client-side.
@@ -86,5 +60,6 @@ implementation turn can pick up Task 3 - release candidate checklist from
 
 ## Next Action
 
-Pick up Task 3 - release candidate checklist in the source plan without
-changing the Task 2 beta build profiles unless Expo platform requirements drift.
+Run local quality gates, then use the `preview` EAS profile for internal
+release-candidate device QA. Use the `development` profile only for custom
+development-client native-media debugging.

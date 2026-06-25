@@ -1,10 +1,12 @@
 # Mobile Testing, Beta Distribution, And Release Readiness
 
-Status: active/ready on 2026-06-24. The pre-beta product completeness blockers
+Status: complete on 2026-06-25. The pre-beta product completeness blockers
 that deferred this plan were closed by
 `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`: viewer media
 setup, host WebRTC publishing, viewer playback, and the one-host/one-viewer
-device smoke checklist are complete.
+device smoke checklist are complete. Task 3 added the release-candidate
+checklist at
+`docs/plans/mobile/2026-06-25-release-candidate-checklist.md`.
 
 Executor brief: turn the completed mobile auth/live/chat loop into a repeatable
 release-candidate workflow. Keep the first batch focused on local quality gates
@@ -132,8 +134,38 @@ Evidence on 2026-06-24:
 
 ## Task 3: Release Candidate Checklist
 
-- [ ] Create a concise release-candidate checklist covering auth, profiles,
+- [x] Create a concise release-candidate checklist covering auth, profiles,
       live discovery/watch, host preflight, media signaling, realtime chat, and
       retained chat replay.
-- [ ] Include manual device/simulator checks that are not covered by unit tests.
-- [ ] Record known deferred items separately from launch blockers.
+- [x] Include manual device/simulator checks that are not covered by unit tests.
+- [x] Record known deferred items separately from launch blockers.
+
+Done condition: the mobile lane has a focused release-candidate checklist that
+separates launch blockers from deferred follow-up, names the local quality
+gates, keeps `development` and `preview` EAS profile usage distinct, and covers
+manual device/simulator checks for auth, profiles, live discovery/watch, host
+preflight, media signaling, realtime chat, retained chat replay, app
+background/foreground recovery, and ended-session cleanup.
+
+Checklist:
+
+- `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+
+Verification:
+
+- From repo root: `git diff --check`
+
+Evidence on 2026-06-25:
+
+- `git diff --check` exited 0.
+- No mobile app code, package, or config files changed for Task 3.
+- No remote or authenticated EAS build/submit commands were run.
+
+Release-candidate handoff:
+
+- Use `preview` for internal release-candidate device QA.
+- Use `development` only for custom development-client native-media debugging.
+- Do not run remote or authenticated EAS build/submit commands from this local
+  docs handoff.
+- Treat any launch blocker in the checklist as a beta-release blocker until it
+  is fixed or explicitly descoped by product.
