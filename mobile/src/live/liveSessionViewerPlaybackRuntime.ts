@@ -410,7 +410,11 @@ export function createLiveSessionViewerPlaybackRuntime({
   }
 
   async function flushPendingHostIceCandidates() {
-    while (!disposed && pendingHostIceCandidates.length > 0) {
+    while (pendingHostIceCandidates.length > 0) {
+      if (disposed) {
+        return;
+      }
+
       const candidate = pendingHostIceCandidates.shift();
 
       if (candidate) {

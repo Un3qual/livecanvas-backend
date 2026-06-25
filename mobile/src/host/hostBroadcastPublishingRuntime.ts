@@ -305,7 +305,11 @@ export function createHostBroadcastPublishingRuntime({
   }
 
   async function flushPendingViewerIceCandidates() {
-    while (!disposed && pendingViewerIceCandidates.length > 0) {
+    while (pendingViewerIceCandidates.length > 0) {
+      if (disposed) {
+        return;
+      }
+
       const candidate = pendingViewerIceCandidates.shift();
 
       if (candidate) {
