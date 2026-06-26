@@ -82,6 +82,7 @@ export function createHostBroadcastNative(
   const getUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
   let previewStream: HostBroadcastMediaStream | null = null;
   let previewStreamRequest: Promise<HostBroadcastMediaStream> | null = null;
+  let previewStreamGeneration = 0;
   let disposed = false;
 
   async function ensurePreviewStream() {
@@ -96,7 +97,8 @@ export function createHostBroadcastNative(
     }
 
     if (!previewStreamRequest) {
-      previewStreamRequest = getUserMedia({
+      const requestGeneration = previewStreamGeneration;
+      const request = getUserMedia({
         audio: true,
         video: true,
       })
@@ -105,7 +107,7 @@ export function createHostBroadcastNative(
             throw new Error('native_media_unavailable');
           }
 
-          if (disposed) {
+          if (disposed || requestGeneration !== previewStreamGeneration) {
             stopPreviewStream(stream);
             throw new Error('native_media_disposed');
           }
@@ -114,8 +116,12 @@ export function createHostBroadcastNative(
           return stream;
         })
         .finally(() => {
-          previewStreamRequest = null;
+          if (previewStreamRequest === request) {
+            previewStreamRequest = null;
+          }
         });
+
+      previewStreamRequest = request;
     }
 
     return previewStreamRequest;
@@ -161,11 +167,15 @@ export function createHostBroadcastNative(
       }
     },
     releasePreviewStream() {
+      previewStreamGeneration += 1;
+      previewStreamRequest = null;
       stopPreviewStream(previewStream);
       previewStream = null;
     },
     dispose() {
       disposed = true;
+      previewStreamGeneration += 1;
+      previewStreamRequest = null;
       stopPreviewStream(previewStream);
       previewStream = null;
     },

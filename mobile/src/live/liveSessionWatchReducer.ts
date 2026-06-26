@@ -20,6 +20,7 @@ export type LiveSessionWatchAction =
   | { readonly type: 'leave_started'; readonly sessionId: string }
   | { readonly type: 'leave_succeeded'; readonly sessionId: string }
   | { readonly type: 'leave_failed'; readonly sessionId: string; readonly error: string }
+  | { readonly type: 'membership_lost'; readonly sessionId: string }
   | { readonly type: 'end_started'; readonly sessionId: string }
   | { readonly type: 'end_succeeded'; readonly sessionId: string }
   | { readonly type: 'end_failed'; readonly sessionId: string; readonly error: string }
@@ -155,6 +156,18 @@ export function liveSessionWatchReducer(
         activeSessionId: action.sessionId,
         error: action.error,
         isJoined: true,
+        submission: 'idle',
+      };
+
+    case 'membership_lost':
+      if (state.activeSessionId !== action.sessionId) {
+        return state;
+      }
+
+      return {
+        activeSessionId: action.sessionId,
+        error: null,
+        isJoined: false,
         submission: 'idle',
       };
 

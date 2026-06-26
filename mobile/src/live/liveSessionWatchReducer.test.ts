@@ -84,7 +84,44 @@ describe('liveSessionWatchReducer', () => {
       error: null,
       isJoined: false,
       submission: 'idle',
-      });
+    });
+  });
+
+  test('clears joined state when channel membership is lost', () => {
+    const joined = {
+      activeSessionId: 'session-1',
+      error: null,
+      isJoined: true,
+      submission: 'leaving' as const,
+    };
+
+    expect(
+      liveSessionWatchReducer(joined, {
+        sessionId: 'session-1',
+        type: 'membership_lost',
+      }),
+    ).toEqual({
+      activeSessionId: 'session-1',
+      error: null,
+      isJoined: false,
+      submission: 'idle',
+    });
+  });
+
+  test('ignores stale channel membership loss from an older session', () => {
+    const joined = {
+      activeSessionId: 'new-session',
+      error: null,
+      isJoined: true,
+      submission: 'idle' as const,
+    };
+
+    expect(
+      liveSessionWatchReducer(joined, {
+        sessionId: 'old-session',
+        type: 'membership_lost',
+      }),
+    ).toBe(joined);
   });
 
   test('tracks host end success and failure without requiring viewer join state', () => {

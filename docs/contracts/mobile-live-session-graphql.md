@@ -64,7 +64,7 @@ Recording assets are exposed only for durable recordings that the viewer is allo
 
 Ordering is stable:
 
-- `liveNow` is newest-live first (`startedAt` descending with `STARTING` sessions after live sessions, then `insertedAt`, then ID).
+- `liveNow` returns fresh `STARTING` preflight sessions before `LIVE` sessions so viewers can answer waiting hosts; stale preflights expire from discovery, and live rows then sort by `startedAt`, `insertedAt`, and ID.
 - `replayFeed` is newest-ended first (`endedAt` descending, then `insertedAt`, then ID).
 
 Both connections use standard Relay fields:

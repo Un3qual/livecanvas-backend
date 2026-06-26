@@ -459,7 +459,7 @@ defmodule LC.FeedTest do
       assert visible_session.id == live_session.id
     end
 
-    test "returns visible active sessions ordered newest-first" do
+    test "returns fresh preflight sessions before visible live sessions" do
       viewer = user_fixture()
       followed_host = user_fixture()
       public_host = user_fixture(privacy_mode: :public)
@@ -479,9 +479,39 @@ defmodule LC.FeedTest do
       {:ok, starting_session} = Live.start_live_session(public_host, %{visibility: :public})
 
       assert [first_session, second_session, third_session] = Feed.live_now(viewer, limit: 10)
-      assert first_session.id == public_session.id
-      assert second_session.id == followed_session.id
-      assert third_session.id == starting_session.id
+      assert first_session.id == starting_session.id
+      assert second_session.id == public_session.id
+      assert third_session.id == followed_session.id
+      assert [first_limited_session] = Feed.live_now(viewer, limit: 1)
+      assert first_limited_session.id == starting_session.id
+    end
+
+    test "excludes stale preflight sessions from discovery" do
+      viewer = user_fixture()
+      public_host = user_fixture(privacy_mode: :public)
+
+      {:ok, stale_starting_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, fresh_starting_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, live_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, _live_session} = Live.mark_session_live(live_session)
+
+      stale_inserted_at = DateTime.utc_now() |> DateTime.add(-11 * 60, :second)
+
+      {1, _rows} =
+        Repo.update_all(
+          from(live_session in LiveSessionSchema,
+            where: live_session.id == ^stale_starting_session.id
+          ),
+          set: [inserted_at: stale_inserted_at, updated_at: stale_inserted_at]
+        )
+
+      visible_session_ids =
+        viewer
+        |> Feed.live_now(limit: 10)
+        |> Enum.map(& &1.id)
+
+      assert visible_session_ids == [fresh_starting_session.id, live_session.id]
+      refute stale_starting_session.id in visible_session_ids
     end
   end
 
@@ -530,6 +560,22 @@ defmodule LC.FeedTest do
                Feed.profile_current_live_session_query(viewer, host) |> Repo.one()
 
       assert session_id == starting_session.id
+    end
+
+    test "does not return stale starting sessions for a profile" do
+      viewer = user_fixture()
+      host = user_fixture(privacy_mode: :public)
+      {:ok, starting_session} = Live.start_live_session(host, %{visibility: :public})
+
+      stale_inserted_at = DateTime.utc_now() |> DateTime.add(-11 * 60, :second)
+
+      {1, _rows} =
+        Repo.update_all(
+          from(live_session in LiveSessionSchema, where: live_session.id == ^starting_session.id),
+          set: [inserted_at: stale_inserted_at, updated_at: stale_inserted_at]
+        )
+
+      assert nil == Feed.profile_current_live_session_query(viewer, host) |> Repo.one()
     end
   end
 

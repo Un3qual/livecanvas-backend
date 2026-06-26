@@ -709,6 +709,54 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
     expect(harness.errorReasons).toEqual([]);
   });
 
+  test('answers a fresh host offer received while an earlier offer is still applying', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, startRuntime } = harness;
+
+    await startRuntime();
+    const remoteDescription = createDeferred();
+    peerConnections[0].setRemoteDescriptionDeferred = remoteDescription;
+
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer',
+      type: 'offer',
+    });
+    await flushAsyncHandlers();
+
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer-2',
+      type: 'offer',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].remoteDescriptions).toEqual([
+      {
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      },
+    ]);
+
+    remoteDescription.resolve();
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].remoteDescriptions).toEqual([
+      {
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      },
+      {
+        sdp: 'v=0\r\nhost-offer-2',
+        type: 'offer',
+      },
+    ]);
+    expect(
+      channel.pushes.filter((push) => push.eventName === 'media:answer'),
+    ).toHaveLength(2);
+    expect(harness.errorReasons).toEqual([]);
+  });
+
   test('answers a later fresh host offer after ignoring duplicate replay', async () => {
     const harness = createHarness();
     const { channel, peerConnections, startRuntime } = harness;

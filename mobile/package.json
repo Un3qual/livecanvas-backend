@@ -9,7 +9,7 @@
     "web": "expo start --web",
     "relay": "relay-compiler",
     "test:quality": "bun test src/live src/relay src/realtime src/host",
-    "typecheck": "./node_modules/.bin/tsc --noEmit"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^14.0.0",

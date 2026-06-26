@@ -798,6 +798,8 @@ function LiveSessionWatchContent({
       return;
     }
 
+    // Viewer playback work is generation-scoped so stale prepare/start
+    // continuations cannot dispose the newer runtime that replaced them.
     viewerPlaybackResourceRef.current = null;
     resource.runtime.dispose();
     resource.disconnectSocket();
@@ -856,11 +858,20 @@ function LiveSessionWatchContent({
           return;
         }
 
+        autoLeaveOnUnmountRef.current = {
+          sessionId: session.id,
+          shouldLeave: false,
+        };
         chatChannelClientRef.current = null;
         failPendingChatSend(
           session.id,
           'Chat disconnected before the message was sent.',
         );
+        stopViewerPlayback({ resetState: true });
+        dispatchWatchAction({
+          sessionId: session.id,
+          type: 'membership_lost',
+        });
         dispatchChatAction({
           sessionId: session.id,
           status: 'closed',
@@ -872,7 +883,17 @@ function LiveSessionWatchContent({
           return;
         }
 
+        autoLeaveOnUnmountRef.current = {
+          sessionId: session.id,
+          shouldLeave: false,
+        };
+        chatChannelClientRef.current = null;
         failPendingChatSend(session.id, reason);
+        stopViewerPlayback({ resetState: true });
+        dispatchWatchAction({
+          sessionId: session.id,
+          type: 'membership_lost',
+        });
         dispatchChatAction({
           error: reason,
           sessionId: session.id,

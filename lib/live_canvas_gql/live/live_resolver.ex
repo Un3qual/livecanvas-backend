@@ -393,6 +393,8 @@ defmodule LCGQL.Live.Resolver do
     if host_id == user_id, do: :ok, else: {:error, :not_authorized}
   end
 
+  # Viewer media setup is allowed only for the host or an active participant;
+  # authorize_join/2 still re-applies visibility and moderation checks.
   defp ensure_media_setup_authorized(
          %{id: session_id, host_id: host_id} = live_session,
          %User{id: user_id} = viewer

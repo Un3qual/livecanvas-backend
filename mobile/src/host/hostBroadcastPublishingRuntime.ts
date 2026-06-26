@@ -249,6 +249,8 @@ export function createHostBroadcastPublishingRuntime({
       return;
     }
 
+    // The beta path has one viewer peer connection; ignore duplicate answers
+    // while the accepted answer is applying or after it has landed.
     if (applyingViewerAnswer || viewerAnswerApplied) {
       return;
     }
@@ -354,6 +356,9 @@ export function createHostBroadcastPublishingRuntime({
       return;
     }
 
+    // Before the viewer answer lands, viewer_ready is a replay request for
+    // cached offer/ICE. After negotiation is ready, the single-viewer beta path
+    // restarts the peer connection and publishes a fresh offer instead.
     if (negotiationReady) {
       await restartNegotiationForReadyViewer();
       return;

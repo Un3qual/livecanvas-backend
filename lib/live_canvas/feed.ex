@@ -14,6 +14,7 @@ defmodule LC.Feed do
   alias LCSchemas.Live.LiveSession
 
   @default_limit 25
+  @starting_session_discovery_window_seconds 10 * 60
 
   @type home_feed_opts :: [limit: pos_integer()]
   @type profile_posts_opts :: [limit: pos_integer()]
@@ -142,7 +143,7 @@ defmodule LC.Feed do
   end
 
   @doc """
-  Returns active live sessions visible to the viewer, newest-live first.
+  Returns active live sessions visible to the viewer, fresh preflight first.
   """
   @spec live_now(User.t(), live_now_opts()) :: [LiveSession.t()]
   def live_now(%User{} = viewer, opts \\ []) do
@@ -168,11 +169,23 @@ defmodule LC.Feed do
   """
   @spec live_now_query(User.t()) :: Ecto.Query.t()
   def live_now_query(%User{} = viewer) do
+    starting_discovery_cutoff =
+      DateTime.utc_now()
+      |> DateTime.add(-@starting_session_discovery_window_seconds, :second)
+
     LiveSession
-    |> where([live_session], live_session.status in [:starting, :live])
+    |> where(
+      [live_session],
+      live_session.status == :live or
+        (live_session.status == :starting and
+           live_session.inserted_at >= ^starting_discovery_cutoff)
+    )
     |> ReadPolicy.viewer_visible_query(viewer, owner_key: :host_id, visibility_key: :visibility)
+    # STARTING rows are a short-lived media preflight window, not durable host
+    # presence; advertise fresh preflights first so viewers can answer hosts.
     |> order_by(
       [live_session],
+      asc: fragment("CASE WHEN ? = 'starting' THEN 0 ELSE 1 END", live_session.status),
       desc_nulls_last: live_session.started_at,
       desc: live_session.inserted_at,
       desc: live_session.id

@@ -121,6 +121,12 @@ export type LiveSessionViewerMediaAnswerPayload = {
   readonly type: 'answer';
 };
 
+type LiveSessionViewerHostOfferEvent = {
+  readonly description: LiveSessionViewerPlaybackSessionDescription;
+  readonly kind: 'media_offer';
+  readonly senderRole: 'host';
+};
+
 export type LiveSessionViewerMediaIceCandidatePayload = {
   readonly candidate: string;
   readonly sdp_m_line_index?: number;
@@ -247,6 +253,7 @@ export function createLiveSessionViewerPlaybackRuntime({
   let applyingRemoteOffer = false;
   let applyingRemoteOfferIdentity: string | null = null;
   const pendingHostIceCandidates: LiveSessionViewerPlaybackIceCandidate[] = [];
+  let pendingRemoteOffer: LiveSessionViewerHostOfferEvent | null = null;
   let peerConnection: LiveSessionViewerPlaybackPeerConnection | null = null;
   let remoteStreamAttached = false;
   let remoteOfferApplied = false;
@@ -351,8 +358,24 @@ export function createLiveSessionViewerPlaybackRuntime({
       return;
     }
 
+    await answerNormalizedHostOffer({
+      description: event.description,
+      kind: 'media_offer',
+      senderRole: 'host',
+    });
+  }
+
+  async function answerNormalizedHostOffer(
+    event: LiveSessionViewerHostOfferEvent,
+  ) {
+    if (disposed || !peerConnection) {
+      return;
+    }
+
     const offerIdentity = createSessionDescriptionIdentity(event.description);
 
+    // Offer identity guards duplicate replays while still allowing a later
+    // host restart to replace the pending negotiation attempt.
     if (
       applyingRemoteOffer &&
       applyingRemoteOfferIdentity === offerIdentity
@@ -365,10 +388,15 @@ export function createLiveSessionViewerPlaybackRuntime({
     }
 
     if (applyingRemoteOffer) {
+      // Host negotiation can restart while a prior offer is still applying.
+      // Retain only the newest fresh offer so the host gets a matching answer.
+      pendingRemoteOffer = event;
       return;
     }
 
     try {
+      // Set this synchronously before the first await so concurrent host offers
+      // either dedupe by identity or queue as a fresh restart.
       applyingRemoteOffer = true;
       applyingRemoteOfferIdentity = offerIdentity;
       remoteOfferApplied = false;
@@ -392,9 +420,16 @@ export function createLiveSessionViewerPlaybackRuntime({
       await peerConnection.setLocalDescription(answerPayload);
       throwIfDisposed();
       channel.push('media:answer', answerPayload);
+      const nextOffer = pendingRemoteOffer;
+      pendingRemoteOffer = null;
+
+      if (nextOffer) {
+        await answerNormalizedHostOffer(nextOffer);
+      }
     } catch (error) {
       applyingRemoteOffer = false;
       applyingRemoteOfferIdentity = null;
+      pendingRemoteOffer = null;
       if (!disposed && error !== disposedDuringAsyncError) {
         onError?.(GENERIC_VIEWER_PLAYBACK_FAILURE_REASON);
         dispose();
@@ -420,6 +455,8 @@ export function createLiveSessionViewerPlaybackRuntime({
     }
 
     try {
+      // Host ICE can arrive before the accepted remote offer has landed; queue
+      // it until setRemoteDescription finishes for the active offer.
       if (!remoteOfferApplied || applyingRemoteOffer) {
         queuePendingHostIceCandidate(event.candidate);
         return;
@@ -437,6 +474,8 @@ export function createLiveSessionViewerPlaybackRuntime({
   function queuePendingHostIceCandidate(
     candidate: LiveSessionViewerPlaybackIceCandidate,
   ) {
+    // Bound stale ICE growth during reconnect churn by dropping the oldest
+    // candidate once the pre-offer queue is full.
     if (pendingHostIceCandidates.length >= MAX_PENDING_HOST_ICE_CANDIDATES) {
       pendingHostIceCandidates.shift();
     }
@@ -474,6 +513,7 @@ export function createLiveSessionViewerPlaybackRuntime({
     }
 
     disposed = true;
+    pendingRemoteOffer = null;
     channel.leave();
 
     if (peerConnection) {
