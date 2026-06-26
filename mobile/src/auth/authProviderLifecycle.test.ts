@@ -1,6 +1,10 @@
 import { describe, expect, mock, test } from 'bun:test';
 
-import { forceUnauthenticated, shouldApplyBootstrapState } from './authProviderLifecycle';
+import {
+  forceUnauthenticated,
+  runBestEffortBeforeUnauthenticatedCallback,
+  shouldApplyBootstrapState,
+} from './authProviderLifecycle';
 
 describe('authProviderLifecycle', () => {
   test('allows bootstrap only while the provider is still loading', () => {
@@ -45,5 +49,15 @@ describe('authProviderLifecycle', () => {
       'clearTokens',
       'onForcedLogout',
     ]);
+  });
+
+  test('bounds best-effort cleanup callbacks before auth teardown', async () => {
+    const callback = mock(() => new Promise<void>(() => {}));
+
+    await expect(
+      runBestEffortBeforeUnauthenticatedCallback(callback, 1),
+    ).resolves.toBeUndefined();
+
+    expect(callback).toHaveBeenCalledTimes(1);
   });
 });

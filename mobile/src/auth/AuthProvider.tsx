@@ -7,7 +7,11 @@ import type {
 } from './types';
 import { clearTokens, loadTokens, storeTokens } from './tokenStorage';
 import { resolveAuthBootstrapState } from './authBootstrap';
-import { forceUnauthenticated, shouldApplyBootstrapState } from './authProviderLifecycle';
+import {
+  forceUnauthenticated,
+  runBestEffortBeforeUnauthenticatedCallback,
+  shouldApplyBootstrapState,
+} from './authProviderLifecycle';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -78,9 +82,9 @@ export function AuthProvider({
   );
 
   const runBeforeUnauthenticatedCallbacks = useCallback(async () => {
-    for (const callback of beforeUnauthenticatedCallbacksRef.current) {
+    for (const callback of Array.from(beforeUnauthenticatedCallbacksRef.current)) {
       try {
-        await callback();
+        await runBestEffortBeforeUnauthenticatedCallback(callback);
       } catch {
         // Keep local auth teardown independent from best-effort session cleanup.
       }

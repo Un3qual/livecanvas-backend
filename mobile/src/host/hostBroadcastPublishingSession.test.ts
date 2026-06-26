@@ -445,6 +445,51 @@ describe('hostBroadcastPublishingSession', () => {
     expect(resource.disconnectCount()).toBe(0);
   });
 
+  test('aborts hung auth-loss session end requests', async () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const resource = createResource();
+    let abortListenerAttached = false;
+    let abortReceived = false;
+    const fetchImpl: typeof fetch = (_url, init) => {
+      const signal = init?.signal;
+
+      return new Promise<Response>((resolve) => {
+        if (!signal) {
+          resolve(new Response('missing abort signal', { status: 599 }));
+          return;
+        }
+
+        abortListenerAttached = true;
+        signal.addEventListener(
+          'abort',
+          () => {
+            abortReceived = true;
+            resolve(new Response('aborted', { status: 408 }));
+          },
+          { once: true },
+        );
+      });
+    };
+
+    store.retain('live-session-id', resource);
+
+    await expect(
+      releaseHostBroadcastPublishingBeforeAuthLoss({
+        apiBaseUrl: 'https://api.example.test',
+        endLiveSessionTimeoutMs: 1,
+        fetchImpl,
+        getAccessToken: () => 'access-token',
+        store,
+      }),
+    ).resolves.toEqual([]);
+
+    expect(abortListenerAttached).toBe(true);
+    expect(abortReceived).toBe(true);
+    expect(store.has('live-session-id')).toBe(true);
+    expect(resource.disposeCount()).toBe(0);
+    expect(resource.disconnectCount()).toBe(0);
+  });
+
   test('does not release a replacement retained resource after stale auth-loss cleanup succeeds', async () => {
     const store = createHostBroadcastPublishingSessionStore();
     const firstResource = createResource();

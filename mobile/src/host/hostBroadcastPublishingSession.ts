@@ -35,6 +35,7 @@ export type HostBroadcastPublishingAuthStatus =
 
 export type ReleaseHostBroadcastPublishingBeforeAuthLossOptions = {
   readonly apiBaseUrl: string;
+  readonly endLiveSessionTimeoutMs?: number;
   readonly fetchImpl?: typeof fetch;
   readonly getAccessToken: () => string | null;
   readonly store: Pick<
@@ -56,6 +57,8 @@ const END_RETAINED_HOST_PUBLISHING_SESSION_MUTATION = `
     }
   }
 `;
+
+const AUTH_LOSS_END_LIVE_SESSION_TIMEOUT_MS = 5_000;
 
 export type ReleaseCurrentRetainedHostPublishingResourceOptions = {
   readonly clearCurrentResource: (
@@ -255,6 +258,7 @@ export function releaseHostBroadcastPublishingAfterAuthStateChange(
 
 export async function releaseHostBroadcastPublishingBeforeAuthLoss({
   apiBaseUrl,
+  endLiveSessionTimeoutMs = AUTH_LOSS_END_LIVE_SESSION_TIMEOUT_MS,
   fetchImpl = fetch,
   getAccessToken,
   store,
@@ -276,6 +280,7 @@ export async function releaseHostBroadcastPublishingBeforeAuthLoss({
           apiBaseUrl,
           fetchImpl,
           liveSessionId,
+          timeoutMs: endLiveSessionTimeoutMs,
         })
       ) {
         return store.releaseIfCurrent(liveSessionId, resource)
@@ -297,12 +302,18 @@ async function endRetainedHostPublishingLiveSession({
   apiBaseUrl,
   fetchImpl,
   liveSessionId,
+  timeoutMs,
 }: {
   readonly accessToken: string;
   readonly apiBaseUrl: string;
   readonly fetchImpl: typeof fetch;
   readonly liveSessionId: string;
+  readonly timeoutMs: number;
 }): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
   let response: Response;
 
   try {
@@ -318,9 +329,12 @@ async function endRetainedHostPublishingLiveSession({
         'Content-Type': 'application/json',
       },
       method: 'POST',
+      signal: controller.signal,
     });
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!response.ok) {
