@@ -152,6 +152,10 @@ export function liveSessionWatchReducer(
         return state;
       }
 
+      if (state.submission !== 'leaving') {
+        return state;
+      }
+
       return {
         activeSessionId: action.sessionId,
         error: action.error,

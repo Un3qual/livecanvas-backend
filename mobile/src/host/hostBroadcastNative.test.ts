@@ -161,14 +161,16 @@ describe('hostBroadcastNative', () => {
     const firstPreview = native.getPreviewStream();
     native.releasePreviewStream();
     const firstStream = createStream();
-    resolvers[0]?.(firstStream);
+    expect(resolvers).toHaveLength(1);
+    resolvers[0](firstStream);
 
     await expect(firstPreview).resolves.toBeNull();
     expect(stoppedTrackCount).toBe(1);
 
     const secondPreview = native.getPreviewStream();
     const secondStream = createStream();
-    resolvers[1]?.(secondStream);
+    expect(resolvers).toHaveLength(2);
+    resolvers[1](secondStream);
 
     await expect(secondPreview).resolves.toBe(secondStream);
     native.dispose();

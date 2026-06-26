@@ -1200,10 +1200,10 @@ function LiveSessionWatchContent({
 
     if (
       !canStartLiveSessionViewerJoin({
-        canEndLiveSession,
         enterable,
         hasActiveSubmission,
         hasPendingMutation,
+        isHostOwnedSession: isCurrentViewerHost,
         isJoined,
       })
     ) {
@@ -1534,6 +1534,7 @@ function LiveSessionWatchContent({
         enterable={enterable}
         hasActiveSubmission={hasActiveSubmission}
         isEnding={isEnding}
+        isHostOwnedSession={isCurrentViewerHost}
         isJoined={isJoined}
         isJoining={isJoining}
         isLeaving={isLeaving}
@@ -1596,6 +1597,7 @@ function LiveSessionWatchControlsCard({
   enterable,
   hasActiveSubmission,
   isEnding,
+  isHostOwnedSession,
   isJoined,
   isJoining,
   isLeaving,
@@ -1609,6 +1611,7 @@ function LiveSessionWatchControlsCard({
   enterable: boolean;
   hasActiveSubmission: boolean;
   isEnding: boolean;
+  isHostOwnedSession: boolean;
   isJoined: boolean;
   isJoining: boolean;
   isLeaving: boolean;
@@ -1620,7 +1623,7 @@ function LiveSessionWatchControlsCard({
 }) {
   const theme = useAppTheme();
   const showViewerJoinControl = shouldShowLiveSessionViewerJoinControl({
-    canEndLiveSession,
+    isHostOwnedSession,
     isJoined,
   });
 

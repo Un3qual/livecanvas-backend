@@ -1,5 +1,5 @@
 export type LiveSessionViewerJoinControlState = {
-  readonly canEndLiveSession: boolean;
+  readonly isHostOwnedSession: boolean;
   readonly isJoined: boolean;
 };
 
@@ -11,14 +11,14 @@ export type LiveSessionViewerJoinStartState =
   };
 
 export function canStartLiveSessionViewerJoin({
-  canEndLiveSession,
   enterable,
   hasActiveSubmission,
   hasPendingMutation,
+  isHostOwnedSession,
   isJoined,
 }: LiveSessionViewerJoinStartState): boolean {
   return (
-    !canEndLiveSession &&
+    !isHostOwnedSession &&
     enterable &&
     !hasActiveSubmission &&
     !hasPendingMutation &&
@@ -27,8 +27,8 @@ export function canStartLiveSessionViewerJoin({
 }
 
 export function shouldShowLiveSessionViewerJoinControl({
-  canEndLiveSession,
+  isHostOwnedSession,
   isJoined,
 }: LiveSessionViewerJoinControlState): boolean {
-  return !canEndLiveSession && !isJoined;
+  return !isHostOwnedSession && !isJoined;
 }

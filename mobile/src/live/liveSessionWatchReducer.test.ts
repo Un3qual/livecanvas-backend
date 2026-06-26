@@ -108,6 +108,37 @@ describe('liveSessionWatchReducer', () => {
     });
   });
 
+  test('ignores stale leave failure after channel membership is lost', () => {
+    const joined = {
+      activeSessionId: 'session-1',
+      error: null,
+      isJoined: true,
+      submission: 'idle' as const,
+    };
+
+    const leaving = liveSessionWatchReducer(joined, {
+      sessionId: 'session-1',
+      type: 'leave_started',
+    });
+    const membershipLost = liveSessionWatchReducer(leaving, {
+      sessionId: 'session-1',
+      type: 'membership_lost',
+    });
+
+    expect(
+      liveSessionWatchReducer(membershipLost, {
+        error: 'We could not update this live session.',
+        sessionId: 'session-1',
+        type: 'leave_failed',
+      }),
+    ).toEqual({
+      activeSessionId: 'session-1',
+      error: null,
+      isJoined: false,
+      submission: 'idle',
+    });
+  });
+
   test('ignores stale channel membership loss from an older session', () => {
     const joined = {
       activeSessionId: 'new-session',

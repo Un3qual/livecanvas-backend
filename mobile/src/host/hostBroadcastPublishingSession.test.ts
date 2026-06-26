@@ -161,6 +161,40 @@ describe('hostBroadcastPublishingSession', () => {
     expect(resource.disconnectCount()).toBe(1);
   });
 
+  test('does not report a stale retained publishing resource release', () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const staleResource = createResource();
+    const retainedResource = createResource();
+    const liveSessionIdsByResource = new Map([
+      [staleResource, 'live-session-id'],
+      [retainedResource, 'live-session-id'],
+    ]);
+    let currentResource: HostBroadcastPublishingResource | null = staleResource;
+
+    store.retain('live-session-id', staleResource);
+    store.retain('live-session-id', retainedResource);
+
+    expect(
+      releaseCurrentRetainedHostPublishingResource({
+        clearCurrentResource: (releasedResource) => {
+          if (currentResource === releasedResource) {
+            currentResource = null;
+          }
+        },
+        currentResource,
+        liveSessionIdsByResource,
+        store,
+      }),
+    ).toBeNull();
+
+    expect(currentResource).toBe(staleResource);
+    expect(liveSessionIdsByResource.has(staleResource)).toBe(true);
+    expect(liveSessionIdsByResource.has(retainedResource)).toBe(true);
+    expect(store.has('live-session-id')).toBe(true);
+    expect(retainedResource.disposeCount()).toBe(0);
+    expect(retainedResource.disconnectCount()).toBe(0);
+  });
+
   test('ends sessions only when a retained publishing resource closes', () => {
     const endedSessionIds: string[] = [];
 

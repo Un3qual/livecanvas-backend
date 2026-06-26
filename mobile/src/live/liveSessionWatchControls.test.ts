@@ -9,7 +9,7 @@ describe('liveSessionWatchControls', () => {
   test('shows viewer join control for enterable viewer sessions before joining', () => {
     expect(
       shouldShowLiveSessionViewerJoinControl({
-        canEndLiveSession: false,
+        isHostOwnedSession: false,
         isJoined: false,
       }),
     ).toBe(true);
@@ -18,7 +18,7 @@ describe('liveSessionWatchControls', () => {
   test('hides viewer join control once the viewer has joined', () => {
     expect(
       shouldShowLiveSessionViewerJoinControl({
-        canEndLiveSession: false,
+        isHostOwnedSession: false,
         isJoined: true,
       }),
     ).toBe(false);
@@ -27,7 +27,16 @@ describe('liveSessionWatchControls', () => {
   test('hides viewer join control for host-owned sessions', () => {
     expect(
       shouldShowLiveSessionViewerJoinControl({
-        canEndLiveSession: true,
+        isHostOwnedSession: true,
+        isJoined: false,
+      }),
+    ).toBe(false);
+  });
+
+  test('hides viewer join control for ended host-owned sessions', () => {
+    expect(
+      shouldShowLiveSessionViewerJoinControl({
+        isHostOwnedSession: true,
         isJoined: false,
       }),
     ).toBe(false);
@@ -36,10 +45,22 @@ describe('liveSessionWatchControls', () => {
   test('blocks viewer join submission for host-owned sessions', () => {
     expect(
       canStartLiveSessionViewerJoin({
-        canEndLiveSession: true,
         enterable: true,
         hasActiveSubmission: false,
         hasPendingMutation: false,
+        isHostOwnedSession: true,
+        isJoined: false,
+      }),
+    ).toBe(false);
+  });
+
+  test('blocks viewer join submission for ended host-owned sessions', () => {
+    expect(
+      canStartLiveSessionViewerJoin({
+        enterable: true,
+        hasActiveSubmission: false,
+        hasPendingMutation: false,
+        isHostOwnedSession: true,
         isJoined: false,
       }),
     ).toBe(false);
@@ -48,10 +69,10 @@ describe('liveSessionWatchControls', () => {
   test('allows viewer join submission for enterable idle viewer sessions', () => {
     expect(
       canStartLiveSessionViewerJoin({
-        canEndLiveSession: false,
         enterable: true,
         hasActiveSubmission: false,
         hasPendingMutation: false,
+        isHostOwnedSession: false,
         isJoined: false,
       }),
     ).toBe(true);

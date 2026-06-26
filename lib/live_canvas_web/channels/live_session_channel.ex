@@ -217,6 +217,8 @@ defmodule LCWeb.LiveSessionChannel do
 
   defp maybe_join_live_session(:live_session, %{host_id: user_id}, %{id: user_id})
        when is_integer(user_id),
+       # Hosts use the live-session channel without creating viewer participant
+       # state; terminate/2 still runs the shared best-effort leave cleanup.
        do: :ok
 
   defp maybe_join_live_session(:live_session, live_session, current_user)

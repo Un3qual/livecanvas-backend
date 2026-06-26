@@ -164,12 +164,17 @@ export function releaseCurrentRetainedHostPublishingResource({
     return null;
   }
 
+  if (
+    !releaseHostBroadcastPublishingRetainedResource(
+      liveSessionId,
+      currentResource,
+      store,
+    )
+  ) {
+    return null;
+  }
+
   liveSessionIdsByResource.delete(currentResource);
-  releaseHostBroadcastPublishingRetainedResource(
-    liveSessionId,
-    currentResource,
-    store,
-  );
   clearCurrentResource(currentResource);
   return liveSessionId;
 }
