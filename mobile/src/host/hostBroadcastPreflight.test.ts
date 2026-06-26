@@ -80,6 +80,17 @@ describe('hostBroadcastPreflight', () => {
     expect(canCreateHostPreflightSession(backendReady)).toBe(true);
     expect(canGoLiveFromHostPreflight(backendReady)).toBe(true);
     expect(hostBroadcastPreflightBlockers(backendReady)).toEqual([]);
+
+    const backendPending = hostBroadcastPreflightReducer(backendReady, {
+      ready: false,
+      type: 'backend_media_contract_changed',
+    });
+
+    expect(canCreateHostPreflightSession(backendPending)).toBe(true);
+    expect(canGoLiveFromHostPreflight(backendPending)).toBe(false);
+    expect(hostBroadcastPreflightBlockers(backendPending)).toEqual([
+      { reason: 'backend_media_contract', userActionable: false },
+    ]);
   });
 
   test('reports denied and blocked permissions as user-actionable blockers', () => {

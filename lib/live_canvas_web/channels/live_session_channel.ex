@@ -215,6 +215,10 @@ defmodule LCWeb.LiveSessionChannel do
      socket}
   end
 
+  defp maybe_join_live_session(:live_session, %{host_id: user_id}, %{id: user_id})
+       when is_integer(user_id),
+       do: :ok
+
   defp maybe_join_live_session(:live_session, live_session, current_user)
        when is_map(live_session) and is_map(current_user) do
     with {:ok, _participant} <- Live.join_live_session(live_session, current_user, :viewer) do

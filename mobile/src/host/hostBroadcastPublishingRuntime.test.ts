@@ -227,6 +227,7 @@ function createHarness(
   options: {
     readonly onChannelTerminated?: () => void;
     readonly onError?: (reason: string) => void;
+    readonly onNegotiationPending?: () => void;
   } = {},
 ) {
   const channel = new FakeChannel();
@@ -240,6 +241,7 @@ function createHarness(
     },
   };
   let localDisposeCount = 0;
+  let pendingCount = 0;
   let readyCount = 0;
   let channelTerminatedCount = 0;
   const errorReasons: string[] = [];
@@ -256,6 +258,10 @@ function createHarness(
     localStream: stream,
     onNegotiationReady: () => {
       readyCount += 1;
+    },
+    onNegotiationPending: () => {
+      pendingCount += 1;
+      options.onNegotiationPending?.();
     },
     onError: (reason) => {
       errorReasons.push(reason);
@@ -288,6 +294,9 @@ function createHarness(
     errorReasons,
     get readyCount() {
       return readyCount;
+    },
+    get pendingCount() {
+      return pendingCount;
     },
     runtime,
     stream,
@@ -453,6 +462,7 @@ describe('createHostBroadcastPublishingRuntime', () => {
 
     expect(runtime.isNegotiationReady()).toBe(true);
     expect(harness.readyCount).toBe(1);
+    expect(harness.pendingCount).toBe(0);
 
     channel.emit('media:viewer_ready', {
       sender_role: 'viewer',
@@ -466,9 +476,21 @@ describe('createHostBroadcastPublishingRuntime', () => {
       { stream: harness.stream, track: harness.tracks[1] },
     ]);
     expect(runtime.isNegotiationReady()).toBe(false);
+    expect(harness.pendingCount).toBe(1);
     expect(
       channel.pushes.filter((push) => push.eventName === 'media:offer'),
     ).toHaveLength(2);
+
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nviewer-answer-after-restart',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+
+    expect(runtime.isNegotiationReady()).toBe(true);
+    expect(harness.readyCount).toBe(2);
+    expect(harness.pendingCount).toBe(1);
   });
 
   test('replays gathered host ICE candidates after a late viewer readiness signal', async () => {

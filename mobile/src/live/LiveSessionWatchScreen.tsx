@@ -64,6 +64,11 @@ import {
 import { handleLiveSessionEndedRealtimeCleanup } from './liveSessionEndedRealtimeCleanup';
 import { shouldMaintainLiveSessionRealtimeChannel } from './liveSessionRealtimeSubscription';
 import {
+  readLiveSessionRealtimeStatus,
+  updateLiveSessionRealtimeStatus,
+  type LiveSessionRealtimeStatusMap,
+} from './liveSessionRealtimeStatus';
+import {
   createDefaultLiveSessionViewerPeerConnectionFactory,
   createLiveSessionViewerPlaybackRuntime,
   readPreparedLiveSessionViewerMedia,
@@ -464,9 +469,8 @@ function LiveSessionWatchContent({
     );
   const [viewerPlaybackState, setViewerPlaybackState] =
     useState<ViewerPlaybackState>(INITIAL_VIEWER_PLAYBACK_STATE);
-  const [realtimeEndedSessionIds, setRealtimeEndedSessionIds] = useState<
-    ReadonlySet<string>
-  >(() => new Set());
+  const [realtimeSessionStatuses, setRealtimeSessionStatuses] =
+    useState<LiveSessionRealtimeStatusMap>(() => new Map());
   const autoLeaveOnUnmountRef = useRef<
     AutoLeaveOnUnmountRef['current']
   >(null);
@@ -491,10 +495,13 @@ function LiveSessionWatchContent({
   const queriedNormalizedStatus = normalizeLiveSessionStatus(
     session?.status ?? 'ENDED',
   );
-  const normalizedStatus =
-    session && realtimeEndedSessionIds.has(session.id)
-      ? 'ENDED'
-      : queriedNormalizedStatus;
+  const normalizedStatus = session
+    ? readLiveSessionRealtimeStatus({
+        liveSessionId: session.id,
+        queriedStatus: queriedNormalizedStatus,
+        realtimeStatuses: realtimeSessionStatuses,
+      })
+    : queriedNormalizedStatus;
   const enterable = canEnterLiveSession(normalizedStatus);
   const isCurrentSession =
     session !== null && watchState.activeSessionId === session.id;
@@ -523,19 +530,24 @@ function LiveSessionWatchContent({
     dispatchWatchAction({ type: 'session_changed', sessionId });
     dispatchChatAction({ type: 'session_changed', sessionId });
     chatSendPendingRef.current = null;
-    setRealtimeEndedSessionIds(new Set());
+    setRealtimeSessionStatuses(new Map());
   }, [sessionId]);
 
   function markLiveSessionEnded(liveSessionId: string) {
-    setRealtimeEndedSessionIds((sessionIds) => {
-      if (sessionIds.has(liveSessionId)) {
-        return sessionIds;
-      }
+    markLiveSessionRealtimeStatus(liveSessionId, 'ENDED');
+  }
 
-      const nextSessionIds = new Set(sessionIds);
-      nextSessionIds.add(liveSessionId);
-      return nextSessionIds;
-    });
+  function markLiveSessionRealtimeStatus(
+    liveSessionId: string,
+    status: LiveSessionStatus,
+  ) {
+    setRealtimeSessionStatuses((statuses) =>
+      updateLiveSessionRealtimeStatus({
+        liveSessionId,
+        realtimeStatuses: statuses,
+        status,
+      }),
+    );
   }
 
   useEffect(() => {
@@ -934,6 +946,8 @@ function LiveSessionWatchContent({
         if (!chatChannelLifecycle.isActive()) {
           return;
         }
+
+        markLiveSessionRealtimeStatus(session.id, event.status);
 
         if (event.status === 'ENDED') {
           handleLiveSessionEndedRealtimeCleanup({

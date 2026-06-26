@@ -80,6 +80,7 @@ export type HostBroadcastPublishingRuntimeOptions = {
   readonly localStream: HostBroadcastPublishingMediaStream;
   readonly onChannelTerminated?: () => void;
   readonly onError?: (reason: string) => void;
+  readonly onNegotiationPending?: () => void;
   readonly onNegotiationReady?: () => void;
   readonly peerConnectionFactory: HostBroadcastPublishingPeerConnectionFactory;
   readonly preparedMedia: HostBroadcastMediaPreparation;
@@ -105,6 +106,7 @@ export function createHostBroadcastPublishingRuntime({
   localStream,
   onChannelTerminated,
   onError,
+  onNegotiationPending,
   onNegotiationReady,
   peerConnectionFactory,
   preparedMedia,
@@ -383,7 +385,7 @@ export function createHostBroadcastPublishingRuntime({
     applyingViewerAnswer = false;
     localIceCandidatePayloads = [];
     localOfferPayload = null;
-    negotiationReady = false;
+    markNegotiationPending();
     pendingViewerIceCandidates = [];
     viewerAnswerApplied = false;
 
@@ -405,6 +407,15 @@ export function createHostBroadcastPublishingRuntime({
 
     negotiationReady = true;
     onNegotiationReady?.();
+  }
+
+  function markNegotiationPending() {
+    if (disposed || !negotiationReady) {
+      return;
+    }
+
+    negotiationReady = false;
+    onNegotiationPending?.();
   }
 
   function dispose() {

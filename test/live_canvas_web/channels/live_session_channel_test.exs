@@ -45,6 +45,32 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
   end
 
+  test "host live-session topic join monitors state without becoming a viewer" do
+    host = user_fixture(privacy_mode: :public)
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:ok,
+            %{
+              session_state: %{
+                status: :starting,
+                visibility: :public,
+                viewer_count: 0
+              }
+            }, _socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               LiveSessionTopics.live_session_topic(session.id)
+             )
+
+    assert Repo.get_by(LiveParticipant, live_session_id: session.id, user_id: host.id) == nil
+    assert Live.active_live_viewer_ids(session.id) == []
+
+    assert {:ok, runtime_pid} = Live.lookup_session_server(session.id)
+    assert %{participants: participants} = SessionServer.snapshot(runtime_pid)
+    refute Map.has_key?(participants, host.id)
+  end
+
   test "published session state is re-read from persistence before broadcasting" do
     host = user_fixture(privacy_mode: :public)
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
@@ -261,6 +287,13 @@ defmodule LCWeb.LiveSessionChannelTest do
     signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
 
     assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
+    assert {:ok, _host_monitor_payload, _host_monitor_socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               LiveSessionTopics.live_session_topic(session.id)
+             )
 
     assert {:ok, _join_payload, socket} =
              subscribe_and_join(

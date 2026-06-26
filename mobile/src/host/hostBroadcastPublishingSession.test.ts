@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
+  endReleasedRetainedHostPublishingSession,
   releaseCurrentRetainedHostPublishingResource,
   releaseHostBroadcastPublishingAfterAuthStateChange,
   releaseHostBroadcastPublishingRetainedResource,
@@ -157,6 +158,24 @@ describe('hostBroadcastPublishingSession', () => {
     expect(store.has('live-session-id')).toBe(false);
     expect(resource.disposeCount()).toBe(1);
     expect(resource.disconnectCount()).toBe(1);
+  });
+
+  test('requests session end when a retained publishing resource is released by runtime termination', () => {
+    const endedSessionIds: string[] = [];
+
+    expect(
+      endReleasedRetainedHostPublishingSession(null, (liveSessionId) => {
+        endedSessionIds.push(liveSessionId);
+      }),
+    ).toBe(false);
+    expect(endedSessionIds).toEqual([]);
+
+    expect(
+      endReleasedRetainedHostPublishingSession('live-session-id', (liveSessionId) => {
+        endedSessionIds.push(liveSessionId);
+      }),
+    ).toBe(true);
+    expect(endedSessionIds).toEqual(['live-session-id']);
   });
 
   test('releases retained publishing resources when auth leaves authenticated state', () => {

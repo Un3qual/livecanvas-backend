@@ -35,6 +35,7 @@ import {
 import { useHostBroadcastPublishingSessions } from './HostBroadcastPublishingSessionProvider';
 import {
   createHostBroadcastPublishingPreflightController,
+  endReleasedRetainedHostPublishingSession,
   releaseCurrentRetainedHostPublishingResource,
   type HostBroadcastPublishingResource,
   type HostBroadcastPublishingPreflightController,
@@ -735,7 +736,16 @@ export function HostBroadcastPreflightScreen() {
 
           didHandleChannelTermination = true;
 
-          if (releaseRetainedPublishingResource()) {
+          if (
+            endReleasedRetainedHostPublishingSession(
+              releaseRetainedPublishingResource(),
+              (retainedLiveSessionId) => {
+                requestPreflightEndLiveSession(retainedLiveSessionId, {
+                  navigateBackOnSuccess: false,
+                });
+              },
+            )
+          ) {
             return;
           }
 
@@ -771,6 +781,17 @@ export function HostBroadcastPreflightScreen() {
             type: 'backend_media_contract_changed',
           });
           setHostActionError(null);
+        },
+        onNegotiationPending: () => {
+          if (!isActive) {
+            return;
+          }
+
+          setPublishingStatus('negotiating');
+          dispatchPreflightAction({
+            ready: false,
+            type: 'backend_media_contract_changed',
+          });
         },
         peerConnectionFactory,
         preparedMedia: mediaPreparation,

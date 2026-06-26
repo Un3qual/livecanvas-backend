@@ -171,6 +171,18 @@ export function releaseCurrentRetainedHostPublishingResource({
   return liveSessionId;
 }
 
+export function endReleasedRetainedHostPublishingSession(
+  liveSessionId: string | null,
+  endLiveSession: (liveSessionId: string) => void,
+): boolean {
+  if (!liveSessionId) {
+    return false;
+  }
+
+  endLiveSession(liveSessionId);
+  return true;
+}
+
 export function releaseHostBroadcastPublishingAfterAuthStateChange(
   previousStatus: HostBroadcastPublishingAuthStatus,
   nextStatus: HostBroadcastPublishingAuthStatus,
