@@ -52,12 +52,17 @@ describe('authProviderLifecycle', () => {
   });
 
   test('bounds best-effort cleanup callbacks before auth teardown', async () => {
-    const callback = mock(() => new Promise<void>(() => {}));
+    let resolveCleanup!: () => void;
+    const pendingCleanup = new Promise<void>((resolve) => {
+      resolveCleanup = resolve;
+    });
+    const callback = mock(() => pendingCleanup);
 
     await expect(
       runBestEffortBeforeUnauthenticatedCallback(callback, 1),
     ).resolves.toBeUndefined();
 
     expect(callback).toHaveBeenCalledTimes(1);
+    resolveCleanup();
   });
 });
