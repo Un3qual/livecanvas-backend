@@ -8,8 +8,18 @@ export type HostBroadcastPublishingResource = {
   readonly runtime: HostBroadcastPublishingRuntime;
 };
 
+export type HostBroadcastPublishingRetainedEntry = {
+  readonly liveSessionId: string;
+  readonly resource: HostBroadcastPublishingResource;
+};
+
 export type HostBroadcastPublishingSessionStore = {
   readonly has: (liveSessionId: string) => boolean;
+  readonly markAuthLossEndFailed: (
+    liveSessionId: string,
+    resource: HostBroadcastPublishingResource,
+  ) => void;
+  readonly releaseAllForAuthStateChange: () => readonly string[];
   readonly release: (liveSessionId: string) => void;
   readonly releaseAll: () => readonly string[];
   readonly releaseIfCurrent: (
@@ -20,6 +30,7 @@ export type HostBroadcastPublishingSessionStore = {
     liveSessionId: string,
     resource: HostBroadcastPublishingResource,
   ) => void;
+  readonly retainedEntries: () => readonly HostBroadcastPublishingRetainedEntry[];
 };
 
 export type HostBroadcastPublishingAuthStatus =
@@ -31,7 +42,10 @@ export type ReleaseHostBroadcastPublishingBeforeAuthLossOptions = {
   readonly apiBaseUrl: string;
   readonly fetchImpl?: typeof fetch;
   readonly getAccessToken: () => string | null;
-  readonly store: Pick<HostBroadcastPublishingSessionStore, 'releaseAll'>;
+  readonly store: Pick<
+    HostBroadcastPublishingSessionStore,
+    'markAuthLossEndFailed' | 'releaseIfCurrent' | 'retainedEntries'
+  >;
 };
 
 const END_RETAINED_HOST_PUBLISHING_SESSION_MUTATION = `
@@ -70,10 +84,33 @@ const disposedResources = new WeakSet<HostBroadcastPublishingResource>();
 
 export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublishingSessionStore {
   const resources = new Map<string, HostBroadcastPublishingResource>();
+  const failedAuthLossEndResources =
+    new Map<string, HostBroadcastPublishingResource>();
 
   return {
     has(liveSessionId) {
       return resources.has(liveSessionId);
+    },
+    markAuthLossEndFailed(liveSessionId, resource) {
+      if (resources.get(liveSessionId) === resource) {
+        failedAuthLossEndResources.set(liveSessionId, resource);
+      }
+    },
+    releaseAllForAuthStateChange() {
+      const releasedLiveSessionIds: string[] = [];
+
+      for (const [liveSessionId, resource] of resources) {
+        if (failedAuthLossEndResources.get(liveSessionId) === resource) {
+          continue;
+        }
+
+        resources.delete(liveSessionId);
+        failedAuthLossEndResources.delete(liveSessionId);
+        disposeHostBroadcastPublishingResource(resource);
+        releasedLiveSessionIds.push(liveSessionId);
+      }
+
+      return releasedLiveSessionIds;
     },
     release(liveSessionId) {
       const resource = resources.get(liveSessionId);
@@ -83,12 +120,14 @@ export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublis
       }
 
       resources.delete(liveSessionId);
+      failedAuthLossEndResources.delete(liveSessionId);
       disposeHostBroadcastPublishingResource(resource);
     },
     releaseAll() {
       const releasedLiveSessionIds = [...resources.keys()];
       const retainedResources = [...resources.values()];
       resources.clear();
+      failedAuthLossEndResources.clear();
 
       for (const resource of retainedResources) {
         disposeHostBroadcastPublishingResource(resource);
@@ -102,6 +141,7 @@ export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublis
       }
 
       resources.delete(liveSessionId);
+      failedAuthLossEndResources.delete(liveSessionId);
       disposeHostBroadcastPublishingResource(resource);
       return true;
     },
@@ -112,11 +152,19 @@ export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublis
         return;
       }
 
+      failedAuthLossEndResources.delete(liveSessionId);
+
       if (existing) {
         disposeHostBroadcastPublishingResource(existing);
       }
 
       resources.set(liveSessionId, resource);
+    },
+    retainedEntries() {
+      return [...resources].map(([liveSessionId, resource]) => ({
+        liveSessionId,
+        resource,
+      }));
     },
   };
 }
@@ -229,10 +277,10 @@ export function shouldIgnoreRetainedHostPublishingChannelTermination(
 export function releaseHostBroadcastPublishingAfterAuthStateChange(
   previousStatus: HostBroadcastPublishingAuthStatus,
   nextStatus: HostBroadcastPublishingAuthStatus,
-  store: Pick<HostBroadcastPublishingSessionStore, 'releaseAll'>,
+  store: Pick<HostBroadcastPublishingSessionStore, 'releaseAllForAuthStateChange'>,
 ): readonly string[] {
   if (previousStatus === 'authenticated' && nextStatus !== 'authenticated') {
-    return store.releaseAll();
+    return store.releaseAllForAuthStateChange();
   }
 
   return [];
@@ -247,33 +295,109 @@ export async function releaseHostBroadcastPublishingBeforeAuthLoss({
   readonly string[]
 > {
   const accessToken = getAccessToken();
-  const releasedLiveSessionIds = store.releaseAll();
+  const retainedEntries = store.retainedEntries();
 
   if (!accessToken) {
-    return releasedLiveSessionIds;
+    for (const { liveSessionId, resource } of retainedEntries) {
+      store.markAuthLossEndFailed(liveSessionId, resource);
+    }
+
+    return [];
   }
 
-  await Promise.all(
-    releasedLiveSessionIds.map(async (liveSessionId) => {
-      try {
-        await fetchImpl(`${apiBaseUrl}/graphql`, {
-          body: JSON.stringify({
-            query: END_RETAINED_HOST_PUBLISHING_SESSION_MUTATION,
-            variables: {
-              input: { liveSessionId },
-            },
-          }),
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          method: 'POST',
-        });
-      } catch {
-        // Local auth teardown must continue even if best-effort backend cleanup fails.
+  const releasedLiveSessionIds = await Promise.all(
+    retainedEntries.map(async ({ liveSessionId, resource }) => {
+      if (
+        await endRetainedHostPublishingLiveSession({
+          accessToken,
+          apiBaseUrl,
+          fetchImpl,
+          liveSessionId,
+        })
+      ) {
+        return store.releaseIfCurrent(liveSessionId, resource)
+          ? liveSessionId
+          : null;
       }
+
+      store.markAuthLossEndFailed(liveSessionId, resource);
+      return null;
     }),
   );
 
-  return releasedLiveSessionIds;
+  return releasedLiveSessionIds.filter(
+    (liveSessionId): liveSessionId is string => liveSessionId !== null,
+  );
+}
+
+async function endRetainedHostPublishingLiveSession({
+  accessToken,
+  apiBaseUrl,
+  fetchImpl,
+  liveSessionId,
+}: {
+  readonly accessToken: string;
+  readonly apiBaseUrl: string;
+  readonly fetchImpl: typeof fetch;
+  readonly liveSessionId: string;
+}): Promise<boolean> {
+  let response: Response;
+
+  try {
+    response = await fetchImpl(`${apiBaseUrl}/graphql`, {
+      body: JSON.stringify({
+        query: END_RETAINED_HOST_PUBLISHING_SESSION_MUTATION,
+        variables: {
+          input: { liveSessionId },
+        },
+      }),
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    });
+  } catch {
+    return false;
+  }
+
+  if (!response.ok) {
+    return false;
+  }
+
+  let body: unknown;
+
+  try {
+    body = await response.json();
+  } catch {
+    return false;
+  }
+
+  return isSuccessfulEndLiveSessionResponse(body);
+}
+
+function isSuccessfulEndLiveSessionResponse(body: unknown): boolean {
+  if (!isObject(body) || hasEntries(body.errors)) {
+    return false;
+  }
+
+  const data = body.data;
+  if (!isObject(data)) {
+    return false;
+  }
+
+  const payload = data.endLiveSession;
+  if (!isObject(payload) || hasEntries(payload.errors)) {
+    return false;
+  }
+
+  return isObject(payload.liveSession);
+}
+
+function hasEntries(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }

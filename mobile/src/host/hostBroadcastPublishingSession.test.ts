@@ -39,6 +39,18 @@ function createResource(): HostBroadcastPublishingResource & {
   };
 }
 
+function createDeferredResponse(): {
+  readonly promise: Promise<Response>;
+  readonly resolve: (response: Response) => void;
+} {
+  let resolve!: (response: Response) => void;
+  const promise = new Promise<Response>((nextResolve) => {
+    resolve = nextResolve;
+  });
+
+  return { promise, resolve };
+}
+
 describe('hostBroadcastPublishingSession', () => {
   test('retains successful go-live publishing resources across preflight cleanup', () => {
     const store = createHostBroadcastPublishingSessionStore();
@@ -332,6 +344,140 @@ describe('hostBroadcastPublishingSession', () => {
     expect(store.has('live-session-id')).toBe(false);
     expect(resource.disposeCount()).toBe(1);
     expect(resource.disconnectCount()).toBe(1);
+
+    expect(
+      releaseHostBroadcastPublishingAfterAuthStateChange(
+        'authenticated',
+        'unauthenticated',
+        store,
+      ),
+    ).toEqual([]);
+    expect(resource.disposeCount()).toBe(1);
+    expect(resource.disconnectCount()).toBe(1);
+  });
+
+  test('retains publishing resources when auth-loss session end returns HTTP failure', async () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const resource = createResource();
+    const fetchImpl: typeof fetch = () =>
+      Promise.resolve(new Response('unauthorized', { status: 401 }));
+
+    store.retain('live-session-id', resource);
+
+    await expect(
+      releaseHostBroadcastPublishingBeforeAuthLoss({
+        apiBaseUrl: 'https://api.example.test',
+        fetchImpl,
+        getAccessToken: () => 'expired-access-token',
+        store,
+      }),
+    ).resolves.toEqual([]);
+
+    expect(store.has('live-session-id')).toBe(true);
+    expect(resource.disposeCount()).toBe(0);
+    expect(resource.disconnectCount()).toBe(0);
+  });
+
+  test('skips auth-state fallback release after auth-loss session end fails', async () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const resource = createResource();
+    const fetchImpl: typeof fetch = () =>
+      Promise.resolve(new Response('unauthorized', { status: 401 }));
+
+    store.retain('live-session-id', resource);
+
+    await expect(
+      releaseHostBroadcastPublishingBeforeAuthLoss({
+        apiBaseUrl: 'https://api.example.test',
+        fetchImpl,
+        getAccessToken: () => 'expired-access-token',
+        store,
+      }),
+    ).resolves.toEqual([]);
+
+    expect(
+      releaseHostBroadcastPublishingAfterAuthStateChange(
+        'authenticated',
+        'unauthenticated',
+        store,
+      ),
+    ).toEqual([]);
+    expect(store.has('live-session-id')).toBe(true);
+    expect(resource.disposeCount()).toBe(0);
+    expect(resource.disconnectCount()).toBe(0);
+  });
+
+  test('retains publishing resources when auth-loss session end returns GraphQL errors', async () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const resource = createResource();
+    const fetchImpl: typeof fetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: {
+              endLiveSession: {
+                errors: [{ message: 'Token has expired.' }],
+                liveSession: null,
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      );
+
+    store.retain('live-session-id', resource);
+
+    await expect(
+      releaseHostBroadcastPublishingBeforeAuthLoss({
+        apiBaseUrl: 'https://api.example.test',
+        fetchImpl,
+        getAccessToken: () => 'expired-access-token',
+        store,
+      }),
+    ).resolves.toEqual([]);
+
+    expect(store.has('live-session-id')).toBe(true);
+    expect(resource.disposeCount()).toBe(0);
+    expect(resource.disconnectCount()).toBe(0);
+  });
+
+  test('does not release a replacement retained resource after stale auth-loss cleanup succeeds', async () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const firstResource = createResource();
+    const replacementResource = createResource();
+    const deferred = createDeferredResponse();
+    const fetchImpl: typeof fetch = () => deferred.promise;
+
+    store.retain('live-session-id', firstResource);
+    const releasePromise = releaseHostBroadcastPublishingBeforeAuthLoss({
+      apiBaseUrl: 'https://api.example.test',
+      fetchImpl,
+      getAccessToken: () => 'access-token',
+      store,
+    });
+
+    store.retain('live-session-id', replacementResource);
+    deferred.resolve(
+      new Response(
+        JSON.stringify({
+          data: {
+            endLiveSession: {
+              errors: [],
+              liveSession: { id: 'live-session-id' },
+            },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await expect(releasePromise).resolves.toEqual([]);
+
+    expect(store.has('live-session-id')).toBe(true);
+    expect(firstResource.disposeCount()).toBe(1);
+    expect(firstResource.disconnectCount()).toBe(1);
+    expect(replacementResource.disposeCount()).toBe(0);
+    expect(replacementResource.disconnectCount()).toBe(0);
   });
 
   test('does not release retained publishing resources without auth loss', () => {
