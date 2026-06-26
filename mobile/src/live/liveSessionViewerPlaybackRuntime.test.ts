@@ -709,6 +709,57 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
     expect(harness.errorReasons).toEqual([]);
   });
 
+  test('answers a later fresh host offer after ignoring duplicate replay', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, startRuntime } = harness;
+
+    await startRuntime();
+    await applyHostOffer(channel);
+
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer',
+      type: 'offer',
+    });
+    await flushAsyncHandlers();
+
+    peerConnections[0].answer = {
+      sdp: 'v=0\r\nviewer-answer-2',
+      type: 'answer',
+    };
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer-2',
+      type: 'offer',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].remoteDescriptions).toEqual([
+      {
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      },
+      {
+        sdp: 'v=0\r\nhost-offer-2',
+        type: 'offer',
+      },
+    ]);
+    expect(peerConnections[0].localDescriptions).toEqual([
+      {
+        sdp: 'v=0\r\nviewer-answer',
+        type: 'answer',
+      },
+      {
+        sdp: 'v=0\r\nviewer-answer-2',
+        type: 'answer',
+      },
+    ]);
+    expect(
+      channel.pushes.filter((push) => push.eventName === 'media:answer'),
+    ).toHaveLength(2);
+    expect(harness.errorReasons).toEqual([]);
+  });
+
   test('bounds queued host ICE candidates while waiting for the host offer', async () => {
     const { channel, peerConnections, startRuntime } = createHarness();
 

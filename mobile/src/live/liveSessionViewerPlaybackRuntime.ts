@@ -245,10 +245,12 @@ export function createLiveSessionViewerPlaybackRuntime({
   const channel = socket.channel(preparedMedia.signalingTopic);
   let disposed = false;
   let applyingRemoteOffer = false;
+  let applyingRemoteOfferIdentity: string | null = null;
   const pendingHostIceCandidates: LiveSessionViewerPlaybackIceCandidate[] = [];
   let peerConnection: LiveSessionViewerPlaybackPeerConnection | null = null;
   let remoteStreamAttached = false;
   let remoteOfferApplied = false;
+  let remoteOfferIdentity: string | null = null;
   let started = false;
   const disposedDuringAsyncError = new Error(
     'live_session_viewer_playback_runtime_disposed',
@@ -349,16 +351,33 @@ export function createLiveSessionViewerPlaybackRuntime({
       return;
     }
 
-    if (applyingRemoteOffer || remoteOfferApplied) {
+    const offerIdentity = createSessionDescriptionIdentity(event.description);
+
+    if (
+      applyingRemoteOffer &&
+      applyingRemoteOfferIdentity === offerIdentity
+    ) {
+      return;
+    }
+
+    if (remoteOfferApplied && remoteOfferIdentity === offerIdentity) {
+      return;
+    }
+
+    if (applyingRemoteOffer) {
       return;
     }
 
     try {
       applyingRemoteOffer = true;
+      applyingRemoteOfferIdentity = offerIdentity;
+      remoteOfferApplied = false;
       await peerConnection.setRemoteDescription(event.description);
       throwIfDisposed();
       remoteOfferApplied = true;
+      remoteOfferIdentity = offerIdentity;
       applyingRemoteOffer = false;
+      applyingRemoteOfferIdentity = null;
       await flushPendingHostIceCandidates();
       throwIfDisposed();
 
@@ -375,6 +394,7 @@ export function createLiveSessionViewerPlaybackRuntime({
       channel.push('media:answer', answerPayload);
     } catch (error) {
       applyingRemoteOffer = false;
+      applyingRemoteOfferIdentity = null;
       if (!disposed && error !== disposedDuringAsyncError) {
         onError?.(GENERIC_VIEWER_PLAYBACK_FAILURE_REASON);
         dispose();
@@ -497,6 +517,12 @@ export function createDefaultLiveSessionViewerPeerConnectionFactory():
   } catch {
     return null;
   }
+}
+
+function createSessionDescriptionIdentity(
+  description: LiveSessionViewerPlaybackSessionDescription,
+): string {
+  return `${description.type}\n${description.sdp}`;
 }
 
 function joinMediaSignalingChannel(
