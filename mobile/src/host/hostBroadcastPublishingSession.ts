@@ -190,6 +190,13 @@ export function handleReleasedRetainedHostPublishingSessionTermination(
   return true;
 }
 
+export function shouldIgnoreRetainedHostPublishingChannelTermination(
+  reason: HostBroadcastPublishingChannelTerminationReason,
+  retainedLiveSessionId: string | null,
+): boolean {
+  return reason === 'errored' && retainedLiveSessionId !== null;
+}
+
 export function releaseHostBroadcastPublishingAfterAuthStateChange(
   previousStatus: HostBroadcastPublishingAuthStatus,
   nextStatus: HostBroadcastPublishingAuthStatus,

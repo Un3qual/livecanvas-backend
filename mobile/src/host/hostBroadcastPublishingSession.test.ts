@@ -7,6 +7,7 @@ import {
   releaseCurrentRetainedHostPublishingResource,
   releaseHostBroadcastPublishingAfterAuthStateChange,
   releaseHostBroadcastPublishingRetainedResource,
+  shouldIgnoreRetainedHostPublishingChannelTermination,
   type HostBroadcastPublishingResource,
 } from './hostBroadcastPublishingSession';
 
@@ -195,6 +196,24 @@ describe('hostBroadcastPublishingSession', () => {
       ),
     ).toBe(true);
     expect(endedSessionIds).toEqual(['live-session-id']);
+  });
+
+  test('ignores transient channel errors for retained publishing resources', () => {
+    expect(
+      shouldIgnoreRetainedHostPublishingChannelTermination(
+        'errored',
+        'live-session-id',
+      ),
+    ).toBe(true);
+    expect(
+      shouldIgnoreRetainedHostPublishingChannelTermination(
+        'closed',
+        'live-session-id',
+      ),
+    ).toBe(false);
+    expect(
+      shouldIgnoreRetainedHostPublishingChannelTermination('errored', null),
+    ).toBe(false);
   });
 
   test('releases retained publishing resources when auth leaves authenticated state', () => {

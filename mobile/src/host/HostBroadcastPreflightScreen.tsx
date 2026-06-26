@@ -37,6 +37,7 @@ import {
   createHostBroadcastPublishingPreflightController,
   handleReleasedRetainedHostPublishingSessionTermination,
   releaseCurrentRetainedHostPublishingResource,
+  shouldIgnoreRetainedHostPublishingChannelTermination,
   type HostBroadcastPublishingResource,
   type HostBroadcastPublishingPreflightController,
 } from './hostBroadcastPublishingSession';
@@ -714,6 +715,14 @@ export function HostBroadcastPreflightScreen() {
       });
     }
 
+    function currentRetainedPublishingLiveSessionId() {
+      return publishingResource
+        ? (retainedHostPublishingLiveSessionIdsRef.current.get(
+            publishingResource,
+          ) ?? null)
+        : null;
+    }
+
     async function startPublishingRuntime() {
       const localStream = await native.getPreviewStream();
 
@@ -731,6 +740,15 @@ export function HostBroadcastPreflightScreen() {
         localStream,
         onChannelTerminated: (reason) => {
           if (didHandleChannelTermination) {
+            return;
+          }
+
+          if (
+            shouldIgnoreRetainedHostPublishingChannelTermination(
+              reason,
+              currentRetainedPublishingLiveSessionId(),
+            )
+          ) {
             return;
           }
 
