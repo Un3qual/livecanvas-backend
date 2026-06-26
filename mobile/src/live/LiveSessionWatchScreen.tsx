@@ -1500,84 +1500,26 @@ function LiveSessionWatchContent({
         state={viewerPlaybackState}
       />
 
-      <AppCard>
-        <SectionHeading title="Session details" />
-        <MetadataRow label="Status" value={status.label} />
-        <MetadataRow
-          label="Visibility"
-          value={formatLiveSessionVisibility(
-            normalizeLiveSessionVisibility(liveSession.visibility),
-          )}
-        />
-        <MetadataRow
-          label="Timing"
-          value={formatLiveSessionTiming({
-            endedAt: liveSession.endedAt,
-            insertedAt: liveSession.insertedAt,
-            startedAt: liveSession.startedAt,
-            status: normalizedStatus,
-          })}
-        />
-        {liveSession.recordingMediaAsset ? (
-          <RecordingMetadata asset={liveSession.recordingMediaAsset} />
-        ) : null}
-      </AppCard>
+      <LiveSessionDetailsCard
+        normalizedStatus={normalizedStatus}
+        session={liveSession}
+        status={status}
+      />
 
-      <AppCard>
-        <SectionHeading title="Watch controls" />
-        {normalizedStatus === 'ENDED' ? (
-          <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-            This live session has ended.
-          </Text>
-        ) : null}
-        {isJoined ? (
-          <Text style={[styles.bodyText, { color: theme.colors.text }]}>
-            You are joined to this live session.
-          </Text>
-        ) : null}
-        {isJoining ? (
-          <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-            Joining live session...
-          </Text>
-        ) : null}
-        {isLeaving ? (
-          <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-            Leaving live session...
-          </Text>
-        ) : null}
-        {isEnding ? (
-          <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-            Ending live session...
-          </Text>
-        ) : null}
-        {watchState.error ? (
-          <Text style={[styles.errorText, { color: theme.colors.error }]}>
-            {watchState.error}
-          </Text>
-        ) : null}
-        {isJoined ? (
-          <AppButton
-            disabled={isLeaving || hasActiveSubmission}
-            label="Leave live"
-            onPress={handleLeavePress}
-            variant="secondary"
-          />
-        ) : (
-          <AppButton
-            disabled={!enterable || isJoining || hasActiveSubmission}
-            label="Join live"
-            onPress={handleJoinPress}
-          />
-        )}
-        {canEndLiveSession ? (
-          <AppButton
-            disabled={isEnding || hasActiveSubmission}
-            label={isEnding ? 'Ending live...' : 'End live'}
-            onPress={handleEndPress}
-            variant="secondary"
-          />
-        ) : null}
-      </AppCard>
+      <LiveSessionWatchControlsCard
+        canEndLiveSession={canEndLiveSession}
+        enterable={enterable}
+        hasActiveSubmission={hasActiveSubmission}
+        isEnding={isEnding}
+        isJoined={isJoined}
+        isJoining={isJoining}
+        isLeaving={isLeaving}
+        normalizedStatus={normalizedStatus}
+        onEndPress={handleEndPress}
+        onJoinPress={handleJoinPress}
+        onLeavePress={handleLeavePress}
+        watchError={watchState.error}
+      />
 
       <LiveSessionChatPanel
         channelStatus={chatChannelStatus}
@@ -1588,6 +1530,129 @@ function LiveSessionWatchContent({
         sendStatus={chatSendStatus}
       />
     </ScrollView>
+  );
+}
+
+function LiveSessionDetailsCard({
+  normalizedStatus,
+  session,
+  status,
+}: {
+  normalizedStatus: LiveSessionStatus;
+  session: LiveSessionNode;
+  status: ReturnType<typeof formatLiveSessionStatus>;
+}) {
+  return (
+    <AppCard>
+      <SectionHeading title="Session details" />
+      <MetadataRow label="Status" value={status.label} />
+      <MetadataRow
+        label="Visibility"
+        value={formatLiveSessionVisibility(
+          normalizeLiveSessionVisibility(session.visibility),
+        )}
+      />
+      <MetadataRow
+        label="Timing"
+        value={formatLiveSessionTiming({
+          endedAt: session.endedAt,
+          insertedAt: session.insertedAt,
+          startedAt: session.startedAt,
+          status: normalizedStatus,
+        })}
+      />
+      {session.recordingMediaAsset ? (
+        <RecordingMetadata asset={session.recordingMediaAsset} />
+      ) : null}
+    </AppCard>
+  );
+}
+
+function LiveSessionWatchControlsCard({
+  canEndLiveSession,
+  enterable,
+  hasActiveSubmission,
+  isEnding,
+  isJoined,
+  isJoining,
+  isLeaving,
+  normalizedStatus,
+  onEndPress,
+  onJoinPress,
+  onLeavePress,
+  watchError,
+}: {
+  canEndLiveSession: boolean;
+  enterable: boolean;
+  hasActiveSubmission: boolean;
+  isEnding: boolean;
+  isJoined: boolean;
+  isJoining: boolean;
+  isLeaving: boolean;
+  normalizedStatus: LiveSessionStatus;
+  onEndPress: () => void;
+  onJoinPress: () => void;
+  onLeavePress: () => void;
+  watchError: string | null;
+}) {
+  const theme = useAppTheme();
+
+  return (
+    <AppCard>
+      <SectionHeading title="Watch controls" />
+      {normalizedStatus === 'ENDED' ? (
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          This live session has ended.
+        </Text>
+      ) : null}
+      {isJoined ? (
+        <Text style={[styles.bodyText, { color: theme.colors.text }]}>
+          You are joined to this live session.
+        </Text>
+      ) : null}
+      {isJoining ? (
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          Joining live session...
+        </Text>
+      ) : null}
+      {isLeaving ? (
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          Leaving live session...
+        </Text>
+      ) : null}
+      {isEnding ? (
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          Ending live session...
+        </Text>
+      ) : null}
+      {watchError ? (
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>
+          {watchError}
+        </Text>
+      ) : null}
+      {isJoined ? (
+        <AppButton
+          disabled={isLeaving || hasActiveSubmission}
+          label="Leave live"
+          onPress={onLeavePress}
+          variant="secondary"
+        />
+      ) : (
+        <AppButton
+          disabled={!enterable || isJoining || hasActiveSubmission}
+          label="Join live"
+          onPress={onJoinPress}
+        />
+      )}
+      {canEndLiveSession ? (
+        <AppButton
+          disabled={isEnding || hasActiveSubmission}
+          label={isEnding ? 'Ending live...' : 'End live'}
+          onPress={onEndPress}
+          variant="secondary"
+        />
+      ) : null}
+    </AppCard>
   );
 }
 

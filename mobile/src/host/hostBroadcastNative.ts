@@ -85,7 +85,7 @@ export function createHostBroadcastNative(
   let previewStreamGeneration = 0;
   let disposed = false;
 
-  async function ensurePreviewStream() {
+  function ensurePreviewStream() {
     // Keep one getUserMedia request shared across concurrent preflight calls;
     // if disposal wins that race, stop the late stream instead of caching it.
     if (disposed) {
