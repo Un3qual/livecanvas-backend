@@ -288,7 +288,7 @@ describe('hostBroadcastPublishingSession', () => {
       readonly authorization: string | null;
       readonly liveSessionId: string;
     }> = [];
-    const fetchImpl: typeof fetch = async (_url, init) => {
+    const fetchImpl: typeof fetch = (_url, init) => {
       const headers = init?.headers as Record<string, string>;
       const body = JSON.parse(String(init?.body)) as {
         readonly variables: { readonly input: { readonly liveSessionId: string } };
@@ -297,16 +297,18 @@ describe('hostBroadcastPublishingSession', () => {
         authorization: headers.Authorization ?? null,
         liveSessionId: body.variables.input.liveSessionId,
       });
-      return new Response(
-        JSON.stringify({
-          data: {
-            endLiveSession: {
-              errors: [],
-              liveSession: { id: body.variables.input.liveSessionId },
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: {
+              endLiveSession: {
+                errors: [],
+                liveSession: { id: body.variables.input.liveSessionId },
+              },
             },
-          },
-        }),
-        { status: 200 },
+          }),
+          { status: 200 },
+        ),
       );
     };
 

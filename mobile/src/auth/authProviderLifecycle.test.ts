@@ -26,15 +26,16 @@ describe('authProviderLifecycle', () => {
 
   test('runs cleanup before clearing tokens during a local auth loss', async () => {
     const calls: string[] = [];
-    const clearTokens = mock(async () => {
+    const clearTokens = mock(() => {
       calls.push('clearTokens');
+      return Promise.resolve();
     });
     const onForcedLogout = mock(() => {
       calls.push('onForcedLogout');
     });
 
     await expect(
-      forceUnauthenticated(clearTokens, onForcedLogout, async () => {
+      forceUnauthenticated(clearTokens, onForcedLogout, () => {
         calls.push('beforeUnauthenticated');
       }),
     ).resolves.toBeUndefined();
