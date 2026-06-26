@@ -9,6 +9,7 @@ import type { HostBroadcastMediaPreparation } from './hostBroadcastMediaSignalin
 import { createHostBroadcastPublishingSessionStore } from './hostBroadcastPublishingSession';
 import {
   createHostBroadcastPublishingRuntime,
+  type HostBroadcastPublishingChannelTerminationReason,
   type HostBroadcastPublishingIceCandidate,
   type HostBroadcastPublishingPeerConnection,
   type HostBroadcastPublishingPeerConnectionConfig,
@@ -225,7 +226,9 @@ const preparedMedia: HostBroadcastMediaPreparation = {
 
 function createHarness(
   options: {
-    readonly onChannelTerminated?: () => void;
+    readonly onChannelTerminated?: (
+      reason: HostBroadcastPublishingChannelTerminationReason,
+    ) => void;
     readonly onError?: (reason: string) => void;
     readonly onNegotiationPending?: () => void;
   } = {},
@@ -244,6 +247,8 @@ function createHarness(
   let pendingCount = 0;
   let readyCount = 0;
   let channelTerminatedCount = 0;
+  const channelTerminationReasons: HostBroadcastPublishingChannelTerminationReason[] =
+    [];
   const errorReasons: string[] = [];
   const socket = {
     channel(topic: string) {
@@ -267,9 +272,10 @@ function createHarness(
       errorReasons.push(reason);
       options.onError?.(reason);
     },
-    onChannelTerminated: () => {
+    onChannelTerminated: (reason) => {
       channelTerminatedCount += 1;
-      options.onChannelTerminated?.();
+      channelTerminationReasons.push(reason);
+      options.onChannelTerminated?.(reason);
     },
     peerConnectionFactory(config) {
       peerConnectionConfigs.push(config);
@@ -285,6 +291,9 @@ function createHarness(
     channel,
     get channelTerminatedCount() {
       return channelTerminatedCount;
+    },
+    get channelTerminationReasons() {
+      return channelTerminationReasons;
     },
     get localDisposeCount() {
       return localDisposeCount;
@@ -894,6 +903,7 @@ describe('createHostBroadcastPublishingRuntime', () => {
     channel.error({ reason: 'session_ended' });
 
     expect(harness.channelTerminatedCount).toBe(2);
+    expect(harness.channelTerminationReasons).toEqual(['closed', 'errored']);
     expect(channel.leaveCount).toBe(1);
     expect(peerConnections[0].closeCount).toBe(1);
     expect(harness.localDisposeCount).toBe(1);

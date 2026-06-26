@@ -3,7 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
-  endReleasedRetainedHostPublishingSession,
+  handleReleasedRetainedHostPublishingSessionTermination,
   releaseCurrentRetainedHostPublishingResource,
   releaseHostBroadcastPublishingAfterAuthStateChange,
   releaseHostBroadcastPublishingRetainedResource,
@@ -160,20 +160,39 @@ describe('hostBroadcastPublishingSession', () => {
     expect(resource.disconnectCount()).toBe(1);
   });
 
-  test('requests session end when a retained publishing resource is released by runtime termination', () => {
+  test('ends sessions only when a retained publishing resource closes', () => {
     const endedSessionIds: string[] = [];
 
     expect(
-      endReleasedRetainedHostPublishingSession(null, (liveSessionId) => {
-        endedSessionIds.push(liveSessionId);
-      }),
+      handleReleasedRetainedHostPublishingSessionTermination(
+        'closed',
+        null,
+        (liveSessionId) => {
+          endedSessionIds.push(liveSessionId);
+        },
+      ),
     ).toBe(false);
     expect(endedSessionIds).toEqual([]);
 
     expect(
-      endReleasedRetainedHostPublishingSession('live-session-id', (liveSessionId) => {
-        endedSessionIds.push(liveSessionId);
-      }),
+      handleReleasedRetainedHostPublishingSessionTermination(
+        'errored',
+        'live-session-id',
+        (liveSessionId) => {
+          endedSessionIds.push(liveSessionId);
+        },
+      ),
+    ).toBe(true);
+    expect(endedSessionIds).toEqual([]);
+
+    expect(
+      handleReleasedRetainedHostPublishingSessionTermination(
+        'closed',
+        'live-session-id',
+        (liveSessionId) => {
+          endedSessionIds.push(liveSessionId);
+        },
+      ),
     ).toBe(true);
     expect(endedSessionIds).toEqual(['live-session-id']);
   });

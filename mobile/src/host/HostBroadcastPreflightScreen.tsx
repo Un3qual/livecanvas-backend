@@ -35,7 +35,7 @@ import {
 import { useHostBroadcastPublishingSessions } from './HostBroadcastPublishingSessionProvider';
 import {
   createHostBroadcastPublishingPreflightController,
-  endReleasedRetainedHostPublishingSession,
+  handleReleasedRetainedHostPublishingSessionTermination,
   releaseCurrentRetainedHostPublishingResource,
   type HostBroadcastPublishingResource,
   type HostBroadcastPublishingPreflightController,
@@ -729,7 +729,7 @@ export function HostBroadcastPreflightScreen() {
       runtime = createHostBroadcastPublishingRuntime({
         disposeLocalMedia: native.releasePreviewStream,
         localStream,
-        onChannelTerminated: () => {
+        onChannelTerminated: (reason) => {
           if (didHandleChannelTermination) {
             return;
           }
@@ -737,7 +737,8 @@ export function HostBroadcastPreflightScreen() {
           didHandleChannelTermination = true;
 
           if (
-            endReleasedRetainedHostPublishingSession(
+            handleReleasedRetainedHostPublishingSessionTermination(
+              reason,
               releaseRetainedPublishingResource(),
               (retainedLiveSessionId) => {
                 requestPreflightEndLiveSession(retainedLiveSessionId, {

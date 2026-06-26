@@ -75,10 +75,16 @@ export type HostBroadcastPublishingRuntime = {
   readonly start: () => Promise<HostBroadcastPublishingRuntimeStartResult>;
 };
 
+export type HostBroadcastPublishingChannelTerminationReason =
+  | 'closed'
+  | 'errored';
+
 export type HostBroadcastPublishingRuntimeOptions = {
   readonly disposeLocalMedia?: () => void;
   readonly localStream: HostBroadcastPublishingMediaStream;
-  readonly onChannelTerminated?: () => void;
+  readonly onChannelTerminated?: (
+    reason: HostBroadcastPublishingChannelTerminationReason,
+  ) => void;
   readonly onError?: (reason: string) => void;
   readonly onNegotiationPending?: () => void;
   readonly onNegotiationReady?: () => void;
@@ -137,10 +143,10 @@ export function createHostBroadcastPublishingRuntime({
     replayOfferForReadyViewer(payload);
   });
   channel.onClose?.(() => {
-    onChannelTerminated?.();
+    onChannelTerminated?.('closed');
   });
   channel.onError?.(() => {
-    onChannelTerminated?.();
+    onChannelTerminated?.('errored');
   });
 
   async function start(): Promise<HostBroadcastPublishingRuntimeStartResult> {

@@ -1,4 +1,7 @@
-import type { HostBroadcastPublishingRuntime } from './hostBroadcastPublishingRuntime';
+import type {
+  HostBroadcastPublishingChannelTerminationReason,
+  HostBroadcastPublishingRuntime,
+} from './hostBroadcastPublishingRuntime';
 
 export type HostBroadcastPublishingResource = {
   readonly disconnectSocket: () => void;
@@ -171,7 +174,8 @@ export function releaseCurrentRetainedHostPublishingResource({
   return liveSessionId;
 }
 
-export function endReleasedRetainedHostPublishingSession(
+export function handleReleasedRetainedHostPublishingSessionTermination(
+  reason: HostBroadcastPublishingChannelTerminationReason,
   liveSessionId: string | null,
   endLiveSession: (liveSessionId: string) => void,
 ): boolean {
@@ -179,7 +183,10 @@ export function endReleasedRetainedHostPublishingSession(
     return false;
   }
 
-  endLiveSession(liveSessionId);
+  if (reason === 'closed') {
+    endLiveSession(liveSessionId);
+  }
+
   return true;
 }
 
