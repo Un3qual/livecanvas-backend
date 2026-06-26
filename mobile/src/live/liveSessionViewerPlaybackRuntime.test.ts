@@ -657,6 +657,58 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
     });
   });
 
+  test('ignores duplicate host offers while answering and after the first offer is applied', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, startRuntime } = harness;
+
+    await startRuntime();
+    const remoteDescription = createDeferred();
+    peerConnections[0].setRemoteDescriptionDeferred = remoteDescription;
+
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer',
+      type: 'offer',
+    });
+    await flushAsyncHandlers();
+
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer',
+      type: 'offer',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].remoteDescriptions).toEqual([
+      {
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      },
+    ]);
+
+    remoteDescription.resolve();
+    await flushAsyncHandlers();
+
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer',
+      type: 'offer',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].remoteDescriptions).toHaveLength(1);
+    expect(peerConnections[0].localDescriptions).toEqual([
+      {
+        sdp: 'v=0\r\nviewer-answer',
+        type: 'answer',
+      },
+    ]);
+    expect(
+      channel.pushes.filter((push) => push.eventName === 'media:answer'),
+    ).toHaveLength(1);
+    expect(harness.errorReasons).toEqual([]);
+  });
+
   test('bounds queued host ICE candidates while waiting for the host offer', async () => {
     const { channel, peerConnections, startRuntime } = createHarness();
 

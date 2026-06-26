@@ -459,7 +459,7 @@ defmodule LC.FeedTest do
       assert visible_session.id == live_session.id
     end
 
-    test "returns only visible live sessions ordered newest-first" do
+    test "returns visible active sessions ordered newest-first" do
       viewer = user_fixture()
       followed_host = user_fixture()
       public_host = user_fixture(privacy_mode: :public)
@@ -476,11 +476,12 @@ defmodule LC.FeedTest do
       {:ok, blocked_session} = Live.start_live_session(blocked_host, %{visibility: :public})
       {:ok, _blocked_live} = Live.mark_session_live(blocked_session)
 
-      {:ok, _starting_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, starting_session} = Live.start_live_session(public_host, %{visibility: :public})
 
-      assert [first_session, second_session] = Feed.live_now(viewer, limit: 10)
+      assert [first_session, second_session, third_session] = Feed.live_now(viewer, limit: 10)
       assert first_session.id == public_session.id
       assert second_session.id == followed_session.id
+      assert third_session.id == starting_session.id
     end
   end
 
@@ -516,8 +517,19 @@ defmodule LC.FeedTest do
                Feed.profile_current_live_session_query(viewer, other_host) |> Repo.one()
 
       assert other_session_id == other_session.id
-      assert nil == (Feed.profile_current_live_session_query(viewer, private_host) |> Repo.one())
-      assert nil == (Feed.profile_current_live_session_query(viewer, muted_host) |> Repo.one())
+      assert nil == Feed.profile_current_live_session_query(viewer, private_host) |> Repo.one()
+      assert nil == Feed.profile_current_live_session_query(viewer, muted_host) |> Repo.one()
+    end
+
+    test "returns a visible starting session before go-live media negotiation completes" do
+      viewer = user_fixture()
+      host = user_fixture(privacy_mode: :public)
+      {:ok, starting_session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert %{id: session_id, status: :starting} =
+               Feed.profile_current_live_session_query(viewer, host) |> Repo.one()
+
+      assert session_id == starting_session.id
     end
   end
 
@@ -646,7 +658,9 @@ defmodule LC.FeedTest do
       assert [] = Feed.profile_replay_feed_query(viewer, private_host) |> limit(10) |> Repo.all()
       assert [] = Feed.profile_replay_feed_query(viewer, blocked_host) |> limit(10) |> Repo.all()
       assert [] = Feed.profile_replay_feed_query(viewer, muted_host) |> limit(10) |> Repo.all()
-      assert [] = Feed.profile_replay_feed_query(viewer, suspended_host) |> limit(10) |> Repo.all()
+
+      assert [] =
+               Feed.profile_replay_feed_query(viewer, suspended_host) |> limit(10) |> Repo.all()
     end
   end
 

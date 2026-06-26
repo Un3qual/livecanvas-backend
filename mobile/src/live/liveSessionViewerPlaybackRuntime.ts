@@ -349,6 +349,10 @@ export function createLiveSessionViewerPlaybackRuntime({
       return;
     }
 
+    if (applyingRemoteOffer || remoteOfferApplied) {
+      return;
+    }
+
     try {
       applyingRemoteOffer = true;
       await peerConnection.setRemoteDescription(event.description);

@@ -1,5 +1,5 @@
-export type LiveSessionWatchSubmission = 'idle' | 'joining' | 'leaving';
-export type LiveSessionWatchMutationKind = 'join' | 'leave';
+export type LiveSessionWatchSubmission = 'idle' | 'joining' | 'leaving' | 'ending';
+export type LiveSessionWatchMutationKind = 'join' | 'leave' | 'end';
 
 export type LiveSessionWatchState = {
   readonly activeSessionId: string | null;
@@ -20,6 +20,9 @@ export type LiveSessionWatchAction =
   | { readonly type: 'leave_started'; readonly sessionId: string }
   | { readonly type: 'leave_succeeded'; readonly sessionId: string }
   | { readonly type: 'leave_failed'; readonly sessionId: string; readonly error: string }
+  | { readonly type: 'end_started'; readonly sessionId: string }
+  | { readonly type: 'end_succeeded'; readonly sessionId: string }
+  | { readonly type: 'end_failed'; readonly sessionId: string; readonly error: string }
   | { readonly type: 'session_changed'; readonly sessionId: string };
 
 export function createLiveSessionWatchState(): LiveSessionWatchState {
@@ -152,6 +155,39 @@ export function liveSessionWatchReducer(
         activeSessionId: action.sessionId,
         error: action.error,
         isJoined: true,
+        submission: 'idle',
+      };
+
+    case 'end_started':
+      return {
+        activeSessionId: action.sessionId,
+        error: null,
+        isJoined:
+          state.activeSessionId === action.sessionId ? state.isJoined : false,
+        submission: 'ending',
+      };
+
+    case 'end_succeeded':
+      if (state.activeSessionId !== action.sessionId) {
+        return state;
+      }
+
+      return {
+        activeSessionId: action.sessionId,
+        error: null,
+        isJoined: false,
+        submission: 'idle',
+      };
+
+    case 'end_failed':
+      if (state.activeSessionId !== action.sessionId) {
+        return state;
+      }
+
+      return {
+        activeSessionId: action.sessionId,
+        error: action.error,
+        isJoined: state.isJoined,
         submission: 'idle',
       };
 

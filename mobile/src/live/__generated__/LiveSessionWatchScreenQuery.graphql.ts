@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7af37f4ff944ff7dc73134f935d5a97a>>
+ * @generated SignedSource<<c33005f31cd31f2df27083064786194c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -66,6 +66,9 @@ export type LiveSessionWatchScreenQuery$data = {
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   } | null | undefined;
+  readonly viewer: {
+    readonly id: string;
+  } | null | undefined;
 };
 export type LiveSessionWatchScreenQuery = {
   response: LiveSessionWatchScreenQuery$data;
@@ -88,70 +91,83 @@ v2 = {
   "kind": "LocalArgument",
   "name": "timelineLast"
 },
-v3 = [
-  {
-    "kind": "Variable",
-    "name": "id",
-    "variableName": "id"
-  }
-],
-v4 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v5 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v6 = {
+v4 = [
+  (v3/*: any*/)
+],
+v5 = {
   "alias": null,
   "args": null,
-  "kind": "ScalarField",
-  "name": "channelTopic",
+  "concreteType": "User",
+  "kind": "LinkedField",
+  "name": "viewer",
+  "plural": false,
+  "selections": (v4/*: any*/),
   "storageKey": null
 },
+v6 = [
+  {
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "id"
+  }
+],
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "status",
+  "name": "__typename",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "visibility",
+  "name": "channelTopic",
   "storageKey": null
 },
 v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "insertedAt",
+  "name": "status",
   "storageKey": null
 },
 v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "startedAt",
+  "name": "visibility",
   "storageKey": null
 },
 v11 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "endedAt",
+  "name": "insertedAt",
   "storageKey": null
 },
 v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "startedAt",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "endedAt",
+  "storageKey": null
+},
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -159,7 +175,7 @@ v12 = {
   "name": "host",
   "plural": false,
   "selections": [
-    (v5/*: any*/),
+    (v3/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -170,7 +186,7 @@ v12 = {
   ],
   "storageKey": null
 },
-v13 = {
+v15 = {
   "alias": null,
   "args": null,
   "concreteType": "LiveSessionRecordingMediaAsset",
@@ -178,7 +194,7 @@ v13 = {
   "name": "recordingMediaAsset",
   "plural": false,
   "selections": [
-    (v5/*: any*/),
+    (v3/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -196,7 +212,7 @@ v13 = {
   ],
   "storageKey": null
 },
-v14 = {
+v16 = {
   "alias": null,
   "args": [
     {
@@ -238,8 +254,8 @@ v14 = {
           "name": "node",
           "plural": false,
           "selections": [
-            (v4/*: any*/),
-            (v5/*: any*/),
+            (v7/*: any*/),
+            (v3/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -261,9 +277,7 @@ v14 = {
               "kind": "LinkedField",
               "name": "actor",
               "plural": false,
-              "selections": [
-                (v5/*: any*/)
-              ],
+              "selections": (v4/*: any*/),
               "storageKey": null
             },
             {
@@ -360,28 +374,29 @@ return {
     "metadata": null,
     "name": "LiveSessionWatchScreenQuery",
     "selections": [
+      (v5/*: any*/),
       {
         "alias": null,
-        "args": (v3/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
+          (v7/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v5/*: any*/),
-              (v6/*: any*/),
-              (v7/*: any*/),
+              (v3/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
               (v10/*: any*/),
               (v11/*: any*/),
               (v12/*: any*/),
               (v13/*: any*/),
-              (v14/*: any*/)
+              (v14/*: any*/),
+              (v15/*: any*/),
+              (v16/*: any*/)
             ],
             "type": "LiveSession",
             "abstractKey": null
@@ -403,28 +418,29 @@ return {
     "kind": "Operation",
     "name": "LiveSessionWatchScreenQuery",
     "selections": [
+      (v5/*: any*/),
       {
         "alias": null,
-        "args": (v3/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v4/*: any*/),
-          (v5/*: any*/),
+          (v7/*: any*/),
+          (v3/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v6/*: any*/),
-              (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
               (v10/*: any*/),
               (v11/*: any*/),
               (v12/*: any*/),
               (v13/*: any*/),
-              (v14/*: any*/)
+              (v14/*: any*/),
+              (v15/*: any*/),
+              (v16/*: any*/)
             ],
             "type": "LiveSession",
             "abstractKey": null
@@ -435,16 +451,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "749aefdb2c3e5905824b33f1faa39b06",
+    "cacheID": "3ad860d9cd93b5644fc301a2038723c0",
     "id": null,
     "metadata": {},
     "name": "LiveSessionWatchScreenQuery",
     "operationKind": "query",
-    "text": "query LiveSessionWatchScreenQuery(\n  $id: ID!\n  $timelineLast: Int!\n  $timelineBefore: String\n) {\n  node(id: $id) {\n    __typename\n    ... on LiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n      recordingMediaAsset {\n        id\n        processingState\n        publicUrl\n      }\n      timelineEvents(last: $timelineLast, before: $timelineBefore) {\n        edges {\n          cursor\n          node {\n            __typename\n            id\n            eventType\n            occurredAt\n            actor {\n              id\n            }\n            ... on ChatMessageEvent {\n              body\n              edited\n              editCount\n              editedAt\n            }\n          }\n        }\n        pageInfo {\n          startCursor\n          endCursor\n          hasNextPage\n          hasPreviousPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query LiveSessionWatchScreenQuery(\n  $id: ID!\n  $timelineLast: Int!\n  $timelineBefore: String\n) {\n  viewer {\n    id\n  }\n  node(id: $id) {\n    __typename\n    ... on LiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n      recordingMediaAsset {\n        id\n        processingState\n        publicUrl\n      }\n      timelineEvents(last: $timelineLast, before: $timelineBefore) {\n        edges {\n          cursor\n          node {\n            __typename\n            id\n            eventType\n            occurredAt\n            actor {\n              id\n            }\n            ... on ChatMessageEvent {\n              body\n              edited\n              editCount\n              editedAt\n            }\n          }\n        }\n        pageInfo {\n          startCursor\n          endCursor\n          hasNextPage\n          hasPreviousPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4b3d75efd00794393546016b66f17351";
+(node as any).hash = "83d6729aa206370447fe76f24dfa4e59";
 
 export default node;

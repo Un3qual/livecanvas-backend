@@ -142,7 +142,7 @@ defmodule LC.Feed do
   end
 
   @doc """
-  Returns currently-live sessions visible to the viewer, newest-first.
+  Returns active live sessions visible to the viewer, newest-live first.
   """
   @spec live_now(User.t(), live_now_opts()) :: [LiveSession.t()]
   def live_now(%User{} = viewer, opts \\ []) do
@@ -153,7 +153,7 @@ defmodule LC.Feed do
   end
 
   @doc """
-  Returns one currently-live session for the requested host when it is visible to the viewer.
+  Returns one active live session for the requested host when it is visible to the viewer.
   """
   @spec profile_current_live_session(User.t(), User.t()) :: LiveSession.t() | nil
   def profile_current_live_session(%User{} = viewer, %User{} = host) do
@@ -164,23 +164,23 @@ defmodule LC.Feed do
   end
 
   @doc """
-  Returns a deterministic query for currently-live sessions visible to the viewer.
+  Returns a deterministic query for active sessions visible to the viewer.
   """
   @spec live_now_query(User.t()) :: Ecto.Query.t()
   def live_now_query(%User{} = viewer) do
     LiveSession
-    |> where([live_session], live_session.status == :live)
+    |> where([live_session], live_session.status in [:starting, :live])
     |> ReadPolicy.viewer_visible_query(viewer, owner_key: :host_id, visibility_key: :visibility)
     |> order_by(
       [live_session],
-      desc: live_session.started_at,
+      desc_nulls_last: live_session.started_at,
       desc: live_session.inserted_at,
       desc: live_session.id
     )
   end
 
   @doc """
-  Returns a deterministic query for the requested host's currently-live visible sessions.
+  Returns a deterministic query for the requested host's visible active sessions.
   """
   @spec profile_current_live_session_query(User.t(), User.t()) :: Ecto.Query.t()
   def profile_current_live_session_query(%User{} = viewer, %User{id: host_id}) do

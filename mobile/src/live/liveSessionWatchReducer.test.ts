@@ -84,6 +84,49 @@ describe('liveSessionWatchReducer', () => {
       error: null,
       isJoined: false,
       submission: 'idle',
+      });
+  });
+
+  test('tracks host end success and failure without requiring viewer join state', () => {
+    const idle = liveSessionWatchReducer(createLiveSessionWatchState(), {
+      type: 'session_changed',
+      sessionId: 'session-1',
+    });
+    const ending = liveSessionWatchReducer(idle, {
+      type: 'end_started',
+      sessionId: 'session-1',
+    });
+
+    expect(ending).toEqual({
+      activeSessionId: 'session-1',
+      error: null,
+      isJoined: false,
+      submission: 'ending',
+    });
+
+    expect(
+      liveSessionWatchReducer(ending, {
+        type: 'end_succeeded',
+        sessionId: 'session-1',
+      }),
+    ).toEqual({
+      activeSessionId: 'session-1',
+      error: null,
+      isJoined: false,
+      submission: 'idle',
+    });
+
+    expect(
+      liveSessionWatchReducer(ending, {
+        error: 'We could not update this live session.',
+        sessionId: 'session-1',
+        type: 'end_failed',
+      }),
+    ).toEqual({
+      activeSessionId: 'session-1',
+      error: 'We could not update this live session.',
+      isJoined: false,
+      submission: 'idle',
     });
   });
 
@@ -196,6 +239,9 @@ describe('liveSessionWatchReducer', () => {
       isLiveSessionWatchMutationPending(pending, 'session-1', 'leave'),
     ).toBe(false);
     expect(
+      isLiveSessionWatchMutationPending(pending, 'session-1', 'end'),
+    ).toBe(false);
+    expect(
       isLiveSessionWatchMutationPending(pending, 'session-2', 'join'),
     ).toBe(false);
     expect(isLiveSessionWatchAnyMutationPending(pending, 'session-1')).toBe(
@@ -229,6 +275,12 @@ describe('liveSessionWatchReducer', () => {
     expect(
       shouldAutoLeaveLiveSession(joined, 'session-1', {
         kind: 'leave',
+        sessionId: 'session-1',
+      }),
+    ).toBe(false);
+    expect(
+      shouldAutoLeaveLiveSession(joined, 'session-1', {
+        kind: 'end',
         sessionId: 'session-1',
       }),
     ).toBe(false);

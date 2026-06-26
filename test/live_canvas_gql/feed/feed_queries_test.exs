@@ -680,7 +680,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
     end
 
-    test "returns only currently-live sessions visible to the current viewer" do
+    test "returns active starting and live sessions visible to the current viewer" do
       viewer = user_fixture()
       followed_host = user_fixture()
       public_host = user_fixture(privacy_mode: :public)
@@ -697,7 +697,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       {:ok, blocked_session} = Live.start_live_session(blocked_host, %{visibility: :public})
       {:ok, _blocked_live} = Live.mark_session_live(blocked_session)
 
-      {:ok, _starting_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, starting_session} = Live.start_live_session(public_host, %{visibility: :public})
 
       query = """
       query($first: Int!) {
@@ -724,6 +724,9 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       followed_session_id =
         Absinthe.Relay.Node.to_global_id(:live_session, followed_session.id, LCGQL.Schema)
 
+      starting_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, starting_session.id, LCGQL.Schema)
+
       _blocked_session_id =
         Absinthe.Relay.Node.to_global_id(:live_session, blocked_session.id, LCGQL.Schema)
 
@@ -733,7 +736,8 @@ defmodule LCGQL.Feed.FeedQueriesTest do
                   "liveNow" => %{
                     "edges" => [
                       %{"node" => %{"id" => ^public_session_id, "status" => "LIVE"}},
-                      %{"node" => %{"id" => ^followed_session_id, "status" => "LIVE"}}
+                      %{"node" => %{"id" => ^followed_session_id, "status" => "LIVE"}},
+                      %{"node" => %{"id" => ^starting_session_id, "status" => "STARTING"}}
                     ],
                     "pageInfo" => %{"hasNextPage" => false}
                   }

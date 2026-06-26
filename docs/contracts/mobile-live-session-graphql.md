@@ -59,12 +59,12 @@ Recording assets are exposed only for durable recordings that the viewer is allo
 
 ### Discovery Feeds
 
-- `liveNow(first, after)` returns a Relay forward connection of currently-live sessions visible to the viewer.
+- `liveNow(first, after)` returns a Relay forward connection of visible active sessions (`STARTING` and `LIVE`) so viewers can enter pre-live media negotiation.
 - `replayFeed(first, after)` returns a Relay forward connection of ended sessions with linked durable recordings visible to the viewer.
 
 Ordering is stable:
 
-- `liveNow` is newest-live first (`startedAt` descending, then `insertedAt`, then ID).
+- `liveNow` is newest-live first (`startedAt` descending with `STARTING` sessions after live sessions, then `insertedAt`, then ID).
 - `replayFeed` is newest-ended first (`endedAt` descending, then `insertedAt`, then ID).
 
 Both connections use standard Relay fields:

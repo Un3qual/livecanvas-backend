@@ -69,6 +69,7 @@ import {
   type LiveSessionViewerPlaybackRuntime,
 } from './liveSessionViewerPlaybackRuntime';
 import { handleLiveSessionViewerPlaybackChannelTerminated } from './liveSessionViewerPlaybackLifecycle';
+import type { LiveSessionWatchScreenEndMutation } from './__generated__/LiveSessionWatchScreenEndMutation.graphql';
 import type { LiveSessionWatchScreenJoinMutation } from './__generated__/LiveSessionWatchScreenJoinMutation.graphql';
 import type { LiveSessionWatchScreenLeaveMutation } from './__generated__/LiveSessionWatchScreenLeaveMutation.graphql';
 import type { LiveSessionWatchScreenPrepareMediaMutation } from './__generated__/LiveSessionWatchScreenPrepareMediaMutation.graphql';
@@ -219,6 +220,23 @@ const liveSessionWatchScreenLeaveMutation = graphql`
   }
 `;
 
+const liveSessionWatchScreenEndMutation = graphql`
+  mutation LiveSessionWatchScreenEndMutation($input: EndLiveSessionInput!) {
+    endLiveSession(input: $input) {
+      liveSession {
+        id
+        status
+        endedAt
+        channelTopic
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -360,6 +378,9 @@ function LiveSessionWatchContent({
         $timelineLast: Int!
         $timelineBefore: String
       ) {
+        viewer {
+          id
+        }
         node(id: $id) {
           __typename
           ... on LiveSession {
@@ -436,6 +457,10 @@ function LiveSessionWatchContent({
     useMutation<LiveSessionWatchScreenLeaveMutation>(
       liveSessionWatchScreenLeaveMutation,
     );
+  const [commitEndLiveSession] =
+    useMutation<LiveSessionWatchScreenEndMutation>(
+      liveSessionWatchScreenEndMutation,
+    );
   const [viewerPlaybackState, setViewerPlaybackState] =
     useState<ViewerPlaybackState>(INITIAL_VIEWER_PLAYBACK_STATE);
   const autoLeaveOnUnmountRef = useRef<
@@ -471,6 +496,7 @@ function LiveSessionWatchContent({
     : 'idle';
   const isJoining = visibleSubmission === 'joining';
   const isLeaving = visibleSubmission === 'leaving';
+  const isEnding = visibleSubmission === 'ending';
   const hasActiveSubmission = visibleSubmission !== 'idle';
   const chatRows = selectLiveSessionChatVisibleRows(chatState);
   const chatChannelStatus = selectLiveSessionChatChannelStatus(chatState);
@@ -1061,6 +1087,9 @@ function LiveSessionWatchContent({
 
   const liveSessionId = liveSession.id;
   const status = formatLiveSessionStatus(normalizedStatus);
+  const isCurrentViewerHost = data.viewer?.id === liveSession.host.id;
+  const canEndLiveSession =
+    isCurrentViewerHost && normalizedStatus !== 'ENDED';
 
   autoLeaveOnUnmountRef.current = {
     sessionId: liveSessionId,
@@ -1237,6 +1266,88 @@ function LiveSessionWatchContent({
     });
   }
 
+  function handleEndPress() {
+    if (
+      !canEndLiveSession ||
+      hasActiveSubmission ||
+      isLiveSessionWatchAnyMutationPending(
+        pendingMutationRef.current,
+        liveSessionId,
+      )
+    ) {
+      return;
+    }
+
+    pendingMutationRef.current = { kind: 'end', sessionId: liveSessionId };
+    autoLeaveOnUnmountRef.current = {
+      sessionId: liveSessionId,
+      shouldLeave: false,
+    };
+    dispatchWatchAction({ type: 'end_started', sessionId: liveSessionId });
+
+    commitEndLiveSession({
+      variables: {
+        input: {
+          liveSessionId,
+        },
+      },
+      onCompleted: (payload) => {
+        const result = payload.endLiveSession;
+        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
+          pendingMutationRef.current,
+          liveSessionId,
+          'end',
+        );
+
+        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
+          if (didUnmountRef.current) {
+            return;
+          }
+
+          dispatchWatchAction({
+            error: formatLiveMutationErrors(result?.errors),
+            sessionId: liveSessionId,
+            type: 'end_failed',
+          });
+          return;
+        }
+
+        hostPublishingSessions.release(liveSessionId);
+        stopViewerPlayback({ resetState: true });
+        autoLeaveOnUnmountRef.current = {
+          sessionId: liveSessionId,
+          shouldLeave: false,
+        };
+
+        if (didUnmountRef.current) {
+          return;
+        }
+
+        dispatchWatchAction({
+          sessionId: liveSessionId,
+          type: 'end_succeeded',
+        });
+      },
+      onError: () => {
+        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
+          pendingMutationRef.current,
+          liveSessionId,
+          'end',
+        );
+
+        if (didUnmountRef.current) {
+          return;
+        }
+
+        dispatchWatchAction({
+          error: formatLiveMutationErrors([]),
+          sessionId: liveSessionId,
+          type: 'end_failed',
+        });
+      },
+    });
+  }
+
   async function handleSendChatMessage(body: string): Promise<boolean> {
     if (
       !canStartLiveSessionChatSend({
@@ -1362,6 +1473,11 @@ function LiveSessionWatchContent({
             Leaving live session...
           </Text>
         ) : null}
+        {isEnding ? (
+          <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+            Ending live session...
+          </Text>
+        ) : null}
         {watchState.error ? (
           <Text style={[styles.errorText, { color: theme.colors.error }]}>
             {watchState.error}
@@ -1381,6 +1497,14 @@ function LiveSessionWatchContent({
             onPress={handleJoinPress}
           />
         )}
+        {canEndLiveSession ? (
+          <AppButton
+            disabled={isEnding || hasActiveSubmission}
+            label={isEnding ? 'Ending live...' : 'End live'}
+            onPress={handleEndPress}
+            variant="secondary"
+          />
+        ) : null}
       </AppCard>
 
       <LiveSessionChatPanel
