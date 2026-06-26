@@ -10,7 +10,14 @@ export function shouldApplyBootstrapState(
 export async function forceUnauthenticated(
   clearTokens: () => Promise<void>,
   onForcedLogout: () => void | Promise<void>,
+  beforeUnauthenticated?: () => void | Promise<void>,
 ): Promise<void> {
+  try {
+    await beforeUnauthenticated?.();
+  } catch {
+    // Signing out must still clear local auth if best-effort cleanup fails.
+  }
+
   try {
     await clearTokens();
   } catch {

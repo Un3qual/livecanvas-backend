@@ -11,7 +11,7 @@ export type HostBroadcastPublishingResource = {
 export type HostBroadcastPublishingSessionStore = {
   readonly has: (liveSessionId: string) => boolean;
   readonly release: (liveSessionId: string) => void;
-  readonly releaseAll: () => void;
+  readonly releaseAll: () => readonly string[];
   readonly releaseIfCurrent: (
     liveSessionId: string,
     resource: HostBroadcastPublishingResource,
@@ -26,6 +26,27 @@ export type HostBroadcastPublishingAuthStatus =
   | 'authenticated'
   | 'loading'
   | 'unauthenticated';
+
+export type ReleaseHostBroadcastPublishingBeforeAuthLossOptions = {
+  readonly apiBaseUrl: string;
+  readonly fetchImpl?: typeof fetch;
+  readonly getAccessToken: () => string | null;
+  readonly store: Pick<HostBroadcastPublishingSessionStore, 'releaseAll'>;
+};
+
+const END_RETAINED_HOST_PUBLISHING_SESSION_MUTATION = `
+  mutation HostBroadcastPublishingSessionAuthCleanupEndMutation($input: EndLiveSessionInput!) {
+    endLiveSession(input: $input) {
+      liveSession {
+        id
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
 
 export type ReleaseCurrentRetainedHostPublishingResourceOptions = {
   readonly clearCurrentResource: (
@@ -65,12 +86,15 @@ export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublis
       disposeHostBroadcastPublishingResource(resource);
     },
     releaseAll() {
+      const releasedLiveSessionIds = [...resources.keys()];
       const retainedResources = [...resources.values()];
       resources.clear();
 
       for (const resource of retainedResources) {
         disposeHostBroadcastPublishingResource(resource);
       }
+
+      return releasedLiveSessionIds;
     },
     releaseIfCurrent(liveSessionId, resource) {
       if (resources.get(liveSessionId) !== resource) {
@@ -206,8 +230,50 @@ export function releaseHostBroadcastPublishingAfterAuthStateChange(
   previousStatus: HostBroadcastPublishingAuthStatus,
   nextStatus: HostBroadcastPublishingAuthStatus,
   store: Pick<HostBroadcastPublishingSessionStore, 'releaseAll'>,
-): void {
+): readonly string[] {
   if (previousStatus === 'authenticated' && nextStatus !== 'authenticated') {
-    store.releaseAll();
+    return store.releaseAll();
   }
+
+  return [];
+}
+
+export async function releaseHostBroadcastPublishingBeforeAuthLoss({
+  apiBaseUrl,
+  fetchImpl = fetch,
+  getAccessToken,
+  store,
+}: ReleaseHostBroadcastPublishingBeforeAuthLossOptions): Promise<
+  readonly string[]
+> {
+  const accessToken = getAccessToken();
+  const releasedLiveSessionIds = store.releaseAll();
+
+  if (!accessToken) {
+    return releasedLiveSessionIds;
+  }
+
+  await Promise.all(
+    releasedLiveSessionIds.map(async (liveSessionId) => {
+      try {
+        await fetchImpl(`${apiBaseUrl}/graphql`, {
+          body: JSON.stringify({
+            query: END_RETAINED_HOST_PUBLISHING_SESSION_MUTATION,
+            variables: {
+              input: { liveSessionId },
+            },
+          }),
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          method: 'POST',
+        });
+      } catch {
+        // Local auth teardown must continue even if best-effort backend cleanup fails.
+      }
+    }),
+  );
+
+  return releasedLiveSessionIds;
 }

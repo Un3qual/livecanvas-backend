@@ -1,5 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { AuthContextValue, AuthState, AuthTokenPair } from './types';
+import type {
+  AuthContextValue,
+  AuthState,
+  AuthTokenPair,
+  BeforeUnauthenticatedCallback,
+} from './types';
 import { clearTokens, loadTokens, storeTokens } from './tokenStorage';
 import { resolveAuthBootstrapState } from './authBootstrap';
 import { forceUnauthenticated, shouldApplyBootstrapState } from './authProviderLifecycle';
@@ -31,6 +36,9 @@ export function AuthProvider({
   const stateRef = useRef<AuthState>(state);
   const bootstrapRanRef = useRef(false);
   const tokensRef = useRef<AuthTokenPair | null>(null);
+  const beforeUnauthenticatedCallbacksRef = useRef(
+    new Set<BeforeUnauthenticatedCallback>(),
+  );
 
   useEffect(() => {
     stateRef.current = state;
@@ -58,6 +66,26 @@ export function AuthProvider({
     bootstrapRanRef.current = true;
     commitAuthenticatedTokens(tokens);
   }, [commitAuthenticatedTokens]);
+
+  const registerBeforeUnauthenticated = useCallback(
+    (callback: BeforeUnauthenticatedCallback) => {
+      beforeUnauthenticatedCallbacksRef.current.add(callback);
+      return () => {
+        beforeUnauthenticatedCallbacksRef.current.delete(callback);
+      };
+    },
+    [],
+  );
+
+  const runBeforeUnauthenticatedCallbacks = useCallback(async () => {
+    for (const callback of beforeUnauthenticatedCallbacksRef.current) {
+      try {
+        await callback();
+      } catch {
+        // Keep local auth teardown independent from best-effort session cleanup.
+      }
+    }
+  }, []);
 
   const onForcedLogout = useCallback(() => {
     bootstrapRanRef.current = true;
@@ -107,8 +135,12 @@ export function AuthProvider({
 
   const signOut = useCallback(async () => {
     bootstrapRanRef.current = true;
-    await forceUnauthenticated(clearTokens, commitUnauthenticated);
-  }, [commitUnauthenticated]);
+    await forceUnauthenticated(
+      clearTokens,
+      commitUnauthenticated,
+      runBeforeUnauthenticatedCallbacks,
+    );
+  }, [commitUnauthenticated, runBeforeUnauthenticatedCallbacks]);
 
   const getAuthStatus = useCallback(() => {
     return stateRef.current.status;
@@ -125,10 +157,20 @@ export function AuthProvider({
       signOut,
       syncTokens,
       onForcedLogout,
+      registerBeforeUnauthenticated,
       getAuthStatus,
       getAccessToken,
     }),
-    [state, signIn, signOut, syncTokens, onForcedLogout, getAuthStatus, getAccessToken],
+    [
+      state,
+      signIn,
+      signOut,
+      syncTokens,
+      onForcedLogout,
+      registerBeforeUnauthenticated,
+      getAuthStatus,
+      getAccessToken,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

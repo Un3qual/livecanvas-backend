@@ -8,9 +8,11 @@ import {
 } from 'react';
 
 import { useAuth } from '../auth/AuthProvider';
+import { useStartupState } from '../providers/StartupGate';
 import {
   createHostBroadcastPublishingSessionStore,
   releaseHostBroadcastPublishingAfterAuthStateChange,
+  releaseHostBroadcastPublishingBeforeAuthLoss,
   type HostBroadcastPublishingAuthStatus,
   type HostBroadcastPublishingSessionStore,
 } from './hostBroadcastPublishingSession';
@@ -22,6 +24,7 @@ export function HostBroadcastPublishingSessionProvider({
   children,
 }: PropsWithChildren) {
   const auth = useAuth();
+  const { environment } = useStartupState();
   const previousAuthStatusRef = useRef<HostBroadcastPublishingAuthStatus>(
     auth.state.status,
   );
@@ -32,6 +35,18 @@ export function HostBroadcastPublishingSessionProvider({
   }
 
   const store = storeRef.current;
+
+  useEffect(
+    () =>
+      auth.registerBeforeUnauthenticated(async () => {
+        await releaseHostBroadcastPublishingBeforeAuthLoss({
+          apiBaseUrl: environment.apiBaseUrl,
+          getAccessToken: auth.getAccessToken,
+          store,
+        });
+      }),
+    [auth.getAccessToken, auth.registerBeforeUnauthenticated, environment.apiBaseUrl, store],
+  );
 
   useEffect(() => {
     releaseHostBroadcastPublishingAfterAuthStateChange(

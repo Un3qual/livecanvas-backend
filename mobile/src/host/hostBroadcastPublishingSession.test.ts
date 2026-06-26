@@ -4,6 +4,7 @@ import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
   handleReleasedRetainedHostPublishingSessionTermination,
+  releaseHostBroadcastPublishingBeforeAuthLoss,
   releaseCurrentRetainedHostPublishingResource,
   releaseHostBroadcastPublishingAfterAuthStateChange,
   releaseHostBroadcastPublishingRetainedResource,
@@ -255,22 +256,77 @@ describe('hostBroadcastPublishingSession', () => {
     const resource = createResource();
 
     store.retain('live-session-id', resource);
-    releaseHostBroadcastPublishingAfterAuthStateChange(
-      'authenticated',
-      'authenticated',
-      store,
-    );
+    expect(
+      releaseHostBroadcastPublishingAfterAuthStateChange(
+        'authenticated',
+        'authenticated',
+        store,
+      ),
+    ).toEqual([]);
 
     expect(store.has('live-session-id')).toBe(true);
     expect(resource.disposeCount()).toBe(0);
     expect(resource.disconnectCount()).toBe(0);
 
-    releaseHostBroadcastPublishingAfterAuthStateChange(
-      'authenticated',
-      'unauthenticated',
-      store,
-    );
+    expect(
+      releaseHostBroadcastPublishingAfterAuthStateChange(
+        'authenticated',
+        'unauthenticated',
+        store,
+      ),
+    ).toEqual(['live-session-id']);
 
+    expect(store.has('live-session-id')).toBe(false);
+    expect(resource.disposeCount()).toBe(1);
+    expect(resource.disconnectCount()).toBe(1);
+  });
+
+  test('ends retained live sessions before auth loss clears the access token', async () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const resource = createResource();
+    const requests: Array<{
+      readonly authorization: string | null;
+      readonly liveSessionId: string;
+    }> = [];
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      const headers = init?.headers as Record<string, string>;
+      const body = JSON.parse(String(init?.body)) as {
+        readonly variables: { readonly input: { readonly liveSessionId: string } };
+      };
+      requests.push({
+        authorization: headers.Authorization ?? null,
+        liveSessionId: body.variables.input.liveSessionId,
+      });
+      return new Response(
+        JSON.stringify({
+          data: {
+            endLiveSession: {
+              errors: [],
+              liveSession: { id: body.variables.input.liveSessionId },
+            },
+          },
+        }),
+        { status: 200 },
+      );
+    };
+
+    store.retain('live-session-id', resource);
+
+    await expect(
+      releaseHostBroadcastPublishingBeforeAuthLoss({
+        apiBaseUrl: 'https://api.example.test',
+        fetchImpl,
+        getAccessToken: () => 'access-token',
+        store,
+      }),
+    ).resolves.toEqual(['live-session-id']);
+
+    expect(requests).toEqual([
+      {
+        authorization: 'Bearer access-token',
+        liveSessionId: 'live-session-id',
+      },
+    ]);
     expect(store.has('live-session-id')).toBe(false);
     expect(resource.disposeCount()).toBe(1);
     expect(resource.disconnectCount()).toBe(1);

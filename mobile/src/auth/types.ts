@@ -10,6 +10,8 @@ export type AuthState =
   | { status: 'authenticated'; tokens: AuthTokenPair }
   | { status: 'unauthenticated' };
 
+export type BeforeUnauthenticatedCallback = () => void | Promise<void>;
+
 export interface AuthContextValue {
   state: AuthState;
   /** Store tokens after successful sign-in/sign-up and transition to authenticated */
@@ -20,6 +22,10 @@ export interface AuthContextValue {
   syncTokens: (tokens: AuthTokenPair) => void;
   /** Transition to unauthenticated after the network layer already cleared storage */
   onForcedLogout: () => void;
+  /** Register best-effort cleanup that should run before an explicit sign-out clears tokens */
+  registerBeforeUnauthenticated: (
+    callback: BeforeUnauthenticatedCallback,
+  ) => () => void;
   /** Read the latest auth status without waiting for a re-render */
   getAuthStatus: () => AuthState['status'];
   /** Get the current access token, or null if unauthenticated */

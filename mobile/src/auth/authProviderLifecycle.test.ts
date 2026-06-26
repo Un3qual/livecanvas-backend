@@ -23,4 +23,26 @@ describe('authProviderLifecycle', () => {
     expect(clearTokens).toHaveBeenCalledTimes(1);
     expect(onForcedLogout).toHaveBeenCalledTimes(1);
   });
+
+  test('runs cleanup before clearing tokens during a local auth loss', async () => {
+    const calls: string[] = [];
+    const clearTokens = mock(async () => {
+      calls.push('clearTokens');
+    });
+    const onForcedLogout = mock(() => {
+      calls.push('onForcedLogout');
+    });
+
+    await expect(
+      forceUnauthenticated(clearTokens, onForcedLogout, async () => {
+        calls.push('beforeUnauthenticated');
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(calls).toEqual([
+      'beforeUnauthenticated',
+      'clearTokens',
+      'onForcedLogout',
+    ]);
+  });
 });
