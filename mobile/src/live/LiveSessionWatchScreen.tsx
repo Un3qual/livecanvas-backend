@@ -59,6 +59,10 @@ import {
   type LiveSessionWatchPendingMutation,
 } from './liveSessionWatchReducer';
 import {
+  canStartLiveSessionViewerJoin,
+  shouldShowLiveSessionViewerJoinControl,
+} from './liveSessionWatchControls';
+import {
   readLiveSessionTimelineHistory,
 } from './liveSessionTimelineHistory';
 import { handleLiveSessionEndedRealtimeCleanup } from './liveSessionEndedRealtimeCleanup';
@@ -1189,14 +1193,19 @@ function LiveSessionWatchContent({
   // UI submission state disables controls after render; the ref closes the
   // same-render double-tap gap before reducer state propagates.
   function handleJoinPress() {
+    const hasPendingMutation = isLiveSessionWatchAnyMutationPending(
+      pendingMutationRef.current,
+      liveSessionId,
+    );
+
     if (
-      !enterable ||
-      hasActiveSubmission ||
-      isJoined ||
-      isLiveSessionWatchAnyMutationPending(
-        pendingMutationRef.current,
-        liveSessionId,
-      )
+      !canStartLiveSessionViewerJoin({
+        canEndLiveSession,
+        enterable,
+        hasActiveSubmission,
+        hasPendingMutation,
+        isJoined,
+      })
     ) {
       return;
     }
@@ -1610,6 +1619,10 @@ function LiveSessionWatchControlsCard({
   watchError: string | null;
 }) {
   const theme = useAppTheme();
+  const showViewerJoinControl = shouldShowLiveSessionViewerJoinControl({
+    canEndLiveSession,
+    isJoined,
+  });
 
   return (
     <AppCard>
@@ -1651,13 +1664,13 @@ function LiveSessionWatchControlsCard({
           onPress={onLeavePress}
           variant="secondary"
         />
-      ) : (
+      ) : showViewerJoinControl ? (
         <AppButton
           disabled={!enterable || isJoining || hasActiveSubmission}
           label="Join live"
           onPress={onJoinPress}
         />
-      )}
+      ) : null}
       {canEndLiveSession ? (
         <AppButton
           disabled={isEnding || hasActiveSubmission}
