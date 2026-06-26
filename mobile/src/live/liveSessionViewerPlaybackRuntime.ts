@@ -390,6 +390,7 @@ export function createLiveSessionViewerPlaybackRuntime({
     if (applyingRemoteOffer) {
       // Host negotiation can restart while a prior offer is still applying.
       // Retain only the newest fresh offer so the host gets a matching answer.
+      pendingHostIceCandidates.length = 0;
       pendingRemoteOffer = event;
       return;
     }
@@ -404,8 +405,17 @@ export function createLiveSessionViewerPlaybackRuntime({
       throwIfDisposed();
       remoteOfferApplied = true;
       remoteOfferIdentity = offerIdentity;
-      applyingRemoteOffer = false;
-      applyingRemoteOfferIdentity = null;
+
+      const supersedingOffer = pendingRemoteOffer;
+
+      if (supersedingOffer) {
+        pendingRemoteOffer = null;
+        applyingRemoteOffer = false;
+        applyingRemoteOfferIdentity = null;
+        await answerNormalizedHostOffer(supersedingOffer);
+        return;
+      }
+
       await flushPendingHostIceCandidates();
       throwIfDisposed();
 
@@ -422,6 +432,8 @@ export function createLiveSessionViewerPlaybackRuntime({
       channel.push('media:answer', answerPayload);
       const nextOffer = pendingRemoteOffer;
       pendingRemoteOffer = null;
+      applyingRemoteOffer = false;
+      applyingRemoteOfferIdentity = null;
 
       if (nextOffer) {
         await answerNormalizedHostOffer(nextOffer);

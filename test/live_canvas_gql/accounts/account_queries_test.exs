@@ -53,6 +53,9 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       {:ok, current_live_session} = Live.start_live_session(viewer, %{visibility: :followers})
       {:ok, current_live_session} = Live.mark_session_live(current_live_session)
 
+      {:ok, _duplicate_starting_session} =
+        Live.start_live_session(viewer, %{visibility: :followers})
+
       assert {:ok, replay_asset} =
                Content.create_media_asset(viewer, %{
                  storage_key: "uploads/users/#{viewer.id}/viewer-profile-replay.mp4",

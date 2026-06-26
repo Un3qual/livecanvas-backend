@@ -130,6 +130,16 @@ function createDeferred<T = undefined>(): Deferred<T> {
 class FakePeerConnection implements LiveSessionViewerPlaybackPeerConnection {
   readonly addIceCandidateCalls: LiveSessionViewerPlaybackIceCandidate[] = [];
   readonly localDescriptions: LiveSessionViewerPlaybackSessionDescription[] = [];
+  readonly operations: Array<
+    | {
+        readonly description: LiveSessionViewerPlaybackSessionDescription;
+        readonly type: 'setRemoteDescription';
+      }
+    | {
+        readonly candidate: LiveSessionViewerPlaybackIceCandidate;
+        readonly type: 'addIceCandidate';
+      }
+  > = [];
   readonly remoteDescriptions: LiveSessionViewerPlaybackSessionDescription[] = [];
   addIceCandidateError: Error | null = null;
   answer: LiveSessionViewerPlaybackSessionDescription = {
@@ -163,6 +173,7 @@ class FakePeerConnection implements LiveSessionViewerPlaybackPeerConnection {
     candidate: LiveSessionViewerPlaybackIceCandidate,
   ): Promise<void> {
     this.addIceCandidateCalls.push(candidate);
+    this.operations.push({ candidate, type: 'addIceCandidate' });
     if (this.addIceCandidateError) {
       return Promise.reject(this.addIceCandidateError);
     }
@@ -197,6 +208,7 @@ class FakePeerConnection implements LiveSessionViewerPlaybackPeerConnection {
     description: LiveSessionViewerPlaybackSessionDescription,
   ): Promise<void> {
     this.remoteDescriptions.push(description);
+    this.operations.push({ description, type: 'setRemoteDescription' });
     if (this.setRemoteDescriptionError) {
       return Promise.reject(this.setRemoteDescriptionError);
     }
@@ -709,7 +721,7 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
     expect(harness.errorReasons).toEqual([]);
   });
 
-  test('answers a fresh host offer received while an earlier offer is still applying', async () => {
+  test('answers only the fresh host offer received while an earlier offer is still applying', async () => {
     const harness = createHarness();
     const { channel, peerConnections, startRuntime } = harness;
 
@@ -753,7 +765,113 @@ describe('createLiveSessionViewerPlaybackRuntime', () => {
     ]);
     expect(
       channel.pushes.filter((push) => push.eventName === 'media:answer'),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
+    expect(harness.errorReasons).toEqual([]);
+  });
+
+  test('applies host ICE after the queued fresh host offer is accepted', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, startRuntime } = harness;
+
+    await startRuntime();
+    const remoteDescription = createDeferred();
+    peerConnections[0].setRemoteDescriptionDeferred = remoteDescription;
+
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer',
+      type: 'offer',
+    });
+    await flushAsyncHandlers();
+
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer-2',
+      type: 'offer',
+    });
+    channel.emit('media:ice_candidate', {
+      candidate: 'candidate:fresh-host 1 udp 1 192.0.2.10 54400 typ host',
+      sdp_m_line_index: 0,
+      sdp_mid: '0',
+      sender_role: 'host',
+      username_fragment: 'fresh-host-ufrag',
+    });
+    await flushAsyncHandlers();
+
+    remoteDescription.resolve();
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].operations).toEqual([
+      {
+        description: {
+          sdp: 'v=0\r\nhost-offer',
+          type: 'offer',
+        },
+        type: 'setRemoteDescription',
+      },
+      {
+        description: {
+          sdp: 'v=0\r\nhost-offer-2',
+          type: 'offer',
+        },
+        type: 'setRemoteDescription',
+      },
+      {
+        candidate: {
+          candidate: 'candidate:fresh-host 1 udp 1 192.0.2.10 54400 typ host',
+          sdpMLineIndex: 0,
+          sdpMid: '0',
+          usernameFragment: 'fresh-host-ufrag',
+        },
+        type: 'addIceCandidate',
+      },
+    ]);
+    expect(harness.errorReasons).toEqual([]);
+  });
+
+  test('drops queued old-offer ICE when a fresh host offer supersedes it', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, startRuntime } = harness;
+
+    await startRuntime();
+    const remoteDescription = createDeferred();
+    peerConnections[0].setRemoteDescriptionDeferred = remoteDescription;
+
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer',
+      type: 'offer',
+    });
+    await flushAsyncHandlers();
+
+    channel.emit('media:ice_candidate', {
+      candidate: 'candidate:old-host 1 udp 1 192.0.2.10 54400 typ host',
+      sdp_m_line_index: 0,
+      sdp_mid: '0',
+      sender_role: 'host',
+      username_fragment: 'old-host-ufrag',
+    });
+    channel.emit('media:offer', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer-2',
+      type: 'offer',
+    });
+    await flushAsyncHandlers();
+
+    remoteDescription.resolve();
+    await flushAsyncHandlers();
+
+    expect(peerConnections[0].addIceCandidateCalls).toEqual([]);
+    expect(peerConnections[0].remoteDescriptions).toEqual([
+      {
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      },
+      {
+        sdp: 'v=0\r\nhost-offer-2',
+        type: 'offer',
+      },
+    ]);
     expect(harness.errorReasons).toEqual([]);
   });
 

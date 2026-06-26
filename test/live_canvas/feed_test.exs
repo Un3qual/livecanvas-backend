@@ -562,6 +562,19 @@ defmodule LC.FeedTest do
       assert session_id == starting_session.id
     end
 
+    test "prefers a visible live session over a fresh duplicate preflight for a profile" do
+      viewer = user_fixture()
+      host = user_fixture(privacy_mode: :public)
+
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, live_session} = Live.mark_session_live(live_session)
+      {:ok, _starting_session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert %{id: session_id, status: :live} = Feed.profile_current_live_session(viewer, host)
+
+      assert session_id == live_session.id
+    end
+
     test "does not return stale starting sessions for a profile" do
       viewer = user_fixture()
       host = user_fixture(privacy_mode: :public)

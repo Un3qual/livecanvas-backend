@@ -202,6 +202,16 @@ defmodule LC.Feed do
     viewer
     |> live_now_query()
     |> where([live_session], live_session.host_id == ^host_id)
+    |> exclude(:order_by)
+    # Discovery advertises fresh preflight first, but profile/current-session
+    # should prefer an established broadcast when a duplicate STARTING row exists.
+    |> order_by(
+      [live_session],
+      asc: fragment("CASE WHEN ? = 'live' THEN 0 ELSE 1 END", live_session.status),
+      desc_nulls_last: live_session.started_at,
+      desc: live_session.inserted_at,
+      desc: live_session.id
+    )
   end
 
   @doc """
