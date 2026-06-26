@@ -15,11 +15,6 @@ export type HostBroadcastPublishingRetainedEntry = {
 
 export type HostBroadcastPublishingSessionStore = {
   readonly has: (liveSessionId: string) => boolean;
-  readonly markAuthLossEndFailed: (
-    liveSessionId: string,
-    resource: HostBroadcastPublishingResource,
-  ) => void;
-  readonly releaseAllForAuthStateChange: () => readonly string[];
   readonly release: (liveSessionId: string) => void;
   readonly releaseAll: () => readonly string[];
   readonly releaseIfCurrent: (
@@ -44,7 +39,7 @@ export type ReleaseHostBroadcastPublishingBeforeAuthLossOptions = {
   readonly getAccessToken: () => string | null;
   readonly store: Pick<
     HostBroadcastPublishingSessionStore,
-    'markAuthLossEndFailed' | 'releaseIfCurrent' | 'retainedEntries'
+    'releaseIfCurrent' | 'retainedEntries'
   >;
 };
 
@@ -84,33 +79,10 @@ const disposedResources = new WeakSet<HostBroadcastPublishingResource>();
 
 export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublishingSessionStore {
   const resources = new Map<string, HostBroadcastPublishingResource>();
-  const failedAuthLossEndResources =
-    new Map<string, HostBroadcastPublishingResource>();
 
   return {
     has(liveSessionId) {
       return resources.has(liveSessionId);
-    },
-    markAuthLossEndFailed(liveSessionId, resource) {
-      if (resources.get(liveSessionId) === resource) {
-        failedAuthLossEndResources.set(liveSessionId, resource);
-      }
-    },
-    releaseAllForAuthStateChange() {
-      const releasedLiveSessionIds: string[] = [];
-
-      for (const [liveSessionId, resource] of resources) {
-        if (failedAuthLossEndResources.get(liveSessionId) === resource) {
-          continue;
-        }
-
-        resources.delete(liveSessionId);
-        failedAuthLossEndResources.delete(liveSessionId);
-        disposeHostBroadcastPublishingResource(resource);
-        releasedLiveSessionIds.push(liveSessionId);
-      }
-
-      return releasedLiveSessionIds;
     },
     release(liveSessionId) {
       const resource = resources.get(liveSessionId);
@@ -120,14 +92,12 @@ export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublis
       }
 
       resources.delete(liveSessionId);
-      failedAuthLossEndResources.delete(liveSessionId);
       disposeHostBroadcastPublishingResource(resource);
     },
     releaseAll() {
       const releasedLiveSessionIds = [...resources.keys()];
       const retainedResources = [...resources.values()];
       resources.clear();
-      failedAuthLossEndResources.clear();
 
       for (const resource of retainedResources) {
         disposeHostBroadcastPublishingResource(resource);
@@ -141,7 +111,6 @@ export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublis
       }
 
       resources.delete(liveSessionId);
-      failedAuthLossEndResources.delete(liveSessionId);
       disposeHostBroadcastPublishingResource(resource);
       return true;
     },
@@ -151,8 +120,6 @@ export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublis
       if (existing === resource) {
         return;
       }
-
-      failedAuthLossEndResources.delete(liveSessionId);
 
       if (existing) {
         disposeHostBroadcastPublishingResource(existing);
@@ -277,10 +244,10 @@ export function shouldIgnoreRetainedHostPublishingChannelTermination(
 export function releaseHostBroadcastPublishingAfterAuthStateChange(
   previousStatus: HostBroadcastPublishingAuthStatus,
   nextStatus: HostBroadcastPublishingAuthStatus,
-  store: Pick<HostBroadcastPublishingSessionStore, 'releaseAllForAuthStateChange'>,
+  store: Pick<HostBroadcastPublishingSessionStore, 'releaseAll'>,
 ): readonly string[] {
   if (previousStatus === 'authenticated' && nextStatus !== 'authenticated') {
-    return store.releaseAllForAuthStateChange();
+    return store.releaseAll();
   }
 
   return [];
@@ -298,10 +265,6 @@ export async function releaseHostBroadcastPublishingBeforeAuthLoss({
   const retainedEntries = store.retainedEntries();
 
   if (!accessToken) {
-    for (const { liveSessionId, resource } of retainedEntries) {
-      store.markAuthLossEndFailed(liveSessionId, resource);
-    }
-
     return [];
   }
 
@@ -320,7 +283,6 @@ export async function releaseHostBroadcastPublishingBeforeAuthLoss({
           : null;
       }
 
-      store.markAuthLossEndFailed(liveSessionId, resource);
       return null;
     }),
   );

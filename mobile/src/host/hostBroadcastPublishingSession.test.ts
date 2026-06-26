@@ -378,7 +378,7 @@ describe('hostBroadcastPublishingSession', () => {
     expect(resource.disconnectCount()).toBe(0);
   });
 
-  test('skips auth-state fallback release after auth-loss session end fails', async () => {
+  test('releases local publishing resources after auth-loss session end fails', async () => {
     const store = createHostBroadcastPublishingSessionStore();
     const resource = createResource();
     const fetchImpl: typeof fetch = () =>
@@ -395,16 +395,20 @@ describe('hostBroadcastPublishingSession', () => {
       }),
     ).resolves.toEqual([]);
 
+    expect(store.has('live-session-id')).toBe(true);
+    expect(resource.disposeCount()).toBe(0);
+    expect(resource.disconnectCount()).toBe(0);
+
     expect(
       releaseHostBroadcastPublishingAfterAuthStateChange(
         'authenticated',
         'unauthenticated',
         store,
       ),
-    ).toEqual([]);
-    expect(store.has('live-session-id')).toBe(true);
-    expect(resource.disposeCount()).toBe(0);
-    expect(resource.disconnectCount()).toBe(0);
+    ).toEqual(['live-session-id']);
+    expect(store.has('live-session-id')).toBe(false);
+    expect(resource.disposeCount()).toBe(1);
+    expect(resource.disconnectCount()).toBe(1);
   });
 
   test('retains publishing resources when auth-loss session end returns GraphQL errors', async () => {
