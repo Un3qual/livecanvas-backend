@@ -87,10 +87,11 @@ export function AuthProvider({
     }
   }, []);
 
-  const onForcedLogout = useCallback(() => {
+  const onForcedLogout = useCallback(async () => {
     bootstrapRanRef.current = true;
+    await runBeforeUnauthenticatedCallbacks();
     commitUnauthenticated();
-  }, [commitUnauthenticated]);
+  }, [commitUnauthenticated, runBeforeUnauthenticatedCallbacks]);
 
   useEffect(() => {
     let cancelled = false;

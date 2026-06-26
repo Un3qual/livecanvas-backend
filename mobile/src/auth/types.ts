@@ -21,7 +21,7 @@ export interface AuthContextValue {
   /** Sync in-memory auth state after background token rotation */
   syncTokens: (tokens: AuthTokenPair) => void;
   /** Transition to unauthenticated after the network layer already cleared storage */
-  onForcedLogout: () => void;
+  onForcedLogout: () => void | Promise<void>;
   /** Register best-effort cleanup that should run before an explicit sign-out clears tokens */
   registerBeforeUnauthenticated: (
     callback: BeforeUnauthenticatedCallback,
