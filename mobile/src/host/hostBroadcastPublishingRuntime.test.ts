@@ -132,6 +132,7 @@ class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
     [];
   readonly localDescriptions: HostBroadcastPublishingSessionDescription[] = [];
   readonly remoteDescriptions: HostBroadcastPublishingSessionDescription[] = [];
+  addIceCandidateError: Error | null = null;
   closeCount = 0;
   createOfferDeferred: Deferred<HostBroadcastPublishingSessionDescription> | null =
     null;
@@ -148,6 +149,7 @@ class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
   };
   setLocalDescriptionDeferred: Deferred | null = null;
   setRemoteDescriptionDeferred: Deferred | null = null;
+  setRemoteDescriptionError: Error | null = null;
 
   addTrack(track: unknown, stream: unknown): void {
     this.addTrackCalls.push({ stream, track });
@@ -157,6 +159,10 @@ class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
     candidate: HostBroadcastPublishingIceCandidate,
   ): Promise<void> {
     this.addIceCandidateCalls.push(candidate);
+    if (this.addIceCandidateError) {
+      return Promise.reject(this.addIceCandidateError);
+    }
+
     return Promise.resolve();
   }
 
@@ -183,6 +189,10 @@ class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
     description: HostBroadcastPublishingSessionDescription,
   ): Promise<void> {
     this.remoteDescriptions.push(description);
+    if (this.setRemoteDescriptionError) {
+      return Promise.reject(this.setRemoteDescriptionError);
+    }
+
     return this.setRemoteDescriptionDeferred?.promise ?? Promise.resolve();
   }
 
@@ -717,6 +727,72 @@ describe('createHostBroadcastPublishingRuntime', () => {
 
     expect(runtime.isNegotiationReady()).toBe(false);
     expect(harness.readyCount).toBe(0);
+  });
+
+  test('disposes retained publishing resources after viewer answer application fails', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, runtime } = harness;
+
+    await startAndFlush(runtime, channel);
+    peerConnections[0].setRemoteDescriptionError = new Error(
+      'invalid_viewer_answer',
+    );
+
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nviewer-answer',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+
+    expect(harness.errorReasons).toEqual([
+      'Could not start host media publishing. Please try again.',
+    ]);
+    expect(channel.leaveCount).toBe(1);
+    expect(peerConnections[0].closeCount).toBe(1);
+    expect(harness.localDisposeCount).toBe(1);
+    expect(runtime.isNegotiationReady()).toBe(false);
+
+    channel.emit('media:viewer_ready', {
+      sender_role: 'viewer',
+    });
+    await flushAsyncHandlers();
+
+    expect(peerConnections).toHaveLength(1);
+    expect(channel.leaveCount).toBe(1);
+    expect(peerConnections[0].closeCount).toBe(1);
+    expect(harness.localDisposeCount).toBe(1);
+  });
+
+  test('disposes retained publishing resources after viewer ICE application fails', async () => {
+    const harness = createHarness();
+    const { channel, peerConnections, runtime } = harness;
+
+    await startAndFlush(runtime, channel);
+    channel.emit('media:answer', {
+      sender_role: 'viewer',
+      sdp: 'v=0\r\nviewer-answer',
+      type: 'answer',
+    });
+    await flushAsyncHandlers();
+    peerConnections[0].addIceCandidateError = new Error('invalid_viewer_ice');
+
+    channel.emit('media:ice_candidate', {
+      candidate: 'candidate:viewer 1 udp 1 192.0.2.11 54401 typ host',
+      sdp_m_line_index: 0,
+      sdp_mid: '0',
+      sender_role: 'viewer',
+      username_fragment: 'viewer-ufrag',
+    });
+    await flushAsyncHandlers();
+
+    expect(harness.errorReasons).toEqual([
+      'Could not start host media publishing. Please try again.',
+    ]);
+    expect(channel.leaveCount).toBe(1);
+    expect(peerConnections[0].closeCount).toBe(1);
+    expect(harness.localDisposeCount).toBe(1);
+    expect(runtime.isNegotiationReady()).toBe(true);
   });
 
   test('does not push an offer or report started when disposed while setting the local description', async () => {

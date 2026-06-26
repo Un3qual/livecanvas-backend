@@ -24,6 +24,15 @@ export type HostBroadcastPublishingAuthStatus =
   | 'loading'
   | 'unauthenticated';
 
+export type ReleaseCurrentRetainedHostPublishingResourceOptions = {
+  readonly clearCurrentResource: (
+    resource: HostBroadcastPublishingResource,
+  ) => void;
+  readonly currentResource: HostBroadcastPublishingResource | null;
+  readonly liveSessionIdsByResource: Map<HostBroadcastPublishingResource, string>;
+  readonly store: HostBroadcastPublishingSessionStore;
+};
+
 export type HostBroadcastPublishingPreflightController = {
   readonly attachResource: (resource: HostBroadcastPublishingResource) => void;
   readonly cleanupAttachedResource: () => void;
@@ -136,6 +145,30 @@ export function releaseHostBroadcastPublishingRetainedResource(
   store: HostBroadcastPublishingSessionStore,
 ): boolean {
   return store.releaseIfCurrent(liveSessionId, resource);
+}
+
+export function releaseCurrentRetainedHostPublishingResource({
+  clearCurrentResource,
+  currentResource,
+  liveSessionIdsByResource,
+  store,
+}: ReleaseCurrentRetainedHostPublishingResourceOptions): string | null {
+  const liveSessionId = currentResource
+    ? liveSessionIdsByResource.get(currentResource)
+    : null;
+
+  if (!currentResource || !liveSessionId) {
+    return null;
+  }
+
+  liveSessionIdsByResource.delete(currentResource);
+  releaseHostBroadcastPublishingRetainedResource(
+    liveSessionId,
+    currentResource,
+    store,
+  );
+  clearCurrentResource(currentResource);
+  return liveSessionId;
 }
 
 export function releaseHostBroadcastPublishingAfterAuthStateChange(

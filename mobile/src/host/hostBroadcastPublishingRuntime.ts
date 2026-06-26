@@ -276,6 +276,7 @@ export function createHostBroadcastPublishingRuntime({
       applyingViewerAnswer = false;
       if (!disposed) {
         onError?.(GENERIC_START_FAILURE_REASON);
+        dispose();
       }
     }
   }
@@ -307,6 +308,7 @@ export function createHostBroadcastPublishingRuntime({
     } catch {
       if (!disposed) {
         onError?.(GENERIC_START_FAILURE_REASON);
+        dispose();
       }
     }
   }

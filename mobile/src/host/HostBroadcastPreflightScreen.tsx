@@ -35,7 +35,7 @@ import {
 import { useHostBroadcastPublishingSessions } from './HostBroadcastPublishingSessionProvider';
 import {
   createHostBroadcastPublishingPreflightController,
-  releaseHostBroadcastPublishingRetainedResource,
+  releaseCurrentRetainedHostPublishingResource,
   type HostBroadcastPublishingResource,
   type HostBroadcastPublishingPreflightController,
 } from './hostBroadcastPublishingSession';
@@ -699,6 +699,20 @@ export function HostBroadcastPreflightScreen() {
     setPublishingStatus('starting');
     setHostActionError(null);
 
+    function releaseRetainedPublishingResource() {
+      return releaseCurrentRetainedHostPublishingResource({
+        clearCurrentResource: (resource) => {
+          if (retainedHostPublishingResourceRef.current === resource) {
+            retainedHostPublishingResourceRef.current = null;
+            hasRetainedHostPublishingResourceRef.current = false;
+          }
+        },
+        currentResource: publishingResource,
+        liveSessionIdsByResource: retainedHostPublishingLiveSessionIdsRef.current,
+        store: hostPublishingSessions,
+      });
+    }
+
     async function startPublishingRuntime() {
       const localStream = await native.getPreviewStream();
 
@@ -721,23 +735,7 @@ export function HostBroadcastPreflightScreen() {
 
           didHandleChannelTermination = true;
 
-          const resource = publishingResource;
-          const retainedLiveSessionId = resource
-            ? retainedHostPublishingLiveSessionIdsRef.current.get(resource)
-            : null;
-
-          if (resource && retainedLiveSessionId) {
-            retainedHostPublishingLiveSessionIdsRef.current.delete(resource);
-            releaseHostBroadcastPublishingRetainedResource(
-              retainedLiveSessionId,
-              resource,
-              hostPublishingSessions,
-            );
-
-            if (retainedHostPublishingResourceRef.current === resource) {
-              retainedHostPublishingResourceRef.current = null;
-              hasRetainedHostPublishingResourceRef.current = false;
-            }
+          if (releaseRetainedPublishingResource()) {
             return;
           }
 
@@ -748,6 +746,14 @@ export function HostBroadcastPreflightScreen() {
           failPreparedPublishing(HOST_PUBLISHING_ERROR);
         },
         onError: (reason) => {
+          const retainedLiveSessionId = releaseRetainedPublishingResource();
+          if (retainedLiveSessionId) {
+            requestPreflightEndLiveSession(retainedLiveSessionId, {
+              navigateBackOnSuccess: false,
+            });
+            return;
+          }
+
           if (!isActive) {
             return;
           }

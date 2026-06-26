@@ -3,6 +3,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
+  releaseCurrentRetainedHostPublishingResource,
   releaseHostBroadcastPublishingAfterAuthStateChange,
   releaseHostBroadcastPublishingRetainedResource,
   type HostBroadcastPublishingResource,
@@ -126,6 +127,36 @@ describe('hostBroadcastPublishingSession', () => {
     expect(secondResource.disposeCount()).toBe(1);
     expect(secondResource.disconnectCount()).toBe(1);
     expect(store.has('live-session-id')).toBe(false);
+  });
+
+  test('releases the current retained publishing resource and clears local ownership', () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const resource = createResource();
+    const liveSessionIdsByResource = new Map([
+      [resource, 'live-session-id'],
+    ]);
+    let currentResource: HostBroadcastPublishingResource | null = resource;
+
+    store.retain('live-session-id', resource);
+
+    expect(
+      releaseCurrentRetainedHostPublishingResource({
+        clearCurrentResource: (releasedResource) => {
+          if (currentResource === releasedResource) {
+            currentResource = null;
+          }
+        },
+        currentResource,
+        liveSessionIdsByResource,
+        store,
+      }),
+    ).toBe('live-session-id');
+
+    expect(currentResource).toBeNull();
+    expect(liveSessionIdsByResource.has(resource)).toBe(false);
+    expect(store.has('live-session-id')).toBe(false);
+    expect(resource.disposeCount()).toBe(1);
+    expect(resource.disconnectCount()).toBe(1);
   });
 
   test('releases retained publishing resources when auth leaves authenticated state', () => {
