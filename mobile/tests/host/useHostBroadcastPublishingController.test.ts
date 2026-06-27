@@ -6,7 +6,7 @@ import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
   type HostBroadcastPublishingResource,
-} from '../../src/host/hostBroadcastPublishingSession';
+} from '../../src/host/publishing/hostBroadcastPublishingSessionStore';
 import type {
   HostBroadcastPublishingRuntime,
   HostBroadcastPublishingRuntimeOptions,

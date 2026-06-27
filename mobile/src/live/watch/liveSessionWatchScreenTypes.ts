@@ -1,12 +1,14 @@
 import type { ComponentType } from 'react';
 
 import type { LiveSessionWatchPendingMutation } from '../liveSessionWatchReducer';
-import type { LiveSessionWatchModel } from './liveSessionWatchData';
+import type { LiveSessionWatchScreenQuery } from './liveSessionWatchOperations';
 
-export type {
-  LiveSessionWatchData,
-  LiveSessionWatchModel,
-} from './liveSessionWatchData';
+export type LiveSessionWatchData = LiveSessionWatchScreenQuery['response'];
+
+export type LiveSessionWatchModel = Extract<
+  NonNullable<LiveSessionWatchData['node']>,
+  { readonly __typename: 'LiveSession' }
+>;
 
 export type LiveSessionRTCViewProps = {
   readonly objectFit?: 'contain' | 'cover';

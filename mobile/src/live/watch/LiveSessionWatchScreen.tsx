@@ -17,7 +17,7 @@ import { useHostBroadcastPublishingSessions } from '../../host/HostBroadcastPubl
 import { useStartupState } from '../../providers/StartupGate';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import { createPhoenixSocket } from '../../realtime/phoenixSocket';
-import { LiveSessionChatPanel } from '../LiveSessionChatPanel';
+import { LiveSessionChatPanel } from '../chat/LiveSessionChatPanel';
 import { createLiveSessionChatChannelLifecycle } from '../liveSessionChatChannelLifecycle';
 import {
   createLiveSessionChannelClient,
@@ -28,9 +28,6 @@ import {
   canStartLiveSessionChatSend,
   createLiveSessionChatState,
   liveSessionChatReducer,
-  selectLiveSessionChatChannelStatus,
-  selectLiveSessionChatSendError,
-  selectLiveSessionChatSendStatus,
   selectLiveSessionChatVisibleRows,
 } from '../liveSessionChatReducer';
 import {
@@ -66,10 +63,6 @@ import {
 } from './components/LiveSessionWatchCards';
 import { LiveSessionViewerPlaybackSurface } from './components/LiveSessionViewerPlaybackSurface';
 import { useLiveSessionViewerPlaybackController } from './hooks/useLiveSessionViewerPlaybackController';
-import {
-  readLiveSessionWatchModel,
-  readLiveSessionWatchViewerId,
-} from './liveSessionWatchData';
 import {
   liveSessionWatchScreenEndMutation,
   liveSessionWatchScreenJoinMutation,
@@ -206,7 +199,7 @@ function LiveSessionWatchContent({
 
   leaveMutationRef.current = commitLeaveLiveSession;
 
-  const session = readLiveSessionWatchModel(data);
+  const session = data.node?.__typename === 'LiveSession' ? data.node : null;
   const retainedTimelineConnection = session?.timelineEvents ?? null;
   const retainedTimelineHistory = useMemo(
     () =>
@@ -235,9 +228,9 @@ function LiveSessionWatchContent({
   const isEnding = visibleSubmission === 'ending';
   const hasActiveSubmission = visibleSubmission !== 'idle';
   const chatRows = selectLiveSessionChatVisibleRows(chatState);
-  const chatChannelStatus = selectLiveSessionChatChannelStatus(chatState);
-  const chatSendStatus = selectLiveSessionChatSendStatus(chatState);
-  const chatSendError = selectLiveSessionChatSendError(chatState);
+  const chatChannelStatus = chatState.channelStatus;
+  const chatSendStatus = chatState.sendStatus;
+  const chatSendError = chatState.sendError;
   const hasRetainedHostPublishingSession = session
     ? hostPublishingSessions.has(session.id)
     : false;
@@ -644,8 +637,7 @@ function LiveSessionWatchContent({
 
   const liveSessionId = liveSession.id;
   const status = formatLiveSessionStatus(normalizedStatus);
-  const isCurrentViewerHost =
-    readLiveSessionWatchViewerId(data) === liveSession.host.id;
+  const isCurrentViewerHost = data.viewer?.id === liveSession.host.id;
   const canEndLiveSession =
     isCurrentViewerHost && normalizedStatus !== 'ENDED';
 

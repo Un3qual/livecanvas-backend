@@ -10,12 +10,14 @@ import {
 import { useAuth } from '../auth/AuthProvider';
 import { useStartupState } from '../providers/StartupGate';
 import {
-  createHostBroadcastPublishingSessionStore,
   releaseHostBroadcastPublishingAfterAuthStateChange,
   releaseHostBroadcastPublishingBeforeAuthLoss,
   type HostBroadcastPublishingAuthStatus,
+} from './publishing/hostBroadcastPublishingAuthCleanup';
+import {
+  createHostBroadcastPublishingSessionStore,
   type HostBroadcastPublishingSessionStore,
-} from './hostBroadcastPublishingSession';
+} from './publishing/hostBroadcastPublishingSessionStore';
 
 const HostBroadcastPublishingSessionContext =
   createContext<HostBroadcastPublishingSessionStore | null>(null);

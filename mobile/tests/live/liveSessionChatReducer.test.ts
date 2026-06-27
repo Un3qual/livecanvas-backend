@@ -4,11 +4,7 @@ import {
   canStartLiveSessionChatSend,
   createLiveSessionChatState,
   liveSessionChatReducer,
-  selectLiveSessionChatChannelStatus,
   selectLiveSessionChatPaginationCursors,
-  selectLiveSessionChatPaginationPageInfo,
-  selectLiveSessionChatSendError,
-  selectLiveSessionChatSendStatus,
   selectLiveSessionChatVisibleRows,
 } from '../../src/live/liveSessionChatReducer';
 import {
@@ -30,7 +26,7 @@ import type {
 import type { LiveSessionRealtimeEvent } from '../../src/live/liveSessionRealtimeEvents';
 
 describe('liveSessionChatReducer', () => {
-  test('chat modules expose state selectors and merge helpers behind the public reducer shim', () => {
+  test('chat modules expose derived selectors and merge helpers behind the public reducer shim', () => {
     expect(createLiveSessionChatStateFromStateModule()).toEqual(
       createLiveSessionChatState(),
     );
@@ -113,7 +109,7 @@ describe('liveSessionChatReducer', () => {
     expect(selectLiveSessionChatVisibleRows(state).map((row) => row.id)).toEqual(
       ['event-1', 'event-2'],
     );
-    expect(selectLiveSessionChatPaginationPageInfo(state)).toBe(page);
+    expect(state.pageInfo).toBe(page);
     expect(selectLiveSessionChatPaginationCursors(state)).toEqual({
       endCursor: 'cursor-2',
       startCursor: 'cursor-1',
@@ -164,7 +160,7 @@ describe('liveSessionChatReducer', () => {
       cursor: null,
       id: 'event-3',
     });
-    expect(selectLiveSessionChatPaginationPageInfo(refreshed)).toEqual(
+    expect(refreshed.pageInfo).toEqual(
       pageInfo('cursor-1-refresh', 'cursor-2-refresh'),
     );
   });
@@ -359,7 +355,7 @@ describe('liveSessionChatReducer', () => {
       'event-4',
       'event-5',
     ]);
-    expect(selectLiveSessionChatPaginationPageInfo(refreshed)).toEqual({
+    expect(refreshed.pageInfo).toEqual({
       endCursor: 'cursor-event-5',
       hasNextPage: false,
       hasPreviousPage: false,
@@ -390,7 +386,7 @@ describe('liveSessionChatReducer', () => {
     expect(selectLiveSessionChatVisibleRows(withOlder).map((row) => row.id)).toEqual(
       ['event-1', 'event-2', 'event-3'],
     );
-    expect(selectLiveSessionChatPaginationPageInfo(withOlder)).toEqual({
+    expect(withOlder.pageInfo).toEqual({
       endCursor: 'cursor-3',
       hasNextPage: false,
       hasPreviousPage: false,
@@ -421,7 +417,7 @@ describe('liveSessionChatReducer', () => {
     expect(selectLiveSessionChatVisibleRows(withNewer).map((row) => row.id)).toEqual(
       ['event-1', 'event-2', 'event-3'],
     );
-    expect(selectLiveSessionChatPaginationPageInfo(withNewer)).toEqual({
+    expect(withNewer.pageInfo).toEqual({
       endCursor: 'cursor-3',
       hasNextPage: false,
       hasPreviousPage: false,
@@ -574,8 +570,8 @@ describe('liveSessionChatReducer', () => {
       type: 'send_started',
     });
 
-    expect(selectLiveSessionChatSendStatus(sending)).toBe('sending');
-    expect(selectLiveSessionChatSendError(sending)).toBeNull();
+    expect(sending.sendStatus).toBe('sending');
+    expect(sending.sendError).toBeNull();
 
     const failed = liveSessionChatReducer(sending, {
       error: 'Message could not be sent.',
@@ -583,8 +579,8 @@ describe('liveSessionChatReducer', () => {
       type: 'send_failed',
     });
 
-    expect(selectLiveSessionChatSendStatus(failed)).toBe('failed');
-    expect(selectLiveSessionChatSendError(failed)).toBe(
+    expect(failed.sendStatus).toBe('failed');
+    expect(failed.sendError).toBe(
       'Message could not be sent.',
     );
 
@@ -594,7 +590,7 @@ describe('liveSessionChatReducer', () => {
       type: 'channel_status_changed',
     });
 
-    expect(selectLiveSessionChatChannelStatus(joined)).toBe('joined');
+    expect(joined.channelStatus).toBe('joined');
 
     const reset = liveSessionChatReducer(joined, {
       sessionId: 'session-2',
@@ -606,9 +602,9 @@ describe('liveSessionChatReducer', () => {
     });
 
     expect(staleSendSuccess).toBe(reset);
-    expect(selectLiveSessionChatSendStatus(reset)).toBe('idle');
-    expect(selectLiveSessionChatSendError(reset)).toBeNull();
-    expect(selectLiveSessionChatChannelStatus(reset)).toBe('idle');
+    expect(reset.sendStatus).toBe('idle');
+    expect(reset.sendError).toBeNull();
+    expect(reset.channelStatus).toBe('idle');
   });
 
   test('send cancellation clears an in-flight send for channel cleanup', () => {
@@ -622,8 +618,8 @@ describe('liveSessionChatReducer', () => {
       type: 'send_cancelled',
     });
 
-    expect(selectLiveSessionChatSendStatus(cancelled)).toBe('idle');
-    expect(selectLiveSessionChatSendError(cancelled)).toBeNull();
+    expect(cancelled.sendStatus).toBe('idle');
+    expect(cancelled.sendError).toBeNull();
   });
 
   test('chat send start decision closes same-render pending sends', () => {

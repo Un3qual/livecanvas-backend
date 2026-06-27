@@ -2,13 +2,13 @@ import type {
   HostBroadcastPublishingIceCandidate,
   HostBroadcastPublishingPeerConnection,
   HostBroadcastPublishingSessionDescription,
-} from '../../../src/host/hostBroadcastPublishingRuntime';
+} from '../../../src/host/publishing/hostBroadcastPublishingRuntime';
 import type {
   LiveSessionViewerPlaybackIceCandidate,
   LiveSessionViewerPlaybackPeerConnection,
   LiveSessionViewerPlaybackRemoteStream,
   LiveSessionViewerPlaybackSessionDescription,
-} from '../../../src/live/liveSessionViewerPlaybackRuntime';
+} from '../../../src/live/playback/liveSessionViewerPlaybackRuntime';
 
 export type Deferred<T = undefined> = {
   readonly promise: Promise<T>;

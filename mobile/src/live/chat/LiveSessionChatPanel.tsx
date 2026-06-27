@@ -9,11 +9,7 @@ import type {
   LiveSessionChatChannelStatus,
   LiveSessionChatSendStatus,
 } from '../liveSessionChatReducer';
-import {
-  createLiveSessionChatPanelModel,
-  readLiveSessionChatPanelSendBody,
-  shouldClearLiveSessionChatPanelDraftAfterSend,
-} from './liveSessionChatPanelPresentation';
+import { createLiveSessionChatPanelModel } from './liveSessionChatPanelPresentation';
 import type { LiveSessionTimelineHistoryRow } from '../liveSessionTimelineHistory';
 
 type LiveSessionChatPanelProps = {
@@ -92,15 +88,15 @@ export function LiveSessionChatPanel({
   });
 
   async function handleSendPress() {
-    const body = readLiveSessionChatPanelSendBody(draftMessage);
+    const body = draftMessage.trim();
 
-    if (model.sendButtonDisabled || !body) {
+    if (model.sendButtonDisabled || body.length === 0) {
       return;
     }
 
     const sendSucceeded = await onSendMessage(body);
 
-    if (shouldClearLiveSessionChatPanelDraftAfterSend(sendSucceeded)) {
+    if (sendSucceeded) {
       setDraftMessage('');
     }
   }

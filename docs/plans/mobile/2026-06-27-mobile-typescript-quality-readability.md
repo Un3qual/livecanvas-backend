@@ -4,7 +4,7 @@
 
 **Goal:** Reduce hand-written TypeScript ceremony in the mobile app, especially live broadcasts, by moving boundary validation, generated Relay shapes, native runtime adapters, and state-machine plumbing into focused modules with clear conventions.
 
-**Architecture:** Keep strict TypeScript. Keep `unknown` and runtime shape checks at external boundaries only: Relay payload readers, Phoenix payload normalizers, native WebRTC adapters, and raw fetch response readers. Screens should compose typed controllers and presentation models, not define long chains of generated types, ref-backed lifecycle state, callback payload shapes, or native shim types. Preserve the existing public import shims because Bun mocks and route modules rely on those seams.
+**Architecture:** Keep strict TypeScript. Keep `unknown` and runtime shape checks at external boundaries only: Relay payload readers, Phoenix payload normalizers, native WebRTC adapters, and raw fetch response readers. Screens should compose typed controllers and presentation models, not define long chains of generated types, ref-backed lifecycle state, callback payload shapes, or native shim types. Prefer direct nested imports for internal mobile routes, tests, and feature modules; keep wrapper files only when they carry behavior or an external compatibility contract.
 
 **Tech Stack:** Expo Router, React Native, TypeScript strict mode, Relay, Phoenix Channels, react-native-webrtc, Bun tests.
 
@@ -78,8 +78,17 @@ This is expected around Phoenix and WebRTC boundaries. The cleanup target is to 
 - **Keep type guards with the external format they validate.** Snake-case Phoenix payload validation belongs in realtime/media payload modules; camel-case UI/domain rows belong in feature presentation or reducer modules.
 - **Use discriminated result objects for async work.** Continue returning `{ status: 'started' } | { status: 'error'; reason: string }` for non-throwing UI paths, but define shared result types instead of repeating them.
 - **Avoid utility-type chains in component props.** If a component needs `Extract<...>` or `NonNullable<...>`, create a named feature type in a reader/type module and import that.
-- **Keep compatibility shims.** Existing top-level files in `mobile/src/live/**`, `mobile/src/host/**`, and `mobile/src/components/**` should continue re-exporting moved modules until tests and routes are migrated intentionally.
+- **Avoid wrapper-only modules.** Once tests and routes are migrated intentionally, delete files that only re-export a moved module.
 - **Keep tests out of source.** New coverage belongs under `mobile/tests/**`.
+
+## Follow-Up Cleanup
+
+2026-06-27: After review feedback, the internal mobile consumers were migrated
+off wrapper-only facade files. The top-level screen/runtime/session shims for
+live, host publishing, profile screens, and the old auth screen style export
+were removed. Trivial watch-screen data readers and chat getter selectors were
+folded into the consuming modules; retained helpers now stay separate only when
+they normalize external data, derive state, or encode a named policy.
 
 ## Target Folder Shape
 

@@ -13,7 +13,7 @@ import { AppButton } from '../../components/AppButton';
 import { AppCard } from '../../components/AppCard';
 import { ScreenState } from '../../components/ScreenState';
 import { liveSessionHref } from '../../live/liveSessionNavigation';
-import { LiveSessionSummaryCard } from '../../live/LiveSessionSummaryCard';
+import { LiveSessionSummaryCard } from '../../live/components/LiveSessionSummaryCard';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import {
   ProfileSummaryCard,

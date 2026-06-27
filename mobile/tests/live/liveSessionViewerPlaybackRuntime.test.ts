@@ -3,10 +3,12 @@ import { describe, expect, test } from 'bun:test';
 import {
   createLiveSessionViewerMediaAnswerPayload,
   createLiveSessionViewerMediaIceCandidatePayload,
-  createLiveSessionViewerPlaybackRuntime,
   readPreparedLiveSessionViewerMedia,
+} from '../../src/live/playback/liveSessionViewerPlaybackPreparation';
+import {
+  createLiveSessionViewerPlaybackRuntime,
   type LiveSessionViewerPlaybackPeerConnectionConfig,
-} from '../../src/live/liveSessionViewerPlaybackRuntime';
+} from '../../src/live/playback/liveSessionViewerPlaybackRuntime';
 import {
   createLiveMediaSessionDescriptionPayload,
   isRecord,
@@ -14,11 +16,6 @@ import {
   readOptionalString,
 } from '../../src/live/media/liveMediaPayloads';
 import { createLiveWebRtcPeerConnectionFactory } from '../../src/live/media/liveWebRtcAdapter';
-import {
-  createLiveSessionViewerMediaAnswerPayload as createPreparedViewerAnswerPayload,
-  createLiveSessionViewerMediaIceCandidatePayload as createPreparedViewerIceCandidatePayload,
-  readPreparedLiveSessionViewerMedia as readPreparedViewerMedia,
-} from '../../src/live/playback/liveSessionViewerPlaybackPreparation';
 import { FakeChannel, FakePush } from './support/fakeLiveSessionChannel';
 import {
   createDeferred,
@@ -118,7 +115,7 @@ async function applyHostOffer(channel: FakeChannel): Promise<void> {
 describe('live session viewer media helpers', () => {
   test('exports preparation helpers from the playback preparation module', () => {
     expect(
-      readPreparedViewerMedia({
+      readPreparedLiveSessionViewerMedia({
         errors: [],
         iceServers: preparedMedia.iceServers,
         liveSession: {
@@ -132,7 +129,7 @@ describe('live session viewer media helpers', () => {
       liveSessionId: preparedMedia.liveSessionId,
     });
     expect(
-      createPreparedViewerAnswerPayload({
+      createLiveSessionViewerMediaAnswerPayload({
         sdp: 'v=0\r\nviewer-answer',
         type: 'answer',
       }),
@@ -141,7 +138,7 @@ describe('live session viewer media helpers', () => {
       type: 'answer',
     });
     expect(
-      createPreparedViewerIceCandidatePayload({
+      createLiveSessionViewerMediaIceCandidatePayload({
         candidate: 'candidate:1 1 udp 1 192.0.2.10 54400 typ host',
         sdpMLineIndex: 0,
         sdpMid: '0',

@@ -53,7 +53,7 @@ mock.module('../../src/components/ScreenState', () => ({
   ScreenState: ScreenStateMock,
 }));
 
-mock.module('../../src/live/LiveSessionWatchScreen', () => ({
+mock.module('../../src/live/watch/LiveSessionWatchScreen', () => ({
   LiveSessionWatchScreen: LiveSessionWatchScreenMock,
 }));
 

@@ -25,11 +25,7 @@ export { createLiveSessionChatState } from './chat/liveSessionChatState';
 export type { LiveSessionChatPaginationCursors } from './chat/liveSessionChatSelectors';
 export {
   canStartLiveSessionChatSend,
-  selectLiveSessionChatChannelStatus,
   selectLiveSessionChatPaginationCursors,
-  selectLiveSessionChatPaginationPageInfo,
-  selectLiveSessionChatSendError,
-  selectLiveSessionChatSendStatus,
   selectLiveSessionChatVisibleRows,
 } from './chat/liveSessionChatSelectors';
 

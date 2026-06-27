@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 
 import type { HostBroadcastMediaPreparation } from '../../src/host/hostBroadcastMediaSignaling';
-import { createHostBroadcastPublishingSessionStore } from '../../src/host/hostBroadcastPublishingSession';
+import { createHostBroadcastPublishingSessionStore } from '../../src/host/publishing/hostBroadcastPublishingSessionStore';
 import {
   createHostBroadcastPublishingRuntime,
   type HostBroadcastPublishingChannelTerminationReason,
   type HostBroadcastPublishingPeerConnectionConfig,
-} from '../../src/host/hostBroadcastPublishingRuntime';
+} from '../../src/host/publishing/hostBroadcastPublishingRuntime';
 import { createLiveWebRtcPeerConnectionFactory } from '../../src/live/media/liveWebRtcAdapter';
 import {
   FakeChannel,

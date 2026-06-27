@@ -1,10 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import {
-  createLiveSessionChatPanelModel,
-  readLiveSessionChatPanelSendBody,
-  shouldClearLiveSessionChatPanelDraftAfterSend,
-} from '../../src/live/liveSessionChatPanelPresentation';
+import { createLiveSessionChatPanelModel } from '../../src/live/chat/liveSessionChatPanelPresentation';
 import type { LiveSessionTimelineHistoryRow } from '../../src/live/liveSessionTimelineHistory';
 
 describe('LiveSessionChatPanel presentation model', () => {
@@ -135,13 +131,7 @@ describe('LiveSessionChatPanel presentation model', () => {
     });
   });
 
-  test('prevents blank message sends while preserving a trimmed send body', () => {
-    expect(readLiveSessionChatPanelSendBody('')).toBeNull();
-    expect(readLiveSessionChatPanelSendBody('   \n\t   ')).toBeNull();
-    expect(readLiveSessionChatPanelSendBody('  hello chat  ')).toBe(
-      'hello chat',
-    );
-
+  test('prevents blank message sends while allowing trimmed drafts', () => {
     expect(
       createLiveSessionChatPanelModel({
         channelStatus: 'joined',
@@ -152,11 +142,17 @@ describe('LiveSessionChatPanel presentation model', () => {
         sendStatus: 'idle',
       }).sendButtonDisabled,
     ).toBe(true);
-  });
 
-  test('clears the draft only after a confirmed send success', () => {
-    expect(shouldClearLiveSessionChatPanelDraftAfterSend(true)).toBe(true);
-    expect(shouldClearLiveSessionChatPanelDraftAfterSend(false)).toBe(false);
+    expect(
+      createLiveSessionChatPanelModel({
+        channelStatus: 'joined',
+        draftMessage: '  hello chat  ',
+        isJoined: true,
+        rows: [],
+        sendError: null,
+        sendStatus: 'idle',
+      }).sendButtonDisabled,
+    ).toBe(false);
   });
 });
 

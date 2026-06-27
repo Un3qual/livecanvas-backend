@@ -39,11 +39,13 @@ mock.module('../../src/live/liveSessionNavigation', () => ({
     pathname: '/live-session',
   }),
 }));
-mock.module('../../src/live/LiveSessionSummaryCard', () => ({
+mock.module('../../src/live/components/LiveSessionSummaryCard', () => ({
   LiveSessionSummaryCard: () => null,
 }));
 
-const liveDiscoveryScreen = await import('../../src/live/LiveDiscoveryScreen');
+const liveDiscoveryScreen = await import(
+  '../../src/live/discovery/LiveDiscoveryScreen'
+);
 
 const shouldShowHostCreationAction =
   liveDiscoveryScreen.shouldShowHostCreationAction as

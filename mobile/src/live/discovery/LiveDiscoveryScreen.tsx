@@ -14,7 +14,7 @@ import { liveSessionHref } from '../liveSessionNavigation';
 import {
   LiveSessionSummaryCard,
   type LiveSessionSummary,
-} from '../LiveSessionSummaryCard';
+} from '../components/LiveSessionSummaryCard';
 import type { LiveDiscoveryScreenQuery } from '../../__generated__/LiveDiscoveryScreenQuery.graphql';
 
 const styles = StyleSheet.create({

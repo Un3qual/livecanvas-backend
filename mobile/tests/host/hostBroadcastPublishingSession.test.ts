@@ -1,16 +1,18 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  releaseHostBroadcastPublishingAfterAuthStateChange,
+  releaseHostBroadcastPublishingBeforeAuthLoss,
+} from '../../src/host/publishing/hostBroadcastPublishingAuthCleanup';
+import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
   handleReleasedRetainedHostPublishingSessionTermination,
-  releaseHostBroadcastPublishingBeforeAuthLoss,
   releaseCurrentRetainedHostPublishingResource,
-  releaseHostBroadcastPublishingAfterAuthStateChange,
   releaseHostBroadcastPublishingRetainedResource,
   shouldIgnoreRetainedHostPublishingChannelTermination,
   type HostBroadcastPublishingResource,
-} from '../../src/host/hostBroadcastPublishingSession';
+} from '../../src/host/publishing/hostBroadcastPublishingSessionStore';
 
 function createResource(): HostBroadcastPublishingResource & {
   readonly disconnectCount: () => number;

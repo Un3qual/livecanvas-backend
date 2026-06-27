@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 
 import { readLiveSessionTimelineHistory } from '../../src/live/liveSessionTimelineHistory';
-import {
-  readLiveSessionWatchModel,
-  type LiveSessionWatchModel,
-} from '../../src/live/watch/liveSessionWatchData';
+import type {
+  LiveSessionWatchData,
+  LiveSessionWatchModel,
+} from '../../src/live/watch/liveSessionWatchScreenTypes';
 
 describe('readLiveSessionTimelineHistory', () => {
-  test('uses the live watch reader model for generated Relay timeline connections', () => {
+  test('uses the generated live watch model for Relay timeline connections', () => {
     const liveSession: LiveSessionWatchModel = {
       __typename: 'LiveSession',
       channelTopic: 'live:session:opaque',
@@ -44,16 +44,15 @@ describe('readLiveSessionTimelineHistory', () => {
       visibility: 'PUBLIC',
     };
 
-    const data = {
+    const data: LiveSessionWatchData = {
       node: liveSession,
       viewer: { id: 'relay-user-id:viewer' },
     };
+    const session = data.node?.__typename === 'LiveSession' ? data.node : null;
 
-    expect(readLiveSessionWatchModel(data)).toBe(liveSession);
+    expect(session).toBe(liveSession);
     expect(
-      readLiveSessionTimelineHistory(
-        readLiveSessionWatchModel(data)?.timelineEvents,
-      ).rows,
+      readLiveSessionTimelineHistory(session?.timelineEvents).rows,
     ).toEqual([
       {
         __typename: 'LiveSessionStartedEvent',
@@ -66,14 +65,6 @@ describe('readLiveSessionTimelineHistory', () => {
         occurredAt: '2026-06-04T17:00:00.000000Z',
       },
     ]);
-    expect(
-      readLiveSessionWatchModel({
-        node: {
-          __typename: '%other',
-        },
-        viewer: { id: 'relay-user-id:viewer' },
-      }),
-    ).toBeNull();
   });
 
   test('reads nullable Relay timeline edges into chronological rows and preserves pageInfo', () => {

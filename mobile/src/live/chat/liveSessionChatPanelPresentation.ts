@@ -42,7 +42,7 @@ export function createLiveSessionChatPanelModel({
   // backpressure all agree; dropping any gate can lose or duplicate messages.
   const composerDisabled =
     !isJoined || channelStatus !== 'joined' || sendStatus === 'sending';
-  const sendBody = readLiveSessionChatPanelSendBody(draftMessage);
+  const hasSendBody = draftMessage.trim().length > 0;
 
   return {
     channelStatusLabel: formatLiveSessionChatChannelStatus(
@@ -53,22 +53,10 @@ export function createLiveSessionChatPanelModel({
     emptyStateMessage:
       rows.length === 0 ? 'Chat history will appear here.' : null,
     rows: rows.map(formatLiveSessionChatPanelRow),
-    sendButtonDisabled: composerDisabled || !sendBody,
+    sendButtonDisabled: composerDisabled || !hasSendBody,
     sendButtonLabel: sendStatus === 'sending' ? 'Sending...' : 'Send',
     sendError,
   };
-}
-
-export function readLiveSessionChatPanelSendBody(body: string): string | null {
-  const trimmed = body.trim();
-
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-export function shouldClearLiveSessionChatPanelDraftAfterSend(
-  sendSucceeded: boolean,
-): boolean {
-  return sendSucceeded;
 }
 
 function formatLiveSessionChatPanelRow(

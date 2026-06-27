@@ -7,7 +7,7 @@ import {
   type HostBroadcastSessionAction,
   type HostBroadcastSessionState,
 } from '../../src/host/hostBroadcastSession';
-import type { HostBroadcastPublishingResource } from '../../src/host/hostBroadcastPublishingSession';
+import type { HostBroadcastPublishingResource } from '../../src/host/publishing/hostBroadcastPublishingSessionStore';
 import type { HostBroadcastPublishingStatus } from '../../src/host/preflight/hostBroadcastPreflightScreenTypes';
 import {
   createHostBroadcastPreflightControllerLifecycle,
