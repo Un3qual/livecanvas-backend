@@ -129,7 +129,7 @@ describe('liveSessionChatChannelMachine', () => {
     });
   });
 
-  test('channel close or error fails an active send with the disconnect text', () => {
+  test('channel close fails an active send with the disconnect text', () => {
     const closedActor = startMachine();
 
     closedActor.send({ sessionId: 'session-1', type: 'SESSION_CHANGED' });
@@ -143,22 +143,24 @@ describe('liveSessionChatChannelMachine', () => {
       sendError: 'Chat disconnected before the message was sent.',
       sendStatus: 'failed',
     });
+  });
 
-    const erroredActor = startMachine();
+  test('channel error fails an active send with the channel error reason', () => {
+    const actor = startMachine();
 
-    erroredActor.send({ sessionId: 'session-1', type: 'SESSION_CHANGED' });
-    erroredActor.send({ sessionId: 'session-1', type: 'CHANNEL_JOINED' });
-    erroredActor.send({ sessionId: 'session-1', type: 'SEND_STARTED' });
-    erroredActor.send({
+    actor.send({ sessionId: 'session-1', type: 'SESSION_CHANGED' });
+    actor.send({ sessionId: 'session-1', type: 'CHANNEL_JOINED' });
+    actor.send({ sessionId: 'session-1', type: 'SEND_STARTED' });
+    actor.send({
       error: 'Socket error.',
       sessionId: 'session-1',
       type: 'CHANNEL_ERRORED',
     });
 
-    expect(selectLiveSessionChatChannelState(erroredActor.getSnapshot())).toEqual({
+    expect(selectLiveSessionChatChannelState(actor.getSnapshot())).toEqual({
       channelError: 'Socket error.',
       channelStatus: 'errored',
-      sendError: 'Chat disconnected before the message was sent.',
+      sendError: 'Socket error.',
       sendStatus: 'failed',
     });
   });

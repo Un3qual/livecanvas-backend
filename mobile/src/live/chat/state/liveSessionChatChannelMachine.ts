@@ -59,6 +59,13 @@ export type LiveSessionChatChannelViewState = {
   readonly sendStatus: LiveSessionChatSendStatus;
 };
 
+export const INITIAL_LIVE_SESSION_CHAT_CHANNEL_STATE: LiveSessionChatChannelViewState = {
+  channelError: null,
+  channelStatus: 'idle',
+  sendError: null,
+  sendStatus: 'idle',
+};
+
 export const liveSessionChatChannelMachine = setup<
   LiveSessionChatChannelMachineContext,
   LiveSessionChatChannelMachineEvent,
@@ -102,7 +109,7 @@ export const liveSessionChatChannelMachine = setup<
       channelError: readChannelError(event),
       sendError:
         context.sendStatus === 'sending'
-          ? CHAT_SEND_DISCONNECTED_ERROR
+          ? readChannelError(event)
           : context.sendError,
       sendStatus:
         context.sendStatus === 'sending'

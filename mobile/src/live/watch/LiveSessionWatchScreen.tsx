@@ -10,7 +10,6 @@ import React, {
 import { useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { useLazyLoadQuery, useMutation } from 'react-relay';
-import { createActor } from 'xstate';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { ScreenState } from '../../components/ScreenState';
@@ -32,10 +31,12 @@ import {
   selectLiveSessionChatVisibleRows,
 } from '../liveSessionChatReducer';
 import {
-  liveSessionChatChannelMachine,
-  selectLiveSessionChatChannelState,
+  INITIAL_LIVE_SESSION_CHAT_CHANNEL_STATE,
   type LiveSessionChatChannelMachineEvent,
 } from '../chat/state/liveSessionChatChannelMachine';
+import {
+  createLiveSessionChatChannelActorLifecycle,
+} from '../chat/state/liveSessionChatChannelActorLifecycle';
 import {
   canEnterLiveSession,
   formatLiveSessionStatus,
@@ -149,11 +150,13 @@ function LiveSessionWatchContent({
     liveSessionChatReducer,
     createLiveSessionChatState(),
   );
-  const [chatChannelActor] = useState(() =>
-    createActor(liveSessionChatChannelMachine).start(),
-  );
   const [chatChannelState, setChatChannelState] = useState(() =>
-    selectLiveSessionChatChannelState(chatChannelActor.getSnapshot()),
+    INITIAL_LIVE_SESSION_CHAT_CHANNEL_STATE,
+  );
+  const [chatChannelLifecycle] = useState(() =>
+    createLiveSessionChatChannelActorLifecycle({
+      onStateChanged: setChatChannelState,
+    }),
   );
   const [commitJoinLiveSession] =
     useMutation<LiveSessionWatchScreenJoinMutation>(
@@ -244,6 +247,15 @@ function LiveSessionWatchContent({
   stopViewerPlaybackRef.current = stopViewerPlayback;
 
   useEffect(() => {
+    chatChannelLifecycle.start();
+    setChatChannelState(chatChannelLifecycle.getState());
+
+    return () => {
+      chatChannelLifecycle.stop();
+    };
+  }, [chatChannelLifecycle]);
+
+  useEffect(() => {
     dispatchChatAction({ type: 'session_changed', sessionId });
     sendChatChannelEvent({ sessionId, type: 'SESSION_CHANGED' });
     chatSendPendingRef.current = null;
@@ -251,10 +263,7 @@ function LiveSessionWatchContent({
   }, [sessionId]);
 
   function sendChatChannelEvent(event: LiveSessionChatChannelMachineEvent) {
-    chatChannelActor.send(event);
-    setChatChannelState(
-      selectLiveSessionChatChannelState(chatChannelActor.getSnapshot()),
-    );
+    chatChannelLifecycle.send(event);
   }
 
   function markLiveSessionEnded(liveSessionId: string) {
