@@ -183,15 +183,27 @@ export function createHostBroadcastPreflightControllerLifecycle(
   ) {
     // Back cleanup reports failures to the mounted screen, while abandoned
     // cleanup only attempts non-blocking teardown after unmount.
-    if (readWorkflowState().status === 'ending') {
-      return;
-    }
-
     const updateSessionLifecycle =
       endOptions.navigateBackOnSuccess ||
       endOptions.updateSessionLifecycle === true;
 
-    sendWorkflowEvent({ type: 'END_REQUESTED' });
+    if (updateSessionLifecycle) {
+      if (readWorkflowState().status === 'ending') {
+        return;
+      }
+
+      sendWorkflowEvent({ type: 'END_REQUESTED' });
+    } else {
+      if (
+        selectHostBroadcastPreflightCleanupLiveSessionId(
+          actor.getSnapshot(),
+        ) !== liveSessionId
+      ) {
+        return;
+      }
+
+      sendWorkflowEvent({ type: 'BACKGROUND_END_REQUESTED' });
+    }
 
     options.commitEndLiveSession({
       variables: {
@@ -210,15 +222,16 @@ export function createHostBroadcastPreflightControllerLifecycle(
               viewerSafeErrorText,
             });
           } else {
-            sendWorkflowEvent({
-              type: 'END_FAILED',
-              viewerSafeErrorText,
-            });
+            sendWorkflowEvent({ type: 'BACKGROUND_END_FINISHED' });
           }
           return;
         }
 
-        sendWorkflowEvent({ type: 'END_SUCCEEDED' });
+        sendWorkflowEvent(
+          updateSessionLifecycle
+            ? { type: 'END_SUCCEEDED' }
+            : { type: 'BACKGROUND_END_FINISHED' },
+        );
         if (endOptions.navigateBackOnSuccess) {
           options.navigateBack();
         }
@@ -231,10 +244,7 @@ export function createHostBroadcastPreflightControllerLifecycle(
             viewerSafeErrorText,
           });
         } else {
-          sendWorkflowEvent({
-            type: 'END_FAILED',
-            viewerSafeErrorText,
-          });
+          sendWorkflowEvent({ type: 'BACKGROUND_END_FINISHED' });
         }
       },
     });

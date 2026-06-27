@@ -29,6 +29,7 @@ export type HostBroadcastPreflightWorkflowStatus =
 type HostBroadcastPreflightMachineContext = {
   readonly backendMediaContractReady: boolean;
   readonly cameraPermission: HostBroadcastPermissionState;
+  readonly hasBackgroundEndRequestInFlight: boolean;
   readonly hasPreparedMedia: boolean;
   readonly liveSessionId: string | null;
   readonly microphonePermission: HostBroadcastPermissionState;
@@ -70,6 +71,8 @@ export type HostBroadcastPreflightMachineEvent =
   | { readonly type: 'END_REQUESTED' }
   | { readonly type: 'END_SUCCEEDED' }
   | { readonly type: 'END_FAILED'; readonly viewerSafeErrorText: string }
+  | { readonly type: 'BACKGROUND_END_REQUESTED' }
+  | { readonly type: 'BACKGROUND_END_FINISHED' }
   | {
       readonly type: 'PUBLISHING_FAILED';
       readonly viewerSafeErrorText: string;
@@ -87,8 +90,10 @@ type HostBroadcastPreflightMachineActions = {
   readonly failAndClearPreparedMedia: undefined;
   readonly failGoLiveRetryable: undefined;
   readonly failWorkflow: undefined;
+  readonly finishBackgroundEnd: undefined;
   readonly markPreparedMedia: undefined;
   readonly reportHostActionError: undefined;
+  readonly requestBackgroundEnd: undefined;
   readonly requestCreateSession: undefined;
   readonly succeedCreateSession: undefined;
   readonly succeedGoLive: undefined;
@@ -128,6 +133,7 @@ const initialHostBroadcastPreflightMachineContext: HostBroadcastPreflightMachine
     backendMediaContractReady:
       initialPreflightState.backendMediaContractReady,
     cameraPermission: initialPreflightState.cameraPermission,
+    hasBackgroundEndRequestInFlight: false,
     hasPreparedMedia: false,
     liveSessionId: null,
     microphonePermission: initialPreflightState.microphonePermission,
@@ -278,6 +284,12 @@ export const hostBroadcastPreflightMachine = setup<
         viewerSafeErrorText: event.viewerSafeErrorText,
       };
     }),
+    requestBackgroundEnd: assign({
+      hasBackgroundEndRequestInFlight: true,
+    }),
+    finishBackgroundEnd: assign({
+      hasBackgroundEndRequestInFlight: false,
+    }),
     succeedGoLive: assign(({ event }) => {
       if (event.type !== 'GO_LIVE_SUCCEEDED') {
         return {};
@@ -329,6 +341,13 @@ export const hostBroadcastPreflightMachine = setup<
     },
     HOST_ACTION_ERROR_CLEARED: {
       actions: 'reportHostActionError',
+    },
+    BACKGROUND_END_REQUESTED: {
+      actions: 'requestBackgroundEnd',
+      guard: 'hasStartedSession',
+    },
+    BACKGROUND_END_FINISHED: {
+      actions: 'finishBackgroundEnd',
     },
   },
   states: {
@@ -636,7 +655,8 @@ export function selectCanUseHostPreflightBackAction(
   return (
     !snapshot.matches('creating') &&
     !snapshot.matches('ending') &&
-    !snapshot.matches('goingLive')
+    !snapshot.matches('goingLive') &&
+    !snapshot.matches('live')
   );
 }
 
@@ -648,6 +668,7 @@ export function selectHostBroadcastPreflightCleanupLiveSessionId(
     cleanupState.hasEndLiveSessionRequestInFlight ||
     cleanupState.hasGoLiveRequestInFlight ||
     cleanupState.hasGoLiveSucceeded ||
+    snapshot.context.hasBackgroundEndRequestInFlight ||
     snapshot.matches('creating') ||
     snapshot.matches('ending') ||
     snapshot.matches('goingLive') ||

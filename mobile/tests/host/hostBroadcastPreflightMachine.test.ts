@@ -233,6 +233,7 @@ describe('hostBroadcastPreflightMachine', () => {
       'live',
     );
     expect(selectHostBroadcastPreflightWorkflowState(actor.getSnapshot())).toMatchObject({
+      canUseBackAction: false,
       isGoingLive: false,
       sessionState: {
         liveSessionId: 'live-session-id',
@@ -353,5 +354,28 @@ describe('hostBroadcastPreflightMachine', () => {
     expect(
       selectHostBroadcastPreflightCleanupLiveSessionId(actor.getSnapshot()),
     ).toBeNull();
+  });
+
+  test('background end requests block duplicate cleanup without changing visible session state', () => {
+    const actor = startMachine();
+
+    startSession(actor, 'cleanup-session');
+    actor.send({ type: 'BACKGROUND_END_REQUESTED' });
+
+    expect(selectHostBroadcastPreflightWorkflowState(actor.getSnapshot())).toMatchObject({
+      sessionState: {
+        liveSessionId: 'cleanup-session',
+        status: 'starting',
+      },
+    });
+    expect(
+      selectHostBroadcastPreflightCleanupLiveSessionId(actor.getSnapshot()),
+    ).toBeNull();
+
+    actor.send({ type: 'BACKGROUND_END_FINISHED' });
+
+    expect(
+      selectHostBroadcastPreflightCleanupLiveSessionId(actor.getSnapshot()),
+    ).toBe('cleanup-session');
   });
 });

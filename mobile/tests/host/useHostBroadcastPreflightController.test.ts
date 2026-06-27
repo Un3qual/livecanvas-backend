@@ -382,6 +382,23 @@ describe('useHostBroadcastPreflightController lifecycle', () => {
     expect(harness.isGoingLive).toBe(false);
   });
 
+  test('ignores back presses after go-live succeeds', () => {
+    const harness = createHarness();
+
+    harness.prepareStartedSession();
+    harness.lifecycle.handleGoLivePress();
+    harness.goLiveCommits[0].onCompleted?.(createGoLivePayload('live-session-id'));
+    harness.lifecycle.handleBackPress();
+
+    expect(harness.navigatedLiveSessionIds).toEqual(['live-session-id']);
+    expect(harness.navigateBackCalls).toEqual([]);
+    expect(harness.endCommits).toEqual([]);
+    expect(harness.workflowState).toMatchObject({
+      canUseBackAction: false,
+      status: 'live',
+    });
+  });
+
   test('ends the backend session without navigation when go-live cannot retain publishing', () => {
     const harness = createHarness();
 
