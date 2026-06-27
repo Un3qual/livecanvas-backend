@@ -81,7 +81,6 @@ export const liveSessionWatchMachine = setup<
 >({
   guards: {
     canStartSessionCommand: ({ context, event }) =>
-      context.activeSessionId === null ||
       context.activeSessionId === event.sessionId,
     isActiveSession: ({ context, event }) =>
       context.activeSessionId === event.sessionId,
@@ -335,6 +334,15 @@ export function readLiveSessionWatchPendingCommand(
   snapshot: LiveSessionWatchSnapshot,
 ): LiveSessionWatchPendingCommand | null {
   return snapshot.context.pendingCommand;
+}
+
+export function readLiveSessionWatchError(
+  snapshot: LiveSessionWatchSnapshot,
+  sessionId: string,
+): string | null {
+  return snapshot.context.activeSessionId === sessionId
+    ? snapshot.context.error
+    : null;
 }
 
 export function isLiveSessionWatchMutationPending(
