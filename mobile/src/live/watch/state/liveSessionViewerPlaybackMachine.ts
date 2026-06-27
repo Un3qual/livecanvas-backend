@@ -61,14 +61,11 @@ export const liveSessionViewerPlaybackMachine = setup<
       remoteStreamUrl: null,
     }),
     failPlayback: assign(({ event }) => ({
-      error: event.type === 'FAILED' ? event.error : null,
+      error: readPlaybackFailureError(event),
       remoteStreamUrl: null,
     })),
     receiveRemoteStream: assign(({ event }) => ({
-      remoteStreamUrl:
-        event.type === 'REMOTE_STREAM_RECEIVED'
-          ? event.remoteStreamUrl
-          : null,
+      remoteStreamUrl: readRemoteStreamUrl(event),
     })),
     resetPlayback: assign({
       error: null,
@@ -226,4 +223,24 @@ function selectLiveSessionViewerPlaybackStatus(
   }
 
   return 'idle';
+}
+
+function readPlaybackFailureError(
+  event: LiveSessionViewerPlaybackMachineEvent,
+): string {
+  if (event.type !== 'FAILED') {
+    throw new Error(`Unexpected playback failure event: ${event.type}`);
+  }
+
+  return event.error;
+}
+
+function readRemoteStreamUrl(
+  event: LiveSessionViewerPlaybackMachineEvent,
+): string | null {
+  if (event.type !== 'REMOTE_STREAM_RECEIVED') {
+    throw new Error(`Unexpected remote stream event: ${event.type}`);
+  }
+
+  return event.remoteStreamUrl;
 }

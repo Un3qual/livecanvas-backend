@@ -376,6 +376,18 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
   };
 }
 
+export function getOrCreateLiveSessionViewerPlaybackControllerLifecycle(
+  lifecycleRef: MutableRefObject<LiveSessionViewerPlaybackControllerLifecycle | null>,
+  options: LiveSessionViewerPlaybackControllerLifecycleOptions,
+): LiveSessionViewerPlaybackControllerLifecycle {
+  if (!lifecycleRef.current) {
+    lifecycleRef.current =
+      createLiveSessionViewerPlaybackControllerLifecycle(options);
+  }
+
+  return lifecycleRef.current;
+}
+
 function formatPlaybackStartError(error: unknown): string {
   return error instanceof Error
     ? error.message
@@ -398,15 +410,20 @@ export function useLiveSessionViewerPlaybackController({
   const viewerPlaybackGenerationRef = useRef(0);
   const viewerPlaybackResourceRef =
     useRef<LiveSessionViewerPlaybackResource | null>(null);
-  const controller = createLiveSessionViewerPlaybackControllerLifecycle({
-    commitPrepareLiveSessionMedia,
-    getAccessToken,
-    isMountedRef,
-    setViewerPlaybackState,
-    viewerPlaybackGenerationRef,
-    viewerPlaybackResourceRef,
-    websocketUrl,
-  });
+  const controllerLifecycleRef =
+    useRef<LiveSessionViewerPlaybackControllerLifecycle | null>(null);
+  const controller = getOrCreateLiveSessionViewerPlaybackControllerLifecycle(
+    controllerLifecycleRef,
+    {
+      commitPrepareLiveSessionMedia,
+      getAccessToken,
+      isMountedRef,
+      setViewerPlaybackState,
+      viewerPlaybackGenerationRef,
+      viewerPlaybackResourceRef,
+      websocketUrl,
+    },
+  );
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -414,7 +431,7 @@ export function useLiveSessionViewerPlaybackController({
     return () => {
       controller.unmount();
     };
-  }, []);
+  }, [controller]);
 
   useEffect(
     () =>
@@ -434,6 +451,7 @@ export function useLiveSessionViewerPlaybackController({
       liveSessionId,
       normalizedStatus,
       websocketUrl,
+      controller,
     ],
   );
 

@@ -7,7 +7,9 @@ import type {
 } from '../../src/live/playback/liveSessionViewerPlaybackRuntime';
 import {
   createLiveSessionViewerPlaybackControllerLifecycle,
+  getOrCreateLiveSessionViewerPlaybackControllerLifecycle,
   type LiveSessionViewerPlaybackControllerLifecycle,
+  type LiveSessionViewerPlaybackControllerLifecycleOptions,
 } from '../../src/live/watch/hooks/useLiveSessionViewerPlaybackController';
 import type { ViewerPlaybackState } from '../../src/live/watch/liveSessionWatchScreenTypes';
 
@@ -182,6 +184,69 @@ function createHarness() {
   };
 }
 
+function createLifecycleOptions({
+  commits,
+  getState,
+  runtimes,
+  setState,
+  sockets,
+  stateHistory,
+}: {
+  readonly commits: PrepareMediaCommitConfig[];
+  readonly getState: () => ViewerPlaybackState;
+  readonly runtimes: FakeRuntime[];
+  readonly setState: (state: ViewerPlaybackState) => void;
+  readonly sockets: FakeSocket[];
+  readonly stateHistory: ViewerPlaybackState[];
+}): LiveSessionViewerPlaybackControllerLifecycleOptions {
+  return {
+    commitPrepareLiveSessionMedia: (config) => {
+      commits.push(config as PrepareMediaCommitConfig);
+    },
+    createPeerConnectionFactory: () => () => ({
+      addIceCandidate: () => Promise.resolve(),
+      close: () => undefined,
+      createAnswer: () => Promise.resolve({ sdp: 'answer', type: 'answer' }),
+      onicecandidate: null,
+      ontrack: null,
+      setLocalDescription: () => Promise.resolve(),
+      setRemoteDescription: () => Promise.resolve(),
+    }),
+    createPlaybackRuntime: (options) => {
+      const runtime = new FakeRuntime(options);
+      runtimes.push(runtime);
+      return runtime;
+    },
+    createSocket: () => {
+      const socket = new FakeSocket();
+      sockets.push(socket);
+      return socket;
+    },
+    getAccessToken: () => 'viewer-token',
+    isMountedRef: { current: true },
+    setViewerPlaybackState: (nextState) => {
+      const nextResolvedState =
+        typeof nextState === 'function' ? nextState(getState()) : nextState;
+      setState(nextResolvedState);
+      stateHistory.push(nextResolvedState);
+    },
+    viewerPlaybackGenerationRef: { current: 0 },
+    viewerPlaybackResourceRef: { current: null },
+    websocketUrl: 'wss://example.test/socket',
+  };
+}
+
+function createPrepareCompleter(commits: PrepareMediaCommitConfig[]) {
+  return (
+    index = commits.length - 1,
+    payload = createPrepareMediaPayload(
+      commits[index]?.variables.input.liveSessionId ?? 'session-1',
+    ),
+  ) => {
+    commits[index]?.onCompleted?.(payload);
+  };
+}
+
 function createPrepareMediaPayload(liveSessionId: string): PrepareMediaPayload {
   return {
     prepareLiveMediaSession: {
@@ -210,6 +275,72 @@ async function flushAsyncHandlers(): Promise<void> {
 }
 
 describe('useLiveSessionViewerPlaybackController lifecycle', () => {
+  test('reuses one lifecycle for the hook lifetime so exposed methods share the active actor', () => {
+    const commits: PrepareMediaCommitConfig[] = [];
+    const runtimes: FakeRuntime[] = [];
+    const sockets: FakeSocket[] = [];
+    const stateHistory: ViewerPlaybackState[] = [];
+    let state: ViewerPlaybackState = {
+      error: null,
+      remoteStreamUrl: null,
+      status: 'idle',
+    };
+    const options = createLifecycleOptions({
+      commits,
+      getState: () => state,
+      runtimes,
+      setState: (nextState) => {
+        state = nextState;
+      },
+      sockets,
+      stateHistory,
+    });
+    const lifecycleRef = {
+      current: null as LiveSessionViewerPlaybackControllerLifecycle | null,
+    };
+    const firstLifecycle =
+      getOrCreateLiveSessionViewerPlaybackControllerLifecycle(
+        lifecycleRef,
+        options,
+      );
+
+    firstLifecycle.syncViewerPlayback({
+      authStatus: 'authenticated',
+      isJoined: true,
+      isLeaving: false,
+      liveSessionId: 'session-1',
+      normalizedStatus: 'LIVE',
+    });
+    createPrepareCompleter(commits)();
+    runtimes[0].options.onRemoteStream?.({
+      toURL: () => 'stream://host-camera',
+    });
+
+    expect(state).toEqual({
+      error: null,
+      remoteStreamUrl: 'stream://host-camera',
+      status: 'playing',
+    });
+
+    const rerenderLifecycle =
+      getOrCreateLiveSessionViewerPlaybackControllerLifecycle(
+        lifecycleRef,
+        options,
+      );
+
+    expect(rerenderLifecycle).toBe(firstLifecycle);
+
+    rerenderLifecycle.stopViewerPlayback({ resetState: true });
+
+    expect(runtimes[0].disposeCount).toBe(1);
+    expect(sockets[0].disconnectCount).toBe(1);
+    expect(state).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'idle',
+    });
+  });
+
   test('starts for joined authenticated live sessions and reaches playing when a remote stream arrives', async () => {
     const harness = createHarness();
 

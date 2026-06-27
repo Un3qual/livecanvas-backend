@@ -70,6 +70,48 @@ describe('liveSessionViewerPlaybackMachine', () => {
     });
   });
 
+  test('keeps the current phase when a null remote stream arrives before playing', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'PREPARE_REQUESTED' });
+    actor.send({ type: 'CONNECT_REQUESTED' });
+    actor.send({ remoteStreamUrl: null, type: 'REMOTE_STREAM_RECEIVED' });
+
+    expect(selectLiveSessionViewerPlaybackState(actor.getSnapshot())).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'connecting',
+    });
+
+    actor.send({ type: 'RUNTIME_STARTED' });
+    actor.send({ remoteStreamUrl: null, type: 'REMOTE_STREAM_RECEIVED' });
+
+    expect(selectLiveSessionViewerPlaybackState(actor.getSnapshot())).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'waiting_for_host',
+    });
+  });
+
+  test('keeps playing when an active stream is cleared by a null remote stream', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'PREPARE_REQUESTED' });
+    actor.send({ type: 'CONNECT_REQUESTED' });
+    actor.send({ type: 'RUNTIME_STARTED' });
+    actor.send({
+      remoteStreamUrl: 'stream://host-camera',
+      type: 'REMOTE_STREAM_RECEIVED',
+    });
+    actor.send({ remoteStreamUrl: null, type: 'REMOTE_STREAM_RECEIVED' });
+
+    expect(selectLiveSessionViewerPlaybackState(actor.getSnapshot())).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'playing',
+    });
+  });
+
   test('closes without carrying an error or stream URL', () => {
     const actor = startMachine();
 
@@ -85,6 +127,58 @@ describe('liveSessionViewerPlaybackMachine', () => {
       error: null,
       remoteStreamUrl: null,
       status: 'closed',
+    });
+  });
+
+  test('failure after playing clears the stream and records the error', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'PREPARE_REQUESTED' });
+    actor.send({ type: 'CONNECT_REQUESTED' });
+    actor.send({
+      remoteStreamUrl: 'stream://host-camera',
+      type: 'REMOTE_STREAM_RECEIVED',
+    });
+    actor.send({ error: 'connection failed', type: 'FAILED' });
+
+    expect(selectLiveSessionViewerPlaybackState(actor.getSnapshot())).toEqual({
+      error: 'connection failed',
+      remoteStreamUrl: null,
+      status: 'errored',
+    });
+  });
+
+  test('prepare and reset both clear a closed playback state', () => {
+    const prepareActor = startMachine();
+
+    prepareActor.send({ type: 'PREPARE_REQUESTED' });
+    prepareActor.send({ type: 'CONNECT_REQUESTED' });
+    prepareActor.send({
+      remoteStreamUrl: 'stream://host-camera',
+      type: 'REMOTE_STREAM_RECEIVED',
+    });
+    prepareActor.send({ type: 'CLOSED' });
+    prepareActor.send({ type: 'PREPARE_REQUESTED' });
+
+    expect(
+      selectLiveSessionViewerPlaybackState(prepareActor.getSnapshot()),
+    ).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'preparing',
+    });
+
+    const resetActor = startMachine();
+
+    resetActor.send({ type: 'PREPARE_REQUESTED' });
+    resetActor.send({ type: 'CONNECT_REQUESTED' });
+    resetActor.send({ type: 'CLOSED' });
+    resetActor.send({ type: 'RESET' });
+
+    expect(selectLiveSessionViewerPlaybackState(resetActor.getSnapshot())).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'idle',
     });
   });
 
