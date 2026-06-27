@@ -17,6 +17,10 @@ import type {
   LiveMediaSessionDescription,
   LiveMediaSessionDescriptionSource,
 } from './media/liveMediaTypes';
+import {
+  createDefaultLiveWebRtcPeerConnectionFactory,
+  type LiveWebRtcPeerConnectionFactory,
+} from './media/liveWebRtcAdapter';
 
 type PrepareLiveMediaSessionSource = {
   readonly errors?: ReadonlyArray<LiveMutationError> | null;
@@ -93,9 +97,11 @@ export type LiveSessionViewerPlaybackPeerConnection = {
   ) => Promise<void>;
 };
 
-export type LiveSessionViewerPlaybackPeerConnectionFactory = (
-  config: LiveSessionViewerPlaybackPeerConnectionConfig,
-) => LiveSessionViewerPlaybackPeerConnection;
+export type LiveSessionViewerPlaybackPeerConnectionFactory =
+  LiveWebRtcPeerConnectionFactory<
+    LiveSessionViewerPlaybackPeerConnectionConfig,
+    LiveSessionViewerPlaybackPeerConnection
+  >;
 
 export type LiveSessionViewerPlaybackRuntimeStartResult =
   | { readonly status: 'started' }
@@ -133,16 +139,6 @@ type LiveSessionViewerMediaDescriptionSource =
   LiveMediaSessionDescriptionSource;
 
 type LiveSessionViewerMediaIceCandidateSource = LiveMediaIceCandidateSource;
-
-type ReactNativeWebRtcModule = Readonly<{
-  RTCPeerConnection?: new (
-    config: LiveSessionViewerPlaybackPeerConnectionConfig,
-  ) => LiveSessionViewerPlaybackPeerConnection;
-}>;
-
-declare const require:
-  | undefined
-  | ((moduleName: 'react-native-webrtc') => ReactNativeWebRtcModule);
 
 const GENERIC_VIEWER_PLAYBACK_FAILURE_REASON =
   'Could not start live video playback. Please try again.';
@@ -502,19 +498,10 @@ export function createLiveSessionViewerPlaybackRuntime({
 export function createDefaultLiveSessionViewerPeerConnectionFactory():
   | LiveSessionViewerPlaybackPeerConnectionFactory
   | null {
-  if (typeof require === 'undefined') {
-    return null;
-  }
-
-  try {
-    const PeerConnection = require('react-native-webrtc').RTCPeerConnection;
-
-    return PeerConnection
-      ? (config) => new PeerConnection(config)
-      : null;
-  } catch {
-    return null;
-  }
+  return createDefaultLiveWebRtcPeerConnectionFactory<
+    LiveSessionViewerPlaybackPeerConnectionConfig,
+    LiveSessionViewerPlaybackPeerConnection
+  >();
 }
 
 function createSessionDescriptionIdentity(

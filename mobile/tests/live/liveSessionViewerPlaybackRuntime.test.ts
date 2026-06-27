@@ -21,6 +21,7 @@ import {
   readOptionalNonNegativeInteger,
   readOptionalString,
 } from '../../src/live/media/liveMediaPayloads';
+import { createLiveWebRtcPeerConnectionFactory } from '../../src/live/media/liveWebRtcAdapter';
 
 class FakePush implements LiveSessionChannelPush {
   private readonly callbacks = new Map<
@@ -536,6 +537,31 @@ describe('live session viewer media helpers', () => {
         sdpMLineIndex: -1,
       }),
     ).toBeNull();
+  });
+});
+
+describe('live session viewer WebRTC adapter boundary', () => {
+  test('creates viewer peer connection factories with viewer runtime types', () => {
+    class MockPeerConnection extends FakePeerConnection {
+      readonly config: LiveSessionViewerPlaybackPeerConnectionConfig;
+
+      constructor(config: LiveSessionViewerPlaybackPeerConnectionConfig) {
+        super();
+        this.config = config;
+      }
+    }
+
+    const factory = createLiveWebRtcPeerConnectionFactory<
+      LiveSessionViewerPlaybackPeerConnectionConfig,
+      MockPeerConnection
+    >({
+      RTCPeerConnection: MockPeerConnection,
+    });
+    const config = { iceServers: [] };
+    const peerConnection = factory?.(config);
+
+    expect(peerConnection).toBeInstanceOf(MockPeerConnection);
+    expect(peerConnection?.config).toBe(config);
   });
 });
 

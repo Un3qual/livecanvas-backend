@@ -4,6 +4,10 @@ import type {
 } from '../live/liveSessionChannelClient';
 import { normalizeLiveSessionRealtimeEvent } from '../live/liveSessionRealtimeEvents';
 import {
+  createDefaultLiveWebRtcPeerConnectionFactory,
+  type LiveWebRtcPeerConnectionFactory,
+} from '../live/media/liveWebRtcAdapter';
+import {
   createHostBroadcastMediaIceCandidatePayload,
   createHostBroadcastMediaOfferPayload,
   type HostBroadcastMediaIceServer,
@@ -57,9 +61,11 @@ export type HostBroadcastPublishingPeerConnection = {
   ) => Promise<void>;
 };
 
-export type HostBroadcastPublishingPeerConnectionFactory = (
-  config: HostBroadcastPublishingPeerConnectionConfig,
-) => HostBroadcastPublishingPeerConnection;
+export type HostBroadcastPublishingPeerConnectionFactory =
+  LiveWebRtcPeerConnectionFactory<
+    HostBroadcastPublishingPeerConnectionConfig,
+    HostBroadcastPublishingPeerConnection
+  >;
 
 export type HostBroadcastPublishingMediaStream = {
   readonly getTracks?: () => ReadonlyArray<unknown>;
@@ -92,16 +98,6 @@ export type HostBroadcastPublishingRuntimeOptions = {
   readonly preparedMedia: HostBroadcastMediaPreparation;
   readonly socket: LiveSessionChannelSocket;
 };
-
-type ReactNativeWebRtcModule = Readonly<{
-  RTCPeerConnection?: new (
-    config: HostBroadcastPublishingPeerConnectionConfig,
-  ) => HostBroadcastPublishingPeerConnection;
-}>;
-
-declare const require:
-  | undefined
-  | ((moduleName: 'react-native-webrtc') => ReactNativeWebRtcModule);
 
 const GENERIC_START_FAILURE_REASON =
   'Could not start host media publishing. Please try again.';
@@ -468,19 +464,10 @@ export function createHostBroadcastPublishingRuntime({
 export function createDefaultHostBroadcastPeerConnectionFactory():
   | HostBroadcastPublishingPeerConnectionFactory
   | null {
-  if (typeof require === 'undefined') {
-    return null;
-  }
-
-  try {
-    const PeerConnection = require('react-native-webrtc').RTCPeerConnection;
-
-    return PeerConnection
-      ? (config) => new PeerConnection(config)
-      : null;
-  } catch {
-    return null;
-  }
+  return createDefaultLiveWebRtcPeerConnectionFactory<
+    HostBroadcastPublishingPeerConnectionConfig,
+    HostBroadcastPublishingPeerConnection
+  >();
 }
 
 function joinMediaSignalingChannel(

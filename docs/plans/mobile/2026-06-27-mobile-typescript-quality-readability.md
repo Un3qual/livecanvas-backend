@@ -152,12 +152,12 @@ This is expected around Phoenix and WebRTC boundaries. The cleanup target is to 
 - Modify: `mobile/tests/host/hostBroadcastPublishingRuntime.test.ts`
 - Modify: `mobile/tests/host/hostBroadcastNative.test.ts`
 
-- [ ] Move the local `ReactNativeWebRtcModule` declarations and guarded `require('react-native-webrtc')` loading into `liveWebRtcAdapter.ts`.
-- [ ] Export narrow factory functions for peer connection creation and media device lookup.
-- [ ] Keep runtime constructor injection for tests; only default factory loading should move.
-- [ ] Run `cd mobile && bun test tests/live/liveSessionViewerPlaybackRuntime.test.ts tests/host/hostBroadcastPublishingRuntime.test.ts tests/host/hostBroadcastNative.test.ts`.
-- [ ] Run `cd mobile && bun run typecheck`.
-- [ ] Commit with a message like `Centralize mobile WebRTC adapter typing`.
+- [x] Move the local `ReactNativeWebRtcModule` declarations and guarded `require('react-native-webrtc')` loading into `liveWebRtcAdapter.ts`.
+- [x] Export narrow factory functions for peer connection creation and media device lookup.
+- [x] Keep runtime constructor injection for tests; only default factory loading should move.
+- [x] Run `cd mobile && bun test tests/live/liveSessionViewerPlaybackRuntime.test.ts tests/host/hostBroadcastPublishingRuntime.test.ts tests/host/hostBroadcastNative.test.ts`.
+- [x] Run `cd mobile && bun run typecheck`.
+- [x] Commit with a message like `Centralize mobile WebRTC adapter typing`.
 
 ### Task 3: Split Viewer Playback Runtime From Viewer Playback Controller
 

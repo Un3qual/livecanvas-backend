@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-27
-Status: Task 1 complete; Task 2 ready
+Status: Task 2 complete; Task 3 ready
 
 ## Lane Scope
 
@@ -31,7 +31,7 @@ Status: Task 1 complete; Task 2 ready
 
 ## Do This Now
 
-Execute Task 2 from
+Execute Task 3 from
 `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`,
 then commit that milestone before continuing.
 
@@ -52,5 +52,6 @@ then commit that milestone before continuing.
 
 ## Next Action
 
-Centralize mobile WebRTC adapter types so host/viewer runtimes import a shared
-native module boundary while preserving current constructor injection seams.
+Split viewer playback runtime/controller code so the watch screen imports a
+feature-owned playback controller while preserving the current public runtime
+shim and viewer behavior.

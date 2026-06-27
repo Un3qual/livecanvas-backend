@@ -15,6 +15,7 @@ import {
   type HostBroadcastPublishingPeerConnectionConfig,
   type HostBroadcastPublishingSessionDescription,
 } from '../../src/host/hostBroadcastPublishingRuntime';
+import { createLiveWebRtcPeerConnectionFactory } from '../../src/live/media/liveWebRtcAdapter';
 
 class FakePush implements LiveSessionChannelPush {
   private readonly callbacks = new Map<
@@ -321,6 +322,29 @@ async function flushAsyncHandlers(): Promise<void> {
 }
 
 describe('createHostBroadcastPublishingRuntime', () => {
+  test('creates host peer connection factories with host runtime types', () => {
+    class MockPeerConnection extends FakePeerConnection {
+      readonly config: HostBroadcastPublishingPeerConnectionConfig;
+
+      constructor(config: HostBroadcastPublishingPeerConnectionConfig) {
+        super();
+        this.config = config;
+      }
+    }
+
+    const factory = createLiveWebRtcPeerConnectionFactory<
+      HostBroadcastPublishingPeerConnectionConfig,
+      MockPeerConnection
+    >({
+      RTCPeerConnection: MockPeerConnection,
+    });
+    const config = { iceServers: [] };
+    const peerConnection = factory?.(config);
+
+    expect(peerConnection).toBeInstanceOf(MockPeerConnection);
+    expect(peerConnection?.config).toBe(config);
+  });
+
   test('joins the exact signaling topic, attaches local tracks, and pushes a host offer', async () => {
     const {
       channel,

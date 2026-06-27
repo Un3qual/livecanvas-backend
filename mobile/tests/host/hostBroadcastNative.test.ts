@@ -5,6 +5,53 @@ import {
   createUnavailableHostBroadcastNative,
   normalizeHostBroadcastPermission,
 } from '../../src/host/hostBroadcastNative';
+import {
+  createLiveWebRtcPeerConnectionFactory,
+  readLiveWebRtcMediaDevices,
+} from '../../src/live/media/liveWebRtcAdapter';
+
+describe('liveWebRtcAdapter', () => {
+  test('creates peer connection factories and reads media devices from the native module boundary', () => {
+    type MockPeerConnectionConfig = Readonly<{
+      iceServers: ReadonlyArray<never>;
+    }>;
+
+    class MockPeerConnection {
+      readonly config: MockPeerConnectionConfig;
+
+      constructor(config: MockPeerConnectionConfig) {
+        this.config = config;
+      }
+    }
+
+    const mediaDevices = {
+      getUserMedia() {
+        return Promise.resolve({
+          getTracks() {
+            return [];
+          },
+        });
+      },
+    };
+
+    const nativeModule = {
+      RTCPeerConnection: MockPeerConnection,
+      mediaDevices,
+    };
+
+    const factory =
+      createLiveWebRtcPeerConnectionFactory<
+        MockPeerConnectionConfig,
+        MockPeerConnection
+      >(nativeModule);
+    const config = { iceServers: [] };
+    const peerConnection = factory?.(config);
+
+    expect(peerConnection).toBeInstanceOf(MockPeerConnection);
+    expect(peerConnection?.config).toBe(config);
+    expect(readLiveWebRtcMediaDevices(nativeModule)).toBe(mediaDevices);
+  });
+});
 
 describe('hostBroadcastNative', () => {
   test('normalizes booleans and known string permission states', () => {
