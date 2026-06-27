@@ -377,7 +377,6 @@ function LiveSessionWatchContent({
     useLiveSessionViewerPlaybackController({
       authStatus: auth.state.status,
       commitPrepareLiveSessionMedia,
-      didUnmountRef,
       getAccessToken: auth.getAccessToken,
       isJoined,
       isLeaving,

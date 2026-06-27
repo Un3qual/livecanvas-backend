@@ -10,19 +10,23 @@ import type { AuthState } from '../../../auth/types';
 import {
   createPhoenixSocket,
   type PhoenixAccessTokenProvider,
+  type PhoenixSocket,
+  type PhoenixSocketOptions,
 } from '../../../realtime/phoenixSocket';
 import type { LiveSessionWatchScreenPrepareMediaMutation } from '../../../__generated__/LiveSessionWatchScreenPrepareMediaMutation.graphql';
 import {
   formatLiveMutationErrors,
   type LiveSessionStatus,
 } from '../../liveSessionPresentation';
-import { handleLiveSessionViewerPlaybackChannelTerminated } from '../../liveSessionViewerPlaybackLifecycle';
 import {
   createDefaultLiveSessionViewerPeerConnectionFactory,
   createLiveSessionViewerPlaybackRuntime,
-  readPreparedLiveSessionViewerMedia,
+  type LiveSessionViewerPlaybackPeerConnectionFactory,
   type LiveSessionViewerPlaybackRuntime,
-} from '../../liveSessionViewerPlaybackRuntime';
+  type LiveSessionViewerPlaybackRuntimeOptions,
+} from '../../playback/liveSessionViewerPlaybackRuntime';
+import { readPreparedLiveSessionViewerMedia } from '../../playback/liveSessionViewerPlaybackPreparation';
+import { handleLiveSessionViewerPlaybackChannelTerminated } from '../../liveSessionViewerPlaybackLifecycle';
 import type {
   StopViewerPlayback,
   StopViewerPlaybackGeneration,
@@ -35,27 +39,62 @@ const INITIAL_VIEWER_PLAYBACK_STATE: ViewerPlaybackState = {
   status: 'idle',
 };
 
-type ViewerPlaybackResource = {
+export type LiveSessionViewerPlaybackResource = {
   readonly disconnectSocket: () => void;
   readonly generation: number;
   readonly runtime: LiveSessionViewerPlaybackRuntime;
 };
 
-type PrepareLiveSessionMediaCommit = (
+export type PrepareLiveSessionMediaCommit = (
   config: UseMutationConfig<LiveSessionWatchScreenPrepareMediaMutation>,
 ) => unknown;
 
-export type LiveSessionViewerPlaybackControllerOptions = {
+type ViewerPlaybackStateUpdate =
+  | ViewerPlaybackState
+  | ((current: ViewerPlaybackState) => ViewerPlaybackState);
+
+type ViewerPlaybackStateSetter = (state: ViewerPlaybackStateUpdate) => void;
+
+type LiveSessionViewerPlaybackControllerSyncOptions = {
   readonly authStatus: AuthState['status'];
-  readonly commitPrepareLiveSessionMedia: PrepareLiveSessionMediaCommit;
-  readonly didUnmountRef: MutableRefObject<boolean>;
-  readonly getAccessToken: PhoenixAccessTokenProvider;
   readonly isJoined: boolean;
   readonly isLeaving: boolean;
   readonly liveSessionId: string | null;
   readonly normalizedStatus: LiveSessionStatus;
+};
+
+export type LiveSessionViewerPlaybackControllerLifecycle = {
+  readonly stopViewerPlayback: StopViewerPlayback;
+  readonly stopViewerPlaybackGeneration: StopViewerPlaybackGeneration;
+  readonly syncViewerPlayback: (
+    options: LiveSessionViewerPlaybackControllerSyncOptions,
+  ) => (() => void) | undefined;
+  readonly unmount: () => void;
+};
+
+export type LiveSessionViewerPlaybackControllerLifecycleOptions = {
+  readonly commitPrepareLiveSessionMedia: PrepareLiveSessionMediaCommit;
+  readonly createPeerConnectionFactory?: () =>
+    | LiveSessionViewerPlaybackPeerConnectionFactory
+    | null;
+  readonly createPlaybackRuntime?: (
+    options: LiveSessionViewerPlaybackRuntimeOptions,
+  ) => LiveSessionViewerPlaybackRuntime;
+  readonly createSocket?: (options: PhoenixSocketOptions) => PhoenixSocket;
+  readonly getAccessToken: PhoenixAccessTokenProvider;
+  readonly isMountedRef: MutableRefObject<boolean>;
+  readonly setViewerPlaybackState: ViewerPlaybackStateSetter;
+  readonly viewerPlaybackGenerationRef: MutableRefObject<number>;
+  readonly viewerPlaybackResourceRef: MutableRefObject<LiveSessionViewerPlaybackResource | null>;
   readonly websocketUrl: string;
 };
+
+export type LiveSessionViewerPlaybackControllerOptions =
+  LiveSessionViewerPlaybackControllerSyncOptions & {
+    readonly commitPrepareLiveSessionMedia: PrepareLiveSessionMediaCommit;
+    readonly getAccessToken: PhoenixAccessTokenProvider;
+    readonly websocketUrl: string;
+  };
 
 export type LiveSessionViewerPlaybackController = {
   readonly stopViewerPlayback: StopViewerPlayback;
@@ -63,23 +102,26 @@ export type LiveSessionViewerPlaybackController = {
   readonly viewerPlaybackState: ViewerPlaybackState;
 };
 
-export function useLiveSessionViewerPlaybackController({
-  authStatus,
+export function createLiveSessionViewerPlaybackControllerLifecycle({
   commitPrepareLiveSessionMedia,
-  didUnmountRef,
+  createPeerConnectionFactory =
+    createDefaultLiveSessionViewerPeerConnectionFactory,
+  createPlaybackRuntime = createLiveSessionViewerPlaybackRuntime,
+  createSocket = createPhoenixSocket,
   getAccessToken,
-  isJoined,
-  isLeaving,
-  liveSessionId,
-  normalizedStatus,
+  isMountedRef,
+  setViewerPlaybackState,
+  viewerPlaybackGenerationRef,
+  viewerPlaybackResourceRef,
   websocketUrl,
-}: LiveSessionViewerPlaybackControllerOptions): LiveSessionViewerPlaybackController {
-  const [viewerPlaybackState, setViewerPlaybackState] =
-    useState<ViewerPlaybackState>(INITIAL_VIEWER_PLAYBACK_STATE);
-  const viewerPlaybackGenerationRef = useRef(0);
-  const viewerPlaybackResourceRef = useRef<ViewerPlaybackResource | null>(null);
-
-  useEffect(() => {
+}: LiveSessionViewerPlaybackControllerLifecycleOptions): LiveSessionViewerPlaybackControllerLifecycle {
+  function syncViewerPlayback({
+    authStatus,
+    isJoined,
+    isLeaving,
+    liveSessionId,
+    normalizedStatus,
+  }: LiveSessionViewerPlaybackControllerSyncOptions) {
     if (
       !liveSessionId ||
       !isJoined ||
@@ -96,16 +138,7 @@ export function useLiveSessionViewerPlaybackController({
     return () => {
       stopViewerPlaybackGeneration(generation, { resetState: false });
     };
-  }, [
-    authStatus,
-    commitPrepareLiveSessionMedia,
-    getAccessToken,
-    isJoined,
-    isLeaving,
-    liveSessionId,
-    normalizedStatus,
-    websocketUrl,
-  ]);
+  }
 
   function startViewerPlayback(currentLiveSessionId: string): number {
     const generation = viewerPlaybackGenerationRef.current + 1;
@@ -144,8 +177,7 @@ export function useLiveSessionViewerPlaybackController({
             return;
           }
 
-          const peerConnectionFactory =
-            createDefaultLiveSessionViewerPeerConnectionFactory();
+          const peerConnectionFactory = createPeerConnectionFactory();
 
           if (!peerConnectionFactory) {
             setViewerPlaybackState({
@@ -156,11 +188,11 @@ export function useLiveSessionViewerPlaybackController({
             return;
           }
 
-          const socket = createPhoenixSocket({
+          const socket = createSocket({
             getAccessToken,
             websocketUrl,
           });
-          const runtime = createLiveSessionViewerPlaybackRuntime({
+          const runtime = createPlaybackRuntime({
             onChannelTerminated: () => {
               handleLiveSessionViewerPlaybackChannelTerminated({
                 generation,
@@ -288,7 +320,7 @@ export function useLiveSessionViewerPlaybackController({
 
   function isViewerPlaybackGenerationActive(generation: number): boolean {
     return (
-      !didUnmountRef.current &&
+      isMountedRef.current &&
       viewerPlaybackGenerationRef.current === generation
     );
   }
@@ -301,7 +333,7 @@ export function useLiveSessionViewerPlaybackController({
     viewerPlaybackGenerationRef.current += 1;
     disposeViewerPlaybackResource();
 
-    if (resetState && !didUnmountRef.current) {
+    if (resetState && isMountedRef.current) {
       setViewerPlaybackState(INITIAL_VIEWER_PLAYBACK_STATE);
     }
   }
@@ -320,7 +352,7 @@ export function useLiveSessionViewerPlaybackController({
 
     disposeViewerPlaybackResource(generation);
 
-    if (resetState && !didUnmountRef.current) {
+    if (resetState && isMountedRef.current) {
       setViewerPlaybackState(INITIAL_VIEWER_PLAYBACK_STATE);
     }
   }
@@ -342,9 +374,77 @@ export function useLiveSessionViewerPlaybackController({
     resource.disconnectSocket();
   }
 
+  function unmount() {
+    isMountedRef.current = false;
+    stopViewerPlayback({ resetState: false });
+  }
+
   return {
     stopViewerPlayback,
     stopViewerPlaybackGeneration,
+    syncViewerPlayback,
+    unmount,
+  };
+}
+
+export function useLiveSessionViewerPlaybackController({
+  authStatus,
+  commitPrepareLiveSessionMedia,
+  getAccessToken,
+  isJoined,
+  isLeaving,
+  liveSessionId,
+  normalizedStatus,
+  websocketUrl,
+}: LiveSessionViewerPlaybackControllerOptions): LiveSessionViewerPlaybackController {
+  const [viewerPlaybackState, setViewerPlaybackState] =
+    useState<ViewerPlaybackState>(INITIAL_VIEWER_PLAYBACK_STATE);
+  const isMountedRef = useRef(true);
+  const viewerPlaybackGenerationRef = useRef(0);
+  const viewerPlaybackResourceRef =
+    useRef<LiveSessionViewerPlaybackResource | null>(null);
+  const controller = createLiveSessionViewerPlaybackControllerLifecycle({
+    commitPrepareLiveSessionMedia,
+    getAccessToken,
+    isMountedRef,
+    setViewerPlaybackState,
+    viewerPlaybackGenerationRef,
+    viewerPlaybackResourceRef,
+    websocketUrl,
+  });
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      controller.unmount();
+    };
+  }, []);
+
+  useEffect(
+    () =>
+      controller.syncViewerPlayback({
+        authStatus,
+        isJoined,
+        isLeaving,
+        liveSessionId,
+        normalizedStatus,
+      }),
+    [
+      authStatus,
+      commitPrepareLiveSessionMedia,
+      getAccessToken,
+      isJoined,
+      isLeaving,
+      liveSessionId,
+      normalizedStatus,
+      websocketUrl,
+    ],
+  );
+
+  return {
+    stopViewerPlayback: controller.stopViewerPlayback,
+    stopViewerPlaybackGeneration: controller.stopViewerPlaybackGeneration,
     viewerPlaybackState,
   };
 }
