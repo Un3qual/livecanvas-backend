@@ -1,4 +1,3 @@
-import type { LiveSessionWatchPendingMutation } from '../liveSessionWatchReducer';
 import type { LiveSessionWatchScreenQuery } from './liveSessionWatchOperations';
 
 export type LiveSessionWatchData = LiveSessionWatchScreenQuery['response'];
@@ -14,16 +13,8 @@ export type LiveSessionWatchScreenProps = {
   sessionId: string;
 };
 
-export type PendingMutationRef = {
-  current: LiveSessionWatchPendingMutation | null;
-};
-
 export type PendingChatSendRef = {
   current: { readonly sessionId: string; readonly token: number } | null;
-};
-
-export type AutoLeaveOnUnmountRef = {
-  current: { readonly sessionId: string; readonly shouldLeave: boolean } | null;
 };
 
 export type ViewerPlaybackStatus =
@@ -54,6 +45,4 @@ export type StopViewerPlaybackGeneration = (
   options: ViewerPlaybackStopOptions,
 ) => void;
 
-export type LiveSessionWatchContentProps = LiveSessionWatchScreenProps & {
-  pendingMutationRef: PendingMutationRef;
-};
+export type LiveSessionWatchContentProps = LiveSessionWatchScreenProps;
