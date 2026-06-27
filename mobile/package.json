@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^14.0.0",
+    "@xstate/react": "^6.1.0",
     "expo": "~55.0.8",
     "expo-apple-authentication": "~55.0.13",
     "expo-auth-session": "~55.0.13",
@@ -29,7 +30,8 @@
     "react-native": "0.83.2",
     "react-native-webrtc": "^124.0.7",
     "react-relay": "^20.1.1",
-    "relay-runtime": "^20.1.1"
+    "relay-runtime": "^20.1.1",
+    "xstate": "^5.32.2"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
