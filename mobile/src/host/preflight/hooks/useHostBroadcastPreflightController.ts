@@ -44,9 +44,14 @@ import {
   createHostBroadcastSessionState,
   hostBroadcastPreflightCleanupLiveSessionId,
   hostBroadcastSessionReducer,
+  type HostBroadcastSessionAction,
   type HostBroadcastSessionState,
 } from '../../hostBroadcastSession';
-import type { HostBroadcastPublishingStatus } from '../hostBroadcastPreflightScreenTypes';
+import type {
+  HostBroadcastControlsCardProps,
+  HostBroadcastPreflightReadinessCardProps,
+  HostBroadcastPublishingStatus,
+} from '../hostBroadcastPreflightScreenTypes';
 import { useHostBroadcastPublishingController } from './useHostBroadcastPublishingController';
 
 const HOST_PUBLISHING_ERROR =
@@ -73,30 +78,6 @@ export type HostBroadcastEndLiveSessionCommit = (
   config: UseMutationConfig<HostBroadcastPreflightScreenEndMutation>,
 ) => unknown;
 
-export type HostBroadcastPreflightReadinessCardProps = {
-  readonly preflightState: HostBroadcastPreflightState;
-  readonly publishingStatus: HostBroadcastPublishingStatus;
-  readonly sessionState: HostBroadcastSessionState;
-};
-
-export type HostBroadcastControlsCardProps = {
-  readonly canCreateSession: boolean;
-  readonly canGoLive: boolean;
-  readonly canPrepareMedia: boolean;
-  readonly canUseBackAction: boolean;
-  readonly errorMessage: string | null;
-  readonly hasBlockers: boolean;
-  readonly hasPreparedMedia: boolean;
-  readonly isGoingLive: boolean;
-  readonly isPreparingMedia: boolean;
-  readonly onBackPress: () => void;
-  readonly onCreateSessionPress: () => void;
-  readonly onGoLivePress: () => void;
-  readonly onPrepareMediaPress: () => void;
-  readonly publishingStatus: HostBroadcastPublishingStatus;
-  readonly sessionState: HostBroadcastSessionState;
-};
-
 export type HostBroadcastPreflightController = {
   readonly controlsCardProps: HostBroadcastControlsCardProps;
   readonly readinessCardProps: HostBroadcastPreflightReadinessCardProps;
@@ -115,6 +96,403 @@ export type HostBroadcastPreflightControllerOptions = {
   readonly navigateToLiveSession: (liveSessionId: string) => void;
   readonly websocketUrl: string;
 };
+
+type HostBroadcastStateSetter<T> = (
+  nextState: T | ((current: T) => T),
+) => void;
+
+export type HostBroadcastPreflightControllerLifecycleOptions = {
+  readonly commitEndLiveSession: HostBroadcastEndLiveSessionCommit;
+  readonly commitGoLive: HostBroadcastGoLiveCommit;
+  readonly commitPrepareMedia: HostBroadcastPrepareMediaCommit;
+  readonly commitStartLiveSession: HostBroadcastStartLiveSessionCommit;
+  readonly dispatchSessionAction: (action: HostBroadcastSessionAction) => void;
+  readonly disposeNative: () => void;
+  readonly failPreparedPublishing: (reason: string) => void;
+  readonly getCanCreateSession: () => boolean;
+  readonly getCanGoLive: () => boolean;
+  readonly getCanPrepareMedia: () => boolean;
+  readonly getCanUseBackAction: () => boolean;
+  readonly getSessionState: () => HostBroadcastSessionState;
+  readonly hasRetainedPublishingResource: () => boolean;
+  readonly navigateBack: () => void;
+  readonly navigateToLiveSession: (liveSessionId: string) => void;
+  readonly resetPreparedMedia: () => void;
+  readonly retainAttachedPublishingForLiveSession: (
+    liveSessionId: string,
+  ) => HostBroadcastPublishingResource | null;
+  readonly setHostActionError: (error: string | null) => void;
+  readonly setIsGoingLive: HostBroadcastStateSetter<boolean>;
+  readonly setIsPreparingMedia: HostBroadcastStateSetter<boolean>;
+  readonly setPreparedMedia: HostBroadcastStateSetter<HostBroadcastMediaPreparation | null>;
+};
+
+export type HostBroadcastPreflightControllerLifecycle = {
+  readonly handleBackPress: () => void;
+  readonly handleCreateSessionPress: () => void;
+  readonly handleGoLivePress: () => void;
+  readonly handlePrepareMediaPress: () => void;
+  readonly mount: () => void;
+  readonly requestPreflightEndLiveSession: (
+    liveSessionId: string,
+    options?: PreflightEndLiveSessionOptions,
+  ) => void;
+  readonly unmount: () => void;
+  readonly updateOptions: (
+    options: HostBroadcastPreflightControllerLifecycleOptions,
+  ) => void;
+};
+
+export function createHostBroadcastPreflightControllerLifecycle(
+  initialOptions: HostBroadcastPreflightControllerLifecycleOptions,
+): HostBroadcastPreflightControllerLifecycle {
+  let options = initialOptions;
+  let hasStartLiveSessionRequestInFlight = false;
+  let hasEndLiveSessionRequestInFlight = false;
+  let hasGoLiveRequestInFlight = false;
+  let hasGoLiveSucceeded = false;
+  let isMounted = true;
+
+  function updateOptions(nextOptions: HostBroadcastPreflightControllerLifecycleOptions) {
+    options = nextOptions;
+  }
+
+  function readPreflightCleanupState() {
+    return {
+      hasEndLiveSessionRequestInFlight,
+      hasGoLiveRequestInFlight,
+      hasGoLiveSucceeded,
+    };
+  }
+
+  function requestPreflightEndLiveSession(
+    liveSessionId: string,
+    endOptions: PreflightEndLiveSessionOptions = {
+      navigateBackOnSuccess: false,
+    },
+  ) {
+    // Back cleanup reports failures to the mounted screen, while abandoned
+    // cleanup only attempts non-blocking teardown after unmount.
+    if (hasEndLiveSessionRequestInFlight) {
+      return;
+    }
+
+    hasEndLiveSessionRequestInFlight = true;
+    const updateSessionLifecycle =
+      endOptions.navigateBackOnSuccess ||
+      endOptions.updateSessionLifecycle === true;
+
+    if (updateSessionLifecycle) {
+      options.dispatchSessionAction({ type: 'end_requested' });
+      if (endOptions.navigateBackOnSuccess) {
+        options.setHostActionError(null);
+      }
+    }
+
+    options.commitEndLiveSession({
+      variables: {
+        input: {
+          liveSessionId,
+        },
+      },
+      onCompleted: (payload) => {
+        hasEndLiveSessionRequestInFlight = false;
+
+        if (!updateSessionLifecycle) {
+          return;
+        }
+
+        const result = payload.endLiveSession;
+
+        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
+          const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
+          options.dispatchSessionAction({
+            type: 'end_failed',
+            viewerSafeErrorText,
+          });
+          options.setHostActionError(viewerSafeErrorText);
+          return;
+        }
+
+        options.dispatchSessionAction({ type: 'end_succeeded' });
+        if (endOptions.navigateBackOnSuccess) {
+          options.navigateBack();
+        }
+      },
+      onError: () => {
+        hasEndLiveSessionRequestInFlight = false;
+
+        if (!updateSessionLifecycle) {
+          return;
+        }
+
+        const viewerSafeErrorText = formatLiveMutationErrors([]);
+        options.dispatchSessionAction({
+          type: 'end_failed',
+          viewerSafeErrorText,
+        });
+        options.setHostActionError(viewerSafeErrorText);
+      },
+    });
+  }
+
+  function requestAbandonedPreflightEndLiveSession(liveSessionId: string) {
+    // Abandoned preflight cleanup is best-effort and non-navigating; the
+    // shared cleanup gate makes duplicate end/go-live races no-ops.
+    if (!canRequestAbandonedHostPreflightCleanup(readPreflightCleanupState())) {
+      return;
+    }
+
+    requestPreflightEndLiveSession(liveSessionId, {
+      navigateBackOnSuccess: false,
+    });
+  }
+
+  function handleCreateSessionPress() {
+    if (
+      !canSubmitHostPreflightStartRequest(options.getCanCreateSession(), {
+        hasStartLiveSessionRequestInFlight,
+      })
+    ) {
+      return;
+    }
+
+    hasStartLiveSessionRequestInFlight = true;
+    options.dispatchSessionAction({ type: 'start_requested' });
+    options.resetPreparedMedia();
+    options.setHostActionError(null);
+
+    options.commitStartLiveSession({
+      variables: {
+        input: {
+          visibility: 'PUBLIC',
+        },
+      },
+      onCompleted: (payload) => {
+        const result = payload.startLiveSession;
+
+        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
+          hasStartLiveSessionRequestInFlight = false;
+
+          if (!isMounted) {
+            return;
+          }
+
+          const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
+          options.dispatchSessionAction({
+            type: 'start_failed',
+            viewerSafeErrorText,
+          });
+          options.setHostActionError(viewerSafeErrorText);
+          return;
+        }
+
+        hasStartLiveSessionRequestInFlight = false;
+
+        if (!isMounted) {
+          requestAbandonedPreflightEndLiveSession(result.liveSession.id);
+          return;
+        }
+
+        options.dispatchSessionAction({
+          liveSessionId: result.liveSession.id,
+          type: 'start_succeeded',
+        });
+      },
+      onError: () => {
+        hasStartLiveSessionRequestInFlight = false;
+
+        if (!isMounted) {
+          return;
+        }
+
+        const viewerSafeErrorText = formatLiveMutationErrors([]);
+        options.dispatchSessionAction({
+          type: 'start_failed',
+          viewerSafeErrorText,
+        });
+        options.setHostActionError(viewerSafeErrorText);
+      },
+    });
+  }
+
+  function handlePrepareMediaPress() {
+    const liveSessionId = options.getSessionState().liveSessionId;
+
+    if (!options.getCanPrepareMedia() || !liveSessionId) {
+      return;
+    }
+
+    options.setIsPreparingMedia(true);
+    options.setHostActionError(null);
+
+    options.commitPrepareMedia({
+      variables: {
+        input: {
+          liveSessionId,
+        },
+      },
+      onCompleted: (payload) => {
+        options.setIsPreparingMedia(false);
+
+        const result = payload.prepareLiveMediaSession;
+        const prepared = readPreparedHostBroadcastMedia(result);
+
+        if (!prepared) {
+          options.resetPreparedMedia();
+          options.setHostActionError(formatLiveMutationErrors(result?.errors));
+          return;
+        }
+
+        options.setPreparedMedia(prepared);
+      },
+      onError: () => {
+        options.setIsPreparingMedia(false);
+        options.resetPreparedMedia();
+        options.setHostActionError(formatLiveMutationErrors([]));
+      },
+    });
+  }
+
+  function handleGoLivePress() {
+    const liveSessionId = options.getSessionState().liveSessionId;
+
+    if (!options.getCanGoLive() || !liveSessionId) {
+      return;
+    }
+
+    options.setIsGoingLive(true);
+    hasGoLiveRequestInFlight = true;
+    options.setHostActionError(null);
+
+    options.commitGoLive({
+      variables: {
+        input: {
+          liveSessionId,
+        },
+      },
+      onCompleted: (payload) => {
+        hasGoLiveRequestInFlight = false;
+        const result = payload.goLiveSession;
+
+        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
+          if (!isMounted) {
+            requestAbandonedPreflightEndLiveSession(liveSessionId);
+            return;
+          }
+
+          options.setIsGoingLive(false);
+          const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
+
+          if (isRetryableHostGoLiveMediaReadinessError(result?.errors)) {
+            options.setHostActionError(viewerSafeErrorText);
+            return;
+          }
+
+          options.resetPreparedMedia();
+          options.setHostActionError(viewerSafeErrorText);
+          return;
+        }
+
+        const retainedResource = options.retainAttachedPublishingForLiveSession(
+          result.liveSession.id,
+        );
+
+        if (!retainedResource) {
+          if (!isMounted) {
+            requestAbandonedPreflightEndLiveSession(result.liveSession.id);
+            return;
+          }
+
+          options.setIsGoingLive(false);
+          options.failPreparedPublishing(HOST_PUBLISHING_ERROR);
+          // Go-live already succeeded, so end the backend session if the host
+          // cannot retain the publishing runtime needed to serve viewers.
+          requestPreflightEndLiveSession(result.liveSession.id, {
+            navigateBackOnSuccess: false,
+            updateSessionLifecycle: true,
+          });
+          return;
+        }
+
+        hasGoLiveSucceeded = true;
+        if (isMounted) {
+          options.setIsGoingLive(false);
+        }
+        options.navigateToLiveSession(result.liveSession.id);
+      },
+      onError: () => {
+        hasGoLiveRequestInFlight = false;
+
+        if (!isMounted) {
+          return;
+        }
+
+        options.setIsGoingLive(false);
+        options.setHostActionError(formatLiveMutationErrors([]));
+      },
+    });
+  }
+
+  function handleBackPress() {
+    if (!options.getCanUseBackAction()) {
+      return;
+    }
+
+    if (
+      hasEndLiveSessionRequestInFlight ||
+      hasGoLiveRequestInFlight ||
+      hasGoLiveSucceeded
+    ) {
+      return;
+    }
+
+    const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
+      options.getSessionState(),
+      readPreflightCleanupState(),
+    );
+
+    if (!liveSessionId) {
+      options.navigateBack();
+      return;
+    }
+
+    requestPreflightEndLiveSession(liveSessionId, {
+      navigateBackOnSuccess: true,
+    });
+  }
+
+  function mount() {
+    isMounted = true;
+  }
+
+  function unmount() {
+    isMounted = false;
+    const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
+      options.getSessionState(),
+      readPreflightCleanupState(),
+    );
+
+    if (liveSessionId) {
+      requestAbandonedPreflightEndLiveSession(liveSessionId);
+    }
+
+    if (!options.hasRetainedPublishingResource()) {
+      options.disposeNative();
+    }
+  }
+
+  return {
+    handleBackPress,
+    handleCreateSessionPress,
+    handleGoLivePress,
+    handlePrepareMediaPress,
+    mount,
+    requestPreflightEndLiveSession,
+    unmount,
+    updateOptions,
+  };
+}
 
 export function useHostBroadcastPreflightController({
   authStatus,
@@ -150,19 +528,20 @@ export function useHostBroadcastPreflightController({
   const [publishingStatus, setPublishingStatus] =
     useState<HostBroadcastPublishingStatus>('idle');
   const [hostActionError, setHostActionError] = useState<string | null>(null);
-  const latestSessionStateRef = useRef(sessionState);
-  const commitEndLiveSessionRef = useRef(commitEndLiveSession);
-  const isPreflightScreenMountedRef = useRef(true);
-  const hasStartLiveSessionRequestInFlightRef = useRef(false);
-  const hasEndLiveSessionRequestInFlightRef = useRef(false);
-  const hasGoLiveRequestInFlightRef = useRef(false);
-  const hasGoLiveSucceededRef = useRef(false);
   const hasRetainedHostPublishingResourceRef = useRef(false);
   const retainedHostPublishingResourceRef =
     useRef<HostBroadcastPublishingResource | null>(null);
   const retainedHostPublishingLiveSessionIdsRef = useRef(
     new Map<HostBroadcastPublishingResource, string>(),
   );
+  const hasRetainedPublishingResourceCallbackRef = useRef<() => boolean>(
+    () => false,
+  );
+  const retainAttachedPublishingForLiveSessionCallbackRef = useRef<
+    (liveSessionId: string) => HostBroadcastPublishingResource | null
+  >(() => null);
+  const preflightLifecycleRef =
+    useRef<HostBroadcastPreflightControllerLifecycle | null>(null);
   const hasPreparedMedia = preparedMedia !== null;
   const canCreateSession =
     canCreateHostPreflightSession(preflightState) &&
@@ -181,14 +560,6 @@ export function useHostBroadcastPreflightController({
     sessionState,
     isGoingLive,
   );
-
-  useEffect(() => {
-    latestSessionStateRef.current = sessionState;
-  }, [sessionState]);
-
-  useEffect(() => {
-    commitEndLiveSessionRef.current = commitEndLiveSession;
-  }, [commitEndLiveSession]);
 
   const resetPreparedMedia = useCallback(() => {
     setPreparedMedia(null);
@@ -213,106 +584,6 @@ export function useHostBroadcastPreflightController({
     [publishingPreflightController],
   );
 
-  const readPreflightCleanupState = useCallback(
-    () => ({
-      hasEndLiveSessionRequestInFlight:
-        hasEndLiveSessionRequestInFlightRef.current,
-      hasGoLiveRequestInFlight: hasGoLiveRequestInFlightRef.current,
-      hasGoLiveSucceeded: hasGoLiveSucceededRef.current,
-    }),
-    [],
-  );
-
-  const requestPreflightEndLiveSession = useCallback(
-    (
-      liveSessionId: string,
-      options: PreflightEndLiveSessionOptions = {
-        navigateBackOnSuccess: false,
-      },
-    ) => {
-      // Back cleanup reports failures to the mounted screen, while abandoned
-      // cleanup only attempts non-blocking teardown after unmount.
-      if (hasEndLiveSessionRequestInFlightRef.current) {
-        return;
-      }
-
-      hasEndLiveSessionRequestInFlightRef.current = true;
-      const updateSessionLifecycle =
-        options.navigateBackOnSuccess || options.updateSessionLifecycle === true;
-
-      if (updateSessionLifecycle) {
-        dispatchSessionAction({ type: 'end_requested' });
-        if (options.navigateBackOnSuccess) {
-          setHostActionError(null);
-        }
-      }
-
-      commitEndLiveSessionRef.current({
-        variables: {
-          input: {
-            liveSessionId,
-          },
-        },
-        onCompleted: (payload) => {
-          hasEndLiveSessionRequestInFlightRef.current = false;
-
-          if (!updateSessionLifecycle) {
-            return;
-          }
-
-          const result = payload.endLiveSession;
-
-          if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
-            const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
-            dispatchSessionAction({
-              type: 'end_failed',
-              viewerSafeErrorText,
-            });
-            setHostActionError(viewerSafeErrorText);
-            return;
-          }
-
-          dispatchSessionAction({ type: 'end_succeeded' });
-          if (options.navigateBackOnSuccess) {
-            navigateBack();
-          }
-        },
-        onError: () => {
-          hasEndLiveSessionRequestInFlightRef.current = false;
-
-          if (!updateSessionLifecycle) {
-            return;
-          }
-
-          const viewerSafeErrorText = formatLiveMutationErrors([]);
-          dispatchSessionAction({
-            type: 'end_failed',
-            viewerSafeErrorText,
-          });
-          setHostActionError(viewerSafeErrorText);
-        },
-      });
-    },
-    [navigateBack],
-  );
-
-  const requestAbandonedPreflightEndLiveSession = useCallback(
-    (liveSessionId: string) => {
-      // Abandoned preflight cleanup is best-effort and non-navigating; the
-      // shared cleanup gate makes duplicate end/go-live races no-ops.
-      if (
-        !canRequestAbandonedHostPreflightCleanup(readPreflightCleanupState())
-      ) {
-        return;
-      }
-
-      requestPreflightEndLiveSession(liveSessionId, {
-        navigateBackOnSuccess: false,
-      });
-    },
-    [readPreflightCleanupState, requestPreflightEndLiveSession],
-  );
-
   const setBackendMediaContractReady = useCallback((ready: boolean) => {
     dispatchPreflightAction({
       ready,
@@ -324,6 +595,44 @@ export function useHostBroadcastPreflightController({
     setPublishingStatus((status) => (status === 'errored' ? status : 'idle'));
   }, []);
 
+  const preflightLifecycleOptions: HostBroadcastPreflightControllerLifecycleOptions =
+    {
+      commitEndLiveSession,
+      commitGoLive,
+      commitPrepareMedia,
+      commitStartLiveSession,
+      dispatchSessionAction,
+      disposeNative: native.dispose,
+      failPreparedPublishing,
+      getCanCreateSession: () => canCreateSession,
+      getCanGoLive: () => canGoLive,
+      getCanPrepareMedia: () => canPrepareMedia,
+      getCanUseBackAction: () => canUseBackAction,
+      getSessionState: () => sessionState,
+      hasRetainedPublishingResource: () =>
+        hasRetainedPublishingResourceCallbackRef.current(),
+      navigateBack,
+      navigateToLiveSession,
+      resetPreparedMedia,
+      retainAttachedPublishingForLiveSession: (liveSessionId) =>
+        retainAttachedPublishingForLiveSessionCallbackRef.current(liveSessionId),
+      setHostActionError,
+      setIsGoingLive,
+      setIsPreparingMedia,
+      setPreparedMedia,
+    };
+
+  if (!preflightLifecycleRef.current) {
+    preflightLifecycleRef.current =
+      createHostBroadcastPreflightControllerLifecycle(
+        preflightLifecycleOptions,
+      );
+  } else {
+    preflightLifecycleRef.current.updateOptions(preflightLifecycleOptions);
+  }
+
+  const preflightLifecycle = preflightLifecycleRef.current;
+
   const publishingController = useHostBroadcastPublishingController({
     authStatus,
     failPreparedPublishing,
@@ -333,7 +642,8 @@ export function useHostBroadcastPreflightController({
     native,
     preparedMedia,
     publishingPreflightController,
-    requestPreflightEndLiveSession,
+    requestPreflightEndLiveSession:
+      preflightLifecycle.requestPreflightEndLiveSession,
     retainedPublishingLiveSessionIdsRef: retainedHostPublishingLiveSessionIdsRef,
     retainedPublishingResourceRef: retainedHostPublishingResourceRef,
     setBackendMediaContractReady,
@@ -342,255 +652,14 @@ export function useHostBroadcastPreflightController({
     setPublishingStatus,
     websocketUrl,
   });
-  const hasRetainedPublishingResource =
+  hasRetainedPublishingResourceCallbackRef.current =
     publishingController.hasRetainedPublishingResource;
-  const retainAttachedPublishingForLiveSession =
+  retainAttachedPublishingForLiveSessionCallbackRef.current =
     publishingController.retainAttachedPublishingForLiveSession;
-
-  const handleCreateSessionPress = useCallback(() => {
-    if (
-      !canSubmitHostPreflightStartRequest(canCreateSession, {
-        hasStartLiveSessionRequestInFlight:
-          hasStartLiveSessionRequestInFlightRef.current,
-      })
-    ) {
-      return;
-    }
-
-    hasStartLiveSessionRequestInFlightRef.current = true;
-    dispatchSessionAction({ type: 'start_requested' });
-    resetPreparedMedia();
-    setHostActionError(null);
-
-    commitStartLiveSession({
-      variables: {
-        input: {
-          visibility: 'PUBLIC',
-        },
-      },
-      onCompleted: (payload) => {
-        const result = payload.startLiveSession;
-
-        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
-          hasStartLiveSessionRequestInFlightRef.current = false;
-
-          if (!isPreflightScreenMountedRef.current) {
-            return;
-          }
-
-          const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
-          dispatchSessionAction({
-            type: 'start_failed',
-            viewerSafeErrorText,
-          });
-          setHostActionError(viewerSafeErrorText);
-          return;
-        }
-
-        hasStartLiveSessionRequestInFlightRef.current = false;
-
-        if (!isPreflightScreenMountedRef.current) {
-          requestAbandonedPreflightEndLiveSession(result.liveSession.id);
-          return;
-        }
-
-        dispatchSessionAction({
-          liveSessionId: result.liveSession.id,
-          type: 'start_succeeded',
-        });
-      },
-      onError: () => {
-        hasStartLiveSessionRequestInFlightRef.current = false;
-
-        if (!isPreflightScreenMountedRef.current) {
-          return;
-        }
-
-        const viewerSafeErrorText = formatLiveMutationErrors([]);
-        dispatchSessionAction({
-          type: 'start_failed',
-          viewerSafeErrorText,
-        });
-        setHostActionError(viewerSafeErrorText);
-      },
-    });
-  }, [
-    canCreateSession,
-    commitStartLiveSession,
-    requestAbandonedPreflightEndLiveSession,
-    resetPreparedMedia,
-  ]);
-
-  const handlePrepareMediaPress = useCallback(() => {
-    const liveSessionId = sessionState.liveSessionId;
-
-    if (!canPrepareMedia || !liveSessionId) {
-      return;
-    }
-
-    setIsPreparingMedia(true);
-    setHostActionError(null);
-
-    commitPrepareMedia({
-      variables: {
-        input: {
-          liveSessionId,
-        },
-      },
-      onCompleted: (payload) => {
-        setIsPreparingMedia(false);
-
-        const result = payload.prepareLiveMediaSession;
-        const prepared = readPreparedHostBroadcastMedia(result);
-
-        if (!prepared) {
-          resetPreparedMedia();
-          setHostActionError(formatLiveMutationErrors(result?.errors));
-          return;
-        }
-
-        setPreparedMedia(prepared);
-      },
-      onError: () => {
-        setIsPreparingMedia(false);
-        resetPreparedMedia();
-        setHostActionError(formatLiveMutationErrors([]));
-      },
-    });
-  }, [
-    canPrepareMedia,
-    commitPrepareMedia,
-    resetPreparedMedia,
-    sessionState.liveSessionId,
-  ]);
-
-  const handleGoLivePress = useCallback(() => {
-    const liveSessionId = sessionState.liveSessionId;
-
-    if (!canGoLive || !liveSessionId) {
-      return;
-    }
-
-    setIsGoingLive(true);
-    hasGoLiveRequestInFlightRef.current = true;
-    setHostActionError(null);
-
-    commitGoLive({
-      variables: {
-        input: {
-          liveSessionId,
-        },
-      },
-      onCompleted: (payload) => {
-        hasGoLiveRequestInFlightRef.current = false;
-        const result = payload.goLiveSession;
-
-        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
-          if (!isPreflightScreenMountedRef.current) {
-            requestAbandonedPreflightEndLiveSession(liveSessionId);
-            return;
-          }
-
-          setIsGoingLive(false);
-          const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
-
-          if (isRetryableHostGoLiveMediaReadinessError(result?.errors)) {
-            setHostActionError(viewerSafeErrorText);
-            return;
-          }
-
-          resetPreparedMedia();
-          setHostActionError(viewerSafeErrorText);
-          return;
-        }
-
-        const retainedResource = retainAttachedPublishingForLiveSession(
-          result.liveSession.id,
-        );
-
-        if (!retainedResource) {
-          if (!isPreflightScreenMountedRef.current) {
-            requestAbandonedPreflightEndLiveSession(result.liveSession.id);
-            return;
-          }
-
-          setIsGoingLive(false);
-          failPreparedPublishing(HOST_PUBLISHING_ERROR);
-          // Go-live already succeeded, so end the backend session if the host
-          // cannot retain the publishing runtime needed to serve viewers.
-          requestPreflightEndLiveSession(result.liveSession.id, {
-            navigateBackOnSuccess: false,
-            updateSessionLifecycle: true,
-          });
-          return;
-        }
-
-        hasGoLiveSucceededRef.current = true;
-        if (isPreflightScreenMountedRef.current) {
-          setIsGoingLive(false);
-        }
-        navigateToLiveSession(result.liveSession.id);
-      },
-      onError: () => {
-        hasGoLiveRequestInFlightRef.current = false;
-
-        if (!isPreflightScreenMountedRef.current) {
-          return;
-        }
-
-        setIsGoingLive(false);
-        setHostActionError(formatLiveMutationErrors([]));
-      },
-    });
-  }, [
-    canGoLive,
-    commitGoLive,
-    failPreparedPublishing,
-    navigateToLiveSession,
-    requestAbandonedPreflightEndLiveSession,
-    requestPreflightEndLiveSession,
-    resetPreparedMedia,
-    retainAttachedPublishingForLiveSession,
-    sessionState.liveSessionId,
-  ]);
-
-  const handleBackPress = useCallback(() => {
-    if (!canUseBackAction) {
-      return;
-    }
-
-    if (
-      hasEndLiveSessionRequestInFlightRef.current ||
-      hasGoLiveRequestInFlightRef.current ||
-      hasGoLiveSucceededRef.current
-    ) {
-      return;
-    }
-
-    const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
-      sessionState,
-      readPreflightCleanupState(),
-    );
-
-    if (!liveSessionId) {
-      navigateBack();
-      return;
-    }
-
-    requestPreflightEndLiveSession(liveSessionId, {
-      navigateBackOnSuccess: true,
-    });
-  }, [
-    canUseBackAction,
-    navigateBack,
-    readPreflightCleanupState,
-    requestPreflightEndLiveSession,
-    sessionState,
-  ]);
 
   useEffect(() => {
     let isMounted = true;
-    isPreflightScreenMountedRef.current = true;
+    preflightLifecycle.mount();
 
     async function refreshNativeReadiness() {
       const permissions = await native.requestPermissions();
@@ -632,23 +701,9 @@ export function useHostBroadcastPreflightController({
 
     return () => {
       isMounted = false;
-      isPreflightScreenMountedRef.current = false;
-      // Component unmount may race with start/go-live callbacks; only tear down
-      // a created STARTING session when no transition already owns cleanup.
-      const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
-        latestSessionStateRef.current,
-        readPreflightCleanupState(),
-      );
-
-      if (liveSessionId) {
-        requestAbandonedPreflightEndLiveSession(liveSessionId);
-      }
-
-      if (!hasRetainedPublishingResource()) {
-        native.dispose();
-      }
+      preflightLifecycle.unmount();
     };
-  }, [native]);
+  }, [native, preflightLifecycle]);
 
   return {
     controlsCardProps: {
@@ -661,10 +716,10 @@ export function useHostBroadcastPreflightController({
       hasPreparedMedia,
       isGoingLive,
       isPreparingMedia,
-      onBackPress: handleBackPress,
-      onCreateSessionPress: handleCreateSessionPress,
-      onGoLivePress: handleGoLivePress,
-      onPrepareMediaPress: handlePrepareMediaPress,
+      onBackPress: preflightLifecycle.handleBackPress,
+      onCreateSessionPress: preflightLifecycle.handleCreateSessionPress,
+      onGoLivePress: preflightLifecycle.handleGoLivePress,
+      onPrepareMediaPress: preflightLifecycle.handlePrepareMediaPress,
       publishingStatus,
       sessionState,
     },

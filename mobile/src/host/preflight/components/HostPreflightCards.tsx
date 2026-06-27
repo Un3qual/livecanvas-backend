@@ -3,15 +3,14 @@ import { Text, View } from 'react-native';
 import { AppButton } from '../../../components/AppButton';
 import { AppCard } from '../../../components/AppCard';
 import { useAppTheme } from '../../../providers/ThemeProvider';
-import type { HostBroadcastPreflightState } from '../../hostBroadcastPreflight';
-import type { HostBroadcastSessionState } from '../../hostBroadcastSession';
 import { hostBroadcastPreflightScreenStyles as styles } from '../hostBroadcastPreflightScreenStyles';
 import {
   pendingStatus,
   permissionStatus,
   publishingStatusLabel,
   readyStatus,
-  type HostBroadcastPublishingStatus,
+  type HostBroadcastControlsCardProps,
+  type HostBroadcastPreflightReadinessCardProps,
   type StatusState,
 } from '../hostBroadcastPreflightScreenTypes';
 
@@ -19,11 +18,7 @@ export function PreflightReadinessCard({
   preflightState,
   publishingStatus,
   sessionState,
-}: {
-  preflightState: HostBroadcastPreflightState;
-  publishingStatus: HostBroadcastPublishingStatus;
-  sessionState: HostBroadcastSessionState;
-}) {
+}: HostBroadcastPreflightReadinessCardProps) {
   return (
     <AppCard>
       <SectionHeading title="Preflight readiness" />
@@ -94,23 +89,7 @@ export function HostControlsCard({
   onPrepareMediaPress,
   publishingStatus,
   sessionState,
-}: {
-  canCreateSession: boolean;
-  canGoLive: boolean;
-  canPrepareMedia: boolean;
-  canUseBackAction: boolean;
-  errorMessage: string | null;
-  hasBlockers: boolean;
-  hasPreparedMedia: boolean;
-  isGoingLive: boolean;
-  isPreparingMedia: boolean;
-  onBackPress: () => void;
-  onCreateSessionPress: () => void;
-  onGoLivePress: () => void;
-  onPrepareMediaPress: () => void;
-  publishingStatus: HostBroadcastPublishingStatus;
-  sessionState: HostBroadcastSessionState;
-}) {
+}: HostBroadcastControlsCardProps) {
   const theme = useAppTheme();
 
   return (
@@ -221,4 +200,3 @@ function StatusRow({
     </View>
   );
 }
-
