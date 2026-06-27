@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d92f5a3762c1d5d396019a4bbc97bdb2>>
+ * @generated SignedSource<<99aab7149363f4970b5f267b16c02655>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,10 +12,10 @@ import { ConcreteRequest } from 'relay-runtime';
 export type LeaveLiveSessionInput = {
   liveSessionId: string;
 };
-export type LiveSessionWatchScreenLeaveMutation$variables = {
+export type liveSessionWatchOperationsLeaveMutation$variables = {
   input: LeaveLiveSessionInput;
 };
-export type LiveSessionWatchScreenLeaveMutation$data = {
+export type liveSessionWatchOperationsLeaveMutation$data = {
   readonly leaveLiveSession: {
     readonly errors: ReadonlyArray<{
       readonly field: string | null | undefined;
@@ -24,9 +24,9 @@ export type LiveSessionWatchScreenLeaveMutation$data = {
     readonly left: boolean;
   } | null | undefined;
 };
-export type LiveSessionWatchScreenLeaveMutation = {
-  response: LiveSessionWatchScreenLeaveMutation$data;
-  variables: LiveSessionWatchScreenLeaveMutation$variables;
+export type liveSessionWatchOperationsLeaveMutation = {
+  response: liveSessionWatchOperationsLeaveMutation$data;
+  variables: liveSessionWatchOperationsLeaveMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -93,7 +93,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "LiveSessionWatchScreenLeaveMutation",
+    "name": "liveSessionWatchOperationsLeaveMutation",
     "selections": (v1/*: any*/),
     "type": "RootMutationType",
     "abstractKey": null
@@ -102,20 +102,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "LiveSessionWatchScreenLeaveMutation",
+    "name": "liveSessionWatchOperationsLeaveMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "0c77171d48947afee77e71a91cb10b83",
+    "cacheID": "ef14141801e28c7d819bcce9ec39b41e",
     "id": null,
     "metadata": {},
-    "name": "LiveSessionWatchScreenLeaveMutation",
+    "name": "liveSessionWatchOperationsLeaveMutation",
     "operationKind": "mutation",
-    "text": "mutation LiveSessionWatchScreenLeaveMutation(\n  $input: LeaveLiveSessionInput!\n) {\n  leaveLiveSession(input: $input) {\n    left\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation liveSessionWatchOperationsLeaveMutation(\n  $input: LeaveLiveSessionInput!\n) {\n  leaveLiveSession(input: $input) {\n    left\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b53448f777d5e78e32afa73e2e3890d6";
+(node as any).hash = "89a73375e6f616383b79adf13f7decd5";
 
 export default node;

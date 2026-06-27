@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
-import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
+import { useLazyLoadQuery, useMutation } from 'react-relay';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { ScreenState } from '../../components/ScreenState';
@@ -66,6 +66,22 @@ import {
 } from './components/LiveSessionWatchCards';
 import { LiveSessionViewerPlaybackSurface } from './components/LiveSessionViewerPlaybackSurface';
 import { useLiveSessionViewerPlaybackController } from './hooks/useLiveSessionViewerPlaybackController';
+import {
+  readLiveSessionWatchModel,
+  readLiveSessionWatchViewerId,
+} from './liveSessionWatchData';
+import {
+  liveSessionWatchScreenEndMutation,
+  liveSessionWatchScreenJoinMutation,
+  liveSessionWatchScreenLeaveMutation,
+  liveSessionWatchScreenPrepareMediaMutation,
+  liveSessionWatchScreenQuery,
+  type LiveSessionWatchScreenEndMutation,
+  type LiveSessionWatchScreenJoinMutation,
+  type LiveSessionWatchScreenLeaveMutation,
+  type LiveSessionWatchScreenPrepareMediaMutation,
+  type LiveSessionWatchScreenQuery,
+} from './liveSessionWatchOperations';
 import { liveSessionWatchScreenStyles as styles } from './liveSessionWatchScreenStyles';
 import type {
   AutoLeaveOnUnmountRef,
@@ -73,93 +89,8 @@ import type {
   LiveSessionWatchScreenProps,
   PendingChatSendRef,
 } from './liveSessionWatchScreenTypes';
-import type { LiveSessionWatchScreenEndMutation } from '../../__generated__/LiveSessionWatchScreenEndMutation.graphql';
-import type { LiveSessionWatchScreenJoinMutation } from '../../__generated__/LiveSessionWatchScreenJoinMutation.graphql';
-import type { LiveSessionWatchScreenLeaveMutation } from '../../__generated__/LiveSessionWatchScreenLeaveMutation.graphql';
-import type { LiveSessionWatchScreenPrepareMediaMutation } from '../../__generated__/LiveSessionWatchScreenPrepareMediaMutation.graphql';
-import type { LiveSessionWatchScreenQuery } from '../../__generated__/LiveSessionWatchScreenQuery.graphql';
 
 const INITIAL_TIMELINE_HISTORY_COUNT = 30;
-
-const liveSessionWatchScreenJoinMutation = graphql`
-  mutation LiveSessionWatchScreenJoinMutation(
-    $input: JoinLiveSessionInput!
-  ) {
-    joinLiveSession(input: $input) {
-      liveSession {
-        id
-        status
-        visibility
-        insertedAt
-        startedAt
-        endedAt
-        host {
-          id
-          email
-        }
-      }
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const liveSessionWatchScreenPrepareMediaMutation = graphql`
-  mutation LiveSessionWatchScreenPrepareMediaMutation(
-    $input: PrepareLiveMediaSessionInput!
-  ) {
-    prepareLiveMediaSession(input: $input) {
-      liveSession {
-        id
-        status
-      }
-      signalingTopic
-      iceServers {
-        urls
-        username
-        credential
-        credentialType
-      }
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const liveSessionWatchScreenLeaveMutation = graphql`
-  mutation LiveSessionWatchScreenLeaveMutation(
-    $input: LeaveLiveSessionInput!
-  ) {
-    leaveLiveSession(input: $input) {
-      left
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const liveSessionWatchScreenEndMutation = graphql`
-  mutation LiveSessionWatchScreenEndMutation($input: EndLiveSessionInput!) {
-    endLiveSession(input: $input) {
-      liveSession {
-        id
-        status
-        endedAt
-        channelTopic
-      }
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
 
 export function LiveSessionWatchScreen({
   sessionId,
@@ -230,64 +161,7 @@ function LiveSessionWatchContent({
   const { environment } = useStartupState();
   const hostPublishingSessions = useHostBroadcastPublishingSessions();
   const data = useLazyLoadQuery<LiveSessionWatchScreenQuery>(
-    graphql`
-      query LiveSessionWatchScreenQuery(
-        $id: ID!
-        $timelineLast: Int!
-        $timelineBefore: String
-      ) {
-        viewer {
-          id
-        }
-        node(id: $id) {
-          __typename
-          ... on LiveSession {
-            id
-            channelTopic
-            status
-            visibility
-            insertedAt
-            startedAt
-            endedAt
-            host {
-              id
-              email
-            }
-            recordingMediaAsset {
-              id
-              processingState
-              publicUrl
-            }
-            timelineEvents(last: $timelineLast, before: $timelineBefore) {
-              edges {
-                cursor
-                node {
-                  __typename
-                  id
-                  eventType
-                  occurredAt
-                  actor {
-                    id
-                  }
-                  ... on ChatMessageEvent {
-                    body
-                    edited
-                    editCount
-                    editedAt
-                  }
-                }
-              }
-              pageInfo {
-                startCursor
-                endCursor
-                hasNextPage
-                hasPreviousPage
-              }
-            }
-          }
-        }
-      }
-    `,
+    liveSessionWatchScreenQuery,
     {
       id: sessionId,
       timelineBefore: null,
@@ -332,8 +206,7 @@ function LiveSessionWatchContent({
 
   leaveMutationRef.current = commitLeaveLiveSession;
 
-  const session =
-    data.node?.__typename === 'LiveSession' ? data.node : null;
+  const session = readLiveSessionWatchModel(data);
   const retainedTimelineConnection = session?.timelineEvents ?? null;
   const retainedTimelineHistory = useMemo(
     () =>
@@ -771,7 +644,8 @@ function LiveSessionWatchContent({
 
   const liveSessionId = liveSession.id;
   const status = formatLiveSessionStatus(normalizedStatus);
-  const isCurrentViewerHost = data.viewer?.id === liveSession.host.id;
+  const isCurrentViewerHost =
+    readLiveSessionWatchViewerId(data) === liveSession.host.id;
   const canEndLiveSession =
     isCurrentViewerHost && normalizedStatus !== 'ENDED';
 

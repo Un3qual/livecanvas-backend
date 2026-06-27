@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<47bd1328e189f794e48d53d9fd76f20a>>
+ * @generated SignedSource<<c9ba4c7353b2b260e5cab8a8d083b9a1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,10 +14,10 @@ export type LiveSessionStatus = "ENDED" | "LIVE" | "STARTING" | "%future added v
 export type PrepareLiveMediaSessionInput = {
   liveSessionId: string;
 };
-export type HostBroadcastPreflightScreenPrepareMediaMutation$variables = {
+export type hostBroadcastPreflightOperationsPrepareMediaMutation$variables = {
   input: PrepareLiveMediaSessionInput;
 };
-export type HostBroadcastPreflightScreenPrepareMediaMutation$data = {
+export type hostBroadcastPreflightOperationsPrepareMediaMutation$data = {
   readonly prepareLiveMediaSession: {
     readonly errors: ReadonlyArray<{
       readonly field: string | null | undefined;
@@ -37,9 +37,9 @@ export type HostBroadcastPreflightScreenPrepareMediaMutation$data = {
     readonly signalingTopic: string | null | undefined;
   } | null | undefined;
 };
-export type HostBroadcastPreflightScreenPrepareMediaMutation = {
-  response: HostBroadcastPreflightScreenPrepareMediaMutation$data;
-  variables: HostBroadcastPreflightScreenPrepareMediaMutation$variables;
+export type hostBroadcastPreflightOperationsPrepareMediaMutation = {
+  response: hostBroadcastPreflightOperationsPrepareMediaMutation$data;
+  variables: hostBroadcastPreflightOperationsPrepareMediaMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -177,7 +177,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "HostBroadcastPreflightScreenPrepareMediaMutation",
+    "name": "hostBroadcastPreflightOperationsPrepareMediaMutation",
     "selections": (v1/*: any*/),
     "type": "RootMutationType",
     "abstractKey": null
@@ -186,20 +186,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "HostBroadcastPreflightScreenPrepareMediaMutation",
+    "name": "hostBroadcastPreflightOperationsPrepareMediaMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "47e58cf71864f192f37101e7d492e5ba",
+    "cacheID": "47f4642eb37776a46e252736a1205abe",
     "id": null,
     "metadata": {},
-    "name": "HostBroadcastPreflightScreenPrepareMediaMutation",
+    "name": "hostBroadcastPreflightOperationsPrepareMediaMutation",
     "operationKind": "mutation",
-    "text": "mutation HostBroadcastPreflightScreenPrepareMediaMutation(\n  $input: PrepareLiveMediaSessionInput!\n) {\n  prepareLiveMediaSession(input: $input) {\n    liveSession {\n      id\n      status\n      channelTopic\n    }\n    signalingTopic\n    iceServers {\n      urls\n      username\n      credential\n      credentialType\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation hostBroadcastPreflightOperationsPrepareMediaMutation(\n  $input: PrepareLiveMediaSessionInput!\n) {\n  prepareLiveMediaSession(input: $input) {\n    liveSession {\n      id\n      status\n      channelTopic\n    }\n    signalingTopic\n    iceServers {\n      urls\n      username\n      credential\n      credentialType\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6a34324bcf38e46b1ad166560985f1af";
+(node as any).hash = "2b77de3c1a8a6de81db1c759532166f8";
 
 export default node;

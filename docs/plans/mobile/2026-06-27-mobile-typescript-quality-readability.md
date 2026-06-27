@@ -250,13 +250,13 @@ This is expected around Phoenix and WebRTC boundaries. The cleanup target is to 
 - Modify: `mobile/src/host/preflight/HostBroadcastPreflightScreen.tsx`
 - Modify: `mobile/tests/live/liveSessionTimelineHistory.test.ts`
 
-- [ ] Move GraphQL documents and generated artifact imports out of the main screen files where doing so does not break Relay compiler expectations.
-- [ ] Add reader/domain modules that export screen-owned types such as `LiveSessionWatchModel` instead of exposing `Extract<NonNullable<Query['response']['node']>>` in screen code.
-- [ ] Keep generated artifact imports close to the GraphQL documents or reader modules.
-- [ ] Run `cd mobile && bun run relay` if GraphQL documents move.
-- [ ] Run `cd mobile && bun run typecheck`.
-- [ ] Run `cd mobile && bun test tests/live/liveSessionTimelineHistory.test.ts`.
-- [ ] Commit with a message like `Move live Relay screen readers`.
+- [x] Move GraphQL documents and generated artifact imports out of the main screen files where doing so does not break Relay compiler expectations.
+- [x] Add reader/domain modules that export screen-owned types such as `LiveSessionWatchModel` instead of exposing `Extract<NonNullable<Query['response']['node']>>` in screen code.
+- [x] Keep generated artifact imports close to the GraphQL documents or reader modules.
+- [x] Run `cd mobile && bun run relay` if GraphQL documents move.
+- [x] Run `cd mobile && bun run typecheck`.
+- [x] Run `cd mobile && bun test tests/live/liveSessionTimelineHistory.test.ts`.
+- [x] Commit with a message like `Move live Relay screen readers`.
 
 ### Task 8: Extract Shared Runtime Test Fixtures
 

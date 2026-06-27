@@ -1,9 +1,12 @@
 import type { ComponentType } from 'react';
 
 import type { LiveSessionWatchPendingMutation } from '../liveSessionWatchReducer';
-import type { LiveSessionWatchScreenQuery } from '../../__generated__/LiveSessionWatchScreenQuery.graphql';
+import type { LiveSessionWatchModel } from './liveSessionWatchData';
 
-export type LiveSessionWatchData = LiveSessionWatchScreenQuery['response'];
+export type {
+  LiveSessionWatchData,
+  LiveSessionWatchModel,
+} from './liveSessionWatchData';
 
 export type LiveSessionRTCViewProps = {
   readonly objectFit?: 'contain' | 'cover';
@@ -15,10 +18,7 @@ export type ReactNativeWebRtcViewModule = Readonly<{
   RTCView?: ComponentType<LiveSessionRTCViewProps>;
 }>;
 
-export type LiveSessionNode = Extract<
-  NonNullable<LiveSessionWatchData['node']>,
-  { readonly __typename: 'LiveSession' }
->;
+export type LiveSessionNode = LiveSessionWatchModel;
 
 export type LiveSessionWatchScreenProps = {
   sessionId: string;

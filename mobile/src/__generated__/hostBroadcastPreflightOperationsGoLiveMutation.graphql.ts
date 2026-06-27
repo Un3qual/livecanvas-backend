@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<46844abb6f64e098d7d882dc54ebe8e6>>
+ * @generated SignedSource<<3c681f568ec1177fb2d22b0f26432ca8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,15 +10,14 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type LiveSessionStatus = "ENDED" | "LIVE" | "STARTING" | "%future added value";
-export type EndLiveSessionInput = {
+export type GoLiveSessionInput = {
   liveSessionId: string;
-  recordingMediaAssetId?: string | null | undefined;
 };
-export type HostBroadcastPreflightScreenEndMutation$variables = {
-  input: EndLiveSessionInput;
+export type hostBroadcastPreflightOperationsGoLiveMutation$variables = {
+  input: GoLiveSessionInput;
 };
-export type HostBroadcastPreflightScreenEndMutation$data = {
-  readonly endLiveSession: {
+export type hostBroadcastPreflightOperationsGoLiveMutation$data = {
+  readonly goLiveSession: {
     readonly errors: ReadonlyArray<{
       readonly field: string | null | undefined;
       readonly message: string;
@@ -30,9 +29,9 @@ export type HostBroadcastPreflightScreenEndMutation$data = {
     } | null | undefined;
   } | null | undefined;
 };
-export type HostBroadcastPreflightScreenEndMutation = {
-  response: HostBroadcastPreflightScreenEndMutation$data;
-  variables: HostBroadcastPreflightScreenEndMutation$variables;
+export type hostBroadcastPreflightOperationsGoLiveMutation = {
+  response: hostBroadcastPreflightOperationsGoLiveMutation$data;
+  variables: hostBroadcastPreflightOperationsGoLiveMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -53,9 +52,9 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "EndLiveSessionPayload",
+    "concreteType": "GoLiveSessionPayload",
     "kind": "LinkedField",
-    "name": "endLiveSession",
+    "name": "goLiveSession",
     "plural": false,
     "selections": [
       {
@@ -124,7 +123,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "HostBroadcastPreflightScreenEndMutation",
+    "name": "hostBroadcastPreflightOperationsGoLiveMutation",
     "selections": (v1/*: any*/),
     "type": "RootMutationType",
     "abstractKey": null
@@ -133,20 +132,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "HostBroadcastPreflightScreenEndMutation",
+    "name": "hostBroadcastPreflightOperationsGoLiveMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "6b99596f3e044bc443cba491043f6005",
+    "cacheID": "49bf852d136eb085a57c32e044dfe8df",
     "id": null,
     "metadata": {},
-    "name": "HostBroadcastPreflightScreenEndMutation",
+    "name": "hostBroadcastPreflightOperationsGoLiveMutation",
     "operationKind": "mutation",
-    "text": "mutation HostBroadcastPreflightScreenEndMutation(\n  $input: EndLiveSessionInput!\n) {\n  endLiveSession(input: $input) {\n    liveSession {\n      id\n      status\n      channelTopic\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation hostBroadcastPreflightOperationsGoLiveMutation(\n  $input: GoLiveSessionInput!\n) {\n  goLiveSession(input: $input) {\n    liveSession {\n      id\n      status\n      channelTopic\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e196cff3718ae744b62a3420576e3238";
+(node as any).hash = "50cd60de4730f44fe4bfb31d9f8cc753";
 
 export default node;

@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-27
-Status: Task 6 complete; Task 7 ready
+Status: Task 7 complete; Task 8 ready
 
 ## Lane Scope
 
@@ -15,25 +15,23 @@ Status: Task 6 complete; Task 7 ready
   `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`
 - Track: `docs/plans/mobile/TRACK.md`
 - Current task: reduce manual TypeScript ceremony in live broadcast code by
-  extracting shared media payload helpers, native WebRTC adapters, realtime
-  normalizers, controller hooks, and test fixtures without behavior changes.
+  extracting shared runtime test fixtures without behavior changes.
 - Write scope:
   - `mobile/**`
   - `docs/plans/mobile/**`
 - Done condition: live broadcast host/viewer flows preserve existing behavior
-  while screens import feature-owned controller/data contracts instead of
-  defining repeated generated-type, Phoenix payload, and WebRTC adapter shapes.
+  while tests import shared fake channel and WebRTC fixtures instead of
+  repeating runtime plumbing.
 - Verification:
-  - From `mobile/`: `bun run test:quality`
-  - From `mobile/`: `bun test tests/auth tests/profile tests/config`
+  - From `mobile/`: `bun test tests/live/liveSessionViewerPlaybackRuntime.test.ts tests/host/hostBroadcastPublishingRuntime.test.ts`
   - From `mobile/`: `bun run typecheck`
   - From repo root: `git diff --check`
 
 ## Do This Now
 
-Execute Task 7 from
-`docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`,
-then commit that milestone before continuing.
+Task 7 from
+`docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md` is
+complete. Task 8 is ready.
 
 ## Guardrails
 
@@ -52,5 +50,4 @@ then commit that milestone before continuing.
 
 ## Next Action
 
-Introduce Relay reader modules for live screens while keeping generated Relay
-artifact imports close to the GraphQL documents or reader modules.
+Extract shared live runtime test fixtures under `mobile/tests/**`.

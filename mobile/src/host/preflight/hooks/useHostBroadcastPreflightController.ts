@@ -9,10 +9,6 @@ import {
 import type { UseMutationConfig } from 'react-relay';
 
 import type { AuthState } from '../../../auth/types';
-import type { HostBroadcastPreflightScreenEndMutation } from '../../../__generated__/HostBroadcastPreflightScreenEndMutation.graphql';
-import type { HostBroadcastPreflightScreenGoLiveMutation } from '../../../__generated__/HostBroadcastPreflightScreenGoLiveMutation.graphql';
-import type { HostBroadcastPreflightScreenPrepareMediaMutation } from '../../../__generated__/HostBroadcastPreflightScreenPrepareMediaMutation.graphql';
-import type { HostBroadcastPreflightScreenStartMutation } from '../../../__generated__/HostBroadcastPreflightScreenStartMutation.graphql';
 import { formatLiveMutationErrors } from '../../../live/liveSessionPresentation';
 import {
   canCreateHostPreflightSession,
@@ -47,6 +43,12 @@ import {
   type HostBroadcastSessionAction,
   type HostBroadcastSessionState,
 } from '../../hostBroadcastSession';
+import type {
+  HostBroadcastPreflightScreenEndMutation,
+  HostBroadcastPreflightScreenGoLiveMutation,
+  HostBroadcastPreflightScreenPrepareMediaMutation,
+  HostBroadcastPreflightScreenStartMutation,
+} from '../hostBroadcastPreflightOperations';
 import type {
   HostBroadcastControlsCardProps,
   HostBroadcastPreflightReadinessCardProps,

@@ -1,15 +1,81 @@
 import { describe, expect, test } from 'bun:test';
 
 import { readLiveSessionTimelineHistory } from '../../src/live/liveSessionTimelineHistory';
-import type { LiveSessionWatchScreenQuery } from '../../src/__generated__/LiveSessionWatchScreenQuery.graphql';
-
-type LiveSessionWatchData = LiveSessionWatchScreenQuery['response'];
-type LiveSessionNode = Extract<
-  NonNullable<LiveSessionWatchData['node']>,
-  { readonly __typename: 'LiveSession' }
->;
+import {
+  readLiveSessionWatchModel,
+  type LiveSessionWatchModel,
+} from '../../src/live/watch/liveSessionWatchData';
 
 describe('readLiveSessionTimelineHistory', () => {
+  test('uses the live watch reader model for generated Relay timeline connections', () => {
+    const liveSession: LiveSessionWatchModel = {
+      __typename: 'LiveSession',
+      channelTopic: 'live:session:opaque',
+      endedAt: null,
+      host: {
+        email: 'host@example.com',
+        id: 'relay-user-id:host',
+      },
+      id: 'relay-live-session-id:opaque',
+      insertedAt: '2026-06-04T16:55:00.000000Z',
+      recordingMediaAsset: null,
+      startedAt: '2026-06-04T17:00:00.000000Z',
+      status: 'LIVE',
+      timelineEvents: {
+        edges: [
+          {
+            cursor: 'cursor-started',
+            node: {
+              __typename: 'LiveSessionStartedEvent',
+              actor: { id: 'relay-user-id:host' },
+              eventType: 'LIVE_SESSION_STARTED',
+              id: 'relay-event-id:started/opaque',
+              occurredAt: '2026-06-04T17:00:00.000000Z',
+            },
+          },
+        ],
+        pageInfo: {
+          endCursor: 'cursor-started',
+          hasNextPage: false,
+          hasPreviousPage: false,
+          startCursor: 'cursor-started',
+        },
+      },
+      visibility: 'PUBLIC',
+    };
+
+    const data = {
+      node: liveSession,
+      viewer: { id: 'relay-user-id:viewer' },
+    };
+
+    expect(readLiveSessionWatchModel(data)).toBe(liveSession);
+    expect(
+      readLiveSessionTimelineHistory(
+        readLiveSessionWatchModel(data)?.timelineEvents,
+      ).rows,
+    ).toEqual([
+      {
+        __typename: 'LiveSessionStartedEvent',
+        actor: { id: 'relay-user-id:host' },
+        cursor: 'cursor-started',
+        eventType: 'LIVE_SESSION_STARTED',
+        id: 'relay-event-id:started/opaque',
+        kind: 'lifecycle',
+        label: 'Live started',
+        occurredAt: '2026-06-04T17:00:00.000000Z',
+      },
+    ]);
+    expect(
+      readLiveSessionWatchModel({
+        node: {
+          __typename: '%other',
+        },
+        viewer: { id: 'relay-user-id:viewer' },
+      }),
+    ).toBeNull();
+  });
+
   test('reads nullable Relay timeline edges into chronological rows and preserves pageInfo', () => {
     const pageInfo = {
       endCursor: 'cursor-ended',
@@ -151,7 +217,7 @@ describe('readLiveSessionTimelineHistory', () => {
   });
 
   test('accepts generated Relay timeline connections and normalizes undefined fields', () => {
-    const relayConnection: NonNullable<LiveSessionNode['timelineEvents']> = {
+    const relayConnection: NonNullable<LiveSessionWatchModel['timelineEvents']> = {
       edges: [
         {
           cursor: undefined,

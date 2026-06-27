@@ -13,7 +13,6 @@ import {
   type PhoenixSocket,
   type PhoenixSocketOptions,
 } from '../../../realtime/phoenixSocket';
-import type { LiveSessionWatchScreenPrepareMediaMutation } from '../../../__generated__/LiveSessionWatchScreenPrepareMediaMutation.graphql';
 import {
   formatLiveMutationErrors,
   type LiveSessionStatus,
@@ -32,6 +31,7 @@ import type {
   StopViewerPlaybackGeneration,
   ViewerPlaybackState,
 } from '../liveSessionWatchScreenTypes';
+import type { LiveSessionWatchScreenPrepareMediaMutation } from '../liveSessionWatchOperations';
 
 const INITIAL_VIEWER_PLAYBACK_STATE: ViewerPlaybackState = {
   error: null,

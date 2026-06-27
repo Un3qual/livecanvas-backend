@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5ffaac34687e74742cd546b1e787a07b>>
+ * @generated SignedSource<<c67f4e7046203b2417192ce2058897c1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,30 +10,36 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type LiveSessionStatus = "ENDED" | "LIVE" | "STARTING" | "%future added value";
-export type EndLiveSessionInput = {
+export type LiveSessionVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
+export type JoinLiveSessionInput = {
   liveSessionId: string;
-  recordingMediaAssetId?: string | null | undefined;
 };
-export type LiveSessionWatchScreenEndMutation$variables = {
-  input: EndLiveSessionInput;
+export type liveSessionWatchOperationsJoinMutation$variables = {
+  input: JoinLiveSessionInput;
 };
-export type LiveSessionWatchScreenEndMutation$data = {
-  readonly endLiveSession: {
+export type liveSessionWatchOperationsJoinMutation$data = {
+  readonly joinLiveSession: {
     readonly errors: ReadonlyArray<{
       readonly field: string | null | undefined;
       readonly message: string;
     }>;
     readonly liveSession: {
-      readonly channelTopic: string | null | undefined;
       readonly endedAt: string | null | undefined;
+      readonly host: {
+        readonly email: string | null | undefined;
+        readonly id: string;
+      };
       readonly id: string;
+      readonly insertedAt: string;
+      readonly startedAt: string | null | undefined;
       readonly status: LiveSessionStatus;
+      readonly visibility: LiveSessionVisibility;
     } | null | undefined;
   } | null | undefined;
 };
-export type LiveSessionWatchScreenEndMutation = {
-  response: LiveSessionWatchScreenEndMutation$data;
-  variables: LiveSessionWatchScreenEndMutation$variables;
+export type liveSessionWatchOperationsJoinMutation = {
+  response: liveSessionWatchOperationsJoinMutation$data;
+  variables: liveSessionWatchOperationsJoinMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -44,7 +50,14 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = [
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = [
   {
     "alias": null,
     "args": [
@@ -54,9 +67,9 @@ v1 = [
         "variableName": "input"
       }
     ],
-    "concreteType": "EndLiveSessionPayload",
+    "concreteType": "JoinLiveSessionPayload",
     "kind": "LinkedField",
-    "name": "endLiveSession",
+    "name": "joinLiveSession",
     "plural": false,
     "selections": [
       {
@@ -67,18 +80,33 @@ v1 = [
         "name": "liveSession",
         "plural": false,
         "selections": [
+          (v1/*: any*/),
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "id",
+            "name": "status",
             "storageKey": null
           },
           {
             "alias": null,
             "args": null,
             "kind": "ScalarField",
-            "name": "status",
+            "name": "visibility",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "insertedAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "startedAt",
             "storageKey": null
           },
           {
@@ -91,8 +119,20 @@ v1 = [
           {
             "alias": null,
             "args": null,
-            "kind": "ScalarField",
-            "name": "channelTopic",
+            "concreteType": "User",
+            "kind": "LinkedField",
+            "name": "host",
+            "plural": false,
+            "selections": [
+              (v1/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "email",
+                "storageKey": null
+              }
+            ],
             "storageKey": null
           }
         ],
@@ -132,8 +172,8 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "LiveSessionWatchScreenEndMutation",
-    "selections": (v1/*: any*/),
+    "name": "liveSessionWatchOperationsJoinMutation",
+    "selections": (v2/*: any*/),
     "type": "RootMutationType",
     "abstractKey": null
   },
@@ -141,20 +181,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "LiveSessionWatchScreenEndMutation",
-    "selections": (v1/*: any*/)
+    "name": "liveSessionWatchOperationsJoinMutation",
+    "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "d15e636bd1e45a5cb0d3d7d6c5d0d86c",
+    "cacheID": "c0ed2e2a520cef7f71d849ce3092d1e7",
     "id": null,
     "metadata": {},
-    "name": "LiveSessionWatchScreenEndMutation",
+    "name": "liveSessionWatchOperationsJoinMutation",
     "operationKind": "mutation",
-    "text": "mutation LiveSessionWatchScreenEndMutation(\n  $input: EndLiveSessionInput!\n) {\n  endLiveSession(input: $input) {\n    liveSession {\n      id\n      status\n      endedAt\n      channelTopic\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation liveSessionWatchOperationsJoinMutation(\n  $input: JoinLiveSessionInput!\n) {\n  joinLiveSession(input: $input) {\n    liveSession {\n      id\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "9a7ff1ca9605de950f6d998ffd75ba68";
+(node as any).hash = "f6806a5b99780e91abaf146b49b465a3";
 
 export default node;

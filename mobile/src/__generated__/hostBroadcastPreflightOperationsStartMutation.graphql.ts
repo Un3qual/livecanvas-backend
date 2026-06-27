@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b18dca06f11b1870c79ef27bf367a6ca>>
+ * @generated SignedSource<<08ac8216cdb8859216e59a4e15c7b93c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,10 +14,10 @@ export type LiveSessionVisibility = "FOLLOWERS" | "PUBLIC" | "%future added valu
 export type StartLiveSessionInput = {
   visibility?: LiveSessionVisibility | null | undefined;
 };
-export type HostBroadcastPreflightScreenStartMutation$variables = {
+export type hostBroadcastPreflightOperationsStartMutation$variables = {
   input: StartLiveSessionInput;
 };
-export type HostBroadcastPreflightScreenStartMutation$data = {
+export type hostBroadcastPreflightOperationsStartMutation$data = {
   readonly startLiveSession: {
     readonly errors: ReadonlyArray<{
       readonly field: string | null | undefined;
@@ -30,9 +30,9 @@ export type HostBroadcastPreflightScreenStartMutation$data = {
     } | null | undefined;
   } | null | undefined;
 };
-export type HostBroadcastPreflightScreenStartMutation = {
-  response: HostBroadcastPreflightScreenStartMutation$data;
-  variables: HostBroadcastPreflightScreenStartMutation$variables;
+export type hostBroadcastPreflightOperationsStartMutation = {
+  response: hostBroadcastPreflightOperationsStartMutation$data;
+  variables: hostBroadcastPreflightOperationsStartMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -124,7 +124,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "HostBroadcastPreflightScreenStartMutation",
+    "name": "hostBroadcastPreflightOperationsStartMutation",
     "selections": (v1/*: any*/),
     "type": "RootMutationType",
     "abstractKey": null
@@ -133,20 +133,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "HostBroadcastPreflightScreenStartMutation",
+    "name": "hostBroadcastPreflightOperationsStartMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "0ab633b09b8e5b483c607c8c868155d5",
+    "cacheID": "010f7ff6888fac639b45865be9d75b5b",
     "id": null,
     "metadata": {},
-    "name": "HostBroadcastPreflightScreenStartMutation",
+    "name": "hostBroadcastPreflightOperationsStartMutation",
     "operationKind": "mutation",
-    "text": "mutation HostBroadcastPreflightScreenStartMutation(\n  $input: StartLiveSessionInput!\n) {\n  startLiveSession(input: $input) {\n    liveSession {\n      id\n      status\n      channelTopic\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation hostBroadcastPreflightOperationsStartMutation(\n  $input: StartLiveSessionInput!\n) {\n  startLiveSession(input: $input) {\n    liveSession {\n      id\n      status\n      channelTopic\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "847f0467190d82f39a3ed491727442e3";
+(node as any).hash = "269242b0a88e9b8f68232898c000f5ae";
 
 export default node;

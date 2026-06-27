@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<daf672b101a89a3c0e4a14d4622ddc60>>
+ * @generated SignedSource<<342e42eca0f7909654f1f68a5c1367b4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,10 +14,10 @@ export type LiveSessionStatus = "ENDED" | "LIVE" | "STARTING" | "%future added v
 export type PrepareLiveMediaSessionInput = {
   liveSessionId: string;
 };
-export type LiveSessionWatchScreenPrepareMediaMutation$variables = {
+export type liveSessionWatchOperationsPrepareMediaMutation$variables = {
   input: PrepareLiveMediaSessionInput;
 };
-export type LiveSessionWatchScreenPrepareMediaMutation$data = {
+export type liveSessionWatchOperationsPrepareMediaMutation$data = {
   readonly prepareLiveMediaSession: {
     readonly errors: ReadonlyArray<{
       readonly field: string | null | undefined;
@@ -36,9 +36,9 @@ export type LiveSessionWatchScreenPrepareMediaMutation$data = {
     readonly signalingTopic: string | null | undefined;
   } | null | undefined;
 };
-export type LiveSessionWatchScreenPrepareMediaMutation = {
-  response: LiveSessionWatchScreenPrepareMediaMutation$data;
-  variables: LiveSessionWatchScreenPrepareMediaMutation$variables;
+export type liveSessionWatchOperationsPrepareMediaMutation = {
+  response: liveSessionWatchOperationsPrepareMediaMutation$data;
+  variables: liveSessionWatchOperationsPrepareMediaMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -169,7 +169,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "LiveSessionWatchScreenPrepareMediaMutation",
+    "name": "liveSessionWatchOperationsPrepareMediaMutation",
     "selections": (v1/*: any*/),
     "type": "RootMutationType",
     "abstractKey": null
@@ -178,20 +178,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "LiveSessionWatchScreenPrepareMediaMutation",
+    "name": "liveSessionWatchOperationsPrepareMediaMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "94641b1f510bd1efd3a0dddc3eb7a875",
+    "cacheID": "db782efc9e53a3776f0eaca0b0241c40",
     "id": null,
     "metadata": {},
-    "name": "LiveSessionWatchScreenPrepareMediaMutation",
+    "name": "liveSessionWatchOperationsPrepareMediaMutation",
     "operationKind": "mutation",
-    "text": "mutation LiveSessionWatchScreenPrepareMediaMutation(\n  $input: PrepareLiveMediaSessionInput!\n) {\n  prepareLiveMediaSession(input: $input) {\n    liveSession {\n      id\n      status\n    }\n    signalingTopic\n    iceServers {\n      urls\n      username\n      credential\n      credentialType\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation liveSessionWatchOperationsPrepareMediaMutation(\n  $input: PrepareLiveMediaSessionInput!\n) {\n  prepareLiveMediaSession(input: $input) {\n    liveSession {\n      id\n      status\n    }\n    signalingTopic\n    iceServers {\n      urls\n      username\n      credential\n      credentialType\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "4d26c9c40b849148e94c73370287342f";
+(node as any).hash = "c4ef516e6922400eaa62713cd2ea20d4";
 
 export default node;

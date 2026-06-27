@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c33005f31cd31f2df27083064786194c>>
+ * @generated SignedSource<<e597cdd8be6b8d7dfffcecf42f684a15>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,12 +13,12 @@ export type LiveSessionStatus = "ENDED" | "LIVE" | "STARTING" | "%future added v
 export type LiveSessionTimelineEventType = "CHAT_MESSAGE_SENT" | "LIVE_SESSION_ENDED" | "LIVE_SESSION_STARTED" | "%future added value";
 export type LiveSessionVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
 export type MediaProcessingState = "FAILED" | "PENDING_UPLOAD" | "PROCESSED" | "UPLOADED" | "%future added value";
-export type LiveSessionWatchScreenQuery$variables = {
+export type liveSessionWatchOperationsQuery$variables = {
   id: string;
   timelineBefore?: string | null | undefined;
   timelineLast: number;
 };
-export type LiveSessionWatchScreenQuery$data = {
+export type liveSessionWatchOperationsQuery$data = {
   readonly node: {
     readonly __typename: "LiveSession";
     readonly channelTopic: string | null | undefined;
@@ -70,9 +70,9 @@ export type LiveSessionWatchScreenQuery$data = {
     readonly id: string;
   } | null | undefined;
 };
-export type LiveSessionWatchScreenQuery = {
-  response: LiveSessionWatchScreenQuery$data;
-  variables: LiveSessionWatchScreenQuery$variables;
+export type liveSessionWatchOperationsQuery = {
+  response: liveSessionWatchOperationsQuery$data;
+  variables: liveSessionWatchOperationsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -372,7 +372,7 @@ return {
     ],
     "kind": "Fragment",
     "metadata": null,
-    "name": "LiveSessionWatchScreenQuery",
+    "name": "liveSessionWatchOperationsQuery",
     "selections": [
       (v5/*: any*/),
       {
@@ -416,7 +416,7 @@ return {
       (v1/*: any*/)
     ],
     "kind": "Operation",
-    "name": "LiveSessionWatchScreenQuery",
+    "name": "liveSessionWatchOperationsQuery",
     "selections": [
       (v5/*: any*/),
       {
@@ -451,16 +451,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3ad860d9cd93b5644fc301a2038723c0",
+    "cacheID": "f40f70dd7cd194e9294aed94e47f6ad7",
     "id": null,
     "metadata": {},
-    "name": "LiveSessionWatchScreenQuery",
+    "name": "liveSessionWatchOperationsQuery",
     "operationKind": "query",
-    "text": "query LiveSessionWatchScreenQuery(\n  $id: ID!\n  $timelineLast: Int!\n  $timelineBefore: String\n) {\n  viewer {\n    id\n  }\n  node(id: $id) {\n    __typename\n    ... on LiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n      recordingMediaAsset {\n        id\n        processingState\n        publicUrl\n      }\n      timelineEvents(last: $timelineLast, before: $timelineBefore) {\n        edges {\n          cursor\n          node {\n            __typename\n            id\n            eventType\n            occurredAt\n            actor {\n              id\n            }\n            ... on ChatMessageEvent {\n              body\n              edited\n              editCount\n              editedAt\n            }\n          }\n        }\n        pageInfo {\n          startCursor\n          endCursor\n          hasNextPage\n          hasPreviousPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query liveSessionWatchOperationsQuery(\n  $id: ID!\n  $timelineLast: Int!\n  $timelineBefore: String\n) {\n  viewer {\n    id\n  }\n  node(id: $id) {\n    __typename\n    ... on LiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n      recordingMediaAsset {\n        id\n        processingState\n        publicUrl\n      }\n      timelineEvents(last: $timelineLast, before: $timelineBefore) {\n        edges {\n          cursor\n          node {\n            __typename\n            id\n            eventType\n            occurredAt\n            actor {\n              id\n            }\n            ... on ChatMessageEvent {\n              body\n              edited\n              editCount\n              editedAt\n            }\n          }\n        }\n        pageInfo {\n          startCursor\n          endCursor\n          hasNextPage\n          hasPreviousPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "83d6729aa206370447fe76f24dfa4e59";
+(node as any).hash = "e50925e186787de7480f2b4d8dfb3d02";
 
 export default node;

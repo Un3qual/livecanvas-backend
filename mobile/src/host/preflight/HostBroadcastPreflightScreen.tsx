@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
-import { graphql, useMutation } from 'react-relay';
+import { useMutation } from 'react-relay';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { AppHeader } from '../../components/AppHeader';
@@ -13,91 +13,18 @@ import {
   HostControlsCard,
   PreflightReadinessCard,
 } from './components/HostPreflightCards';
+import {
+  hostBroadcastPreflightScreenEndMutation,
+  hostBroadcastPreflightScreenGoLiveMutation,
+  hostBroadcastPreflightScreenPrepareMediaMutation,
+  hostBroadcastPreflightScreenStartMutation,
+  type HostBroadcastPreflightScreenEndMutation,
+  type HostBroadcastPreflightScreenGoLiveMutation,
+  type HostBroadcastPreflightScreenPrepareMediaMutation,
+  type HostBroadcastPreflightScreenStartMutation,
+} from './hostBroadcastPreflightOperations';
 import { hostBroadcastPreflightScreenStyles as styles } from './hostBroadcastPreflightScreenStyles';
 import { useHostBroadcastPreflightController } from './hooks/useHostBroadcastPreflightController';
-import type { HostBroadcastPreflightScreenGoLiveMutation } from '../../__generated__/HostBroadcastPreflightScreenGoLiveMutation.graphql';
-import type { HostBroadcastPreflightScreenEndMutation } from '../../__generated__/HostBroadcastPreflightScreenEndMutation.graphql';
-import type { HostBroadcastPreflightScreenPrepareMediaMutation } from '../../__generated__/HostBroadcastPreflightScreenPrepareMediaMutation.graphql';
-import type { HostBroadcastPreflightScreenStartMutation } from '../../__generated__/HostBroadcastPreflightScreenStartMutation.graphql';
-
-const hostBroadcastPreflightScreenStartMutation = graphql`
-  mutation HostBroadcastPreflightScreenStartMutation(
-    $input: StartLiveSessionInput!
-  ) {
-    startLiveSession(input: $input) {
-      liveSession {
-        id
-        status
-        channelTopic
-      }
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const hostBroadcastPreflightScreenPrepareMediaMutation = graphql`
-  mutation HostBroadcastPreflightScreenPrepareMediaMutation(
-    $input: PrepareLiveMediaSessionInput!
-  ) {
-    prepareLiveMediaSession(input: $input) {
-      liveSession {
-        id
-        status
-        channelTopic
-      }
-      signalingTopic
-      iceServers {
-        urls
-        username
-        credential
-        credentialType
-      }
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const hostBroadcastPreflightScreenGoLiveMutation = graphql`
-  mutation HostBroadcastPreflightScreenGoLiveMutation(
-    $input: GoLiveSessionInput!
-  ) {
-    goLiveSession(input: $input) {
-      liveSession {
-        id
-        status
-        channelTopic
-      }
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const hostBroadcastPreflightScreenEndMutation = graphql`
-  mutation HostBroadcastPreflightScreenEndMutation(
-    $input: EndLiveSessionInput!
-  ) {
-    endLiveSession(input: $input) {
-      liveSession {
-        id
-        status
-        channelTopic
-      }
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
 
 export function HostBroadcastPreflightScreen() {
   const router = useRouter();
