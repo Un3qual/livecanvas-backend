@@ -52,6 +52,9 @@ function createHarness() {
   const releasedHostPublishingSessions: string[] = [];
   const stopPlaybackCalls: Array<{ readonly resetState: boolean }> = [];
   const closedChatSessions: string[] = [];
+  const stateHistory: ReturnType<
+    LiveSessionWatchControllerLifecycle['getState']
+  >[] = [];
   const controller = createLiveSessionWatchControllerLifecycle({
     commitEndLiveSession: (config) => {
       ends.push(config as MutationConfig<EndPayload>);
@@ -64,6 +67,9 @@ function createHarness() {
     },
     releaseRetainedHostPublishingSession: (sessionId) => {
       releasedHostPublishingSessions.push(sessionId);
+    },
+    onStateChanged: (state) => {
+      stateHistory.push(state);
     },
     stopViewerPlayback: (options) => {
       stopPlaybackCalls.push(options);
@@ -128,6 +134,7 @@ function createHarness() {
     joins,
     leaves,
     releasedHostPublishingSessions,
+    stateHistory,
     stopPlaybackCalls,
     join,
   };
@@ -149,7 +156,7 @@ describe('useLiveSessionWatchController lifecycle', () => {
     });
   });
 
-  test('ignores stale mutation completion after the active session changes', () => {
+  test('detached-leaves stale successful join after the active session changes', () => {
     const harness = createHarness();
 
     harness.join();
@@ -162,7 +169,8 @@ describe('useLiveSessionWatchController lifecycle', () => {
       isJoined: false,
       isJoining: false,
     });
-    expect(harness.leaves).toHaveLength(0);
+    expect(harness.leaves).toHaveLength(1);
+    expect(harness.leaves[0].variables.input.liveSessionId).toBe('session-1');
   });
 
   test('leaves detached when join completes after unmount', () => {
@@ -175,6 +183,27 @@ describe('useLiveSessionWatchController lifecycle', () => {
 
     expect(harness.leaves).toHaveLength(1);
     expect(harness.leaves[0].variables.input.liveSessionId).toBe('session-1');
+  });
+
+  test('reactivates after effect cleanup so later join completion publishes state', () => {
+    const harness = createHarness();
+
+    harness.controller.unmount();
+    harness.controller.mount();
+    harness.join();
+    harness.completeJoin();
+
+    expect(harness.leaves).toHaveLength(0);
+    expect(harness.controller.getState()).toMatchObject({
+      hasActiveSubmission: false,
+      isJoined: true,
+      isJoining: false,
+    });
+    expect(harness.stateHistory.at(-1)).toMatchObject({
+      hasActiveSubmission: false,
+      isJoined: true,
+      isJoining: false,
+    });
   });
 
   test('keeps joined cleanup retry semantics after leave fails', () => {
@@ -203,6 +232,36 @@ describe('useLiveSessionWatchController lifecycle', () => {
 
     expect(harness.leaves).toHaveLength(2);
     expect(harness.leaves[1].variables.input.liveSessionId).toBe('session-1');
+  });
+
+  test('does not publish leave completion state after unmount', () => {
+    const successHarness = createHarness();
+
+    successHarness.join();
+    successHarness.completeJoin();
+    successHarness.controller.requestLeave({ liveSessionId: 'session-1' });
+    const successStateCountBeforeUnmount = successHarness.stateHistory.length;
+
+    successHarness.controller.unmount();
+    successHarness.completeLeave();
+
+    expect(successHarness.stateHistory).toHaveLength(
+      successStateCountBeforeUnmount,
+    );
+
+    const failureHarness = createHarness();
+
+    failureHarness.join();
+    failureHarness.completeJoin();
+    failureHarness.controller.requestLeave({ liveSessionId: 'session-1' });
+    const failureStateCountBeforeUnmount = failureHarness.stateHistory.length;
+
+    failureHarness.controller.unmount();
+    failureHarness.leaves[0].onError?.();
+
+    expect(failureHarness.stateHistory).toHaveLength(
+      failureStateCountBeforeUnmount,
+    );
   });
 
   test('end success releases retained host publishing resources and stops playback', () => {

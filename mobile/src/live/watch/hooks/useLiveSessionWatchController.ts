@@ -67,6 +67,7 @@ export type LiveSessionWatchControllerLifecycle = {
   readonly requestEnd: (request: LiveSessionWatchEndRequest) => void;
   readonly requestJoin: (request: LiveSessionWatchJoinRequest) => void;
   readonly requestLeave: (request: LiveSessionWatchLeaveRequest) => void;
+  readonly mount: () => void;
   readonly syncSession: (liveSessionId: string) => void;
   readonly unmount: () => void;
 };
@@ -157,6 +158,11 @@ export function createLiveSessionWatchControllerLifecycle({
         }
 
         if (!isMounted) {
+          commitDetachedLeaveLiveSession(liveSessionId);
+          return;
+        }
+
+        if (currentLiveSessionId !== liveSessionId) {
           commitDetachedLeaveLiveSession(liveSessionId);
           return;
         }
@@ -306,6 +312,10 @@ export function createLiveSessionWatchControllerLifecycle({
     closeChatChannel?.();
   }
 
+  function mount() {
+    isMounted = true;
+  }
+
   function unmount() {
     isMounted = false;
     stopViewerPlayback({ resetState: false });
@@ -400,6 +410,7 @@ export function createLiveSessionWatchControllerLifecycle({
     getState,
     handleMembershipLost,
     handleSessionEnded,
+    mount,
     requestEnd,
     requestJoin,
     requestLeave,
@@ -440,8 +451,12 @@ export function useLiveSessionWatchController({
   }, [lifecycle, liveSessionId]);
 
   useEffect(
-    () => () => {
-      lifecycle.unmount();
+    () => {
+      lifecycle.mount();
+
+      return () => {
+        lifecycle.unmount();
+      };
     },
     [lifecycle],
   );
