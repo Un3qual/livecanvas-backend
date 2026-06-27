@@ -315,6 +315,116 @@ describe('createLiveSessionChannelClient', () => {
     ]);
   });
 
+  test('ignores cross-shaped realtime broadcasts before routing later valid callbacks', () => {
+    const {
+      channel,
+      removedTimelineEvents,
+      sessionStates,
+      timelineEvents,
+      updatedTimelineEvents,
+    } = createHarness();
+
+    channel.emit('session:state', {
+      sender_role: 'host',
+      sdp: 'v=0\r\nhost-offer',
+      type: 'offer',
+    });
+    channel.emit('timeline:event', {
+      session_state: {
+        status: 'live',
+        visibility: 'public',
+        viewer_count: 4,
+      },
+    });
+    channel.emit('timeline:event_updated', {
+      event: {
+        id: 'missing-required-fields',
+      },
+    });
+    channel.emit('timeline:event_removed', {
+      candidate: 'candidate',
+      sender_role: 'viewer',
+    });
+
+    expect(sessionStates).toEqual([]);
+    expect(timelineEvents).toEqual([]);
+    expect(updatedTimelineEvents).toEqual([]);
+    expect(removedTimelineEvents).toEqual([]);
+
+    channel.emit('session:state', {
+      session_state: {
+        status: 'live',
+        visibility: 'public',
+        viewer_count: 4,
+      },
+    });
+    channel.emit('timeline:event', {
+      event: timelineEventPayload({
+        id: 'valid-timeline-event-id',
+      }),
+    });
+    channel.emit('timeline:event_updated', {
+      event: timelineEventPayload({
+        body: 'valid edit',
+        edit_count: 1,
+        edited: true,
+        edited_at: '2026-06-04T20:18:30Z',
+        event_type: 'chat_message_edited',
+        id: 'valid-updated-event-id',
+      }),
+    });
+    channel.emit('timeline:event_removed', {
+      removed_timeline_event_id: 'valid-removed-event-id',
+    });
+
+    expect(sessionStates).toEqual([
+      {
+        kind: 'session_state',
+        status: 'LIVE',
+        viewerCount: 4,
+        visibility: 'PUBLIC',
+      },
+    ]);
+    expect(timelineEvents).toEqual([
+      {
+        event: {
+          __typename: 'ChatMessageEvent',
+          actor: { id: 'actor-id' },
+          body: 'hello from chat',
+          editCount: 0,
+          edited: false,
+          editedAt: null,
+          eventType: 'chat_message_sent',
+          id: 'valid-timeline-event-id',
+          occurredAt: '2026-06-04T20:15:30Z',
+        },
+        kind: 'timeline_event',
+      },
+    ]);
+    expect(updatedTimelineEvents).toEqual([
+      {
+        event: {
+          __typename: 'ChatMessageEvent',
+          actor: { id: 'actor-id' },
+          body: 'valid edit',
+          editCount: 1,
+          edited: true,
+          editedAt: '2026-06-04T20:18:30Z',
+          eventType: 'chat_message_edited',
+          id: 'valid-updated-event-id',
+          occurredAt: '2026-06-04T20:15:30Z',
+        },
+        kind: 'timeline_event_updated',
+      },
+    ]);
+    expect(removedTimelineEvents).toEqual([
+      {
+        kind: 'timeline_event_removed',
+        removedTimelineEventId: 'valid-removed-event-id',
+      },
+    ]);
+  });
+
   test('notifies channel close and error callbacks', () => {
     const { channel, closeEvents, errorEvents } = createHarness();
 
