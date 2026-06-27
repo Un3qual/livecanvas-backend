@@ -96,3 +96,20 @@
 - [ ] Run `git diff --check`.
 - [ ] Commit the milestone.
 
+## Task 6: Remaining UI Module Organization
+
+**Files:**
+- Create: `mobile/src/auth/screens/authEntryScreenStyles.ts`
+- Create: `mobile/src/live/discovery/LiveDiscoveryScreen.tsx`
+- Create: `mobile/src/live/components/LiveSessionSummaryCard.tsx`
+- Create: `mobile/src/live/chat/LiveSessionChatPanel.tsx`
+- Create: `mobile/src/live/chat/liveSessionChatPanelPresentation.ts`
+- Modify: top-level compatibility shims in `mobile/src/components/**` and `mobile/src/live/**`
+
+- [ ] Move auth-entry styles next to the extracted auth-entry screen.
+- [ ] Move live discovery, live summary card, and live chat panel UI modules
+  into nested folders while preserving the old public imports as re-exports.
+- [ ] Keep deeper reducers, channel clients, and native/media runtimes in their
+  current modules until a behavior-risk batch can split them with targeted
+  regression coverage.
+- [ ] Run the full mobile quality gates before committing.
