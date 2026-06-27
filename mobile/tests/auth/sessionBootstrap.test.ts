@@ -2,31 +2,9 @@ import { describe, expect, mock, test } from 'bun:test';
 
 import type { AuthTokenPair } from '../../src/auth/types';
 import { REFRESH_MUTATION } from '../../src/auth/authenticatedFetchHelpers';
-import {
-  resolveSessionBootstrapState,
-  restoreStoredSession,
-} from '../../src/auth/sessionBootstrap';
+import { restoreStoredSession } from '../../src/auth/sessionBootstrap';
 
-describe('resolveSessionBootstrapState', () => {
-  test('restores authenticated state when stored tokens exist even if the access token is expired', () => {
-    const storedTokens: AuthTokenPair = {
-      accessToken: 'expired-access-token',
-      refreshToken: 'valid-refresh-token',
-      expiresAt: '2000-01-01T00:00:00.000Z',
-    };
-
-    expect(resolveSessionBootstrapState(storedTokens)).toEqual({
-      status: 'authenticated',
-      tokens: storedTokens,
-    });
-  });
-
-  test('restores unauthenticated state when no tokens are stored', () => {
-    expect(resolveSessionBootstrapState(null)).toEqual({
-      status: 'unauthenticated',
-    });
-  });
-
+describe('restoreStoredSession', () => {
   test('refreshes stored tokens with refreshAuthTokens and stores the rotated pair', async () => {
     const storedTokens: AuthTokenPair = {
       accessToken: 'expired-access-token',
@@ -200,5 +178,17 @@ describe('resolveSessionBootstrapState', () => {
       }),
     ).resolves.toEqual({ status: 'unauthenticated' });
     expect(fetchImpl).toHaveBeenCalledTimes(0);
+  });
+
+  test('falls back to unauthenticated when token storage read fails', async () => {
+    await expect(
+      restoreStoredSession('http://localhost:4000', {
+        readTokens: async () => {
+          throw new Error('secure store unavailable');
+        },
+        storeTokens: async () => {},
+        clearTokens: async () => {},
+      }),
+    ).resolves.toEqual({ status: 'unauthenticated' });
   });
 });

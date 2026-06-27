@@ -6,7 +6,7 @@ import type {
   BeforeUnauthenticatedCallback,
 } from './types';
 import { clearTokens, loadTokens, storeTokens } from './tokenStorage';
-import { resolveAuthBootstrapState } from './authBootstrap';
+import { restoreStoredSession } from './sessionBootstrap';
 import {
   forceUnauthenticated,
   runBestEffortBeforeUnauthenticatedCallback,
@@ -21,6 +21,18 @@ function sameTokenPair(left: AuthTokenPair, right: AuthTokenPair): boolean {
     left.refreshToken === right.refreshToken &&
     left.expiresAt === right.expiresAt
   );
+}
+
+async function loadInitialAuthState(apiBaseUrl: string): Promise<AuthState> {
+  try {
+    return await restoreStoredSession(apiBaseUrl, {
+      readTokens: loadTokens,
+      storeTokens,
+      clearTokens,
+    });
+  } catch {
+    return { status: 'unauthenticated' };
+  }
 }
 
 export function useAuth(): AuthContextValue {
@@ -100,12 +112,7 @@ export function AuthProvider({
   useEffect(() => {
     let cancelled = false;
 
-    void resolveAuthBootstrapState({
-      apiBaseUrl,
-      readTokens: loadTokens,
-      storeTokens,
-      clearTokens,
-    }).then((nextState) => {
+    void loadInitialAuthState(apiBaseUrl).then((nextState) => {
       if (cancelled || !shouldApplyBootstrapState(stateRef.current, bootstrapRanRef.current)) {
         return;
       }

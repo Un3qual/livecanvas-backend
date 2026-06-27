@@ -8,7 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "relay": "relay-compiler",
-    "test:quality": "bun test tests/live tests/relay tests/realtime tests/host",
+    "test:quality": "bun test tests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
