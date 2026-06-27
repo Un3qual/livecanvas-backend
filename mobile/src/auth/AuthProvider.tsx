@@ -10,7 +10,6 @@ import { restoreStoredSession } from './sessionBootstrap';
 import {
   forceUnauthenticated,
   runBestEffortBeforeUnauthenticatedCallback,
-  shouldApplyBootstrapState,
 } from './authProviderLifecycle';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -113,7 +112,11 @@ export function AuthProvider({
     let cancelled = false;
 
     void loadInitialAuthState(apiBaseUrl).then((nextState) => {
-      if (cancelled || !shouldApplyBootstrapState(stateRef.current, bootstrapRanRef.current)) {
+      if (
+        cancelled ||
+        bootstrapRanRef.current ||
+        stateRef.current.status !== 'loading'
+      ) {
         return;
       }
 

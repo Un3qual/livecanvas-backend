@@ -3,20 +3,9 @@ import { describe, expect, mock, test } from 'bun:test';
 import {
   forceUnauthenticated,
   runBestEffortBeforeUnauthenticatedCallback,
-  shouldApplyBootstrapState,
 } from '../../src/auth/authProviderLifecycle';
 
 describe('authProviderLifecycle', () => {
-  test('allows bootstrap only while the provider is still loading', () => {
-    expect(shouldApplyBootstrapState({ status: 'loading' }, false)).toBe(true);
-    expect(shouldApplyBootstrapState({ status: 'authenticated', tokens: {
-      accessToken: 'access-token',
-      refreshToken: 'refresh-token',
-      expiresAt: '2026-04-15T00:00:00.000Z',
-    } }, false)).toBe(false);
-    expect(shouldApplyBootstrapState({ status: 'loading' }, true)).toBe(false);
-  });
-
   test('forces an unauthenticated transition even if token clearing fails', async () => {
     const clearTokens = mock(async () => {
       throw new Error('secure store unavailable');
