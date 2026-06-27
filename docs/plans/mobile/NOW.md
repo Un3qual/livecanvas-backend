@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-27
-Status: mobile frontend structure cleanup in progress
+Status: mobile TypeScript readability cleanup planned
 
 ## Lane Scope
 
@@ -12,16 +12,17 @@ Status: mobile frontend structure cleanup in progress
 ## Current Batch
 
 - Source plan:
-  `docs/plans/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`
+  `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: split oversized frontend files into nested feature folders and
-  extract presentation modules without behavior changes.
+- Current task: reduce manual TypeScript ceremony in live broadcast code by
+  extracting shared media payload helpers, native WebRTC adapters, realtime
+  normalizers, controller hooks, and test fixtures without behavior changes.
 - Write scope:
   - `mobile/**`
   - `docs/plans/mobile/**`
-- Done condition: mobile app route files and largest source screens are split
-  into nested feature modules for auth, profiles, live watch, and host
-  preflight, while existing behavior and public imports remain intact.
+- Done condition: live broadcast host/viewer flows preserve existing behavior
+  while screens import feature-owned controller/data contracts instead of
+  defining repeated generated-type, Phoenix payload, and WebRTC adapter shapes.
 - Verification:
   - From `mobile/`: `bun run test:quality`
   - From `mobile/`: `bun test tests/auth tests/profile tests/config`
@@ -30,8 +31,9 @@ Status: mobile frontend structure cleanup in progress
 
 ## Do This Now
 
-Execute Task 1 through Task 5 from
-`docs/plans/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`.
+Execute Task 1 from
+`docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`,
+then commit that milestone before continuing.
 
 ## Guardrails
 
@@ -50,5 +52,6 @@ Execute Task 1 through Task 5 from
 
 ## Next Action
 
-Extract the shared auth entry screen, then move profile, live-watch, and host
-preflight presentation into nested feature folders.
+Extract shared live media payload contracts so host and viewer code no longer
+repeat ICE server, session description, ICE candidate, and primitive guard
+types.
