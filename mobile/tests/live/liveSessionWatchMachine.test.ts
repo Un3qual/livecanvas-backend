@@ -1,0 +1,238 @@
+import { describe, expect, test } from 'bun:test';
+import { createActor } from 'xstate';
+
+import {
+  canRequestLiveSessionWatchCommand,
+  liveSessionWatchMachine,
+  readLiveSessionWatchPendingCommand,
+  readLiveSessionWatchSubmission,
+  shouldAutoLeaveLiveSession,
+  isLiveSessionViewerJoined,
+  isLiveSessionWatchMutationPending,
+} from '../../src/live/watch/state/liveSessionWatchMachine';
+
+function startMachine() {
+  return createActor(liveSessionWatchMachine).start();
+}
+
+describe('liveSessionWatchMachine', () => {
+  test('tracks join request and success for the active session', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'SESSION_CHANGED', sessionId: 'session-1' });
+    actor.send({ type: 'JOIN_REQUESTED', sessionId: 'session-1' });
+
+    let snapshot = actor.getSnapshot();
+    expect(readLiveSessionWatchSubmission(snapshot, 'session-1')).toBe(
+      'joining',
+    );
+    expect(readLiveSessionWatchPendingCommand(snapshot)).toEqual({
+      kind: 'join',
+      sessionId: 'session-1',
+    });
+    expect(
+      isLiveSessionWatchMutationPending(snapshot, 'session-1', 'join'),
+    ).toBe(true);
+    expect(isLiveSessionViewerJoined(snapshot, 'session-1')).toBe(false);
+    expect(shouldAutoLeaveLiveSession(snapshot, 'session-1')).toBe(false);
+
+    actor.send({ type: 'JOIN_SUCCEEDED', sessionId: 'session-1' });
+
+    snapshot = actor.getSnapshot();
+    expect(readLiveSessionWatchSubmission(snapshot, 'session-1')).toBe('idle');
+    expect(readLiveSessionWatchPendingCommand(snapshot)).toBeNull();
+    expect(isLiveSessionViewerJoined(snapshot, 'session-1')).toBe(true);
+    expect(shouldAutoLeaveLiveSession(snapshot, 'session-1')).toBe(true);
+  });
+
+  test('formats join failures as viewer-safe errors', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'JOIN_REQUESTED', sessionId: 'session-1' });
+    actor.send({
+      errors: [{ field: 'liveSessionId', message: 'not_authorized' }],
+      sessionId: 'session-1',
+      type: 'JOIN_FAILED',
+    });
+
+    const snapshot = actor.getSnapshot();
+    expect(readLiveSessionWatchSubmission(snapshot, 'session-1')).toBe('idle');
+    expect(snapshot.context.error).toBe(
+      'This live session is not available to your account.',
+    );
+    expect(readLiveSessionWatchPendingCommand(snapshot)).toBeNull();
+    expect(isLiveSessionViewerJoined(snapshot, 'session-1')).toBe(false);
+  });
+
+  test('ignores stale join success and failure after the route session changes', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'JOIN_REQUESTED', sessionId: 'old-session' });
+    actor.send({ type: 'SESSION_CHANGED', sessionId: 'new-session' });
+    actor.send({ type: 'JOIN_SUCCEEDED', sessionId: 'old-session' });
+    actor.send({
+      errors: [{ field: null, message: 'rate_limited' }],
+      sessionId: 'old-session',
+      type: 'JOIN_FAILED',
+    });
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.context.activeSessionId).toBe('new-session');
+    expect(snapshot.context.error).toBeNull();
+    expect(readLiveSessionWatchSubmission(snapshot, 'new-session')).toBe(
+      'idle',
+    );
+    expect(isLiveSessionViewerJoined(snapshot, 'new-session')).toBe(false);
+    expect(readLiveSessionWatchPendingCommand(snapshot)).toBeNull();
+  });
+
+  test('clears joined state after leave succeeds', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'JOIN_REQUESTED', sessionId: 'session-1' });
+    actor.send({ type: 'JOIN_SUCCEEDED', sessionId: 'session-1' });
+    actor.send({ type: 'LEAVE_REQUESTED', sessionId: 'session-1' });
+    actor.send({ type: 'LEAVE_SUCCEEDED', sessionId: 'session-1' });
+
+    const snapshot = actor.getSnapshot();
+    expect(isLiveSessionViewerJoined(snapshot, 'session-1')).toBe(false);
+    expect(shouldAutoLeaveLiveSession(snapshot, 'session-1')).toBe(false);
+    expect(readLiveSessionWatchSubmission(snapshot, 'session-1')).toBe('idle');
+    expect(readLiveSessionWatchPendingCommand(snapshot)).toBeNull();
+  });
+
+  test('keeps joined state and retry eligibility after leave fails', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'JOIN_REQUESTED', sessionId: 'session-1' });
+    actor.send({ type: 'JOIN_SUCCEEDED', sessionId: 'session-1' });
+    actor.send({ type: 'LEAVE_REQUESTED', sessionId: 'session-1' });
+    actor.send({
+      errors: [],
+      sessionId: 'session-1',
+      type: 'LEAVE_FAILED',
+    });
+
+    const snapshot = actor.getSnapshot();
+    expect(isLiveSessionViewerJoined(snapshot, 'session-1')).toBe(true);
+    expect(snapshot.context.error).toBe(
+      'We could not update this live session. Check your connection and try again.',
+    );
+    expect(readLiveSessionWatchSubmission(snapshot, 'session-1')).toBe('idle');
+    expect(readLiveSessionWatchPendingCommand(snapshot)).toBeNull();
+    expect(shouldAutoLeaveLiveSession(snapshot, 'session-1')).toBe(true);
+    expect(
+      canRequestLiveSessionWatchCommand(snapshot, 'session-1', 'leave'),
+    ).toBe(true);
+  });
+
+  test('clears joined state when channel membership is lost', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'JOIN_REQUESTED', sessionId: 'session-1' });
+    actor.send({ type: 'JOIN_SUCCEEDED', sessionId: 'session-1' });
+    actor.send({ type: 'MEMBERSHIP_LOST', sessionId: 'session-1' });
+
+    const snapshot = actor.getSnapshot();
+    expect(isLiveSessionViewerJoined(snapshot, 'session-1')).toBe(false);
+    expect(shouldAutoLeaveLiveSession(snapshot, 'session-1')).toBe(false);
+    expect(readLiveSessionWatchSubmission(snapshot, 'session-1')).toBe('idle');
+  });
+
+  test('tracks end request, success, and failure without pretending failed ends succeeded', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'JOIN_REQUESTED', sessionId: 'session-1' });
+    actor.send({ type: 'JOIN_SUCCEEDED', sessionId: 'session-1' });
+    actor.send({ type: 'END_REQUESTED', sessionId: 'session-1' });
+
+    let snapshot = actor.getSnapshot();
+    expect(readLiveSessionWatchSubmission(snapshot, 'session-1')).toBe(
+      'ending',
+    );
+    expect(readLiveSessionWatchPendingCommand(snapshot)).toEqual({
+      kind: 'end',
+      sessionId: 'session-1',
+    });
+    expect(isLiveSessionViewerJoined(snapshot, 'session-1')).toBe(true);
+    expect(shouldAutoLeaveLiveSession(snapshot, 'session-1')).toBe(false);
+
+    actor.send({
+      errors: [{ field: null, message: 'rate_limited' }],
+      sessionId: 'session-1',
+      type: 'END_FAILED',
+    });
+
+    snapshot = actor.getSnapshot();
+    expect(readLiveSessionWatchSubmission(snapshot, 'session-1')).toBe('idle');
+    expect(readLiveSessionWatchPendingCommand(snapshot)).toBeNull();
+    expect(isLiveSessionViewerJoined(snapshot, 'session-1')).toBe(true);
+    expect(snapshot.context.error).toBe(
+      'Too many live-session attempts. Wait a moment and try again.',
+    );
+    expect(
+      canRequestLiveSessionWatchCommand(snapshot, 'session-1', 'end'),
+    ).toBe(true);
+
+    actor.send({ type: 'END_REQUESTED', sessionId: 'session-1' });
+    actor.send({ type: 'END_SUCCEEDED', sessionId: 'session-1' });
+
+    snapshot = actor.getSnapshot();
+    expect(isLiveSessionViewerJoined(snapshot, 'session-1')).toBe(false);
+    expect(shouldAutoLeaveLiveSession(snapshot, 'session-1')).toBe(false);
+    expect(readLiveSessionWatchSubmission(snapshot, 'session-1')).toBe('idle');
+  });
+
+  test('clears joined state and disables auto-leave when the session ends', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'JOIN_REQUESTED', sessionId: 'session-1' });
+    actor.send({ type: 'JOIN_SUCCEEDED', sessionId: 'session-1' });
+    actor.send({ type: 'SESSION_ENDED', sessionId: 'session-1' });
+
+    const snapshot = actor.getSnapshot();
+    expect(isLiveSessionViewerJoined(snapshot, 'session-1')).toBe(false);
+    expect(shouldAutoLeaveLiveSession(snapshot, 'session-1')).toBe(false);
+    expect(readLiveSessionWatchPendingCommand(snapshot)).toBeNull();
+  });
+
+  test('ignores stale session ended events after the route session changes', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'SESSION_CHANGED', sessionId: 'new-session' });
+    actor.send({ type: 'SESSION_ENDED', sessionId: 'old-session' });
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.context.activeSessionId).toBe('new-session');
+    expect(readLiveSessionWatchSubmission(snapshot, 'new-session')).toBe(
+      'idle',
+    );
+  });
+
+  test('exposes the same-tick join guard immediately after join is requested', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'SESSION_CHANGED', sessionId: 'session-1' });
+    expect(
+      canRequestLiveSessionWatchCommand(
+        actor.getSnapshot(),
+        'session-1',
+        'join',
+      ),
+    ).toBe(true);
+
+    actor.send({ type: 'JOIN_REQUESTED', sessionId: 'session-1' });
+
+    const snapshot = actor.getSnapshot();
+    expect(readLiveSessionWatchSubmission(snapshot, 'session-1')).toBe(
+      'joining',
+    );
+    expect(readLiveSessionWatchPendingCommand(snapshot)).toEqual({
+      kind: 'join',
+      sessionId: 'session-1',
+    });
+    expect(
+      canRequestLiveSessionWatchCommand(snapshot, 'session-1', 'join'),
+    ).toBe(false);
+  });
+});
