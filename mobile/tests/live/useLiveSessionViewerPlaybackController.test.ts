@@ -277,6 +277,39 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
     cleanupSecond?.();
   });
 
+  test('ignores stale runtime completion after a newer generation starts', async () => {
+    const harness = createHarness();
+    const cleanupFirst = harness.sync({ liveSessionId: 'session-1' });
+    harness.completePrepare(0, createPrepareMediaPayload('session-1'));
+
+    cleanupFirst?.();
+    harness.sync({ liveSessionId: 'session-2' });
+    harness.completePrepare(1, createPrepareMediaPayload('session-2'));
+
+    harness.runtimes[0].startDeferred.resolve({
+      reason: 'stale runtime failure',
+      status: 'failed',
+    });
+    await flushAsyncHandlers();
+
+    expect(harness.state).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'connecting',
+    });
+    expect(harness.runtimes[1].disposeCount).toBe(0);
+    expect(harness.sockets[1].disconnectCount).toBe(0);
+
+    harness.runtimes[1].startDeferred.resolve({ status: 'started' });
+    await flushAsyncHandlers();
+
+    expect(harness.state).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'waiting_for_host',
+    });
+  });
+
   test('leaving and ended sessions dispose playback and reset state', () => {
     const harness = createHarness();
 

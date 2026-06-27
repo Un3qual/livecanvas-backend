@@ -5,6 +5,7 @@ import {
   type MutableRefObject,
 } from 'react';
 import type { UseMutationConfig } from 'react-relay';
+import { createActor } from 'xstate';
 
 import type { AuthState } from '../../../auth/types';
 import {
@@ -31,12 +32,12 @@ import type {
   ViewerPlaybackState,
 } from '../liveSessionWatchScreenTypes';
 import type { LiveSessionWatchScreenPrepareMediaMutation } from '../liveSessionWatchOperations';
-
-const INITIAL_VIEWER_PLAYBACK_STATE: ViewerPlaybackState = {
-  error: null,
-  remoteStreamUrl: null,
-  status: 'idle',
-};
+import {
+  INITIAL_VIEWER_PLAYBACK_STATE,
+  liveSessionViewerPlaybackMachine,
+  selectLiveSessionViewerPlaybackState,
+  type LiveSessionViewerPlaybackMachineEvent,
+} from '../state/liveSessionViewerPlaybackMachine';
 
 export type LiveSessionViewerPlaybackResource = {
   readonly disconnectSocket: () => void;
@@ -114,6 +115,24 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
   viewerPlaybackResourceRef,
   websocketUrl,
 }: LiveSessionViewerPlaybackControllerLifecycleOptions): LiveSessionViewerPlaybackControllerLifecycle {
+  const viewerPlaybackActor = createActor(
+    liveSessionViewerPlaybackMachine,
+  ).start();
+
+  function sendViewerPlaybackEvent(
+    event: LiveSessionViewerPlaybackMachineEvent,
+  ) {
+    viewerPlaybackActor.send(event);
+
+    if (isMountedRef.current) {
+      setViewerPlaybackState(
+        selectLiveSessionViewerPlaybackState(
+          viewerPlaybackActor.getSnapshot(),
+        ),
+      );
+    }
+  }
+
   function syncViewerPlayback({
     authStatus,
     isJoined,
@@ -143,11 +162,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
     const generation = viewerPlaybackGenerationRef.current + 1;
     viewerPlaybackGenerationRef.current = generation;
     disposeViewerPlaybackResource();
-    setViewerPlaybackState({
-      error: null,
-      remoteStreamUrl: null,
-      status: 'preparing',
-    });
+    sendViewerPlaybackEvent({ type: 'PREPARE_REQUESTED' });
 
     try {
       commitPrepareLiveSessionMedia({
@@ -166,12 +181,11 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
           );
 
           if (!prepared) {
-            setViewerPlaybackState({
+            sendViewerPlaybackEvent({
               error: formatLiveMutationErrors(
                 payload.prepareLiveMediaSession?.errors,
               ),
-              remoteStreamUrl: null,
-              status: 'errored',
+              type: 'FAILED',
             });
             return;
           }
@@ -179,10 +193,9 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
           const peerConnectionFactory = createPeerConnectionFactory();
 
           if (!peerConnectionFactory) {
-            setViewerPlaybackState({
+            sendViewerPlaybackEvent({
               error: 'Live video playback is not available on this device.',
-              remoteStreamUrl: null,
-              status: 'errored',
+              type: 'FAILED',
             });
             return;
           }
@@ -200,11 +213,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
               // Invalidate this generation before publishing the closed state,
               // so pending start continuations cannot overwrite it.
               stopViewerPlaybackGeneration(generation, { resetState: false });
-              setViewerPlaybackState({
-                error: null,
-                remoteStreamUrl: null,
-                status: 'closed',
-              });
+              sendViewerPlaybackEvent({ type: 'CLOSED' });
             },
             onError: (reason) => {
               if (!isViewerPlaybackGenerationActive(generation)) {
@@ -212,10 +221,9 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
               }
 
               stopViewerPlaybackGeneration(generation, { resetState: false });
-              setViewerPlaybackState({
+              sendViewerPlaybackEvent({
                 error: reason,
-                remoteStreamUrl: null,
-                status: 'errored',
+                type: 'FAILED',
               });
             },
             onRemoteStream: (stream) => {
@@ -225,11 +233,10 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
 
               const remoteStreamUrl = stream?.toURL?.() ?? null;
 
-              setViewerPlaybackState((current) => ({
-                error: current.error,
+              sendViewerPlaybackEvent({
                 remoteStreamUrl,
-                status: remoteStreamUrl ? 'playing' : current.status,
-              }));
+                type: 'REMOTE_STREAM_RECEIVED',
+              });
             },
             peerConnectionFactory,
             preparedMedia: prepared,
@@ -244,11 +251,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
             runtime,
           };
 
-          setViewerPlaybackState({
-            error: null,
-            remoteStreamUrl: null,
-            status: 'connecting',
-          });
+          sendViewerPlaybackEvent({ type: 'CONNECT_REQUESTED' });
           socket.connect();
 
           runtime
@@ -259,21 +262,14 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
               }
 
               if (result.status === 'started') {
-                setViewerPlaybackState((current) => ({
-                  error: null,
-                  remoteStreamUrl: current.remoteStreamUrl,
-                  status: current.remoteStreamUrl
-                    ? 'playing'
-                    : 'waiting_for_host',
-                }));
+                sendViewerPlaybackEvent({ type: 'RUNTIME_STARTED' });
                 return;
               }
 
               disposeViewerPlaybackResource(generation);
-              setViewerPlaybackState({
+              sendViewerPlaybackEvent({
                 error: result.reason,
-                remoteStreamUrl: null,
-                status: 'errored',
+                type: 'FAILED',
               });
             })
             .catch((error: unknown) => {
@@ -282,13 +278,9 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
               }
 
               disposeViewerPlaybackResource(generation);
-              setViewerPlaybackState({
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : 'Could not start live video playback. Please try again.',
-                remoteStreamUrl: null,
-                status: 'errored',
+              sendViewerPlaybackEvent({
+                error: formatPlaybackStartError(error),
+                type: 'FAILED',
               });
             });
         },
@@ -297,19 +289,17 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
             return;
           }
 
-          setViewerPlaybackState({
+          sendViewerPlaybackEvent({
             error: formatLiveMutationErrors([]),
-            remoteStreamUrl: null,
-            status: 'errored',
+            type: 'FAILED',
           });
         },
       });
     } catch {
       if (isViewerPlaybackGenerationActive(generation)) {
-        setViewerPlaybackState({
+        sendViewerPlaybackEvent({
           error: formatLiveMutationErrors([]),
-          remoteStreamUrl: null,
-          status: 'errored',
+          type: 'FAILED',
         });
       }
     }
@@ -333,7 +323,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
     disposeViewerPlaybackResource();
 
     if (resetState && isMountedRef.current) {
-      setViewerPlaybackState(INITIAL_VIEWER_PLAYBACK_STATE);
+      sendViewerPlaybackEvent({ type: 'RESET' });
     }
   }
 
@@ -352,7 +342,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
     disposeViewerPlaybackResource(generation);
 
     if (resetState && isMountedRef.current) {
-      setViewerPlaybackState(INITIAL_VIEWER_PLAYBACK_STATE);
+      sendViewerPlaybackEvent({ type: 'RESET' });
     }
   }
 
@@ -384,6 +374,12 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
     syncViewerPlayback,
     unmount,
   };
+}
+
+function formatPlaybackStartError(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : 'Could not start live video playback. Please try again.';
 }
 
 export function useLiveSessionViewerPlaybackController({
