@@ -12,7 +12,7 @@ import { graphql, useLazyLoadQuery } from 'react-relay';
 import { ScreenState } from '../components/ScreenState';
 import { useAuth } from './AuthProvider';
 import type { AuthTokenPair } from './types';
-import type { ViewerBootstrapQuery } from './__generated__/ViewerBootstrapQuery.graphql';
+import type { ViewerBootstrapQuery } from '../__generated__/ViewerBootstrapQuery.graphql';
 
 type ViewerBootstrapViewer = NonNullable<ViewerBootstrapQuery['response']['viewer']>;
 type ResolvedViewerBootstrap = {

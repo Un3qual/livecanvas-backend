@@ -43,10 +43,10 @@ import {
   type FollowRequestActionKind,
   type FollowRequestState,
 } from '../followRequestReducer';
-import type { ViewerProfileScreenAcceptFollowRequestMutation } from '../__generated__/ViewerProfileScreenAcceptFollowRequestMutation.graphql';
-import type { ViewerProfileScreenDeclineFollowRequestMutation } from '../__generated__/ViewerProfileScreenDeclineFollowRequestMutation.graphql';
-import type { ViewerProfileScreenPrivacyModeMutation } from '../__generated__/ViewerProfileScreenPrivacyModeMutation.graphql';
-import type { ViewerProfileScreenQuery } from '../__generated__/ViewerProfileScreenQuery.graphql';
+import type { ViewerProfileScreenAcceptFollowRequestMutation } from '../../__generated__/ViewerProfileScreenAcceptFollowRequestMutation.graphql';
+import type { ViewerProfileScreenDeclineFollowRequestMutation } from '../../__generated__/ViewerProfileScreenDeclineFollowRequestMutation.graphql';
+import type { ViewerProfileScreenPrivacyModeMutation } from '../../__generated__/ViewerProfileScreenPrivacyModeMutation.graphql';
+import type { ViewerProfileScreenQuery } from '../../__generated__/ViewerProfileScreenQuery.graphql';
 
 type ViewerProfileData = ViewerProfileScreenQuery['response'];
 type ViewerProfileViewer = NonNullable<ViewerProfileData['viewer']>;

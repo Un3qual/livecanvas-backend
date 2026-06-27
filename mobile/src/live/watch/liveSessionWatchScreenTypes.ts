@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 
 import type { LiveSessionViewerPlaybackRuntime } from '../liveSessionViewerPlaybackRuntime';
 import type { LiveSessionWatchPendingMutation } from '../liveSessionWatchReducer';
-import type { LiveSessionWatchScreenQuery } from '../__generated__/LiveSessionWatchScreenQuery.graphql';
+import type { LiveSessionWatchScreenQuery } from '../../__generated__/LiveSessionWatchScreenQuery.graphql';
 
 export type LiveSessionWatchData = LiveSessionWatchScreenQuery['response'];
 
@@ -62,4 +62,3 @@ export type ViewerPlaybackResource = {
 export type LiveSessionWatchContentProps = LiveSessionWatchScreenProps & {
   pendingMutationRef: PendingMutationRef;
 };
-

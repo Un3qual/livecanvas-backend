@@ -52,10 +52,10 @@ import {
 } from './components/HostPreflightCards';
 import { hostBroadcastPreflightScreenStyles as styles } from './hostBroadcastPreflightScreenStyles';
 import type { HostBroadcastPublishingStatus } from './hostBroadcastPreflightScreenTypes';
-import type { HostBroadcastPreflightScreenGoLiveMutation } from '../__generated__/HostBroadcastPreflightScreenGoLiveMutation.graphql';
-import type { HostBroadcastPreflightScreenEndMutation } from '../__generated__/HostBroadcastPreflightScreenEndMutation.graphql';
-import type { HostBroadcastPreflightScreenPrepareMediaMutation } from '../__generated__/HostBroadcastPreflightScreenPrepareMediaMutation.graphql';
-import type { HostBroadcastPreflightScreenStartMutation } from '../__generated__/HostBroadcastPreflightScreenStartMutation.graphql';
+import type { HostBroadcastPreflightScreenGoLiveMutation } from '../../__generated__/HostBroadcastPreflightScreenGoLiveMutation.graphql';
+import type { HostBroadcastPreflightScreenEndMutation } from '../../__generated__/HostBroadcastPreflightScreenEndMutation.graphql';
+import type { HostBroadcastPreflightScreenPrepareMediaMutation } from '../../__generated__/HostBroadcastPreflightScreenPrepareMediaMutation.graphql';
+import type { HostBroadcastPreflightScreenStartMutation } from '../../__generated__/HostBroadcastPreflightScreenStartMutation.graphql';
 
 const hostBroadcastPreflightScreenStartMutation = graphql`
   mutation HostBroadcastPreflightScreenStartMutation(

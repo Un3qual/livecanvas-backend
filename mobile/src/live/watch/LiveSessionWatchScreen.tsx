@@ -80,11 +80,11 @@ import type {
   ViewerPlaybackResource,
   ViewerPlaybackState,
 } from './liveSessionWatchScreenTypes';
-import type { LiveSessionWatchScreenEndMutation } from '../__generated__/LiveSessionWatchScreenEndMutation.graphql';
-import type { LiveSessionWatchScreenJoinMutation } from '../__generated__/LiveSessionWatchScreenJoinMutation.graphql';
-import type { LiveSessionWatchScreenLeaveMutation } from '../__generated__/LiveSessionWatchScreenLeaveMutation.graphql';
-import type { LiveSessionWatchScreenPrepareMediaMutation } from '../__generated__/LiveSessionWatchScreenPrepareMediaMutation.graphql';
-import type { LiveSessionWatchScreenQuery } from '../__generated__/LiveSessionWatchScreenQuery.graphql';
+import type { LiveSessionWatchScreenEndMutation } from '../../__generated__/LiveSessionWatchScreenEndMutation.graphql';
+import type { LiveSessionWatchScreenJoinMutation } from '../../__generated__/LiveSessionWatchScreenJoinMutation.graphql';
+import type { LiveSessionWatchScreenLeaveMutation } from '../../__generated__/LiveSessionWatchScreenLeaveMutation.graphql';
+import type { LiveSessionWatchScreenPrepareMediaMutation } from '../../__generated__/LiveSessionWatchScreenPrepareMediaMutation.graphql';
+import type { LiveSessionWatchScreenQuery } from '../../__generated__/LiveSessionWatchScreenQuery.graphql';
 
 const INITIAL_TIMELINE_HISTORY_COUNT = 30;
 

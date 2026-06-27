@@ -32,8 +32,8 @@ import {
   type RelationshipState,
 } from '../relationshipPresentation';
 import { formatMutationErrors } from '../mutationErrors';
-import type { OtherUserProfileScreenFollowUserMutation } from '../__generated__/OtherUserProfileScreenFollowUserMutation.graphql';
-import type { OtherUserProfileScreenQuery } from '../__generated__/OtherUserProfileScreenQuery.graphql';
+import type { OtherUserProfileScreenFollowUserMutation } from '../../__generated__/OtherUserProfileScreenFollowUserMutation.graphql';
+import type { OtherUserProfileScreenQuery } from '../../__generated__/OtherUserProfileScreenQuery.graphql';
 
 type OtherUserProfileData = OtherUserProfileScreenQuery['response'];
 type OtherUserProfileNode = OtherUserProfileData['node'];

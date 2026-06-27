@@ -15,7 +15,7 @@ import {
   LiveSessionSummaryCard,
   type LiveSessionSummary,
 } from '../LiveSessionSummaryCard';
-import type { LiveDiscoveryScreenQuery } from '../__generated__/LiveDiscoveryScreenQuery.graphql';
+import type { LiveDiscoveryScreenQuery } from '../../__generated__/LiveDiscoveryScreenQuery.graphql';
 
 const styles = StyleSheet.create({
   screen: {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import { readLiveSessionTimelineHistory } from '../../src/live/liveSessionTimelineHistory';
-import type { LiveSessionWatchScreenQuery } from '../../src/live/__generated__/LiveSessionWatchScreenQuery.graphql';
+import type { LiveSessionWatchScreenQuery } from '../../src/__generated__/LiveSessionWatchScreenQuery.graphql';
 
 type LiveSessionWatchData = LiveSessionWatchScreenQuery['response'];
 type LiveSessionNode = Extract<
