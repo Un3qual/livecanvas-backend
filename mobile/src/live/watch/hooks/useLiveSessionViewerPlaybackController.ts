@@ -25,7 +25,6 @@ import {
   type LiveSessionViewerPlaybackRuntimeOptions,
 } from '../../playback/liveSessionViewerPlaybackRuntime';
 import { readPreparedLiveSessionViewerMedia } from '../../playback/liveSessionViewerPlaybackPreparation';
-import { handleLiveSessionViewerPlaybackChannelTerminated } from '../../liveSessionViewerPlaybackLifecycle';
 import type {
   StopViewerPlayback,
   StopViewerPlaybackGeneration,
@@ -194,17 +193,17 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
           });
           const runtime = createPlaybackRuntime({
             onChannelTerminated: () => {
-              handleLiveSessionViewerPlaybackChannelTerminated({
-                generation,
-                isGenerationActive: isViewerPlaybackGenerationActive,
-                setClosed: () => {
-                  setViewerPlaybackState({
-                    error: null,
-                    remoteStreamUrl: null,
-                    status: 'closed',
-                  });
-                },
-                stopPlaybackGeneration: stopViewerPlaybackGeneration,
+              if (!isViewerPlaybackGenerationActive(generation)) {
+                return;
+              }
+
+              // Invalidate this generation before publishing the closed state,
+              // so pending start continuations cannot overwrite it.
+              stopViewerPlaybackGeneration(generation, { resetState: false });
+              setViewerPlaybackState({
+                error: null,
+                remoteStreamUrl: null,
+                status: 'closed',
               });
             },
             onError: (reason) => {

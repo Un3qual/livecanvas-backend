@@ -14,9 +14,9 @@ import type {
 } from '../../src/host/publishing/hostBroadcastPublishingRuntime';
 import {
   createHostBroadcastPublishingControllerLifecycle,
+  type HostBroadcastPublishingStatus,
   type HostBroadcastPublishingControllerLifecycle,
 } from '../../src/host/preflight/hooks/useHostBroadcastPublishingController';
-import type { HostBroadcastPublishingStatus } from '../../src/host/preflight/hostBroadcastPreflightScreenTypes';
 
 type Deferred<T> = {
   readonly promise: Promise<T>;

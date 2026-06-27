@@ -52,9 +52,11 @@ import type {
 import type {
   HostBroadcastControlsCardProps,
   HostBroadcastPreflightReadinessCardProps,
-  HostBroadcastPublishingStatus,
-} from '../hostBroadcastPreflightScreenTypes';
-import { useHostBroadcastPublishingController } from './useHostBroadcastPublishingController';
+} from '../components/HostPreflightCards';
+import {
+  useHostBroadcastPublishingController,
+  type HostBroadcastPublishingStatus,
+} from './useHostBroadcastPublishingController';
 
 const HOST_PUBLISHING_ERROR =
   'Could not start host media publishing. Please try again.';

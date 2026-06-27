@@ -1,5 +1,3 @@
-import type { ComponentType } from 'react';
-
 import type { LiveSessionWatchPendingMutation } from '../liveSessionWatchReducer';
 import type { LiveSessionWatchScreenQuery } from './liveSessionWatchOperations';
 
@@ -9,16 +7,6 @@ export type LiveSessionWatchModel = Extract<
   NonNullable<LiveSessionWatchData['node']>,
   { readonly __typename: 'LiveSession' }
 >;
-
-export type LiveSessionRTCViewProps = {
-  readonly objectFit?: 'contain' | 'cover';
-  readonly streamURL: string;
-  readonly style?: unknown;
-};
-
-export type ReactNativeWebRtcViewModule = Readonly<{
-  RTCView?: ComponentType<LiveSessionRTCViewProps>;
-}>;
 
 export type LiveSessionNode = LiveSessionWatchModel;
 

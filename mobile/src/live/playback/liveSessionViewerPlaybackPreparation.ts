@@ -11,7 +11,7 @@ import type {
   LiveMediaIceServerSource,
   LiveMediaSessionDescription,
   LiveMediaSessionDescriptionSource,
-} from '../media/liveMediaTypes';
+} from '../media/liveMediaPayloads';
 
 export type PrepareLiveSessionViewerMediaSource = {
   readonly errors?: ReadonlyArray<LiveMutationError> | null;

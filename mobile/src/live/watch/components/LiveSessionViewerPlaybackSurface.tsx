@@ -1,8 +1,8 @@
 import { Text, View } from 'react-native';
 
 import { AppCard } from '../../../components/AppCard';
+import { LiveWebRtcRTCView } from '../../media/liveWebRtcAdapter';
 import { useAppTheme } from '../../../providers/ThemeProvider';
-import { LiveSessionRTCView } from '../liveSessionRtcView';
 import { liveSessionWatchScreenStyles as styles } from '../liveSessionWatchScreenStyles';
 import type { ViewerPlaybackState } from '../liveSessionWatchScreenTypes';
 import { SectionHeading } from './LiveSessionWatchCards';
@@ -16,7 +16,7 @@ export function LiveSessionViewerPlaybackSurface({
 }) {
   const theme = useAppTheme();
   const message = viewerPlaybackMessage(isJoined, state);
-  const RTCViewComponent = LiveSessionRTCView;
+  const RTCViewComponent = LiveWebRtcRTCView;
 
   return (
     <AppCard>
@@ -81,4 +81,3 @@ function viewerPlaybackMessage(
       return 'Live video will start after you join.';
   }
 }
-

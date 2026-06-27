@@ -24,10 +24,16 @@ import {
   type HostBroadcastPublishingResource,
   type HostBroadcastPublishingSessionStore,
 } from '../../publishing/hostBroadcastPublishingSessionStore';
-import type { HostBroadcastPublishingStatus } from '../hostBroadcastPreflightScreenTypes';
 
 const HOST_PUBLISHING_ERROR =
   'Could not start host media publishing. Please try again.';
+
+export type HostBroadcastPublishingStatus =
+  | 'idle'
+  | 'starting'
+  | 'negotiating'
+  | 'ready'
+  | 'errored';
 
 type PublishingStatusSetter = (
   status: HostBroadcastPublishingStatus,

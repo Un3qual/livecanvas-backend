@@ -1,4 +1,3 @@
-import { readJoinableLiveSessionChannelTopic } from '../live/liveSessionChannelTopic';
 import {
   createLiveMediaSessionDescriptionPayload,
   normalizeLiveMediaIceCandidatePayload,
@@ -11,8 +10,12 @@ import type {
   LiveMediaIceServerSource,
   LiveMediaSessionDescription,
   LiveMediaSessionDescriptionSource,
-} from '../live/media/liveMediaTypes';
-import type { LiveMutationError } from '../live/liveSessionPresentation';
+} from '../live/media/liveMediaPayloads';
+import {
+  canEnterLiveSession,
+  normalizeLiveSessionStatus,
+  type LiveMutationError,
+} from '../live/liveSessionPresentation';
 
 type PrepareLiveMediaSessionSource = {
   readonly errors?: ReadonlyArray<LiveMutationError> | null;
@@ -60,13 +63,16 @@ export function readPreparedHostBroadcastMedia(
     return null;
   }
 
-  const channelTopic = readJoinableLiveSessionChannelTopic({
-    channelTopic: payload.liveSession.channelTopic,
-    status: payload.liveSession.status ?? '',
-  });
+  const channelTopic = payload.liveSession.channelTopic;
   const iceServers = normalizeLiveMediaIceServers(payload.iceServers);
 
-  if (!channelTopic || iceServers.length === 0) {
+  if (
+    !channelTopic?.trim() ||
+    !canEnterLiveSession(
+      normalizeLiveSessionStatus(payload.liveSession.status ?? ''),
+    ) ||
+    iceServers.length === 0
+  ) {
     return null;
   }
 

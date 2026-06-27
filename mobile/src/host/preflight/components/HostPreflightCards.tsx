@@ -3,16 +3,42 @@ import { Text, View } from 'react-native';
 import { AppButton } from '../../../components/AppButton';
 import { AppCard } from '../../../components/AppCard';
 import { useAppTheme } from '../../../providers/ThemeProvider';
+import type {
+  HostBroadcastPermissionState,
+  HostBroadcastPreflightState,
+} from '../../hostBroadcastPreflight';
+import type { HostBroadcastSessionState } from '../../hostBroadcastSession';
+import type { HostBroadcastPublishingStatus } from '../hooks/useHostBroadcastPublishingController';
 import { hostBroadcastPreflightScreenStyles as styles } from '../hostBroadcastPreflightScreenStyles';
-import {
-  pendingStatus,
-  permissionStatus,
-  publishingStatusLabel,
-  readyStatus,
-  type HostBroadcastControlsCardProps,
-  type HostBroadcastPreflightReadinessCardProps,
-  type StatusState,
-} from '../hostBroadcastPreflightScreenTypes';
+
+type StatusState = {
+  readonly label: string;
+  readonly tone: 'ready' | 'pending' | 'blocked';
+};
+
+export type HostBroadcastPreflightReadinessCardProps = {
+  readonly preflightState: HostBroadcastPreflightState;
+  readonly publishingStatus: HostBroadcastPublishingStatus;
+  readonly sessionState: HostBroadcastSessionState;
+};
+
+export type HostBroadcastControlsCardProps = {
+  readonly canCreateSession: boolean;
+  readonly canGoLive: boolean;
+  readonly canPrepareMedia: boolean;
+  readonly canUseBackAction: boolean;
+  readonly errorMessage: string | null;
+  readonly hasBlockers: boolean;
+  readonly hasPreparedMedia: boolean;
+  readonly isGoingLive: boolean;
+  readonly isPreparingMedia: boolean;
+  readonly onBackPress: () => void;
+  readonly onCreateSessionPress: () => void;
+  readonly onGoLivePress: () => void;
+  readonly onPrepareMediaPress: () => void;
+  readonly publishingStatus: HostBroadcastPublishingStatus;
+  readonly sessionState: HostBroadcastSessionState;
+};
 
 export function PreflightReadinessCard({
   preflightState,
@@ -199,4 +225,46 @@ function StatusRow({
       </Text>
     </View>
   );
+}
+
+function permissionStatus(
+  permission: HostBroadcastPermissionState,
+): StatusState {
+  switch (permission) {
+    case 'granted':
+      return readyStatus();
+    case 'denied':
+      return { label: 'Denied', tone: 'blocked' };
+    case 'blocked':
+      return { label: 'Blocked', tone: 'blocked' };
+    case 'unknown':
+    default:
+      return pendingStatus('Unknown');
+  }
+}
+
+function readyStatus(): StatusState {
+  return { label: 'Ready', tone: 'ready' };
+}
+
+function pendingStatus(label: string): StatusState {
+  return { label, tone: 'pending' };
+}
+
+function publishingStatusLabel(
+  status: HostBroadcastPublishingStatus,
+): string {
+  switch (status) {
+    case 'starting':
+      return 'Starting';
+    case 'negotiating':
+      return 'Negotiating';
+    case 'ready':
+      return 'Ready';
+    case 'errored':
+      return 'Blocked';
+    case 'idle':
+    default:
+      return 'Pending';
+  }
 }

@@ -46,15 +46,7 @@ import {
   shouldAutoLeaveLiveSession,
   type LiveSessionWatchPendingMutation,
 } from '../liveSessionWatchReducer';
-import { canStartLiveSessionViewerJoin } from '../liveSessionWatchControls';
 import { readLiveSessionTimelineHistory } from '../liveSessionTimelineHistory';
-import { handleLiveSessionEndedRealtimeCleanup } from '../liveSessionEndedRealtimeCleanup';
-import { shouldMaintainLiveSessionRealtimeChannel } from '../liveSessionRealtimeSubscription';
-import {
-  readLiveSessionRealtimeStatus,
-  updateLiveSessionRealtimeStatus,
-  type LiveSessionRealtimeStatusMap,
-} from '../liveSessionRealtimeStatus';
 import {
   LiveSessionDetailsCard,
   LiveSessionHero,
@@ -84,6 +76,8 @@ import type {
 } from './liveSessionWatchScreenTypes';
 
 const INITIAL_TIMELINE_HISTORY_COUNT = 30;
+
+type LiveSessionRealtimeStatusMap = ReadonlyMap<string, LiveSessionStatus>;
 
 export function LiveSessionWatchScreen({
   sessionId,
@@ -210,11 +204,7 @@ function LiveSessionWatchContent({
     session?.status ?? 'ENDED',
   );
   const normalizedStatus = session
-    ? readLiveSessionRealtimeStatus({
-        liveSessionId: session.id,
-        queriedStatus: queriedNormalizedStatus,
-        realtimeStatuses: realtimeSessionStatuses,
-      })
+    ? realtimeSessionStatuses.get(session.id) ?? queriedNormalizedStatus
     : queriedNormalizedStatus;
   const enterable = canEnterLiveSession(normalizedStatus);
   const isCurrentSession =
@@ -235,10 +225,7 @@ function LiveSessionWatchContent({
     ? hostPublishingSessions.has(session.id)
     : false;
   const shouldMaintainSessionRealtimeChannel =
-    shouldMaintainLiveSessionRealtimeChannel({
-      hasRetainedHostPublishingSession,
-      isJoined,
-    });
+    isJoined || hasRetainedHostPublishingSession;
   const { stopViewerPlayback, viewerPlaybackState } =
     useLiveSessionViewerPlaybackController({
       authStatus: auth.state.status,
@@ -266,13 +253,33 @@ function LiveSessionWatchContent({
     liveSessionId: string,
     status: LiveSessionStatus,
   ) {
-    setRealtimeSessionStatuses((statuses) =>
-      updateLiveSessionRealtimeStatus({
-        liveSessionId,
-        realtimeStatuses: statuses,
-        status,
-      }),
-    );
+    setRealtimeSessionStatuses((statuses) => {
+      if (statuses.get(liveSessionId) === status) {
+        return statuses;
+      }
+
+      const nextStatuses = new Map(statuses);
+      nextStatuses.set(liveSessionId, status);
+      return nextStatuses;
+    });
+  }
+
+  function handleEndedLiveSession(
+    liveSessionId: string,
+    closeChatChannelForEndedSession: () => void,
+  ) {
+    markLiveSessionEnded(liveSessionId);
+    autoLeaveOnUnmountRef.current = {
+      sessionId: liveSessionId,
+      shouldLeave: false,
+    };
+    dispatchWatchAction({
+      sessionId: liveSessionId,
+      type: 'membership_lost',
+    });
+    stopViewerPlayback({ resetState: true });
+    hostPublishingSessions.release(liveSessionId);
+    closeChatChannelForEndedSession();
   }
 
   useEffect(() => {
@@ -414,26 +421,8 @@ function LiveSessionWatchContent({
         markLiveSessionRealtimeStatus(session.id, event.status);
 
         if (event.status === 'ENDED') {
-          handleLiveSessionEndedRealtimeCleanup({
-            clearEndedSessionMembership: (liveSessionId) => {
-              autoLeaveOnUnmountRef.current = {
-                sessionId: liveSessionId,
-                shouldLeave: false,
-              };
-              dispatchWatchAction({
-                sessionId: liveSessionId,
-                type: 'membership_lost',
-              });
-            },
-            closeChatChannelForEndedSession: () => {
-              chatChannelLifecycle.closeForEndedSession();
-            },
-            liveSessionId: session.id,
-            markLiveSessionEnded,
-            releaseHostPublishing: (liveSessionId) => {
-              hostPublishingSessions.release(liveSessionId);
-            },
-            stopViewerPlayback,
+          handleEndedLiveSession(session.id, () => {
+            chatChannelLifecycle.closeForEndedSession();
           });
           return;
         }
@@ -499,26 +488,8 @@ function LiveSessionWatchContent({
 
         if (result.status === 'joined') {
           if (shouldCloseLiveSessionChatChannelAfterJoin(result)) {
-            handleLiveSessionEndedRealtimeCleanup({
-              clearEndedSessionMembership: (liveSessionId) => {
-                autoLeaveOnUnmountRef.current = {
-                  sessionId: liveSessionId,
-                  shouldLeave: false,
-                };
-                dispatchWatchAction({
-                  sessionId: liveSessionId,
-                  type: 'membership_lost',
-                });
-              },
-              closeChatChannelForEndedSession: () => {
-                chatChannelLifecycle.closeForEndedSession();
-              },
-              liveSessionId: session.id,
-              markLiveSessionEnded,
-              releaseHostPublishing: (liveSessionId) => {
-                hostPublishingSessions.release(liveSessionId);
-              },
-              stopViewerPlayback,
+            handleEndedLiveSession(session.id, () => {
+              chatChannelLifecycle.closeForEndedSession();
             });
             return;
           }
@@ -659,13 +630,11 @@ function LiveSessionWatchContent({
     );
 
     if (
-      !canStartLiveSessionViewerJoin({
-        enterable,
-        hasActiveSubmission,
-        hasPendingMutation,
-        isHostOwnedSession: isCurrentViewerHost,
-        isJoined,
-      })
+      isCurrentViewerHost ||
+      !enterable ||
+      hasActiveSubmission ||
+      hasPendingMutation ||
+      isJoined
     ) {
       return;
     }

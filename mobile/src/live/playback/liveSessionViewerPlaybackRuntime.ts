@@ -6,7 +6,7 @@ import {
   createDefaultLiveWebRtcPeerConnectionFactory,
   type LiveWebRtcPeerConnectionFactory,
 } from '../media/liveWebRtcAdapter';
-import type { LiveMediaSessionDescription } from '../media/liveMediaTypes';
+import type { LiveMediaSessionDescription } from '../media/liveMediaPayloads';
 import {
   readHostMediaIceCandidateEvent,
   readHostMediaOfferEvent,

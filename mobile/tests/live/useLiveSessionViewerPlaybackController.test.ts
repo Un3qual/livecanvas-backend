@@ -347,4 +347,30 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
     expect(harness.runtimes[1].disposeCount).toBe(1);
     expect(harness.sockets[1].disconnectCount).toBe(1);
   });
+
+  test('channel termination closes active playback before pending start continuations can update state', async () => {
+    const harness = createHarness();
+
+    harness.sync();
+    harness.completePrepare();
+
+    harness.runtimes[0].options.onChannelTerminated?.();
+
+    expect(harness.runtimes[0].disposeCount).toBe(1);
+    expect(harness.sockets[0].disconnectCount).toBe(1);
+    expect(harness.state).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'closed',
+    });
+
+    harness.runtimes[0].startDeferred.resolve({ status: 'started' });
+    await flushAsyncHandlers();
+
+    expect(harness.state).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'closed',
+    });
+  });
 });

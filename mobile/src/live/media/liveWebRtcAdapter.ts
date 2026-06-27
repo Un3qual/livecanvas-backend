@@ -1,3 +1,5 @@
+import type { ComponentType } from 'react';
+
 export type LiveWebRtcMediaConstraints = Readonly<{
   audio: boolean;
   video: boolean;
@@ -14,11 +16,18 @@ export type LiveWebRtcPeerConnectionFactory<
   PeerConnection,
 > = (config: PeerConnectionConfig) => PeerConnection;
 
+export type LiveWebRtcRTCViewProps = {
+  readonly objectFit?: 'contain' | 'cover';
+  readonly streamURL: string;
+  readonly style?: unknown;
+};
+
 export type LiveWebRtcNativeModule<
   PeerConnectionConfig,
   PeerConnection,
   MediaDevices,
 > = Readonly<{
+  RTCView?: ComponentType<LiveWebRtcRTCViewProps>;
   RTCPeerConnection?: new (
     config: PeerConnectionConfig,
   ) => PeerConnection;
@@ -88,6 +97,9 @@ export function loadDefaultLiveWebRtcMediaDevices<MediaDevices>():
     loadReactNativeWebRtcModule<unknown, unknown, MediaDevices>(),
   );
 }
+
+export const LiveWebRtcRTCView =
+  loadReactNativeWebRtcModule<unknown, unknown, unknown>()?.RTCView ?? null;
 
 function loadReactNativeWebRtcModule<
   PeerConnectionConfig,

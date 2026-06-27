@@ -13,7 +13,6 @@ import {
   normalizeLiveSessionVisibility,
   type LiveSessionStatus,
 } from '../../liveSessionPresentation';
-import { shouldShowLiveSessionViewerJoinControl } from '../../liveSessionWatchControls';
 import { liveSessionWatchScreenStyles as styles } from '../liveSessionWatchScreenStyles';
 import type { LiveSessionNode } from '../liveSessionWatchScreenTypes';
 
@@ -82,10 +81,7 @@ export function LiveSessionWatchControlsCard({
   watchError: string | null;
 }) {
   const theme = useAppTheme();
-  const showViewerJoinControl = shouldShowLiveSessionViewerJoinControl({
-    isHostOwnedSession,
-    isJoined,
-  });
+  const showViewerJoinControl = !isHostOwnedSession && !isJoined;
 
   return (
     <AppCard>
@@ -283,4 +279,3 @@ function formatRecordingProcessingState(processingState: string): string {
       return 'Unavailable';
   }
 }
-
