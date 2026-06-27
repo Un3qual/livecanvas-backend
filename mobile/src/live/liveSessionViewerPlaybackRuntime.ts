@@ -4,6 +4,19 @@ import type {
 } from './liveSessionChannelClient';
 import type { LiveMutationError } from './liveSessionPresentation';
 import { normalizeLiveSessionRealtimeEvent } from './liveSessionRealtimeEvents';
+import {
+  createLiveMediaSessionDescriptionPayload,
+  normalizeLiveMediaIceCandidatePayload,
+  normalizeLiveMediaIceServers,
+} from './media/liveMediaPayloads';
+import type {
+  LiveMediaIceCandidatePayload,
+  LiveMediaIceCandidateSource,
+  LiveMediaIceServer,
+  LiveMediaIceServerSource,
+  LiveMediaSessionDescription,
+  LiveMediaSessionDescriptionSource,
+} from './media/liveMediaTypes';
 
 type PrepareLiveMediaSessionSource = {
   readonly errors?: ReadonlyArray<LiveMutationError> | null;
@@ -17,19 +30,9 @@ type LiveSessionViewerMediaLiveSessionSource = {
   readonly status?: string | null;
 };
 
-type LiveSessionViewerMediaIceServerSource = {
-  readonly credential?: string | null;
-  readonly credentialType?: string | null;
-  readonly username?: string | null;
-  readonly urls?: ReadonlyArray<string> | null;
-};
+type LiveSessionViewerMediaIceServerSource = LiveMediaIceServerSource;
 
-export type LiveSessionViewerMediaIceServer = {
-  readonly credential: string | null;
-  readonly credentialType: 'OAUTH' | 'PASSWORD' | '%future added value' | null;
-  readonly username: string | null;
-  readonly urls: ReadonlyArray<string>;
-};
+export type LiveSessionViewerMediaIceServer = LiveMediaIceServer;
 
 export type LiveSessionViewerMediaPreparation = {
   readonly iceServers: ReadonlyArray<LiveSessionViewerMediaIceServer>;
@@ -37,10 +40,8 @@ export type LiveSessionViewerMediaPreparation = {
   readonly signalingTopic: string;
 };
 
-export type LiveSessionViewerPlaybackSessionDescription = {
-  readonly sdp: string;
-  readonly type: 'offer' | 'answer';
-};
+export type LiveSessionViewerPlaybackSessionDescription =
+  LiveMediaSessionDescription;
 
 export type LiveSessionViewerPlaybackIceCandidate = {
   readonly candidate: string;
@@ -116,10 +117,8 @@ export type LiveSessionViewerPlaybackRuntimeOptions = {
   readonly socket: LiveSessionChannelSocket;
 };
 
-export type LiveSessionViewerMediaAnswerPayload = {
-  readonly sdp: string;
-  readonly type: 'answer';
-};
+export type LiveSessionViewerMediaAnswerPayload =
+  LiveMediaSessionDescription<'answer'>;
 
 type LiveSessionViewerHostOfferEvent = {
   readonly description: LiveSessionViewerPlaybackSessionDescription;
@@ -127,28 +126,13 @@ type LiveSessionViewerHostOfferEvent = {
   readonly senderRole: 'host';
 };
 
-export type LiveSessionViewerMediaIceCandidatePayload = {
-  readonly candidate: string;
-  readonly sdp_m_line_index?: number;
-  readonly sdp_mid?: string;
-  readonly username_fragment?: string;
-};
+export type LiveSessionViewerMediaIceCandidatePayload =
+  LiveMediaIceCandidatePayload;
 
-type LiveSessionViewerMediaDescriptionSource = Readonly<{
-  sdp?: unknown;
-  type?: unknown;
-}>;
+type LiveSessionViewerMediaDescriptionSource =
+  LiveMediaSessionDescriptionSource;
 
-type LiveSessionViewerMediaIceCandidateSource = Readonly<{
-  candidate?: unknown;
-  sdpMLineIndex?: unknown;
-  sdpMid?: unknown;
-  sdp_m_line_index?: unknown;
-  sdp_mid?: unknown;
-  toJSON?: () => unknown;
-  usernameFragment?: unknown;
-  username_fragment?: unknown;
-}>;
+type LiveSessionViewerMediaIceCandidateSource = LiveMediaIceCandidateSource;
 
 type ReactNativeWebRtcModule = Readonly<{
   RTCPeerConnection?: new (
@@ -177,7 +161,7 @@ export function readPreparedLiveSessionViewerMedia(
     return null;
   }
 
-  const iceServers = normalizeIceServers(payload.iceServers);
+  const iceServers = normalizeLiveMediaIceServers(payload.iceServers);
 
   if (iceServers.length === 0) {
     return null;
@@ -193,51 +177,13 @@ export function readPreparedLiveSessionViewerMedia(
 export function createLiveSessionViewerMediaAnswerPayload(
   description: LiveSessionViewerMediaDescriptionSource | null | undefined,
 ): LiveSessionViewerMediaAnswerPayload | null {
-  if (description?.type !== 'answer' || !isNonBlankString(description.sdp)) {
-    return null;
-  }
-
-  return {
-    sdp: description.sdp,
-    type: 'answer',
-  };
+  return createLiveMediaSessionDescriptionPayload(description, 'answer');
 }
 
 export function createLiveSessionViewerMediaIceCandidatePayload(
   source: LiveSessionViewerMediaIceCandidateSource | null | undefined,
 ): LiveSessionViewerMediaIceCandidatePayload | null {
-  const candidate = normalizeIceCandidateSource(source);
-
-  if (!candidate || !isNonBlankString(candidate.candidate)) {
-    return null;
-  }
-
-  const sdpMid = readOptionalString(candidate.sdpMid ?? candidate.sdp_mid);
-  const sdpMLineIndex = readOptionalNonNegativeInteger(
-    candidate.sdpMLineIndex ?? candidate.sdp_m_line_index,
-  );
-  const usernameFragment = readOptionalString(
-    candidate.usernameFragment ?? candidate.username_fragment,
-  );
-
-  if (
-    sdpMid === undefined ||
-    sdpMLineIndex === undefined ||
-    usernameFragment === undefined
-  ) {
-    return null;
-  }
-
-  return {
-    candidate: candidate.candidate,
-    ...(sdpMLineIndex === null
-      ? {}
-      : { sdp_m_line_index: sdpMLineIndex }),
-    ...(sdpMid === null ? {} : { sdp_mid: sdpMid }),
-    ...(usernameFragment === null
-      ? {}
-      : { username_fragment: usernameFragment }),
-  };
+  return normalizeLiveMediaIceCandidatePayload(source);
 }
 
 export function createLiveSessionViewerPlaybackRuntime({
@@ -608,58 +554,6 @@ function joinMediaSignalingChannel(
   });
 }
 
-function normalizeIceServers(
-  iceServers: ReadonlyArray<LiveSessionViewerMediaIceServerSource> | null | undefined,
-): ReadonlyArray<LiveSessionViewerMediaIceServer> {
-  return (
-    iceServers
-      ?.map(normalizeIceServer)
-      .filter(
-        (server): server is LiveSessionViewerMediaIceServer => server !== null,
-      ) ?? []
-  );
-}
-
-function normalizeIceServer(
-  iceServer: LiveSessionViewerMediaIceServerSource,
-): LiveSessionViewerMediaIceServer | null {
-  const urls =
-    iceServer.urls
-      ?.map((url) => url.trim())
-      .filter((url) => url.length > 0) ?? [];
-
-  if (urls.length === 0) {
-    return null;
-  }
-
-  const credentialType = normalizeCredentialType(iceServer.credentialType);
-
-  if (credentialType === 'OAUTH' || credentialType === '%future added value') {
-    return null;
-  }
-
-  return {
-    credential: iceServer.credential ?? null,
-    credentialType,
-    username: iceServer.username ?? null,
-    urls,
-  };
-}
-
-function normalizeCredentialType(
-  value: string | null | undefined,
-): LiveSessionViewerMediaIceServer['credentialType'] {
-  switch (value) {
-    case 'OAUTH':
-    case 'PASSWORD':
-    case null:
-    case undefined:
-      return value ?? null;
-    default:
-      return '%future added value';
-  }
-}
-
 function toPeerConnectionIceServer(
   server: LiveSessionViewerMediaIceServer,
 ): LiveSessionViewerPlaybackPeerConnectionIceServer {
@@ -670,59 +564,6 @@ function toPeerConnectionIceServer(
   };
 }
 
-function normalizeIceCandidateSource(
-  source: LiveSessionViewerMediaIceCandidateSource | null | undefined,
-): LiveSessionViewerMediaIceCandidateSource | null {
-  if (!source) {
-    return null;
-  }
-
-  const json = source.toJSON?.();
-
-  return isRecord(json) ? json : source;
-}
-
 function isActiveLiveSessionStatus(value: unknown): boolean {
   return value === 'STARTING' || value === 'LIVE';
-}
-
-function isRecord(
-  value: unknown,
-): value is Record<string, unknown> & LiveSessionViewerMediaIceCandidateSource {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isNonBlankString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
-}
-
-function readOptionalString(value: unknown): string | null | undefined {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  if (typeof value !== 'string') {
-    return undefined;
-  }
-
-  const trimmedValue = value.trim();
-
-  return trimmedValue.length > 0 ? trimmedValue : null;
-}
-
-function readOptionalNonNegativeInteger(
-  value: unknown,
-): number | null | undefined {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  return (
-    typeof value === 'number' &&
-      Number.isFinite(value) &&
-      Number.isInteger(value) &&
-      value >= 0
-  )
-    ? value
-    : undefined;
 }

@@ -15,6 +15,12 @@ import {
   type LiveSessionViewerPlaybackPeerConnectionConfig,
   type LiveSessionViewerPlaybackSessionDescription,
 } from '../../src/live/liveSessionViewerPlaybackRuntime';
+import {
+  createLiveMediaSessionDescriptionPayload,
+  isRecord,
+  readOptionalNonNegativeInteger,
+  readOptionalString,
+} from '../../src/live/media/liveMediaPayloads';
 
 class FakePush implements LiveSessionChannelPush {
   private readonly callbacks = new Map<
@@ -318,6 +324,39 @@ async function applyHostOffer(channel: FakeChannel): Promise<void> {
 }
 
 describe('live session viewer media helpers', () => {
+  test('shared media helpers validate descriptions and optional primitives', () => {
+    expect(
+      createLiveMediaSessionDescriptionPayload(
+        {
+          sdp: 'v=0\r\nviewer-answer',
+          type: 'answer',
+        },
+        'answer',
+      ),
+    ).toEqual({
+      sdp: 'v=0\r\nviewer-answer',
+      type: 'answer',
+    });
+    expect(
+      createLiveMediaSessionDescriptionPayload(
+        {
+          sdp: 'v=0\r\nhost-offer',
+          type: 'offer',
+        },
+        'answer',
+      ),
+    ).toBeNull();
+
+    expect(isRecord({ candidate: 'candidate' })).toBe(true);
+    expect(isRecord(['candidate'])).toBe(false);
+    expect(readOptionalString('  mid  ')).toBe('mid');
+    expect(readOptionalString('  ')).toBeNull();
+    expect(readOptionalString(42)).toBeUndefined();
+    expect(readOptionalNonNegativeInteger(0)).toBe(0);
+    expect(readOptionalNonNegativeInteger(null)).toBeNull();
+    expect(readOptionalNonNegativeInteger(-1)).toBeUndefined();
+  });
+
   test('normalizes successful prepare payloads without parsing opaque topics', () => {
     expect(
       readPreparedLiveSessionViewerMedia({

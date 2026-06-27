@@ -6,6 +6,10 @@ import {
   isRetryableHostGoLiveMediaReadinessError,
   readPreparedHostBroadcastMedia,
 } from '../../src/host/hostBroadcastMediaSignaling';
+import {
+  normalizeLiveMediaIceCandidatePayload,
+  normalizeLiveMediaIceServers,
+} from '../../src/live/media/liveMediaPayloads';
 
 describe('hostBroadcastMediaSignaling', () => {
   test('normalizes successful prepare payloads without parsing opaque topics', () => {
@@ -240,5 +244,54 @@ describe('hostBroadcastMediaSignaling', () => {
         sdpMLineIndex: -1,
       }),
     ).toBeNull();
+  });
+
+  test('shared media helpers normalize ICE servers and candidate toJSON payloads', () => {
+    expect(
+      normalizeLiveMediaIceServers([
+        {
+          credential: 'oauth-token',
+          credentialType: 'OAUTH',
+          username: 'oauth-user',
+          urls: ['turn:oauth.example.test:3478'],
+        },
+        {
+          credential: 'future-secret',
+          credentialType: 'TOKEN',
+          username: 'future-user',
+          urls: ['turn:future.example.test:3478'],
+        },
+        {
+          credential: 'turn-secret',
+          credentialType: 'PASSWORD',
+          username: 'turn-user',
+          urls: [' turn:turn.example.test:3478 ', ''],
+        },
+      ]),
+    ).toEqual([
+      {
+        credential: 'turn-secret',
+        credentialType: 'PASSWORD',
+        username: 'turn-user',
+        urls: ['turn:turn.example.test:3478'],
+      },
+    ]);
+
+    expect(
+      normalizeLiveMediaIceCandidatePayload({
+        candidate: 'candidate:outer 1 udp 1 192.0.2.10 54400 typ host',
+        toJSON: () => ({
+          candidate: 'candidate:json 1 udp 1 192.0.2.10 54400 typ host',
+          sdp_m_line_index: 0,
+          sdp_mid: '0',
+          username_fragment: 'ufrag',
+        }),
+      }),
+    ).toEqual({
+      candidate: 'candidate:json 1 udp 1 192.0.2.10 54400 typ host',
+      sdp_m_line_index: 0,
+      sdp_mid: '0',
+      username_fragment: 'ufrag',
+    });
   });
 });

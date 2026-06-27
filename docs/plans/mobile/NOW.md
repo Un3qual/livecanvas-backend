@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-27
-Status: mobile TypeScript readability cleanup planned
+Status: Task 1 complete; Task 2 ready
 
 ## Lane Scope
 
@@ -31,7 +31,7 @@ Status: mobile TypeScript readability cleanup planned
 
 ## Do This Now
 
-Execute Task 1 from
+Execute Task 2 from
 `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`,
 then commit that milestone before continuing.
 
@@ -52,6 +52,5 @@ then commit that milestone before continuing.
 
 ## Next Action
 
-Extract shared live media payload contracts so host and viewer code no longer
-repeat ICE server, session description, ICE candidate, and primitive guard
-types.
+Centralize mobile WebRTC adapter types so host/viewer runtimes import a shared
+native module boundary while preserving current constructor injection seams.

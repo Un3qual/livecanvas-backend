@@ -134,12 +134,12 @@ This is expected around Phoenix and WebRTC boundaries. The cleanup target is to 
 - Modify: `mobile/tests/host/hostBroadcastMediaSignaling.test.ts`
 - Modify: `mobile/tests/live/liveSessionViewerPlaybackRuntime.test.ts`
 
-- [ ] Add shared `LiveMediaSessionDescription`, `LiveMediaIceCandidateSource`, `LiveMediaIceCandidatePayload`, `LiveMediaIceServerSource`, and `LiveMediaIceServer` types.
-- [ ] Move `isRecord`, `isNonBlankString`, `readOptionalString`, `readOptionalNonNegativeInteger`, candidate `toJSON()` handling, and ICE server normalization into shared media files.
-- [ ] Keep host/viewer public exports in place by re-exporting or wrapping shared helpers with existing names.
-- [ ] Run `cd mobile && bun test tests/host/hostBroadcastMediaSignaling.test.ts tests/live/liveSessionViewerPlaybackRuntime.test.ts`.
-- [ ] Run `cd mobile && bun run typecheck`.
-- [ ] Commit with a message like `Extract mobile live media payload helpers`.
+- [x] Add shared `LiveMediaSessionDescription`, `LiveMediaIceCandidateSource`, `LiveMediaIceCandidatePayload`, `LiveMediaIceServerSource`, and `LiveMediaIceServer` types.
+- [x] Move `isRecord`, `isNonBlankString`, `readOptionalString`, `readOptionalNonNegativeInteger`, candidate `toJSON()` handling, and ICE server normalization into shared media files.
+- [x] Keep host/viewer public exports in place by re-exporting or wrapping shared helpers with existing names.
+- [x] Run `cd mobile && bun test tests/host/hostBroadcastMediaSignaling.test.ts tests/live/liveSessionViewerPlaybackRuntime.test.ts`.
+- [x] Run `cd mobile && bun run typecheck`.
+- [x] Commit with a message like `Extract mobile live media payload helpers`.
 
 ### Task 2: Centralize WebRTC Adapter Types
 
