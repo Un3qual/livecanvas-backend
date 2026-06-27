@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-27
-Status: Task 8 complete; Task 9 ready
+Status: TypeScript readability cleanup complete; release-candidate QA ready
 
 ## Lane Scope
 
@@ -12,26 +12,25 @@ Status: Task 8 complete; Task 9 ready
 ## Current Batch
 
 - Source plan:
-  `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: run final mobile TypeScript quality verification and close the
-  source-plan documentation.
+- Current task: run the one-host/one-viewer release-candidate device QA pass.
 - Write scope:
-  - `mobile/**`
   - `docs/plans/mobile/**`
-- Done condition: the mobile quality gate and requested follow-up suites pass,
-  and the lane docs identify the next actionable batch.
+  - `mobile/**` only for reproduced launch-blocker fixes
+- Done condition: entry criteria and manual device/simulator checks are recorded
+  as passing, or launch blockers are promoted into scoped follow-up plans.
 - Verification:
   - From `mobile/`: `bun run test:quality`
-  - From `mobile/`: `bun test tests/auth tests/profile tests/config`
   - From `mobile/`: `bun run typecheck`
   - From repo root: `git diff --check`
 
 ## Do This Now
 
-Task 8 from
-`docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md` is
-complete. Task 9 is ready.
+Start with the release-candidate checklist entry criteria, then run the auth,
+profiles, live discovery/watch, host preflight, media signaling/WebRTC, realtime
+chat, retained replay, and cleanup checks for the one-host/one-viewer beta
+scope.
 
 ## Guardrails
 
@@ -50,4 +49,5 @@ complete. Task 9 is ready.
 
 ## Next Action
 
-Run the Task 9 final verification commands and update the remaining lane docs.
+Confirm the `preview` build installs, cold-launches, and reaches the configured
+API and websocket endpoints on the target beta device.

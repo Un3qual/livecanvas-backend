@@ -279,12 +279,12 @@ This is expected around Phoenix and WebRTC boundaries. The cleanup target is to 
 - Modify: `docs/plans/mobile/NOW.md`
 - Modify: `docs/plans/mobile/TRACK.md`
 
-- [ ] Update this plan's checkboxes as tasks are completed.
-- [ ] Run `cd mobile && bun run test:quality`.
-- [ ] Run `cd mobile && bun test tests/auth tests/profile tests/config`.
-- [ ] Run `cd mobile && bun run typecheck`.
-- [ ] Run `git diff --check`.
-- [ ] Commit the final docs/checklist update.
+- [x] Update this plan's checkboxes as tasks are completed.
+- [x] Run `cd mobile && bun run test:quality`.
+- [x] Run `cd mobile && bun test tests/auth tests/profile tests/config`.
+- [x] Run `cd mobile && bun run typecheck`.
+- [x] Run `git diff --check`.
+- [x] Commit the final docs/checklist update.
 
 ## Execution Notes
 
