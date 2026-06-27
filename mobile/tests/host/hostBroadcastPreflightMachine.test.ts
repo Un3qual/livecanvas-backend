@@ -3,6 +3,7 @@ import { createActor } from 'xstate';
 
 import {
   hostBroadcastPreflightMachine,
+  selectCanRequestHostBroadcastBackgroundEnd,
   selectHostBroadcastPreflightCleanupLiveSessionId,
   selectHostBroadcastPreflightWorkflowState,
   selectHostBroadcastPreflightWorkflowStatus,
@@ -232,6 +233,12 @@ describe('hostBroadcastPreflightMachine', () => {
     expect(selectHostBroadcastPreflightWorkflowStatus(actor.getSnapshot())).toBe(
       'live',
     );
+    expect(
+      selectCanRequestHostBroadcastBackgroundEnd(
+        actor.getSnapshot(),
+        'live-session-id',
+      ),
+    ).toBe(true);
     expect(selectHostBroadcastPreflightWorkflowState(actor.getSnapshot())).toMatchObject({
       canUseBackAction: false,
       isGoingLive: false,

@@ -27,6 +27,7 @@ import {
 import {
   INITIAL_HOST_BROADCAST_PREFLIGHT_WORKFLOW_STATE,
   hostBroadcastPreflightMachine,
+  selectCanRequestHostBroadcastBackgroundEnd,
   selectHostBroadcastPreflightCleanupLiveSessionId,
   selectHostBroadcastPreflightWorkflowState,
   type HostBroadcastPreflightMachineEvent,
@@ -195,9 +196,10 @@ export function createHostBroadcastPreflightControllerLifecycle(
       sendWorkflowEvent({ type: 'END_REQUESTED' });
     } else {
       if (
-        selectHostBroadcastPreflightCleanupLiveSessionId(
+        !selectCanRequestHostBroadcastBackgroundEnd(
           actor.getSnapshot(),
-        ) !== liveSessionId
+          liveSessionId,
+        )
       ) {
         return;
       }

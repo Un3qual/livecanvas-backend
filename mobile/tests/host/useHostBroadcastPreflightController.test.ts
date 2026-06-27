@@ -399,6 +399,28 @@ describe('useHostBroadcastPreflightController lifecycle', () => {
     });
   });
 
+  test('allows non-lifecycle backend end requests after go-live succeeds', () => {
+    const harness = createHarness();
+
+    harness.prepareStartedSession();
+    harness.lifecycle.handleGoLivePress();
+    harness.goLiveCommits[0].onCompleted?.(createGoLivePayload('live-session-id'));
+    harness.lifecycle.requestPreflightEndLiveSession('live-session-id');
+
+    expect(harness.endCommits).toHaveLength(1);
+    expect(harness.endCommits[0].variables.input.liveSessionId).toBe(
+      'live-session-id',
+    );
+    expect(harness.workflowState).toMatchObject({
+      status: 'live',
+      sessionState: {
+        liveSessionId: 'live-session-id',
+        status: 'starting',
+      },
+    });
+    expect(harness.navigateBackCalls).toEqual([]);
+  });
+
   test('ends the backend session without navigation when go-live cannot retain publishing', () => {
     const harness = createHarness();
 

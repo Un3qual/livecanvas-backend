@@ -660,6 +660,20 @@ export function selectCanUseHostPreflightBackAction(
   );
 }
 
+export function selectCanRequestHostBroadcastBackgroundEnd(
+  snapshot: HostBroadcastPreflightSnapshot,
+  liveSessionId: string,
+): boolean {
+  return (
+    snapshot.context.liveSessionId === liveSessionId &&
+    !snapshot.context.hasBackgroundEndRequestInFlight &&
+    !snapshot.matches('creating') &&
+    !snapshot.matches('ending') &&
+    !snapshot.matches('goingLive') &&
+    !snapshot.matches('ended')
+  );
+}
+
 export function selectHostBroadcastPreflightCleanupLiveSessionId(
   snapshot: HostBroadcastPreflightSnapshot,
   cleanupState: Partial<HostBroadcastPreflightCleanupState> = {},
