@@ -10,6 +10,7 @@ import React, {
 import { useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { useLazyLoadQuery, useMutation } from 'react-relay';
+import { createActor } from 'xstate';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { ScreenState } from '../../components/ScreenState';
@@ -30,6 +31,11 @@ import {
   liveSessionChatReducer,
   selectLiveSessionChatVisibleRows,
 } from '../liveSessionChatReducer';
+import {
+  liveSessionChatChannelMachine,
+  selectLiveSessionChatChannelState,
+  type LiveSessionChatChannelMachineEvent,
+} from '../chat/state/liveSessionChatChannelMachine';
 import {
   canEnterLiveSession,
   formatLiveSessionStatus,
@@ -143,6 +149,12 @@ function LiveSessionWatchContent({
     liveSessionChatReducer,
     createLiveSessionChatState(),
   );
+  const [chatChannelActor] = useState(() =>
+    createActor(liveSessionChatChannelMachine).start(),
+  );
+  const [chatChannelState, setChatChannelState] = useState(() =>
+    selectLiveSessionChatChannelState(chatChannelActor.getSnapshot()),
+  );
   const [commitJoinLiveSession] =
     useMutation<LiveSessionWatchScreenJoinMutation>(
       liveSessionWatchScreenJoinMutation,
@@ -209,9 +221,9 @@ function LiveSessionWatchContent({
   const isEnding = watchController.isEnding;
   const hasActiveSubmission = watchController.hasActiveSubmission;
   const chatRows = selectLiveSessionChatVisibleRows(chatState);
-  const chatChannelStatus = chatState.channelStatus;
-  const chatSendStatus = chatState.sendStatus;
-  const chatSendError = chatState.sendError;
+  const chatChannelStatus = chatChannelState.channelStatus;
+  const chatSendStatus = chatChannelState.sendStatus;
+  const chatSendError = chatChannelState.sendError;
   const hasRetainedHostPublishingSession = session
     ? hostPublishingSessions.has(session.id)
     : false;
@@ -233,9 +245,17 @@ function LiveSessionWatchContent({
 
   useEffect(() => {
     dispatchChatAction({ type: 'session_changed', sessionId });
+    sendChatChannelEvent({ sessionId, type: 'SESSION_CHANGED' });
     chatSendPendingRef.current = null;
     setRealtimeSessionStatuses(new Map());
   }, [sessionId]);
+
+  function sendChatChannelEvent(event: LiveSessionChatChannelMachineEvent) {
+    chatChannelActor.send(event);
+    setChatChannelState(
+      selectLiveSessionChatChannelState(chatChannelActor.getSnapshot()),
+    );
+  }
 
   function markLiveSessionEnded(liveSessionId: string) {
     markLiveSessionRealtimeStatus(liveSessionId, 'ENDED');
@@ -303,11 +323,7 @@ function LiveSessionWatchContent({
       chatChannelClientRef.current = null;
 
       if (session) {
-        dispatchChatAction({
-          sessionId: session.id,
-          status: 'idle',
-          type: 'channel_status_changed',
-        });
+        sendChatChannelEvent({ sessionId: session.id, type: 'CHANNEL_IDLE' });
       }
 
       return undefined;
@@ -332,10 +348,9 @@ function LiveSessionWatchContent({
         chatChannelClient?.leave();
       },
       markClosedForEndedSession: () => {
-        dispatchChatAction({
+        sendChatChannelEvent({
           sessionId: session.id,
-          status: 'closed',
-          type: 'channel_status_changed',
+          type: 'CHANNEL_CLOSED',
         });
       },
     });
@@ -347,15 +362,11 @@ function LiveSessionWatchContent({
         }
 
         chatChannelClientRef.current = null;
-        failPendingChatSend(
-          session.id,
-          'Chat disconnected before the message was sent.',
-        );
+        clearPendingChatSend(session.id);
         watchController.handleMembershipLost(session.id);
-        dispatchChatAction({
+        sendChatChannelEvent({
           sessionId: session.id,
-          status: 'closed',
-          type: 'channel_status_changed',
+          type: 'CHANNEL_CLOSED',
         });
       },
       onError: (reason) => {
@@ -364,13 +375,12 @@ function LiveSessionWatchContent({
         }
 
         chatChannelClientRef.current = null;
-        failPendingChatSend(session.id, reason);
+        clearPendingChatSend(session.id);
         watchController.handleMembershipLost(session.id);
-        dispatchChatAction({
+        sendChatChannelEvent({
           error: reason,
           sessionId: session.id,
-          status: 'errored',
-          type: 'channel_status_changed',
+          type: 'CHANNEL_ERRORED',
         });
       },
       onSessionState: (event) => {
@@ -387,10 +397,9 @@ function LiveSessionWatchContent({
           return;
         }
 
-        dispatchChatAction({
+        sendChatChannelEvent({
           sessionId: session.id,
-          status: 'joined',
-          type: 'channel_status_changed',
+          type: 'CHANNEL_JOINED',
         });
       },
       onTimelineEvent: (event) => {
@@ -432,10 +441,9 @@ function LiveSessionWatchContent({
 
     chatChannelClient = client;
     chatChannelClientRef.current = client;
-    dispatchChatAction({
+    sendChatChannelEvent({
       sessionId: session.id,
-      status: 'joining',
-      type: 'channel_status_changed',
+      type: 'CHANNEL_JOINING',
     });
     socket.connect();
 
@@ -454,19 +462,17 @@ function LiveSessionWatchContent({
             return;
           }
 
-          dispatchChatAction({
+          sendChatChannelEvent({
             sessionId: session.id,
-            status: 'joined',
-            type: 'channel_status_changed',
+            type: 'CHANNEL_JOINED',
           });
           return;
         }
 
-        dispatchChatAction({
+        sendChatChannelEvent({
           error: result.reason,
           sessionId: session.id,
-          status: 'errored',
-          type: 'channel_status_changed',
+          type: 'CHANNEL_ERRORED',
         });
       })
       .catch((error: unknown) => {
@@ -474,12 +480,11 @@ function LiveSessionWatchContent({
           return;
         }
 
-        dispatchChatAction({
+        sendChatChannelEvent({
           error:
             error instanceof Error ? error.message : 'Chat connection failed.',
           sessionId: session.id,
-          status: 'errored',
-          type: 'channel_status_changed',
+          type: 'CHANNEL_ERRORED',
         });
       });
 
@@ -500,31 +505,38 @@ function LiveSessionWatchContent({
   ]);
 
   function failPendingChatSend(sessionId: string, error: string) {
-    if (chatSendPendingRef.current?.sessionId !== sessionId) {
+    if (!clearPendingChatSend(sessionId)) {
       return;
     }
 
-    chatSendPendingRef.current = null;
-    dispatchChatAction({
+    sendChatChannelEvent({
       error,
       sessionId,
-      type: 'send_failed',
+      type: 'SEND_FAILED',
     });
   }
 
-  function cancelPendingChatSend(sessionId: string) {
+  function clearPendingChatSend(sessionId: string): boolean {
     if (chatSendPendingRef.current?.sessionId !== sessionId) {
-      return;
+      return false;
     }
 
     chatSendPendingRef.current = null;
+    return true;
+  }
+
+  function cancelPendingChatSend(sessionId: string) {
+    if (!clearPendingChatSend(sessionId)) {
+      return;
+    }
+
     if (didUnmountRef.current) {
       return;
     }
 
-    dispatchChatAction({
+    sendChatChannelEvent({
       sessionId,
-      type: 'send_cancelled',
+      type: 'SEND_CANCELLED',
     });
   }
 
@@ -583,7 +595,7 @@ function LiveSessionWatchContent({
       sessionId: liveSessionId,
       token: sendToken,
     };
-    dispatchChatAction({ sessionId: liveSessionId, type: 'send_started' });
+    sendChatChannelEvent({ sessionId: liveSessionId, type: 'SEND_STARTED' });
 
     const result = await client.sendChatMessage(body);
     const isActiveSend =
@@ -607,17 +619,17 @@ function LiveSessionWatchContent({
         sessionId: liveSessionId,
         type: 'realtime_event_received',
       });
-      dispatchChatAction({
+      sendChatChannelEvent({
         sessionId: liveSessionId,
-        type: 'send_succeeded',
+        type: 'SEND_SUCCEEDED',
       });
       return true;
     }
 
-    dispatchChatAction({
+    sendChatChannelEvent({
       error: result.reason,
       sessionId: liveSessionId,
-      type: 'send_failed',
+      type: 'SEND_FAILED',
     });
     return false;
   }

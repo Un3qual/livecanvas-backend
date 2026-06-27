@@ -85,61 +85,6 @@ export function liveSessionChatReducer(
 
       return mergeRealtimeEvent(state, action.event);
 
-    case 'channel_status_changed':
-      if (!isActiveSessionAction(state, action.sessionId)) {
-        return state;
-      }
-
-      return {
-        ...state,
-        channelError: action.error ?? null,
-        channelStatus: action.status,
-      };
-
-    case 'send_started':
-      if (!isActiveSessionAction(state, action.sessionId)) {
-        return state;
-      }
-
-      return {
-        ...state,
-        sendError: null,
-        sendStatus: 'sending',
-      };
-
-    case 'send_succeeded':
-      if (!isActiveSessionAction(state, action.sessionId)) {
-        return state;
-      }
-
-      return {
-        ...state,
-        sendError: null,
-        sendStatus: 'idle',
-      };
-
-    case 'send_cancelled':
-      if (!isActiveSessionAction(state, action.sessionId)) {
-        return state;
-      }
-
-      return {
-        ...state,
-        sendError: null,
-        sendStatus: 'idle',
-      };
-
-    case 'send_failed':
-      if (!isActiveSessionAction(state, action.sessionId)) {
-        return state;
-      }
-
-      return {
-        ...state,
-        sendError: action.error,
-        sendStatus: 'failed',
-      };
-
     default:
       return state;
   }

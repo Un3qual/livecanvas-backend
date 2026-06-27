@@ -79,13 +79,9 @@ describe('liveSessionChatReducer', () => {
 
     expect(reset).toEqual({
       activeSessionId: 'session-2',
-      channelError: null,
-      channelStatus: 'idle',
       eventIds: [],
       eventsById: {},
       pageInfo: null,
-      sendError: null,
-      sendStatus: 'idle',
     });
     expect(selectLiveSessionChatVisibleRows(reset)).toEqual([]);
   });
@@ -541,85 +537,9 @@ describe('liveSessionChatReducer', () => {
         sessionId: 'session-2',
         type: 'realtime_event_received' as const,
       },
-      {
-        sessionId: 'session-2',
-        type: 'send_started' as const,
-      },
-      {
-        sessionId: 'session-2',
-        type: 'send_cancelled' as const,
-      },
-      {
-        error: 'stale failure',
-        sessionId: 'session-2',
-        type: 'send_failed' as const,
-      },
-      {
-        sessionId: 'session-2',
-        status: 'joined' as const,
-        type: 'channel_status_changed' as const,
-      },
     ]) {
       expect(liveSessionChatReducer(active, action)).toBe(active);
     }
-  });
-
-  test('send and channel state stay scoped to the active session', () => {
-    const sending = liveSessionChatReducer(activeState('session-1'), {
-      sessionId: 'session-1',
-      type: 'send_started',
-    });
-
-    expect(sending.sendStatus).toBe('sending');
-    expect(sending.sendError).toBeNull();
-
-    const failed = liveSessionChatReducer(sending, {
-      error: 'Message could not be sent.',
-      sessionId: 'session-1',
-      type: 'send_failed',
-    });
-
-    expect(failed.sendStatus).toBe('failed');
-    expect(failed.sendError).toBe(
-      'Message could not be sent.',
-    );
-
-    const joined = liveSessionChatReducer(failed, {
-      sessionId: 'session-1',
-      status: 'joined',
-      type: 'channel_status_changed',
-    });
-
-    expect(joined.channelStatus).toBe('joined');
-
-    const reset = liveSessionChatReducer(joined, {
-      sessionId: 'session-2',
-      type: 'session_changed',
-    });
-    const staleSendSuccess = liveSessionChatReducer(reset, {
-      sessionId: 'session-1',
-      type: 'send_succeeded',
-    });
-
-    expect(staleSendSuccess).toBe(reset);
-    expect(reset.sendStatus).toBe('idle');
-    expect(reset.sendError).toBeNull();
-    expect(reset.channelStatus).toBe('idle');
-  });
-
-  test('send cancellation clears an in-flight send for channel cleanup', () => {
-    const sending = liveSessionChatReducer(activeState('session-1'), {
-      sessionId: 'session-1',
-      type: 'send_started',
-    });
-
-    const cancelled = liveSessionChatReducer(sending, {
-      sessionId: 'session-1',
-      type: 'send_cancelled',
-    });
-
-    expect(cancelled.sendStatus).toBe('idle');
-    expect(cancelled.sendError).toBeNull();
   });
 
   test('chat send start decision closes same-render pending sends', () => {
