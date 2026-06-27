@@ -50,6 +50,17 @@ Evidence on 2026-06-24:
   no diagnostics.
 - `git diff --check` exited 0.
 
+Maintenance update on 2026-06-27:
+
+- Mobile Bun tests now live under `mobile/tests/<domain>/`; `mobile/src` has no
+  `.test` or `.spec` files.
+- `test:quality` now runs
+  `bun test tests/live tests/relay tests/realtime tests/host`, preserving the
+  existing live/relay/realtime/host quality-gate scope after the test layout
+  move.
+- Moved auth/profile/config tests were verified separately with
+  `bun test tests/auth tests/profile tests/config`.
+
 ## Task 2: Beta Build Path
 
 - [x] Decide the internal beta distribution path for the Expo custom dev build
