@@ -266,12 +266,12 @@ This is expected around Phoenix and WebRTC boundaries. The cleanup target is to 
 - Modify: `mobile/tests/live/liveSessionViewerPlaybackRuntime.test.ts`
 - Modify: `mobile/tests/host/hostBroadcastPublishingRuntime.test.ts`
 
-- [ ] Move duplicated `FakePush`, `FakeChannel`, and deferred promise helpers into support files under `mobile/tests/**`.
-- [ ] Move common fake peer-connection behavior into a shared fixture with role-specific offer/answer defaults.
-- [ ] Keep assertions in the runtime test files; only test plumbing should move.
-- [ ] Run `cd mobile && bun test tests/live/liveSessionViewerPlaybackRuntime.test.ts tests/host/hostBroadcastPublishingRuntime.test.ts`.
-- [ ] Run `cd mobile && bun run typecheck`.
-- [ ] Commit with a message like `Share mobile live runtime test fixtures`.
+- [x] Move duplicated `FakePush`, `FakeChannel`, and deferred promise helpers into support files under `mobile/tests/**`.
+- [x] Move common fake peer-connection behavior into a shared fixture with role-specific offer/answer defaults.
+- [x] Keep assertions in the runtime test files; only test plumbing should move.
+- [x] Run `cd mobile && bun test tests/live/liveSessionViewerPlaybackRuntime.test.ts tests/host/hostBroadcastPublishingRuntime.test.ts`.
+- [x] Run `cd mobile && bun run typecheck`.
+- [x] Commit with a message like `Share mobile live runtime test fixtures`.
 
 ### Task 9: Final Verification And Docs
 

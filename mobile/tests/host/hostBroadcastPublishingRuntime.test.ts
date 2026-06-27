@@ -1,209 +1,21 @@
 import { describe, expect, test } from 'bun:test';
 
-import type {
-  LiveSessionChannel,
-  LiveSessionChannelPush,
-  LiveSessionChannelPushStatus,
-} from '../../src/live/liveSessionChannelClient';
 import type { HostBroadcastMediaPreparation } from '../../src/host/hostBroadcastMediaSignaling';
 import { createHostBroadcastPublishingSessionStore } from '../../src/host/hostBroadcastPublishingSession';
 import {
   createHostBroadcastPublishingRuntime,
   type HostBroadcastPublishingChannelTerminationReason,
-  type HostBroadcastPublishingIceCandidate,
-  type HostBroadcastPublishingPeerConnection,
   type HostBroadcastPublishingPeerConnectionConfig,
-  type HostBroadcastPublishingSessionDescription,
 } from '../../src/host/hostBroadcastPublishingRuntime';
 import { createLiveWebRtcPeerConnectionFactory } from '../../src/live/media/liveWebRtcAdapter';
-
-class FakePush implements LiveSessionChannelPush {
-  private readonly callbacks = new Map<
-    LiveSessionChannelPushStatus,
-    (payload: unknown) => void
-  >();
-
-  receive(
-    status: LiveSessionChannelPushStatus,
-    callback: (payload: unknown) => void,
-  ): this {
-    this.callbacks.set(status, callback);
-    return this;
-  }
-
-  resolve(
-    status: LiveSessionChannelPushStatus,
-    payload: unknown = {},
-  ): void {
-    const callback = this.callbacks.get(status);
-
-    if (!callback) {
-      throw new Error(`No callback registered for ${status}`);
-    }
-
-    callback(payload);
-  }
-}
-
-class FakeChannel implements LiveSessionChannel {
-  readonly closeHandlers: Array<() => void> = [];
-  readonly errorHandlers: Array<(payload: unknown) => void> = [];
-  readonly handlers = new Map<string, Array<(payload: unknown) => void>>();
-  readonly joinPush = new FakePush();
-  readonly leavePush = new FakePush();
-  readonly pushes: Array<{
-    readonly eventName: string;
-    readonly payload: Record<string, unknown>;
-    readonly push: FakePush;
-  }> = [];
-  leaveCount = 0;
-
-  join(): LiveSessionChannelPush {
-    return this.joinPush;
-  }
-
-  leave(): LiveSessionChannelPush {
-    this.leaveCount += 1;
-    return this.leavePush;
-  }
-
-  on(eventName: string, callback: (payload: unknown) => void): number {
-    const handlers = this.handlers.get(eventName) ?? [];
-    handlers.push(callback);
-    this.handlers.set(eventName, handlers);
-    return handlers.length;
-  }
-
-  onClose(callback: () => void): number {
-    this.closeHandlers.push(callback);
-    return this.closeHandlers.length;
-  }
-
-  onError(callback: (payload: unknown) => void): number {
-    this.errorHandlers.push(callback);
-    return this.errorHandlers.length;
-  }
-
-  push(
-    eventName: string,
-    payload: Record<string, unknown>,
-  ): LiveSessionChannelPush {
-    const push = new FakePush();
-    this.pushes.push({ eventName, payload, push });
-    return push;
-  }
-
-  emit(eventName: string, payload: unknown): void {
-    for (const callback of this.handlers.get(eventName) ?? []) {
-      callback(payload);
-    }
-  }
-
-  close(): void {
-    for (const callback of this.closeHandlers) {
-      callback();
-    }
-  }
-
-  error(payload: unknown = {}): void {
-    for (const callback of this.errorHandlers) {
-      callback(payload);
-    }
-  }
-}
-
-type Deferred<T = undefined> = {
-  readonly promise: Promise<T>;
-  readonly resolve: (value?: T) => void;
-};
-
-function createDeferred<T = undefined>(): Deferred<T> {
-  let resolve!: (value?: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
-    resolve = (value) => {
-      resolvePromise(value as T);
-    };
-  });
-
-  return { promise, resolve };
-}
-
-class FakePeerConnection implements HostBroadcastPublishingPeerConnection {
-  readonly addIceCandidateCalls: HostBroadcastPublishingIceCandidate[] = [];
-  readonly addTrackCalls: Array<{ readonly stream: unknown; readonly track: unknown }> =
-    [];
-  readonly localDescriptions: HostBroadcastPublishingSessionDescription[] = [];
-  readonly remoteDescriptions: HostBroadcastPublishingSessionDescription[] = [];
-  addIceCandidateError: Error | null = null;
-  closeCount = 0;
-  createOfferDeferred: Deferred<HostBroadcastPublishingSessionDescription> | null =
-    null;
-  onicecandidate:
-    | ((
-        event: Readonly<{
-          candidate?: HostBroadcastPublishingIceCandidate | null;
-        }>,
-      ) => void)
-    | null = null;
-  offer: HostBroadcastPublishingSessionDescription = {
-    sdp: 'v=0\r\nhost-offer',
-    type: 'offer',
-  };
-  setLocalDescriptionDeferred: Deferred | null = null;
-  setRemoteDescriptionDeferred: Deferred | null = null;
-  setRemoteDescriptionError: Error | null = null;
-
-  addTrack(track: unknown, stream: unknown): void {
-    this.addTrackCalls.push({ stream, track });
-  }
-
-  addIceCandidate(
-    candidate: HostBroadcastPublishingIceCandidate,
-  ): Promise<void> {
-    this.addIceCandidateCalls.push(candidate);
-    if (this.addIceCandidateError) {
-      return Promise.reject(this.addIceCandidateError);
-    }
-
-    return Promise.resolve();
-  }
-
-  close(): void {
-    this.closeCount += 1;
-  }
-
-  createOffer(): Promise<HostBroadcastPublishingSessionDescription> {
-    if (this.createOfferDeferred) {
-      return this.createOfferDeferred.promise;
-    }
-
-    return Promise.resolve(this.offer);
-  }
-
-  setLocalDescription(
-    description: HostBroadcastPublishingSessionDescription,
-  ): Promise<void> {
-    this.localDescriptions.push(description);
-    return this.setLocalDescriptionDeferred?.promise ?? Promise.resolve();
-  }
-
-  setRemoteDescription(
-    description: HostBroadcastPublishingSessionDescription,
-  ): Promise<void> {
-    this.remoteDescriptions.push(description);
-    if (this.setRemoteDescriptionError) {
-      return Promise.reject(this.setRemoteDescriptionError);
-    }
-
-    return this.setRemoteDescriptionDeferred?.promise ?? Promise.resolve();
-  }
-
-  emitLocalIceCandidate(
-    candidate: HostBroadcastPublishingIceCandidate | null,
-  ): void {
-    this.onicecandidate?.({ candidate });
-  }
-}
+import {
+  FakeChannel,
+  FakePush,
+} from '../live/support/fakeLiveSessionChannel';
+import {
+  createDeferred,
+  FakeHostBroadcastPeerConnection as FakePeerConnection,
+} from '../live/support/fakeWebRtcPeerConnection';
 
 const preparedMedia: HostBroadcastMediaPreparation = {
   channelTopic: 'live_session:chat-topic',

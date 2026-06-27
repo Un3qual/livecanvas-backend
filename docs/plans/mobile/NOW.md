@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-27
-Status: Task 7 complete; Task 8 ready
+Status: Task 8 complete; Task 9 ready
 
 ## Lane Scope
 
@@ -14,24 +14,24 @@ Status: Task 7 complete; Task 8 ready
 - Source plan:
   `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: reduce manual TypeScript ceremony in live broadcast code by
-  extracting shared runtime test fixtures without behavior changes.
+- Current task: run final mobile TypeScript quality verification and close the
+  source-plan documentation.
 - Write scope:
   - `mobile/**`
   - `docs/plans/mobile/**`
-- Done condition: live broadcast host/viewer flows preserve existing behavior
-  while tests import shared fake channel and WebRTC fixtures instead of
-  repeating runtime plumbing.
+- Done condition: the mobile quality gate and requested follow-up suites pass,
+  and the lane docs identify the next actionable batch.
 - Verification:
-  - From `mobile/`: `bun test tests/live/liveSessionViewerPlaybackRuntime.test.ts tests/host/hostBroadcastPublishingRuntime.test.ts`
+  - From `mobile/`: `bun run test:quality`
+  - From `mobile/`: `bun test tests/auth tests/profile tests/config`
   - From `mobile/`: `bun run typecheck`
   - From repo root: `git diff --check`
 
 ## Do This Now
 
-Task 7 from
+Task 8 from
 `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md` is
-complete. Task 8 is ready.
+complete. Task 9 is ready.
 
 ## Guardrails
 
@@ -50,4 +50,4 @@ complete. Task 8 is ready.
 
 ## Next Action
 
-Extract shared live runtime test fixtures under `mobile/tests/**`.
+Run the Task 9 final verification commands and update the remaining lane docs.
