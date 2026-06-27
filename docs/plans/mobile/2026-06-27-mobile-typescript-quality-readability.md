@@ -214,12 +214,12 @@ This is expected around Phoenix and WebRTC boundaries. The cleanup target is to 
 - Modify: `mobile/tests/live/liveSessionRealtimeEvents.test.ts`
 - Modify: `mobile/tests/live/liveSessionChannelClient.test.ts`
 
-- [ ] Split the current broad normalizer into media, timeline, session-state, and primitive guard modules.
-- [ ] Keep `normalizeLiveSessionRealtimeEvent` as the public compatibility entrypoint until callers are migrated.
-- [ ] Add role-specific helpers such as `readHostMediaOfferEvent` and `readViewerMediaAnswerEvent` so runtimes do not repeat `event.kind` plus `senderRole` checks inline.
-- [ ] Run `cd mobile && bun test tests/live/liveSessionRealtimeEvents.test.ts tests/live/liveSessionChannelClient.test.ts tests/host/hostBroadcastPublishingRuntime.test.ts tests/live/liveSessionViewerPlaybackRuntime.test.ts`.
-- [ ] Run `cd mobile && bun run typecheck`.
-- [ ] Commit with a message like `Split live realtime event normalizers`.
+- [x] Split the current broad normalizer into media, timeline, session-state, and primitive guard modules.
+- [x] Keep `normalizeLiveSessionRealtimeEvent` as the public compatibility entrypoint until callers are migrated.
+- [x] Add role-specific helpers such as `readHostMediaOfferEvent` and `readViewerMediaAnswerEvent` so runtimes do not repeat `event.kind` plus `senderRole` checks inline.
+- [x] Run `cd mobile && bun test tests/live/liveSessionRealtimeEvents.test.ts tests/live/liveSessionChannelClient.test.ts tests/host/hostBroadcastPublishingRuntime.test.ts tests/live/liveSessionViewerPlaybackRuntime.test.ts`.
+- [x] Run `cd mobile && bun run typecheck`.
+- [x] Commit with a message like `Split live realtime event normalizers`.
 
 ### Task 6: Split Chat Reducer Helpers And Selectors
 

@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 
 import { normalizeLiveSessionRealtimeEvent } from '../../src/live/liveSessionRealtimeEvents';
+import {
+  readHostMediaIceCandidateEvent,
+  readHostMediaOfferEvent,
+  readViewerMediaAnswerEvent,
+  readViewerMediaIceCandidateEvent,
+  readViewerMediaReadyEvent,
+} from '../../src/live/realtime/liveSessionRealtimeMediaEvents';
 
 describe('liveSessionRealtimeEvents', () => {
   test('normalizes session state payloads', () => {
@@ -155,6 +162,94 @@ describe('liveSessionRealtimeEvents', () => {
       kind: 'media_viewer_ready',
       senderRole: 'viewer',
     });
+  });
+
+  test('reads role-specific media events for runtime consumers', () => {
+    expect(
+      readHostMediaOfferEvent({
+        sender_role: 'host',
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      }),
+    ).toEqual({
+      description: {
+        sdp: 'v=0\r\nhost-offer',
+        type: 'offer',
+      },
+      kind: 'media_offer',
+      senderRole: 'host',
+    });
+    expect(
+      readHostMediaOfferEvent({
+        sender_role: 'viewer',
+        sdp: 'v=0\r\nviewer-offer',
+        type: 'offer',
+      }),
+    ).toBeNull();
+
+    expect(
+      readViewerMediaAnswerEvent({
+        sender_role: 'viewer',
+        sdp: 'v=0\r\nviewer-answer',
+        type: 'answer',
+      }),
+    ).toEqual({
+      description: {
+        sdp: 'v=0\r\nviewer-answer',
+        type: 'answer',
+      },
+      kind: 'media_answer',
+      senderRole: 'viewer',
+    });
+    expect(
+      readViewerMediaAnswerEvent({
+        sender_role: 'host',
+        sdp: 'v=0\r\nhost-answer',
+        type: 'answer',
+      }),
+    ).toBeNull();
+
+    const hostIcePayload = {
+      candidate:
+        'candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ srflx',
+      sdp_m_line_index: 0,
+      sdp_mid: '0',
+      sender_role: 'host',
+      username_fragment: 'host-ufrag',
+    };
+    const viewerIcePayload = {
+      candidate:
+        'candidate:842163050 1 udp 1677729535 192.0.2.20 54400 typ srflx',
+      sender_role: 'viewer',
+    };
+
+    expect(readHostMediaIceCandidateEvent(hostIcePayload)).toEqual({
+      candidate: {
+        candidate:
+          'candidate:842163049 1 udp 1677729535 192.0.2.10 54400 typ srflx',
+        sdpMLineIndex: 0,
+        sdpMid: '0',
+        usernameFragment: 'host-ufrag',
+      },
+      kind: 'media_ice_candidate',
+      senderRole: 'host',
+    });
+    expect(readHostMediaIceCandidateEvent(viewerIcePayload)).toBeNull();
+    expect(readViewerMediaIceCandidateEvent(viewerIcePayload)).toEqual({
+      candidate: {
+        candidate:
+          'candidate:842163050 1 udp 1677729535 192.0.2.20 54400 typ srflx',
+      },
+      kind: 'media_ice_candidate',
+      senderRole: 'viewer',
+    });
+    expect(readViewerMediaIceCandidateEvent(hostIcePayload)).toBeNull();
+
+    expect(readViewerMediaReadyEvent({ sender_role: 'viewer' })).toEqual({
+      kind: 'media_viewer_ready',
+      senderRole: 'viewer',
+    });
+    expect(readViewerMediaReadyEvent({ sender_role: 'host' })).toBeNull();
   });
 
   test('accepts lifecycle timeline events with nullable chat fields', () => {

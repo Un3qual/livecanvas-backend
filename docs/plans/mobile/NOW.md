@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-27
-Status: Task 4 complete; Task 5 ready
+Status: Task 5 complete; Task 6 ready
 
 ## Lane Scope
 
@@ -31,7 +31,7 @@ Status: Task 4 complete; Task 5 ready
 
 ## Do This Now
 
-Execute Task 5 from
+Execute Task 6 from
 `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`,
 then commit that milestone before continuing.
 
@@ -52,6 +52,6 @@ then commit that milestone before continuing.
 
 ## Next Action
 
-Split realtime event normalization into focused media, timeline, session-state,
-and guard modules while keeping `normalizeLiveSessionRealtimeEvent` as the
-public compatibility entrypoint.
+Split chat reducer helpers and selectors while keeping
+`mobile/src/live/liveSessionChatReducer.ts` as the public compatibility
+entrypoint.

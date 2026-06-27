@@ -2,12 +2,16 @@ import type {
   LiveSessionChannel,
   LiveSessionChannelSocket,
 } from '../liveSessionChannelClient';
-import { normalizeLiveSessionRealtimeEvent } from '../liveSessionRealtimeEvents';
 import {
   createDefaultLiveWebRtcPeerConnectionFactory,
   type LiveWebRtcPeerConnectionFactory,
 } from '../media/liveWebRtcAdapter';
 import type { LiveMediaSessionDescription } from '../media/liveMediaTypes';
+import {
+  readHostMediaIceCandidateEvent,
+  readHostMediaOfferEvent,
+} from '../realtime/liveSessionRealtimeMediaEvents';
+import type { LiveSessionHostMediaOfferEvent } from '../realtime/liveSessionRealtimeTypes';
 import {
   createLiveSessionViewerMediaAnswerPayload,
   createLiveSessionViewerMediaIceCandidatePayload,
@@ -94,11 +98,7 @@ export type LiveSessionViewerPlaybackRuntimeOptions = {
   readonly socket: LiveSessionChannelSocket;
 };
 
-type LiveSessionViewerHostOfferEvent = {
-  readonly description: LiveSessionViewerPlaybackSessionDescription;
-  readonly kind: 'media_offer';
-  readonly senderRole: 'host';
-};
+type LiveSessionViewerHostOfferEvent = LiveSessionHostMediaOfferEvent;
 
 const GENERIC_VIEWER_PLAYBACK_FAILURE_REASON =
   'Could not start live video playback. Please try again.';
@@ -216,17 +216,13 @@ export function createLiveSessionViewerPlaybackRuntime({
       return;
     }
 
-    const event = normalizeLiveSessionRealtimeEvent('media:offer', payload);
+    const event = readHostMediaOfferEvent(payload);
 
-    if (event?.kind !== 'media_offer' || event.senderRole !== 'host') {
+    if (!event) {
       return;
     }
 
-    await answerNormalizedHostOffer({
-      description: event.description,
-      kind: 'media_offer',
-      senderRole: 'host',
-    });
+    await answerNormalizedHostOffer(event);
   }
 
   async function answerNormalizedHostOffer(
@@ -318,15 +314,9 @@ export function createLiveSessionViewerPlaybackRuntime({
       return;
     }
 
-    const event = normalizeLiveSessionRealtimeEvent(
-      'media:ice_candidate',
-      payload,
-    );
+    const event = readHostMediaIceCandidateEvent(payload);
 
-    if (
-      event?.kind !== 'media_ice_candidate' ||
-      event.senderRole !== 'host'
-    ) {
+    if (!event) {
       return;
     }
 

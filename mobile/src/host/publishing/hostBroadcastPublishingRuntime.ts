@@ -2,7 +2,11 @@ import type {
   LiveSessionChannel,
   LiveSessionChannelSocket,
 } from '../../live/liveSessionChannelClient';
-import { normalizeLiveSessionRealtimeEvent } from '../../live/liveSessionRealtimeEvents';
+import {
+  readViewerMediaAnswerEvent,
+  readViewerMediaIceCandidateEvent,
+  readViewerMediaReadyEvent,
+} from '../../live/realtime/liveSessionRealtimeMediaEvents';
 import {
   createDefaultLiveWebRtcPeerConnectionFactory,
   type LiveWebRtcPeerConnectionFactory,
@@ -247,9 +251,9 @@ export function createHostBroadcastPublishingRuntime({
       return;
     }
 
-    const event = normalizeLiveSessionRealtimeEvent('media:answer', payload);
+    const event = readViewerMediaAnswerEvent(payload);
 
-    if (event?.kind !== 'media_answer' || event.senderRole !== 'viewer') {
+    if (!event) {
       return;
     }
 
@@ -290,15 +294,9 @@ export function createHostBroadcastPublishingRuntime({
       return;
     }
 
-    const event = normalizeLiveSessionRealtimeEvent(
-      'media:ice_candidate',
-      payload,
-    );
+    const event = readViewerMediaIceCandidateEvent(payload);
 
-    if (
-      event?.kind !== 'media_ice_candidate' ||
-      event.senderRole !== 'viewer'
-    ) {
+    if (!event) {
       return;
     }
 
@@ -356,9 +354,9 @@ export function createHostBroadcastPublishingRuntime({
       return;
     }
 
-    const event = normalizeLiveSessionRealtimeEvent('media:viewer_ready', payload);
+    const event = readViewerMediaReadyEvent(payload);
 
-    if (event?.kind !== 'media_viewer_ready' || event.senderRole !== 'viewer') {
+    if (!event) {
       return;
     }
 
