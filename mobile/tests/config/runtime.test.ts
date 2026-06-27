@@ -8,6 +8,12 @@ mock.module('react-native', () => ({
   Platform: {
     OS: 'ios',
   },
+  Pressable: () => null,
+  ScrollView: () => null,
+  StyleSheet: { create: (styles: unknown) => styles },
+  Text: () => null,
+  TextInput: () => null,
+  View: () => null,
 }));
 
 const {
@@ -16,7 +22,6 @@ const {
   resolveLandingHrefForAuth,
   routeHrefFromUrl,
 } = await import('../../src/config/runtime');
-mock.restore();
 
 type ModalAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 type ModalElement = ReactElement<{
@@ -43,6 +48,7 @@ function LiveSessionWatchScreenMock(_props: { sessionId: string }) {
 mock.module('expo-router', () => ({
   Redirect: RedirectMock,
   useLocalSearchParams: () => modalSearchParams,
+  useRouter: () => ({ push: () => undefined }),
 }));
 
 mock.module('../../src/auth/AuthProvider', () => ({
