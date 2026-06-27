@@ -213,6 +213,11 @@ export function createLiveSessionWatchControllerLifecycle({
             sessionId: liveSessionId,
             type: 'LEAVE_FAILED',
           });
+          if (!isMounted) {
+            commitDetachedLeaveLiveSession(liveSessionId);
+            return;
+          }
+
           publishState();
           return;
         }
@@ -227,6 +232,11 @@ export function createLiveSessionWatchControllerLifecycle({
           sessionId: liveSessionId,
           type: 'LEAVE_FAILED',
         });
+        if (!isMounted) {
+          commitDetachedLeaveLiveSession(liveSessionId);
+          return;
+        }
+
         publishState();
       },
     });

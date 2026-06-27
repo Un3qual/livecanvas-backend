@@ -53,6 +53,11 @@ class FakeSocket {
   connectCount = 0;
   disconnectCount = 0;
 
+  constructor(
+    readonly websocketUrl = 'wss://example.test/socket',
+    readonly accessToken = 'viewer-token',
+  ) {}
+
   connect(): void {
     this.connectCount += 1;
   }
@@ -126,8 +131,8 @@ function createHarness() {
       runtimes.push(runtime);
       return runtime;
     },
-    createSocket: () => {
-      const socket = new FakeSocket();
+    createSocket: ({ getAccessToken, websocketUrl }) => {
+      const socket = new FakeSocket(websocketUrl, getAccessToken());
       sockets.push(socket);
       return socket;
     },
@@ -339,6 +344,96 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
       remoteStreamUrl: null,
       status: 'idle',
     });
+  });
+
+  test('updates socket options when the stable lifecycle receives new options', () => {
+    const commits: PrepareMediaCommitConfig[] = [];
+    const runtimes: FakeRuntime[] = [];
+    const sockets: FakeSocket[] = [];
+    const stateHistory: ViewerPlaybackState[] = [];
+    let state: ViewerPlaybackState = {
+      error: null,
+      remoteStreamUrl: null,
+      status: 'idle',
+    };
+    const lifecycleRef = {
+      current: null as LiveSessionViewerPlaybackControllerLifecycle | null,
+    };
+    const firstLifecycle =
+      getOrCreateLiveSessionViewerPlaybackControllerLifecycle(
+        lifecycleRef,
+        {
+          ...createLifecycleOptions({
+            commits,
+            getState: () => state,
+            runtimes,
+            setState: (nextState) => {
+              state = nextState;
+            },
+            sockets,
+            stateHistory,
+          }),
+          createSocket: ({ getAccessToken, websocketUrl }) => {
+            const socket = new FakeSocket(websocketUrl, getAccessToken());
+            sockets.push(socket);
+            return socket;
+          },
+          getAccessToken: () => 'initial-token',
+          websocketUrl: 'wss://initial.example.test/socket',
+        },
+      );
+
+    firstLifecycle.syncViewerPlayback({
+      authStatus: 'authenticated',
+      isJoined: true,
+      isLeaving: false,
+      liveSessionId: 'session-1',
+      normalizedStatus: 'LIVE',
+    });
+    createPrepareCompleter(commits)();
+
+    expect(sockets[0].websocketUrl).toBe('wss://initial.example.test/socket');
+    expect(sockets[0].accessToken).toBe('initial-token');
+
+    firstLifecycle.stopViewerPlayback({ resetState: true });
+
+    const rerenderLifecycle =
+      getOrCreateLiveSessionViewerPlaybackControllerLifecycle(
+        lifecycleRef,
+        {
+          ...createLifecycleOptions({
+            commits,
+            getState: () => state,
+            runtimes,
+            setState: (nextState) => {
+              state = nextState;
+            },
+            sockets,
+            stateHistory,
+          }),
+          createSocket: ({ getAccessToken, websocketUrl }) => {
+            const socket = new FakeSocket(websocketUrl, getAccessToken());
+            sockets.push(socket);
+            return socket;
+          },
+          getAccessToken: () => 'updated-token',
+          websocketUrl: 'wss://updated.example.test/socket',
+        },
+      );
+
+    expect(rerenderLifecycle).toBe(firstLifecycle);
+
+    rerenderLifecycle.syncViewerPlayback({
+      authStatus: 'authenticated',
+      isJoined: true,
+      isLeaving: false,
+      liveSessionId: 'session-2',
+      normalizedStatus: 'LIVE',
+    });
+    createPrepareCompleter(commits)();
+
+    expect(sockets[1].websocketUrl).toBe('wss://updated.example.test/socket');
+    expect(sockets[1].accessToken).toBe('updated-token');
   });
 
   test('starts for joined authenticated live sessions and reaches playing when a remote stream arrives', async () => {

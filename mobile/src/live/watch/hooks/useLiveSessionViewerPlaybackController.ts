@@ -70,6 +70,9 @@ export type LiveSessionViewerPlaybackControllerLifecycle = {
     options: LiveSessionViewerPlaybackControllerSyncOptions,
   ) => (() => void) | undefined;
   readonly unmount: () => void;
+  readonly updateOptions: (
+    options: LiveSessionViewerPlaybackControllerLifecycleOptions,
+  ) => void;
 };
 
 export type LiveSessionViewerPlaybackControllerLifecycleOptions = {
@@ -118,6 +121,27 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
   const viewerPlaybackActor = createActor(
     liveSessionViewerPlaybackMachine,
   ).start();
+  let currentCommitPrepareLiveSessionMedia = commitPrepareLiveSessionMedia;
+  let currentCreatePeerConnectionFactory = createPeerConnectionFactory;
+  let currentCreatePlaybackRuntime = createPlaybackRuntime;
+  let currentCreateSocket = createSocket;
+  let currentGetAccessToken = getAccessToken;
+  let currentWebsocketUrl = websocketUrl;
+
+  function updateOptions(
+    nextOptions: LiveSessionViewerPlaybackControllerLifecycleOptions,
+  ) {
+    currentCommitPrepareLiveSessionMedia =
+      nextOptions.commitPrepareLiveSessionMedia;
+    currentCreatePeerConnectionFactory =
+      nextOptions.createPeerConnectionFactory ??
+      createDefaultLiveSessionViewerPeerConnectionFactory;
+    currentCreatePlaybackRuntime =
+      nextOptions.createPlaybackRuntime ?? createLiveSessionViewerPlaybackRuntime;
+    currentCreateSocket = nextOptions.createSocket ?? createPhoenixSocket;
+    currentGetAccessToken = nextOptions.getAccessToken;
+    currentWebsocketUrl = nextOptions.websocketUrl;
+  }
 
   function sendViewerPlaybackEvent(
     event: LiveSessionViewerPlaybackMachineEvent,
@@ -165,7 +189,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
     sendViewerPlaybackEvent({ type: 'PREPARE_REQUESTED' });
 
     try {
-      commitPrepareLiveSessionMedia({
+      currentCommitPrepareLiveSessionMedia({
         variables: {
           input: {
             liveSessionId: currentLiveSessionId,
@@ -190,7 +214,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
             return;
           }
 
-          const peerConnectionFactory = createPeerConnectionFactory();
+          const peerConnectionFactory = currentCreatePeerConnectionFactory();
 
           if (!peerConnectionFactory) {
             sendViewerPlaybackEvent({
@@ -200,11 +224,11 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
             return;
           }
 
-          const socket = createSocket({
-            getAccessToken,
-            websocketUrl,
+          const socket = currentCreateSocket({
+            getAccessToken: currentGetAccessToken,
+            websocketUrl: currentWebsocketUrl,
           });
-          const runtime = createPlaybackRuntime({
+          const runtime = currentCreatePlaybackRuntime({
             onChannelTerminated: () => {
               if (!isViewerPlaybackGenerationActive(generation)) {
                 return;
@@ -373,6 +397,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
     stopViewerPlaybackGeneration,
     syncViewerPlayback,
     unmount,
+    updateOptions,
   };
 }
 
@@ -383,6 +408,8 @@ export function getOrCreateLiveSessionViewerPlaybackControllerLifecycle(
   if (!lifecycleRef.current) {
     lifecycleRef.current =
       createLiveSessionViewerPlaybackControllerLifecycle(options);
+  } else {
+    lifecycleRef.current.updateOptions(options);
   }
 
   return lifecycleRef.current;

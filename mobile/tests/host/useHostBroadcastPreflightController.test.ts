@@ -509,4 +509,54 @@ describe('useHostBroadcastPreflightController lifecycle', () => {
     expect(harness.disposedNativeCount).toBe(0);
     expect(harness.endCommits).toEqual([]);
   });
+
+  test('ignores stale prepare-media completion after back cleanup starts', () => {
+    const harness = createHarness();
+
+    harness.lifecycle.handleCreateSessionPress();
+    harness.completeStartSession();
+    harness.lifecycle.handlePrepareMediaPress();
+    harness.lifecycle.handleBackPress();
+
+    expect(harness.workflowState).toMatchObject({
+      status: 'ending',
+    });
+    expect(harness.endCommits).toHaveLength(1);
+
+    harness.completePrepareMedia();
+
+    expect(harness.preparedMedia).toBeNull();
+    expect(harness.publishingStatus).toBe('idle');
+    expect(harness.workflowState).toMatchObject({
+      status: 'ending',
+      hasPreparedMedia: false,
+    });
+  });
+
+  test('routes navigation removal through end cleanup before continuing', () => {
+    const harness = createHarness();
+    const continuedActions: string[] = [];
+
+    harness.lifecycle.handleCreateSessionPress();
+    harness.completeStartSession();
+
+    expect(harness.lifecycle.shouldPreventNavigationRemoval()).toBe(true);
+
+    harness.lifecycle.handleNavigationRemovalAttempt(() => {
+      continuedActions.push('continue');
+    });
+
+    expect(harness.navigateBackCalls).toEqual([]);
+    expect(harness.endCommits).toHaveLength(1);
+    expect(continuedActions).toEqual([]);
+
+    harness.endCommits[0].onCompleted?.({
+      endLiveSession: {
+        errors: [],
+        liveSession: createLiveSessionPayload('live-session-id', 'STARTING'),
+      },
+    });
+
+    expect(continuedActions).toEqual(['continue']);
+  });
 });

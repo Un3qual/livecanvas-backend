@@ -30,6 +30,7 @@ import {
   selectCanRequestHostBroadcastBackgroundEnd,
   selectHostBroadcastPreflightCleanupLiveSessionId,
   selectHostBroadcastPreflightWorkflowState,
+  selectShouldPreventHostBroadcastPreflightNavigationRemoval,
   type HostBroadcastPreflightMachineEvent,
   type HostBroadcastPreflightWorkflowViewState,
 } from '../state/hostBroadcastPreflightMachine';
@@ -52,6 +53,7 @@ const HOST_PUBLISHING_ERROR =
   'Could not start host media publishing. Please try again.';
 
 type PreflightEndLiveSessionOptions = {
+  readonly continueNavigationOnSuccess?: () => void;
   readonly navigateBackOnSuccess: boolean;
   readonly updateSessionLifecycle?: boolean;
 };
@@ -74,7 +76,11 @@ export type HostBroadcastEndLiveSessionCommit = (
 
 export type HostBroadcastPreflightController = {
   readonly controlsCardProps: HostBroadcastControlsCardProps;
+  readonly handleNavigationRemovalAttempt: (
+    continueNavigation: () => void,
+  ) => void;
   readonly readinessCardProps: HostBroadcastPreflightReadinessCardProps;
+  readonly shouldPreventNavigationRemoval: boolean;
 };
 
 export type HostBroadcastPreflightControllerOptions = {
@@ -117,6 +123,9 @@ export type HostBroadcastPreflightControllerLifecycle = {
   readonly handleBackPress: () => void;
   readonly handleCreateSessionPress: () => void;
   readonly handleGoLivePress: () => void;
+  readonly handleNavigationRemovalAttempt: (
+    continueNavigation: () => void,
+  ) => void;
   readonly handlePrepareMediaPress: () => void;
   readonly mount: () => void;
   readonly requestPreflightEndLiveSession: (
@@ -126,6 +135,7 @@ export type HostBroadcastPreflightControllerLifecycle = {
   readonly sendWorkflowEvent: (
     event: HostBroadcastPreflightMachineEvent,
   ) => HostBroadcastPreflightWorkflowViewState;
+  readonly shouldPreventNavigationRemoval: () => boolean;
   readonly unmount: () => void;
   readonly updateOptions: (
     options: HostBroadcastPreflightControllerLifecycleOptions,
@@ -186,6 +196,7 @@ export function createHostBroadcastPreflightControllerLifecycle(
     // cleanup only attempts non-blocking teardown after unmount.
     const updateSessionLifecycle =
       endOptions.navigateBackOnSuccess ||
+      endOptions.continueNavigationOnSuccess != null ||
       endOptions.updateSessionLifecycle === true;
 
     if (updateSessionLifecycle) {
@@ -237,6 +248,7 @@ export function createHostBroadcastPreflightControllerLifecycle(
         if (endOptions.navigateBackOnSuccess) {
           options.navigateBack();
         }
+        endOptions.continueNavigationOnSuccess?.();
       },
       onError: () => {
         const viewerSafeErrorText = formatLiveMutationErrors([]);
@@ -338,6 +350,10 @@ export function createHostBroadcastPreflightControllerLifecycle(
         const result = payload.prepareLiveMediaSession;
         const prepared = readPreparedHostBroadcastMedia(result);
 
+        if (!isActivePrepareMediaRequest(liveSessionId)) {
+          return;
+        }
+
         if (!prepared) {
           options.resetPreparedMedia();
           sendWorkflowEvent({
@@ -351,6 +367,10 @@ export function createHostBroadcastPreflightControllerLifecycle(
         sendWorkflowEvent({ type: 'PREPARE_MEDIA_SUCCEEDED' });
       },
       onError: () => {
+        if (!isActivePrepareMediaRequest(liveSessionId)) {
+          return;
+        }
+
         options.resetPreparedMedia();
         sendWorkflowEvent({
           type: 'PREPARE_MEDIA_FAILED',
@@ -358,6 +378,15 @@ export function createHostBroadcastPreflightControllerLifecycle(
         });
       },
     });
+  }
+
+  function isActivePrepareMediaRequest(liveSessionId: string) {
+    const workflowState = readWorkflowState();
+
+    return (
+      workflowState.status === 'preparing_media' &&
+      workflowState.sessionState.liveSessionId === liveSessionId
+    );
   }
 
   function handleGoLivePress() {
@@ -464,6 +493,37 @@ export function createHostBroadcastPreflightControllerLifecycle(
     });
   }
 
+  function shouldPreventNavigationRemoval() {
+    return selectShouldPreventHostBroadcastPreflightNavigationRemoval(
+      actor.getSnapshot(),
+    );
+  }
+
+  function handleNavigationRemovalAttempt(continueNavigation: () => void) {
+    if (!shouldPreventNavigationRemoval()) {
+      continueNavigation();
+      return;
+    }
+
+    if (!readWorkflowState().canUseBackAction) {
+      return;
+    }
+
+    const liveSessionId = selectHostBroadcastPreflightCleanupLiveSessionId(
+      actor.getSnapshot(),
+    );
+
+    if (!liveSessionId) {
+      continueNavigation();
+      return;
+    }
+
+    requestPreflightEndLiveSession(liveSessionId, {
+      continueNavigationOnSuccess: continueNavigation,
+      navigateBackOnSuccess: false,
+    });
+  }
+
   function mount() {
     isMounted = true;
     publishWorkflowState();
@@ -488,10 +548,12 @@ export function createHostBroadcastPreflightControllerLifecycle(
     handleBackPress,
     handleCreateSessionPress,
     handleGoLivePress,
+    handleNavigationRemovalAttempt,
     handlePrepareMediaPress,
     mount,
     requestPreflightEndLiveSession,
     sendWorkflowEvent,
+    shouldPreventNavigationRemoval,
     unmount,
     updateOptions,
   };
@@ -694,6 +756,8 @@ export function useHostBroadcastPreflightController({
   }, [native, preflightLifecycle]);
 
   return {
+    handleNavigationRemovalAttempt:
+      preflightLifecycle.handleNavigationRemovalAttempt,
     controlsCardProps: {
       canCreateSession,
       canGoLive,
@@ -716,5 +780,7 @@ export function useHostBroadcastPreflightController({
       publishingStatus,
       sessionState,
     },
+    shouldPreventNavigationRemoval:
+      preflightLifecycle.shouldPreventNavigationRemoval(),
   };
 }

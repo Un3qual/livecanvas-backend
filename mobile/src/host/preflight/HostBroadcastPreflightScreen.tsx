@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useNavigation, usePreventRemove } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
 import { useMutation } from 'react-relay';
@@ -28,6 +29,7 @@ import { useHostBroadcastPreflightController } from './hooks/useHostBroadcastPre
 
 export function HostBroadcastPreflightScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const theme = useAppTheme();
   const auth = useAuth();
   const { environment } = useStartupState();
@@ -68,6 +70,11 @@ export function HostBroadcastPreflightScreen() {
     navigateBack,
     navigateToLiveSession,
     websocketUrl: environment.websocketUrl,
+  });
+  usePreventRemove(controller.shouldPreventNavigationRemoval, ({ data }) => {
+    controller.handleNavigationRemovalAttempt(() => {
+      navigation.dispatch(data.action);
+    });
   });
 
   return (

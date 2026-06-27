@@ -660,6 +660,17 @@ export function selectCanUseHostPreflightBackAction(
   );
 }
 
+export function selectShouldPreventHostBroadcastPreflightNavigationRemoval(
+  snapshot: HostBroadcastPreflightSnapshot,
+): boolean {
+  return (
+    snapshot.context.liveSessionId !== null &&
+    !snapshot.matches('ended') &&
+    !snapshot.matches('goingLive') &&
+    !snapshot.matches('live')
+  );
+}
+
 export function selectCanRequestHostBroadcastBackgroundEnd(
   snapshot: HostBroadcastPreflightSnapshot,
   liveSessionId: string,

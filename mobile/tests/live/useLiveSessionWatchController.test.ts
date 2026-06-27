@@ -264,6 +264,39 @@ describe('useLiveSessionWatchController lifecycle', () => {
     );
   });
 
+  test('detached-leaves again when a pending leave fails after unmount', () => {
+    const falseCompletionHarness = createHarness();
+
+    falseCompletionHarness.join();
+    falseCompletionHarness.completeJoin();
+    falseCompletionHarness.controller.requestLeave({ liveSessionId: 'session-1' });
+    falseCompletionHarness.controller.unmount();
+    falseCompletionHarness.completeLeave(0, {
+      leaveLiveSession: {
+        errors: [],
+        left: false,
+      },
+    });
+
+    expect(falseCompletionHarness.leaves).toHaveLength(2);
+    expect(falseCompletionHarness.leaves[1].variables.input.liveSessionId).toBe(
+      'session-1',
+    );
+
+    const errorHarness = createHarness();
+
+    errorHarness.join();
+    errorHarness.completeJoin();
+    errorHarness.controller.requestLeave({ liveSessionId: 'session-1' });
+    errorHarness.controller.unmount();
+    errorHarness.leaves[0].onError?.();
+
+    expect(errorHarness.leaves).toHaveLength(2);
+    expect(errorHarness.leaves[1].variables.input.liveSessionId).toBe(
+      'session-1',
+    );
+  });
+
   test('end success releases retained host publishing resources and stops playback', () => {
     const harness = createHarness();
 
