@@ -80,6 +80,7 @@ export function HostBroadcastPreflightScreen() {
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
     >
       <AppHeader

@@ -1,3 +1,4 @@
+import type { hostBroadcastPreflightOperationsPrepareMediaMutation } from '../__generated__/hostBroadcastPreflightOperationsPrepareMediaMutation.graphql';
 import {
   createLiveMediaSessionDescriptionPayload,
   normalizeLiveMediaIceCandidatePayload,
@@ -7,7 +8,6 @@ import type {
   LiveMediaIceCandidatePayload,
   LiveMediaIceCandidateSource,
   LiveMediaIceServer,
-  LiveMediaIceServerSource,
   LiveMediaSessionDescription,
   LiveMediaSessionDescriptionSource,
 } from '../live/media/liveMediaPayloads';
@@ -17,20 +17,8 @@ import {
   type LiveMutationError,
 } from '../live/liveSessionPresentation';
 
-type PrepareLiveMediaSessionSource = {
-  readonly errors?: ReadonlyArray<LiveMutationError> | null;
-  readonly iceServers?: ReadonlyArray<HostBroadcastMediaIceServerSource> | null;
-  readonly liveSession?: HostBroadcastMediaLiveSessionSource | null;
-  readonly signalingTopic?: string | null;
-};
-
-type HostBroadcastMediaLiveSessionSource = {
-  readonly channelTopic?: string | null;
-  readonly id?: string | null;
-  readonly status?: string | null;
-};
-
-type HostBroadcastMediaIceServerSource = LiveMediaIceServerSource;
+type PrepareLiveMediaSessionSource =
+  hostBroadcastPreflightOperationsPrepareMediaMutation['response']['prepareLiveMediaSession'];
 
 export type HostBroadcastMediaIceServer = LiveMediaIceServer;
 

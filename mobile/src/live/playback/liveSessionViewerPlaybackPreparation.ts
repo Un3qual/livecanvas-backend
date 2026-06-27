@@ -1,3 +1,4 @@
+import type { liveSessionWatchOperationsPrepareMediaMutation } from '../../__generated__/liveSessionWatchOperationsPrepareMediaMutation.graphql';
 import type { LiveMutationError } from '../liveSessionPresentation';
 import {
   createLiveMediaSessionDescriptionPayload,
@@ -8,24 +9,12 @@ import type {
   LiveMediaIceCandidatePayload,
   LiveMediaIceCandidateSource,
   LiveMediaIceServer,
-  LiveMediaIceServerSource,
   LiveMediaSessionDescription,
   LiveMediaSessionDescriptionSource,
 } from '../media/liveMediaPayloads';
 
-export type PrepareLiveSessionViewerMediaSource = {
-  readonly errors?: ReadonlyArray<LiveMutationError> | null;
-  readonly iceServers?: ReadonlyArray<LiveSessionViewerMediaIceServerSource> | null;
-  readonly liveSession?: LiveSessionViewerMediaLiveSessionSource | null;
-  readonly signalingTopic?: string | null;
-};
-
-export type LiveSessionViewerMediaLiveSessionSource = {
-  readonly id?: string | null;
-  readonly status?: string | null;
-};
-
-export type LiveSessionViewerMediaIceServerSource = LiveMediaIceServerSource;
+export type PrepareLiveSessionViewerMediaSource =
+  liveSessionWatchOperationsPrepareMediaMutation['response']['prepareLiveMediaSession'];
 
 export type LiveSessionViewerMediaIceServer = LiveMediaIceServer;
 

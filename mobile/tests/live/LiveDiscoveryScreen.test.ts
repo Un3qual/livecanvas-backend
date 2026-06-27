@@ -3,12 +3,6 @@ import { describe, expect, mock, test } from 'bun:test';
 mock.module('expo-router', () => ({
   useRouter: () => ({ push: () => undefined }),
 }));
-mock.module('react-native', () => ({
-  ScrollView: () => null,
-  StyleSheet: { create: (styles: unknown) => styles },
-  Text: () => null,
-  View: () => null,
-}));
 mock.module('react-relay', () => ({
   graphql: () => ({}),
   useLazyLoadQuery: () => ({

@@ -32,6 +32,11 @@ import {
   type RelationshipState,
 } from '../relationshipPresentation';
 import { formatMutationErrors } from '../mutationErrors';
+import {
+  otherUserProfileScreenResetKey,
+  selectActiveRelationshipStateOverride,
+  type RelationshipStateOverride,
+} from './otherUserProfileRouteState';
 import type { OtherUserProfileScreenFollowUserMutation } from '../../__generated__/OtherUserProfileScreenFollowUserMutation.graphql';
 import type { OtherUserProfileScreenQuery } from '../../__generated__/OtherUserProfileScreenQuery.graphql';
 
@@ -106,8 +111,9 @@ const otherUserProfileScreenFollowUserMutation = graphql`
 export function OtherUserProfileScreen({ id }: { id: string }) {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
   const [relationshipStateOverride, setRelationshipStateOverride] =
-    useState<RelationshipState | null>(null);
+    useState<RelationshipStateOverride | null>(null);
   const currentProfileIdRef = useRef(id);
+  const resetKey = otherUserProfileScreenResetKey(id, queryRetryKey);
 
   currentProfileIdRef.current = id;
 
@@ -123,20 +129,23 @@ export function OtherUserProfileScreen({ id }: { id: string }) {
       return;
     }
 
-    setRelationshipStateOverride(state);
+    setRelationshipStateOverride({ profileId, state });
     retryQuery();
   };
 
   return (
     <OtherUserProfileErrorBoundary
-      key={queryRetryKey}
+      key={resetKey}
       onRetry={retryQuery}
     >
       <OtherUserProfileContent
         id={id}
-        key={queryRetryKey}
+        key={resetKey}
         onRelationshipMutationSuccess={handleRelationshipMutationSuccess}
-        relationshipStateOverride={relationshipStateOverride}
+        relationshipStateOverride={selectActiveRelationshipStateOverride(
+          relationshipStateOverride,
+          id,
+        )}
       />
     </OtherUserProfileErrorBoundary>
   );
@@ -273,6 +282,7 @@ function OtherUserProfileContent({
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
     >
       <AppButton

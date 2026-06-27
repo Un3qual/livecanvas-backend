@@ -1,5 +1,6 @@
 import React, {
   Suspense,
+  useCallback,
   useEffect,
   useMemo,
   useReducer,
@@ -208,6 +209,8 @@ function LiveSessionWatchContent({
   });
 
   const session = data.node?.__typename === 'LiveSession' ? data.node : null;
+  const activeLiveSessionId = session?.id ?? null;
+  const activeLiveSessionChannelTopic = session?.channelTopic ?? null;
   const retainedTimelineConnection = session?.timelineEvents ?? null;
   const retainedTimelineHistory = useMemo(
     () =>
@@ -218,7 +221,8 @@ function LiveSessionWatchContent({
     session?.status ?? 'ENDED',
   );
   const normalizedStatus = session
-    ? realtimeSessionStatuses.get(session.id) ?? queriedNormalizedStatus
+    ? realtimeSessionStatuses.get(activeLiveSessionId ?? '') ??
+      queriedNormalizedStatus
     : queriedNormalizedStatus;
   const enterable = canEnterLiveSession(normalizedStatus);
   const isJoined = session !== null && watchController.isJoined;
@@ -230,8 +234,10 @@ function LiveSessionWatchContent({
   const chatChannelStatus = chatChannelState.channelStatus;
   const chatSendStatus = chatChannelState.sendStatus;
   const chatSendError = chatChannelState.sendError;
+  const handleWatchMembershipLost = watchController.handleMembershipLost;
+  const handleWatchSessionEnded = watchController.handleSessionEnded;
   const hasRetainedHostPublishingSession = session
-    ? hostPublishingSessions.has(session.id)
+    ? hostPublishingSessions.has(activeLiveSessionId ?? '')
     : false;
   const shouldMaintainSessionRealtimeChannel =
     isJoined || hasRetainedHostPublishingSession;
@@ -242,12 +248,97 @@ function LiveSessionWatchContent({
       getAccessToken: auth.getAccessToken,
       isJoined,
       isLeaving,
-      liveSessionId: session?.id ?? null,
+      liveSessionId: activeLiveSessionId,
       normalizedStatus,
       websocketUrl: environment.websocketUrl,
     });
 
   stopViewerPlaybackRef.current = stopViewerPlayback;
+
+  const sendChatChannelEvent = useCallback(
+    (event: LiveSessionChatChannelMachineEvent) => {
+      chatChannelLifecycle.send(event);
+    },
+    [chatChannelLifecycle],
+  );
+
+  const markLiveSessionRealtimeStatus = useCallback(
+    (liveSessionId: string, status: LiveSessionStatus) => {
+      setRealtimeSessionStatuses((statuses) => {
+        if (statuses.get(liveSessionId) === status) {
+          return statuses;
+        }
+
+        const nextStatuses = new Map(statuses);
+        nextStatuses.set(liveSessionId, status);
+        return nextStatuses;
+      });
+    },
+    [],
+  );
+
+  const markLiveSessionEnded = useCallback(
+    (liveSessionId: string) => {
+      markLiveSessionRealtimeStatus(liveSessionId, 'ENDED');
+    },
+    [markLiveSessionRealtimeStatus],
+  );
+
+  const handleEndedLiveSession = useCallback(
+    (
+      liveSessionId: string,
+      closeChatChannelForEndedSession?: () => void,
+    ) => {
+      markLiveSessionEnded(liveSessionId);
+      handleWatchSessionEnded(
+        liveSessionId,
+        closeChatChannelForEndedSession,
+      );
+    },
+    [handleWatchSessionEnded, markLiveSessionEnded],
+  );
+
+  const clearPendingChatSend = useCallback((liveSessionId: string): boolean => {
+    if (chatSendPendingRef.current?.sessionId !== liveSessionId) {
+      return false;
+    }
+
+    chatSendPendingRef.current = null;
+    return true;
+  }, []);
+
+  const failPendingChatSend = useCallback(
+    (liveSessionId: string, error: string) => {
+      if (!clearPendingChatSend(liveSessionId)) {
+        return;
+      }
+
+      sendChatChannelEvent({
+        error,
+        sessionId: liveSessionId,
+        type: 'SEND_FAILED',
+      });
+    },
+    [clearPendingChatSend, sendChatChannelEvent],
+  );
+
+  const cancelPendingChatSend = useCallback(
+    (liveSessionId: string) => {
+      if (!clearPendingChatSend(liveSessionId)) {
+        return;
+      }
+
+      if (didUnmountRef.current) {
+        return;
+      }
+
+      sendChatChannelEvent({
+        sessionId: liveSessionId,
+        type: 'SEND_CANCELLED',
+      });
+    },
+    [clearPendingChatSend, sendChatChannelEvent],
+  );
 
   useEffect(() => {
     chatChannelLifecycle.start();
@@ -263,59 +354,25 @@ function LiveSessionWatchContent({
     sendChatChannelEvent({ sessionId, type: 'SESSION_CHANGED' });
     chatSendPendingRef.current = null;
     setRealtimeSessionStatuses(new Map());
-  }, [sessionId]);
-
-  function sendChatChannelEvent(event: LiveSessionChatChannelMachineEvent) {
-    chatChannelLifecycle.send(event);
-  }
-
-  function markLiveSessionEnded(liveSessionId: string) {
-    markLiveSessionRealtimeStatus(liveSessionId, 'ENDED');
-  }
-
-  function markLiveSessionRealtimeStatus(
-    liveSessionId: string,
-    status: LiveSessionStatus,
-  ) {
-    setRealtimeSessionStatuses((statuses) => {
-      if (statuses.get(liveSessionId) === status) {
-        return statuses;
-      }
-
-      const nextStatuses = new Map(statuses);
-      nextStatuses.set(liveSessionId, status);
-      return nextStatuses;
-    });
-  }
-
-  function handleEndedLiveSession(
-    liveSessionId: string,
-    closeChatChannelForEndedSession: () => void,
-  ) {
-    markLiveSessionEnded(liveSessionId);
-    watchController.handleSessionEnded(
-      liveSessionId,
-      closeChatChannelForEndedSession,
-    );
-  }
+  }, [sendChatChannelEvent, sessionId]);
 
   useEffect(() => {
-    if (session?.id && normalizedStatus === 'ENDED') {
-      watchController.handleSessionEnded(session.id);
+    if (activeLiveSessionId && normalizedStatus === 'ENDED') {
+      handleWatchSessionEnded(activeLiveSessionId);
     }
-  }, [normalizedStatus, session?.id, watchController.handleSessionEnded]);
+  }, [activeLiveSessionId, handleWatchSessionEnded, normalizedStatus]);
 
   useEffect(() => {
-    if (!session) {
+    if (!activeLiveSessionId) {
       return;
     }
 
     dispatchChatAction({
       history: retainedTimelineHistory,
-      sessionId: session.id,
+      sessionId: activeLiveSessionId,
       type: 'retained_initial_loaded',
     });
-  }, [retainedTimelineHistory, session?.id]);
+  }, [activeLiveSessionId, retainedTimelineHistory]);
 
   useEffect(() => {
     didUnmountRef.current = false;
@@ -327,15 +384,18 @@ function LiveSessionWatchContent({
 
   useEffect(() => {
     if (
-      !session ||
+      !activeLiveSessionId ||
       !shouldMaintainSessionRealtimeChannel ||
-      !session.channelTopic ||
+      !activeLiveSessionChannelTopic ||
       auth.state.status !== 'authenticated'
     ) {
       chatChannelClientRef.current = null;
 
-      if (session) {
-        sendChatChannelEvent({ sessionId: session.id, type: 'CHANNEL_IDLE' });
+      if (activeLiveSessionId) {
+        sendChatChannelEvent({
+          sessionId: activeLiveSessionId,
+          type: 'CHANNEL_IDLE',
+        });
       }
 
       return undefined;
@@ -354,14 +414,17 @@ function LiveSessionWatchContent({
         socket.disconnect();
       },
       failPendingSendForEndedSession: () => {
-        failPendingChatSend(session.id, 'This live session has ended.');
+        failPendingChatSend(
+          activeLiveSessionId,
+          'This live session has ended.',
+        );
       },
       leaveChannel: () => {
         chatChannelClient?.leave();
       },
       markClosedForEndedSession: () => {
         sendChatChannelEvent({
-          sessionId: session.id,
+          sessionId: activeLiveSessionId,
           type: 'CHANNEL_CLOSED',
         });
       },
@@ -374,10 +437,10 @@ function LiveSessionWatchContent({
         }
 
         chatChannelClientRef.current = null;
-        clearPendingChatSend(session.id);
-        watchController.handleMembershipLost(session.id);
+        clearPendingChatSend(activeLiveSessionId);
+        handleWatchMembershipLost(activeLiveSessionId);
         sendChatChannelEvent({
-          sessionId: session.id,
+          sessionId: activeLiveSessionId,
           type: 'CHANNEL_CLOSED',
         });
       },
@@ -387,11 +450,11 @@ function LiveSessionWatchContent({
         }
 
         chatChannelClientRef.current = null;
-        clearPendingChatSend(session.id);
-        watchController.handleMembershipLost(session.id);
+        clearPendingChatSend(activeLiveSessionId);
+        handleWatchMembershipLost(activeLiveSessionId);
         sendChatChannelEvent({
           error: reason,
-          sessionId: session.id,
+          sessionId: activeLiveSessionId,
           type: 'CHANNEL_ERRORED',
         });
       },
@@ -400,17 +463,17 @@ function LiveSessionWatchContent({
           return;
         }
 
-        markLiveSessionRealtimeStatus(session.id, event.status);
+        markLiveSessionRealtimeStatus(activeLiveSessionId, event.status);
 
         if (event.status === 'ENDED') {
-          handleEndedLiveSession(session.id, () => {
+          handleEndedLiveSession(activeLiveSessionId, () => {
             chatChannelLifecycle.closeForEndedSession();
           });
           return;
         }
 
         sendChatChannelEvent({
-          sessionId: session.id,
+          sessionId: activeLiveSessionId,
           type: 'CHANNEL_JOINED',
         });
       },
@@ -421,7 +484,7 @@ function LiveSessionWatchContent({
 
         dispatchChatAction({
           event,
-          sessionId: session.id,
+          sessionId: activeLiveSessionId,
           type: 'realtime_event_received',
         });
       },
@@ -432,7 +495,7 @@ function LiveSessionWatchContent({
 
         dispatchChatAction({
           event,
-          sessionId: session.id,
+          sessionId: activeLiveSessionId,
           type: 'realtime_event_received',
         });
       },
@@ -443,18 +506,18 @@ function LiveSessionWatchContent({
 
         dispatchChatAction({
           event,
-          sessionId: session.id,
+          sessionId: activeLiveSessionId,
           type: 'realtime_event_received',
         });
       },
       socket,
-      topic: session.channelTopic,
+      topic: activeLiveSessionChannelTopic,
     });
 
     chatChannelClient = client;
     chatChannelClientRef.current = client;
     sendChatChannelEvent({
-      sessionId: session.id,
+      sessionId: activeLiveSessionId,
       type: 'CHANNEL_JOINING',
     });
     socket.connect();
@@ -468,14 +531,14 @@ function LiveSessionWatchContent({
 
         if (result.status === 'joined') {
           if (shouldCloseLiveSessionChatChannelAfterJoin(result)) {
-            handleEndedLiveSession(session.id, () => {
+            handleEndedLiveSession(activeLiveSessionId, () => {
               chatChannelLifecycle.closeForEndedSession();
             });
             return;
           }
 
           sendChatChannelEvent({
-            sessionId: session.id,
+            sessionId: activeLiveSessionId,
             type: 'CHANNEL_JOINED',
           });
           return;
@@ -483,7 +546,7 @@ function LiveSessionWatchContent({
 
         sendChatChannelEvent({
           error: result.reason,
-          sessionId: session.id,
+          sessionId: activeLiveSessionId,
           type: 'CHANNEL_ERRORED',
         });
       })
@@ -495,62 +558,31 @@ function LiveSessionWatchContent({
         sendChatChannelEvent({
           error:
             error instanceof Error ? error.message : 'Chat connection failed.',
-          sessionId: session.id,
+          sessionId: activeLiveSessionId,
           type: 'CHANNEL_ERRORED',
         });
       });
 
     return () => {
-      cancelPendingChatSend(session.id);
+      cancelPendingChatSend(activeLiveSessionId);
       chatChannelLifecycle.cleanup();
     };
   }, [
+    activeLiveSessionChannelTopic,
+    activeLiveSessionId,
     auth.getAccessToken,
     auth.state.status,
+    cancelPendingChatSend,
+    clearPendingChatSend,
     environment.websocketUrl,
+    failPendingChatSend,
+    handleEndedLiveSession,
+    handleWatchMembershipLost,
     hostPublishingSessions,
+    markLiveSessionRealtimeStatus,
+    sendChatChannelEvent,
     shouldMaintainSessionRealtimeChannel,
-    session?.channelTopic,
-    session?.id,
-    watchController.handleMembershipLost,
-    watchController.handleSessionEnded,
   ]);
-
-  function failPendingChatSend(sessionId: string, error: string) {
-    if (!clearPendingChatSend(sessionId)) {
-      return;
-    }
-
-    sendChatChannelEvent({
-      error,
-      sessionId,
-      type: 'SEND_FAILED',
-    });
-  }
-
-  function clearPendingChatSend(sessionId: string): boolean {
-    if (chatSendPendingRef.current?.sessionId !== sessionId) {
-      return false;
-    }
-
-    chatSendPendingRef.current = null;
-    return true;
-  }
-
-  function cancelPendingChatSend(sessionId: string) {
-    if (!clearPendingChatSend(sessionId)) {
-      return;
-    }
-
-    if (didUnmountRef.current) {
-      return;
-    }
-
-    sendChatChannelEvent({
-      sessionId,
-      type: 'SEND_CANCELLED',
-    });
-  }
 
   const liveSession = session;
 
@@ -649,6 +681,7 @@ function LiveSessionWatchContent({
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
+      contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
     >
       <LiveSessionHero

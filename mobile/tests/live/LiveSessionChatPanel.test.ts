@@ -154,6 +154,27 @@ describe('LiveSessionChatPanel presentation model', () => {
       }).sendButtonDisabled,
     ).toBe(false);
   });
+
+  test('bounds visible chat rows to the newest retained window', () => {
+    const rows = Array.from({ length: 55 }, (_, index) =>
+      chatRow({
+        body: `message-${index}`,
+        id: `event-chat-${index}`,
+      }),
+    );
+    const model = createLiveSessionChatPanelModel({
+      channelStatus: 'joined',
+      draftMessage: '',
+      isJoined: true,
+      rows,
+      sendError: null,
+      sendStatus: 'idle',
+    });
+
+    expect(model.rows).toHaveLength(50);
+    expect(model.rows[0].id).toBe('event-chat-5');
+    expect(model.rows.at(-1)?.id).toBe('event-chat-54');
+  });
 });
 
 function chatRow(

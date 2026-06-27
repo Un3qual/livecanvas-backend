@@ -1,21 +1,6 @@
 import { describe, expect, mock, test } from 'bun:test';
 import type { ReactElement } from 'react';
 
-mock.module('react-native', () => ({
-  Linking: {
-    getInitialURL: async () => null,
-  },
-  Platform: {
-    OS: 'ios',
-  },
-  Pressable: () => null,
-  ScrollView: () => null,
-  StyleSheet: { create: (styles: unknown) => styles },
-  Text: () => null,
-  TextInput: () => null,
-  View: () => null,
-}));
-
 const {
   authRouteHref,
   readAuthReturnToParam,

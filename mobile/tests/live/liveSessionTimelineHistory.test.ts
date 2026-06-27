@@ -180,7 +180,7 @@ describe('readLiveSessionTimelineHistory', () => {
             node: {
               __typename: 'LiveSessionPinnedEvent',
               actor: null,
-              eventType: 'LIVE_SESSION_PINNED',
+              eventType: '%future added value',
               id: 'relay-event-id:future/opaque',
               occurredAt: '2026-06-04T17:08:00.000000Z',
             },
@@ -198,7 +198,7 @@ describe('readLiveSessionTimelineHistory', () => {
         __typename: 'LiveSessionPinnedEvent',
         actor: null,
         cursor: 'cursor-future',
-        eventType: 'LIVE_SESSION_PINNED',
+        eventType: '%future added value',
         id: 'relay-event-id:future/opaque',
         kind: 'unknown',
         label: 'Timeline event',
@@ -266,7 +266,12 @@ describe('readLiveSessionTimelineHistory', () => {
             },
           },
         ],
-        pageInfo: null,
+        pageInfo: {
+          endCursor: 'cursor-malformed-chat',
+          hasNextPage: false,
+          hasPreviousPage: false,
+          startCursor: 'cursor-malformed-chat',
+        },
       }).rows,
     ).toEqual([]);
   });

@@ -112,9 +112,9 @@ export function PendingRequestPreviewList({
     <View style={styles.list}>
       {requests.map((request) => (
         <PendingRequestPreviewRow
+          key={request.id}
           activeAction={activeAction}
           errorMessage={errorsByRequestId[request.id]}
-          key={request.id}
           onAction={onAction}
           onOpenProfile={onOpenProfile}
           request={request}

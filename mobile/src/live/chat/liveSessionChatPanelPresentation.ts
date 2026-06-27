@@ -30,6 +30,8 @@ export type LiveSessionChatPanelModelInput = {
   readonly sendStatus: LiveSessionChatSendStatus;
 };
 
+const MAX_VISIBLE_CHAT_PANEL_ROWS = 50;
+
 export function createLiveSessionChatPanelModel({
   channelStatus,
   draftMessage,
@@ -52,7 +54,9 @@ export function createLiveSessionChatPanelModel({
     composerDisabled,
     emptyStateMessage:
       rows.length === 0 ? 'Chat history will appear here.' : null,
-    rows: rows.map(formatLiveSessionChatPanelRow),
+    rows: rows
+      .slice(-MAX_VISIBLE_CHAT_PANEL_ROWS)
+      .map(formatLiveSessionChatPanelRow),
     sendButtonDisabled: composerDisabled || !hasSendBody,
     sendButtonLabel: sendStatus === 'sending' ? 'Sending...' : 'Send',
     sendError,

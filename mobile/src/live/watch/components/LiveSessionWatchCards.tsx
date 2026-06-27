@@ -7,11 +7,13 @@ import { formatProfileIdentity } from '../../../profile/profilePresentation';
 import { useAppTheme } from '../../../providers/ThemeProvider';
 import {
   badgeColorsForLiveStatusTone,
-  formatLiveSessionStatus,
   formatLiveSessionTiming,
   formatLiveSessionVisibility,
   normalizeLiveSessionVisibility,
-  type LiveSessionStatus,
+} from '../../liveSessionPresentation';
+import type {
+  formatLiveSessionStatus,
+  LiveSessionStatus,
 } from '../../liveSessionPresentation';
 import { liveSessionWatchScreenStyles as styles } from '../liveSessionWatchScreenStyles';
 import type { LiveSessionNode } from '../liveSessionWatchScreenTypes';

@@ -27,8 +27,13 @@ export function HostBroadcastPublishingSessionProvider({
 }: PropsWithChildren) {
   const auth = useAuth();
   const { environment } = useStartupState();
+  const {
+    getAccessToken,
+    registerBeforeUnauthenticated,
+    state: { status: authStatus },
+  } = auth;
   const previousAuthStatusRef = useRef<HostBroadcastPublishingAuthStatus>(
-    auth.state.status,
+    authStatus,
   );
   const storeRef = useRef<HostBroadcastPublishingSessionStore | null>(null);
 
@@ -40,24 +45,24 @@ export function HostBroadcastPublishingSessionProvider({
 
   useEffect(
     () =>
-      auth.registerBeforeUnauthenticated(async () => {
+      registerBeforeUnauthenticated(async () => {
         await releaseHostBroadcastPublishingBeforeAuthLoss({
           apiBaseUrl: environment.apiBaseUrl,
-          getAccessToken: auth.getAccessToken,
+          getAccessToken,
           store,
         });
       }),
-    [auth.getAccessToken, auth.registerBeforeUnauthenticated, environment.apiBaseUrl, store],
+    [environment.apiBaseUrl, getAccessToken, registerBeforeUnauthenticated, store],
   );
 
   useEffect(() => {
     releaseHostBroadcastPublishingAfterAuthStateChange(
       previousAuthStatusRef.current,
-      auth.state.status,
+      authStatus,
       store,
     );
-    previousAuthStatusRef.current = auth.state.status;
-  }, [auth.state.status, store]);
+    previousAuthStatusRef.current = authStatus;
+  }, [authStatus, store]);
 
   useEffect(() => {
     return () => {

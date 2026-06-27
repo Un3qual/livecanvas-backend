@@ -1,6 +1,6 @@
 import React, { Suspense, useReducer, type PropsWithChildren } from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { graphql, useLazyLoadQuery } from 'react-relay';
 
 import { AppButton } from '../../components/AppButton';
@@ -32,9 +32,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   sectionTitle: typography.label,
-  list: {
-    gap: spacing.md,
-  },
   actions: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -168,53 +165,13 @@ function LiveDiscoveryContent() {
   }
 
   return (
-    <ScrollView
+    <FlatList
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentContainerStyle={styles.content}
-    >
-      <AppHeader
-        eyebrow="Home"
-        title="Live now"
-        subtitle="Join active sessions from people you can watch."
-      />
-      <View style={styles.actions}>
-        {showHostCreationAction ? (
-          <AppButton label="Host a live session" onPress={openHostBroadcast} />
-        ) : null}
-        <AppButton
-          label="Open profile"
-          onPress={openViewerProfile}
-          style={styles.profileAction}
-          variant="secondary"
-        />
-      </View>
-
-      {currentSession ? (
-        <View style={styles.section}>
-          <SectionTitle title="Your live session" />
-          <LiveSessionSummaryCard
-            buttonLabel="Open session"
-            onPress={() => openLiveSession(currentSession)}
-            session={currentSession}
-          />
-        </View>
-      ) : null}
-
-      {liveNowSessions.length > 0 ? (
-        <View style={styles.section}>
-          <SectionTitle title="Discover live sessions" />
-          <View style={styles.list}>
-            {liveNowSessions.map((session) => (
-              <LiveSessionSummaryCard
-                buttonLabel="Watch live"
-                key={session.id}
-                onPress={() => openLiveSession(session)}
-                session={session}
-              />
-            ))}
-          </View>
-        </View>
-      ) : (
+      contentInsetAdjustmentBehavior="automatic"
+      data={liveNowSessions}
+      keyExtractor={(session) => session.id}
+      ListEmptyComponent={
         <View style={styles.section}>
           <SectionTitle title="Discover live sessions" />
           <AppCard>
@@ -223,8 +180,54 @@ function LiveDiscoveryContent() {
             </Text>
           </AppCard>
         </View>
+      }
+      ListHeaderComponent={
+        <>
+          <AppHeader
+            eyebrow="Home"
+            title="Live now"
+            subtitle="Join active sessions from people you can watch."
+          />
+          <View style={styles.actions}>
+            {showHostCreationAction ? (
+              <AppButton label="Host a live session" onPress={openHostBroadcast} />
+            ) : null}
+            <AppButton
+              label="Open profile"
+              onPress={openViewerProfile}
+              style={styles.profileAction}
+              variant="secondary"
+            />
+          </View>
+
+          {currentSession ? (
+            <View style={styles.section}>
+              <SectionTitle title="Your live session" />
+              <LiveSessionSummaryCard
+                buttonLabel="Open session"
+                onPress={() => openLiveSession(currentSession)}
+                session={currentSession}
+              />
+            </View>
+          ) : null}
+
+          {liveNowSessions.length > 0 ? (
+            <View style={styles.section}>
+              <SectionTitle title="Discover live sessions" />
+            </View>
+          ) : null}
+        </>
+      }
+      renderItem={({ item }) => (
+        <View style={styles.section}>
+          <LiveSessionSummaryCard
+            buttonLabel="Watch live"
+            onPress={() => openLiveSession(item)}
+            session={item}
+          />
+        </View>
       )}
-    </ScrollView>
+    />
   );
 }
 

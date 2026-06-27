@@ -5,7 +5,7 @@ import { AppCard } from '../../components/AppCard';
 import { AppHeader } from '../../components/AppHeader';
 import { ScreenState } from '../../components/ScreenState';
 import { useAppTheme } from '../../providers/ThemeProvider';
-import {
+import type {
   formatPrivacyModeLabel,
   formatProfileIdentity,
 } from '../profilePresentation';
@@ -169,4 +169,3 @@ export function UnavailableProfileScreen({
     </View>
   );
 }
-

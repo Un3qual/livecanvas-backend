@@ -1,3 +1,5 @@
+import type { LiveSessionWatchScreenQuery } from './watch/liveSessionWatchOperations';
+
 export type LiveSessionTimelineHistoryActor = {
   readonly id: string;
 };
@@ -16,63 +18,35 @@ type LiveSessionTimelineHistoryConnectionPageInfo = {
   readonly startCursor?: string | null | undefined;
 };
 
-export type LiveSessionTimelineEventBaseNode<
-  EventType extends string = string,
-> = {
-  readonly __typename: string;
-  readonly actor?: LiveSessionTimelineHistoryActor | null | undefined;
-  readonly eventType: EventType;
-  readonly id: string;
-  readonly occurredAt: string;
-};
+type LiveSessionWatchNode =
+  LiveSessionWatchScreenQuery['response']['node'];
+type LiveSessionWatchLiveSessionNode = Extract<
+  NonNullable<LiveSessionWatchNode>,
+  { readonly __typename: 'LiveSession' }
+>;
 
-export type LiveSessionTimelineChatMessageEventNode<
-  EventType extends string = string,
-> = LiveSessionTimelineEventBaseNode<EventType> & {
+export type LiveSessionTimelineHistoryConnection =
+  LiveSessionWatchLiveSessionNode['timelineEvents'];
+
+type LiveSessionTimelineHistoryConnectionValue =
+  NonNullable<LiveSessionTimelineHistoryConnection>;
+
+type LiveSessionTimelineHistoryEdge = NonNullable<
+  NonNullable<LiveSessionTimelineHistoryConnectionValue['edges']>[number]
+>;
+
+type LiveSessionTimelineEventNode = NonNullable<
+  LiveSessionTimelineHistoryEdge['node']
+>;
+
+type LiveSessionTimelineChatMessageEventNode =
+  LiveSessionTimelineEventNode & {
     readonly __typename: 'ChatMessageEvent';
     readonly body: string;
     readonly edited: boolean;
     readonly editCount: number;
     readonly editedAt: string | null;
   };
-
-export type LiveSessionTimelineLifecycleEventNode<
-  EventType extends string = string,
-> = LiveSessionTimelineEventBaseNode<EventType> & {
-    readonly __typename:
-      | 'LiveSessionEndedEvent'
-      | 'LiveSessionStartedEvent';
-  };
-
-export type LiveSessionTimelineFutureEventNode<
-  EventType extends string = string,
-> = LiveSessionTimelineEventBaseNode<EventType> & {
-    readonly body?: string | undefined;
-    readonly editCount?: number | undefined;
-    readonly edited?: boolean | undefined;
-    readonly editedAt?: string | null | undefined;
-  };
-
-export type LiveSessionTimelineEventNode<
-  EventType extends string = string,
-> =
-  | LiveSessionTimelineChatMessageEventNode<EventType>
-  | LiveSessionTimelineFutureEventNode<EventType>
-  | LiveSessionTimelineLifecycleEventNode<EventType>;
-
-type LiveSessionTimelineHistoryEdge<EventType extends string = string> = {
-  readonly cursor?: string | null;
-  readonly node?: LiveSessionTimelineEventNode<EventType> | null;
-};
-
-export type LiveSessionTimelineHistoryConnection<
-  EventType extends string = string,
-> = {
-  readonly edges?:
-    | ReadonlyArray<LiveSessionTimelineHistoryEdge<EventType> | null | undefined>
-    | null;
-  readonly pageInfo?: LiveSessionTimelineHistoryConnectionPageInfo | null;
-} | null | undefined;
 
 type LiveSessionTimelineHistoryRowBase = {
   readonly __typename: string;

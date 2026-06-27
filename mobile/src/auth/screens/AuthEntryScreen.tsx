@@ -120,6 +120,7 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
         style={styles.flex}
       >
         <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           style={styles.flex}
@@ -261,7 +262,10 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
                 {copy.footerPrompt}
               </Text>
               <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !controller.canSwitchScreens }}
                 disabled={!controller.canSwitchScreens}
+                hitSlop={8}
                 onPress={() => {
                   controller.handleAlternateScreenPress(() => {
                     router.replace(authRouteHref(copy.alternateHref, returnToHref));
