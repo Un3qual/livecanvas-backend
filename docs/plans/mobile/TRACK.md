@@ -11,14 +11,13 @@ streaming, and chat.
 
 ## Status
 
-- Track state: active; beta execution ready
+- Track state: active; frontend structure cleanup in progress
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Completed detailed plan:
   `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
-- Current theme: testing, beta distribution, and release readiness is complete.
-  Next action is release-candidate device QA from
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`, or a promoted
-  implementation batch if that checklist finds a launch blocker.
+- Current theme: mobile frontend structure cleanup is splitting oversized route
+  and screen files into nested feature folders before the next release-candidate
+  device QA pass.
 - Last completed theme: pre-beta product completeness closed viewer setup, host
   publishing, viewer playback, and the one-host/one-viewer smoke checklist
 - Backend channel-topic dependency: complete. Mobile receives opaque
@@ -34,6 +33,9 @@ streaming, and chat.
   aligned local quality gate commands, Task 2 added internal EAS build profiles
   plus explicit native identifiers, and Task 3 added the release-candidate
   checklist with launch blockers separated from deferred follow-up.
+- Frontend structure cleanup is now tracked in
+  `docs/plans/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`; keep
+  behavior stable and preserve existing public imports while splitting files.
 
 ## Completed Detailed Plans
 
@@ -59,6 +61,7 @@ streaming, and chat.
 7. Pre-beta product completeness: viewer setup contract, host publishing, and
    viewer playback.
 8. Testing, beta distribution, and release readiness.
+9. Mobile frontend structure cleanup before continued release-candidate QA.
 
 ## Shared Constraints
 

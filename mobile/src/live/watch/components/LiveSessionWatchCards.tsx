@@ -1,0 +1,286 @@
+import { Text, View } from 'react-native';
+
+import { AppButton } from '../../../components/AppButton';
+import { AppCard } from '../../../components/AppCard';
+import { AppHeader } from '../../../components/AppHeader';
+import { formatProfileIdentity } from '../../../profile/profilePresentation';
+import { useAppTheme } from '../../../providers/ThemeProvider';
+import {
+  badgeColorsForLiveStatusTone,
+  formatLiveSessionStatus,
+  formatLiveSessionTiming,
+  formatLiveSessionVisibility,
+  normalizeLiveSessionVisibility,
+  type LiveSessionStatus,
+} from '../../liveSessionPresentation';
+import { shouldShowLiveSessionViewerJoinControl } from '../../liveSessionWatchControls';
+import { liveSessionWatchScreenStyles as styles } from '../liveSessionWatchScreenStyles';
+import type { LiveSessionNode } from '../liveSessionWatchScreenTypes';
+
+export function LiveSessionDetailsCard({
+  normalizedStatus,
+  session,
+  status,
+}: {
+  normalizedStatus: LiveSessionStatus;
+  session: LiveSessionNode;
+  status: ReturnType<typeof formatLiveSessionStatus>;
+}) {
+  return (
+    <AppCard>
+      <SectionHeading title="Session details" />
+      <MetadataRow label="Status" value={status.label} />
+      <MetadataRow
+        label="Visibility"
+        value={formatLiveSessionVisibility(
+          normalizeLiveSessionVisibility(session.visibility),
+        )}
+      />
+      <MetadataRow
+        label="Timing"
+        value={formatLiveSessionTiming({
+          endedAt: session.endedAt,
+          insertedAt: session.insertedAt,
+          startedAt: session.startedAt,
+          status: normalizedStatus,
+        })}
+      />
+      {session.recordingMediaAsset ? (
+        <RecordingMetadata asset={session.recordingMediaAsset} />
+      ) : null}
+    </AppCard>
+  );
+}
+
+export function LiveSessionWatchControlsCard({
+  canEndLiveSession,
+  enterable,
+  hasActiveSubmission,
+  isEnding,
+  isHostOwnedSession,
+  isJoined,
+  isJoining,
+  isLeaving,
+  normalizedStatus,
+  onEndPress,
+  onJoinPress,
+  onLeavePress,
+  watchError,
+}: {
+  canEndLiveSession: boolean;
+  enterable: boolean;
+  hasActiveSubmission: boolean;
+  isEnding: boolean;
+  isHostOwnedSession: boolean;
+  isJoined: boolean;
+  isJoining: boolean;
+  isLeaving: boolean;
+  normalizedStatus: LiveSessionStatus;
+  onEndPress: () => void;
+  onJoinPress: () => void;
+  onLeavePress: () => void;
+  watchError: string | null;
+}) {
+  const theme = useAppTheme();
+  const showViewerJoinControl = shouldShowLiveSessionViewerJoinControl({
+    isHostOwnedSession,
+    isJoined,
+  });
+
+  return (
+    <AppCard>
+      <SectionHeading title="Watch controls" />
+      {normalizedStatus === 'ENDED' ? (
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          This live session has ended.
+        </Text>
+      ) : null}
+      {isJoined ? (
+        <Text style={[styles.bodyText, { color: theme.colors.text }]}>
+          You are joined to this live session.
+        </Text>
+      ) : null}
+      {isJoining ? (
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          Joining live session...
+        </Text>
+      ) : null}
+      {isLeaving ? (
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          Leaving live session...
+        </Text>
+      ) : null}
+      {isEnding ? (
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          Ending live session...
+        </Text>
+      ) : null}
+      {watchError ? (
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>
+          {watchError}
+        </Text>
+      ) : null}
+      {isJoined ? (
+        <AppButton
+          disabled={isLeaving || hasActiveSubmission}
+          label="Leave live"
+          onPress={onLeavePress}
+          variant="secondary"
+        />
+      ) : showViewerJoinControl ? (
+        <AppButton
+          disabled={!enterable || isJoining || hasActiveSubmission}
+          label="Join live"
+          onPress={onJoinPress}
+        />
+      ) : null}
+      {canEndLiveSession ? (
+        <AppButton
+          disabled={isEnding || hasActiveSubmission}
+          label={isEnding ? 'Ending live...' : 'End live'}
+          onPress={onEndPress}
+          variant="secondary"
+        />
+      ) : null}
+    </AppCard>
+  );
+}
+
+export function UnavailableLiveSession({ onBack }: { onBack: () => void }) {
+  const theme = useAppTheme();
+
+  return (
+    <View
+      style={[
+        styles.unavailable,
+        { backgroundColor: theme.colors.background },
+      ]}
+    >
+      <AppCard>
+        <AppHeader
+          eyebrow="Live"
+          title="Live session unavailable"
+          subtitle="This live session is not available to your account."
+        />
+        <AppButton label="Go back" onPress={onBack} variant="secondary" />
+      </AppCard>
+    </View>
+  );
+}
+
+export function LiveSessionHero({
+  isJoined,
+  normalizedStatus,
+  session,
+  status,
+}: {
+  isJoined: boolean;
+  normalizedStatus: LiveSessionStatus;
+  session: LiveSessionNode;
+  status: ReturnType<typeof formatLiveSessionStatus>;
+}) {
+  const theme = useAppTheme();
+  const host = formatProfileIdentity(session.host);
+  const badgeColors = badgeColorsForLiveStatusTone(status.tone, theme);
+
+  return (
+    <AppCard>
+      <View style={styles.heroHeader}>
+        <View style={[styles.badge, { backgroundColor: badgeColors.surface }]}>
+          <Text style={[styles.badgeText, { color: badgeColors.text }]}>
+            {status.label}
+          </Text>
+        </View>
+        {isJoined ? (
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: theme.colors.surfaceMuted },
+            ]}
+          >
+            <Text style={[styles.badgeText, { color: theme.colors.accent }]}>
+              Joined
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <AppHeader
+        eyebrow="Live session"
+        title={host.title}
+        subtitle={formatLiveSessionTiming({
+          endedAt: session.endedAt,
+          insertedAt: session.insertedAt,
+          startedAt: session.startedAt,
+          status: normalizedStatus,
+        })}
+      />
+      <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+        Host
+      </Text>
+    </AppCard>
+  );
+}
+
+export function SectionHeading({ title }: { title: string }) {
+  const theme = useAppTheme();
+
+  return (
+    <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+      {title}
+    </Text>
+  );
+}
+
+function MetadataRow({ label, value }: { label: string; value: string }) {
+  const theme = useAppTheme();
+
+  return (
+    <View style={[styles.metadataRow, { borderColor: theme.colors.border }]}>
+      <Text style={[styles.metadataLabel, { color: theme.colors.textMuted }]}>
+        {label}
+      </Text>
+      <Text style={[styles.metadataValue, { color: theme.colors.text }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function RecordingMetadata({
+  asset,
+}: {
+  asset: LiveSessionNode['recordingMediaAsset'];
+}) {
+  if (!asset) {
+    return null;
+  }
+
+  return (
+    <View style={styles.recordingMetadata}>
+      <SectionHeading title="Recording" />
+      <MetadataRow
+        label="Processing"
+        value={formatRecordingProcessingState(asset.processingState)}
+      />
+      {asset.publicUrl ? (
+        <MetadataRow label="Public URL" value={asset.publicUrl} />
+      ) : null}
+    </View>
+  );
+}
+
+function formatRecordingProcessingState(processingState: string): string {
+  switch (processingState) {
+    case 'PENDING_UPLOAD':
+      return 'Pending upload';
+    case 'UPLOADED':
+      return 'Uploaded';
+    case 'PROCESSED':
+      return 'Processed';
+    case 'FAILED':
+      return 'Failed';
+    default:
+      return 'Unavailable';
+  }
+}
+

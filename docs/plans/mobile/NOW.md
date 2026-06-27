@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-25
-Status: beta readiness plan complete; ready for release-candidate execution
+Last reviewed: 2026-06-27
+Status: mobile frontend structure cleanup in progress
 
 ## Lane Scope
 
@@ -11,37 +11,27 @@ Status: beta readiness plan complete; ready for release-candidate execution
 
 ## Current Batch
 
-- Completed source plan:
-  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
+- Source plan:
+  `docs/plans/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Completed task: Task 3 - release candidate checklist (complete on
-  2026-06-25)
+- Current task: split oversized frontend files into nested feature folders and
+  extract presentation modules without behavior changes.
 - Write scope:
+  - `mobile/**`
   - `docs/plans/mobile/**`
-- Done condition: mobile has a focused release-candidate checklist that
-  separates launch blockers from deferred follow-up and covers manual
-  device/simulator checks for auth, profiles, live discovery/watch, host
-  preflight, media signaling, realtime chat, retained chat replay, app
-  background/foreground recovery, and ended-session cleanup. Met on
-  2026-06-25.
+- Done condition: mobile app route files and largest source screens are split
+  into nested feature modules for auth, profiles, live watch, and host
+  preflight, while existing behavior and public imports remain intact.
 - Verification:
+  - From `mobile/`: `bun run test:quality`
+  - From `mobile/`: `bun test tests/auth tests/profile tests/config`
+  - From `mobile/`: `bun run typecheck`
   - From repo root: `git diff --check`
-
-## Task 3 Evidence
-
-- Release-candidate checklist:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
-- `git diff --check` exited 0 on 2026-06-25.
-- No mobile app code, package, or config files changed.
-- No remote or authenticated EAS build/submit commands were run.
 
 ## Do This Now
 
-The testing, beta distribution, and release readiness plan is complete.
-Execute release-candidate device QA from
-`docs/plans/mobile/2026-06-25-release-candidate-checklist.md` when a beta
-operator is ready. Promote a new implementation batch only if that checklist
-finds a launch blocker.
+Execute Task 1 through Task 5 from
+`docs/plans/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`.
 
 ## Guardrails
 
@@ -60,6 +50,5 @@ finds a launch blocker.
 
 ## Next Action
 
-Run local quality gates, then use the `preview` EAS profile for internal
-release-candidate device QA. Use the `development` profile only for custom
-development-client native-media debugging.
+Extract the shared auth entry screen, then move profile, live-watch, and host
+preflight presentation into nested feature folders.
