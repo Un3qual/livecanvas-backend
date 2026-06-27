@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Bring XState into the mobile app for complex live broadcast workflows so large screens stop hand-rolling async state machines with scattered booleans, refs, reducer actions, and lifecycle guards.
+**Goal:** Introduce XState for the mobile app's complex live broadcast workflows so large screens stop hand-rolling protocol state with scattered booleans, refs, reducer actions, and lifecycle guards.
 
-**Architecture:** Keep Relay as the server-state layer and keep small component-local state in React. Use XState v5 only for feature-local workflows that have protocol-like state transitions: viewer watch membership, viewer playback, chat channel/send lifecycle, and host preflight/go-live orchestration. Keep all Relay mutations, Phoenix channels, WebRTC runtime creation, auth token access, and navigation as injected services or hook-owned adapters so machines own state transitions without becoming IO modules.
+**Architecture:** Keep Relay as the server-state layer and keep small component-local state in React. Use XState v5 only for feature-local workflows with explicit transitions: viewer membership, viewer playback, chat channel/send status, and host preflight/go-live. Keep Relay mutations, Phoenix channels, WebRTC runtime creation, auth token access, and navigation as injected adapters or hook-owned side effects.
 
 **Tech Stack:** Expo Router, React Native, TypeScript strict mode, Relay, Phoenix Channels, react-native-webrtc, XState v5, `@xstate/react`, Bun tests, pnpm.
 
@@ -12,983 +12,155 @@
 
 ## Activation Note
 
-The current mobile lane remains pointed at release-candidate QA in `docs/plans/mobile/NOW.md`. Do not activate this plan as the lane current batch until that QA pass is completed, explicitly superseded, or a live workflow refactor is promoted as the next mobile batch.
+The current mobile lane still points at release-candidate QA in `docs/plans/mobile/NOW.md`. Do not move that pointer just to land this plan. Activate this work only after the QA batch is complete, explicitly paused, or this XState cleanup is selected as the next mobile batch.
 
-## State Library Decision
+## Plan Style
 
-Use XState for the large live/host workflow screens. Do not introduce Redux Toolkit or a general Zustand store in this batch.
+This is an implementation guide, not a transcript of code to paste. It names the files, boundaries, expected behavior, and verification gates. Executors should use the existing code shape and tests to choose the exact TypeScript, keeping changes small and reviewable.
 
-- Relay remains the only GraphQL/server cache.
-- XState machines live under the feature that owns the workflow.
-- Machines store serializable workflow state only: current state value, active session id, viewer-safe error text, pending command kind, playback status, channel/send status, and cleanup policy.
-- Non-serializable resources stay outside machine context: Relay commit functions, Phoenix socket/channel clients, WebRTC peer connections, media streams, and navigation/router objects.
-- Use `setup(...)` for typed machines and `@xstate/react` hooks at React integration points.
-- Use actor snapshots for same-tick command guards. Event handlers that must close double-tap gaps read `actorRef.getSnapshot()` before sending a command event.
-- Do not use XState persistence, global actor context, or Stately Studio in this batch.
+## Decision Record
+
+- Use **XState** for workflow state where illegal transitions are the main source of complexity.
+- Do **not** introduce Redux Toolkit in this batch. Relay already owns server data, and RTK would mostly centralize the same workflow guards rather than simplify them.
+- Do **not** introduce a broad Zustand store in this batch. Zustand may be useful later for shared client resource registries, but it does not provide first-class statechart semantics for join/leave/playback/go-live protocols.
+- Keep machines feature-local under `live/watch`, `live/chat`, and `host/preflight`.
+- Keep external resources out of machine context: no Phoenix socket objects, channel clients, WebRTC peer connections, media streams, Relay commit functions, router objects, or auth callbacks in XState context.
+- Keep timeline row merging in reducers/helpers. Timeline data is collection reconciliation, not workflow state.
 
 ## Target Folder Shape
 
 - `mobile/src/live/watch/state/liveSessionWatchMachine.ts`
-  Viewer membership/end workflow state and selectors.
+  Viewer membership, host-end, and auto-leave workflow state.
 - `mobile/src/live/watch/state/liveSessionViewerPlaybackMachine.ts`
-  Viewer playback status state and selectors.
+  Viewer playback status and display selectors.
 - `mobile/src/live/watch/hooks/useLiveSessionWatchController.ts`
-  Relay mutation orchestration for join/leave/end around the watch machine.
+  React/Relay orchestration for join, leave, end, unmount cleanup, and same-tick command guards.
 - `mobile/src/live/watch/hooks/useLiveSessionViewerPlaybackController.ts`
-  Existing playback side-effect controller updated to publish state through the playback machine.
+  Existing playback lifecycle hook updated to report status through a playback machine.
 - `mobile/src/live/chat/state/liveSessionChatChannelMachine.ts`
-  Chat channel connection and send status state only; timeline rows stay in the existing chat reducer modules.
+  Chat channel connection and send status. Retained history and event rows stay in the existing chat modules.
 - `mobile/src/host/preflight/state/hostBroadcastPreflightMachine.ts`
-  Host create/prepare/go-live/end workflow state and selectors.
-- `mobile/src/host/preflight/hooks/useHostBroadcastPreflightController.ts`
-  Existing host preflight controller updated to send machine events instead of holding several independent local booleans.
-- `mobile/tests/live/liveSessionWatchMachine.test.ts`
-- `mobile/tests/live/liveSessionViewerPlaybackMachine.test.ts`
-- `mobile/tests/live/liveSessionChatChannelMachine.test.ts`
-- `mobile/tests/host/hostBroadcastPreflightMachine.test.ts`
-- Existing controller tests stay under `mobile/tests/live/**` and `mobile/tests/host/**`.
+  Host create/prepare/publish/go-live/end workflow state.
+- `mobile/tests/live/*Machine.test.ts`
+  Machine-level transition tests.
+- `mobile/tests/live/*Controller.test.ts`
+  Hook/controller tests that verify Relay/socket/WebRTC side effects still happen at the right boundaries.
+- `mobile/tests/host/*Machine.test.ts`
+  Host preflight transition tests.
 
-## Implementation Rules
+## Cross-Cutting Rules
 
-- Prefer one machine per workflow, not one global live app machine.
-- Prefer selectors named after UI needs: `selectIsJoined`, `selectVisibleSubmission`, `selectCanRequestJoin`, `selectShouldAutoLeaveOnUnmount`.
-- Preserve existing user-visible copy from `formatLiveMutationErrors` and current screen cards.
-- Do not move timeline event collections into XState. They are append/merge data structures, not workflow states.
-- Do not put WebRTC peer connections, sockets, channels, or media streams in machine context.
-- Keep old reducer files only until consumers are migrated. Delete unused reducers in the cleanup task rather than leaving facade exports.
-- New tests belong under `mobile/tests/**`.
+- New tests stay under `mobile/tests/**`.
+- Use `setup(...)` and typed events in XState v5.
+- Use selectors for UI-facing state instead of reading machine internals directly from screens.
+- Preserve existing public UI strings and error formatting via `formatLiveMutationErrors`.
+- Preserve existing Relay operation files and generated artifacts.
+- Preserve existing behavior first; smaller files and clearer transitions are the deliverable.
+- Commit at each completed task boundary.
 
-## Task 1: Add XState Dependencies And Conventions
+## Task 1: Add XState And Establish The Local Convention
 
 **Files:**
 - Modify: `mobile/package.json`
 - Modify: `mobile/pnpm-lock.yaml`
-- Test: `mobile/tests/live/liveSessionWatchMachine.test.ts`
 
-- [ ] **Step 1: Add the runtime packages**
+**Implementation Notes:**
+- Add `xstate` and `@xstate/react` as mobile runtime dependencies with `pnpm`.
+- Do not add XState globally to app providers in this task.
+- Do not create any global store or top-level actor registry.
 
-Run:
+**Verification:**
+- From `mobile/`: `bun run typecheck`
+- From repo root: `git diff --check`
 
-```bash
-cd mobile
-pnpm add xstate @xstate/react
-```
+**Done When:**
+- The dependency install is committed by itself.
+- Existing mobile typecheck still passes before any workflow migration starts.
 
-Expected: `mobile/package.json` has `xstate` and `@xstate/react` under `dependencies`, and `mobile/pnpm-lock.yaml` is updated.
-
-- [ ] **Step 2: Verify the dependency install did not disturb the current suite**
-
-Run:
-
-```bash
-cd mobile
-bun run typecheck
-```
-
-Expected: PASS.
-
-- [ ] **Step 3: Commit**
-
-Run:
-
-```bash
-git add mobile/package.json mobile/pnpm-lock.yaml
-git commit -m "Add XState mobile dependencies"
-```
-
-## Task 2: Model Viewer Watch Membership With XState
+## Task 2: Pilot Viewer Watch Membership As A Feature-Local Machine
 
 **Files:**
 - Create: `mobile/src/live/watch/state/liveSessionWatchMachine.ts`
 - Create: `mobile/tests/live/liveSessionWatchMachine.test.ts`
-- Modify: `mobile/tests/live/liveSessionWatchReducer.test.ts`
+- Keep initially: `mobile/src/live/liveSessionWatchReducer.ts`
+- Keep initially: `mobile/tests/live/liveSessionWatchReducer.test.ts`
 
-- [ ] **Step 1: Write failing machine tests for the existing watch reducer behavior**
+**Current Behavior To Preserve:**
+- Session route changes reset membership state for the new session.
+- Join request enters a pending joining state and disables duplicate join attempts.
+- Stale join, leave, end, and membership-loss completions from old sessions are ignored.
+- Join success marks the viewer joined and enables auto-leave-on-unmount.
+- Leave success clears joined state and disables auto-leave.
+- Leave failure keeps joined state so cleanup can be retried.
+- Channel membership loss clears joined state and disables auto-leave.
+- Host end success clears joined state and disables auto-leave.
 
-Create `mobile/tests/live/liveSessionWatchMachine.test.ts`:
+**Implementation Notes:**
+- Model membership as explicit states rather than an `isJoined` plus `submission` flag pair.
+- Include active session id and viewer-safe error text in context.
+- Represent the pending command kind in context so event handlers can close same-render double-tap gaps with the actor snapshot.
+- Export selectors for UI needs: joined state, visible submission, visible error, join eligibility, and auto-leave requirement.
+- Keep the old reducer during this task so the machine tests can be compared against current reducer expectations.
 
-```ts
-import { describe, expect, test } from 'bun:test';
-import { createActor } from 'xstate';
+**Tests To Add:**
+- Join request and success.
+- Stale join completion after route session change.
+- Leave failure keeping joined state.
+- Membership loss clearing joined state.
+- Ended-session cleanup disabling auto-leave.
+- Same-tick command guard after a join request.
 
-import {
-  liveSessionWatchMachine,
-  selectCanRequestJoin,
-  selectIsJoined,
-  selectShouldAutoLeaveOnUnmount,
-  selectVisibleError,
-  selectVisibleSubmission,
-} from '../../src/live/watch/state/liveSessionWatchMachine';
+**Verification:**
+- From `mobile/`: `bun test tests/live/liveSessionWatchMachine.test.ts tests/live/liveSessionWatchReducer.test.ts`
+- From `mobile/`: `bun run typecheck`
 
-function createStartedActor() {
-  const actor = createActor(liveSessionWatchMachine);
-  actor.start();
-  return actor;
-}
+**Done When:**
+- The new machine passes transition tests.
+- The old reducer tests still pass.
+- No screen behavior has been changed yet.
 
-describe('liveSessionWatchMachine', () => {
-  test('tracks join request and success for the active session', () => {
-    const actor = createStartedActor();
-
-    actor.send({ type: 'session.changed', sessionId: 'session-1' });
-    actor.send({ type: 'join.requested', sessionId: 'session-1' });
-
-    expect(selectVisibleSubmission(actor.getSnapshot())).toBe('joining');
-    expect(selectCanRequestJoin(actor.getSnapshot())).toBe(false);
-
-    actor.send({ type: 'join.succeeded', sessionId: 'session-1' });
-
-    expect(selectIsJoined(actor.getSnapshot())).toBe(true);
-    expect(selectVisibleSubmission(actor.getSnapshot())).toBe('idle');
-    expect(selectShouldAutoLeaveOnUnmount(actor.getSnapshot())).toBe(true);
-  });
-
-  test('ignores stale join completion from an older session', () => {
-    const actor = createStartedActor();
-
-    actor.send({ type: 'session.changed', sessionId: 'session-1' });
-    actor.send({ type: 'join.requested', sessionId: 'session-1' });
-    actor.send({ type: 'session.changed', sessionId: 'session-2' });
-    actor.send({ type: 'join.succeeded', sessionId: 'session-1' });
-
-    expect(selectIsJoined(actor.getSnapshot())).toBe(false);
-    expect(selectVisibleSubmission(actor.getSnapshot())).toBe('idle');
-  });
-
-  test('leave failure keeps joined state so cleanup can be retried', () => {
-    const actor = createStartedActor();
-
-    actor.send({ type: 'session.changed', sessionId: 'session-1' });
-    actor.send({ type: 'join.requested', sessionId: 'session-1' });
-    actor.send({ type: 'join.succeeded', sessionId: 'session-1' });
-    actor.send({ type: 'leave.requested', sessionId: 'session-1' });
-    actor.send({
-      error: 'We could not update this live session.',
-      sessionId: 'session-1',
-      type: 'leave.failed',
-    });
-
-    expect(selectIsJoined(actor.getSnapshot())).toBe(true);
-    expect(selectVisibleError(actor.getSnapshot())).toBe(
-      'We could not update this live session.',
-    );
-    expect(selectShouldAutoLeaveOnUnmount(actor.getSnapshot())).toBe(true);
-  });
-
-  test('ended session clears join state and disables auto-leave cleanup', () => {
-    const actor = createStartedActor();
-
-    actor.send({ type: 'session.changed', sessionId: 'session-1' });
-    actor.send({ type: 'join.requested', sessionId: 'session-1' });
-    actor.send({ type: 'join.succeeded', sessionId: 'session-1' });
-    actor.send({ type: 'session.ended', sessionId: 'session-1' });
-
-    expect(selectIsJoined(actor.getSnapshot())).toBe(false);
-    expect(selectShouldAutoLeaveOnUnmount(actor.getSnapshot())).toBe(false);
-  });
-});
-```
-
-Run:
-
-```bash
-cd mobile
-bun test tests/live/liveSessionWatchMachine.test.ts
-```
-
-Expected: FAIL because `mobile/src/live/watch/state/liveSessionWatchMachine.ts` does not exist.
-
-- [ ] **Step 2: Implement the watch membership machine**
-
-Create `mobile/src/live/watch/state/liveSessionWatchMachine.ts`:
-
-```ts
-import { assign, setup, type SnapshotFrom } from 'xstate';
-
-export type LiveSessionWatchSubmission =
-  | 'idle'
-  | 'joining'
-  | 'leaving'
-  | 'ending';
-
-export type LiveSessionWatchCommandKind = 'join' | 'leave' | 'end';
-
-export type LiveSessionWatchContext = {
-  readonly activeSessionId: string | null;
-  readonly autoLeaveOnUnmount: boolean;
-  readonly error: string | null;
-  readonly pendingCommand: LiveSessionWatchCommandKind | null;
-};
-
-export type LiveSessionWatchEvent =
-  | { readonly type: 'session.changed'; readonly sessionId: string }
-  | { readonly type: 'join.requested'; readonly sessionId: string }
-  | { readonly type: 'join.succeeded'; readonly sessionId: string }
-  | {
-      readonly error: string;
-      readonly sessionId: string;
-      readonly type: 'join.failed';
-    }
-  | { readonly type: 'leave.requested'; readonly sessionId: string }
-  | { readonly type: 'leave.succeeded'; readonly sessionId: string }
-  | {
-      readonly error: string;
-      readonly sessionId: string;
-      readonly type: 'leave.failed';
-    }
-  | { readonly type: 'membership.lost'; readonly sessionId: string }
-  | { readonly type: 'end.requested'; readonly sessionId: string }
-  | { readonly type: 'end.succeeded'; readonly sessionId: string }
-  | {
-      readonly error: string;
-      readonly sessionId: string;
-      readonly type: 'end.failed';
-    }
-  | { readonly type: 'session.ended'; readonly sessionId: string };
-
-const initialContext: LiveSessionWatchContext = {
-  activeSessionId: null,
-  autoLeaveOnUnmount: false,
-  error: null,
-  pendingCommand: null,
-};
-
-function eventSessionId(event: LiveSessionWatchEvent): string {
-  return event.sessionId;
-}
-
-export const liveSessionWatchMachine = setup({
-  types: {
-    context: {} as LiveSessionWatchContext,
-    events: {} as LiveSessionWatchEvent,
-  },
-  actions: {
-    changeSession: assign({
-      activeSessionId: ({ event }) => eventSessionId(event),
-      autoLeaveOnUnmount: () => false,
-      error: () => null,
-      pendingCommand: () => null,
-    }),
-    markJoinRequested: assign({
-      activeSessionId: ({ event }) => eventSessionId(event),
-      autoLeaveOnUnmount: () => false,
-      error: () => null,
-      pendingCommand: () => 'join' as const,
-    }),
-    markJoinSucceeded: assign({
-      autoLeaveOnUnmount: () => true,
-      error: () => null,
-      pendingCommand: () => null,
-    }),
-    markJoinFailed: assign({
-      autoLeaveOnUnmount: () => false,
-      error: ({ event }) =>
-        event.type === 'join.failed' ? event.error : null,
-      pendingCommand: () => null,
-    }),
-    markLeaveRequested: assign({
-      autoLeaveOnUnmount: () => false,
-      error: () => null,
-      pendingCommand: () => 'leave' as const,
-    }),
-    markLeaveSucceeded: assign({
-      autoLeaveOnUnmount: () => false,
-      error: () => null,
-      pendingCommand: () => null,
-    }),
-    markLeaveFailed: assign({
-      autoLeaveOnUnmount: () => true,
-      error: ({ event }) =>
-        event.type === 'leave.failed' ? event.error : null,
-      pendingCommand: () => null,
-    }),
-    markEndRequested: assign({
-      autoLeaveOnUnmount: () => false,
-      error: () => null,
-      pendingCommand: () => 'end' as const,
-    }),
-    markEndSucceeded: assign({
-      autoLeaveOnUnmount: () => false,
-      error: () => null,
-      pendingCommand: () => null,
-    }),
-    markEndFailed: assign({
-      error: ({ event }) => (event.type === 'end.failed' ? event.error : null),
-      pendingCommand: () => null,
-    }),
-    markMembershipLost: assign({
-      autoLeaveOnUnmount: () => false,
-      error: () => null,
-      pendingCommand: () => null,
-    }),
-    markSessionEnded: assign({
-      autoLeaveOnUnmount: () => false,
-      error: () => null,
-      pendingCommand: () => null,
-    }),
-  },
-  guards: {
-    isCurrentSession: ({ context, event }) =>
-      context.activeSessionId === eventSessionId(event),
-  },
-}).createMachine({
-  id: 'liveSessionWatch',
-  context: initialContext,
-  initial: 'notJoined',
-  on: {
-    'session.changed': {
-      actions: 'changeSession',
-      target: '.notJoined',
-    },
-  },
-  states: {
-    notJoined: {
-      on: {
-        'end.requested': {
-          actions: 'markEndRequested',
-          target: 'ending',
-        },
-        'join.requested': {
-          actions: 'markJoinRequested',
-          target: 'joining',
-        },
-        'session.ended': {
-          guard: 'isCurrentSession',
-          actions: 'markSessionEnded',
-        },
-      },
-    },
-    joining: {
-      on: {
-        'join.failed': {
-          guard: 'isCurrentSession',
-          actions: 'markJoinFailed',
-          target: 'notJoined',
-        },
-        'join.succeeded': {
-          guard: 'isCurrentSession',
-          actions: 'markJoinSucceeded',
-          target: 'joined',
-        },
-        'session.ended': {
-          guard: 'isCurrentSession',
-          actions: 'markSessionEnded',
-          target: 'notJoined',
-        },
-      },
-    },
-    joined: {
-      on: {
-        'end.requested': {
-          guard: 'isCurrentSession',
-          actions: 'markEndRequested',
-          target: 'ending',
-        },
-        'leave.requested': {
-          guard: 'isCurrentSession',
-          actions: 'markLeaveRequested',
-          target: 'leaving',
-        },
-        'membership.lost': {
-          guard: 'isCurrentSession',
-          actions: 'markMembershipLost',
-          target: 'notJoined',
-        },
-        'session.ended': {
-          guard: 'isCurrentSession',
-          actions: 'markSessionEnded',
-          target: 'notJoined',
-        },
-      },
-    },
-    leaving: {
-      on: {
-        'leave.failed': {
-          guard: 'isCurrentSession',
-          actions: 'markLeaveFailed',
-          target: 'joined',
-        },
-        'leave.succeeded': {
-          guard: 'isCurrentSession',
-          actions: 'markLeaveSucceeded',
-          target: 'notJoined',
-        },
-        'membership.lost': {
-          guard: 'isCurrentSession',
-          actions: 'markMembershipLost',
-          target: 'notJoined',
-        },
-        'session.ended': {
-          guard: 'isCurrentSession',
-          actions: 'markSessionEnded',
-          target: 'notJoined',
-        },
-      },
-    },
-    ending: {
-      on: {
-        'end.failed': {
-          guard: 'isCurrentSession',
-          actions: 'markEndFailed',
-          target: 'notJoined',
-        },
-        'end.succeeded': {
-          guard: 'isCurrentSession',
-          actions: 'markEndSucceeded',
-          target: 'notJoined',
-        },
-        'session.ended': {
-          guard: 'isCurrentSession',
-          actions: 'markSessionEnded',
-          target: 'notJoined',
-        },
-      },
-    },
-  },
-});
-
-export type LiveSessionWatchSnapshot = SnapshotFrom<
-  typeof liveSessionWatchMachine
->;
-
-export function selectIsJoined(snapshot: LiveSessionWatchSnapshot): boolean {
-  return snapshot.matches('joined') || snapshot.matches('leaving');
-}
-
-export function selectVisibleSubmission(
-  snapshot: LiveSessionWatchSnapshot,
-): LiveSessionWatchSubmission {
-  if (snapshot.matches('joining')) {
-    return 'joining';
-  }
-
-  if (snapshot.matches('leaving')) {
-    return 'leaving';
-  }
-
-  if (snapshot.matches('ending')) {
-    return 'ending';
-  }
-
-  return 'idle';
-}
-
-export function selectVisibleError(
-  snapshot: LiveSessionWatchSnapshot,
-): string | null {
-  return snapshot.context.error;
-}
-
-export function selectCanRequestJoin(
-  snapshot: LiveSessionWatchSnapshot,
-): boolean {
-  return snapshot.matches('notJoined') && snapshot.context.pendingCommand === null;
-}
-
-export function selectShouldAutoLeaveOnUnmount(
-  snapshot: LiveSessionWatchSnapshot,
-): boolean {
-  return selectIsJoined(snapshot) && snapshot.context.autoLeaveOnUnmount;
-}
-```
-
-- [ ] **Step 3: Run the new machine tests**
-
-Run:
-
-```bash
-cd mobile
-bun test tests/live/liveSessionWatchMachine.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 4: Keep reducer coverage until the screen migration lands**
-
-Run:
-
-```bash
-cd mobile
-bun test tests/live/liveSessionWatchReducer.test.ts tests/live/liveSessionWatchMachine.test.ts
-```
-
-Expected: PASS. Keep both suites for this task so reducer and machine semantics can be compared during migration.
-
-- [ ] **Step 5: Commit**
-
-Run:
-
-```bash
-git add mobile/src/live/watch/state/liveSessionWatchMachine.ts mobile/tests/live/liveSessionWatchMachine.test.ts
-git commit -m "Add live session watch state machine"
-```
-
-## Task 3: Move Join Leave End Orchestration Into A Watch Controller Hook
+## Task 3: Move Watch-Screen Join Leave End Orchestration Into A Controller Hook
 
 **Files:**
 - Create: `mobile/src/live/watch/hooks/useLiveSessionWatchController.ts`
 - Modify: `mobile/src/live/watch/LiveSessionWatchScreen.tsx`
 - Modify: `mobile/src/live/watch/liveSessionWatchScreenTypes.ts`
-- Modify: `mobile/tests/live/liveSessionWatchMachine.test.ts`
-- Modify: `mobile/tests/live/liveSessionWatchReducer.test.ts`
-- Test: `mobile/tests/live/LiveDiscoveryScreen.test.ts`
-
-- [ ] **Step 1: Expand watch machine tests for same-tick command guards**
-
-Add this test to `mobile/tests/live/liveSessionWatchMachine.test.ts`:
-
-```ts
-test('exposes pending command state for same-tick submit guards', () => {
-  const actor = createStartedActor();
-
-  actor.send({ type: 'session.changed', sessionId: 'session-1' });
-
-  expect(selectCanRequestJoin(actor.getSnapshot())).toBe(true);
-
-  actor.send({ type: 'join.requested', sessionId: 'session-1' });
-
-  expect(selectCanRequestJoin(actor.getSnapshot())).toBe(false);
-  expect(actor.getSnapshot().context.pendingCommand).toBe('join');
-});
-```
-
-Run:
-
-```bash
-cd mobile
-bun test tests/live/liveSessionWatchMachine.test.ts
-```
-
-Expected: PASS after Task 2 implementation.
-
-- [ ] **Step 2: Create the controller hook**
-
-Create `mobile/src/live/watch/hooks/useLiveSessionWatchController.ts`:
-
-```ts
-import { useEffect, useRef } from 'react';
-import { useMachine } from '@xstate/react';
-
-import {
-  clearLiveSessionWatchPendingMutation,
-  isLiveSessionWatchAnyMutationPending,
-  type LiveSessionWatchPendingMutation,
-} from '../../liveSessionWatchReducer';
-import { formatLiveMutationErrors } from '../../liveSessionPresentation';
-import {
-  liveSessionWatchMachine,
-  selectCanRequestJoin,
-  selectIsJoined,
-  selectShouldAutoLeaveOnUnmount,
-  selectVisibleError,
-  selectVisibleSubmission,
-} from '../state/liveSessionWatchMachine';
-import type {
-  LiveSessionWatchScreenEndMutation,
-  LiveSessionWatchScreenJoinMutation,
-  LiveSessionWatchScreenLeaveMutation,
-} from '../liveSessionWatchOperations';
-import type { UseMutationConfig } from 'react-relay';
-
-export type LiveSessionWatchMutationCommit<TMutation> = (
-  config: UseMutationConfig<TMutation>,
-) => unknown;
-
-export type LiveSessionWatchControllerOptions = {
-  readonly canEndLiveSession: boolean;
-  readonly canEnterLiveSession: boolean;
-  readonly commitEndLiveSession: LiveSessionWatchMutationCommit<LiveSessionWatchScreenEndMutation>;
-  readonly commitJoinLiveSession: LiveSessionWatchMutationCommit<LiveSessionWatchScreenJoinMutation>;
-  readonly commitLeaveLiveSession: LiveSessionWatchMutationCommit<LiveSessionWatchScreenLeaveMutation>;
-  readonly isCurrentViewerHost: boolean;
-  readonly liveSessionId: string;
-  readonly onEndSucceeded: () => void;
-  readonly onLeaveStarted: () => void;
-};
-
-export type LiveSessionWatchController = {
-  readonly autoLeaveSessionId: string | null;
-  readonly hasActiveSubmission: boolean;
-  readonly handleEndPress: () => void;
-  readonly handleJoinPress: () => void;
-  readonly handleLeavePress: () => void;
-  readonly isEnding: boolean;
-  readonly isJoined: boolean;
-  readonly isJoining: boolean;
-  readonly isLeaving: boolean;
-  readonly shouldAutoLeaveOnUnmount: boolean;
-  readonly watchError: string | null;
-};
-
-export function useLiveSessionWatchController({
-  canEndLiveSession,
-  canEnterLiveSession,
-  commitEndLiveSession,
-  commitJoinLiveSession,
-  commitLeaveLiveSession,
-  isCurrentViewerHost,
-  liveSessionId,
-  onEndSucceeded,
-  onLeaveStarted,
-}: LiveSessionWatchControllerOptions): LiveSessionWatchController {
-  const [snapshot, send, actorRef] = useMachine(liveSessionWatchMachine);
-  const pendingMutationRef = useRef<LiveSessionWatchPendingMutation | null>(
-    null,
-  );
-  const didUnmountRef = useRef(false);
-  const leaveMutationRef = useRef(commitLeaveLiveSession);
-
-  leaveMutationRef.current = commitLeaveLiveSession;
-
-  useEffect(() => {
-    didUnmountRef.current = false;
-    send({ type: 'session.changed', sessionId: liveSessionId });
-
-    return () => {
-      didUnmountRef.current = true;
-      if (!selectShouldAutoLeaveOnUnmount(actorRef.getSnapshot())) {
-        return;
-      }
-
-      commitDetachedLeaveLiveSession(liveSessionId);
-    };
-  }, [actorRef, liveSessionId, send]);
-
-  function commitDetachedLeaveLiveSession(sessionId: string) {
-    if (
-      isLiveSessionWatchAnyMutationPending(pendingMutationRef.current, sessionId)
-    ) {
-      return;
-    }
-
-    pendingMutationRef.current = { kind: 'leave', sessionId };
-    leaveMutationRef.current({
-      variables: { input: { liveSessionId: sessionId } },
-      onCompleted: () => {
-        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
-          pendingMutationRef.current,
-          sessionId,
-          'leave',
-        );
-      },
-      onError: () => {
-        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
-          pendingMutationRef.current,
-          sessionId,
-          'leave',
-        );
-      },
-    });
-  }
-
-  function handleJoinPress() {
-    const currentSnapshot = actorRef.getSnapshot();
-    const hasPendingMutation = isLiveSessionWatchAnyMutationPending(
-      pendingMutationRef.current,
-      liveSessionId,
-    );
-
-    if (
-      isCurrentViewerHost ||
-      !canEnterLiveSession ||
-      !selectCanRequestJoin(currentSnapshot) ||
-      hasPendingMutation
-    ) {
-      return;
-    }
-
-    pendingMutationRef.current = { kind: 'join', sessionId: liveSessionId };
-    send({ type: 'join.requested', sessionId: liveSessionId });
-
-    commitJoinLiveSession({
-      variables: { input: { liveSessionId } },
-      onCompleted: (payload) => {
-        const result = payload.joinLiveSession;
-        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
-          pendingMutationRef.current,
-          liveSessionId,
-          'join',
-        );
-
-        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
-          if (!didUnmountRef.current) {
-            send({
-              error: formatLiveMutationErrors(result?.errors),
-              sessionId: liveSessionId,
-              type: 'join.failed',
-            });
-          }
-          return;
-        }
-
-        if (didUnmountRef.current) {
-          commitDetachedLeaveLiveSession(liveSessionId);
-          return;
-        }
-
-        send({ type: 'join.succeeded', sessionId: liveSessionId });
-      },
-      onError: () => {
-        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
-          pendingMutationRef.current,
-          liveSessionId,
-          'join',
-        );
-
-        if (!didUnmountRef.current) {
-          send({
-            error: formatLiveMutationErrors([]),
-            sessionId: liveSessionId,
-            type: 'join.failed',
-          });
-        }
-      },
-    });
-  }
-
-  function handleLeavePress() {
-    const currentSnapshot = actorRef.getSnapshot();
-
-    if (
-      !selectIsJoined(currentSnapshot) ||
-      isLiveSessionWatchAnyMutationPending(
-        pendingMutationRef.current,
-        liveSessionId,
-      )
-    ) {
-      return;
-    }
-
-    pendingMutationRef.current = { kind: 'leave', sessionId: liveSessionId };
-    send({ type: 'leave.requested', sessionId: liveSessionId });
-    onLeaveStarted();
-
-    commitLeaveLiveSession({
-      variables: { input: { liveSessionId } },
-      onCompleted: (payload) => {
-        const result = payload.leaveLiveSession;
-        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
-          pendingMutationRef.current,
-          liveSessionId,
-          'leave',
-        );
-
-        if (!result?.left || (result.errors?.length ?? 0) > 0) {
-          if (!didUnmountRef.current) {
-            send({
-              error: formatLiveMutationErrors(result?.errors),
-              sessionId: liveSessionId,
-              type: 'leave.failed',
-            });
-          }
-          return;
-        }
-
-        if (!didUnmountRef.current) {
-          send({ type: 'leave.succeeded', sessionId: liveSessionId });
-        }
-      },
-      onError: () => {
-        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
-          pendingMutationRef.current,
-          liveSessionId,
-          'leave',
-        );
-
-        if (!didUnmountRef.current) {
-          send({
-            error: formatLiveMutationErrors([]),
-            sessionId: liveSessionId,
-            type: 'leave.failed',
-          });
-        }
-      },
-    });
-  }
-
-  function handleEndPress() {
-    if (
-      !canEndLiveSession ||
-      isLiveSessionWatchAnyMutationPending(
-        pendingMutationRef.current,
-        liveSessionId,
-      )
-    ) {
-      return;
-    }
-
-    pendingMutationRef.current = { kind: 'end', sessionId: liveSessionId };
-    send({ type: 'end.requested', sessionId: liveSessionId });
-
-    commitEndLiveSession({
-      variables: { input: { liveSessionId } },
-      onCompleted: (payload) => {
-        const result = payload.endLiveSession;
-        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
-          pendingMutationRef.current,
-          liveSessionId,
-          'end',
-        );
-
-        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
-          if (!didUnmountRef.current) {
-            send({
-              error: formatLiveMutationErrors(result?.errors),
-              sessionId: liveSessionId,
-              type: 'end.failed',
-            });
-          }
-          return;
-        }
-
-        onEndSucceeded();
-
-        if (!didUnmountRef.current) {
-          send({ type: 'end.succeeded', sessionId: liveSessionId });
-        }
-      },
-      onError: () => {
-        pendingMutationRef.current = clearLiveSessionWatchPendingMutation(
-          pendingMutationRef.current,
-          liveSessionId,
-          'end',
-        );
-
-        if (!didUnmountRef.current) {
-          send({
-            error: formatLiveMutationErrors([]),
-            sessionId: liveSessionId,
-            type: 'end.failed',
-          });
-        }
-      },
-    });
-  }
-
-  const submission = selectVisibleSubmission(snapshot);
-
-  return {
-    autoLeaveSessionId: selectShouldAutoLeaveOnUnmount(snapshot)
-      ? liveSessionId
-      : null,
-    hasActiveSubmission: submission !== 'idle',
-    handleEndPress,
-    handleJoinPress,
-    handleLeavePress,
-    isEnding: submission === 'ending',
-    isJoined: selectIsJoined(snapshot),
-    isJoining: submission === 'joining',
-    isLeaving: submission === 'leaving',
-    shouldAutoLeaveOnUnmount: selectShouldAutoLeaveOnUnmount(snapshot),
-    watchError: selectVisibleError(snapshot),
-  };
-}
-```
-
-- [ ] **Step 3: Integrate the controller into the watch screen**
-
-Modify `mobile/src/live/watch/LiveSessionWatchScreen.tsx` so it:
-
-- removes `useReducer(liveSessionWatchReducer, createLiveSessionWatchState())`;
-- removes `pendingMutationRef` from `LiveSessionWatchContentProps`;
-- removes local `handleJoinPress`, `handleLeavePress`, `handleEndPress`, and `commitDetachedLeaveLiveSession`;
-- calls `useLiveSessionWatchController` after `liveSessionId` and `canEndLiveSession` are known;
-- keeps chat, realtime, retained host publishing cleanup, and viewer playback behavior unchanged.
-
-The screen should read the returned values like this:
-
-```ts
-const watchController = useLiveSessionWatchController({
-  canEndLiveSession,
-  canEnterLiveSession: enterable,
-  commitEndLiveSession,
-  commitJoinLiveSession,
-  commitLeaveLiveSession,
-  isCurrentViewerHost,
-  liveSessionId,
-  onEndSucceeded: () => {
-    hostPublishingSessions.release(liveSessionId);
-    stopViewerPlayback({ resetState: true });
-  },
-  onLeaveStarted: () => {
-    stopViewerPlayback({ resetState: true });
-  },
-});
-
-const {
-  handleEndPress,
-  handleJoinPress,
-  handleLeavePress,
-  hasActiveSubmission,
-  isEnding,
-  isJoined,
-  isJoining,
-  isLeaving,
-  watchError,
-} = watchController;
-```
-
-- [ ] **Step 4: Route realtime membership loss and ended-session events through the actor**
-
-Expose two commands from `useLiveSessionWatchController`:
-
-```ts
-readonly markMembershipLost: () => void;
-readonly markSessionEnded: () => void;
-```
-
-Implement them inside the hook:
-
-```ts
-function markMembershipLost() {
-  send({ type: 'membership.lost', sessionId: liveSessionId });
-}
-
-function markSessionEnded() {
-  send({ type: 'session.ended', sessionId: liveSessionId });
-}
-```
-
-Replace the current screen `dispatchWatchAction({ type: 'membership_lost' })` calls with `watchController.markMembershipLost()` or `watchController.markSessionEnded()`.
-
-- [ ] **Step 5: Run focused live tests**
-
-Run:
-
-```bash
-cd mobile
-bun test tests/live/liveSessionWatchMachine.test.ts tests/live/LiveDiscoveryScreen.test.ts tests/live/useLiveSessionViewerPlaybackController.test.ts tests/live/liveSessionChatReducer.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Delete the old watch reducer when no consumers remain**
-
-Run:
-
-```bash
-cd mobile
-rg "liveSessionWatchReducer|createLiveSessionWatchState|readLiveSessionWatchSubmission|shouldAutoLeaveLiveSession" src tests
-```
-
-Expected: only intentional references remain. If no source consumers remain, delete `mobile/src/live/liveSessionWatchReducer.ts` and `mobile/tests/live/liveSessionWatchReducer.test.ts`. If a helper type is still needed by tests, move the narrow type into `mobile/src/live/watch/state/liveSessionWatchMachine.ts`.
-
-- [ ] **Step 7: Verify and commit**
-
-Run:
-
-```bash
-cd mobile
-bun test tests/live
-bun run typecheck
-```
-
-Then:
-
-```bash
-git add mobile/src/live mobile/tests/live
-git commit -m "Move live watch workflow to XState"
-```
+- Modify: `mobile/tests/live/LiveDiscoveryScreen.test.ts` only if current mocks need new hook boundaries.
+- Delete when unused: `mobile/src/live/liveSessionWatchReducer.ts`
+- Delete when unused: `mobile/tests/live/liveSessionWatchReducer.test.ts`
+
+**Current Behavior To Preserve:**
+- Join, leave, and end Relay mutations use the same operation files and variables.
+- Failed mutations show the same viewer-safe error text.
+- A successful join after unmount still triggers detached leave cleanup.
+- Leave starts by stopping viewer playback.
+- End success releases retained host publishing resources and stops viewer playback.
+- Realtime ended-session events release host publishing resources, stop viewer playback, close chat, and suppress detached leave.
+- The screen still renders the same cards and `LiveSessionChatPanel` props.
+
+**Implementation Notes:**
+- The controller hook should own the XState actor, pending mutation ref, detached leave mutation guard, and unmount cleanup.
+- The screen should send domain events to the controller instead of dispatching reducer actions.
+- Keep side-effect callbacks injected from the screen for playback stop and retained host publishing release. The machine should not know those resources exist.
+- Read the actor snapshot synchronously in press handlers before sending command events.
+- Delete the old watch reducer only after `rg` confirms no source consumers remain.
+
+**Tests To Add Or Update:**
+- Controller-level tests for duplicate join prevention.
+- Controller-level tests for stale mutation completion after session change.
+- Controller-level tests for detached leave after join completes post-unmount.
+- Existing live screen tests should continue to cover rendered states.
+
+**Verification:**
+- From `mobile/`: `bun test tests/live/liveSessionWatchMachine.test.ts tests/live/LiveDiscoveryScreen.test.ts tests/live/useLiveSessionViewerPlaybackController.test.ts tests/live/liveSessionChatReducer.test.ts`
+- From `mobile/`: `bun test tests/live`
+- From `mobile/`: `bun run typecheck`
+
+**Done When:**
+- `LiveSessionWatchScreen.tsx` no longer owns join/leave/end reducer plumbing.
+- Watch membership state comes from XState selectors.
+- Old reducer files are removed if unused.
+- Focused live tests pass.
 
 ## Task 4: Move Viewer Playback Status Into A Machine
 
@@ -998,340 +170,34 @@ git commit -m "Move live watch workflow to XState"
 - Modify: `mobile/src/live/watch/hooks/useLiveSessionViewerPlaybackController.ts`
 - Modify: `mobile/tests/live/useLiveSessionViewerPlaybackController.test.ts`
 
-- [ ] **Step 1: Write playback machine tests**
+**Current Behavior To Preserve:**
+- Playback starts only when viewer is authenticated, joined, not leaving, live session id is present, and session status is not ended.
+- Preparing media failure reports the same formatted mutation error.
+- Missing peer-connection support reports the existing unavailable-on-device text.
+- Runtime start success moves to waiting-for-host until a remote stream URL exists.
+- Remote stream arrival moves to playing.
+- Channel termination moves to closed without showing an error.
+- Runtime errors move to errored and dispose current resources.
+- Generation invalidation prevents stale continuations from overwriting newer playback state.
 
-Create `mobile/tests/live/liveSessionViewerPlaybackMachine.test.ts`:
+**Implementation Notes:**
+- Use XState for display status only: idle, preparing, connecting, waiting for host, playing, closed, errored.
+- Keep generation refs, runtime refs, socket disconnect, and WebRTC disposal outside machine context.
+- Convert existing `setViewerPlaybackState` updates into machine events.
+- Keep the hook API stable for the screen: it should still expose `viewerPlaybackState` and stop functions.
 
-```ts
-import { describe, expect, test } from 'bun:test';
-import { createActor } from 'xstate';
+**Tests To Add Or Update:**
+- Machine transition tests for preparing, connecting, waiting, playing, closed, errored, and reset.
+- Existing controller lifecycle tests for generation invalidation, stale prepare completion, runtime disposal, and remote stream update.
 
-import {
-  liveSessionViewerPlaybackMachine,
-  selectViewerPlaybackState,
-} from '../../src/live/watch/state/liveSessionViewerPlaybackMachine';
+**Verification:**
+- From `mobile/`: `bun test tests/live/liveSessionViewerPlaybackMachine.test.ts tests/live/useLiveSessionViewerPlaybackController.test.ts tests/live/liveSessionViewerPlaybackRuntime.test.ts`
+- From `mobile/`: `bun run typecheck`
 
-function createStartedActor() {
-  const actor = createActor(liveSessionViewerPlaybackMachine);
-  actor.start();
-  return actor;
-}
-
-describe('liveSessionViewerPlaybackMachine', () => {
-  test('moves from preparing to waiting for host and then playing', () => {
-    const actor = createStartedActor();
-
-    actor.send({ type: 'playback.prepareRequested' });
-    actor.send({ type: 'playback.connecting' });
-    actor.send({ type: 'playback.runtimeStarted' });
-    actor.send({
-      remoteStreamUrl: 'stream://host-camera',
-      type: 'playback.remoteStreamReceived',
-    });
-
-    expect(selectViewerPlaybackState(actor.getSnapshot())).toEqual({
-      error: null,
-      remoteStreamUrl: 'stream://host-camera',
-      status: 'playing',
-    });
-  });
-
-  test('closed channel clears remote stream without showing an error', () => {
-    const actor = createStartedActor();
-
-    actor.send({ type: 'playback.prepareRequested' });
-    actor.send({ type: 'playback.connecting' });
-    actor.send({
-      remoteStreamUrl: 'stream://host-camera',
-      type: 'playback.remoteStreamReceived',
-    });
-    actor.send({ type: 'playback.closed' });
-
-    expect(selectViewerPlaybackState(actor.getSnapshot())).toEqual({
-      error: null,
-      remoteStreamUrl: null,
-      status: 'closed',
-    });
-  });
-
-  test('stop resets state to idle when reset is requested', () => {
-    const actor = createStartedActor();
-
-    actor.send({ type: 'playback.prepareRequested' });
-    actor.send({
-      error: 'Live video playback is not available on this device.',
-      type: 'playback.failed',
-    });
-    actor.send({ resetState: true, type: 'playback.stopped' });
-
-    expect(selectViewerPlaybackState(actor.getSnapshot())).toEqual({
-      error: null,
-      remoteStreamUrl: null,
-      status: 'idle',
-    });
-  });
-});
-```
-
-Run:
-
-```bash
-cd mobile
-bun test tests/live/liveSessionViewerPlaybackMachine.test.ts
-```
-
-Expected: FAIL because the machine file does not exist.
-
-- [ ] **Step 2: Implement playback machine and selector**
-
-Create `mobile/src/live/watch/state/liveSessionViewerPlaybackMachine.ts`:
-
-```ts
-import { assign, setup, type SnapshotFrom } from 'xstate';
-
-export type ViewerPlaybackStatus =
-  | 'idle'
-  | 'preparing'
-  | 'connecting'
-  | 'waiting_for_host'
-  | 'playing'
-  | 'errored'
-  | 'closed';
-
-export type ViewerPlaybackState = {
-  readonly error: string | null;
-  readonly remoteStreamUrl: string | null;
-  readonly status: ViewerPlaybackStatus;
-};
-
-type ViewerPlaybackContext = {
-  readonly error: string | null;
-  readonly remoteStreamUrl: string | null;
-};
-
-type ViewerPlaybackEvent =
-  | { readonly type: 'playback.prepareRequested' }
-  | { readonly type: 'playback.connecting' }
-  | { readonly type: 'playback.runtimeStarted' }
-  | {
-      readonly remoteStreamUrl: string | null;
-      readonly type: 'playback.remoteStreamReceived';
-    }
-  | { readonly error: string; readonly type: 'playback.failed' }
-  | { readonly type: 'playback.closed' }
-  | { readonly resetState: boolean; readonly type: 'playback.stopped' };
-
-const initialContext: ViewerPlaybackContext = {
-  error: null,
-  remoteStreamUrl: null,
-};
-
-export const liveSessionViewerPlaybackMachine = setup({
-  types: {
-    context: {} as ViewerPlaybackContext,
-    events: {} as ViewerPlaybackEvent,
-  },
-  actions: {
-    clearPlayback: assign({
-      error: () => null,
-      remoteStreamUrl: () => null,
-    }),
-    storeError: assign({
-      error: ({ event }) =>
-        event.type === 'playback.failed' ? event.error : null,
-      remoteStreamUrl: () => null,
-    }),
-    storeRemoteStream: assign({
-      error: () => null,
-      remoteStreamUrl: ({ event }) =>
-        event.type === 'playback.remoteStreamReceived'
-          ? event.remoteStreamUrl
-          : null,
-    }),
-  },
-}).createMachine({
-  id: 'liveSessionViewerPlayback',
-  context: initialContext,
-  initial: 'idle',
-  states: {
-    idle: {
-      entry: 'clearPlayback',
-      on: {
-        'playback.prepareRequested': {
-          actions: 'clearPlayback',
-          target: 'preparing',
-        },
-      },
-    },
-    preparing: {
-      on: {
-        'playback.connecting': 'connecting',
-        'playback.failed': {
-          actions: 'storeError',
-          target: 'errored',
-        },
-        'playback.stopped': 'idle',
-      },
-    },
-    connecting: {
-      on: {
-        'playback.failed': {
-          actions: 'storeError',
-          target: 'errored',
-        },
-        'playback.remoteStreamReceived': {
-          actions: 'storeRemoteStream',
-          target: 'playing',
-        },
-        'playback.runtimeStarted': 'waitingForHost',
-        'playback.stopped': 'idle',
-      },
-    },
-    waitingForHost: {
-      on: {
-        'playback.closed': 'closed',
-        'playback.failed': {
-          actions: 'storeError',
-          target: 'errored',
-        },
-        'playback.remoteStreamReceived': {
-          actions: 'storeRemoteStream',
-          target: 'playing',
-        },
-        'playback.stopped': 'idle',
-      },
-    },
-    playing: {
-      on: {
-        'playback.closed': {
-          actions: 'clearPlayback',
-          target: 'closed',
-        },
-        'playback.failed': {
-          actions: 'storeError',
-          target: 'errored',
-        },
-        'playback.remoteStreamReceived': {
-          actions: 'storeRemoteStream',
-        },
-        'playback.stopped': 'idle',
-      },
-    },
-    errored: {
-      on: {
-        'playback.prepareRequested': {
-          actions: 'clearPlayback',
-          target: 'preparing',
-        },
-        'playback.stopped': 'idle',
-      },
-    },
-    closed: {
-      on: {
-        'playback.prepareRequested': {
-          actions: 'clearPlayback',
-          target: 'preparing',
-        },
-        'playback.stopped': 'idle',
-      },
-    },
-  },
-});
-
-export type LiveSessionViewerPlaybackSnapshot = SnapshotFrom<
-  typeof liveSessionViewerPlaybackMachine
->;
-
-export function selectViewerPlaybackState(
-  snapshot: LiveSessionViewerPlaybackSnapshot,
-): ViewerPlaybackState {
-  if (snapshot.matches('preparing')) {
-    return { error: null, remoteStreamUrl: null, status: 'preparing' };
-  }
-
-  if (snapshot.matches('connecting')) {
-    return {
-      error: null,
-      remoteStreamUrl: snapshot.context.remoteStreamUrl,
-      status: 'connecting',
-    };
-  }
-
-  if (snapshot.matches('waitingForHost')) {
-    return {
-      error: null,
-      remoteStreamUrl: snapshot.context.remoteStreamUrl,
-      status: snapshot.context.remoteStreamUrl ? 'playing' : 'waiting_for_host',
-    };
-  }
-
-  if (snapshot.matches('playing')) {
-    return {
-      error: null,
-      remoteStreamUrl: snapshot.context.remoteStreamUrl,
-      status: 'playing',
-    };
-  }
-
-  if (snapshot.matches('errored')) {
-    return {
-      error: snapshot.context.error,
-      remoteStreamUrl: null,
-      status: 'errored',
-    };
-  }
-
-  if (snapshot.matches('closed')) {
-    return { error: null, remoteStreamUrl: null, status: 'closed' };
-  }
-
-  return { error: null, remoteStreamUrl: null, status: 'idle' };
-}
-```
-
-- [ ] **Step 3: Update the playback controller to send machine events**
-
-Modify `mobile/src/live/watch/hooks/useLiveSessionViewerPlaybackController.ts`:
-
-- replace local `useState<ViewerPlaybackState>` with `useMachine(liveSessionViewerPlaybackMachine)`;
-- replace each `setViewerPlaybackState(...)` call with one of the explicit playback events;
-- keep `viewerPlaybackGenerationRef` and `viewerPlaybackResourceRef` outside the machine;
-- return `viewerPlaybackState: selectViewerPlaybackState(snapshot)`.
-
-Use these event replacements:
-
-```ts
-send({ type: 'playback.prepareRequested' });
-send({ type: 'playback.connecting' });
-send({ type: 'playback.runtimeStarted' });
-send({
-  remoteStreamUrl: stream?.toURL?.() ?? null,
-  type: 'playback.remoteStreamReceived',
-});
-send({ error: reason, type: 'playback.failed' });
-send({ type: 'playback.closed' });
-send({ resetState, type: 'playback.stopped' });
-```
-
-- [ ] **Step 4: Run focused playback tests**
-
-Run:
-
-```bash
-cd mobile
-bun test tests/live/liveSessionViewerPlaybackMachine.test.ts tests/live/useLiveSessionViewerPlaybackController.test.ts tests/live/liveSessionViewerPlaybackRuntime.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-Run:
-
-```bash
-git add mobile/src/live/watch/state/liveSessionViewerPlaybackMachine.ts mobile/src/live/watch/hooks/useLiveSessionViewerPlaybackController.ts mobile/tests/live/liveSessionViewerPlaybackMachine.test.ts mobile/tests/live/useLiveSessionViewerPlaybackController.test.ts
-git commit -m "Move viewer playback status to XState"
-```
+**Done When:**
+- Playback display state is selected from the playback machine.
+- WebRTC resources remain outside machine context.
+- Existing playback behavior tests pass.
 
 ## Task 5: Move Chat Channel And Send Status Into A Machine
 
@@ -1344,174 +210,36 @@ git commit -m "Move viewer playback status to XState"
 - Modify: `mobile/tests/live/liveSessionChatReducer.test.ts`
 - Modify: `mobile/tests/live/LiveSessionChatPanel.test.ts`
 
-- [ ] **Step 1: Write machine tests for channel/send state**
+**Current Behavior To Preserve:**
+- Retained initial history still loads into visible chat rows.
+- Realtime timeline events are still merged and ordered by existing helpers.
+- Channel status still renders idle, joining, joined, errored, and closed states.
+- Sending is allowed only when the channel is joined and no send is already pending.
+- Send success clears pending send status.
+- Send failure stores the same viewer-safe error text.
+- Channel close or error fails an active send with the existing disconnect text.
+- Unmount cancellation clears pending send without creating an erroneous visible failure.
 
-Create `mobile/tests/live/liveSessionChatChannelMachine.test.ts`:
+**Implementation Notes:**
+- Move only channel and send status to XState.
+- Leave event-row merging, retained history, page info, and visible row selectors in the existing chat modules.
+- Keep `LiveSessionChatPanel` props unchanged.
+- Consider renaming the remaining reducer module after migration if it no longer owns channel/send state.
 
-```ts
-import { describe, expect, test } from 'bun:test';
-import { createActor } from 'xstate';
+**Tests To Add Or Update:**
+- Machine transition tests for channel joining, joined, closed, errored.
+- Machine transition tests for send started, succeeded, failed, cancelled.
+- Reducer tests proving retained history and realtime row merging still work.
+- Panel tests proving prop-driven rendering is unchanged.
 
-import {
-  liveSessionChatChannelMachine,
-  selectCanStartChatSend,
-  selectChatChannelStatus,
-  selectChatSendError,
-  selectChatSendStatus,
-} from '../../src/live/chat/state/liveSessionChatChannelMachine';
+**Verification:**
+- From `mobile/`: `bun test tests/live/liveSessionChatChannelMachine.test.ts tests/live/liveSessionChatReducer.test.ts tests/live/LiveSessionChatPanel.test.ts tests/live/liveSessionChatChannelLifecycle.test.ts`
+- From `mobile/`: `bun run typecheck`
 
-function createStartedActor() {
-  const actor = createActor(liveSessionChatChannelMachine);
-  actor.start();
-  return actor;
-}
-
-describe('liveSessionChatChannelMachine', () => {
-  test('allows sends only when joined and idle', () => {
-    const actor = createStartedActor();
-
-    actor.send({ sessionId: 'session-1', type: 'session.changed' });
-    actor.send({ sessionId: 'session-1', type: 'channel.joining' });
-    actor.send({ sessionId: 'session-1', type: 'channel.joined' });
-
-    expect(selectChatChannelStatus(actor.getSnapshot())).toBe('joined');
-    expect(selectCanStartChatSend(actor.getSnapshot())).toBe(true);
-
-    actor.send({ sessionId: 'session-1', type: 'send.started' });
-
-    expect(selectChatSendStatus(actor.getSnapshot())).toBe('sending');
-    expect(selectCanStartChatSend(actor.getSnapshot())).toBe(false);
-  });
-
-  test('channel close fails pending send with viewer-safe text', () => {
-    const actor = createStartedActor();
-
-    actor.send({ sessionId: 'session-1', type: 'session.changed' });
-    actor.send({ sessionId: 'session-1', type: 'channel.joined' });
-    actor.send({ sessionId: 'session-1', type: 'send.started' });
-    actor.send({
-      error: 'Chat disconnected before the message was sent.',
-      sessionId: 'session-1',
-      type: 'channel.closed',
-    });
-
-    expect(selectChatChannelStatus(actor.getSnapshot())).toBe('closed');
-    expect(selectChatSendStatus(actor.getSnapshot())).toBe('failed');
-    expect(selectChatSendError(actor.getSnapshot())).toBe(
-      'Chat disconnected before the message was sent.',
-    );
-  });
-});
-```
-
-- [ ] **Step 2: Implement channel/send machine**
-
-Create `mobile/src/live/chat/state/liveSessionChatChannelMachine.ts` with these exported selectors:
-
-```ts
-export function selectChatChannelStatus(snapshot: LiveSessionChatChannelSnapshot) {
-  return snapshot.context.channelStatus;
-}
-
-export function selectChatSendStatus(snapshot: LiveSessionChatChannelSnapshot) {
-  return snapshot.context.sendStatus;
-}
-
-export function selectChatSendError(snapshot: LiveSessionChatChannelSnapshot) {
-  return snapshot.context.sendError;
-}
-
-export function selectCanStartChatSend(snapshot: LiveSessionChatChannelSnapshot) {
-  return (
-    snapshot.context.channelStatus === 'joined' &&
-    snapshot.context.sendStatus !== 'sending'
-  );
-}
-```
-
-The machine context must include:
-
-```ts
-type LiveSessionChatChannelContext = {
-  readonly activeSessionId: string | null;
-  readonly channelError: string | null;
-  readonly channelStatus:
-    | 'idle'
-    | 'joining'
-    | 'joined'
-    | 'errored'
-    | 'closed';
-  readonly sendError: string | null;
-  readonly sendStatus: 'idle' | 'sending' | 'failed';
-};
-```
-
-The event union must include session-scoped variants:
-
-```ts
-type LiveSessionChatChannelEvent =
-  | { readonly sessionId: string; readonly type: 'session.changed' }
-  | { readonly sessionId: string; readonly type: 'channel.joining' }
-  | { readonly sessionId: string; readonly type: 'channel.joined' }
-  | { readonly error: string; readonly sessionId: string; readonly type: 'channel.errored' }
-  | { readonly error: string; readonly sessionId: string; readonly type: 'channel.closed' }
-  | { readonly sessionId: string; readonly type: 'send.started' }
-  | { readonly sessionId: string; readonly type: 'send.succeeded' }
-  | { readonly sessionId: string; readonly type: 'send.cancelled' }
-  | { readonly error: string; readonly sessionId: string; readonly type: 'send.failed' };
-```
-
-- [ ] **Step 3: Keep timeline rows in the existing reducer**
-
-Modify `mobile/src/live/chat/liveSessionChatState.ts` and `mobile/src/live/liveSessionChatReducer.ts` so the reducer no longer owns `channelStatus`, `channelError`, `sendStatus`, or `sendError`. It should continue to own:
-
-- `activeSessionId`;
-- `eventsById`;
-- `eventIds`;
-- `pageInfo`;
-- retained initial/older/newer history merge actions;
-- realtime event merge actions.
-
-- [ ] **Step 4: Update watch screen chat integration**
-
-In `mobile/src/live/watch/LiveSessionWatchScreen.tsx`, use the chat channel machine for:
-
-- channel joining/joined/errored/closed status;
-- send started/succeeded/failed/cancelled status;
-- `canStartLiveSessionChatSend` replacement.
-
-Keep the existing `LiveSessionChatPanel` props unchanged:
-
-```tsx
-<LiveSessionChatPanel
-  channelStatus={chatChannelStatus}
-  isJoined={isJoined}
-  onSendMessage={handleSendChatMessage}
-  rows={chatRows}
-  sendError={chatSendError}
-  sendStatus={chatSendStatus}
-/>
-```
-
-- [ ] **Step 5: Verify chat tests**
-
-Run:
-
-```bash
-cd mobile
-bun test tests/live/liveSessionChatChannelMachine.test.ts tests/live/liveSessionChatReducer.test.ts tests/live/LiveSessionChatPanel.test.ts tests/live/liveSessionChatChannelLifecycle.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
-
-Run:
-
-```bash
-git add mobile/src/live/chat mobile/src/live/liveSessionChatReducer.ts mobile/src/live/watch/LiveSessionWatchScreen.tsx mobile/tests/live
-git commit -m "Move live chat channel status to XState"
-```
+**Done When:**
+- Chat channel/send status no longer lives in the timeline reducer.
+- Timeline row behavior is unchanged.
+- Chat panel props and UI behavior are unchanged.
 
 ## Task 6: Move Host Preflight Workflow Into A Machine
 
@@ -1523,260 +251,78 @@ git commit -m "Move live chat channel status to XState"
 - Modify: `mobile/tests/host/hostBroadcastPreflight.test.ts`
 - Modify: `mobile/tests/host/hostBroadcastSession.test.ts`
 
-- [ ] **Step 1: Write host preflight machine tests**
+**Current Behavior To Preserve:**
+- Native permission/readiness checks still feed the readiness card.
+- Create session starts only when no session is active or creating.
+- Prepare media requires a started session and no existing prepared media.
+- Go live requires host readiness, backend media readiness, prepared media, and no go-live request in flight.
+- Retryable media-readiness go-live failures keep prepared media so the host can retry.
+- Non-retryable go-live failures clear prepared media.
+- If go-live succeeds but publishing resource retention fails, the backend live session is ended.
+- Back press and unmount cleanup still end abandoned preflight sessions where needed.
+- Native resources are disposed only when no retained publishing resource exists.
 
-Create `mobile/tests/host/hostBroadcastPreflightMachine.test.ts`:
+**Implementation Notes:**
+- Start by modeling the session and action status states. Leave prepared media payload data in React state because publishing runtime consumes it as external operation data.
+- Keep host publishing runtime and retained resource store outside the machine.
+- Derive card props through selectors so `HostBroadcastPreflightScreen.tsx` remains presentation-oriented.
+- Preserve the existing controller lifecycle tests while swapping internal state ownership.
 
-```ts
-import { describe, expect, test } from 'bun:test';
-import { createActor } from 'xstate';
+**Tests To Add Or Update:**
+- Machine tests for create, prepare, publishing ready, go live success.
+- Machine tests for retryable and non-retryable go-live failures.
+- Machine tests for end requested, success, and failure.
+- Controller tests for abandoned cleanup on unmount and retain failure cleanup.
 
-import {
-  hostBroadcastPreflightMachine,
-  selectCanCreateHostSession,
-  selectCanGoLive,
-  selectCanPrepareHostMedia,
-  selectHostBroadcastSessionState,
-} from '../../src/host/preflight/state/hostBroadcastPreflightMachine';
+**Verification:**
+- From `mobile/`: `bun test tests/host/hostBroadcastPreflightMachine.test.ts tests/host/useHostBroadcastPreflightController.test.ts tests/host/useHostBroadcastPublishingController.test.ts tests/host/hostBroadcastPreflight.test.ts tests/host/hostBroadcastSession.test.ts`
+- From `mobile/`: `bun run typecheck`
 
-function createStartedActor() {
-  const actor = createActor(hostBroadcastPreflightMachine);
-  actor.start();
-  return actor;
-}
+**Done When:**
+- Host preflight action state is selected from the machine.
+- Prepared media and publishing resources remain outside machine context.
+- Host focused tests pass.
 
-describe('hostBroadcastPreflightMachine', () => {
-  test('moves through create, prepare, and go-live success', () => {
-    const actor = createStartedActor();
-
-    expect(selectCanCreateHostSession(actor.getSnapshot())).toBe(true);
-
-    actor.send({ type: 'session.createRequested' });
-    actor.send({
-      liveSessionId: 'session-1',
-      type: 'session.createSucceeded',
-    });
-
-    expect(selectCanPrepareHostMedia(actor.getSnapshot())).toBe(true);
-
-    actor.send({ type: 'media.prepareRequested' });
-    actor.send({ type: 'media.prepareSucceeded' });
-    actor.send({ type: 'publishing.ready' });
-
-    expect(selectCanGoLive(actor.getSnapshot())).toBe(true);
-
-    actor.send({ type: 'goLive.requested' });
-    actor.send({ liveSessionId: 'session-1', type: 'goLive.succeeded' });
-
-    expect(selectHostBroadcastSessionState(actor.getSnapshot())).toEqual({
-      liveSessionId: 'session-1',
-      status: 'live',
-      viewerSafeErrorText: null,
-    });
-  });
-
-  test('go-live retryable media readiness failure keeps prepared media', () => {
-    const actor = createStartedActor();
-
-    actor.send({ type: 'session.createRequested' });
-    actor.send({
-      liveSessionId: 'session-1',
-      type: 'session.createSucceeded',
-    });
-    actor.send({ type: 'media.prepareRequested' });
-    actor.send({ type: 'media.prepareSucceeded' });
-    actor.send({ type: 'publishing.ready' });
-    actor.send({ type: 'goLive.requested' });
-    actor.send({
-      error: 'Host media is not ready yet.',
-      retryableMediaReadiness: true,
-      type: 'goLive.failed',
-    });
-
-    expect(selectCanGoLive(actor.getSnapshot())).toBe(true);
-  });
-});
-```
-
-- [ ] **Step 2: Implement host preflight machine**
-
-Create `mobile/src/host/preflight/state/hostBroadcastPreflightMachine.ts` with context:
-
-```ts
-export type HostBroadcastPreflightMachineContext = {
-  readonly backendMediaReady: boolean;
-  readonly error: string | null;
-  readonly hasPreparedMedia: boolean;
-  readonly isGoingLive: boolean;
-  readonly isPreparingMedia: boolean;
-  readonly liveSessionId: string | null;
-  readonly publishingStatus: 'idle' | 'starting' | 'ready' | 'errored';
-  readonly sessionStatus:
-    | 'idle'
-    | 'creating'
-    | 'starting'
-    | 'ending'
-    | 'ended'
-    | 'live';
-};
-```
-
-Export selectors used by the existing cards:
-
-```ts
-export function selectCanCreateHostSession(snapshot: HostBroadcastPreflightSnapshot): boolean;
-export function selectCanPrepareHostMedia(snapshot: HostBroadcastPreflightSnapshot): boolean;
-export function selectCanGoLive(snapshot: HostBroadcastPreflightSnapshot): boolean;
-export function selectCanUseHostPreflightBackAction(snapshot: HostBroadcastPreflightSnapshot): boolean;
-export function selectHostBroadcastSessionState(snapshot: HostBroadcastPreflightSnapshot): HostBroadcastSessionState;
-export function selectHostBroadcastPublishingStatus(snapshot: HostBroadcastPreflightSnapshot): HostBroadcastPublishingStatus;
-```
-
-- [ ] **Step 3: Integrate the machine into the preflight controller**
-
-Modify `mobile/src/host/preflight/hooks/useHostBroadcastPreflightController.ts` so:
-
-- `sessionState`, `preparedMedia`, `isPreparingMedia`, `isGoingLive`, `publishingStatus`, and `hostActionError` are derived from machine selectors where possible;
-- prepared media payload data remains in React state or refs because it is external operation data consumed by publishing runtime;
-- native permission readiness continues to dispatch existing `hostBroadcastPreflightReducer` readiness actions unless that reducer is replaced in the same file with explicit machine events;
-- start/prepare/go-live/end mutation callbacks send explicit machine events.
-
-Use event names in the controller:
-
-```ts
-send({ type: 'session.createRequested' });
-send({ liveSessionId, type: 'session.createSucceeded' });
-send({ error: viewerSafeErrorText, type: 'session.createFailed' });
-send({ type: 'media.prepareRequested' });
-send({ type: 'media.prepareSucceeded' });
-send({ error: viewerSafeErrorText, type: 'media.prepareFailed' });
-send({ type: 'publishing.ready' });
-send({ error: reason, type: 'publishing.failed' });
-send({ type: 'goLive.requested' });
-send({ liveSessionId, type: 'goLive.succeeded' });
-send({
-  error: viewerSafeErrorText,
-  retryableMediaReadiness,
-  type: 'goLive.failed',
-});
-send({ type: 'session.endRequested' });
-send({ type: 'session.endSucceeded' });
-send({ error: viewerSafeErrorText, type: 'session.endFailed' });
-```
-
-- [ ] **Step 4: Verify host tests**
-
-Run:
-
-```bash
-cd mobile
-bun test tests/host/hostBroadcastPreflightMachine.test.ts tests/host/useHostBroadcastPreflightController.test.ts tests/host/useHostBroadcastPublishingController.test.ts tests/host/hostBroadcastPreflight.test.ts tests/host/hostBroadcastSession.test.ts
-```
-
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-Run:
-
-```bash
-git add mobile/src/host/preflight mobile/tests/host
-git commit -m "Move host preflight workflow to XState"
-```
-
-## Task 7: Remove Superseded Reducers And Tighten Verification
+## Task 7: Final Cleanup And Quality Gate
 
 **Files:**
-- Delete if unused: `mobile/src/live/liveSessionWatchReducer.ts`
-- Delete if unused: `mobile/tests/live/liveSessionWatchReducer.test.ts`
+- Modify/delete only after consumer search: `mobile/src/live/liveSessionWatchReducer.ts`
+- Modify/delete only after consumer search: `mobile/tests/live/liveSessionWatchReducer.test.ts`
 - Modify: `mobile/src/live/watch/liveSessionWatchScreenTypes.ts`
 - Modify: `mobile/src/live/chat/liveSessionChatState.ts`
 - Modify: `mobile/src/live/liveSessionChatReducer.ts`
-- Modify: `docs/plans/mobile/2026-06-27-mobile-xstate-live-workflows.md`
-- Modify only when activating or closing the batch: `docs/plans/mobile/NOW.md`
+- Modify only when this batch is active or closing: `docs/plans/mobile/NOW.md`
+- Modify if lane ordering changes: `docs/plans/mobile/TRACK.md`
 
-- [ ] **Step 1: Find old reducer and helper consumers**
+**Implementation Notes:**
+- Search before deleting compatibility code.
+- Delete wrapper-only or reducer-only modules that no longer own meaningful behavior.
+- Keep public route/screen entrypoints only where Expo Router or tests still depend on them.
+- Update lane docs only if this plan was promoted to the current mobile batch.
 
-Run:
+**Verification:**
+- From `mobile/`: `bun run test:quality`
+- From `mobile/`: `bun run typecheck`
+- From repo root: `git diff --check`
 
-```bash
-rg "liveSessionWatchReducer|createLiveSessionWatchState|LiveSessionWatchPendingMutation|readLiveSessionWatchSubmission|shouldAutoLeaveLiveSession" mobile/src mobile/tests
-```
+**Done When:**
+- Full mobile test and typecheck gates pass.
+- The branch has no stale reducer files for migrated workflows.
+- Lane docs accurately reflect whether this work was executed or remains queued.
 
-Expected: no source consumers of old reducer behavior after Task 3. A remaining `LiveSessionWatchPendingMutation` type should move into `mobile/src/live/watch/state/liveSessionWatchMachine.ts` or the controller hook.
+## Final Acceptance Criteria
 
-- [ ] **Step 2: Delete old reducer files when unused**
+- `LiveSessionWatchScreen.tsx` has materially less mutation and lifecycle state plumbing.
+- Viewer playback status is state-machine driven while WebRTC resources remain ref-owned outside machine context.
+- Chat channel/send status is state-machine driven while timeline rows remain reducer/helper-owned.
+- Host preflight workflow state is state-machine driven while native/media/publishing resources remain external.
+- XState is used only in complex workflow areas, not as a blanket replacement for Relay or local React state.
+- `cd mobile && bun run test:quality` passes.
+- `cd mobile && bun run typecheck` passes.
+- `git diff --check` passes.
 
-Run:
+## Stop Conditions
 
-```bash
-git rm mobile/src/live/liveSessionWatchReducer.ts mobile/tests/live/liveSessionWatchReducer.test.ts
-```
-
-Expected: files are removed only after Step 1 shows there are no behavior consumers.
-
-- [ ] **Step 3: Remove obsolete props and refs from watch screen types**
-
-Modify `mobile/src/live/watch/liveSessionWatchScreenTypes.ts` so it no longer exports `PendingMutationRef` or `AutoLeaveOnUnmountRef` if the XState controller owns those concerns.
-
-- [ ] **Step 4: Run full mobile quality gate**
-
-Run:
-
-```bash
-cd mobile
-bun run test:quality
-bun run typecheck
-```
-
-Expected: PASS.
-
-- [ ] **Step 5: Run repository diff check**
-
-Run:
-
-```bash
-git diff --check
-```
-
-Expected: no whitespace errors.
-
-- [ ] **Step 6: Commit**
-
-Run:
-
-```bash
-git add mobile docs/plans/mobile/2026-06-27-mobile-xstate-live-workflows.md
-git commit -m "Clean up superseded mobile workflow reducers"
-```
-
-## Final Verification
-
-Run:
-
-```bash
-cd mobile
-bun run test:quality
-bun run typecheck
-```
-
-Then:
-
-```bash
-git diff --check
-git status --short --branch
-```
-
-Expected:
-
-- `bun run test:quality` passes all mobile tests under `mobile/tests/**`.
-- `bun run typecheck` passes.
-- `git diff --check` reports no whitespace errors.
-- `git status --short --branch` shows only intentional plan or implementation files before each commit, and a clean branch after the final commit.
-
-## Rollout Notes
-
-- Keep this behind ordinary source refactors. No feature flag is needed because the screen behavior is unchanged.
-- Treat Task 2 and Task 3 as the pilot. If they make `LiveSessionWatchScreen.tsx` harder to understand, stop before Task 4 and revise the architecture.
-- Do not apply XState to auth forms, profile mutation button state, theme, startup gate, or tiny UI state in this batch.
-- Do not move the mobile lane `NOW.md` pointer until the XState work is actually selected as the current mobile batch.
+- If Task 2 or Task 3 makes the viewer watch flow harder to understand, stop before playback/chat/host migration and revise the architecture.
+- If XState types require broad casts in screen or controller code, stop and simplify the machine boundary before continuing.
+- If a machine starts storing sockets, channels, peer connections, streams, or Relay commit functions in context, stop and move those resources back behind hook-owned adapters.
