@@ -8,7 +8,7 @@ import { radius, spacing, typography } from '../../theme/tokens';
 import type {
   LiveSessionChatChannelStatus,
   LiveSessionChatSendStatus,
-} from '../liveSessionChatReducer';
+} from './liveSessionChatState';
 import { createLiveSessionChatPanelModel } from './liveSessionChatPanelPresentation';
 import type { LiveSessionTimelineHistoryRow } from '../liveSessionTimelineHistory';
 

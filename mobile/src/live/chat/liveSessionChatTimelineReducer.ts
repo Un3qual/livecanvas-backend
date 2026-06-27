@@ -2,7 +2,7 @@ import {
   createLiveSessionChatState,
   type LiveSessionChatAction,
   type LiveSessionChatState,
-} from './chat/liveSessionChatState';
+} from './liveSessionChatState';
 import {
   appendRows,
   mergeNewerPageInfo,
@@ -12,24 +12,9 @@ import {
   mergeRetainedRefreshRows,
   prependRows,
   replaceWithRows,
-} from './chat/liveSessionChatTimelineMerge';
+} from './liveSessionChatTimelineMerge';
 
-export type {
-  LiveSessionChatAction,
-  LiveSessionChatChannelStatus,
-  LiveSessionChatSendStartInput,
-  LiveSessionChatSendStatus,
-  LiveSessionChatState,
-} from './chat/liveSessionChatState';
-export { createLiveSessionChatState } from './chat/liveSessionChatState';
-export type { LiveSessionChatPaginationCursors } from './chat/liveSessionChatSelectors';
-export {
-  canStartLiveSessionChatSend,
-  selectLiveSessionChatPaginationCursors,
-  selectLiveSessionChatVisibleRows,
-} from './chat/liveSessionChatSelectors';
-
-export function liveSessionChatReducer(
+export function liveSessionChatTimelineReducer(
   state: LiveSessionChatState,
   action: LiveSessionChatAction,
 ): LiveSessionChatState {

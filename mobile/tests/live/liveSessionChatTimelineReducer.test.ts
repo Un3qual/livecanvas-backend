@@ -1,19 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
-  canStartLiveSessionChatSend,
   createLiveSessionChatState,
-  liveSessionChatReducer,
-  selectLiveSessionChatPaginationCursors,
-  selectLiveSessionChatVisibleRows,
-} from '../../src/live/liveSessionChatReducer';
-import {
-  createLiveSessionChatState as createLiveSessionChatStateFromStateModule,
 } from '../../src/live/chat/liveSessionChatState';
 import {
-  canStartLiveSessionChatSend as canStartLiveSessionChatSendFromSelectorsModule,
-  selectLiveSessionChatVisibleRows as selectLiveSessionChatVisibleRowsFromSelectorsModule,
+  canStartLiveSessionChatSend,
+  selectLiveSessionChatPaginationCursors,
+  selectLiveSessionChatVisibleRows,
 } from '../../src/live/chat/liveSessionChatSelectors';
+import { liveSessionChatTimelineReducer } from '../../src/live/chat/liveSessionChatTimelineReducer';
 import {
   appendRows as appendChatRows,
   mergeRealtimeEvent as mergeChatRealtimeEvent,
@@ -25,12 +20,8 @@ import type {
 } from '../../src/live/liveSessionTimelineHistory';
 import type { LiveSessionRealtimeEvent } from '../../src/live/liveSessionRealtimeEvents';
 
-describe('liveSessionChatReducer', () => {
-  test('chat modules expose derived selectors and merge helpers behind the public reducer shim', () => {
-    expect(createLiveSessionChatStateFromStateModule()).toEqual(
-      createLiveSessionChatState(),
-    );
-
+describe('liveSessionChatTimelineReducer', () => {
+  test('chat timeline modules expose derived selectors and merge helpers', () => {
     const active = activeState('session-1');
     const appended = appendChatRows(active, [chatRow('event-1', 'retained')]);
     const merged = {
@@ -43,15 +34,10 @@ describe('liveSessionChatReducer', () => {
     );
 
     expect(
-      selectLiveSessionChatVisibleRowsFromSelectorsModule(withRealtime).map(
-        (row) => row.id,
-      ),
-    ).toEqual(['event-1', 'event-2']);
-    expect(
       selectLiveSessionChatVisibleRows(withRealtime).map((row) => row.id),
     ).toEqual(['event-1', 'event-2']);
     expect(
-      canStartLiveSessionChatSendFromSelectorsModule({
+      canStartLiveSessionChatSend({
         channelStatus: 'joined',
         hasPendingSend: false,
         sendStatus: 'idle',
@@ -60,8 +46,8 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('session change resets state to the active session', () => {
-    const loaded = liveSessionChatReducer(
-      liveSessionChatReducer(createLiveSessionChatState(), {
+    const loaded = liveSessionChatTimelineReducer(
+      liveSessionChatTimelineReducer(createLiveSessionChatState(), {
         sessionId: 'session-1',
         type: 'session_changed',
       }),
@@ -72,7 +58,7 @@ describe('liveSessionChatReducer', () => {
       },
     );
 
-    const reset = liveSessionChatReducer(loaded, {
+    const reset = liveSessionChatTimelineReducer(loaded, {
       sessionId: 'session-2',
       type: 'session_changed',
     });
@@ -91,7 +77,7 @@ describe('liveSessionChatReducer', () => {
       hasPreviousPage: true,
     });
 
-    const state = liveSessionChatReducer(activeState('session-1'), {
+    const state = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history(
         [lifecycleRow('event-1', 'LiveSessionStartedEvent'), chatRow('event-2', 'newest')],
         page,
@@ -113,7 +99,7 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('retained initial refresh preserves realtime rows already merged into chat', () => {
-    const retained = liveSessionChatReducer(activeState('session-1'), {
+    const retained = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history(
         [
           chatRow('event-1', 'retained'),
@@ -124,13 +110,13 @@ describe('liveSessionChatReducer', () => {
       sessionId: 'session-1',
       type: 'retained_initial_loaded',
     });
-    const withRealtime = liveSessionChatReducer(retained, {
+    const withRealtime = liveSessionChatTimelineReducer(retained, {
       event: realtimeTimelineEvent('event-3', 'live message'),
       sessionId: 'session-1',
       type: 'realtime_event_received',
     });
 
-    const refreshed = liveSessionChatReducer(withRealtime, {
+    const refreshed = liveSessionChatTimelineReducer(withRealtime, {
       history: history(
         [
           chatRow('event-1', 'retained refreshed'),
@@ -162,18 +148,18 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('retained initial refresh inserts older rows before overlapping realtime rows', () => {
-    const withFirstRealtime = liveSessionChatReducer(activeState('session-1'), {
+    const withFirstRealtime = liveSessionChatTimelineReducer(activeState('session-1'), {
       event: realtimeTimelineEvent('event-101', 'live message 101'),
       sessionId: 'session-1',
       type: 'realtime_event_received',
     });
-    const withRealtime = liveSessionChatReducer(withFirstRealtime, {
+    const withRealtime = liveSessionChatTimelineReducer(withFirstRealtime, {
       event: realtimeTimelineEvent('event-102', 'live message 102'),
       sessionId: 'session-1',
       type: 'realtime_event_received',
     });
 
-    const refreshed = liveSessionChatReducer(withRealtime, {
+    const refreshed = liveSessionChatTimelineReducer(withRealtime, {
       history: history(
         [
           chatRow('event-71', 'older retained'),
@@ -200,7 +186,7 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('retained initial refresh interleaves no-overlap rows by occurrence time', () => {
-    const withFirstRealtime = liveSessionChatReducer(activeState('session-1'), {
+    const withFirstRealtime = liveSessionChatTimelineReducer(activeState('session-1'), {
       event: realtimeTimelineEventAt(
         'event-r1',
         'live message 10:00',
@@ -209,7 +195,7 @@ describe('liveSessionChatReducer', () => {
       sessionId: 'session-1',
       type: 'realtime_event_received',
     });
-    const withRealtime = liveSessionChatReducer(withFirstRealtime, {
+    const withRealtime = liveSessionChatTimelineReducer(withFirstRealtime, {
       event: realtimeTimelineEventAt(
         'event-r2',
         'live message 11:00',
@@ -219,7 +205,7 @@ describe('liveSessionChatReducer', () => {
       type: 'realtime_event_received',
     });
 
-    const refreshed = liveSessionChatReducer(withRealtime, {
+    const refreshed = liveSessionChatTimelineReducer(withRealtime, {
       history: history(
         [
           chatRowAt('event-a', 'retained 09:00', '2026-06-04T09:00:00.000000Z'),
@@ -243,8 +229,8 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('retained initial refresh deduplicates incoming overlap before sorting', () => {
-    const withRealtime = liveSessionChatReducer(
-      liveSessionChatReducer(activeState('session-1'), {
+    const withRealtime = liveSessionChatTimelineReducer(
+      liveSessionChatTimelineReducer(activeState('session-1'), {
         event: realtimeTimelineEventAt(
           'event-r1',
           'live message 10:00',
@@ -264,7 +250,7 @@ describe('liveSessionChatReducer', () => {
       },
     );
 
-    const refreshed = liveSessionChatReducer(withRealtime, {
+    const refreshed = liveSessionChatTimelineReducer(withRealtime, {
       history: history(
         [
           chatRowAt(
@@ -308,7 +294,7 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('retained initial refresh preserves loaded older-page cursors', () => {
-    const initial = liveSessionChatReducer(activeState('session-1'), {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history(
         [chatRow('event-3', 'third'), chatRow('event-4', 'fourth')],
         pageInfo('cursor-event-3', 'cursor-event-4', { hasPreviousPage: true }),
@@ -316,7 +302,7 @@ describe('liveSessionChatReducer', () => {
       sessionId: 'session-1',
       type: 'retained_initial_loaded',
     });
-    const withOlder = liveSessionChatReducer(initial, {
+    const withOlder = liveSessionChatTimelineReducer(initial, {
       history: history(
         [
           chatRow('event-1', 'first'),
@@ -329,7 +315,7 @@ describe('liveSessionChatReducer', () => {
       type: 'retained_older_loaded',
     });
 
-    const refreshed = liveSessionChatReducer(withOlder, {
+    const refreshed = liveSessionChatTimelineReducer(withOlder, {
       history: history(
         [
           chatRow('event-3', 'third refreshed'),
@@ -360,7 +346,7 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('older retained page prepends rows without duplicate IDs', () => {
-    const initial = liveSessionChatReducer(activeState('session-1'), {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history(
         [chatRow('event-2', 'already loaded'), chatRow('event-3', 'latest')],
         pageInfo('cursor-2', 'cursor-3', { hasPreviousPage: true }),
@@ -369,7 +355,7 @@ describe('liveSessionChatReducer', () => {
       type: 'retained_initial_loaded',
     });
 
-    const withOlder = liveSessionChatReducer(initial, {
+    const withOlder = liveSessionChatTimelineReducer(initial, {
       history: history(
         [chatRow('event-1', 'older'), chatRow('event-2', 'overlap')],
         pageInfo('cursor-1', 'cursor-2', { hasPreviousPage: false }),
@@ -391,7 +377,7 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('newer retained catch-up appends rows without duplicate IDs', () => {
-    const initial = liveSessionChatReducer(activeState('session-1'), {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history(
         [chatRow('event-1', 'first'), chatRow('event-2', 'already loaded')],
         pageInfo('cursor-1', 'cursor-2', { hasNextPage: true }),
@@ -400,7 +386,7 @@ describe('liveSessionChatReducer', () => {
       type: 'retained_initial_loaded',
     });
 
-    const withNewer = liveSessionChatReducer(initial, {
+    const withNewer = liveSessionChatTimelineReducer(initial, {
       history: history(
         [chatRow('event-2', 'overlap'), chatRow('event-3', 'caught up')],
         pageInfo('cursor-2', 'cursor-3', { hasNextPage: false }),
@@ -422,13 +408,13 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('realtime timeline event appends new rows and replaces existing IDs', () => {
-    const initial = liveSessionChatReducer(activeState('session-1'), {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history([chatRow('event-1', 'retained')], pageInfo('cursor-1', 'cursor-1')),
       sessionId: 'session-1',
       type: 'retained_initial_loaded',
     });
 
-    const appended = liveSessionChatReducer(initial, {
+    const appended = liveSessionChatTimelineReducer(initial, {
       event: realtimeTimelineEvent('event-2', 'live message'),
       sessionId: 'session-1',
       type: 'realtime_event_received',
@@ -449,7 +435,7 @@ describe('liveSessionChatReducer', () => {
       occurredAt: '2026-06-04T18:00:00.000000Z',
     });
 
-    const replaced = liveSessionChatReducer(appended, {
+    const replaced = liveSessionChatTimelineReducer(appended, {
       event: realtimeTimelineEvent('event-2', 'live message replay'),
       sessionId: 'session-1',
       type: 'realtime_event_received',
@@ -463,7 +449,7 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('realtime timeline event updates replace rows without changing order', () => {
-    const initial = liveSessionChatReducer(activeState('session-1'), {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history(
         [chatRow('event-1', 'first'), chatRow('event-2', 'second')],
         pageInfo('cursor-1', 'cursor-2'),
@@ -472,7 +458,7 @@ describe('liveSessionChatReducer', () => {
       type: 'retained_initial_loaded',
     });
 
-    const updated = liveSessionChatReducer(initial, {
+    const updated = liveSessionChatTimelineReducer(initial, {
       event: realtimeTimelineEventUpdated('event-1', 'first edited'),
       sessionId: 'session-1',
       type: 'realtime_event_received',
@@ -494,7 +480,7 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('realtime timeline event removal deletes rows by opaque ID', () => {
-    const initial = liveSessionChatReducer(activeState('session-1'), {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history(
         [chatRow('event-1', 'first'), chatRow('event-2', 'second')],
         pageInfo('cursor-1', 'cursor-2'),
@@ -503,7 +489,7 @@ describe('liveSessionChatReducer', () => {
       type: 'retained_initial_loaded',
     });
 
-    const removed = liveSessionChatReducer(initial, {
+    const removed = liveSessionChatTimelineReducer(initial, {
       event: {
         kind: 'timeline_event_removed',
         removedTimelineEventId: 'event-1',
@@ -520,7 +506,7 @@ describe('liveSessionChatReducer', () => {
   });
 
   test('stale session actions are ignored', () => {
-    const active = liveSessionChatReducer(activeState('session-1'), {
+    const active = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history([chatRow('event-1', 'active')], pageInfo('cursor-1', 'cursor-1')),
       sessionId: 'session-1',
       type: 'retained_initial_loaded',
@@ -538,7 +524,7 @@ describe('liveSessionChatReducer', () => {
         type: 'realtime_event_received' as const,
       },
     ]) {
-      expect(liveSessionChatReducer(active, action)).toBe(active);
+      expect(liveSessionChatTimelineReducer(active, action)).toBe(active);
     }
   });
 
@@ -578,7 +564,7 @@ describe('liveSessionChatReducer', () => {
 });
 
 function activeState(sessionId: string) {
-  return liveSessionChatReducer(createLiveSessionChatState(), {
+  return liveSessionChatTimelineReducer(createLiveSessionChatState(), {
     sessionId,
     type: 'session_changed',
   });

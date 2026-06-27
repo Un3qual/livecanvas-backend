@@ -18,18 +18,18 @@ import { useStartupState } from '../../providers/StartupGate';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import { createPhoenixSocket } from '../../realtime/phoenixSocket';
 import { LiveSessionChatPanel } from '../chat/LiveSessionChatPanel';
+import {
+  canStartLiveSessionChatSend,
+  selectLiveSessionChatVisibleRows,
+} from '../chat/liveSessionChatSelectors';
+import { createLiveSessionChatState } from '../chat/liveSessionChatState';
+import { liveSessionChatTimelineReducer } from '../chat/liveSessionChatTimelineReducer';
 import { createLiveSessionChatChannelLifecycle } from '../liveSessionChatChannelLifecycle';
 import {
   createLiveSessionChannelClient,
   shouldCloseLiveSessionChatChannelAfterJoin,
   type LiveSessionChannelClient,
 } from '../liveSessionChannelClient';
-import {
-  canStartLiveSessionChatSend,
-  createLiveSessionChatState,
-  liveSessionChatReducer,
-  selectLiveSessionChatVisibleRows,
-} from '../liveSessionChatReducer';
 import {
   INITIAL_LIVE_SESSION_CHAT_CHANNEL_STATE,
   type LiveSessionChatChannelMachineEvent,
@@ -67,15 +67,18 @@ import {
 } from './liveSessionWatchOperations';
 import { liveSessionWatchScreenStyles as styles } from './liveSessionWatchScreenStyles';
 import type {
-  LiveSessionWatchContentProps,
   LiveSessionWatchScreenProps,
-  PendingChatSendRef,
   StopViewerPlayback,
 } from './liveSessionWatchScreenTypes';
 
 const INITIAL_TIMELINE_HISTORY_COUNT = 30;
 
 type LiveSessionRealtimeStatusMap = ReadonlyMap<string, LiveSessionStatus>;
+
+type PendingChatSend = {
+  readonly sessionId: string;
+  readonly token: number;
+};
 
 export function LiveSessionWatchScreen({
   sessionId,
@@ -131,7 +134,7 @@ class LiveSessionWatchErrorBoundary extends React.Component<
 
 function LiveSessionWatchContent({
   sessionId,
-}: LiveSessionWatchContentProps) {
+}: LiveSessionWatchScreenProps) {
   const theme = useAppTheme();
   const router = useRouter();
   const auth = useAuth();
@@ -147,7 +150,7 @@ function LiveSessionWatchContent({
     { fetchPolicy: 'store-and-network' },
   );
   const [chatState, dispatchChatAction] = useReducer(
-    liveSessionChatReducer,
+    liveSessionChatTimelineReducer,
     createLiveSessionChatState(),
   );
   const [chatChannelState, setChatChannelState] = useState(() =>
@@ -177,7 +180,7 @@ function LiveSessionWatchContent({
   const [realtimeSessionStatuses, setRealtimeSessionStatuses] =
     useState<LiveSessionRealtimeStatusMap>(() => new Map());
   const chatChannelClientRef = useRef<LiveSessionChannelClient | null>(null);
-  const chatSendPendingRef = useRef<PendingChatSendRef['current']>(null);
+  const chatSendPendingRef = useRef<PendingChatSend | null>(null);
   const chatSendTokenRef = useRef(0);
   const didUnmountRef = useRef(false);
   const stopViewerPlaybackRef = useRef<StopViewerPlayback>(

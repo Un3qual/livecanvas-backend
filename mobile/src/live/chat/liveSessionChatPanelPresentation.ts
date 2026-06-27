@@ -1,7 +1,7 @@
 import type {
   LiveSessionChatChannelStatus,
   LiveSessionChatSendStatus,
-} from '../liveSessionChatReducer';
+} from './liveSessionChatState';
 import type { LiveSessionTimelineHistoryRow } from '../liveSessionTimelineHistory';
 
 export type LiveSessionChatPanelRowModel = {

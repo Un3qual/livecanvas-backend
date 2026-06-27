@@ -13,10 +13,6 @@ export type LiveSessionWatchScreenProps = {
   sessionId: string;
 };
 
-export type PendingChatSendRef = {
-  current: { readonly sessionId: string; readonly token: number } | null;
-};
-
 export type ViewerPlaybackStatus =
   | 'idle'
   | 'preparing'
@@ -44,5 +40,3 @@ export type StopViewerPlaybackGeneration = (
   generation: number,
   options: ViewerPlaybackStopOptions,
 ) => void;
-
-export type LiveSessionWatchContentProps = LiveSessionWatchScreenProps;
