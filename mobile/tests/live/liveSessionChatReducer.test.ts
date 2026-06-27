@@ -11,6 +11,17 @@ import {
   selectLiveSessionChatSendStatus,
   selectLiveSessionChatVisibleRows,
 } from '../../src/live/liveSessionChatReducer';
+import {
+  createLiveSessionChatState as createLiveSessionChatStateFromStateModule,
+} from '../../src/live/chat/liveSessionChatState';
+import {
+  canStartLiveSessionChatSend as canStartLiveSessionChatSendFromSelectorsModule,
+  selectLiveSessionChatVisibleRows as selectLiveSessionChatVisibleRowsFromSelectorsModule,
+} from '../../src/live/chat/liveSessionChatSelectors';
+import {
+  appendRows as appendChatRows,
+  mergeRealtimeEvent as mergeChatRealtimeEvent,
+} from '../../src/live/chat/liveSessionChatTimelineMerge';
 import type {
   LiveSessionTimelineHistory,
   LiveSessionTimelineHistoryPageInfo,
@@ -19,6 +30,39 @@ import type {
 import type { LiveSessionRealtimeEvent } from '../../src/live/liveSessionRealtimeEvents';
 
 describe('liveSessionChatReducer', () => {
+  test('chat modules expose state selectors and merge helpers behind the public reducer shim', () => {
+    expect(createLiveSessionChatStateFromStateModule()).toEqual(
+      createLiveSessionChatState(),
+    );
+
+    const active = activeState('session-1');
+    const appended = appendChatRows(active, [chatRow('event-1', 'retained')]);
+    const merged = {
+      ...active,
+      ...appended,
+    };
+    const withRealtime = mergeChatRealtimeEvent(
+      merged,
+      realtimeTimelineEvent('event-2', 'live message'),
+    );
+
+    expect(
+      selectLiveSessionChatVisibleRowsFromSelectorsModule(withRealtime).map(
+        (row) => row.id,
+      ),
+    ).toEqual(['event-1', 'event-2']);
+    expect(
+      selectLiveSessionChatVisibleRows(withRealtime).map((row) => row.id),
+    ).toEqual(['event-1', 'event-2']);
+    expect(
+      canStartLiveSessionChatSendFromSelectorsModule({
+        channelStatus: 'joined',
+        hasPendingSend: false,
+        sendStatus: 'idle',
+      }),
+    ).toBe(true);
+  });
+
   test('session change resets state to the active session', () => {
     const loaded = liveSessionChatReducer(
       liveSessionChatReducer(createLiveSessionChatState(), {

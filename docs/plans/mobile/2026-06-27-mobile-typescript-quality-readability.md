@@ -231,13 +231,13 @@ This is expected around Phoenix and WebRTC boundaries. The cleanup target is to 
 - Modify: `mobile/src/live/watch/LiveSessionWatchScreen.tsx`
 - Modify: `mobile/tests/live/liveSessionChatReducer.test.ts`
 
-- [ ] Keep the public reducer import working from `mobile/src/live/liveSessionChatReducer.ts`.
-- [ ] Move merge/order/page-info helpers into `liveSessionChatTimelineMerge.ts`.
-- [ ] Move selectors and send-start predicates into `liveSessionChatSelectors.ts`.
-- [ ] Keep action/state types in one state module so reducer tests can import stable names.
-- [ ] Run `cd mobile && bun test tests/live/liveSessionChatReducer.test.ts tests/live/LiveSessionChatPanel.test.ts`.
-- [ ] Run `cd mobile && bun run typecheck`.
-- [ ] Commit with a message like `Split live chat reducer helpers`.
+- [x] Keep the public reducer import working from `mobile/src/live/liveSessionChatReducer.ts`.
+- [x] Move merge/order/page-info helpers into `liveSessionChatTimelineMerge.ts`.
+- [x] Move selectors and send-start predicates into `liveSessionChatSelectors.ts`.
+- [x] Keep action/state types in one state module so reducer tests can import stable names.
+- [x] Run `cd mobile && bun test tests/live/liveSessionChatReducer.test.ts tests/live/LiveSessionChatPanel.test.ts`.
+- [x] Run `cd mobile && bun run typecheck`.
+- [x] Commit with a message like `Split live chat reducer helpers`.
 
 ### Task 7: Introduce Relay Reader Modules For Live Screens
 

@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-27
-Status: Task 5 complete; Task 6 ready
+Status: Task 6 complete; Task 7 ready
 
 ## Lane Scope
 
@@ -31,7 +31,7 @@ Status: Task 5 complete; Task 6 ready
 
 ## Do This Now
 
-Execute Task 6 from
+Execute Task 7 from
 `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`,
 then commit that milestone before continuing.
 
@@ -52,6 +52,5 @@ then commit that milestone before continuing.
 
 ## Next Action
 
-Split chat reducer helpers and selectors while keeping
-`mobile/src/live/liveSessionChatReducer.ts` as the public compatibility
-entrypoint.
+Introduce Relay reader modules for live screens while keeping generated Relay
+artifact imports close to the GraphQL documents or reader modules.
