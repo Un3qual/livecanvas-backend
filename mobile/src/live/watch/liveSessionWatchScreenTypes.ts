@@ -1,6 +1,5 @@
 import type { ComponentType } from 'react';
 
-import type { LiveSessionViewerPlaybackRuntime } from '../liveSessionViewerPlaybackRuntime';
 import type { LiveSessionWatchPendingMutation } from '../liveSessionWatchReducer';
 import type { LiveSessionWatchScreenQuery } from '../../__generated__/LiveSessionWatchScreenQuery.graphql';
 
@@ -52,12 +51,18 @@ export type ViewerPlaybackState = {
   readonly status: ViewerPlaybackStatus;
 };
 
-export type ViewerPlaybackResource = {
-  readonly disconnectSocket: () => void;
-  readonly generation: number;
-  readonly runtime: LiveSessionViewerPlaybackRuntime;
-  readonly sessionId: string;
+export type ViewerPlaybackStopOptions = {
+  readonly resetState: boolean;
 };
+
+export type StopViewerPlayback = (
+  options: ViewerPlaybackStopOptions,
+) => void;
+
+export type StopViewerPlaybackGeneration = (
+  generation: number,
+  options: ViewerPlaybackStopOptions,
+) => void;
 
 export type LiveSessionWatchContentProps = LiveSessionWatchScreenProps & {
   pendingMutationRef: PendingMutationRef;

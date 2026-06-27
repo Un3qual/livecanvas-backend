@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-27
-Status: Task 2 complete; Task 3 ready
+Status: Task 3 complete; Task 4 ready
 
 ## Lane Scope
 
@@ -31,7 +31,7 @@ Status: Task 2 complete; Task 3 ready
 
 ## Do This Now
 
-Execute Task 3 from
+Execute Task 4 from
 `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`,
 then commit that milestone before continuing.
 
@@ -52,6 +52,6 @@ then commit that milestone before continuing.
 
 ## Next Action
 
-Split viewer playback runtime/controller code so the watch screen imports a
-feature-owned playback controller while preserving the current public runtime
-shim and viewer behavior.
+Split host publishing runtime and preflight controller code so host broadcast
+setup imports feature-owned publishing/preflight controllers while preserving
+the current public runtime/session shims and host behavior.

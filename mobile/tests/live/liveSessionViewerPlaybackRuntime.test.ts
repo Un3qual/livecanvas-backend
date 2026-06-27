@@ -22,6 +22,11 @@ import {
   readOptionalString,
 } from '../../src/live/media/liveMediaPayloads';
 import { createLiveWebRtcPeerConnectionFactory } from '../../src/live/media/liveWebRtcAdapter';
+import {
+  createLiveSessionViewerMediaAnswerPayload as createPreparedViewerAnswerPayload,
+  createLiveSessionViewerMediaIceCandidatePayload as createPreparedViewerIceCandidatePayload,
+  readPreparedLiveSessionViewerMedia as readPreparedViewerMedia,
+} from '../../src/live/playback/liveSessionViewerPlaybackPreparation';
 
 class FakePush implements LiveSessionChannelPush {
   private readonly callbacks = new Map<
@@ -325,6 +330,43 @@ async function applyHostOffer(channel: FakeChannel): Promise<void> {
 }
 
 describe('live session viewer media helpers', () => {
+  test('exports preparation helpers from the playback preparation module', () => {
+    expect(
+      readPreparedViewerMedia({
+        errors: [],
+        iceServers: preparedMedia.iceServers,
+        liveSession: {
+          id: preparedMedia.liveSessionId,
+          status: 'STARTING',
+        },
+        signalingTopic: preparedMedia.signalingTopic,
+      }),
+    ).toEqual({
+      ...preparedMedia,
+      liveSessionId: preparedMedia.liveSessionId,
+    });
+    expect(
+      createPreparedViewerAnswerPayload({
+        sdp: 'v=0\r\nviewer-answer',
+        type: 'answer',
+      }),
+    ).toEqual({
+      sdp: 'v=0\r\nviewer-answer',
+      type: 'answer',
+    });
+    expect(
+      createPreparedViewerIceCandidatePayload({
+        candidate: 'candidate:1 1 udp 1 192.0.2.10 54400 typ host',
+        sdpMLineIndex: 0,
+        sdpMid: '0',
+      }),
+    ).toEqual({
+      candidate: 'candidate:1 1 udp 1 192.0.2.10 54400 typ host',
+      sdp_m_line_index: 0,
+      sdp_mid: '0',
+    });
+  });
+
   test('shared media helpers validate descriptions and optional primitives', () => {
     expect(
       createLiveMediaSessionDescriptionPayload(

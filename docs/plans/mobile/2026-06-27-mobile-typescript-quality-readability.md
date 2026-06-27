@@ -170,13 +170,13 @@ This is expected around Phoenix and WebRTC boundaries. The cleanup target is to 
 - Modify: `mobile/src/live/watch/liveSessionWatchScreenTypes.ts`
 - Modify: `mobile/tests/live/liveSessionViewerPlaybackRuntime.test.ts`
 
-- [ ] Move pure preparation readers and payload builders out of the runtime module while preserving current public exports from `mobile/src/live/liveSessionViewerPlaybackRuntime.ts`.
-- [ ] Move `startViewerPlayback`, generation checks, resource disposal, and mutation callback plumbing from the watch screen into `useLiveSessionViewerPlaybackController`.
-- [ ] The hook should expose `{ viewerPlaybackState, start/stop behavior through effects }` or a similarly small typed API, so the screen no longer carries WebRTC lifecycle details.
-- [ ] Keep the current watch screen UI and behavior unchanged.
-- [ ] Run `cd mobile && bun test tests/live/liveSessionViewerPlaybackRuntime.test.ts tests/live/LiveDiscoveryScreen.test.ts`.
-- [ ] Run `cd mobile && bun run typecheck`.
-- [ ] Commit with a message like `Extract viewer playback controller`.
+- [x] Move pure preparation readers and payload builders out of the runtime module while preserving current public exports from `mobile/src/live/liveSessionViewerPlaybackRuntime.ts`.
+- [x] Move `startViewerPlayback`, generation checks, resource disposal, and mutation callback plumbing from the watch screen into `useLiveSessionViewerPlaybackController`.
+- [x] The hook should expose `{ viewerPlaybackState, start/stop behavior through effects }` or a similarly small typed API, so the screen no longer carries WebRTC lifecycle details.
+- [x] Keep the current watch screen UI and behavior unchanged.
+- [x] Run `cd mobile && bun test tests/live/liveSessionViewerPlaybackRuntime.test.ts tests/live/LiveDiscoveryScreen.test.ts`.
+- [x] Run `cd mobile && bun run typecheck`.
+- [x] Commit with a message like `Extract viewer playback controller`.
 
 ### Task 4: Split Host Publishing Runtime And Preflight Controller
 

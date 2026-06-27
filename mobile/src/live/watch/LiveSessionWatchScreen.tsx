@@ -59,26 +59,19 @@ import {
   type LiveSessionRealtimeStatusMap,
 } from '../liveSessionRealtimeStatus';
 import {
-  createDefaultLiveSessionViewerPeerConnectionFactory,
-  createLiveSessionViewerPlaybackRuntime,
-  readPreparedLiveSessionViewerMedia,
-} from '../liveSessionViewerPlaybackRuntime';
-import { handleLiveSessionViewerPlaybackChannelTerminated } from '../liveSessionViewerPlaybackLifecycle';
-import {
   LiveSessionDetailsCard,
   LiveSessionHero,
   LiveSessionWatchControlsCard,
   UnavailableLiveSession,
 } from './components/LiveSessionWatchCards';
 import { LiveSessionViewerPlaybackSurface } from './components/LiveSessionViewerPlaybackSurface';
+import { useLiveSessionViewerPlaybackController } from './hooks/useLiveSessionViewerPlaybackController';
 import { liveSessionWatchScreenStyles as styles } from './liveSessionWatchScreenStyles';
 import type {
   AutoLeaveOnUnmountRef,
   LiveSessionWatchContentProps,
   LiveSessionWatchScreenProps,
   PendingChatSendRef,
-  ViewerPlaybackResource,
-  ViewerPlaybackState,
 } from './liveSessionWatchScreenTypes';
 import type { LiveSessionWatchScreenEndMutation } from '../../__generated__/LiveSessionWatchScreenEndMutation.graphql';
 import type { LiveSessionWatchScreenJoinMutation } from '../../__generated__/LiveSessionWatchScreenJoinMutation.graphql';
@@ -87,12 +80,6 @@ import type { LiveSessionWatchScreenPrepareMediaMutation } from '../../__generat
 import type { LiveSessionWatchScreenQuery } from '../../__generated__/LiveSessionWatchScreenQuery.graphql';
 
 const INITIAL_TIMELINE_HISTORY_COUNT = 30;
-
-const INITIAL_VIEWER_PLAYBACK_STATE: ViewerPlaybackState = {
-  error: null,
-  remoteStreamUrl: null,
-  status: 'idle',
-};
 
 const liveSessionWatchScreenJoinMutation = graphql`
   mutation LiveSessionWatchScreenJoinMutation(
@@ -332,8 +319,6 @@ function LiveSessionWatchContent({
     useMutation<LiveSessionWatchScreenEndMutation>(
       liveSessionWatchScreenEndMutation,
     );
-  const [viewerPlaybackState, setViewerPlaybackState] =
-    useState<ViewerPlaybackState>(INITIAL_VIEWER_PLAYBACK_STATE);
   const [realtimeSessionStatuses, setRealtimeSessionStatuses] =
     useState<LiveSessionRealtimeStatusMap>(() => new Map());
   const autoLeaveOnUnmountRef = useRef<
@@ -344,8 +329,6 @@ function LiveSessionWatchContent({
   const chatSendTokenRef = useRef(0);
   const didUnmountRef = useRef(false);
   const leaveMutationRef = useRef(commitLeaveLiveSession);
-  const viewerPlaybackGenerationRef = useRef(0);
-  const viewerPlaybackResourceRef = useRef<ViewerPlaybackResource | null>(null);
 
   leaveMutationRef.current = commitLeaveLiveSession;
 
@@ -389,6 +372,18 @@ function LiveSessionWatchContent({
     shouldMaintainLiveSessionRealtimeChannel({
       hasRetainedHostPublishingSession,
       isJoined,
+    });
+  const { stopViewerPlayback, viewerPlaybackState } =
+    useLiveSessionViewerPlaybackController({
+      authStatus: auth.state.status,
+      commitPrepareLiveSessionMedia,
+      didUnmountRef,
+      getAccessToken: auth.getAccessToken,
+      isJoined,
+      isLeaving,
+      liveSessionId: session?.id ?? null,
+      normalizedStatus,
+      websocketUrl: environment.websocketUrl,
     });
 
   useEffect(() => {
@@ -449,267 +444,6 @@ function LiveSessionWatchContent({
       commitDetachedLeaveLiveSession(autoLeave.sessionId);
     };
   }, [pendingMutationRef]);
-
-  useEffect(() => {
-    if (
-      !session ||
-      !isJoined ||
-      isLeaving ||
-      normalizedStatus === 'ENDED' ||
-      auth.state.status !== 'authenticated'
-    ) {
-      stopViewerPlayback({ resetState: true });
-      return undefined;
-    }
-
-    const generation = startViewerPlayback(session.id);
-
-    return () => {
-      stopViewerPlaybackGeneration(generation, { resetState: false });
-    };
-  }, [
-    auth.getAccessToken,
-    auth.state.status,
-    commitPrepareLiveSessionMedia,
-    environment.websocketUrl,
-    isJoined,
-    isLeaving,
-    normalizedStatus,
-    session?.id,
-  ]);
-
-  function startViewerPlayback(liveSessionId: string): number {
-    const generation = viewerPlaybackGenerationRef.current + 1;
-    viewerPlaybackGenerationRef.current = generation;
-    disposeViewerPlaybackResource();
-    setViewerPlaybackState({
-      error: null,
-      remoteStreamUrl: null,
-      status: 'preparing',
-    });
-
-    try {
-      commitPrepareLiveSessionMedia({
-        variables: {
-          input: {
-            liveSessionId,
-          },
-        },
-        onCompleted: (payload) => {
-          if (!isViewerPlaybackGenerationActive(generation)) {
-            return;
-          }
-
-          const prepared = readPreparedLiveSessionViewerMedia(
-            payload.prepareLiveMediaSession,
-          );
-
-          if (!prepared) {
-            setViewerPlaybackState({
-              error: formatLiveMutationErrors(
-                payload.prepareLiveMediaSession?.errors,
-              ),
-              remoteStreamUrl: null,
-              status: 'errored',
-            });
-            return;
-          }
-
-          const peerConnectionFactory =
-            createDefaultLiveSessionViewerPeerConnectionFactory();
-
-          if (!peerConnectionFactory) {
-            setViewerPlaybackState({
-              error: 'Live video playback is not available on this device.',
-              remoteStreamUrl: null,
-              status: 'errored',
-            });
-            return;
-          }
-
-          const socket = createPhoenixSocket({
-            getAccessToken: auth.getAccessToken,
-            websocketUrl: environment.websocketUrl,
-          });
-          const runtime = createLiveSessionViewerPlaybackRuntime({
-            onChannelTerminated: () => {
-              handleLiveSessionViewerPlaybackChannelTerminated({
-                generation,
-                isGenerationActive: isViewerPlaybackGenerationActive,
-                setClosed: () => {
-                  setViewerPlaybackState({
-                    error: null,
-                    remoteStreamUrl: null,
-                    status: 'closed',
-                  });
-                },
-                stopPlaybackGeneration: stopViewerPlaybackGeneration,
-              });
-            },
-            onError: (reason) => {
-              if (!isViewerPlaybackGenerationActive(generation)) {
-                return;
-              }
-
-              stopViewerPlaybackGeneration(generation, { resetState: false });
-              setViewerPlaybackState({
-                error: reason,
-                remoteStreamUrl: null,
-                status: 'errored',
-              });
-            },
-            onRemoteStream: (stream) => {
-              if (!isViewerPlaybackGenerationActive(generation)) {
-                return;
-              }
-
-              const remoteStreamUrl = stream?.toURL?.() ?? null;
-
-              setViewerPlaybackState((current) => ({
-                error: current.error,
-                remoteStreamUrl,
-                status: remoteStreamUrl ? 'playing' : current.status,
-              }));
-            },
-            peerConnectionFactory,
-            preparedMedia: prepared,
-            socket,
-          });
-
-          viewerPlaybackResourceRef.current = {
-            disconnectSocket: () => {
-              socket.disconnect();
-            },
-            generation,
-            runtime,
-            sessionId: liveSessionId,
-          };
-
-          setViewerPlaybackState({
-            error: null,
-            remoteStreamUrl: null,
-            status: 'connecting',
-          });
-          socket.connect();
-
-          runtime
-            .start()
-            .then((result) => {
-              if (!isViewerPlaybackGenerationActive(generation)) {
-                return;
-              }
-
-              if (result.status === 'started') {
-                setViewerPlaybackState((current) => ({
-                  error: null,
-                  remoteStreamUrl: current.remoteStreamUrl,
-                  status: current.remoteStreamUrl
-                    ? 'playing'
-                    : 'waiting_for_host',
-                }));
-                return;
-              }
-
-              disposeViewerPlaybackResource(generation);
-              setViewerPlaybackState({
-                error: result.reason,
-                remoteStreamUrl: null,
-                status: 'errored',
-              });
-            })
-            .catch((error: unknown) => {
-              if (!isViewerPlaybackGenerationActive(generation)) {
-                return;
-              }
-
-              disposeViewerPlaybackResource(generation);
-              setViewerPlaybackState({
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : 'Could not start live video playback. Please try again.',
-                remoteStreamUrl: null,
-                status: 'errored',
-              });
-            });
-        },
-        onError: () => {
-          if (!isViewerPlaybackGenerationActive(generation)) {
-            return;
-          }
-
-          setViewerPlaybackState({
-            error: formatLiveMutationErrors([]),
-            remoteStreamUrl: null,
-            status: 'errored',
-          });
-        },
-      });
-    } catch {
-      if (isViewerPlaybackGenerationActive(generation)) {
-        setViewerPlaybackState({
-          error: formatLiveMutationErrors([]),
-          remoteStreamUrl: null,
-          status: 'errored',
-        });
-      }
-    }
-
-    return generation;
-  }
-
-  function isViewerPlaybackGenerationActive(generation: number): boolean {
-    return (
-      !didUnmountRef.current &&
-      viewerPlaybackGenerationRef.current === generation
-    );
-  }
-
-  function stopViewerPlayback({
-    resetState,
-  }: {
-    readonly resetState: boolean;
-  }) {
-    viewerPlaybackGenerationRef.current += 1;
-    disposeViewerPlaybackResource();
-
-    if (resetState && !didUnmountRef.current) {
-      setViewerPlaybackState(INITIAL_VIEWER_PLAYBACK_STATE);
-    }
-  }
-
-  function stopViewerPlaybackGeneration(
-    generation: number,
-    {
-      resetState,
-    }: {
-      readonly resetState: boolean;
-    },
-  ) {
-    if (viewerPlaybackGenerationRef.current === generation) {
-      viewerPlaybackGenerationRef.current += 1;
-    }
-
-    disposeViewerPlaybackResource(generation);
-
-    if (resetState && !didUnmountRef.current) {
-      setViewerPlaybackState(INITIAL_VIEWER_PLAYBACK_STATE);
-    }
-  }
-
-  function disposeViewerPlaybackResource(generation?: number) {
-    const resource = viewerPlaybackResourceRef.current;
-
-    if (!resource || (generation !== undefined && resource.generation !== generation)) {
-      return;
-    }
-
-    // Viewer playback work is generation-scoped so stale prepare/start
-    // continuations cannot dispose the newer runtime that replaced them.
-    viewerPlaybackResourceRef.current = null;
-    resource.runtime.dispose();
-    resource.disconnectSocket();
-  }
 
   useEffect(() => {
     if (
