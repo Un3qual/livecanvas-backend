@@ -2,22 +2,14 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useReducer,
   useRef,
   useState,
 } from 'react';
 import type { UseMutationConfig } from 'react-relay';
+import { createActor, type ActorRefFrom } from 'xstate';
 
 import type { AuthState } from '../../../auth/types';
 import { formatLiveMutationErrors } from '../../../live/liveSessionPresentation';
-import {
-  canCreateHostPreflightSession,
-  canGoLiveFromHostPreflight,
-  createHostBroadcastPreflightState,
-  hostBroadcastPreflightBlockers,
-  hostBroadcastPreflightReducer,
-  type HostBroadcastPreflightState,
-} from '../../hostBroadcastPreflight';
 import {
   isRetryableHostGoLiveMediaReadinessError,
   readPreparedHostBroadcastMedia,
@@ -33,16 +25,13 @@ import {
   type HostBroadcastPublishingSessionStore,
 } from '../../publishing/hostBroadcastPublishingSessionStore';
 import {
-  canRequestAbandonedHostPreflightCleanup,
-  canRequestHostGoLive,
-  canSubmitHostPreflightStartRequest,
-  canUseHostPreflightBackAction,
-  createHostBroadcastSessionState,
-  hostBroadcastPreflightCleanupLiveSessionId,
-  hostBroadcastSessionReducer,
-  type HostBroadcastSessionAction,
-  type HostBroadcastSessionState,
-} from '../../hostBroadcastSession';
+  INITIAL_HOST_BROADCAST_PREFLIGHT_WORKFLOW_STATE,
+  hostBroadcastPreflightMachine,
+  selectHostBroadcastPreflightCleanupLiveSessionId,
+  selectHostBroadcastPreflightWorkflowState,
+  type HostBroadcastPreflightMachineEvent,
+  type HostBroadcastPreflightWorkflowViewState,
+} from '../state/hostBroadcastPreflightMachine';
 import type {
   HostBroadcastPreflightScreenEndMutation,
   HostBroadcastPreflightScreenGoLiveMutation,
@@ -101,34 +90,26 @@ export type HostBroadcastPreflightControllerOptions = {
   readonly websocketUrl: string;
 };
 
-type HostBroadcastStateSetter<T> = (
-  nextState: T | ((current: T) => T),
-) => void;
-
 export type HostBroadcastPreflightControllerLifecycleOptions = {
   readonly commitEndLiveSession: HostBroadcastEndLiveSessionCommit;
   readonly commitGoLive: HostBroadcastGoLiveCommit;
   readonly commitPrepareMedia: HostBroadcastPrepareMediaCommit;
   readonly commitStartLiveSession: HostBroadcastStartLiveSessionCommit;
-  readonly dispatchSessionAction: (action: HostBroadcastSessionAction) => void;
   readonly disposeNative: () => void;
   readonly failPreparedPublishing: (reason: string) => void;
-  readonly getCanCreateSession: () => boolean;
-  readonly getCanGoLive: () => boolean;
-  readonly getCanPrepareMedia: () => boolean;
-  readonly getCanUseBackAction: () => boolean;
-  readonly getSessionState: () => HostBroadcastSessionState;
   readonly hasRetainedPublishingResource: () => boolean;
   readonly navigateBack: () => void;
   readonly navigateToLiveSession: (liveSessionId: string) => void;
+  readonly onWorkflowStateChanged: (
+    state: HostBroadcastPreflightWorkflowViewState,
+  ) => void;
   readonly resetPreparedMedia: () => void;
   readonly retainAttachedPublishingForLiveSession: (
     liveSessionId: string,
   ) => HostBroadcastPublishingResource | null;
-  readonly setHostActionError: (error: string | null) => void;
-  readonly setIsGoingLive: HostBroadcastStateSetter<boolean>;
-  readonly setIsPreparingMedia: HostBroadcastStateSetter<boolean>;
-  readonly setPreparedMedia: HostBroadcastStateSetter<HostBroadcastMediaPreparation | null>;
+  readonly setPreparedMedia: (
+    preparedMedia: HostBroadcastMediaPreparation | null,
+  ) => void;
 };
 
 export type HostBroadcastPreflightControllerLifecycle = {
@@ -141,32 +122,57 @@ export type HostBroadcastPreflightControllerLifecycle = {
     liveSessionId: string,
     options?: PreflightEndLiveSessionOptions,
   ) => void;
+  readonly sendWorkflowEvent: (
+    event: HostBroadcastPreflightMachineEvent,
+  ) => HostBroadcastPreflightWorkflowViewState;
   readonly unmount: () => void;
   readonly updateOptions: (
     options: HostBroadcastPreflightControllerLifecycleOptions,
   ) => void;
 };
 
+type HostBroadcastPreflightActor = ActorRefFrom<
+  typeof hostBroadcastPreflightMachine
+>;
+
 export function createHostBroadcastPreflightControllerLifecycle(
   initialOptions: HostBroadcastPreflightControllerLifecycleOptions,
 ): HostBroadcastPreflightControllerLifecycle {
   let options = initialOptions;
-  let hasStartLiveSessionRequestInFlight = false;
-  let hasEndLiveSessionRequestInFlight = false;
-  let hasGoLiveRequestInFlight = false;
-  let hasGoLiveSucceeded = false;
+  const actor: HostBroadcastPreflightActor = createActor(
+    hostBroadcastPreflightMachine,
+  ).start();
+  let currentWorkflowState = selectHostBroadcastPreflightWorkflowState(
+    actor.getSnapshot(),
+  );
   let isMounted = true;
 
   function updateOptions(nextOptions: HostBroadcastPreflightControllerLifecycleOptions) {
     options = nextOptions;
   }
 
-  function readPreflightCleanupState() {
-    return {
-      hasEndLiveSessionRequestInFlight,
-      hasGoLiveRequestInFlight,
-      hasGoLiveSucceeded,
-    };
+  function publishWorkflowState() {
+    currentWorkflowState = selectHostBroadcastPreflightWorkflowState(
+      actor.getSnapshot(),
+    );
+
+    if (isMounted) {
+      options.onWorkflowStateChanged(currentWorkflowState);
+    }
+
+    return currentWorkflowState;
+  }
+
+  function sendWorkflowEvent(event: HostBroadcastPreflightMachineEvent) {
+    actor.send(event);
+    return publishWorkflowState();
+  }
+
+  function readWorkflowState() {
+    currentWorkflowState = selectHostBroadcastPreflightWorkflowState(
+      actor.getSnapshot(),
+    );
+    return currentWorkflowState;
   }
 
   function requestPreflightEndLiveSession(
@@ -177,21 +183,15 @@ export function createHostBroadcastPreflightControllerLifecycle(
   ) {
     // Back cleanup reports failures to the mounted screen, while abandoned
     // cleanup only attempts non-blocking teardown after unmount.
-    if (hasEndLiveSessionRequestInFlight) {
+    if (readWorkflowState().status === 'ending') {
       return;
     }
 
-    hasEndLiveSessionRequestInFlight = true;
     const updateSessionLifecycle =
       endOptions.navigateBackOnSuccess ||
       endOptions.updateSessionLifecycle === true;
 
-    if (updateSessionLifecycle) {
-      options.dispatchSessionAction({ type: 'end_requested' });
-      if (endOptions.navigateBackOnSuccess) {
-        options.setHostActionError(null);
-      }
-    }
+    sendWorkflowEvent({ type: 'END_REQUESTED' });
 
     options.commitEndLiveSession({
       variables: {
@@ -200,50 +200,53 @@ export function createHostBroadcastPreflightControllerLifecycle(
         },
       },
       onCompleted: (payload) => {
-        hasEndLiveSessionRequestInFlight = false;
-
-        if (!updateSessionLifecycle) {
-          return;
-        }
-
         const result = payload.endLiveSession;
 
         if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
           const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
-          options.dispatchSessionAction({
-            type: 'end_failed',
-            viewerSafeErrorText,
-          });
-          options.setHostActionError(viewerSafeErrorText);
+          if (updateSessionLifecycle) {
+            sendWorkflowEvent({
+              type: 'END_FAILED',
+              viewerSafeErrorText,
+            });
+          } else {
+            sendWorkflowEvent({
+              type: 'END_FAILED',
+              viewerSafeErrorText,
+            });
+          }
           return;
         }
 
-        options.dispatchSessionAction({ type: 'end_succeeded' });
+        sendWorkflowEvent({ type: 'END_SUCCEEDED' });
         if (endOptions.navigateBackOnSuccess) {
           options.navigateBack();
         }
       },
       onError: () => {
-        hasEndLiveSessionRequestInFlight = false;
-
-        if (!updateSessionLifecycle) {
-          return;
-        }
-
         const viewerSafeErrorText = formatLiveMutationErrors([]);
-        options.dispatchSessionAction({
-          type: 'end_failed',
-          viewerSafeErrorText,
-        });
-        options.setHostActionError(viewerSafeErrorText);
+        if (updateSessionLifecycle) {
+          sendWorkflowEvent({
+            type: 'END_FAILED',
+            viewerSafeErrorText,
+          });
+        } else {
+          sendWorkflowEvent({
+            type: 'END_FAILED',
+            viewerSafeErrorText,
+          });
+        }
       },
     });
   }
 
   function requestAbandonedPreflightEndLiveSession(liveSessionId: string) {
     // Abandoned preflight cleanup is best-effort and non-navigating; the
-    // shared cleanup gate makes duplicate end/go-live races no-ops.
-    if (!canRequestAbandonedHostPreflightCleanup(readPreflightCleanupState())) {
+    // machine cleanup selector makes duplicate end/go-live races no-ops.
+    if (
+      selectHostBroadcastPreflightCleanupLiveSessionId(actor.getSnapshot()) !==
+      liveSessionId
+    ) {
       return;
     }
 
@@ -253,18 +256,12 @@ export function createHostBroadcastPreflightControllerLifecycle(
   }
 
   function handleCreateSessionPress() {
-    if (
-      !canSubmitHostPreflightStartRequest(options.getCanCreateSession(), {
-        hasStartLiveSessionRequestInFlight,
-      })
-    ) {
+    if (!readWorkflowState().canCreateSession) {
       return;
     }
 
-    hasStartLiveSessionRequestInFlight = true;
-    options.dispatchSessionAction({ type: 'start_requested' });
+    sendWorkflowEvent({ type: 'CREATE_SESSION_REQUESTED' });
     options.resetPreparedMedia();
-    options.setHostActionError(null);
 
     options.commitStartLiveSession({
       variables: {
@@ -276,59 +273,48 @@ export function createHostBroadcastPreflightControllerLifecycle(
         const result = payload.startLiveSession;
 
         if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
-          hasStartLiveSessionRequestInFlight = false;
-
           if (!isMounted) {
             return;
           }
 
-          const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
-          options.dispatchSessionAction({
-            type: 'start_failed',
-            viewerSafeErrorText,
+          sendWorkflowEvent({
+            type: 'CREATE_SESSION_FAILED',
+            viewerSafeErrorText: formatLiveMutationErrors(result?.errors),
           });
-          options.setHostActionError(viewerSafeErrorText);
           return;
         }
 
-        hasStartLiveSessionRequestInFlight = false;
+        sendWorkflowEvent({
+          liveSessionId: result.liveSession.id,
+          type: 'CREATE_SESSION_SUCCEEDED',
+        });
 
         if (!isMounted) {
           requestAbandonedPreflightEndLiveSession(result.liveSession.id);
-          return;
         }
-
-        options.dispatchSessionAction({
-          liveSessionId: result.liveSession.id,
-          type: 'start_succeeded',
-        });
       },
       onError: () => {
-        hasStartLiveSessionRequestInFlight = false;
-
         if (!isMounted) {
           return;
         }
 
-        const viewerSafeErrorText = formatLiveMutationErrors([]);
-        options.dispatchSessionAction({
-          type: 'start_failed',
-          viewerSafeErrorText,
+        sendWorkflowEvent({
+          type: 'CREATE_SESSION_FAILED',
+          viewerSafeErrorText: formatLiveMutationErrors([]),
         });
-        options.setHostActionError(viewerSafeErrorText);
       },
     });
   }
 
   function handlePrepareMediaPress() {
-    const liveSessionId = options.getSessionState().liveSessionId;
+    const workflowState = readWorkflowState();
+    const liveSessionId = workflowState.sessionState.liveSessionId;
 
-    if (!options.getCanPrepareMedia() || !liveSessionId) {
+    if (!workflowState.canPrepareMedia || !liveSessionId) {
       return;
     }
 
-    options.setIsPreparingMedia(true);
-    options.setHostActionError(null);
+    sendWorkflowEvent({ type: 'PREPARE_MEDIA_REQUESTED' });
 
     options.commitPrepareMedia({
       variables: {
@@ -337,37 +323,40 @@ export function createHostBroadcastPreflightControllerLifecycle(
         },
       },
       onCompleted: (payload) => {
-        options.setIsPreparingMedia(false);
-
         const result = payload.prepareLiveMediaSession;
         const prepared = readPreparedHostBroadcastMedia(result);
 
         if (!prepared) {
           options.resetPreparedMedia();
-          options.setHostActionError(formatLiveMutationErrors(result?.errors));
+          sendWorkflowEvent({
+            type: 'PREPARE_MEDIA_FAILED',
+            viewerSafeErrorText: formatLiveMutationErrors(result?.errors),
+          });
           return;
         }
 
         options.setPreparedMedia(prepared);
+        sendWorkflowEvent({ type: 'PREPARE_MEDIA_SUCCEEDED' });
       },
       onError: () => {
-        options.setIsPreparingMedia(false);
         options.resetPreparedMedia();
-        options.setHostActionError(formatLiveMutationErrors([]));
+        sendWorkflowEvent({
+          type: 'PREPARE_MEDIA_FAILED',
+          viewerSafeErrorText: formatLiveMutationErrors([]),
+        });
       },
     });
   }
 
   function handleGoLivePress() {
-    const liveSessionId = options.getSessionState().liveSessionId;
+    const workflowState = readWorkflowState();
+    const liveSessionId = workflowState.sessionState.liveSessionId;
 
-    if (!options.getCanGoLive() || !liveSessionId) {
+    if (!workflowState.canGoLive || !liveSessionId) {
       return;
     }
 
-    options.setIsGoingLive(true);
-    hasGoLiveRequestInFlight = true;
-    options.setHostActionError(null);
+    sendWorkflowEvent({ type: 'GO_LIVE_REQUESTED' });
 
     options.commitGoLive({
       variables: {
@@ -376,25 +365,27 @@ export function createHostBroadcastPreflightControllerLifecycle(
         },
       },
       onCompleted: (payload) => {
-        hasGoLiveRequestInFlight = false;
         const result = payload.goLiveSession;
 
         if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
-          if (!isMounted) {
-            requestAbandonedPreflightEndLiveSession(liveSessionId);
-            return;
-          }
-
-          options.setIsGoingLive(false);
+          const retryable = isRetryableHostGoLiveMediaReadinessError(
+            result?.errors,
+          );
           const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
 
-          if (isRetryableHostGoLiveMediaReadinessError(result?.errors)) {
-            options.setHostActionError(viewerSafeErrorText);
-            return;
+          if (!retryable) {
+            options.resetPreparedMedia();
           }
 
-          options.resetPreparedMedia();
-          options.setHostActionError(viewerSafeErrorText);
+          sendWorkflowEvent({
+            retryable,
+            type: 'GO_LIVE_FAILED',
+            viewerSafeErrorText,
+          });
+
+          if (!isMounted) {
+            requestAbandonedPreflightEndLiveSession(liveSessionId);
+          }
           return;
         }
 
@@ -404,11 +395,14 @@ export function createHostBroadcastPreflightControllerLifecycle(
 
         if (!retainedResource) {
           if (!isMounted) {
+            sendWorkflowEvent({
+              type: 'PUBLISHING_FAILED',
+              viewerSafeErrorText: HOST_PUBLISHING_ERROR,
+            });
             requestAbandonedPreflightEndLiveSession(result.liveSession.id);
             return;
           }
 
-          options.setIsGoingLive(false);
           options.failPreparedPublishing(HOST_PUBLISHING_ERROR);
           // Go-live already succeeded, so end the backend session if the host
           // cannot retain the publishing runtime needed to serve viewers.
@@ -419,41 +413,33 @@ export function createHostBroadcastPreflightControllerLifecycle(
           return;
         }
 
-        hasGoLiveSucceeded = true;
-        if (isMounted) {
-          options.setIsGoingLive(false);
-        }
+        sendWorkflowEvent({
+          liveSessionId: result.liveSession.id,
+          type: 'GO_LIVE_SUCCEEDED',
+        });
         options.navigateToLiveSession(result.liveSession.id);
       },
       onError: () => {
-        hasGoLiveRequestInFlight = false;
-
         if (!isMounted) {
           return;
         }
 
-        options.setIsGoingLive(false);
-        options.setHostActionError(formatLiveMutationErrors([]));
+        sendWorkflowEvent({
+          retryable: true,
+          type: 'GO_LIVE_FAILED',
+          viewerSafeErrorText: formatLiveMutationErrors([]),
+        });
       },
     });
   }
 
   function handleBackPress() {
-    if (!options.getCanUseBackAction()) {
+    if (!readWorkflowState().canUseBackAction) {
       return;
     }
 
-    if (
-      hasEndLiveSessionRequestInFlight ||
-      hasGoLiveRequestInFlight ||
-      hasGoLiveSucceeded
-    ) {
-      return;
-    }
-
-    const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
-      options.getSessionState(),
-      readPreflightCleanupState(),
+    const liveSessionId = selectHostBroadcastPreflightCleanupLiveSessionId(
+      actor.getSnapshot(),
     );
 
     if (!liveSessionId) {
@@ -468,13 +454,13 @@ export function createHostBroadcastPreflightControllerLifecycle(
 
   function mount() {
     isMounted = true;
+    publishWorkflowState();
   }
 
   function unmount() {
     isMounted = false;
-    const liveSessionId = hostBroadcastPreflightCleanupLiveSessionId(
-      options.getSessionState(),
-      readPreflightCleanupState(),
+    const liveSessionId = selectHostBroadcastPreflightCleanupLiveSessionId(
+      actor.getSnapshot(),
     );
 
     if (liveSessionId) {
@@ -493,6 +479,7 @@ export function createHostBroadcastPreflightControllerLifecycle(
     handlePrepareMediaPress,
     mount,
     requestPreflightEndLiveSession,
+    sendWorkflowEvent,
     unmount,
     updateOptions,
   };
@@ -516,22 +503,27 @@ export function useHostBroadcastPreflightController({
     () => createHostBroadcastPublishingPreflightController(),
     [],
   );
-  const [preflightState, dispatchPreflightAction] = useReducer(
-    hostBroadcastPreflightReducer,
-    createHostBroadcastPreflightState(),
-  );
-  const blockers = hostBroadcastPreflightBlockers(preflightState);
-  const [sessionState, dispatchSessionAction] = useReducer(
-    hostBroadcastSessionReducer,
-    createHostBroadcastSessionState(),
-  );
+  const [workflowState, setWorkflowState] =
+    useState<HostBroadcastPreflightWorkflowViewState>(
+      INITIAL_HOST_BROADCAST_PREFLIGHT_WORKFLOW_STATE,
+    );
+  const {
+    canCreateSession,
+    canGoLive,
+    canPrepareMedia,
+    canUseBackAction,
+    errorMessage,
+    hasBlockers,
+    hasPreparedMedia,
+    isGoingLive,
+    isPreparingMedia,
+    preflightState,
+    sessionState,
+  } = workflowState;
   const [preparedMedia, setPreparedMedia] =
     useState<HostBroadcastMediaPreparation | null>(null);
-  const [isPreparingMedia, setIsPreparingMedia] = useState(false);
-  const [isGoingLive, setIsGoingLive] = useState(false);
   const [publishingStatus, setPublishingStatus] =
     useState<HostBroadcastPublishingStatus>('idle');
-  const [hostActionError, setHostActionError] = useState<string | null>(null);
   const hasRetainedHostPublishingResourceRef = useRef(false);
   const retainedHostPublishingResourceRef =
     useRef<HostBroadcastPublishingResource | null>(null);
@@ -546,32 +538,10 @@ export function useHostBroadcastPreflightController({
   >(() => null);
   const preflightLifecycleRef =
     useRef<HostBroadcastPreflightControllerLifecycle | null>(null);
-  const hasPreparedMedia = preparedMedia !== null;
-  const canCreateSession =
-    canCreateHostPreflightSession(preflightState) &&
-    sessionState.status !== 'creating' &&
-    sessionState.liveSessionId === null;
-  const canPrepareMedia =
-    sessionState.status === 'starting' &&
-    sessionState.liveSessionId !== null &&
-    !hasPreparedMedia &&
-    !isPreparingMedia;
-  const canGoLive =
-    canGoLiveFromHostPreflight(preflightState) &&
-    canRequestHostGoLive(sessionState, hasPreparedMedia) &&
-    !isGoingLive;
-  const canUseBackAction = canUseHostPreflightBackAction(
-    sessionState,
-    isGoingLive,
-  );
 
   const resetPreparedMedia = useCallback(() => {
     setPreparedMedia(null);
     setPublishingStatus('idle');
-    dispatchPreflightAction({
-      ready: false,
-      type: 'backend_media_contract_changed',
-    });
   }, []);
 
   const failPreparedPublishing = useCallback(
@@ -579,20 +549,30 @@ export function useHostBroadcastPreflightController({
       publishingPreflightController.cleanupAttachedResource();
       setPreparedMedia(null);
       setPublishingStatus('errored');
-      dispatchPreflightAction({
-        ready: false,
-        type: 'backend_media_contract_changed',
+      preflightLifecycleRef.current?.sendWorkflowEvent({
+        type: 'PUBLISHING_FAILED',
+        viewerSafeErrorText: reason,
       });
-      setHostActionError(reason);
     },
     [publishingPreflightController],
   );
 
   const setBackendMediaContractReady = useCallback((ready: boolean) => {
-    dispatchPreflightAction({
+    preflightLifecycleRef.current?.sendWorkflowEvent({
       ready,
-      type: 'backend_media_contract_changed',
+      type: 'BACKEND_MEDIA_CONTRACT_CHANGED',
     });
+  }, []);
+
+  const setHostActionError = useCallback((error: string | null) => {
+    preflightLifecycleRef.current?.sendWorkflowEvent(
+      error
+        ? {
+            type: 'HOST_ACTION_ERROR_REPORTED',
+            viewerSafeErrorText: error,
+          }
+        : { type: 'HOST_ACTION_ERROR_CLEARED' },
+    );
   }, []);
 
   const setIdlePublishingStatusUnlessErrored = useCallback(() => {
@@ -605,24 +585,16 @@ export function useHostBroadcastPreflightController({
       commitGoLive,
       commitPrepareMedia,
       commitStartLiveSession,
-      dispatchSessionAction,
       disposeNative: native.dispose,
       failPreparedPublishing,
-      getCanCreateSession: () => canCreateSession,
-      getCanGoLive: () => canGoLive,
-      getCanPrepareMedia: () => canPrepareMedia,
-      getCanUseBackAction: () => canUseBackAction,
-      getSessionState: () => sessionState,
       hasRetainedPublishingResource: () =>
         hasRetainedPublishingResourceCallbackRef.current(),
       navigateBack,
       navigateToLiveSession,
+      onWorkflowStateChanged: setWorkflowState,
       resetPreparedMedia,
       retainAttachedPublishingForLiveSession: (liveSessionId) =>
         retainAttachedPublishingForLiveSessionCallbackRef.current(liveSessionId),
-      setHostActionError,
-      setIsGoingLive,
-      setIsPreparingMedia,
       setPreparedMedia,
     };
 
@@ -676,19 +648,19 @@ export function useHostBroadcastPreflightController({
         return;
       }
 
-      dispatchPreflightAction({
+      preflightLifecycle.sendWorkflowEvent({
         permission: 'camera',
         state: permissions.camera,
-        type: 'permission_changed',
+        type: 'PERMISSION_CHANGED',
       });
-      dispatchPreflightAction({
+      preflightLifecycle.sendWorkflowEvent({
         permission: 'microphone',
         state: permissions.microphone,
-        type: 'permission_changed',
+        type: 'PERMISSION_CHANGED',
       });
-      dispatchPreflightAction({
+      preflightLifecycle.sendWorkflowEvent({
         ready: preview.status !== 'native_media_unavailable',
-        type: 'native_media_changed',
+        type: 'NATIVE_MEDIA_CHANGED',
       });
     }
 
@@ -697,9 +669,9 @@ export function useHostBroadcastPreflightController({
         return;
       }
 
-      dispatchPreflightAction({
+      preflightLifecycle.sendWorkflowEvent({
         ready: false,
-        type: 'native_media_changed',
+        type: 'NATIVE_MEDIA_CHANGED',
       });
     });
 
@@ -715,8 +687,8 @@ export function useHostBroadcastPreflightController({
       canGoLive,
       canPrepareMedia,
       canUseBackAction,
-      errorMessage: hostActionError ?? sessionState.viewerSafeErrorText,
-      hasBlockers: blockers.length > 0,
+      errorMessage,
+      hasBlockers,
       hasPreparedMedia,
       isGoingLive,
       isPreparingMedia,

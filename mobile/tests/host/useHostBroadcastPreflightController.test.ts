@@ -2,11 +2,9 @@ import { describe, expect, test } from 'bun:test';
 
 import type { HostBroadcastMediaPreparation } from '../../src/host/hostBroadcastMediaSignaling';
 import {
-  createHostBroadcastSessionState,
-  hostBroadcastSessionReducer,
-  type HostBroadcastSessionAction,
-  type HostBroadcastSessionState,
-} from '../../src/host/hostBroadcastSession';
+  INITIAL_HOST_BROADCAST_PREFLIGHT_WORKFLOW_STATE,
+  type HostBroadcastPreflightWorkflowViewState,
+} from '../../src/host/preflight/state/hostBroadcastPreflightMachine';
 import type { HostBroadcastPublishingResource } from '../../src/host/publishing/hostBroadcastPublishingSessionStore';
 import type { HostBroadcastPublishingStatus } from '../../src/host/preflight/hooks/useHostBroadcastPublishingController';
 import {
@@ -103,8 +101,6 @@ type LiveSessionPayload = {
   readonly status: 'LIVE' | 'STARTING';
 };
 
-type StateUpdate<T> = T | ((current: T) => T);
-
 function createHarness() {
   const endCommits: EndLiveSessionCommitConfig[] = [];
   const goLiveCommits: GoLiveCommitConfig[] = [];
@@ -113,17 +109,16 @@ function createHarness() {
   const prepareCommits: PrepareMediaCommitConfig[] = [];
   const retainedLiveSessionIds: string[] = [];
   const startCommits: StartLiveSessionCommitConfig[] = [];
-  let backendMediaReady = false;
   let canRetainPublishingResource = true;
   let disposedNativeCount = 0;
-  let hostActionError: string | null = null;
-  let isGoingLive = false;
-  let isPreparingMedia = false;
   let preparedMedia: HostBroadcastMediaPreparation | null = null;
   let publishingStatus: HostBroadcastPublishingStatus = 'idle';
   let retainedResource: HostBroadcastPublishingResource | null = null;
-  let sessionState = createHostBroadcastSessionState();
-  const lifecycle = createHostBroadcastPreflightControllerLifecycle({
+  let workflowState: HostBroadcastPreflightWorkflowViewState =
+    INITIAL_HOST_BROADCAST_PREFLIGHT_WORKFLOW_STATE;
+  let lifecycle: HostBroadcastPreflightControllerLifecycle;
+
+  lifecycle = createHostBroadcastPreflightControllerLifecycle({
     commitEndLiveSession: ((config) => {
       endCommits.push(config as EndLiveSessionCommitConfig);
     }) as HostBroadcastEndLiveSessionCommit,
@@ -136,37 +131,17 @@ function createHarness() {
     commitStartLiveSession: ((config) => {
       startCommits.push(config as StartLiveSessionCommitConfig);
     }) as HostBroadcastStartLiveSessionCommit,
-    dispatchSessionAction: (action: HostBroadcastSessionAction) => {
-      sessionState = hostBroadcastSessionReducer(sessionState, action);
-    },
     disposeNative: () => {
       disposedNativeCount += 1;
     },
     failPreparedPublishing: (reason) => {
       preparedMedia = null;
       publishingStatus = 'errored';
-      backendMediaReady = false;
-      hostActionError = reason;
+      lifecycle.sendWorkflowEvent({
+        type: 'PUBLISHING_FAILED',
+        viewerSafeErrorText: reason,
+      });
     },
-    getCanCreateSession: () =>
-      sessionState.status !== 'creating' &&
-      sessionState.liveSessionId === null,
-    getCanGoLive: () =>
-      sessionState.status === 'starting' &&
-      sessionState.liveSessionId !== null &&
-      preparedMedia !== null &&
-      backendMediaReady &&
-      !isGoingLive,
-    getCanPrepareMedia: () =>
-      sessionState.status === 'starting' &&
-      sessionState.liveSessionId !== null &&
-      preparedMedia === null &&
-      !isPreparingMedia,
-    getCanUseBackAction: () =>
-      sessionState.status !== 'creating' &&
-      sessionState.status !== 'ending' &&
-      !isGoingLive,
-    getSessionState: () => sessionState,
     hasRetainedPublishingResource: () => retainedResource !== null,
     navigateBack: () => {
       navigateBackCalls.push('back');
@@ -177,7 +152,6 @@ function createHarness() {
     resetPreparedMedia: () => {
       preparedMedia = null;
       publishingStatus = 'idle';
-      backendMediaReady = false;
     },
     retainAttachedPublishingForLiveSession: (liveSessionId) => {
       if (!canRetainPublishingResource) {
@@ -188,19 +162,15 @@ function createHarness() {
       retainedResource = createPublishingResource();
       return retainedResource;
     },
-    setHostActionError: (error) => {
-      hostActionError = error;
+    onWorkflowStateChanged: (nextState) => {
+      workflowState = nextState;
     },
-    setIsGoingLive: setState((next) => {
-      isGoingLive = next;
-    }, () => isGoingLive),
-    setIsPreparingMedia: setState((next) => {
-      isPreparingMedia = next;
-    }, () => isPreparingMedia),
-    setPreparedMedia: setState((next) => {
+    setPreparedMedia: (next) => {
       preparedMedia = next;
-    }, () => preparedMedia),
+    },
   });
+
+  markNativeReady();
 
   function completeStartSession(liveSessionId = 'live-session-id') {
     startCommits[startCommits.length - 1]?.onCompleted?.(
@@ -214,9 +184,29 @@ function createHarness() {
     );
   }
 
+  function markNativeReady() {
+    lifecycle.sendWorkflowEvent({
+      permission: 'camera',
+      state: 'granted',
+      type: 'PERMISSION_CHANGED',
+    });
+    lifecycle.sendWorkflowEvent({
+      permission: 'microphone',
+      state: 'granted',
+      type: 'PERMISSION_CHANGED',
+    });
+    lifecycle.sendWorkflowEvent({
+      ready: true,
+      type: 'NATIVE_MEDIA_CHANGED',
+    });
+  }
+
   function markBackendMediaReady() {
-    backendMediaReady = true;
     publishingStatus = 'ready';
+    lifecycle.sendWorkflowEvent({
+      ready: true,
+      type: 'BACKEND_MEDIA_CONTRACT_CHANGED',
+    });
   }
 
   function prepareStartedSession(liveSessionId = 'live-session-id') {
@@ -232,16 +222,16 @@ function createHarness() {
     completeStartSession,
     endCommits,
     get backendMediaReady() {
-      return backendMediaReady;
+      return workflowState.preflightState.backendMediaContractReady;
     },
     get disposedNativeCount() {
       return disposedNativeCount;
     },
     get hostActionError() {
-      return hostActionError;
+      return workflowState.errorMessage;
     },
     get isGoingLive() {
-      return isGoingLive;
+      return workflowState.isGoingLive;
     },
     get preparedMedia() {
       return preparedMedia;
@@ -250,7 +240,10 @@ function createHarness() {
       return publishingStatus;
     },
     get sessionState() {
-      return sessionState;
+      return workflowState.sessionState;
+    },
+    get workflowState() {
+      return workflowState;
     },
     goLiveCommits,
     lifecycle,
@@ -264,15 +257,6 @@ function createHarness() {
       canRetainPublishingResource = nextValue;
     },
     startCommits,
-  };
-}
-
-function setState<T>(
-  write: (next: T) => void,
-  read: () => T,
-): (next: StateUpdate<T>) => void {
-  return (next) => {
-    write(typeof next === 'function' ? (next as (current: T) => T)(read()) : next);
   };
 }
 
@@ -337,6 +321,15 @@ function createRetryableGoLivePayload(): GoLivePayload {
   return {
     goLiveSession: {
       errors: [{ message: 'media_not_ready' }],
+      liveSession: null,
+    },
+  };
+}
+
+function createNonRetryableGoLivePayload(): GoLivePayload {
+  return {
+    goLiveSession: {
+      errors: [{ message: 'not_authorized' }],
       liveSession: null,
     },
   };
@@ -430,6 +423,25 @@ describe('useHostBroadcastPreflightController lifecycle', () => {
     expect(harness.isGoingLive).toBe(false);
   });
 
+  test('clears prepared media when go-live returns non-retryable errors', () => {
+    const harness = createHarness();
+
+    harness.prepareStartedSession();
+
+    harness.lifecycle.handleGoLivePress();
+    harness.goLiveCommits[0].onCompleted?.(createNonRetryableGoLivePayload());
+
+    expect(harness.preparedMedia).toBeNull();
+    expect(harness.backendMediaReady).toBe(false);
+    expect(harness.publishingStatus).toBe('idle');
+    expect(harness.hostActionError).toBe(
+      'This live session is not available to your account.',
+    );
+    expect(harness.retainedLiveSessionIds).toEqual([]);
+    expect(harness.endCommits).toEqual([]);
+    expect(harness.isGoingLive).toBe(false);
+  });
+
   test('requests abandoned cleanup when unmounted after a start succeeds', () => {
     const harness = createHarness();
 
@@ -444,5 +456,18 @@ describe('useHostBroadcastPreflightController lifecycle', () => {
     expect(harness.navigateBackCalls).toEqual([]);
     expect(harness.navigatedLiveSessionIds).toEqual([]);
     expect(harness.disposedNativeCount).toBe(1);
+  });
+
+  test('does not dispose native resources on unmount when publishing is retained', () => {
+    const harness = createHarness();
+
+    harness.prepareStartedSession();
+    harness.lifecycle.handleGoLivePress();
+    harness.goLiveCommits[0].onCompleted?.(createGoLivePayload('live-session-id'));
+    harness.lifecycle.unmount();
+
+    expect(harness.retainedLiveSessionIds).toEqual(['live-session-id']);
+    expect(harness.disposedNativeCount).toBe(0);
+    expect(harness.endCommits).toEqual([]);
   });
 });
