@@ -56,6 +56,7 @@ export type LiveSessionWatchMachineEvent =
 type LiveSessionWatchMachineActions = {
   readonly clearJoined: undefined;
   readonly failEnd: undefined;
+  readonly failEndJoined: undefined;
   readonly failJoin: undefined;
   readonly failLeave: undefined;
   readonly markJoined: undefined;
@@ -66,6 +67,7 @@ type LiveSessionWatchMachineActions = {
 };
 
 type LiveSessionWatchMachineGuards = {
+  readonly canStartSessionCommand: undefined;
   readonly isActiveSession: undefined;
 };
 
@@ -78,6 +80,9 @@ export const liveSessionWatchMachine = setup<
   LiveSessionWatchMachineGuards
 >({
   guards: {
+    canStartSessionCommand: ({ context, event }) =>
+      context.activeSessionId === null ||
+      context.activeSessionId === event.sessionId,
     isActiveSession: ({ context, event }) =>
       context.activeSessionId === event.sessionId,
   },
@@ -145,6 +150,12 @@ export const liveSessionWatchMachine = setup<
       error: formatFailureEvent(event),
       pendingCommand: null,
     })),
+    failEndJoined: assign(({ event }) => ({
+      activeSessionId: event.sessionId,
+      autoLeaveEnabled: true,
+      error: formatFailureEvent(event),
+      pendingCommand: null,
+    })),
   },
 }).createMachine({
   id: 'liveSessionWatch',
@@ -166,10 +177,12 @@ export const liveSessionWatchMachine = setup<
       on: {
         JOIN_REQUESTED: {
           actions: 'requestJoin',
+          guard: 'canStartSessionCommand',
           target: 'joining',
         },
         END_REQUESTED: {
           actions: 'requestEnd',
+          guard: 'canStartSessionCommand',
           target: 'endingIdle',
         },
         SESSION_ENDED: {
@@ -253,9 +266,14 @@ export const liveSessionWatchMachine = setup<
           target: 'idle',
         },
         END_FAILED: {
-          actions: 'failEnd',
+          actions: 'failEndJoined',
           guard: 'isActiveSession',
           target: 'joined',
+        },
+        MEMBERSHIP_LOST: {
+          actions: 'clearJoined',
+          guard: 'isActiveSession',
+          target: 'idle',
         },
         SESSION_ENDED: {
           actions: 'clearJoined',
