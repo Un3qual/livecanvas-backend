@@ -192,13 +192,13 @@ This is expected around Phoenix and WebRTC boundaries. The cleanup target is to 
 - Modify: `mobile/tests/host/hostBroadcastPublishingRuntime.test.ts`
 - Modify: `mobile/tests/host/hostBroadcastPublishingSession.test.ts`
 
-- [ ] Move retained resource store and auth-loss raw GraphQL response validation out of `hostBroadcastPublishingSession.ts`.
-- [ ] Move host runtime implementation under `host/publishing`, leaving the top-level file as a public shim.
-- [ ] Move native readiness, start/prepare/go-live/end handlers, and cleanup refs into preflight hooks with explicit typed return values for card props.
-- [ ] Keep route navigation and card rendering in `HostBroadcastPreflightScreen.tsx`.
-- [ ] Run `cd mobile && bun test tests/host`.
-- [ ] Run `cd mobile && bun run typecheck`.
-- [ ] Commit with a message like `Extract host publishing controllers`.
+- [x] Move retained resource store and auth-loss raw GraphQL response validation out of `hostBroadcastPublishingSession.ts`.
+- [x] Move host runtime implementation under `host/publishing`, leaving the top-level file as a public shim.
+- [x] Move native readiness, start/prepare/go-live/end handlers, and cleanup refs into preflight hooks with explicit typed return values for card props.
+- [x] Keep route navigation and card rendering in `HostBroadcastPreflightScreen.tsx`.
+- [x] Run `cd mobile && bun test tests/host`.
+- [x] Run `cd mobile && bun run typecheck`.
+- [x] Commit with a message like `Extract host publishing controllers`.
 
 ### Task 5: Split Realtime Event Normalization
 

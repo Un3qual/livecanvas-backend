@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-27
-Status: Task 3 complete; Task 4 ready
+Status: Task 4 complete; Task 5 ready
 
 ## Lane Scope
 
@@ -31,7 +31,7 @@ Status: Task 3 complete; Task 4 ready
 
 ## Do This Now
 
-Execute Task 4 from
+Execute Task 5 from
 `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`,
 then commit that milestone before continuing.
 
@@ -52,6 +52,6 @@ then commit that milestone before continuing.
 
 ## Next Action
 
-Split host publishing runtime and preflight controller code so host broadcast
-setup imports feature-owned publishing/preflight controllers while preserving
-the current public runtime/session shims and host behavior.
+Split realtime event normalization into focused media, timeline, session-state,
+and guard modules while keeping `normalizeLiveSessionRealtimeEvent` as the
+public compatibility entrypoint.
