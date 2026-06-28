@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type PropsWithChildren, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
@@ -137,35 +137,23 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.flex}
-      >
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          style={styles.flex}
-        >
-          <AuthEntryCard
-            controller={controller}
-            copy={copy}
-            email={email}
-            mode={mode}
-            onAlternateScreenPress={handleAlternateScreenPress}
-            onAppleSubmit={handleAppleSubmit}
-            onEmailChange={handleEmailChange}
-            onGoogleSubmit={handleGoogleSubmit}
-            onPasswordChange={handlePasswordChange}
-            onPasswordConfirmationChange={handlePasswordConfirmationChange}
-            onPasswordSubmit={handlePasswordSubmit}
-            password={password}
-            passwordConfirmation={passwordConfirmation}
-          />
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+    <AuthEntryScreenLayout backgroundColor={theme.colors.background}>
+      <AuthEntryCard
+        controller={controller}
+        copy={copy}
+        email={email}
+        mode={mode}
+        onAlternateScreenPress={handleAlternateScreenPress}
+        onAppleSubmit={handleAppleSubmit}
+        onEmailChange={handleEmailChange}
+        onGoogleSubmit={handleGoogleSubmit}
+        onPasswordChange={handlePasswordChange}
+        onPasswordConfirmationChange={handlePasswordConfirmationChange}
+        onPasswordSubmit={handlePasswordSubmit}
+        password={password}
+        passwordConfirmation={passwordConfirmation}
+      />
+    </AuthEntryScreenLayout>
   );
 }
 
@@ -184,6 +172,33 @@ type AuthEntryCardProps = {
   password: string;
   passwordConfirmation: string;
 };
+
+type AuthEntryScreenLayoutProps = PropsWithChildren<{
+  backgroundColor: string;
+}>;
+
+function AuthEntryScreenLayout({
+  backgroundColor,
+  children,
+}: AuthEntryScreenLayoutProps) {
+  return (
+    <View style={[styles.screen, { backgroundColor }]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.flex}
+      >
+        <ScrollView
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          style={styles.flex}
+        >
+          {children}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
 
 function AuthEntryCard({
   controller,
