@@ -8,7 +8,7 @@ mock.module('react-native', () => ({
   ActivityIndicator: NullComponent,
   FlatList: NullComponent,
   Linking: {
-    getInitialURL: async () => null,
+    getInitialURL: () => Promise.resolve(null),
   },
   Platform: {
     OS: 'ios',
