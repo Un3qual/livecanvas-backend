@@ -21,6 +21,10 @@ function resolveVoid(): Promise<void> {
   return Promise.resolve();
 }
 
+function returnUndefined(): undefined {
+  return undefined;
+}
+
 async function waitFor(predicate: () => boolean, label: string): Promise<void> {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     if (predicate()) return;
@@ -50,11 +54,11 @@ describe('createAuthenticatedFetch', () => {
 
     const loadTokensDeferred = Promise.withResolvers<typeof initialTokens | null>();
     let storedTokens = initialTokens;
-    const loadTokens = mock(async () => loadTokensDeferred.promise);
-    const storeTokens = mock(async (pair) => {
+    const loadTokens = mock(() => loadTokensDeferred.promise);
+    const storeTokens = mock((pair) => {
       storedTokens = pair;
     });
-    const clearTokens = mock(async () => {
+    const clearTokens = mock(() => {
       storedTokens = null as typeof storedTokens;
     });
 
@@ -69,7 +73,7 @@ describe('createAuthenticatedFetch', () => {
     const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -93,8 +97,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -153,11 +157,11 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let storedTokens = initialTokens;
-    const loadTokens = mock(async () => storedTokens);
-    const storeTokens = mock(async (pair) => {
+    const loadTokens = mock(() => storedTokens);
+    const storeTokens = mock((pair) => {
       storedTokens = pair;
     });
-    const clearTokens = mock(async () => {
+    const clearTokens = mock(() => {
       storedTokens = null as typeof storedTokens;
     });
 
@@ -174,7 +178,7 @@ describe('createAuthenticatedFetch', () => {
     const refreshTokensUsed: string[] = [];
     let staleAccessRequests = 0;
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
       const query = String(request.query);
@@ -213,8 +217,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -274,7 +278,7 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let storageCleared = false;
-    const loadTokens = mock(async () => (storageCleared ? null : initialTokens));
+    const loadTokens = mock(() => (storageCleared ? null : initialTokens));
     const storeTokens = mock(resolveVoid);
     const clearTokens = mock(resolveVoid);
 
@@ -289,7 +293,7 @@ describe('createAuthenticatedFetch', () => {
     const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -309,8 +313,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -363,7 +367,7 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let loadCount = 0;
-    const loadTokens = mock(async () => {
+    const loadTokens = mock(() => {
       loadCount += 1;
       return loadCount === 1 ? initialTokens : null;
     });
@@ -379,7 +383,7 @@ describe('createAuthenticatedFetch', () => {
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
     let refreshCalls = 0;
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -410,8 +414,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -439,11 +443,11 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let storedTokens = null as typeof signedInTokens | null;
-    const loadTokens = mock(async () => storedTokens);
-    const storeTokens = mock(async (pair) => {
+    const loadTokens = mock(() => storedTokens);
+    const storeTokens = mock((pair) => {
       storedTokens = pair;
     });
-    const clearTokens = mock(async () => {
+    const clearTokens = mock(() => {
       storedTokens = null;
     });
 
@@ -456,7 +460,7 @@ describe('createAuthenticatedFetch', () => {
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
     const response = Promise.withResolvers<Response>();
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
       expect(authHeader).toBeNull();
@@ -464,8 +468,8 @@ describe('createAuthenticatedFetch', () => {
       return response.promise;
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -507,11 +511,11 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let storedTokens = sessionATokens;
-    const loadTokens = mock(async () => storedTokens);
-    const storeTokens = mock(async (pair) => {
+    const loadTokens = mock(() => storedTokens);
+    const storeTokens = mock((pair) => {
       storedTokens = pair;
     });
-    const clearTokens = mock(async () => {
+    const clearTokens = mock(() => {
       storedTokens = null as typeof storedTokens;
     });
 
@@ -526,7 +530,7 @@ describe('createAuthenticatedFetch', () => {
     const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -550,8 +554,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -604,7 +608,7 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let loadCount = 0;
-    const loadTokens = mock(async () => {
+    const loadTokens = mock(() => {
       loadCount += 1;
       return loadCount === 1 ? sessionATokens : sessionBTokens;
     });
@@ -620,7 +624,7 @@ describe('createAuthenticatedFetch', () => {
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
     let refreshCalls = 0;
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -640,8 +644,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -674,11 +678,11 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let storedTokens = sessionATokens;
-    const loadTokens = mock(async () => storedTokens);
-    const storeTokens = mock(async (pair) => {
+    const loadTokens = mock(() => storedTokens);
+    const storeTokens = mock((pair) => {
       storedTokens = pair;
     });
-    const clearTokens = mock(async () => {
+    const clearTokens = mock(() => {
       storedTokens = null as typeof storedTokens;
     });
 
@@ -693,7 +697,7 @@ describe('createAuthenticatedFetch', () => {
     const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -713,8 +717,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -758,7 +762,7 @@ describe('createAuthenticatedFetch', () => {
       expiresAt: '2026-04-01T00:00:00.000Z',
     };
 
-    const loadTokens = mock(async () => initialTokens);
+    const loadTokens = mock(() => initialTokens);
     const storeTokens = mock(resolveVoid);
     const clearTokens = mock(resolveVoid);
 
@@ -770,7 +774,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -785,8 +789,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -812,7 +816,7 @@ describe('createAuthenticatedFetch', () => {
       expiresAt: '2026-04-01T00:00:00.000Z',
     };
 
-    const loadTokens = mock(async () => initialTokens);
+    const loadTokens = mock(() => initialTokens);
     const storeTokens = mock(resolveVoid);
     const clearTokens = mock(resolveVoid);
 
@@ -824,7 +828,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -847,8 +851,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -874,7 +878,7 @@ describe('createAuthenticatedFetch', () => {
       expiresAt: '2026-04-01T00:00:00.000Z',
     };
 
-    const loadTokens = mock(async () => initialTokens);
+    const loadTokens = mock(() => initialTokens);
     const storeTokens = mock(resolveVoid);
     const clearTokens = mock(resolveVoid);
 
@@ -886,7 +890,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -909,8 +913,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -943,9 +947,9 @@ describe('createAuthenticatedFetch', () => {
       expiresAt: '2026-04-01T00:00:00.000Z',
     };
 
-    const loadTokens = mock(async () => initialTokens);
+    const loadTokens = mock(() => initialTokens);
     const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(async () => {
+    const clearTokens = mock(() => {
       throw new Error('secure store unavailable');
     });
 
@@ -957,7 +961,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -980,8 +984,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -1002,7 +1006,7 @@ describe('createAuthenticatedFetch', () => {
   });
 
   test('continues without auth headers when token storage reads fail', async () => {
-    const loadTokens = mock(async () => {
+    const loadTokens = mock(() => {
       throw new Error('secure store unavailable');
     });
     const storeTokens = mock(resolveVoid);
@@ -1016,7 +1020,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
       expect(authHeader).toBeNull();
@@ -1024,8 +1028,8 @@ describe('createAuthenticatedFetch', () => {
       return jsonResponse({ data: { viewer: null } });
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -1052,7 +1056,7 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let authStatus: 'authenticated' | 'unauthenticated' = 'unauthenticated';
-    const loadTokens = mock(async () => staleTokens);
+    const loadTokens = mock(() => staleTokens);
     const storeTokens = mock(resolveVoid);
     const clearTokens = mock(resolveVoid);
 
@@ -1064,7 +1068,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
       expect(authHeader).toBeNull();
@@ -1072,8 +1076,8 @@ describe('createAuthenticatedFetch', () => {
       return jsonResponse({ data: { viewer: null } });
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
-    const onTokensChanged = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
+    const onTokensChanged = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -1095,7 +1099,7 @@ describe('createAuthenticatedFetch', () => {
   });
 
   test('throws an HTTP error instead of a JSON parse error for non-JSON failures', async () => {
-    const loadTokens = mock(async () => null);
+    const loadTokens = mock(() => null);
     const storeTokens = mock(resolveVoid);
     const clearTokens = mock(resolveVoid);
 
@@ -1107,7 +1111,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock(async () => {
+    globalThis.fetch = mock(() => {
       return textResponse('<html>bad gateway</html>', {
         status: 502,
         statusText: 'Bad Gateway',
@@ -1115,7 +1119,7 @@ describe('createAuthenticatedFetch', () => {
       });
     }) as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
     const fetchFn = createAuthenticatedFetch('https://api.example.com', onForcedLogout);
     const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
       ReturnType<typeof createAuthenticatedFetch>

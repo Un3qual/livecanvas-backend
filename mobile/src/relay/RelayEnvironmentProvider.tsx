@@ -15,18 +15,20 @@ export function RelayEnvironmentProvider({
   const { state, onForcedLogout, syncTokens, getAuthStatus } = useAuth();
   const authStatus = state.status;
 
-  const relayEnvironment = useMemo(() => {
+  const relayEnvironmentScope = useMemo(() => {
     // Rebuild the Relay store when auth transitions between loading,
     // authenticated, and unauthenticated so cached records do not leak across
     // same-process logout/login boundaries.
-    void authStatus;
     const fetchFn = createAuthenticatedFetch(
       environment.apiBaseUrl,
       onForcedLogout,
       syncTokens,
       getAuthStatus,
     );
-    return createRelayEnvironment(environment.apiBaseUrl, fetchFn);
+    return {
+      authStatus,
+      relayEnvironment: createRelayEnvironment(environment.apiBaseUrl, fetchFn),
+    };
   }, [
     authStatus,
     environment.apiBaseUrl,
@@ -36,7 +38,7 @@ export function RelayEnvironmentProvider({
   ]);
 
   return (
-    <RelayProvider environment={relayEnvironment}>
+    <RelayProvider environment={relayEnvironmentScope.relayEnvironment}>
       {children}
     </RelayProvider>
   );

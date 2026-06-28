@@ -48,14 +48,6 @@ import type { ViewerProfileScreenDeclineFollowRequestMutation } from '../../__ge
 import type { ViewerProfileScreenPrivacyModeMutation } from '../../__generated__/ViewerProfileScreenPrivacyModeMutation.graphql';
 import type { ViewerProfileScreenQuery } from '../../__generated__/ViewerProfileScreenQuery.graphql';
 
-type ViewerProfileData = ViewerProfileScreenQuery['response'];
-type ViewerProfileViewer = NonNullable<ViewerProfileData['viewer']>;
-type PendingFollowRequestEdge = NonNullable<
-  NonNullable<ViewerProfileData['viewerPendingFollowRequests']>['edges']
->[number];
-type PendingFollowRequest = NonNullable<
-  NonNullable<PendingFollowRequestEdge>['node']
->;
 type FollowRequestSubmissionInput = {
   readonly follower: {
     readonly id: string;
