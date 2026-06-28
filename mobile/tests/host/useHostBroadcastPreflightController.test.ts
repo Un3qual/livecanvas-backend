@@ -116,9 +116,8 @@ function createHarness() {
   let retainedResource: HostBroadcastPublishingResource | null = null;
   let workflowState: HostBroadcastPreflightWorkflowViewState =
     INITIAL_HOST_BROADCAST_PREFLIGHT_WORKFLOW_STATE;
-  let lifecycle: HostBroadcastPreflightControllerLifecycle;
-
-  lifecycle = createHostBroadcastPreflightControllerLifecycle({
+  const lifecycle: HostBroadcastPreflightControllerLifecycle =
+    createHostBroadcastPreflightControllerLifecycle({
     commitEndLiveSession: ((config) => {
       endCommits.push(config as EndLiveSessionCommitConfig);
     }) as HostBroadcastEndLiveSessionCommit,

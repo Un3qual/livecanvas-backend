@@ -7,18 +7,34 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
+class MockRelayEnvironment {
+  readonly mockName = 'Environment';
+}
+
+class MockRelayRecordSource {
+  readonly mockName = 'RecordSource';
+}
+
+class MockRelayStore {
+  readonly mockName = 'Store';
+}
+
+function mockRelayRuntime() {
+  mock.module('relay-runtime', () => ({
+    Environment: MockRelayEnvironment,
+    Network: { create: (fetchFn: unknown) => fetchFn },
+    RecordSource: MockRelayRecordSource,
+    Store: MockRelayStore,
+  }));
+}
+
 describe('createBasicFetch', () => {
   test('falls back to an empty query string when Relay operation text is unavailable', async () => {
-    mock.module('relay-runtime', () => ({
-      Environment: class Environment {},
-      Network: { create: (fetchFn: unknown) => fetchFn },
-      RecordSource: class RecordSource {},
-      Store: class Store {},
-    }));
+    mockRelayRuntime();
 
     const { createBasicFetch } = await import('../../src/relay/environment');
 
-    globalThis.fetch = mock(async (_url, init) => {
+    globalThis.fetch = mock((_url, init) => {
       expect(JSON.parse(String(init?.body))).toEqual({
         query: '',
         variables: { id: 'viewer-1' },
@@ -40,16 +56,11 @@ describe('createBasicFetch', () => {
   });
 
   test('throws a descriptive HTTP error for non-JSON transport failures', async () => {
-    mock.module('relay-runtime', () => ({
-      Environment: class Environment {},
-      Network: { create: (fetchFn: unknown) => fetchFn },
-      RecordSource: class RecordSource {},
-      Store: class Store {},
-    }));
+    mockRelayRuntime();
 
     const { createBasicFetch } = await import('../../src/relay/environment');
 
-    globalThis.fetch = mock(async () => {
+    globalThis.fetch = mock(() => {
       return new Response('<html>bad gateway</html>', {
         status: 502,
         statusText: 'Bad Gateway',
@@ -67,16 +78,11 @@ describe('createBasicFetch', () => {
   });
 
   test('returns JSON GraphQL errors from non-2xx responses', async () => {
-    mock.module('relay-runtime', () => ({
-      Environment: class Environment {},
-      Network: { create: (fetchFn: unknown) => fetchFn },
-      RecordSource: class RecordSource {},
-      Store: class Store {},
-    }));
+    mockRelayRuntime();
 
     const { createBasicFetch } = await import('../../src/relay/environment');
 
-    globalThis.fetch = mock(async () => {
+    globalThis.fetch = mock(() => {
       return new Response(JSON.stringify({ errors: [{ message: 'unauthenticated' }] }), {
         status: 401,
         statusText: 'Unauthorized',

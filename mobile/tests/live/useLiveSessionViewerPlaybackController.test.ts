@@ -49,6 +49,10 @@ type Deferred<T> = {
   readonly resolve: (value: T) => void;
 };
 
+function failViewerPlaybackRuntimeChannel() {
+  throw new Error('controller tests replace the runtime boundary');
+}
+
 class FakeSocket {
   connectCount = 0;
   disconnectCount = 0;
@@ -66,9 +70,7 @@ class FakeSocket {
     this.disconnectCount += 1;
   }
 
-  channel() {
-    throw new Error('controller tests replace the runtime boundary');
-  }
+  readonly channel = failViewerPlaybackRuntimeChannel;
 }
 
 class FakeRuntime implements LiveSessionViewerPlaybackRuntime {

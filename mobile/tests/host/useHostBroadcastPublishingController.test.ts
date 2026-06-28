@@ -23,13 +23,15 @@ type Deferred<T> = {
   readonly resolve: (value: T) => void;
 };
 
+function failPublishingRuntimeChannel() {
+  throw new Error('controller tests replace the publishing runtime boundary');
+}
+
 class FakeSocket {
   connectCount = 0;
   disconnectCount = 0;
 
-  channel() {
-    throw new Error('controller tests replace the publishing runtime boundary');
-  }
+  readonly channel = failPublishingRuntimeChannel;
 
   connect(): void {
     this.connectCount += 1;
@@ -73,6 +75,13 @@ function createDeferred<T>(): Deferred<T> {
 
   return { promise, resolve };
 }
+
+const preparedMedia: HostBroadcastMediaPreparation = {
+  channelTopic: 'live_session:chat-topic',
+  iceServers: [],
+  liveSessionId: 'live-session-id',
+  signalingTopic: 'live_session_media:opaque-topic',
+};
 
 function createHarness() {
   const hostPublishingSessions = createHostBroadcastPublishingSessionStore();
@@ -185,13 +194,6 @@ function createHarness() {
     sync,
   };
 }
-
-const preparedMedia: HostBroadcastMediaPreparation = {
-  channelTopic: 'live_session:chat-topic',
-  iceServers: [],
-  liveSessionId: 'live-session-id',
-  signalingTopic: 'live_session_media:opaque-topic',
-};
 
 async function flushAsyncHandlers(): Promise<void> {
   for (let index = 0; index < 20; index += 1) {

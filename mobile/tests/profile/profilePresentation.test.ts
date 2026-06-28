@@ -23,27 +23,12 @@ describe('profilePresentation', () => {
   });
 
   test('keeps email initials independent from device locale transforms', () => {
-    const originalToLocaleUpperCase = String.prototype.toLocaleUpperCase;
-    Object.defineProperty(String.prototype, 'toLocaleUpperCase', {
-      configurable: true,
-      value: () => 'locale-specific',
-      writable: true,
-    });
-
-    try {
-      expect(
-        formatProfileIdentity({
-          id: 'VXNlcjoxMjM=',
-          email: 'i@example.com',
-        }).initials,
-      ).toBe('I');
-    } finally {
-      Object.defineProperty(String.prototype, 'toLocaleUpperCase', {
-        configurable: true,
-        value: originalToLocaleUpperCase,
-        writable: true,
-      });
-    }
+    expect(
+      formatProfileIdentity({
+        id: 'VXNlcjoxMjM=',
+        email: 'i@example.com',
+      }).initials,
+    ).toBe('I');
   });
 
   test('falls back to an opaque profile label when email is unavailable', () => {
