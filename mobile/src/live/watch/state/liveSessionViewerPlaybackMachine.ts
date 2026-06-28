@@ -41,11 +41,12 @@ export const INITIAL_VIEWER_PLAYBACK_STATE: ViewerPlaybackState = {
 export const liveSessionViewerPlaybackMachine = setup<
   LiveSessionViewerPlaybackMachineContext,
   LiveSessionViewerPlaybackMachineEvent,
-  {},
-  {},
+  Record<string, never>,
+  Record<string, never>,
   LiveSessionViewerPlaybackMachineActions,
   LiveSessionViewerPlaybackMachineGuards
 >({
+  actors: {},
   guards: {
     hasRemoteStream: ({ context }) => context.remoteStreamUrl !== null,
     receivedRemoteStream: ({ event }) =>

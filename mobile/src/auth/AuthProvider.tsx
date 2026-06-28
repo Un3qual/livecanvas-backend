@@ -111,24 +111,37 @@ export function AuthProvider({
   useEffect(() => {
     let cancelled = false;
 
-    void loadInitialAuthState(apiBaseUrl).then((nextState) => {
-      if (
-        cancelled ||
-        bootstrapRanRef.current ||
-        stateRef.current.status !== 'loading'
-      ) {
-        return;
-      }
+    loadInitialAuthState(apiBaseUrl)
+      .then((nextState) => {
+        if (
+          cancelled ||
+          bootstrapRanRef.current ||
+          stateRef.current.status !== 'loading'
+        ) {
+          return;
+        }
 
-      bootstrapRanRef.current = true;
+        bootstrapRanRef.current = true;
 
-      if (nextState.status === 'authenticated') {
-        commitAuthenticatedTokens(nextState.tokens);
-        return;
-      }
+        if (nextState.status === 'authenticated') {
+          commitAuthenticatedTokens(nextState.tokens);
+          return;
+        }
 
-      commitUnauthenticated();
-    });
+        commitUnauthenticated();
+      })
+      .catch(() => {
+        if (
+          cancelled ||
+          bootstrapRanRef.current ||
+          stateRef.current.status !== 'loading'
+        ) {
+          return;
+        }
+
+        bootstrapRanRef.current = true;
+        commitUnauthenticated();
+      });
 
     return () => {
       cancelled = true;

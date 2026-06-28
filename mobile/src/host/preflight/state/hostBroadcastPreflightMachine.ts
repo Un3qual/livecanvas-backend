@@ -165,11 +165,12 @@ export const INITIAL_HOST_BROADCAST_PREFLIGHT_WORKFLOW_STATE: HostBroadcastPrefl
 export const hostBroadcastPreflightMachine = setup<
   HostBroadcastPreflightMachineContext,
   HostBroadcastPreflightMachineEvent,
-  {},
-  {},
+  Record<string, never>,
+  Record<string, never>,
   HostBroadcastPreflightMachineActions,
   HostBroadcastPreflightMachineGuards
 >({
+  actors: {},
   guards: {
     canCreateSession: ({ context }) =>
       canCreateHostPreflightSession(selectPreflightStateFromContext(context)) &&
@@ -201,7 +202,7 @@ export const hostBroadcastPreflightMachine = setup<
     },
   },
   actions: {
-    updatePermission: assign(({ context, event }) => {
+    updatePermission: assign(({ event }) => {
       if (event.type !== 'PERMISSION_CHANGED') {
         return {};
       }

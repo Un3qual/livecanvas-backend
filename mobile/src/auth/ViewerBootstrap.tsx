@@ -42,7 +42,7 @@ export function ViewerBootstrap({ children }: PropsWithChildren) {
     useState<ResolvedViewerBootstrap | null>(null);
 
   if (state.status !== 'authenticated') {
-    return <>{children}</>;
+    return children;
   }
 
   const resolvedViewer =
@@ -135,7 +135,7 @@ function ViewerBootstrapQueryLoader({
 
   useEffect(() => {
     if (!viewer) {
-      void signOut();
+      signOut();
       return;
     }
 

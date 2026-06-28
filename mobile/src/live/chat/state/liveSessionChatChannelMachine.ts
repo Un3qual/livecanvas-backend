@@ -69,11 +69,12 @@ export const INITIAL_LIVE_SESSION_CHAT_CHANNEL_STATE: LiveSessionChatChannelView
 export const liveSessionChatChannelMachine = setup<
   LiveSessionChatChannelMachineContext,
   LiveSessionChatChannelMachineEvent,
-  {},
-  {},
+  Record<string, never>,
+  Record<string, never>,
   LiveSessionChatChannelMachineActions,
   LiveSessionChatChannelMachineGuards
 >({
+  actors: {},
   guards: {
     isActiveSession: ({ context, event }) =>
       context.activeSessionId === event.sessionId,

@@ -74,11 +74,12 @@ type LiveSessionWatchMachineGuards = {
 export const liveSessionWatchMachine = setup<
   LiveSessionWatchMachineContext,
   LiveSessionWatchMachineEvent,
-  {},
-  {},
+  Record<string, never>,
+  Record<string, never>,
   LiveSessionWatchMachineActions,
   LiveSessionWatchMachineGuards
 >({
+  actors: {},
   guards: {
     canStartSessionCommand: ({ context, event }) =>
       context.activeSessionId === event.sessionId,

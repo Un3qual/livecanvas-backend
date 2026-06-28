@@ -1,5 +1,4 @@
 import type { liveSessionWatchOperationsPrepareMediaMutation } from '../../__generated__/liveSessionWatchOperationsPrepareMediaMutation.graphql';
-import type { LiveMutationError } from '../liveSessionPresentation';
 import {
   createLiveMediaSessionDescriptionPayload,
   normalizeLiveMediaIceCandidatePayload,
