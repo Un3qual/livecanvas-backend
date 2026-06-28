@@ -5,12 +5,16 @@ import {
   runBestEffortBeforeUnauthenticatedCallback,
 } from '../../src/auth/authProviderLifecycle';
 
+function returnUndefined(): undefined {
+  return undefined;
+}
+
 describe('authProviderLifecycle', () => {
   test('forces an unauthenticated transition even if token clearing fails', async () => {
-    const clearTokens = mock(async () => {
+    const clearTokens = mock(() => {
       throw new Error('secure store unavailable');
     });
-    const onForcedLogout = mock(() => {});
+    const onForcedLogout = mock(returnUndefined);
 
     await expect(forceUnauthenticated(clearTokens, onForcedLogout)).resolves.toBeUndefined();
     expect(clearTokens).toHaveBeenCalledTimes(1);

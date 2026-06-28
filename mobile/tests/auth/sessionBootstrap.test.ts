@@ -4,6 +4,10 @@ import type { AuthTokenPair } from '../../src/auth/types';
 import { REFRESH_MUTATION } from '../../src/auth/authenticatedFetchHelpers';
 import { restoreStoredSession } from '../../src/auth/sessionBootstrap';
 
+function returnUndefined(): undefined {
+  return undefined;
+}
+
 describe('restoreStoredSession', () => {
   test('refreshes stored tokens with refreshAuthTokens and stores the rotated pair', async () => {
     const storedTokens: AuthTokenPair = {
@@ -16,7 +20,7 @@ describe('restoreStoredSession', () => {
       refreshToken: 'refreshed-refresh-token',
       expiresAt: '2026-05-02T00:00:00.000Z',
     };
-    const fetchImpl = mock(async () =>
+    const fetchImpl = mock(() =>
       new Response(
         JSON.stringify({
           data: {
@@ -35,11 +39,11 @@ describe('restoreStoredSession', () => {
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
     );
-    const storeTokens = mock(async (_tokens: AuthTokenPair) => {});
-    const clearTokens = mock(async () => {});
+    const storeTokens = mock(returnUndefined);
+    const clearTokens = mock(returnUndefined);
 
     const state = await restoreStoredSession('http://localhost:4000', {
-      readTokens: async () => storedTokens,
+      readTokens: () => storedTokens,
       storeTokens,
       clearTokens,
       fetchImpl,
@@ -64,7 +68,7 @@ describe('restoreStoredSession', () => {
   });
 
   test('clears stored tokens when refreshAuthTokens rejects the session', async () => {
-    const fetchImpl = mock(async () =>
+    const fetchImpl = mock(() =>
       new Response(
         JSON.stringify({
           data: {
@@ -83,15 +87,15 @@ describe('restoreStoredSession', () => {
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
     );
-    const clearTokens = mock(async () => {});
+    const clearTokens = mock(returnUndefined);
 
     const state = await restoreStoredSession('http://localhost:4000', {
-      readTokens: async () => ({
+      readTokens: () => ({
         accessToken: 'expired-access-token',
         refreshToken: 'revoked-refresh-token',
         expiresAt: '2000-01-01T00:00:00.000Z',
       }),
-      storeTokens: async () => {
+      storeTokens: () => {
         throw new Error('store should not run');
       },
       clearTokens,
@@ -114,18 +118,18 @@ describe('restoreStoredSession', () => {
     }> = [
       {
         name: 'transport error',
-        fetchImpl: mock(async () => {
+        fetchImpl: mock(() => {
           throw new Error('offline');
         }),
       },
       {
         name: 'HTTP 503',
-        fetchImpl: mock(async () => new Response('unavailable', { status: 503 })),
+        fetchImpl: mock(() => new Response('unavailable', { status: 503 })),
       },
       {
         name: 'invalid JSON',
         fetchImpl: mock(
-          async () =>
+          () =>
             new Response('not json', {
               status: 200,
               headers: { 'Content-Type': 'application/json' },
@@ -135,7 +139,7 @@ describe('restoreStoredSession', () => {
       {
         name: 'malformed response',
         fetchImpl: mock(
-          async () =>
+          () =>
             new Response(JSON.stringify({ data: { refreshAuthTokens: null } }), {
               status: 200,
               headers: { 'Content-Type': 'application/json' },
@@ -145,11 +149,11 @@ describe('restoreStoredSession', () => {
     ];
 
     for (const { name, fetchImpl } of cases) {
-      const storeTokens = mock(async (_tokens: AuthTokenPair) => {});
-      const clearTokens = mock(async () => {});
+      const storeTokens = mock(returnUndefined);
+      const clearTokens = mock(returnUndefined);
 
       const state = await restoreStoredSession('http://localhost:4000', {
-        readTokens: async () => storedTokens,
+        readTokens: () => storedTokens,
         storeTokens,
         clearTokens,
         fetchImpl,
@@ -165,15 +169,15 @@ describe('restoreStoredSession', () => {
   });
 
   test('does not call the network when no stored tokens exist', async () => {
-    const fetchImpl = mock(async () => {
+    const fetchImpl = mock(() => {
       throw new Error('network should not run');
     });
 
     await expect(
       restoreStoredSession('http://localhost:4000', {
-        readTokens: async () => null,
-        storeTokens: async () => {},
-        clearTokens: async () => {},
+        readTokens: () => null,
+        storeTokens: returnUndefined,
+        clearTokens: returnUndefined,
         fetchImpl,
       }),
     ).resolves.toEqual({ status: 'unauthenticated' });
@@ -183,11 +187,11 @@ describe('restoreStoredSession', () => {
   test('falls back to unauthenticated when token storage read fails', async () => {
     await expect(
       restoreStoredSession('http://localhost:4000', {
-        readTokens: async () => {
+        readTokens: () => {
           throw new Error('secure store unavailable');
         },
-        storeTokens: async () => {},
-        clearTokens: async () => {},
+        storeTokens: returnUndefined,
+        clearTokens: returnUndefined,
       }),
     ).resolves.toEqual({ status: 'unauthenticated' });
   });

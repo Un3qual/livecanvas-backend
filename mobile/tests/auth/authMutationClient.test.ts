@@ -8,7 +8,7 @@ import {
 
 describe('authMutationClient', () => {
   test('returns a validation error before calling sign-up when passwords do not match', async () => {
-    const fetchImpl = mock(async () => {
+    const fetchImpl = mock(() => {
       throw new Error('network should not run');
     });
 
@@ -34,7 +34,7 @@ describe('authMutationClient', () => {
   });
 
   test('preserves matching password confirmation spacing during sign-up', async () => {
-    const fetchImpl = mock(async () =>
+    const fetchImpl = mock(() =>
       new Response(
         JSON.stringify({
           data: {
@@ -92,7 +92,7 @@ describe('authMutationClient', () => {
   });
 
   test('posts password sign-in variables and returns the issued tokens', async () => {
-    const fetchImpl = mock(async () =>
+    const fetchImpl = mock(() =>
       new Response(
         JSON.stringify({
           data: {
@@ -148,7 +148,7 @@ describe('authMutationClient', () => {
   });
 
   test('returns backend payload errors for oauth sign-in attempts', async () => {
-    const fetchImpl = mock(async () =>
+    const fetchImpl = mock(() =>
       new Response(
         JSON.stringify({
           data: {

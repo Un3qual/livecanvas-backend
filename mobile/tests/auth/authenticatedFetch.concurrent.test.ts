@@ -1055,7 +1055,7 @@ describe('createAuthenticatedFetch', () => {
       expiresAt: '2026-04-15T00:00:00.000Z',
     };
 
-    let authStatus: 'authenticated' | 'unauthenticated' = 'unauthenticated';
+    const authStatus: 'authenticated' | 'unauthenticated' = 'unauthenticated';
     const loadTokens = mock(() => staleTokens);
     const storeTokens = mock(resolveVoid);
     const clearTokens = mock(resolveVoid);
