@@ -13,8 +13,12 @@ function textResponse(body: string, init: ResponseInit) {
   return new Response(body, init);
 }
 
-async function importAuthenticatedFetchModule() {
+function importAuthenticatedFetchModule() {
   return import(`../../src/auth/authenticatedFetch?test=${crypto.randomUUID()}`);
+}
+
+function resolveVoid(): Promise<void> {
+  return Promise.resolve();
 }
 
 async function waitFor(predicate: () => boolean, label: string): Promise<void> {
@@ -271,8 +275,8 @@ describe('createAuthenticatedFetch', () => {
 
     let storageCleared = false;
     const loadTokens = mock(async () => (storageCleared ? null : initialTokens));
-    const storeTokens = mock(async () => {});
-    const clearTokens = mock(async () => {});
+    const storeTokens = mock(resolveVoid);
+    const clearTokens = mock(resolveVoid);
 
     mock.module('../../src/auth/tokenStorage', () => ({
       loadTokens,
@@ -363,8 +367,8 @@ describe('createAuthenticatedFetch', () => {
       loadCount += 1;
       return loadCount === 1 ? initialTokens : null;
     });
-    const storeTokens = mock(async () => {});
-    const clearTokens = mock(async () => {});
+    const storeTokens = mock(resolveVoid);
+    const clearTokens = mock(resolveVoid);
 
     mock.module('../../src/auth/tokenStorage', () => ({
       loadTokens,
@@ -604,8 +608,8 @@ describe('createAuthenticatedFetch', () => {
       loadCount += 1;
       return loadCount === 1 ? sessionATokens : sessionBTokens;
     });
-    const storeTokens = mock(async () => {});
-    const clearTokens = mock(async () => {});
+    const storeTokens = mock(resolveVoid);
+    const clearTokens = mock(resolveVoid);
 
     mock.module('../../src/auth/tokenStorage', () => ({
       loadTokens,
@@ -755,8 +759,8 @@ describe('createAuthenticatedFetch', () => {
     };
 
     const loadTokens = mock(async () => initialTokens);
-    const storeTokens = mock(async () => {});
-    const clearTokens = mock(async () => {});
+    const storeTokens = mock(resolveVoid);
+    const clearTokens = mock(resolveVoid);
 
     mock.module('../../src/auth/tokenStorage', () => ({
       loadTokens,
@@ -809,8 +813,8 @@ describe('createAuthenticatedFetch', () => {
     };
 
     const loadTokens = mock(async () => initialTokens);
-    const storeTokens = mock(async () => {});
-    const clearTokens = mock(async () => {});
+    const storeTokens = mock(resolveVoid);
+    const clearTokens = mock(resolveVoid);
 
     mock.module('../../src/auth/tokenStorage', () => ({
       loadTokens,
@@ -871,8 +875,8 @@ describe('createAuthenticatedFetch', () => {
     };
 
     const loadTokens = mock(async () => initialTokens);
-    const storeTokens = mock(async () => {});
-    const clearTokens = mock(async () => {});
+    const storeTokens = mock(resolveVoid);
+    const clearTokens = mock(resolveVoid);
 
     mock.module('../../src/auth/tokenStorage', () => ({
       loadTokens,
@@ -940,7 +944,7 @@ describe('createAuthenticatedFetch', () => {
     };
 
     const loadTokens = mock(async () => initialTokens);
-    const storeTokens = mock(async () => {});
+    const storeTokens = mock(resolveVoid);
     const clearTokens = mock(async () => {
       throw new Error('secure store unavailable');
     });
@@ -1001,8 +1005,8 @@ describe('createAuthenticatedFetch', () => {
     const loadTokens = mock(async () => {
       throw new Error('secure store unavailable');
     });
-    const storeTokens = mock(async () => {});
-    const clearTokens = mock(async () => {});
+    const storeTokens = mock(resolveVoid);
+    const clearTokens = mock(resolveVoid);
 
     mock.module('../../src/auth/tokenStorage', () => ({
       loadTokens,
@@ -1049,8 +1053,8 @@ describe('createAuthenticatedFetch', () => {
 
     let authStatus: 'authenticated' | 'unauthenticated' = 'unauthenticated';
     const loadTokens = mock(async () => staleTokens);
-    const storeTokens = mock(async () => {});
-    const clearTokens = mock(async () => {});
+    const storeTokens = mock(resolveVoid);
+    const clearTokens = mock(resolveVoid);
 
     mock.module('../../src/auth/tokenStorage', () => ({
       loadTokens,
@@ -1092,8 +1096,8 @@ describe('createAuthenticatedFetch', () => {
 
   test('throws an HTTP error instead of a JSON parse error for non-JSON failures', async () => {
     const loadTokens = mock(async () => null);
-    const storeTokens = mock(async () => {});
-    const clearTokens = mock(async () => {});
+    const storeTokens = mock(resolveVoid);
+    const clearTokens = mock(resolveVoid);
 
     mock.module('../../src/auth/tokenStorage', () => ({
       loadTokens,

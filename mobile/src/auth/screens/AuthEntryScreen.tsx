@@ -40,6 +40,8 @@ type AuthEntryCopy = {
   title: string;
 };
 
+type AuthEntryController = ReturnType<typeof useAuthEntryController>;
+
 const AUTH_ENTRY_COPY: Record<AuthEntryMode, AuthEntryCopy> = {
   signIn: {
     alternateHref: '/sign-up',
@@ -113,6 +115,27 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
     }
   };
 
+  const handleEmailChange = (value: string) => {
+    controller.clearTransientErrors();
+    setEmail(value);
+  };
+
+  const handlePasswordChange = (value: string) => {
+    controller.clearTransientErrors();
+    setPassword(value);
+  };
+
+  const handlePasswordConfirmationChange = (value: string) => {
+    controller.clearTransientErrors();
+    setPasswordConfirmation(value);
+  };
+
+  const handleAlternateScreenPress = () => {
+    controller.handleAlternateScreenPress(() => {
+      router.replace(authRouteHref(copy.alternateHref, returnToHref));
+    });
+  };
+
   return (
     <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
       <KeyboardAvoidingView
@@ -125,163 +148,280 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
           keyboardShouldPersistTaps="handled"
           style={styles.flex}
         >
-          <AppCard>
-            <AppHeader
-              eyebrow={copy.eyebrow}
-              subtitle={copy.subtitle}
-              title={copy.title}
-            />
-
-            <View style={styles.form}>
-              <AuthField
-                autoComplete="email"
-                error={controller.fieldErrors.email}
-                keyboardType="email-address"
-                label="Email"
-                onChangeText={(value) => {
-                  controller.clearTransientErrors();
-                  setEmail(value);
-                }}
-                placeholder="you@example.com"
-                textContentType="emailAddress"
-                value={email}
-              />
-
-              <AuthField
-                autoComplete={copy.passwordAutoComplete}
-                error={controller.fieldErrors.password}
-                label="Password"
-                onChangeText={(value) => {
-                  controller.clearTransientErrors();
-                  setPassword(value);
-                }}
-                placeholder={copy.passwordPlaceholder}
-                secureTextEntry
-                textContentType={copy.passwordTextContentType}
-                value={password}
-              />
-
-              {mode === 'signUp' ? (
-                <AuthField
-                  autoComplete="new-password"
-                  error={controller.fieldErrors.passwordConfirmation}
-                  label="Confirm password"
-                  onChangeText={(value) => {
-                    controller.clearTransientErrors();
-                    setPasswordConfirmation(value);
-                  }}
-                  placeholder="Re-enter your password"
-                  secureTextEntry
-                  textContentType="newPassword"
-                  value={passwordConfirmation}
-                />
-              ) : null}
-
-              {controller.formError ? (
-                <View
-                  style={[
-                    styles.errorBanner,
-                    {
-                      backgroundColor: theme.colors.errorMuted,
-                      borderColor: theme.colors.error,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.errorText, { color: theme.colors.error }]}>
-                    {controller.formError}
-                  </Text>
-                </View>
-              ) : null}
-
-              <AppButton
-                disabled={controller.isBusy}
-                label={
-                  controller.isPasswordSubmitting
-                    ? copy.primaryBusyLabel
-                    : copy.primaryLabel
-                }
-                onPress={handlePasswordSubmit}
-              />
-
-              {controller.showOauthDivider ? (
-                <View style={styles.dividerRow}>
-                  <View
-                    style={[
-                      styles.dividerLine,
-                      { backgroundColor: theme.colors.border },
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      styles.dividerLabel,
-                      { color: theme.colors.textMuted },
-                    ]}
-                  >
-                    or continue with
-                  </Text>
-                  <View
-                    style={[
-                      styles.dividerLine,
-                      { backgroundColor: theme.colors.border },
-                    ]}
-                  />
-                </View>
-              ) : null}
-
-              {controller.hasGoogleAuthOption ? (
-                <AppButton
-                  disabled={controller.isBusy}
-                  label={
-                    controller.isGoogleSubmitting
-                      ? 'Opening Google...'
-                      : 'Continue with Google'
-                  }
-                  onPress={handleGoogleSubmit}
-                  variant="secondary"
-                />
-              ) : null}
-
-              {controller.hasAppleAuthOption ? (
-                <AppButton
-                  disabled={controller.isBusy}
-                  label={
-                    controller.isAppleSubmitting
-                      ? 'Opening Apple...'
-                      : 'Continue with Apple'
-                  }
-                  onPress={handleAppleSubmit}
-                  variant="secondary"
-                />
-              ) : null}
-            </View>
-
-            <View style={styles.footerRow}>
-              <Text
-                style={[styles.footerText, { color: theme.colors.textMuted }]}
-              >
-                {copy.footerPrompt}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !controller.canSwitchScreens }}
-                disabled={!controller.canSwitchScreens}
-                hitSlop={8}
-                onPress={() => {
-                  controller.handleAlternateScreenPress(() => {
-                    router.replace(authRouteHref(copy.alternateHref, returnToHref));
-                  });
-                }}
-              >
-                <Text
-                  style={[styles.footerAction, { color: theme.colors.accent }]}
-                >
-                  {copy.alternateLabel}
-                </Text>
-              </Pressable>
-            </View>
-          </AppCard>
+          <AuthEntryCard
+            controller={controller}
+            copy={copy}
+            email={email}
+            mode={mode}
+            onAlternateScreenPress={handleAlternateScreenPress}
+            onAppleSubmit={handleAppleSubmit}
+            onEmailChange={handleEmailChange}
+            onGoogleSubmit={handleGoogleSubmit}
+            onPasswordChange={handlePasswordChange}
+            onPasswordConfirmationChange={handlePasswordConfirmationChange}
+            onPasswordSubmit={handlePasswordSubmit}
+            password={password}
+            passwordConfirmation={passwordConfirmation}
+          />
         </ScrollView>
       </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+type AuthEntryCardProps = {
+  controller: AuthEntryController;
+  copy: AuthEntryCopy;
+  email: string;
+  mode: AuthEntryMode;
+  onAlternateScreenPress: () => void;
+  onAppleSubmit: () => void;
+  onEmailChange: (value: string) => void;
+  onGoogleSubmit: () => void;
+  onPasswordChange: (value: string) => void;
+  onPasswordConfirmationChange: (value: string) => void;
+  onPasswordSubmit: () => void;
+  password: string;
+  passwordConfirmation: string;
+};
+
+function AuthEntryCard({
+  controller,
+  copy,
+  email,
+  mode,
+  onAlternateScreenPress,
+  onAppleSubmit,
+  onEmailChange,
+  onGoogleSubmit,
+  onPasswordChange,
+  onPasswordConfirmationChange,
+  onPasswordSubmit,
+  password,
+  passwordConfirmation,
+}: AuthEntryCardProps) {
+  return (
+    <AppCard>
+      <AppHeader
+        eyebrow={copy.eyebrow}
+        subtitle={copy.subtitle}
+        title={copy.title}
+      />
+      <AuthEntryForm
+        controller={controller}
+        copy={copy}
+        email={email}
+        mode={mode}
+        onAppleSubmit={onAppleSubmit}
+        onEmailChange={onEmailChange}
+        onGoogleSubmit={onGoogleSubmit}
+        onPasswordChange={onPasswordChange}
+        onPasswordConfirmationChange={onPasswordConfirmationChange}
+        onPasswordSubmit={onPasswordSubmit}
+        password={password}
+        passwordConfirmation={passwordConfirmation}
+      />
+      <AuthEntryFooter
+        controller={controller}
+        copy={copy}
+        onAlternateScreenPress={onAlternateScreenPress}
+      />
+    </AppCard>
+  );
+}
+
+type AuthEntryFormProps = Omit<
+  AuthEntryCardProps,
+  'onAlternateScreenPress'
+>;
+
+function AuthEntryForm({
+  controller,
+  copy,
+  email,
+  mode,
+  onAppleSubmit,
+  onEmailChange,
+  onGoogleSubmit,
+  onPasswordChange,
+  onPasswordConfirmationChange,
+  onPasswordSubmit,
+  password,
+  passwordConfirmation,
+}: AuthEntryFormProps) {
+  return (
+    <View style={styles.form}>
+      <AuthField
+        autoComplete="email"
+        error={controller.fieldErrors.email}
+        keyboardType="email-address"
+        label="Email"
+        onChangeText={onEmailChange}
+        placeholder="you@example.com"
+        textContentType="emailAddress"
+        value={email}
+      />
+      <AuthField
+        autoComplete={copy.passwordAutoComplete}
+        error={controller.fieldErrors.password}
+        label="Password"
+        onChangeText={onPasswordChange}
+        placeholder={copy.passwordPlaceholder}
+        secureTextEntry
+        textContentType={copy.passwordTextContentType}
+        value={password}
+      />
+      {mode === 'signUp' ? (
+        <AuthField
+          autoComplete="new-password"
+          error={controller.fieldErrors.passwordConfirmation}
+          label="Confirm password"
+          onChangeText={onPasswordConfirmationChange}
+          placeholder="Re-enter your password"
+          secureTextEntry
+          textContentType="newPassword"
+          value={passwordConfirmation}
+        />
+      ) : null}
+      <AuthEntryFormError error={controller.formError} />
+      <AppButton
+        disabled={controller.isBusy}
+        label={
+          controller.isPasswordSubmitting
+            ? copy.primaryBusyLabel
+            : copy.primaryLabel
+        }
+        onPress={onPasswordSubmit}
+      />
+      <AuthEntryOauthActions
+        controller={controller}
+        onAppleSubmit={onAppleSubmit}
+        onGoogleSubmit={onGoogleSubmit}
+      />
+    </View>
+  );
+}
+
+function AuthEntryFormError({ error }: { error: string | null }) {
+  const theme = useAppTheme();
+
+  if (!error) {
+    return null;
+  }
+
+  return (
+    <View
+      style={[
+        styles.errorBanner,
+        {
+          backgroundColor: theme.colors.errorMuted,
+          borderColor: theme.colors.error,
+        },
+      ]}
+    >
+      <Text style={[styles.errorText, { color: theme.colors.error }]}>
+        {error}
+      </Text>
+    </View>
+  );
+}
+
+function AuthEntryOauthActions({
+  controller,
+  onAppleSubmit,
+  onGoogleSubmit,
+}: {
+  controller: AuthEntryController;
+  onAppleSubmit: () => void;
+  onGoogleSubmit: () => void;
+}) {
+  return (
+    <>
+      {controller.showOauthDivider ? <AuthEntryOauthDivider /> : null}
+      {controller.hasGoogleAuthOption ? (
+        <AppButton
+          disabled={controller.isBusy}
+          label={
+            controller.isGoogleSubmitting
+              ? 'Opening Google...'
+              : 'Continue with Google'
+          }
+          onPress={onGoogleSubmit}
+          variant="secondary"
+        />
+      ) : null}
+      {controller.hasAppleAuthOption ? (
+        <AppButton
+          disabled={controller.isBusy}
+          label={
+            controller.isAppleSubmitting
+              ? 'Opening Apple...'
+              : 'Continue with Apple'
+          }
+          onPress={onAppleSubmit}
+          variant="secondary"
+        />
+      ) : null}
+    </>
+  );
+}
+
+function AuthEntryOauthDivider() {
+  const theme = useAppTheme();
+
+  return (
+    <View style={styles.dividerRow}>
+      <View
+        style={[
+          styles.dividerLine,
+          { backgroundColor: theme.colors.border },
+        ]}
+      />
+      <Text
+        style={[
+          styles.dividerLabel,
+          { color: theme.colors.textMuted },
+        ]}
+      >
+        or continue with
+      </Text>
+      <View
+        style={[
+          styles.dividerLine,
+          { backgroundColor: theme.colors.border },
+        ]}
+      />
+    </View>
+  );
+}
+
+function AuthEntryFooter({
+  controller,
+  copy,
+  onAlternateScreenPress,
+}: {
+  controller: AuthEntryController;
+  copy: AuthEntryCopy;
+  onAlternateScreenPress: () => void;
+}) {
+  const theme = useAppTheme();
+
+  return (
+    <View style={styles.footerRow}>
+      <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
+        {copy.footerPrompt}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !controller.canSwitchScreens }}
+        disabled={!controller.canSwitchScreens}
+        hitSlop={8}
+        onPress={onAlternateScreenPress}
+      >
+        <Text style={[styles.footerAction, { color: theme.colors.accent }]}>
+          {copy.alternateLabel}
+        </Text>
+      </Pressable>
     </View>
   );
 }
