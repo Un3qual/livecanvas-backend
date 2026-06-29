@@ -15,6 +15,7 @@ import { useLazyLoadQuery, useMutation } from 'react-relay';
 import { useAuth } from '../../auth/AuthProvider';
 import { ScreenState } from '../../components/ScreenState';
 import { useHostBroadcastPublishingSessions } from '../../host/HostBroadcastPublishingSessionProvider';
+import type { HostBroadcastLocalMediaControlsSnapshot } from '../../host/publishing/hostBroadcastLocalMediaControls';
 import { useStartupState } from '../../providers/StartupGate';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import { createPhoenixSocket } from '../../realtime/phoenixSocket';
@@ -46,6 +47,7 @@ import {
 } from '../liveSessionPresentation';
 import { readLiveSessionTimelineHistory } from '../liveSessionTimelineHistory';
 import {
+  createLiveSessionWatchHostMediaControls,
   LiveSessionDetailsCard,
   LiveSessionHero,
   LiveSessionWatchControlsCard,
@@ -194,6 +196,8 @@ function LiveSessionWatchContent({
   const releaseRetainedHostPublishingSessionRef = useRef<
     (liveSessionId: string) => void
   >(() => undefined);
+  const [hostMediaControlsSnapshot, setHostMediaControlsSnapshot] =
+    useState<HostBroadcastLocalMediaControlsSnapshot | null>(null);
 
   releaseRetainedHostPublishingSessionRef.current = (liveSessionId) => {
     hostPublishingSessions.release(liveSessionId);
@@ -243,6 +247,17 @@ function LiveSessionWatchContent({
   const hasRetainedHostPublishingSession = session
     ? hostPublishingSessions.has(activeLiveSessionId ?? '')
     : false;
+  const hostLocalMediaControls = session
+    ? hostPublishingSessions.controlsFor(activeLiveSessionId ?? '')
+    : null;
+  const hostControls = createLiveSessionWatchHostMediaControls({
+    controls: hostLocalMediaControls,
+    isHostOwnedSession: data.viewer?.id === session?.host.id,
+    normalizedStatus,
+    onSnapshotChanged: setHostMediaControlsSnapshot,
+    snapshot:
+      hostMediaControlsSnapshot ?? hostLocalMediaControls?.snapshot() ?? null,
+  });
   const canUseChat = canUseLiveSessionChat({
     hasRetainedHostPublishingSession,
     isJoined,
@@ -368,6 +383,10 @@ function LiveSessionWatchContent({
       handleWatchSessionEnded(activeLiveSessionId);
     }
   }, [activeLiveSessionId, handleWatchSessionEnded, normalizedStatus]);
+
+  useEffect(() => {
+    setHostMediaControlsSnapshot(hostLocalMediaControls?.snapshot() ?? null);
+  }, [activeLiveSessionId, hostLocalMediaControls]);
 
   useEffect(() => {
     if (!activeLiveSessionId) {
@@ -737,6 +756,7 @@ function LiveSessionWatchContent({
         canEndLiveSession={canEndLiveSession}
         enterable={enterable}
         hasActiveSubmission={hasActiveSubmission}
+        hostControls={hostControls}
         isEnding={isEnding}
         isHostOwnedSession={isCurrentViewerHost}
         isJoined={isJoined}

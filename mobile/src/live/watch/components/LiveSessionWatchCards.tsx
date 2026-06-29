@@ -3,6 +3,10 @@ import { Text, View } from 'react-native';
 import { AppButton } from '../../../components/AppButton';
 import { AppCard } from '../../../components/AppCard';
 import { AppHeader } from '../../../components/AppHeader';
+import type {
+  HostBroadcastLocalMediaControls,
+  HostBroadcastLocalMediaControlsSnapshot,
+} from '../../../host/publishing/hostBroadcastLocalMediaControls';
 import { formatProfileIdentity } from '../../../profile/profilePresentation';
 import { useAppTheme } from '../../../providers/ThemeProvider';
 import {
@@ -17,6 +21,70 @@ import type {
 } from '../../liveSessionPresentation';
 import { liveSessionWatchScreenStyles as styles } from '../liveSessionWatchScreenStyles';
 import type { LiveSessionNode } from '../liveSessionWatchScreenTypes';
+
+export type LiveSessionWatchHostMediaControl = Readonly<{
+  label: string;
+  onPress: () => void;
+}>;
+
+export type LiveSessionWatchHostMediaControlsProps = Readonly<{
+  audio: LiveSessionWatchHostMediaControl | null;
+  video: LiveSessionWatchHostMediaControl | null;
+}>;
+
+export type LiveSessionWatchHostMediaControlsOptions = Readonly<{
+  controls: HostBroadcastLocalMediaControls | null;
+  isHostOwnedSession: boolean;
+  normalizedStatus: LiveSessionStatus;
+  onSnapshotChanged: (
+    snapshot: HostBroadcastLocalMediaControlsSnapshot,
+  ) => void;
+  snapshot: HostBroadcastLocalMediaControlsSnapshot | null;
+}>;
+
+export function createLiveSessionWatchHostMediaControls({
+  controls,
+  isHostOwnedSession,
+  normalizedStatus,
+  onSnapshotChanged,
+  snapshot,
+}: LiveSessionWatchHostMediaControlsOptions): LiveSessionWatchHostMediaControlsProps | null {
+  if (
+    !isHostOwnedSession ||
+    normalizedStatus === 'ENDED' ||
+    !controls ||
+    !snapshot
+  ) {
+    return null;
+  }
+
+  const audio = snapshot.audio.available
+    ? {
+        label: snapshot.audio.enabled ? 'Mute mic' : 'Unmute mic',
+        onPress() {
+          controls.setAudioEnabled(!snapshot.audio.enabled);
+          onSnapshotChanged(controls.snapshot());
+        },
+      }
+    : null;
+  const video = snapshot.video.available
+    ? {
+        label: snapshot.video.enabled
+          ? 'Turn camera off'
+          : 'Turn camera on',
+        onPress() {
+          controls.setVideoEnabled(!snapshot.video.enabled);
+          onSnapshotChanged(controls.snapshot());
+        },
+      }
+    : null;
+
+  if (!audio && !video) {
+    return null;
+  }
+
+  return { audio, video };
+}
 
 export function LiveSessionDetailsCard({
   normalizedStatus,
@@ -57,6 +125,7 @@ export function LiveSessionWatchControlsCard({
   canEndLiveSession,
   enterable,
   hasActiveSubmission,
+  hostControls,
   isEnding,
   isHostOwnedSession,
   isJoined,
@@ -71,6 +140,7 @@ export function LiveSessionWatchControlsCard({
   canEndLiveSession: boolean;
   enterable: boolean;
   hasActiveSubmission: boolean;
+  hostControls: LiveSessionWatchHostMediaControlsProps | null;
   isEnding: boolean;
   isHostOwnedSession: boolean;
   isJoined: boolean;
@@ -117,6 +187,20 @@ export function LiveSessionWatchControlsCard({
         <Text style={[styles.errorText, { color: theme.colors.error }]}>
           {watchError}
         </Text>
+      ) : null}
+      {hostControls?.audio ? (
+        <AppButton
+          label={hostControls.audio.label}
+          onPress={hostControls.audio.onPress}
+          variant="secondary"
+        />
+      ) : null}
+      {hostControls?.video ? (
+        <AppButton
+          label={hostControls.video.label}
+          onPress={hostControls.video.onPress}
+          variant="secondary"
+        />
       ) : null}
       {isJoined ? (
         <AppButton
