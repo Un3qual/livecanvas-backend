@@ -37,8 +37,6 @@ export type LiveSessionChatPanelModelInput = {
   readonly sendStatus: LiveSessionChatSendStatus;
 };
 
-const MAX_VISIBLE_CHAT_PANEL_ROWS = 50;
-
 export function createLiveSessionChatPanelModel({
   canLoadOlder,
   channelStatus,
@@ -70,9 +68,7 @@ export function createLiveSessionChatPanelModel({
       ? 'Loading older messages...'
       : 'Load older messages',
     olderLoadError,
-    rows: rows
-      .slice(-MAX_VISIBLE_CHAT_PANEL_ROWS)
-      .map(formatLiveSessionChatPanelRow),
+    rows: rows.map(formatLiveSessionChatPanelRow),
     sendButtonDisabled: composerDisabled || !hasSendBody,
     sendButtonLabel: sendStatus === 'sending' ? 'Sending...' : 'Send',
     sendError,

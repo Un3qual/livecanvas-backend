@@ -59,6 +59,7 @@ export type LiveSessionOlderTimelinePageLoaded = {
 
 export type LiveSessionOlderTimelinePageLoaderLifecycle = {
   readonly getState: () => LiveSessionOlderTimelinePageLoadState;
+  readonly mount: () => void;
   readonly requestOlderPage: (
     request: LiveSessionOlderTimelinePageLoadRequest,
   ) => void;
@@ -234,6 +235,10 @@ export function createLiveSessionOlderTimelinePageLoader({
     activeRequest = null;
   }
 
+  function mount() {
+    isMounted = true;
+  }
+
   function isActiveRequest(liveSessionId: string, token: number): boolean {
     return (
       isMounted &&
@@ -253,6 +258,7 @@ export function createLiveSessionOlderTimelinePageLoader({
 
   return {
     getState,
+    mount,
     requestOlderPage,
     syncSession,
     unmount,

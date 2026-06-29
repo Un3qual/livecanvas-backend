@@ -179,8 +179,8 @@ describe('LiveSessionChatPanel presentation model', () => {
     ).toBe(false);
   });
 
-  test('bounds visible chat rows to the newest retained window', () => {
-    const rows = Array.from({ length: 55 }, (_, index) =>
+  test('keeps all explicitly loaded retained rows visible after older pagination', () => {
+    const rows = Array.from({ length: 65 }, (_, index) =>
       chatRow({
         body: `message-${index}`,
         id: `event-chat-${index}`,
@@ -198,9 +198,9 @@ describe('LiveSessionChatPanel presentation model', () => {
       sendStatus: 'idle',
     });
 
-    expect(model.rows).toHaveLength(50);
-    expect(model.rows[0].id).toBe('event-chat-5');
-    expect(model.rows.at(-1)?.id).toBe('event-chat-54');
+    expect(model.rows).toHaveLength(65);
+    expect(model.rows[0].id).toBe('event-chat-0');
+    expect(model.rows.at(-1)?.id).toBe('event-chat-64');
   });
 
   test('exposes older retained history loading state separately from composer state', () => {

@@ -478,8 +478,12 @@ function LiveSessionWatchContent({
   }, []);
 
   useEffect(
-    () => () => {
-      olderTimelinePageLoader.unmount();
+    () => {
+      olderTimelinePageLoader.mount();
+
+      return () => {
+        olderTimelinePageLoader.unmount();
+      };
     },
     [olderTimelinePageLoader],
   );
