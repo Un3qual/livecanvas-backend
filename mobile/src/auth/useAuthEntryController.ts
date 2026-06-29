@@ -1,6 +1,5 @@
 import { useCallback, useReducer, useRef } from 'react';
 
-import { resolveAuthEntryUiState } from './authEntryUiState';
 import {
   authEntryControllerReducer,
   initialAuthEntryControllerState,
@@ -32,11 +31,8 @@ export function useAuthEntryController(mode: AuthEntryMode) {
   const formError =
     passwordAuth.formError ?? googleAuth.error ?? appleAuth.error;
   const isBusy = state.activeAttempt !== null;
-  const uiState = resolveAuthEntryUiState({
-    hasAppleAuthOption: appleAuth.isAvailable,
-    hasGoogleAuthOption: googleAuth.isSupported,
-    isBusy,
-  });
+  const canSwitchScreens = !isBusy;
+  const showOauthDivider = googleAuth.isSupported || appleAuth.isAvailable;
 
   const clearTransientErrors = useCallback(() => {
     passwordAuth.clearErrors();
@@ -93,13 +89,13 @@ export function useAuthEntryController(mode: AuthEntryMode) {
 
   const handleAlternateScreenPress = useCallback(
     (action: AlternateScreenAction) => {
-      if (activeAttemptRef.current || !uiState.canSwitchScreens) {
+      if (activeAttemptRef.current || !canSwitchScreens) {
         return;
       }
 
       action();
     },
-    [uiState.canSwitchScreens],
+    [canSwitchScreens],
   );
 
   return {
@@ -113,8 +109,8 @@ export function useAuthEntryController(mode: AuthEntryMode) {
     isBusy,
     isGoogleSubmitting: isAuthProviderSubmitting(state, 'google'),
     isPasswordSubmitting: isAuthProviderSubmitting(state, 'password'),
-    canSwitchScreens: uiState.canSwitchScreens,
-    showOauthDivider: uiState.showOauthDivider,
+    canSwitchScreens,
+    showOauthDivider,
     submitApple,
     submitGoogle,
     submitPassword,

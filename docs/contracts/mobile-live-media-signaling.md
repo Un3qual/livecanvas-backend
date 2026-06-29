@@ -6,13 +6,14 @@ This contract freezes the mobile-facing setup and Phoenix Channel message shapes
 
 Durable authorization and session lookup stay in GraphQL. Ephemeral WebRTC negotiation messages stay on the authorized media-signaling Phoenix Channel.
 
-Hosts should prepare media setup, join the returned signaling topic, exchange
-WebRTC negotiation messages, and only then retry `goLiveSession` if it returns a
-media readiness error.
+Hosts and active joined viewers should prepare media setup through GraphQL, join
+the returned signaling topic, and exchange WebRTC negotiation messages. Hosts
+should only retry `goLiveSession` after the negotiation path has made media
+readiness observable.
 
 ## `prepareLiveMediaSession`
 
-Mobile hosts prepare media negotiation through a Relay-style GraphQL mutation:
+Mobile clients prepare media negotiation through a Relay-style GraphQL mutation:
 
 ```graphql
 mutation PrepareLiveMediaSession($liveSessionId: ID!) {
@@ -37,11 +38,20 @@ Stable successful payload fields:
 - `iceServers`: the ICE server list for WebRTC peer connection setup
 - `errors`: empty on success
 
+Authorization rules:
+
+- The host may prepare setup for their own non-ended session.
+- A non-host viewer may prepare setup only after they have joined the session
+  and still have an active live participant row.
+- The viewer path rechecks current join authorization before returning setup.
+- The mutation does not create or restore live participation; viewers that have
+  not joined must call `joinLiveSession` or join the live-session channel first.
+
 Stable failure behavior:
 
 - Missing viewer scope returns `errors: [{field: null, message: "unauthenticated"}]`.
 - Invalid or wrong-type `liveSessionId` returns `errors: [{field: "liveSessionId", message: "is invalid"}]`.
-- Foreign, hidden, non-host, or terminal sessions return payload errors instead of top-level crashes.
+- Foreign, hidden, non-joined, or terminal sessions return payload errors instead of top-level crashes.
 
 ## `goLiveSession` Media Readiness
 
@@ -82,6 +92,10 @@ Field rules:
 - `urls` is required and contains one or more `stun:`, `turn:`, or `turns:` URLs.
 - `username`, `credential`, and `credentialType` are nullable and present only when a TURN server requires credentials.
 - `credentialType` is `PASSWORD` for normal TURN username/password credentials and `OAUTH` for OAuth-style TURN credentials.
+- The current mobile React Native WebRTC integration accepts only STUN entries
+  and normal TURN username/password credentials. Mobile must omit unsupported
+  `OAUTH` or future credential schemes rather than passing them to the native
+  peer-connection config as password credentials.
 - `LC.Live.MediaSignaling` serves the list from a typed, configurable ICE/TURN provider. The default development configuration still returns deterministic STUN setup data, while deployed providers may mint short-lived TURN credentials at request time.
 - TURN secrets must not be persisted as live-session records or client-reusable durable secrets.
 
@@ -105,8 +119,13 @@ Media signaling uses the authorized media-signaling channel and these event name
 - `media:offer`
 - `media:answer`
 - `media:ice_candidate`
+- `media:viewer_ready`
 
-These messages are ephemeral negotiation messages. They are not retained in timeline history and are not replayed after reconnect.
+These messages are ephemeral negotiation messages. They are not retained in
+timeline history or replayed by the backend. Viewers that join media signaling
+after a host offer must push `media:viewer_ready` so the active host can
+best-effort re-send its current offer and any locally gathered host ICE
+candidates still held by the in-memory host runtime.
 
 ### `media:offer`
 
@@ -195,6 +214,34 @@ Validation rules:
 - `username_fragment` is optional and must be a string when present.
 - The server derives `sender_role`.
 
+### `media:viewer_ready`
+
+Viewer push payload:
+
+```json
+{}
+```
+
+Server broadcast payload:
+
+```json
+{
+  "sender_role": "viewer"
+}
+```
+
+Validation rules:
+
+- Payload must be an object.
+- Only active live-session viewers may push this event.
+- The server targets this event to the host and derives `sender_role`.
+- Hosts use this event as an offer and host-ICE replay trigger within the
+  current in-memory runtime. In the one-host/one-viewer beta path, a ready
+  signal after negotiation is already marked ready resets the single retained
+  host peer connection and publishes a fresh offer. The current payload shape
+  does not carry per-viewer media identity for multi-viewer peer-connection
+  routing.
+
 ## Backend Boundary
 
 `LC.Live.MediaSignaling` is the typed backend boundary for this contract slice:
@@ -204,7 +251,9 @@ Validation rules:
 - `ice_servers/0` returns `{:ok, ice_servers}` for the current
   provider-backed ICE server list, or a tagged provider/config error.
 - `media_events/0` returns the Phoenix Channel event names.
-- `validate_offer_payload/1`, `validate_answer_payload/1`, `validate_ice_candidate_payload/1`, and `validate_event_payload/2` validate payload shape and return structured field errors.
+- `validate_offer_payload/1`, `validate_answer_payload/1`,
+  `validate_ice_candidate_payload/1`, and `validate_event_payload/2` validate
+  payload shape and return structured field errors.
 
 The boundary is intentionally pure. It does not start Membrane, allocate peer connections, write database rows, persist TURN secrets, or broadcast channel messages.
 

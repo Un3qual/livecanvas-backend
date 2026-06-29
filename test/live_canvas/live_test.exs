@@ -23,7 +23,8 @@ defmodule LC.LiveTest do
       assert Live.media_events() == %{
                offer: "media:offer",
                answer: "media:answer",
-               ice_candidate: "media:ice_candidate"
+               ice_candidate: "media:ice_candidate",
+               viewer_ready: "media:viewer_ready"
              }
     end
   end

@@ -35,19 +35,6 @@ const DEFINITIVE_SESSION_REJECTION_VALUES = new Set([
   'token_revoked',
 ]);
 
-export function resolveSessionBootstrapState(
-  storedTokens: AuthTokenPair | null,
-): AuthState {
-  if (!storedTokens) {
-    return { status: 'unauthenticated' };
-  }
-
-  return {
-    status: 'authenticated',
-    tokens: storedTokens,
-  };
-}
-
 function fallbackAccessTokenExpiresAt(): string {
   return new Date(Date.now() + ACCESS_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }

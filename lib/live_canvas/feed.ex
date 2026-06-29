@@ -14,6 +14,7 @@ defmodule LC.Feed do
   alias LCSchemas.Live.LiveSession
 
   @default_limit 25
+  @starting_session_discovery_window_seconds 10 * 60
 
   @type home_feed_opts :: [limit: pos_integer()]
   @type profile_posts_opts :: [limit: pos_integer()]
@@ -142,7 +143,7 @@ defmodule LC.Feed do
   end
 
   @doc """
-  Returns currently-live sessions visible to the viewer, newest-first.
+  Returns active live sessions visible to the viewer, fresh preflight first.
   """
   @spec live_now(User.t(), live_now_opts()) :: [LiveSession.t()]
   def live_now(%User{} = viewer, opts \\ []) do
@@ -153,7 +154,7 @@ defmodule LC.Feed do
   end
 
   @doc """
-  Returns one currently-live session for the requested host when it is visible to the viewer.
+  Returns one active live session for the requested host when it is visible to the viewer.
   """
   @spec profile_current_live_session(User.t(), User.t()) :: LiveSession.t() | nil
   def profile_current_live_session(%User{} = viewer, %User{} = host) do
@@ -164,23 +165,35 @@ defmodule LC.Feed do
   end
 
   @doc """
-  Returns a deterministic query for currently-live sessions visible to the viewer.
+  Returns a deterministic query for active sessions visible to the viewer.
   """
   @spec live_now_query(User.t()) :: Ecto.Query.t()
   def live_now_query(%User{} = viewer) do
+    starting_discovery_cutoff =
+      DateTime.utc_now()
+      |> DateTime.add(-@starting_session_discovery_window_seconds, :second)
+
     LiveSession
-    |> where([live_session], live_session.status == :live)
+    |> where(
+      [live_session],
+      live_session.status == :live or
+        (live_session.status == :starting and
+           live_session.inserted_at >= ^starting_discovery_cutoff)
+    )
     |> ReadPolicy.viewer_visible_query(viewer, owner_key: :host_id, visibility_key: :visibility)
+    # STARTING rows are a short-lived media preflight window, not durable host
+    # presence; advertise fresh preflights first so viewers can answer hosts.
     |> order_by(
       [live_session],
-      desc: live_session.started_at,
+      asc: fragment("CASE WHEN ? = 'starting' THEN 0 ELSE 1 END", live_session.status),
+      desc_nulls_last: live_session.started_at,
       desc: live_session.inserted_at,
       desc: live_session.id
     )
   end
 
   @doc """
-  Returns a deterministic query for the requested host's currently-live visible sessions.
+  Returns a deterministic query for the requested host's visible active sessions.
   """
   @spec profile_current_live_session_query(User.t(), User.t()) :: Ecto.Query.t()
   def profile_current_live_session_query(%User{} = viewer, %User{id: host_id}) do
@@ -189,6 +202,16 @@ defmodule LC.Feed do
     viewer
     |> live_now_query()
     |> where([live_session], live_session.host_id == ^host_id)
+    |> exclude(:order_by)
+    # Discovery advertises fresh preflight first, but profile/current-session
+    # should prefer an established broadcast when a duplicate STARTING row exists.
+    |> order_by(
+      [live_session],
+      asc: fragment("CASE WHEN ? = 'live' THEN 0 ELSE 1 END", live_session.status),
+      desc_nulls_last: live_session.started_at,
+      desc: live_session.inserted_at,
+      desc: live_session.id
+    )
   end
 
   @doc """

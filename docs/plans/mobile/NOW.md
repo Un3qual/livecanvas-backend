@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-05
-Status: ready
+Last reviewed: 2026-06-27
+Status: TypeScript readability cleanup complete; release-candidate QA ready
 
 ## Lane Scope
 
@@ -11,38 +11,43 @@ Status: ready
 
 ## Current Batch
 
-- Last completed source plan:
-  `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
 - Source plan:
-  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: Task 1 - quality gate command alignment
-- Write scope: `mobile/package.json`, `mobile/pnpm-lock.yaml`,
-  `mobile/tsconfig.json`, `mobile/relay.config.js`, mobile test/config files as
-  needed, `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`, and
-  this lane NOW file.
-- Done condition: mobile package scripts expose repeatable test and typecheck
-  commands, the current live/relay/realtime/host suite still passes, and the
-  source plan plus lane NOW record the verification evidence.
+- Current task: run the one-host/one-viewer release-candidate device QA pass.
+- Write scope:
+  - `docs/plans/mobile/**`
+  - `mobile/**` only for reproduced launch-blocker fixes
+- Done condition: entry criteria and manual device/simulator checks are recorded
+  as passing, or launch blockers are promoted into scoped follow-up plans.
 - Verification:
-  - `bun test mobile/src/live mobile/src/relay mobile/src/realtime mobile/src/host`
-  - From `mobile/`: `./node_modules/.bin/tsc --noEmit`
+  - From `mobile/`: `bun run test:quality`
+  - From `mobile/`: `bun run typecheck`
+  - From repo root: `git diff --check`
 
 ## Do This Now
 
-Execute Task 1 in
-`docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`.
+Start with the release-candidate checklist entry criteria, then run the auth,
+profiles, live discovery/watch, host preflight, media signaling/WebRTC, realtime
+chat, retained replay, and cleanup checks for the one-host/one-viewer beta
+scope.
 
 ## Guardrails
 
-- Do not add real mobile media publishing or viewer playback from this lane.
+- Do not run remote or authenticated EAS build/submit commands from this local
+  docs handoff.
+- Do not expand the completed release-candidate checklist into implementation
+  unless a launch blocker is reproduced and promoted.
+- Do not change GraphQL schema shape in the quality gate alignment batch.
 - Do not decode Relay IDs client-side.
-- Backend live media runtime foundation is complete; keep true go-live behavior
-  aligned with the backend media signaling contract.
+- Do not construct media signaling topics client-side.
+- Backend live media runtime foundation and the viewer setup contract are
+  complete; do not change backend code unless a viewer-runtime blocker is
+  reproduced and promoted.
 - Implement retained history against the current `LiveSession.timelineEvents`
   schema, not the stale removed `chatMessages` API.
 
 ## Next Action
 
-After Task 1 is verified, continue to the beta build path task in the same
-source plan.
+Confirm the `preview` build installs, cold-launches, and reaches the configured
+API and websocket endpoints on the target beta device.

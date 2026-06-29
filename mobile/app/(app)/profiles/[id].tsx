@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 
 import { ScreenState } from '../../../src/components/ScreenState';
-import { OtherUserProfileScreen } from '../../../src/profile/OtherUserProfileScreen';
+import { OtherUserProfileScreen } from '../../../src/profile/other/OtherUserProfileScreen';
 
 export default function OtherUserProfileRoute() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();

@@ -1,8 +1,16 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { AuthContextValue, AuthState, AuthTokenPair } from './types';
+import type {
+  AuthContextValue,
+  AuthState,
+  AuthTokenPair,
+  BeforeUnauthenticatedCallback,
+} from './types';
 import { clearTokens, loadTokens, storeTokens } from './tokenStorage';
-import { resolveAuthBootstrapState } from './authBootstrap';
-import { forceUnauthenticated, shouldApplyBootstrapState } from './authProviderLifecycle';
+import { restoreStoredSession } from './sessionBootstrap';
+import {
+  forceUnauthenticated,
+  runBestEffortBeforeUnauthenticatedCallback,
+} from './authProviderLifecycle';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -12,6 +20,18 @@ function sameTokenPair(left: AuthTokenPair, right: AuthTokenPair): boolean {
     left.refreshToken === right.refreshToken &&
     left.expiresAt === right.expiresAt
   );
+}
+
+async function loadInitialAuthState(apiBaseUrl: string): Promise<AuthState> {
+  try {
+    return await restoreStoredSession(apiBaseUrl, {
+      readTokens: loadTokens,
+      storeTokens,
+      clearTokens,
+    });
+  } catch {
+    return { status: 'unauthenticated' };
+  }
 }
 
 export function useAuth(): AuthContextValue {
@@ -31,6 +51,9 @@ export function AuthProvider({
   const stateRef = useRef<AuthState>(state);
   const bootstrapRanRef = useRef(false);
   const tokensRef = useRef<AuthTokenPair | null>(null);
+  const beforeUnauthenticatedCallbacksRef = useRef(
+    new Set<BeforeUnauthenticatedCallback>(),
+  );
 
   useEffect(() => {
     stateRef.current = state;
@@ -59,33 +82,66 @@ export function AuthProvider({
     commitAuthenticatedTokens(tokens);
   }, [commitAuthenticatedTokens]);
 
-  const onForcedLogout = useCallback(() => {
+  const registerBeforeUnauthenticated = useCallback(
+    (callback: BeforeUnauthenticatedCallback) => {
+      beforeUnauthenticatedCallbacksRef.current.add(callback);
+      return () => {
+        beforeUnauthenticatedCallbacksRef.current.delete(callback);
+      };
+    },
+    [],
+  );
+
+  const runBeforeUnauthenticatedCallbacks = useCallback(async () => {
+    for (const callback of Array.from(beforeUnauthenticatedCallbacksRef.current)) {
+      try {
+        await runBestEffortBeforeUnauthenticatedCallback(callback);
+      } catch {
+        // Keep local auth teardown independent from best-effort session cleanup.
+      }
+    }
+  }, []);
+
+  const onForcedLogout = useCallback(async () => {
     bootstrapRanRef.current = true;
+    await runBeforeUnauthenticatedCallbacks();
     commitUnauthenticated();
-  }, [commitUnauthenticated]);
+  }, [commitUnauthenticated, runBeforeUnauthenticatedCallbacks]);
 
   useEffect(() => {
     let cancelled = false;
 
-    void resolveAuthBootstrapState({
-      apiBaseUrl,
-      readTokens: loadTokens,
-      storeTokens,
-      clearTokens,
-    }).then((nextState) => {
-      if (cancelled || !shouldApplyBootstrapState(stateRef.current, bootstrapRanRef.current)) {
-        return;
-      }
+    loadInitialAuthState(apiBaseUrl)
+      .then((nextState) => {
+        if (
+          cancelled ||
+          bootstrapRanRef.current ||
+          stateRef.current.status !== 'loading'
+        ) {
+          return;
+        }
 
-      bootstrapRanRef.current = true;
+        bootstrapRanRef.current = true;
 
-      if (nextState.status === 'authenticated') {
-        commitAuthenticatedTokens(nextState.tokens);
-        return;
-      }
+        if (nextState.status === 'authenticated') {
+          commitAuthenticatedTokens(nextState.tokens);
+          return;
+        }
 
-      commitUnauthenticated();
-    });
+        commitUnauthenticated();
+      })
+      .catch(() => {
+        if (
+          cancelled ||
+          bootstrapRanRef.current ||
+          stateRef.current.status !== 'loading'
+        ) {
+          return;
+        }
+
+        bootstrapRanRef.current = true;
+        commitUnauthenticated();
+      });
 
     return () => {
       cancelled = true;
@@ -107,8 +163,12 @@ export function AuthProvider({
 
   const signOut = useCallback(async () => {
     bootstrapRanRef.current = true;
-    await forceUnauthenticated(clearTokens, commitUnauthenticated);
-  }, [commitUnauthenticated]);
+    await forceUnauthenticated(
+      clearTokens,
+      commitUnauthenticated,
+      runBeforeUnauthenticatedCallbacks,
+    );
+  }, [commitUnauthenticated, runBeforeUnauthenticatedCallbacks]);
 
   const getAuthStatus = useCallback(() => {
     return stateRef.current.status;
@@ -125,10 +185,20 @@ export function AuthProvider({
       signOut,
       syncTokens,
       onForcedLogout,
+      registerBeforeUnauthenticated,
       getAuthStatus,
       getAccessToken,
     }),
-    [state, signIn, signOut, syncTokens, onForcedLogout, getAuthStatus, getAccessToken],
+    [
+      state,
+      signIn,
+      signOut,
+      syncTokens,
+      onForcedLogout,
+      registerBeforeUnauthenticated,
+      getAuthStatus,
+      getAccessToken,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,3 +1,8 @@
+import {
+  loadDefaultLiveWebRtcMediaDevices,
+  type LiveWebRtcMediaDevices,
+} from '../live/media/liveWebRtcAdapter';
+
 export type HostBroadcastPermissionState =
   | 'unknown'
   | 'granted'
@@ -16,35 +21,25 @@ export type HostBroadcastPreviewResult = Readonly<{
 export type HostBroadcastNative = Readonly<{
   requestPermissions: () => Promise<HostBroadcastPermissionSnapshot>;
   preparePreview: () => Promise<HostBroadcastPreviewResult>;
+  getPreviewStream: () => Promise<HostBroadcastMediaStream | null>;
+  releasePreviewStream: () => void;
   dispose: () => void;
 }>;
 
-type HostBroadcastMediaTrack = Readonly<{
+export type HostBroadcastMediaTrack = Readonly<{
   stop?: () => void;
 }>;
 
-type HostBroadcastMediaStream = Readonly<{
+export type HostBroadcastMediaStream = Readonly<{
   getTracks?: () => ReadonlyArray<HostBroadcastMediaTrack>;
 }>;
 
-type HostBroadcastMediaDevices = Readonly<{
-  getUserMedia?: (constraints: {
-    audio: boolean;
-    video: boolean;
-  }) => Promise<HostBroadcastMediaStream>;
-}>;
+type HostBroadcastMediaDevices =
+  LiveWebRtcMediaDevices<HostBroadcastMediaStream>;
 
 type HostBroadcastNativeOptions = Readonly<{
   mediaDevices?: HostBroadcastMediaDevices | null;
 }>;
-
-type ReactNativeWebRtcModule = Readonly<{
-  mediaDevices?: HostBroadcastMediaDevices | null;
-}>;
-
-declare const require:
-  | undefined
-  | ((moduleName: 'react-native-webrtc') => ReactNativeWebRtcModule);
 
 export function normalizeHostBroadcastPermission(
   value?: unknown,
@@ -80,9 +75,10 @@ export function createHostBroadcastNative(
   const getUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
   let previewStream: HostBroadcastMediaStream | null = null;
   let previewStreamRequest: Promise<HostBroadcastMediaStream> | null = null;
+  let previewStreamGeneration = 0;
   let disposed = false;
 
-  async function ensurePreviewStream() {
+  function ensurePreviewStream() {
     // Keep one getUserMedia request shared across concurrent preflight calls;
     // if disposal wins that race, stop the late stream instead of caching it.
     if (disposed) {
@@ -94,7 +90,8 @@ export function createHostBroadcastNative(
     }
 
     if (!previewStreamRequest) {
-      previewStreamRequest = getUserMedia({
+      const requestGeneration = previewStreamGeneration;
+      const request = getUserMedia({
         audio: true,
         video: true,
       })
@@ -103,7 +100,7 @@ export function createHostBroadcastNative(
             throw new Error('native_media_unavailable');
           }
 
-          if (disposed) {
+          if (disposed || requestGeneration !== previewStreamGeneration) {
             stopPreviewStream(stream);
             throw new Error('native_media_disposed');
           }
@@ -112,8 +109,12 @@ export function createHostBroadcastNative(
           return stream;
         })
         .finally(() => {
-          previewStreamRequest = null;
+          if (previewStreamRequest === request) {
+            previewStreamRequest = null;
+          }
         });
+
+      previewStreamRequest = request;
     }
 
     return previewStreamRequest;
@@ -151,8 +152,23 @@ export function createHostBroadcastNative(
         };
       }
     },
+    async getPreviewStream() {
+      try {
+        return await ensurePreviewStream();
+      } catch {
+        return null;
+      }
+    },
+    releasePreviewStream() {
+      previewStreamGeneration += 1;
+      previewStreamRequest = null;
+      stopPreviewStream(previewStream);
+      previewStream = null;
+    },
     dispose() {
       disposed = true;
+      previewStreamGeneration += 1;
+      previewStreamRequest = null;
       stopPreviewStream(previewStream);
       previewStream = null;
     },
@@ -174,6 +190,12 @@ export function createUnavailableHostBroadcastNative(): HostBroadcastNative {
         status: 'native_media_unavailable',
       });
     },
+    getPreviewStream() {
+      return Promise.resolve(null);
+    },
+    releasePreviewStream() {
+      // No native resources exist in the unsupported fallback.
+    },
     dispose() {
       // No native resources exist in the unsupported fallback.
     },
@@ -187,13 +209,5 @@ function stopPreviewStream(stream: HostBroadcastMediaStream | null) {
 }
 
 function loadDefaultMediaDevices(): HostBroadcastMediaDevices | null {
-  if (typeof require === 'undefined') {
-    return null;
-  }
-
-  try {
-    return require('react-native-webrtc').mediaDevices ?? null;
-  } catch {
-    return null;
-  }
+  return loadDefaultLiveWebRtcMediaDevices<HostBroadcastMediaDevices>();
 }

@@ -45,6 +45,32 @@ defmodule LCWeb.LiveSessionChannelTest do
              )
   end
 
+  test "host live-session topic join monitors state without becoming a viewer" do
+    host = user_fixture(privacy_mode: :public)
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+
+    assert {:ok,
+            %{
+              session_state: %{
+                status: :starting,
+                visibility: :public,
+                viewer_count: 0
+              }
+            }, _socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               LiveSessionTopics.live_session_topic(session.id)
+             )
+
+    assert Repo.get_by(LiveParticipant, live_session_id: session.id, user_id: host.id) == nil
+    assert Live.active_live_viewer_ids(session.id) == []
+
+    assert {:ok, runtime_pid} = Live.lookup_session_server(session.id)
+    assert %{participants: participants} = SessionServer.snapshot(runtime_pid)
+    refute Map.has_key?(participants, host.id)
+  end
+
   test "published session state is re-read from persistence before broadcasting" do
     host = user_fixture(privacy_mode: :public)
     {:ok, session} = Live.start_live_session(host, %{visibility: :public})
@@ -262,6 +288,13 @@ defmodule LCWeb.LiveSessionChannelTest do
 
     assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
 
+    assert {:ok, _host_monitor_payload, _host_monitor_socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               LiveSessionTopics.live_session_topic(session.id)
+             )
+
     assert {:ok, _join_payload, socket} =
              subscribe_and_join(
                socket_for(host),
@@ -457,6 +490,47 @@ defmodule LCWeb.LiveSessionChannelTest do
     refute_receive %Phoenix.Socket.Message{
       topic: ^signaling_topic,
       event: "media:answer"
+    }
+
+    assert {:not_ready, :media_not_ready} = Live.media_negotiation_ready?(session.id)
+  end
+
+  test "media:viewer_ready uses the server-derived viewer sender role and targets the host" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    signaling_topic = LiveSessionTopics.media_signaling_topic(session.id)
+
+    assert {:ok, _participant} = Live.join_live_session(session, viewer, :viewer)
+
+    assert {:ok, _join_payload, _host_socket} =
+             subscribe_and_join(
+               socket_for(host),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    assert {:ok, _join_payload, viewer_socket} =
+             subscribe_and_join(
+               socket_for(viewer),
+               LiveSessionChannel,
+               signaling_topic
+             )
+
+    expected_payload = %{sender_role: "viewer"}
+    ref = push(viewer_socket, "media:viewer_ready", %{})
+
+    assert_reply ref, :ok, ^expected_payload, @channel_reply_timeout
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:viewer_ready",
+      payload: ^expected_payload
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^signaling_topic,
+      event: "media:viewer_ready"
     }
 
     assert {:not_ready, :media_not_ready} = Live.media_negotiation_ready?(session.id)

@@ -1,32 +1,26 @@
-import { readJoinableLiveSessionChannelTopic } from '../live/liveSessionChannelTopic';
-import type { LiveMutationError } from '../live/liveSessionPresentation';
+import type { hostBroadcastPreflightOperationsPrepareMediaMutation } from '../__generated__/hostBroadcastPreflightOperationsPrepareMediaMutation.graphql';
+import {
+  createLiveMediaSessionDescriptionPayload,
+  normalizeLiveMediaIceCandidatePayload,
+  normalizeLiveMediaIceServers,
+} from '../live/media/liveMediaPayloads';
+import type {
+  LiveMediaIceCandidatePayload,
+  LiveMediaIceCandidateSource,
+  LiveMediaIceServer,
+  LiveMediaSessionDescription,
+  LiveMediaSessionDescriptionSource,
+} from '../live/media/liveMediaPayloads';
+import {
+  canEnterLiveSession,
+  normalizeLiveSessionStatus,
+  type LiveMutationError,
+} from '../live/liveSessionPresentation';
 
-type PrepareLiveMediaSessionSource = {
-  readonly errors?: ReadonlyArray<LiveMutationError> | null;
-  readonly iceServers?: ReadonlyArray<HostBroadcastMediaIceServerSource> | null;
-  readonly liveSession?: HostBroadcastMediaLiveSessionSource | null;
-  readonly signalingTopic?: string | null;
-};
+type PrepareLiveMediaSessionSource =
+  hostBroadcastPreflightOperationsPrepareMediaMutation['response']['prepareLiveMediaSession'];
 
-type HostBroadcastMediaLiveSessionSource = {
-  readonly channelTopic?: string | null;
-  readonly id?: string | null;
-  readonly status?: string | null;
-};
-
-type HostBroadcastMediaIceServerSource = {
-  readonly credential?: string | null;
-  readonly credentialType?: string | null;
-  readonly username?: string | null;
-  readonly urls?: ReadonlyArray<string> | null;
-};
-
-export type HostBroadcastMediaIceServer = {
-  readonly credential: string | null;
-  readonly credentialType: 'OAUTH' | 'PASSWORD' | '%future added value' | null;
-  readonly username: string | null;
-  readonly urls: ReadonlyArray<string>;
-};
+export type HostBroadcastMediaIceServer = LiveMediaIceServer;
 
 export type HostBroadcastMediaPreparation = {
   readonly channelTopic: string;
@@ -34,6 +28,16 @@ export type HostBroadcastMediaPreparation = {
   readonly liveSessionId: string;
   readonly signalingTopic: string;
 };
+
+export type HostBroadcastMediaOfferPayload =
+  LiveMediaSessionDescription<'offer'>;
+
+export type HostBroadcastMediaIceCandidatePayload =
+  LiveMediaIceCandidatePayload;
+
+type HostBroadcastMediaDescriptionSource = LiveMediaSessionDescriptionSource;
+
+type HostBroadcastMediaIceCandidateSource = LiveMediaIceCandidateSource;
 
 export function readPreparedHostBroadcastMedia(
   payload: PrepareLiveMediaSessionSource | null | undefined,
@@ -47,13 +51,16 @@ export function readPreparedHostBroadcastMedia(
     return null;
   }
 
-  const channelTopic = readJoinableLiveSessionChannelTopic({
-    channelTopic: payload.liveSession.channelTopic,
-    status: payload.liveSession.status ?? '',
-  });
-  const iceServers = normalizeIceServers(payload.iceServers);
+  const channelTopic = payload.liveSession.channelTopic;
+  const iceServers = normalizeLiveMediaIceServers(payload.iceServers);
 
-  if (!channelTopic || iceServers.length === 0) {
+  if (
+    !channelTopic?.trim() ||
+    !canEnterLiveSession(
+      normalizeLiveSessionStatus(payload.liveSession.status ?? ''),
+    ) ||
+    iceServers.length === 0
+  ) {
     return null;
   }
 
@@ -65,6 +72,18 @@ export function readPreparedHostBroadcastMedia(
   };
 }
 
+export function createHostBroadcastMediaOfferPayload(
+  description: HostBroadcastMediaDescriptionSource | null | undefined,
+): HostBroadcastMediaOfferPayload | null {
+  return createLiveMediaSessionDescriptionPayload(description, 'offer');
+}
+
+export function createHostBroadcastMediaIceCandidatePayload(
+  source: HostBroadcastMediaIceCandidateSource | null | undefined,
+): HostBroadcastMediaIceCandidatePayload | null {
+  return normalizeLiveMediaIceCandidatePayload(source);
+}
+
 export function isRetryableHostGoLiveMediaReadinessError(
   errors: ReadonlyArray<LiveMutationError> | null | undefined,
 ): boolean {
@@ -72,49 +91,4 @@ export function isRetryableHostGoLiveMediaReadinessError(
     errors?.some((error) => error?.message?.trim() === 'media_not_ready') ??
     false
   );
-}
-
-function normalizeIceServers(
-  iceServers: ReadonlyArray<HostBroadcastMediaIceServerSource> | null | undefined,
-): ReadonlyArray<HostBroadcastMediaIceServer> {
-  return (
-    iceServers
-      ?.map(normalizeIceServer)
-      .filter((server): server is HostBroadcastMediaIceServer => server !== null) ??
-    []
-  );
-}
-
-function normalizeIceServer(
-  iceServer: HostBroadcastMediaIceServerSource,
-): HostBroadcastMediaIceServer | null {
-  const urls =
-    iceServer.urls
-      ?.map((url) => url.trim())
-      .filter((url) => url.length > 0) ?? [];
-
-  if (urls.length === 0) {
-    return null;
-  }
-
-  return {
-    credential: iceServer.credential ?? null,
-    credentialType: normalizeCredentialType(iceServer.credentialType),
-    username: iceServer.username ?? null,
-    urls,
-  };
-}
-
-function normalizeCredentialType(
-  value: string | null | undefined,
-): HostBroadcastMediaIceServer['credentialType'] {
-  switch (value) {
-    case 'OAUTH':
-    case 'PASSWORD':
-    case null:
-    case undefined:
-      return value ?? null;
-    default:
-      return '%future added value';
-  }
 }

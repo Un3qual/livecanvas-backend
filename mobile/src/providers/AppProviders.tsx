@@ -7,6 +7,7 @@ import {
 } from '../config/environment';
 import { AuthProvider } from '../auth/AuthProvider';
 import { ViewerBootstrap } from '../auth/ViewerBootstrap';
+import { HostBroadcastPublishingSessionProvider } from '../host/HostBroadcastPublishingSessionProvider';
 import { RelayEnvironmentProvider } from '../relay/RelayEnvironmentProvider';
 import { StartupGate } from './StartupGate';
 import { ThemeProvider } from './ThemeProvider';
@@ -17,15 +18,33 @@ export function AppProviders({ children }: PropsWithChildren) {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider apiBaseUrl={environment.apiBaseUrl}>
-          <StartupGate environment={environment}>
-            {/* Keep future channel providers outside the router tree seam. */}
-            <RelayEnvironmentProvider>
-              <ViewerBootstrap>{children}</ViewerBootstrap>
-            </RelayEnvironmentProvider>
-          </StartupGate>
-        </AuthProvider>
+        <EnvironmentProviders environment={environment}>
+          {children}
+        </EnvironmentProviders>
       </ThemeProvider>
     </SafeAreaProvider>
+  );
+}
+
+function EnvironmentProviders({
+  children,
+  environment,
+}: PropsWithChildren<{ readonly environment: AppEnvironment }>) {
+  return (
+    <AuthProvider apiBaseUrl={environment.apiBaseUrl}>
+      <StartupGate environment={environment}>
+        <SessionProviders>{children}</SessionProviders>
+      </StartupGate>
+    </AuthProvider>
+  );
+}
+
+function SessionProviders({ children }: PropsWithChildren) {
+  return (
+    <HostBroadcastPublishingSessionProvider>
+      <RelayEnvironmentProvider>
+        <ViewerBootstrap>{children}</ViewerBootstrap>
+      </RelayEnvironmentProvider>
+    </HostBroadcastPublishingSessionProvider>
   );
 }

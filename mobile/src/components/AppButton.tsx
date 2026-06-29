@@ -11,6 +11,18 @@ type AppButtonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
+const styles = StyleSheet.create({
+  base: {
+    minHeight: touchTarget.min,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: typography.label,
+});
+
 /**
  * Shell-level button with primary and secondary variants.
  * Sized to meet Apple HIG touch-target minimums.
@@ -28,6 +40,8 @@ export function AppButton({
 
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
@@ -56,15 +70,3 @@ export function AppButton({
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    minHeight: touchTarget.min,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  label: typography.label,
-});

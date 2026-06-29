@@ -8,6 +8,7 @@ defmodule LC.Live.MediaSignaling do
   @offer_event "media:offer"
   @answer_event "media:answer"
   @ice_candidate_event "media:ice_candidate"
+  @viewer_ready_event "media:viewer_ready"
   @default_ice_servers [%{urls: ["stun:stun.l.google.com:19302"]}]
   @ice_server_url_schemes ["stun:", "turn:", "turns:"]
   @max_sdp_bytes 64 * 1024
@@ -27,7 +28,8 @@ defmodule LC.Live.MediaSignaling do
   @type media_events :: %{
           required(:offer) => String.t(),
           required(:answer) => String.t(),
-          required(:ice_candidate) => String.t()
+          required(:ice_candidate) => String.t(),
+          required(:viewer_ready) => String.t()
         }
   @type prepare_payload :: %{
           required(:ice_servers) => [ice_server()],
@@ -45,13 +47,14 @@ defmodule LC.Live.MediaSignaling do
           optional(:sdp_m_line_index) => non_neg_integer(),
           optional(:username_fragment) => String.t()
         }
+  @type viewer_ready_payload :: %{}
   @type validation_reason :: :required | :invalid | :too_large
   @type validation_error :: %{
           required(:field) => String.t(),
           required(:reason) => validation_reason()
         }
   @type validation_result(payload) :: {:ok, payload} | {:error, [validation_error()]}
-  @type media_payload :: description_payload() | ice_candidate_payload()
+  @type media_payload :: description_payload() | ice_candidate_payload() | viewer_ready_payload()
 
   @callback ice_servers(provider_config()) :: provider_ice_server_result()
 
@@ -97,7 +100,8 @@ defmodule LC.Live.MediaSignaling do
     %{
       offer: @offer_event,
       answer: @answer_event,
-      ice_candidate: @ice_candidate_event
+      ice_candidate: @ice_candidate_event,
+      viewer_ready: @viewer_ready_event
     }
   end
 
@@ -152,6 +156,11 @@ defmodule LC.Live.MediaSignaling do
 
   def validate_event_payload(@ice_candidate_event, payload),
     do: validate_ice_candidate_payload(payload)
+
+  def validate_event_payload(@viewer_ready_event, payload) when is_map(payload), do: {:ok, %{}}
+
+  def validate_event_payload(@viewer_ready_event, _payload),
+    do: {:error, [%{field: "payload", reason: :invalid}]}
 
   def validate_event_payload(_event, _payload), do: {:error, :unknown_event}
 

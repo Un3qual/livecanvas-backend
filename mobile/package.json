@@ -7,10 +7,15 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "relay": "relay-compiler"
+    "relay": "relay-compiler",
+    "lint": "eslint . --max-warnings=0",
+    "test:quality": "bun run typecheck && bun run typecheck:tests && bun run lint && bun test --preload ./tests/setup/reactNative.ts tests",
+    "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^14.0.0",
+    "@xstate/react": "^6.1.0",
     "expo": "~55.0.8",
     "expo-apple-authentication": "~55.0.13",
     "expo-auth-session": "~55.0.13",
@@ -27,15 +32,22 @@
     "react-native": "0.83.2",
     "react-native-webrtc": "^124.0.7",
     "react-relay": "^20.1.1",
-    "relay-runtime": "^20.1.1"
+    "relay-runtime": "^20.1.1",
+    "xstate": "^5.32.2"
   },
   "devDependencies": {
+    "@types/bun": "^1.3.14",
     "@types/react": "~19.2.2",
     "@types/react-relay": "^18.2.1",
     "@types/relay-runtime": "^20.1.1",
     "babel-plugin-relay": "^20.1.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "relay-compiler": "^20.1.1",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "typescript-eslint": "^8.62.0"
   },
   "private": true,
   "packageManager": "pnpm@10.32.1"

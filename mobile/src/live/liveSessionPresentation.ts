@@ -31,6 +31,15 @@ export type LiveSessionBadgeColors = {
 };
 
 const LIVE_SESSION_DATE_LOCALE = 'en-US';
+const LIVE_SESSION_DATE_FORMATTER = new Intl.DateTimeFormat(
+  LIVE_SESSION_DATE_LOCALE,
+  {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+    year: 'numeric',
+  },
+);
 
 export function normalizeLiveSessionStatus(status: string): LiveSessionStatus {
   switch (status) {
@@ -125,12 +134,7 @@ function formatShortDate(value: string | null | undefined): string | null {
     return null;
   }
 
-  return new Intl.DateTimeFormat(LIVE_SESSION_DATE_LOCALE, {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-    year: 'numeric',
-  }).format(parsed);
+  return LIVE_SESSION_DATE_FORMATTER.format(parsed);
 }
 
 export function formatLiveSessionTiming({

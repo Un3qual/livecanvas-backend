@@ -5,6 +5,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
   import LC.SocialFixtures
 
   alias LC.{Accounts, Content, Live, Social}
+  alias LCSchemas.Live.LiveSession, as: LiveSessionSchema
   alias LCTransport.LiveSessionTopics
 
   describe "homeFeed" do
@@ -680,7 +681,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
     end
 
-    test "returns only currently-live sessions visible to the current viewer" do
+    test "returns active starting and live sessions visible to the current viewer" do
       viewer = user_fixture()
       followed_host = user_fixture()
       public_host = user_fixture(privacy_mode: :public)
@@ -697,7 +698,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       {:ok, blocked_session} = Live.start_live_session(blocked_host, %{visibility: :public})
       {:ok, _blocked_live} = Live.mark_session_live(blocked_session)
 
-      {:ok, _starting_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, starting_session} = Live.start_live_session(public_host, %{visibility: :public})
 
       query = """
       query($first: Int!) {
@@ -724,6 +725,9 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       followed_session_id =
         Absinthe.Relay.Node.to_global_id(:live_session, followed_session.id, LCGQL.Schema)
 
+      starting_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, starting_session.id, LCGQL.Schema)
+
       _blocked_session_id =
         Absinthe.Relay.Node.to_global_id(:live_session, blocked_session.id, LCGQL.Schema)
 
@@ -732,6 +736,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
                 data: %{
                   "liveNow" => %{
                     "edges" => [
+                      %{"node" => %{"id" => ^starting_session_id, "status" => "STARTING"}},
                       %{"node" => %{"id" => ^public_session_id, "status" => "LIVE"}},
                       %{"node" => %{"id" => ^followed_session_id, "status" => "LIVE"}}
                     ],
@@ -740,6 +745,75 @@ defmodule LCGQL.Feed.FeedQueriesTest do
                 }
               }} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+    end
+
+    test "prioritizes fresh starting sessions and excludes stale preflights" do
+      viewer = user_fixture()
+      public_host = user_fixture(privacy_mode: :public)
+
+      {:ok, stale_starting_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, fresh_starting_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, live_session} = Live.start_live_session(public_host, %{visibility: :public})
+      {:ok, _live_session} = Live.mark_session_live(live_session)
+
+      stale_inserted_at = DateTime.utc_now() |> DateTime.add(-11 * 60, :second)
+
+      {1, _rows} =
+        Repo.update_all(
+          from(live_session in LiveSessionSchema,
+            where: live_session.id == ^stale_starting_session.id
+          ),
+          set: [inserted_at: stale_inserted_at, updated_at: stale_inserted_at]
+        )
+
+      query = """
+      query($first: Int!) {
+        liveNow(first: $first) {
+          edges {
+            node {
+              id
+              status
+            }
+          }
+        }
+      }
+      """
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      fresh_starting_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, fresh_starting_session.id, LCGQL.Schema)
+
+      live_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, live_session.id, LCGQL.Schema)
+
+      _stale_starting_session_id =
+        Absinthe.Relay.Node.to_global_id(:live_session, stale_starting_session.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "liveNow" => %{
+                    "edges" => [
+                      %{"node" => %{"id" => ^fresh_starting_session_id, "status" => "STARTING"}},
+                      %{"node" => %{"id" => ^live_session_id, "status" => "LIVE"}}
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "liveNow" => %{
+                    "edges" => [
+                      %{"node" => %{"id" => ^fresh_starting_session_id, "status" => "STARTING"}}
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 1}, context: context)
     end
 
     test "batches repeated host lookups when liveNow requests hosts" do

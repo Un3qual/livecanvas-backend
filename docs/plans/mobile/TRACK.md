@@ -11,21 +11,41 @@ streaming, and chat.
 
 ## Status
 
-- Track state: active
+- Track state: active; release-candidate device QA ready
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Active detailed plan:
-  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
-- Current theme: testing, beta distribution, and release readiness
-- Last completed theme: chat realtime stream plus retained history complete
+- Last completed detailed plan:
+  `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`
+- Current theme: release-candidate one-host/one-viewer device QA after local
+  quality gates and TypeScript readability cleanup.
+- Last completed readability theme: mobile TypeScript cleanup reduced repeated
+  manual live-broadcast types after the frontend folder split.
+- Last completed structure theme: mobile frontend structure cleanup split route
+  and screen files into nested feature folders while preserving public import
+  shims.
+- Last completed theme: pre-beta product completeness closed viewer setup, host
+  publishing, viewer playback, and the one-host/one-viewer smoke checklist
 - Backend channel-topic dependency: complete. Mobile receives opaque
   `LiveSession.channelTopic`; do not decode Relay IDs client-side.
 - Backend media signaling dependency: complete. Mobile has prepare/go-live retry
   wiring and media channel payload normalization against the backend contract.
-- Backend media runtime dependency: complete. Durable readiness, provider-backed
-  ICE/TURN configuration, and signaling-driven readiness are implemented in the
-  backend lane.
+- Backend media runtime dependency: complete for host and active-viewer setup
+  plus signaling-driven readiness. Mobile must use the returned opaque media
+  signaling topic without constructing topics.
 - Retained chat history implementation uses the current `LiveSession.timelineEvents`
   schema and `ChatMessageEvent` nodes.
+- Beta distribution and release-candidate mechanics are unblocked. Task 1
+  aligned local quality gate commands, Task 2 added internal EAS build profiles
+  plus explicit native identifiers, and Task 3 added the release-candidate
+  checklist with launch blockers separated from deferred follow-up.
+- Frontend structure cleanup is tracked in
+  `docs/plans/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`; behavior
+  stayed stable and public imports remain preserved.
+- TypeScript readability cleanup is complete in
+  `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`; public
+  import shims stayed preserved and tests remained under `mobile/tests/**`.
+- Release-candidate manual QA is tracked in
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`; no remote or
+  authenticated EAS build/submit command is required by that checklist.
 
 ## Completed Detailed Plans
 
@@ -37,6 +57,10 @@ streaming, and chat.
 - `docs/plans/mobile/2026-06-02-host-broadcast-native-capability-preflight.md`
 - `docs/plans/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
 - `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
+- `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`
+- `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
+- `docs/plans/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`
+- `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`
 
 ## Recommended Plan Order
 
@@ -46,7 +70,13 @@ streaming, and chat.
 4. Live discovery plus viewer watch flow.
 5. Host broadcast flow and native media integration.
 6. Chat realtime stream plus retained history.
-7. Testing, beta distribution, and release readiness.
+7. Pre-beta product completeness: viewer setup contract, host publishing, and
+   viewer playback.
+8. Testing, beta distribution, and release readiness.
+9. Mobile frontend structure cleanup before continued release-candidate QA.
+10. Mobile TypeScript readability cleanup for live broadcast code before deeper
+    live-device QA.
+11. Release-candidate manual device QA using the one-host/one-viewer checklist.
 
 ## Shared Constraints
 
