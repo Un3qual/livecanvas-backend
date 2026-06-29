@@ -33,8 +33,10 @@ export function createHostBroadcastLocalMediaControls(
     return null;
   }
 
+  const localStream = stream;
+
   function tracksFor(kind: MediaTrackKind): HostBroadcastLocalMediaTrack[] {
-    return readLocalMediaTracks(stream).filter(
+    return readLocalMediaTracks(localStream).filter(
       (track) => track.kind === kind && track.readyState !== 'ended',
     );
   }
