@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { UseMutationConfig } from 'react-relay';
 import { createActor } from 'xstate';
 
+import type { LiveSessionTimelineHistory } from '../../liveSessionTimelineHistory';
 import {
   canRequestLiveSessionWatchCommand,
   isLiveSessionViewerJoined,
@@ -31,6 +32,49 @@ type LeaveLiveSessionCommit = (
 type EndLiveSessionCommit = (
   config: UseMutationConfig<LiveSessionWatchScreenEndMutation>,
 ) => unknown;
+
+export const LIVE_SESSION_OLDER_TIMELINE_LOAD_ERROR =
+  'We could not load older messages. Check your connection and try again.';
+
+export type LiveSessionOlderTimelinePageLoadState = {
+  readonly error: string | null;
+  readonly isLoading: boolean;
+};
+
+export type LiveSessionOlderTimelinePageLoadRequest = {
+  readonly canLoadOlder: boolean;
+  readonly liveSessionId: string;
+  readonly timelineBefore: string | null;
+  readonly timelineLast: number;
+};
+
+export type FetchLiveSessionOlderTimelinePage = (
+  request: Omit<LiveSessionOlderTimelinePageLoadRequest, 'canLoadOlder'>,
+) => Promise<LiveSessionTimelineHistory | null>;
+
+export type LiveSessionOlderTimelinePageLoaded = {
+  readonly history: LiveSessionTimelineHistory;
+  readonly sessionId: string;
+};
+
+export type LiveSessionOlderTimelinePageLoaderLifecycle = {
+  readonly getState: () => LiveSessionOlderTimelinePageLoadState;
+  readonly requestOlderPage: (
+    request: LiveSessionOlderTimelinePageLoadRequest,
+  ) => void;
+  readonly syncSession: (liveSessionId: string) => void;
+  readonly unmount: () => void;
+};
+
+export type LiveSessionOlderTimelinePageLoaderOptions = {
+  readonly fetchOlderTimelinePage: FetchLiveSessionOlderTimelinePage;
+  readonly onOlderTimelinePageLoaded: (
+    loaded: LiveSessionOlderTimelinePageLoaded,
+  ) => void;
+  readonly onStateChanged?: (
+    state: LiveSessionOlderTimelinePageLoadState,
+  ) => void;
+};
 
 export type LiveSessionWatchControllerState = {
   readonly error: string | null;
@@ -96,6 +140,124 @@ export type LiveSessionWatchController = LiveSessionWatchControllerState & {
   readonly requestJoin: (request: LiveSessionWatchJoinRequest) => void;
   readonly requestLeave: (request: LiveSessionWatchLeaveRequest) => void;
 };
+
+export function createLiveSessionOlderTimelinePageLoader({
+  fetchOlderTimelinePage,
+  onOlderTimelinePageLoaded,
+  onStateChanged,
+}: LiveSessionOlderTimelinePageLoaderOptions): LiveSessionOlderTimelinePageLoaderLifecycle {
+  let activeLiveSessionId: string | null = null;
+  let activeRequest:
+    | {
+        readonly sessionId: string;
+        readonly token: number;
+      }
+    | null = null;
+  let isMounted = true;
+  let requestToken = 0;
+  let state: LiveSessionOlderTimelinePageLoadState = {
+    error: null,
+    isLoading: false,
+  };
+
+  function getState(): LiveSessionOlderTimelinePageLoadState {
+    return state;
+  }
+
+  function syncSession(liveSessionId: string) {
+    activeLiveSessionId = liveSessionId;
+    activeRequest = null;
+    publishState({ error: null, isLoading: false });
+  }
+
+  function requestOlderPage({
+    canLoadOlder,
+    liveSessionId,
+    timelineBefore,
+    timelineLast,
+  }: LiveSessionOlderTimelinePageLoadRequest) {
+    if (
+      !canLoadOlder ||
+      !timelineBefore ||
+      state.isLoading ||
+      activeLiveSessionId !== liveSessionId
+    ) {
+      return;
+    }
+
+    const token = requestToken + 1;
+    requestToken = token;
+    activeRequest = { sessionId: liveSessionId, token };
+    publishState({ error: null, isLoading: true });
+
+    fetchOlderTimelinePage({
+      liveSessionId,
+      timelineBefore,
+      timelineLast,
+    })
+      .then((history) => {
+        if (!isActiveRequest(liveSessionId, token)) {
+          return;
+        }
+
+        activeRequest = null;
+
+        if (!history) {
+          publishState({
+            error: LIVE_SESSION_OLDER_TIMELINE_LOAD_ERROR,
+            isLoading: false,
+          });
+          return;
+        }
+
+        onOlderTimelinePageLoaded({
+          history,
+          sessionId: liveSessionId,
+        });
+        publishState({ error: null, isLoading: false });
+      })
+      .catch(() => {
+        if (!isActiveRequest(liveSessionId, token)) {
+          return;
+        }
+
+        activeRequest = null;
+        publishState({
+          error: LIVE_SESSION_OLDER_TIMELINE_LOAD_ERROR,
+          isLoading: false,
+        });
+      });
+  }
+
+  function unmount() {
+    isMounted = false;
+    activeRequest = null;
+  }
+
+  function isActiveRequest(liveSessionId: string, token: number): boolean {
+    return (
+      isMounted &&
+      activeLiveSessionId === liveSessionId &&
+      activeRequest?.sessionId === liveSessionId &&
+      activeRequest.token === token
+    );
+  }
+
+  function publishState(nextState: LiveSessionOlderTimelinePageLoadState) {
+    state = nextState;
+
+    if (isMounted) {
+      onStateChanged?.(state);
+    }
+  }
+
+  return {
+    getState,
+    requestOlderPage,
+    syncSession,
+    unmount,
+  };
+}
 
 export function createLiveSessionWatchControllerLifecycle({
   commitEndLiveSession,

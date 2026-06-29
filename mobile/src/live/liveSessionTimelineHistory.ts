@@ -95,6 +95,12 @@ export type LiveSessionTimelineHistory = {
 export function readLiveSessionTimelineHistory(
   connection?: LiveSessionTimelineHistoryConnection,
 ): LiveSessionTimelineHistory {
+  return readLiveSessionTimelinePage(connection);
+}
+
+export function readLiveSessionTimelinePage(
+  connection?: LiveSessionTimelineHistoryConnection,
+): LiveSessionTimelineHistory {
   return {
     pageInfo: normalizeTimelineHistoryPageInfo(connection?.pageInfo),
     rows:

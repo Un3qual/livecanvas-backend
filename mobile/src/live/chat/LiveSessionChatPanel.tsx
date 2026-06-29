@@ -13,8 +13,12 @@ import { createLiveSessionChatPanelModel } from './liveSessionChatPanelPresentat
 import type { LiveSessionTimelineHistoryRow } from '../liveSessionTimelineHistory';
 
 type LiveSessionChatPanelProps = {
+  readonly canLoadOlder: boolean;
   readonly channelStatus: LiveSessionChatChannelStatus;
   readonly isJoined: boolean;
+  readonly isLoadingOlder: boolean;
+  readonly olderLoadError: string | null;
+  readonly onLoadOlder: () => void;
   readonly onSendMessage: (body: string) => Promise<boolean>;
   readonly rows: ReadonlyArray<LiveSessionTimelineHistoryRow>;
   readonly sendError: string | null;
@@ -55,6 +59,9 @@ const styles = StyleSheet.create({
   composer: {
     gap: spacing.sm,
   },
+  loadOlderButton: {
+    alignSelf: 'stretch',
+  },
   input: {
     ...typography.body,
     borderRadius: radius.md,
@@ -69,8 +76,12 @@ const styles = StyleSheet.create({
 });
 
 export function LiveSessionChatPanel({
+  canLoadOlder,
   channelStatus,
   isJoined,
+  isLoadingOlder,
+  olderLoadError,
+  onLoadOlder,
   onSendMessage,
   rows,
   sendError,
@@ -79,9 +90,12 @@ export function LiveSessionChatPanel({
   const theme = useAppTheme();
   const [draftMessage, setDraftMessage] = useState('');
   const model = createLiveSessionChatPanelModel({
+    canLoadOlder,
     channelStatus,
     draftMessage,
     isJoined,
+    isLoadingOlder,
+    olderLoadError,
     rows,
     sendError,
     sendStatus,
@@ -111,6 +125,22 @@ export function LiveSessionChatPanel({
           {model.channelStatusLabel}
         </Text>
       </View>
+
+      {model.canLoadOlder ? (
+        <AppButton
+          disabled={model.olderLoadButtonDisabled}
+          label={model.olderLoadButtonLabel}
+          onPress={onLoadOlder}
+          style={styles.loadOlderButton}
+          variant="secondary"
+        />
+      ) : null}
+
+      {model.olderLoadError ? (
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>
+          {model.olderLoadError}
+        </Text>
+      ) : null}
 
       <View style={styles.timeline}>
         {model.rows.length > 0 ? (
