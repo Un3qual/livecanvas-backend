@@ -516,7 +516,7 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
 
     harness.runtimes[0].startDeferred.resolve({
       reason: 'stale runtime failure',
-      status: 'failed',
+      status: 'error',
     });
     await flushAsyncHandlers();
 
@@ -682,7 +682,7 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
 
     harness.runtimes[0].startDeferred.resolve({
       reason: 'stale retry failure',
-      status: 'failed',
+      status: 'error',
     });
     await flushAsyncHandlers();
 
