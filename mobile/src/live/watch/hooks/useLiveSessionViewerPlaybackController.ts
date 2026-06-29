@@ -15,6 +15,7 @@ import {
   type PhoenixSocketOptions,
 } from '../../../realtime/phoenixSocket';
 import {
+  canEnterLiveSession,
   formatLiveMutationErrors,
   type LiveSessionStatus,
 } from '../../liveSessionPresentation';
@@ -33,6 +34,7 @@ import type {
 } from '../liveSessionWatchScreenTypes';
 import type { LiveSessionWatchScreenPrepareMediaMutation } from '../liveSessionWatchOperations';
 import {
+  canRetryLiveSessionViewerPlayback,
   INITIAL_VIEWER_PLAYBACK_STATE,
   liveSessionViewerPlaybackMachine,
   selectLiveSessionViewerPlaybackState,
@@ -64,6 +66,7 @@ type LiveSessionViewerPlaybackControllerSyncOptions = {
 };
 
 export type LiveSessionViewerPlaybackControllerLifecycle = {
+  readonly retryViewerPlayback: () => void;
   readonly stopViewerPlayback: StopViewerPlayback;
   readonly stopViewerPlaybackGeneration: StopViewerPlaybackGeneration;
   readonly syncViewerPlayback: (
@@ -100,6 +103,7 @@ export type LiveSessionViewerPlaybackControllerOptions =
   };
 
 export type LiveSessionViewerPlaybackController = {
+  readonly retryViewerPlayback: () => void;
   readonly stopViewerPlayback: StopViewerPlayback;
   readonly stopViewerPlaybackGeneration: StopViewerPlaybackGeneration;
   readonly viewerPlaybackState: ViewerPlaybackState;
@@ -127,6 +131,8 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
   let currentCreateSocket = createSocket;
   let currentGetAccessToken = getAccessToken;
   let currentWebsocketUrl = websocketUrl;
+  let currentSyncOptions: LiveSessionViewerPlaybackControllerSyncOptions | null =
+    null;
 
   function updateOptions(
     nextOptions: LiveSessionViewerPlaybackControllerLifecycleOptions,
@@ -164,6 +170,14 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
     liveSessionId,
     normalizedStatus,
   }: LiveSessionViewerPlaybackControllerSyncOptions) {
+    currentSyncOptions = {
+      authStatus,
+      isJoined,
+      isLeaving,
+      liveSessionId,
+      normalizedStatus,
+    };
+
     if (
       !liveSessionId ||
       !isJoined ||
@@ -182,11 +196,48 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
     };
   }
 
-  function startViewerPlayback(currentLiveSessionId: string): number {
+  function retryViewerPlayback() {
+    const syncOptions = currentSyncOptions;
+
+    if (!syncOptions || !isMountedRef.current) {
+      return;
+    }
+
+    const {
+      authStatus,
+      isJoined,
+      isLeaving,
+      liveSessionId,
+      normalizedStatus,
+    } = syncOptions;
+
+    if (
+      !liveSessionId ||
+      isLeaving ||
+      authStatus !== 'authenticated' ||
+      !canRetryLiveSessionViewerPlayback({
+        enterable: canEnterLiveSession(normalizedStatus),
+        isJoined,
+        state: selectLiveSessionViewerPlaybackState(
+          viewerPlaybackActor.getSnapshot(),
+        ),
+      })
+    ) {
+      return;
+    }
+
+    startViewerPlayback(liveSessionId, 'RETRY_REQUESTED');
+  }
+
+  function startViewerPlayback(
+    currentLiveSessionId: string,
+    startEventType: 'PREPARE_REQUESTED' | 'RETRY_REQUESTED' =
+      'PREPARE_REQUESTED',
+  ): number {
     const generation = viewerPlaybackGenerationRef.current + 1;
     viewerPlaybackGenerationRef.current = generation;
     disposeViewerPlaybackResource();
-    sendViewerPlaybackEvent({ type: 'PREPARE_REQUESTED' });
+    sendViewerPlaybackEvent({ type: startEventType });
 
     try {
       currentCommitPrepareLiveSessionMedia({
@@ -393,6 +444,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
   }
 
   return {
+    retryViewerPlayback,
     stopViewerPlayback,
     stopViewerPlaybackGeneration,
     syncViewerPlayback,
@@ -483,6 +535,7 @@ export function useLiveSessionViewerPlaybackController({
   );
 
   return {
+    retryViewerPlayback: controller.retryViewerPlayback,
     stopViewerPlayback: controller.stopViewerPlayback,
     stopViewerPlaybackGeneration: controller.stopViewerPlaybackGeneration,
     viewerPlaybackState,
