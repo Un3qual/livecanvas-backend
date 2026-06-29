@@ -2,6 +2,11 @@ import { describe, expect, test } from 'bun:test';
 
 import type { HostBroadcastMediaPreparation } from '../../src/host/hostBroadcastMediaSignaling';
 import type { HostBroadcastNative } from '../../src/host/hostBroadcastNative';
+import type {
+  HostBroadcastLocalMediaControls,
+  HostBroadcastLocalMediaStream,
+  HostBroadcastLocalMediaTrack,
+} from '../../src/host/publishing/hostBroadcastLocalMediaControls';
 import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
@@ -83,7 +88,13 @@ const preparedMedia: HostBroadcastMediaPreparation = {
   signalingTopic: 'live_session_media:opaque-topic',
 };
 
-function createHarness() {
+function createHarness(
+  options: {
+    readonly createLocalMediaControls?: (
+      stream: HostBroadcastLocalMediaStream,
+    ) => HostBroadcastLocalMediaControls | null;
+  } = {},
+) {
   const hostPublishingSessions = createHostBroadcastPublishingSessionStore();
   const publishingPreflightController =
     createHostBroadcastPublishingPreflightController();
@@ -100,6 +111,15 @@ function createHarness() {
     current: new Map<HostBroadcastPublishingResource, string>(),
   };
   const hasRetainedPublishingResourceRef = { current: false };
+  const previewTracks: HostBroadcastLocalMediaTrack[] = [
+    { enabled: true, kind: 'audio' },
+    { enabled: true, kind: 'video' },
+  ];
+  const previewStream = {
+    getTracks() {
+      return previewTracks;
+    },
+  };
   let previewStreamRequestCount = 0;
   const native: Pick<
     HostBroadcastNative,
@@ -107,17 +127,14 @@ function createHarness() {
   > = {
     getPreviewStream() {
       previewStreamRequestCount += 1;
-      return Promise.resolve({
-        getTracks() {
-          return [{ id: 'audio-track' }, { id: 'video-track' }];
-        },
-      });
+      return Promise.resolve(previewStream);
     },
     releasePreviewStream() {
       // The runtime owns preview stream release through disposeLocalMedia.
     },
   };
   const controller = createHostBroadcastPublishingControllerLifecycle({
+    createLocalMediaControls: options.createLocalMediaControls,
     createPeerConnectionFactory: () => () => ({
       addIceCandidate: () => Promise.resolve(),
       addTrack: () => undefined,
@@ -184,6 +201,8 @@ function createHarness() {
     get previewStreamRequestCount() {
       return previewStreamRequestCount;
     },
+    previewStream,
+    previewTracks,
     hasRetainedPublishingResourceRef,
     hostPublishingSessions,
     publishingPreflightController,
@@ -234,6 +253,57 @@ describe('useHostBroadcastPublishingController lifecycle', () => {
     cleanup?.();
     expect(harness.runtimes[0].disposeCount).toBe(1);
     expect(harness.sockets[0].disconnectCount).toBe(1);
+  });
+
+  test('retains local media controls created from the preview stream', async () => {
+    const harness = createHarness();
+
+    harness.sync();
+    await flushAsyncHandlers();
+
+    const retainedResource =
+      harness.controller.retainAttachedPublishingForLiveSession(
+        'live-session-id',
+      );
+
+    expect(retainedResource?.localMediaControls?.snapshot()).toEqual({
+      audio: { available: true, enabled: true },
+      video: { available: true, enabled: true },
+    });
+
+    retainedResource?.localMediaControls?.setAudioEnabled(false);
+
+    expect(harness.previewTracks[0].enabled).toBe(false);
+    expect(harness.previewTracks[1].enabled).toBe(true);
+    expect(harness.hostPublishingSessions.controlsFor('live-session-id')).toBe(
+      retainedResource?.localMediaControls,
+    );
+  });
+
+  test('continues publishing when local media controls cannot be created', async () => {
+    let controlsCreateCount = 0;
+    const harness = createHarness({
+      createLocalMediaControls(stream) {
+        controlsCreateCount += 1;
+        expect(stream).toBe(harness.previewStream);
+        throw new Error('local controls unavailable');
+      },
+    });
+
+    harness.sync();
+    await flushAsyncHandlers();
+
+    expect(controlsCreateCount).toBe(1);
+    expect(harness.runtimes).toHaveLength(1);
+    expect(harness.runtimes[0].startCount).toBe(1);
+
+    const retainedResource =
+      harness.controller.retainAttachedPublishingForLiveSession(
+        'live-session-id',
+      );
+
+    expect(retainedResource?.localMediaControls).toBeUndefined();
+    expect(harness.hostPublishingSessions.controlsFor('live-session-id')).toBeNull();
   });
 
   test('releases retained publishing resources and ends the session when the media channel closes', async () => {
