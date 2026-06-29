@@ -83,6 +83,9 @@ import {
 } from './liveSessionWatchOperations';
 import { liveSessionWatchScreenStyles as styles } from './liveSessionWatchScreenStyles';
 import {
+  canRetryLiveSessionViewerPlayback,
+} from './state/liveSessionViewerPlaybackMachine';
+import {
   canUseLiveSessionChat,
   resolveRejectedLiveSessionChatSend,
 } from './liveSessionWatchChat';
@@ -331,7 +334,7 @@ function LiveSessionWatchContent({
     isJoined,
   });
   const shouldMaintainSessionRealtimeChannel = canUseChat;
-  const { stopViewerPlayback, viewerPlaybackState } =
+  const { retryViewerPlayback, stopViewerPlayback, viewerPlaybackState } =
     useLiveSessionViewerPlaybackController({
       authStatus: auth.state.status,
       commitPrepareLiveSessionMedia,
@@ -841,6 +844,14 @@ function LiveSessionWatchContent({
 
       <LiveSessionViewerPlaybackSurface
         isJoined={isJoined}
+        recovery={{
+          canRetry: canRetryLiveSessionViewerPlayback({
+            enterable,
+            isJoined,
+            state: viewerPlaybackState,
+          }),
+          onRetry: retryViewerPlayback,
+        }}
         state={viewerPlaybackState}
       />
 

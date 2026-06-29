@@ -348,6 +348,11 @@ describe('useLiveSessionWatchController lifecycle', () => {
     ]);
     expect(harness.closedChatSessions).toEqual(['session-1']);
     expect(harness.leaves).toHaveLength(0);
+    expect(harness.controller.getState()).toMatchObject({
+      hasActiveSubmission: false,
+      isJoined: false,
+      isLeaving: false,
+    });
   });
 
   test('ignores stale teardown side effects from previous sessions', () => {

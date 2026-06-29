@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native';
 
+import { AppButton } from '../../../components/AppButton';
 import { AppCard } from '../../../components/AppCard';
 import { LiveWebRtcRTCView } from '../../media/liveWebRtcAdapter';
 import { useAppTheme } from '../../../providers/ThemeProvider';
@@ -9,9 +10,14 @@ import { SectionHeading } from './LiveSessionWatchCards';
 
 export function LiveSessionViewerPlaybackSurface({
   isJoined,
+  recovery,
   state,
 }: {
   isJoined: boolean;
+  recovery: {
+    readonly canRetry: boolean;
+    readonly onRetry: () => void;
+  };
   state: ViewerPlaybackState;
 }) {
   const theme = useAppTheme();
@@ -44,6 +50,13 @@ export function LiveSessionViewerPlaybackSurface({
             >
               {message}
             </Text>
+            {recovery.canRetry ? (
+              <AppButton
+                label="Retry video"
+                onPress={recovery.onRetry}
+                variant="secondary"
+              />
+            ) : null}
           </View>
         )}
       </View>
