@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from 'bun:test';
+import { createElement, type ReactNode } from 'react';
 
 import {
   createHostBroadcastLocalMediaControls,
@@ -9,26 +10,58 @@ function NullComponent() {
   return null;
 }
 
+function NativeComponent({
+  children,
+  ...props
+}: {
+  children?: ReactNode;
+  [key: string]: unknown;
+}) {
+  return createElement('NativeComponent', props, children);
+}
+
 mock.module('react-native', () => ({
   Linking: {
     canOpenURL: () => Promise.resolve(false),
     openURL: () => Promise.resolve(),
   },
-  Pressable: NullComponent,
+  Pressable: NativeComponent,
   StyleSheet: {
     create: <Styles>(styles: Styles): Styles => styles,
   },
-  Text: NullComponent,
-  View: NullComponent,
+  Text: NativeComponent,
+  View: NativeComponent,
 }));
 mock.module('../../src/components/AppButton', () => ({
-  AppButton: NullComponent,
+  AppButton: ({
+    disabled,
+    label,
+    onPress,
+  }: {
+    disabled?: boolean;
+    label: string;
+    onPress: () => void;
+  }) =>
+    createElement(
+      'Pressable',
+      { accessibilityRole: 'button', disabled: disabled ?? false, onPress },
+      label,
+    ),
 }));
 mock.module('../../src/components/AppCard', () => ({
-  AppCard: NullComponent,
+  AppCard: ({ children }: { children?: ReactNode }) =>
+    createElement('View', null, children),
 }));
 mock.module('../../src/components/AppHeader', () => ({
-  AppHeader: NullComponent,
+  AppHeader: ({
+    eyebrow,
+    subtitle,
+    title,
+  }: {
+    eyebrow?: string;
+    subtitle?: string;
+    title: string;
+  }) => createElement('View', null, eyebrow, title, subtitle),
 }));
 mock.module('../../src/theme/tokens', () => ({
   radius: { md: 8 },
@@ -58,14 +91,6 @@ mock.module('../../src/providers/ThemeProvider', () => ({
       text: 'text',
       textMuted: 'textMuted',
     },
-  }),
-}));
-mock.module('../../src/live/recording/liveSessionRecordingPresentation', () => ({
-  formatLiveSessionRecordingPresentation: () => ({
-    body: 'Recording unavailable.',
-    canOpen: false,
-    publicUrl: null,
-    statusLabel: 'Unavailable',
   }),
 }));
 

@@ -40,13 +40,17 @@ mock.module('expo-router', () => ({
 }));
 mock.module('react-native', () => ({
   FlatList: NullComponent,
+  Linking: {
+    canOpenURL: () => Promise.resolve(false),
+    openURL: () => Promise.resolve(),
+  },
   Pressable: 'Pressable',
   ScrollView: 'ScrollView',
   StyleSheet: {
     create: (styles: unknown) => styles,
   },
-  Text: NullComponent,
-  View: NullComponent,
+  Text: 'Text',
+  View: 'View',
 }));
 mock.module('react-relay', () => ({
   graphql: () => ({}),
@@ -64,7 +68,9 @@ mock.module('../../src/components/AppCard', () => ({ AppCard: AppCardMock }));
 mock.module('../../src/components/AppHeader', () => ({
   AppHeader: AppHeaderMock,
 }));
-mock.module('../../src/components/ScreenState', () => ({ ScreenState: NullComponent }));
+mock.module('../../src/components/ScreenState', () => ({
+  ScreenState: NullComponent,
+}));
 mock.module('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
     colors: {
