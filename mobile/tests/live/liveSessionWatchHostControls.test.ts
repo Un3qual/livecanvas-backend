@@ -30,6 +30,27 @@ mock.module('../../src/components/AppCard', () => ({
 mock.module('../../src/components/AppHeader', () => ({
   AppHeader: NullComponent,
 }));
+mock.module('../../src/theme/tokens', () => ({
+  radius: { md: 8 },
+  spacing: { lg: 16, sm: 8 },
+  touchTarget: { min: 44 },
+  typography: { label: {} },
+}));
+mock.module('../../src/live/watch/liveSessionWatchScreenStyles', () => ({
+  liveSessionWatchScreenStyles: {
+    badge: {},
+    badgeText: {},
+    bodyText: {},
+    errorText: {},
+    heroHeader: {},
+    metadataLabel: {},
+    metadataRow: {},
+    metadataValue: {},
+    recordingMetadata: {},
+    sectionTitle: {},
+    unavailable: {},
+  },
+}));
 mock.module('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
     colors: {
