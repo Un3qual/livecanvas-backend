@@ -490,7 +490,6 @@ export function createHostBroadcastPreflightControllerLifecycle(
 
         if (!isMounted) {
           requestAbandonedPreflightEndLiveSession(liveSessionId);
-          return;
         }
       },
     });
