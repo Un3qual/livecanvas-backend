@@ -159,5 +159,5 @@ function createGlobalWebSocket(url: string): ReleaseDiagnosticsWebSocket {
     throw new Error('WebSocket is not available');
   }
 
-  return new maybeGlobal.WebSocket(url);
+  return new maybeGlobal.WebSocket(url) as unknown as ReleaseDiagnosticsWebSocket;
 }
