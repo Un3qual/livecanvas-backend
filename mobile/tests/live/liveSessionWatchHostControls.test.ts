@@ -21,6 +21,15 @@ mock.module('react-native', () => ({
   Text: NullComponent,
   View: NullComponent,
 }));
+mock.module('../../src/components/AppButton', () => ({
+  AppButton: NullComponent,
+}));
+mock.module('../../src/components/AppCard', () => ({
+  AppCard: NullComponent,
+}));
+mock.module('../../src/components/AppHeader', () => ({
+  AppHeader: NullComponent,
+}));
 mock.module('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
     colors: {
