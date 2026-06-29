@@ -11,14 +11,17 @@ streaming, and chat.
 
 ## Status
 
-- Track state: active; beta execution ready
+- Track state: active; release-candidate device QA ready
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Completed detailed plan:
-  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
-- Current theme: testing, beta distribution, and release readiness is complete.
-  Next action is release-candidate device QA from
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`, or a promoted
-  implementation batch if that checklist finds a launch blocker.
+- Last completed detailed plan:
+  `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`
+- Current theme: release-candidate one-host/one-viewer device QA after local
+  quality gates and TypeScript readability cleanup.
+- Last completed readability theme: mobile TypeScript cleanup reduced repeated
+  manual live-broadcast types after the frontend folder split.
+- Last completed structure theme: mobile frontend structure cleanup split route
+  and screen files into nested feature folders while preserving public import
+  shims.
 - Last completed theme: pre-beta product completeness closed viewer setup, host
   publishing, viewer playback, and the one-host/one-viewer smoke checklist
 - Backend channel-topic dependency: complete. Mobile receives opaque
@@ -34,6 +37,15 @@ streaming, and chat.
   aligned local quality gate commands, Task 2 added internal EAS build profiles
   plus explicit native identifiers, and Task 3 added the release-candidate
   checklist with launch blockers separated from deferred follow-up.
+- Frontend structure cleanup is tracked in
+  `docs/plans/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`; behavior
+  stayed stable and public imports remain preserved.
+- TypeScript readability cleanup is complete in
+  `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`; public
+  import shims stayed preserved and tests remained under `mobile/tests/**`.
+- Release-candidate manual QA is tracked in
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`; no remote or
+  authenticated EAS build/submit command is required by that checklist.
 
 ## Completed Detailed Plans
 
@@ -47,6 +59,8 @@ streaming, and chat.
 - `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
 - `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`
 - `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
+- `docs/plans/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`
+- `docs/plans/mobile/2026-06-27-mobile-typescript-quality-readability.md`
 
 ## Recommended Plan Order
 
@@ -59,6 +73,10 @@ streaming, and chat.
 7. Pre-beta product completeness: viewer setup contract, host publishing, and
    viewer playback.
 8. Testing, beta distribution, and release readiness.
+9. Mobile frontend structure cleanup before continued release-candidate QA.
+10. Mobile TypeScript readability cleanup for live broadcast code before deeper
+    live-device QA.
+11. Release-candidate manual device QA using the one-host/one-viewer checklist.
 
 ## Shared Constraints
 

@@ -6,11 +6,10 @@ import type {
   BeforeUnauthenticatedCallback,
 } from './types';
 import { clearTokens, loadTokens, storeTokens } from './tokenStorage';
-import { resolveAuthBootstrapState } from './authBootstrap';
+import { restoreStoredSession } from './sessionBootstrap';
 import {
   forceUnauthenticated,
   runBestEffortBeforeUnauthenticatedCallback,
-  shouldApplyBootstrapState,
 } from './authProviderLifecycle';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -21,6 +20,18 @@ function sameTokenPair(left: AuthTokenPair, right: AuthTokenPair): boolean {
     left.refreshToken === right.refreshToken &&
     left.expiresAt === right.expiresAt
   );
+}
+
+async function loadInitialAuthState(apiBaseUrl: string): Promise<AuthState> {
+  try {
+    return await restoreStoredSession(apiBaseUrl, {
+      readTokens: loadTokens,
+      storeTokens,
+      clearTokens,
+    });
+  } catch {
+    return { status: 'unauthenticated' };
+  }
 }
 
 export function useAuth(): AuthContextValue {
@@ -100,25 +111,37 @@ export function AuthProvider({
   useEffect(() => {
     let cancelled = false;
 
-    void resolveAuthBootstrapState({
-      apiBaseUrl,
-      readTokens: loadTokens,
-      storeTokens,
-      clearTokens,
-    }).then((nextState) => {
-      if (cancelled || !shouldApplyBootstrapState(stateRef.current, bootstrapRanRef.current)) {
-        return;
-      }
+    loadInitialAuthState(apiBaseUrl)
+      .then((nextState) => {
+        if (
+          cancelled ||
+          bootstrapRanRef.current ||
+          stateRef.current.status !== 'loading'
+        ) {
+          return;
+        }
 
-      bootstrapRanRef.current = true;
+        bootstrapRanRef.current = true;
 
-      if (nextState.status === 'authenticated') {
-        commitAuthenticatedTokens(nextState.tokens);
-        return;
-      }
+        if (nextState.status === 'authenticated') {
+          commitAuthenticatedTokens(nextState.tokens);
+          return;
+        }
 
-      commitUnauthenticated();
-    });
+        commitUnauthenticated();
+      })
+      .catch(() => {
+        if (
+          cancelled ||
+          bootstrapRanRef.current ||
+          stateRef.current.status !== 'loading'
+        ) {
+          return;
+        }
+
+        bootstrapRanRef.current = true;
+        commitUnauthenticated();
+      });
 
     return () => {
       cancelled = true;

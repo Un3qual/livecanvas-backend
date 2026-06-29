@@ -1,8 +1,13 @@
 import {
-  normalizeLiveSessionRealtimeEvent,
-  type LiveSessionRealtimeEvent,
-  type LiveSessionTimelineEventPayload,
-} from './liveSessionRealtimeEvents';
+  readLiveSessionSessionStateEvent,
+  readLiveSessionTimelineEvent,
+  readLiveSessionTimelineEventRemoved,
+  readLiveSessionTimelineEventUpdated,
+} from './realtime/liveSessionRealtimeTimelineEvents';
+import type {
+  LiveSessionRealtimeEvent,
+  LiveSessionTimelineEventPayload,
+} from './realtime/liveSessionRealtimeTypes';
 
 export type LiveSessionChannelPushStatus = 'ok' | 'error' | 'timeout';
 
@@ -116,32 +121,26 @@ export function createLiveSessionChannelClient({
   const channel = socket.channel(topic);
 
   channel.on('session:state', (payload) => {
-    const event = normalizeLiveSessionRealtimeEvent('session:state', payload);
-    if (event?.kind === 'session_state') {
+    const event = readLiveSessionSessionStateEvent(payload);
+    if (event) {
       onSessionState?.(event);
     }
   });
   channel.on('timeline:event', (payload) => {
-    const event = normalizeLiveSessionRealtimeEvent('timeline:event', payload);
-    if (event?.kind === 'timeline_event') {
+    const event = readLiveSessionTimelineEvent(payload);
+    if (event) {
       onTimelineEvent?.(event);
     }
   });
   channel.on('timeline:event_updated', (payload) => {
-    const event = normalizeLiveSessionRealtimeEvent(
-      'timeline:event_updated',
-      payload,
-    );
-    if (event?.kind === 'timeline_event_updated') {
+    const event = readLiveSessionTimelineEventUpdated(payload);
+    if (event) {
       onTimelineEventUpdated?.(event);
     }
   });
   channel.on('timeline:event_removed', (payload) => {
-    const event = normalizeLiveSessionRealtimeEvent(
-      'timeline:event_removed',
-      payload,
-    );
-    if (event?.kind === 'timeline_event_removed') {
+    const event = readLiveSessionTimelineEventRemoved(payload);
+    if (event) {
       onTimelineEventRemoved?.(event);
     }
   });
@@ -173,13 +172,10 @@ function joinChannel(channel: LiveSessionChannel): Promise<LiveSessionJoinResult
       channel
         .join()
         .receive('ok', (payload) => {
-          const event = normalizeLiveSessionRealtimeEvent(
-            'session:state',
-            payload,
-          );
+          const event = readLiveSessionSessionStateEvent(payload);
 
           resolve({
-            sessionState: event?.kind === 'session_state' ? event : null,
+            sessionState: event,
             status: 'joined',
           });
         })
@@ -215,13 +211,10 @@ function sendChatMessage(
       channel
         .push('timeline:chat_message:send', { body })
         .receive('ok', (payload) => {
-          const event = normalizeLiveSessionRealtimeEvent(
-            'timeline:event',
-            payload,
-          );
+          const event = readLiveSessionTimelineEvent(payload);
 
           resolve(
-            event?.kind === 'timeline_event'
+            event
               ? { event: event.event, status: 'ok' }
               : {
                   reason: GENERIC_SEND_FAILURE_REASON,

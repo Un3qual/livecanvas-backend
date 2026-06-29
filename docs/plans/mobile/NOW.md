@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-25
-Status: beta readiness plan complete; ready for release-candidate execution
+Last reviewed: 2026-06-27
+Status: TypeScript readability cleanup complete; release-candidate QA ready
 
 ## Lane Scope
 
@@ -11,37 +11,26 @@ Status: beta readiness plan complete; ready for release-candidate execution
 
 ## Current Batch
 
-- Completed source plan:
-  `docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
+- Source plan:
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Completed task: Task 3 - release candidate checklist (complete on
-  2026-06-25)
+- Current task: run the one-host/one-viewer release-candidate device QA pass.
 - Write scope:
   - `docs/plans/mobile/**`
-- Done condition: mobile has a focused release-candidate checklist that
-  separates launch blockers from deferred follow-up and covers manual
-  device/simulator checks for auth, profiles, live discovery/watch, host
-  preflight, media signaling, realtime chat, retained chat replay, app
-  background/foreground recovery, and ended-session cleanup. Met on
-  2026-06-25.
+  - `mobile/**` only for reproduced launch-blocker fixes
+- Done condition: entry criteria and manual device/simulator checks are recorded
+  as passing, or launch blockers are promoted into scoped follow-up plans.
 - Verification:
+  - From `mobile/`: `bun run test:quality`
+  - From `mobile/`: `bun run typecheck`
   - From repo root: `git diff --check`
-
-## Task 3 Evidence
-
-- Release-candidate checklist:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
-- `git diff --check` exited 0 on 2026-06-25.
-- No mobile app code, package, or config files changed.
-- No remote or authenticated EAS build/submit commands were run.
 
 ## Do This Now
 
-The testing, beta distribution, and release readiness plan is complete.
-Execute release-candidate device QA from
-`docs/plans/mobile/2026-06-25-release-candidate-checklist.md` when a beta
-operator is ready. Promote a new implementation batch only if that checklist
-finds a launch blocker.
+Start with the release-candidate checklist entry criteria, then run the auth,
+profiles, live discovery/watch, host preflight, media signaling/WebRTC, realtime
+chat, retained replay, and cleanup checks for the one-host/one-viewer beta
+scope.
 
 ## Guardrails
 
@@ -60,6 +49,5 @@ finds a launch blocker.
 
 ## Next Action
 
-Run local quality gates, then use the `preview` EAS profile for internal
-release-candidate device QA. Use the `development` profile only for custom
-development-client native-media debugging.
+Confirm the `preview` build installs, cold-launches, and reaches the configured
+API and websocket endpoints on the target beta device.

@@ -4,7 +4,7 @@ import { useAuth } from '../../src/auth/AuthProvider';
 import { ScreenState } from '../../src/components/ScreenState';
 import { authRouteHref } from '../../src/config/runtime';
 import { readLiveSessionIdParam } from '../../src/live/liveSessionNavigation';
-import { LiveSessionWatchScreen } from '../../src/live/LiveSessionWatchScreen';
+import { LiveSessionWatchScreen } from '../../src/live/watch/LiveSessionWatchScreen';
 
 export default function LiveSessionModal() {
   const { state } = useAuth();

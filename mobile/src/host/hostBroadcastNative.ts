@@ -1,3 +1,8 @@
+import {
+  loadDefaultLiveWebRtcMediaDevices,
+  type LiveWebRtcMediaDevices,
+} from '../live/media/liveWebRtcAdapter';
+
 export type HostBroadcastPermissionState =
   | 'unknown'
   | 'granted'
@@ -29,24 +34,12 @@ export type HostBroadcastMediaStream = Readonly<{
   getTracks?: () => ReadonlyArray<HostBroadcastMediaTrack>;
 }>;
 
-type HostBroadcastMediaDevices = Readonly<{
-  getUserMedia?: (constraints: {
-    audio: boolean;
-    video: boolean;
-  }) => Promise<HostBroadcastMediaStream>;
-}>;
+type HostBroadcastMediaDevices =
+  LiveWebRtcMediaDevices<HostBroadcastMediaStream>;
 
 type HostBroadcastNativeOptions = Readonly<{
   mediaDevices?: HostBroadcastMediaDevices | null;
 }>;
-
-type ReactNativeWebRtcModule = Readonly<{
-  mediaDevices?: HostBroadcastMediaDevices | null;
-}>;
-
-declare const require:
-  | undefined
-  | ((moduleName: 'react-native-webrtc') => ReactNativeWebRtcModule);
 
 export function normalizeHostBroadcastPermission(
   value?: unknown,
@@ -216,13 +209,5 @@ function stopPreviewStream(stream: HostBroadcastMediaStream | null) {
 }
 
 function loadDefaultMediaDevices(): HostBroadcastMediaDevices | null {
-  if (typeof require === 'undefined') {
-    return null;
-  }
-
-  try {
-    return require('react-native-webrtc').mediaDevices ?? null;
-  } catch {
-    return null;
-  }
+  return loadDefaultLiveWebRtcMediaDevices<HostBroadcastMediaDevices>();
 }

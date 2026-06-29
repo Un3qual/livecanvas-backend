@@ -1,13 +1,6 @@
-import type { AuthState, BeforeUnauthenticatedCallback } from './types';
+import type { BeforeUnauthenticatedCallback } from './types';
 
 export const BEFORE_UNAUTHENTICATED_CALLBACK_TIMEOUT_MS = 5_000;
-
-export function shouldApplyBootstrapState(
-  currentState: AuthState,
-  bootstrapRan: boolean,
-): boolean {
-  return !bootstrapRan && currentState.status === 'loading';
-}
 
 export async function runBestEffortBeforeUnauthenticatedCallback(
   callback: BeforeUnauthenticatedCallback,
