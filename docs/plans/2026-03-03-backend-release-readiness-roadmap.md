@@ -8,7 +8,7 @@
   - `mix test` -> PASS (`426 tests, 0 failures, 1 excluded`)
   - `mix typecheck` -> PASS
   - `mix precommit` -> PASS
-- Plan tracking state: release-track plans now include delivered account-recovery password reset coverage, live chat/moderation rate-limit hardening, live runtime partition/rejoin drill coverage, viewer-scoped post lifecycle mutations, object-storage serving/provider hardening, Phase 5 capacity verification + launch-gate wiring, and the observability metrics/correlation contract (`docs/plans/archive/completed/release/2026-03-05-account-recovery-password-reset-foundation.md`, `docs/plans/archive/completed/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`, `docs/plans/archive/completed/release/2026-03-05-live-runtime-partition-rejoin-drills.md`, `docs/plans/archive/completed/release/2026-03-05-content-post-lifecycle-mutations.md`, `docs/plans/archive/completed/release/2026-03-05-object-storage-serving-provider-hardening.md`, `docs/plans/archive/completed/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`) alongside media upload callback-driven async processing, deployment/rollback runbooks, and the release-ready observability runbook (`docs/plans/2026-03-03-media-storage-and-processing.md`, `docs/plans/archive/completed/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/archive/completed/release/2026-03-03-release-engineering-and-deployment-gates.md`, `docs/release/observability-metrics.md`).
+- Plan tracking state: release-track plans now include delivered account-recovery password reset coverage, live chat/moderation rate-limit hardening, live runtime partition/rejoin drill coverage, viewer-scoped post lifecycle mutations, object-storage serving/provider hardening, Phase 5 capacity verification + launch-gate wiring, and the observability metrics/correlation contract (`docs/plans/archive/completed/release/2026-03-05-account-recovery-password-reset-foundation.md`, `docs/plans/archive/completed/release/2026-03-05-live-chat-throughput-and-moderation-rate-limits.md`, `docs/plans/archive/completed/release/2026-03-05-live-runtime-partition-rejoin-drills.md`, `docs/plans/archive/completed/release/2026-03-05-content-post-lifecycle-mutations.md`, `docs/plans/archive/completed/release/2026-03-05-object-storage-serving-provider-hardening.md`, `docs/plans/archive/completed/release/2026-03-05-phase5-capacity-verification-and-launch-gates.md`) alongside media upload callback-driven async processing, deployment/rollback runbooks, and the release-ready observability runbook (`docs/plans/archive/completed/2026-03-03-media-storage-and-processing.md`, `docs/plans/archive/completed/release/2026-03-03-webhooks-and-async-jobs.md`, `docs/plans/archive/completed/release/2026-03-03-release-engineering-and-deployment-gates.md`, `docs/release/observability-metrics.md`).
 
 ## What Has Been Delivered
 
@@ -75,40 +75,40 @@ Per architecture decisions, these remain intentionally deferred and should not b
 
 ### Architecture/Design Decision Records
 
-- `docs/plans/2026-03-01-backend-architecture-design.md`
-- `docs/plans/conventions/2026-03-02-conventions-alignment-design.md`
-- `docs/plans/2026-03-01-sasa-juric-alignment.md`
+- `docs/plans/archive/completed/backend/2026-03-01-backend-architecture-design.md`
+- `docs/plans/archive/completed/conventions/2026-03-02-conventions-alignment-design.md`
+- `docs/plans/archive/completed/backend/2026-03-01-sasa-juric-alignment.md`
 
 ### Implemented Foundations And Domain Slices
 
-- `docs/plans/2026-03-01-v1-backend-foundations.md`
-- `docs/plans/2026-03-02-v1-task-2-remaining-accounts-apis.md`
-- `docs/plans/2026-03-02-v1-task-3-graphql-accounts-apis.md`
-- `docs/plans/2026-03-02-v1-task-4-social-graph.md`
-- `docs/plans/2026-03-03-social-mutes-and-graph-controls.md`
-- `docs/plans/2026-03-03-feed-mute-visibility-alignment.md`
-- `docs/plans/2026-03-03-chat-mute-join-authorization.md`
-- `docs/plans/2026-03-03-live-session-participant-leave-reconciliation.md`
-- `docs/plans/2026-03-03-live-session-runtime-recovery.md`
-- `docs/plans/2026-03-03-cross-context-suspension-enforcement.md`
-- `docs/plans/2026-03-03-accounts-contact-matching-and-invites.md`
-- `docs/plans/2026-03-03-accounts-contact-graphql-write-slice.md`
+- `docs/plans/archive/completed/2026-03-01-v1-backend-foundations.md`
+- `docs/plans/archive/completed/2026-03-02-v1-task-2-remaining-accounts-apis.md`
+- `docs/plans/archive/completed/2026-03-02-v1-task-3-graphql-accounts-apis.md`
+- `docs/plans/archive/completed/2026-03-02-v1-task-4-social-graph.md`
+- `docs/plans/archive/completed/2026-03-03-social-mutes-and-graph-controls.md`
+- `docs/plans/archive/completed/2026-03-03-feed-mute-visibility-alignment.md`
+- `docs/plans/archive/completed/2026-03-03-chat-mute-join-authorization.md`
+- `docs/plans/archive/completed/2026-03-03-live-session-participant-leave-reconciliation.md`
+- `docs/plans/archive/completed/2026-03-03-live-session-runtime-recovery.md`
+- `docs/plans/archive/completed/2026-03-03-cross-context-suspension-enforcement.md`
+- `docs/plans/archive/completed/2026-03-03-accounts-contact-matching-and-invites.md`
+- `docs/plans/archive/completed/2026-03-03-accounts-contact-graphql-write-slice.md`
 - plus supporting accounts slices from 2026-03-02.
 
 ### Convention Migration Plans
 
-- `docs/plans/conventions/2026-03-02-id-and-entropy-id-migration.md`
-- `docs/plans/conventions/2026-03-02-lc-module-rename.md`
-- `docs/plans/conventions/2026-03-02-phone-otp-fake-sms-service.md`
-- `docs/plans/conventions/2026-03-02-relay-first-graphql-migration.md`
-- `docs/plans/conventions/2026-03-02-typespec-and-dialyzer-rollout.md`
-- `docs/plans/conventions/2026-03-03-context-map-typing-rollout.md`
-- `docs/plans/conventions/2026-03-03-relay-mutation-payload-cleanup.md`
-- `docs/plans/conventions/2026-03-03-social-relay-global-id-alignment.md`
+- `docs/plans/archive/completed/conventions/2026-03-02-id-and-entropy-id-migration.md`
+- `docs/plans/archive/completed/conventions/2026-03-02-lc-module-rename.md`
+- `docs/plans/archive/completed/conventions/2026-03-02-phone-otp-fake-sms-service.md`
+- `docs/plans/archive/completed/conventions/2026-03-02-relay-first-graphql-migration.md`
+- `docs/plans/archive/completed/conventions/2026-03-02-typespec-and-dialyzer-rollout.md`
+- `docs/plans/archive/completed/conventions/2026-03-03-context-map-typing-rollout.md`
+- `docs/plans/archive/completed/conventions/2026-03-03-relay-mutation-payload-cleanup.md`
+- `docs/plans/archive/completed/conventions/2026-03-03-social-relay-global-id-alignment.md`
 
 ### Release Track Plans
 
-- `docs/plans/2026-03-03-release-authn-authz-hardening.md`
+- `docs/plans/archive/completed/2026-03-03-release-authn-authz-hardening.md`
 - `docs/plans/archive/completed/release/2026-03-03-auth-audit-events.md`
 - `docs/plans/archive/completed/release/2026-03-03-auth-audit-expansion.md`
 - `docs/plans/archive/completed/release/2026-03-03-observability-and-launch-ops.md`
@@ -218,4 +218,5 @@ Remaining tracked gaps:
 
 ## Suggested Next Plan Files To Create
 
-- `docs/plans/release/2026-03-04-compliance-hard-delete-enablement.md` (paused; keep as deferred candidate only)
+- Compliance hard-delete enablement plan (paused; create only if the explicit
+  pause is lifted)

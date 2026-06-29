@@ -1,5 +1,8 @@
 # Mobile App Overview Design
 
+Archived status: design snapshot. The checklist prompts below are historical
+planning prompts, not the current executable mobile lane.
+
 Approved on 2026-03-18.
 
 Day-to-day mobile execution ordering should live in `docs/plans/mobile/TRACK.md` and `docs/plans/mobile/NOW.md`, with `docs/plans/NOW.md` acting as the coordinator dashboard. Use this document for scope, architecture direction, and the top-level planning breakdown.

@@ -3,7 +3,7 @@
 Last reviewed: 2026-06-25
 
 Source plan:
-`docs/plans/mobile/2026-06-05-testing-beta-release-readiness.md`
+`docs/plans/archive/completed/mobile/2026-06-05-testing-beta-release-readiness.md`
 
 Scope: internal release-candidate signoff for LiveCanvas Mobile after the local
 quality gates pass and before widening beta tester access. Native-media

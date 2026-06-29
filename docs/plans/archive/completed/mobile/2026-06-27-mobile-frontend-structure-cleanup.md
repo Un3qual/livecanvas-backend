@@ -1,5 +1,8 @@
 # Mobile Frontend Structure Cleanup Implementation Plan
 
+Archived status: complete. This plan is historical context; the active mobile
+lane is `docs/plans/mobile/NOW.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Split the mobile frontend into smaller nested modules so screens, routes, presentation components, styles, Relay operations, and runtime helpers no longer collect in oversized files.
@@ -32,9 +35,9 @@
 - Modify: `mobile/app/(auth)/sign-in.tsx`
 - Modify: `mobile/app/(auth)/sign-up.tsx`
 
-- [ ] Extract shared auth form layout, OAuth buttons, error banner, return-to handling, and alternate-screen link into `AuthEntryScreen`.
-- [ ] Leave route files as thin wrappers that pass `mode="signIn"` or `mode="signUp"`.
-- [ ] Verify with `cd mobile && bun run typecheck`.
+- [x] Extract shared auth form layout, OAuth buttons, error banner, return-to handling, and alternate-screen link into `AuthEntryScreen`.
+- [x] Leave route files as thin wrappers that pass `mode="signIn"` or `mode="signUp"`.
+- [x] Verify with `cd mobile && bun run typecheck`.
 
 ## Task 2: Profile Presentation Extraction
 
@@ -48,10 +51,10 @@
 - Modify: `mobile/src/profile/ViewerProfileScreen.tsx`
 - Modify: `mobile/src/profile/OtherUserProfileScreen.tsx`
 
-- [ ] Move viewer and other-user profile screen implementations into nested folders while preserving the existing public entrypoint files as re-exports.
-- [ ] Move repeated profile UI into shared profile components.
-- [ ] Keep Relay query/mutation names and generated artifact imports stable.
-- [ ] Verify with `cd mobile && bun test tests/profile`.
+- [x] Move viewer and other-user profile screen implementations into nested folders while preserving the existing public entrypoint files as re-exports.
+- [x] Move repeated profile UI into shared profile components.
+- [x] Keep Relay query/mutation names and generated artifact imports stable.
+- [x] Verify with `cd mobile && bun test tests/profile`.
 
 ## Task 3: Live Watch Presentation Extraction
 
@@ -64,10 +67,10 @@
 - Create: `mobile/src/live/watch/liveSessionWatchScreenTypes.ts`
 - Modify: `mobile/src/live/LiveSessionWatchScreen.tsx`
 
-- [ ] Move the watch-screen implementation under `live/watch` and keep the existing top-level entrypoint as a re-export.
-- [ ] Extract the details card, controls card, hero card, recording metadata, RTC view resolution, playback state types, and styles.
-- [ ] Leave mutation handlers and socket/media lifecycles in the screen module for this milestone.
-- [ ] Verify with `cd mobile && bun test tests/live`.
+- [x] Move the watch-screen implementation under `live/watch` and keep the existing top-level entrypoint as a re-export.
+- [x] Extract the details card, controls card, hero card, recording metadata, RTC view resolution, playback state types, and styles.
+- [x] Leave mutation handlers and socket/media lifecycles in the screen module for this milestone.
+- [x] Verify with `cd mobile && bun test tests/live`.
 
 ## Task 4: Host Preflight Presentation Extraction
 
@@ -78,10 +81,10 @@
 - Create: `mobile/src/host/preflight/hostBroadcastPreflightScreenTypes.ts`
 - Modify: `mobile/src/host/HostBroadcastPreflightScreen.tsx`
 
-- [ ] Move the preflight screen implementation under `host/preflight` and keep the existing top-level entrypoint as a re-export.
-- [ ] Extract readiness card, controls card, status rows, status label helpers, shared status types, and styles.
-- [ ] Leave native readiness and publishing runtime effects in the screen module for this milestone.
-- [ ] Verify with `cd mobile && bun test tests/host`.
+- [x] Move the preflight screen implementation under `host/preflight` and keep the existing top-level entrypoint as a re-export.
+- [x] Extract readiness card, controls card, status rows, status label helpers, shared status types, and styles.
+- [x] Leave native readiness and publishing runtime effects in the screen module for this milestone.
+- [x] Verify with `cd mobile && bun test tests/host`.
 
 ## Task 5: Lane Docs And Final Verification
 
@@ -89,12 +92,12 @@
 - Modify: `docs/plans/mobile/NOW.md`
 - Modify: `docs/plans/mobile/TRACK.md`
 
-- [ ] Record this cleanup batch in the mobile lane docs.
-- [ ] Run `cd mobile && bun run test:quality`.
-- [ ] Run `cd mobile && bun test tests/auth tests/profile tests/config`.
-- [ ] Run `cd mobile && bun run typecheck`.
-- [ ] Run `git diff --check`.
-- [ ] Commit the milestone.
+- [x] Record this cleanup batch in the mobile lane docs.
+- [x] Run `cd mobile && bun run test:quality`.
+- [x] Run `cd mobile && bun test tests/auth tests/profile tests/config`.
+- [x] Run `cd mobile && bun run typecheck`.
+- [x] Run `git diff --check`.
+- [x] Commit the milestone.
 
 ## Task 6: Remaining UI Module Organization
 
@@ -106,10 +109,10 @@
 - Create: `mobile/src/live/chat/liveSessionChatPanelPresentation.ts`
 - Modify: top-level compatibility shims in `mobile/src/components/**` and `mobile/src/live/**`
 
-- [ ] Move auth-entry styles next to the extracted auth-entry screen.
-- [ ] Move live discovery, live summary card, and live chat panel UI modules
+- [x] Move auth-entry styles next to the extracted auth-entry screen.
+- [x] Move live discovery, live summary card, and live chat panel UI modules
   into nested folders while preserving the old public imports as re-exports.
-- [ ] Keep deeper reducers, channel clients, and native/media runtimes in their
+- [x] Keep deeper reducers, channel clients, and native/media runtimes in their
   current modules until a behavior-risk batch can split them with targeted
   regression coverage.
-- [ ] Run the full mobile quality gates before committing.
+- [x] Run the full mobile quality gates before committing.

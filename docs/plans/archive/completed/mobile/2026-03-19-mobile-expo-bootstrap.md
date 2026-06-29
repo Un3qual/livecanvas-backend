@@ -1,5 +1,8 @@
 # Mobile Expo Bootstrap Implementation Plan
 
+Archived status: complete. This plan is historical context; the mobile
+workspace exists and later active work is tracked from `docs/plans/mobile/NOW.md`.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Create the initial Expo mobile workspace in `mobile/` with an isolated
@@ -58,7 +61,7 @@ Verified directly in the codebase before drafting this plan:
   block in-place generation
 - [x] Step 4: Inspect the generated workspace for local ignore rules, nested git
   metadata, and other files that need minimal repo integration
-- [ ] Step 5: Commit the bootstrap slice once verification is complete
+- [x] Step 5: Commit the bootstrap slice once verification is complete
 
 **Suggested verification commands:**
 
@@ -84,7 +87,7 @@ Expected: PASS with a pnpm version string from the isolated shell.
 - [x] Step 2: Run `nix run path:.#pnpm -- exec tsc --noEmit` from `mobile/`
 - [x] Step 3: Update the mobile planning pointers to reflect that the bootstrap
   slice now exists and the track is no longer planning-only
-- [ ] Step 4: Commit the verified bootstrap milestone
+- [x] Step 4: Commit the verified bootstrap milestone
 
 **Suggested verification commands:**
 

@@ -1,5 +1,8 @@
 # Mobile XState Live Workflow Integration Implementation Plan
 
+Archived status: complete. The mobile lane has returned to release-candidate QA
+in `docs/plans/mobile/NOW.md`; use this document only for historical context.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Introduce XState for the mobile app's complex live broadcast workflows so large screens stop hand-rolling protocol state with scattered booleans, refs, reducer actions, and lifecycle guards.
@@ -9,10 +12,6 @@
 **Tech Stack:** Expo Router, React Native, TypeScript strict mode, Relay, Phoenix Channels, react-native-webrtc, XState v5, `@xstate/react`, Bun tests, pnpm.
 
 ---
-
-## Activation Note
-
-The current mobile lane still points at release-candidate QA in `docs/plans/mobile/NOW.md`. Do not move that pointer just to land this plan. Activate this work only after the QA batch is complete, explicitly paused, or this XState cleanup is selected as the next mobile batch.
 
 ## Plan Style
 
