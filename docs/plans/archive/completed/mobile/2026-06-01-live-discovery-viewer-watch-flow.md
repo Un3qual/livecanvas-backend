@@ -1,5 +1,8 @@
 # Live Discovery And Viewer Watch Flow Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax for tracking.
 
 **Goal:** Build the first mobile live-session viewer path: discover visible live sessions, enter from home/profile/deep links, inspect a durable watch screen, and use viewer join/leave mutations.

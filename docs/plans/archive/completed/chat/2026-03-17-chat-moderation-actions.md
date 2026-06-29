@@ -1,5 +1,8 @@
 # Chat Moderation Actions Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add bounded message-level moderation for retained live chat so session hosts can remove abusive messages and active clients can reconcile the change consistently.

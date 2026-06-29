@@ -1,5 +1,8 @@
 # Host Broadcast Native Capability And Preflight Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 **Goal:** Add the mobile host-broadcast preflight foundation without enabling
 real media publishing before backend signaling exists.
 

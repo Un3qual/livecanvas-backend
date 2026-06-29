@@ -1,5 +1,8 @@
 # Mobile Chat Realtime And Retained History Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add mobile live-session chat that reads retained timeline history from Relay and merges Phoenix Channel timeline events into the watch screen.

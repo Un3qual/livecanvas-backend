@@ -1,5 +1,8 @@
 # LiveCanvas Sasa Juric Alignment Progress
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 Tracking execution of [2026-03-01-sasa-juric-alignment.md](docs/plans/2026-03-01-sasa-juric-alignment.md).
 
 ## Task 0: Adopt `boundary` As The Compile-Time Architecture Guardrail

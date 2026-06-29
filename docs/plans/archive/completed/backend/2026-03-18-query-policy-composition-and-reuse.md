@@ -1,5 +1,8 @@
 # Query Policy Composition And Reuse Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Centralize repeated LC read/query policy composition so feed, chat, and social surfaces share one source of truth for block, mute, follow, and visibility rules without weakening viewer authorization or Relay semantics.

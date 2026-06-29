@@ -1,5 +1,8 @@
 # LCGQL Dataloader And N+1 Reduction Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Introduce request-scoped dataloader support in LCGQL and migrate the highest-fanout field resolvers so repeated child lookups collapse into batched queries without weakening viewer authorization.

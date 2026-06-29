@@ -1,5 +1,8 @@
 # Chat History Query API Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Deliver a Relay-first, viewer-scoped chat-history API for retained live-session messages with bidirectional pagination so clients can infinite scroll both older and newer messages.

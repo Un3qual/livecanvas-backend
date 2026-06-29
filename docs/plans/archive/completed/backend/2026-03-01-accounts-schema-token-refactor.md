@@ -1,5 +1,8 @@
 # Accounts Schema And Token Refactor Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Refine the in-progress Accounts persistence refactor so schema modules sit under an Accounts schema namespace, timestamps use microseconds everywhere, tokens use enum-backed contexts plus explicit serialization helpers, and lookup paths validate secrets by token id instead of querying by secret hash.

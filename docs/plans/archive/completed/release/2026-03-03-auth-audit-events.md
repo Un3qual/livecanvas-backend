@@ -1,5 +1,8 @@
 # Auth Audit Events Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add durable, queryable auth security audit events for high-risk authentication paths so release operations can inspect login and token lifecycle behavior.

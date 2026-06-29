@@ -1,5 +1,8 @@
 # GEN-001 Chat Timeline/Event Object Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **Historical execution note:** This plan was implemented with `superpowers:subagent-driven-development`. All checklist items are complete; do not restart this plan unless the user explicitly reopens `GEN-001`.
 
 **Goal:** Replace client-facing chat-message system events with first-class live-session timeline events backed by append-only facts and current projection tables.

@@ -1,5 +1,8 @@
 # Profiles And Social Basics Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Replace the profile placeholder with Relay-backed viewer and other-user profile surfaces, privacy controls, and the first relationship inbox actions supported by the current mobile GraphQL contract.
@@ -219,7 +222,7 @@ Task 4 verification on 2026-06-01:
 **Files:**
 - Modify: `docs/plans/mobile/TRACK.md`
 - Modify: `docs/plans/mobile/NOW.md`
-- Modify: `docs/plans/mobile/2026-04-24-profiles-social-basics.md`
+- Modify: `docs/plans/archive/completed/mobile/2026-04-24-profiles-social-basics.md`
 
 **Task 5 Step Progress:**
 - [x] Step 1: Re-read this plan and confirm no chat, live-session playback, channel, or backend schema work leaked into the slice.

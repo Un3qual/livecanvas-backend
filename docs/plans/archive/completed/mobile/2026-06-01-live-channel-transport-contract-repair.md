@@ -1,5 +1,8 @@
 # Live Channel Transport Contract Repair Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Repair the mobile live-session realtime contract so mobile clients can join live-session Phoenix Channels from Relay-fetched data and consume the current timeline-event channel surface.

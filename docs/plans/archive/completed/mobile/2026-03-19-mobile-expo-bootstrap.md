@@ -1,7 +1,7 @@
 # Mobile Expo Bootstrap Implementation Plan
 
-Archived status: complete. This plan is historical context; the mobile
-workspace exists and later active work is tracked from `docs/plans/mobile/NOW.md`.
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 

@@ -1,5 +1,8 @@
 # Relay Data Layer, Auth, And Session Lifecycle Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Wire the mobile app to the backend GraphQL API through Relay, implement authenticated network transport with secure token storage and rotation, build the auth provider and sign-in/sign-up screens for password and OAuth entry, and implement viewer bootstrap with session restoration on cold start.

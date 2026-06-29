@@ -1,5 +1,8 @@
 # Release Authn/Authz Hardening Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Close the highest-priority release blockers in authentication and authorization by removing client-controlled actor identity on sensitive mutations, enforcing authenticated write semantics, and hardening GraphQL surface access.

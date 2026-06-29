@@ -1,5 +1,8 @@
 # Observability And Launch Ops Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Establish a production-grade observability baseline for core runtime flows by emitting structured Telemetry events from domain and realtime paths, then exposing launch-operation guidance for instrumentation-backed runbooks.

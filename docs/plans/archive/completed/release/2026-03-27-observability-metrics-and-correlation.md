@@ -1,5 +1,8 @@
 # Release Observability Metrics And Correlation Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Close the remaining unpaused release-roadmap observability gap by turning existing live/auth Telemetry events into exportable metrics, adding a gated scrape surface, and wiring request/channel correlation metadata that rollout runbooks can consume directly.

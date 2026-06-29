@@ -1,5 +1,8 @@
 # Phone Number Normalization Subagent Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add `ex_phone_number` and route all current phone-number lookup and insert paths through one shared validation/normalization helper before any database comparison or insert.

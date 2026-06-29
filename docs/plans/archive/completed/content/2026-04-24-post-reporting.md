@@ -1,5 +1,8 @@
 # Post Reporting Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add a viewer-scoped post reporting path so mobile clients can submit abuse reports for visible posts without exposing client-controlled moderation identity.

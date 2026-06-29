@@ -1,5 +1,8 @@
 # V1 Task 2 Remaining Accounts APIs Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Finish the remaining `Accounts` boundary work for V1 Task 2 by exposing the last write-side and token-facing APIs through explicit normalized-credential entry points instead of low-level helpers.

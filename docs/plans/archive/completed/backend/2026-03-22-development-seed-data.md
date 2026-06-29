@@ -1,5 +1,8 @@
 # Development Seed Data Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add deterministic, idempotent development seed data so `mix ecto.setup` and `mix ecto.reset` produce a usable local dataset with stable accounts, social graph edges, feed content, and a live-session fixture for day-to-day backend and mobile development.

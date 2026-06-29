@@ -1,5 +1,8 @@
 # Chat And Live Retention Enforcement Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Close the remaining release-roadmap gap for chat/live retention enforcement by extending `mix release.retention_sweep` coverage to `chat_messages` and `live_participants` while keeping apply mode non-destructive in this slice.

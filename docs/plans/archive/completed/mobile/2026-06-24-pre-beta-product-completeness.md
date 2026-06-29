@@ -1,5 +1,8 @@
 # Mobile Pre-Beta Product Completeness
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 Last reviewed: 2026-06-24
 
 Executor brief: beta distribution was premature until the app could prove the

@@ -1,5 +1,8 @@
 # Social Mutes And Graph Controls Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add the missing `Social` mute capability from the approved architecture by shipping persistence, context APIs, and Relay-compatible GraphQL surfaces for muting and unmuting users.

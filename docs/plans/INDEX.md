@@ -100,7 +100,7 @@ Use this file when:
 - Post Media Attachments And Story Feed:
   `docs/plans/archive/completed/content/2026-03-18-post-media-attachments-and-story-feed.md`
 - Shared Read-Policy Query Composition:
-  `docs/plans/archive/completed/2026-03-18-query-policy-composition-and-reuse.md`
+  `docs/plans/archive/completed/backend/2026-03-18-query-policy-composition-and-reuse.md`
 - GraphQL batching and N+1 reduction:
   `docs/plans/archive/completed/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md`
 - Chat product surface:
@@ -110,7 +110,7 @@ Use this file when:
 - Post reporting:
   `docs/plans/archive/completed/content/2026-04-24-post-reporting.md`
 - Development seed data:
-  `docs/plans/archive/completed/2026-03-22-development-seed-data.md`
+  `docs/plans/archive/completed/backend/2026-03-22-development-seed-data.md`
 - Live replay and recording:
   `docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md`
 

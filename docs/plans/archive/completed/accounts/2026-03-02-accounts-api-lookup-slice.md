@@ -1,5 +1,8 @@
 # Accounts API Lookup Slice Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add explicit `Accounts` lookup helpers for normalized phone numbers and external identities.

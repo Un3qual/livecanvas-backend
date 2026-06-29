@@ -1,5 +1,8 @@
 # Unified Auth Entry Points And Cluster Rate Limits Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Deliver generic GraphQL signup/login/challenge entry points for password, magic-link, Google, Apple, and passkey auth while replacing per-node abuse throttles with cluster-aware OTP coordination.

@@ -1,5 +1,8 @@
 # LiveCanvas Sasa Juric Alignment Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Update the LiveCanvas architecture guidance and the existing v1 backend plan so implementation follows explicit boundaries, compile-time boundary enforcement via the `boundary` library, functional-core/coordinator splits, process-oriented OTP design, and test discipline drawn from Sasa Juric's writing.

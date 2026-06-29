@@ -1,5 +1,8 @@
 # User Profile Content And Live Entry Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Expose viewer-scoped user profile content and live-entry surfaces from the existing Relay `User` node so clients can load authored posts, active stories, the current live session, and recent replays without inventing a parallel profile type.

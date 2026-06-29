@@ -1,5 +1,8 @@
 # Live Replay Track Summary
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 Use this file to navigate the live replay planning set without reopening `ARCHITECTURE.md` on every execution turn.
 
 ## Goal

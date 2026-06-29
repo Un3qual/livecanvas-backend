@@ -1,5 +1,8 @@
 # Live Runtime Partition/Rejoin Drills Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Close the remaining Phase 3 roadmap gap by adding deterministic partition/rejoin drills and reconnect-consistency safeguards for distributed live runtime ownership.

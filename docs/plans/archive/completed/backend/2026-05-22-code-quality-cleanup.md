@@ -1,5 +1,8 @@
 # Backend Code Quality Cleanup Inventory
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 Last reviewed: 2026-05-31
 Status: `GQL-001` Stage 8 complete; `GQL-002` Stage 8 complete; `GQL-003` Stage 8 complete; `GQL-004` Stage 8 complete; `GQL-005` Stage 8 complete; `GQL-006` Stage 8 complete; `GQL-007` Stage 8 complete; `GQL-008` Stage 8 complete; `GEN-002` Stage 8 complete; `WEB-001` Stage 8 complete; `ECTO-001` Stage 8 complete; `CTX-001` Stage 8 complete; `SOCK-002` Stage 8 complete; `SOCK-003` Stage 8 complete; `LIVE-001` Stage 8 complete; `DOC-001` Stage 8 complete; `GQL-009` Stage 8 complete
 Owner lane: backend

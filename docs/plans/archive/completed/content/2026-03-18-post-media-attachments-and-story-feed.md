@@ -1,5 +1,8 @@
 # Post Media Attachments And Story Feed Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Deliver viewer-owned post media attachments and the first story feed surface by reusing the existing `posts` and `media_assets` model instead of inventing a separate story table.

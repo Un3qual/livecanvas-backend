@@ -1,5 +1,8 @@
 # Release Engineering And Deployment Gates Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Deliver a reproducible pre-deploy release gate plus migration/rollback rehearsal tooling and runbooks so production rollouts have explicit go/no-go criteria.

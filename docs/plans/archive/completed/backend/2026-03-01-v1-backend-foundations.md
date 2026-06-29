@@ -1,5 +1,8 @@
 # LiveCanvas V1 Backend Foundations Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Build the first production-ready backend slice for LiveCanvas: multi-identity accounts, follower graph, content records, live session lifecycle, live chat, and feed retrieval on the existing Phoenix/Absinthe stack.

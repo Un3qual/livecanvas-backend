@@ -1,5 +1,8 @@
 # Live Session Runtime Recovery Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Ensure live session runtime state can be reconstructed after `SessionServer` process loss by rehydrating active participants from durable `live_participants` records.

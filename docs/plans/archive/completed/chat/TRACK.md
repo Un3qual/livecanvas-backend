@@ -1,5 +1,8 @@
 # Chat Track Summary
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 Use this file to navigate the chat planning set without reopening the design doc on every execution turn.
 
 ## Goal

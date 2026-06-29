@@ -1,5 +1,8 @@
 # Relay Mutation Payload Cleanup Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Remove the remaining temporary GraphQL `successful` boolean payload fields so Accounts and Social mutations fully align with Relay-style typed payloads and structured errors.

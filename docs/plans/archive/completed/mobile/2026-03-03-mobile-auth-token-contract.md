@@ -1,5 +1,8 @@
 # Mobile Auth Token Contract Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Deliver a production-ready mobile authentication token contract with explicit `access + refresh` lifecycle semantics, refresh rotation, and revocation behavior.

@@ -1,5 +1,8 @@
 # Live Session Client Contract Stabilization Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Publish and lock the mobile-facing live-session GraphQL and Phoenix Channel contracts so the mobile app can build watch, join, and host flows against one documented backend surface.

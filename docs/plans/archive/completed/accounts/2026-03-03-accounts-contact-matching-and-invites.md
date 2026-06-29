@@ -1,5 +1,8 @@
 # Accounts Contact Matching And Invites Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add the first executable slice of the deferred contact-matching and invite workflow by shipping contact import plus deterministic account matching APIs, then layering Relay-first GraphQL and invite delivery wrappers.

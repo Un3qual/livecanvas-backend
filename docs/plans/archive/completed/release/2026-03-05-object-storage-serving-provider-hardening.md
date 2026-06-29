@@ -1,5 +1,8 @@
 # Object Storage Serving Strategy And Provider Hardening Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Close the remaining Phase 4 launch gap by hardening object-storage provider configuration for production environments and defining a canonical media-serving URL strategy that clients can consume safely.

@@ -1,5 +1,8 @@
 # Live Session Participant Leave Reconciliation Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Keep live participant state accurate by marking `left_at` on disconnects and removing disconnected users from runtime participant maps.

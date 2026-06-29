@@ -1,5 +1,8 @@
 # Unified Auth Entry Points And Cluster Rate Limits Design
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 Approved on 2026-03-16.
 
 This file captures the approved design snapshot for unifying client auth entry

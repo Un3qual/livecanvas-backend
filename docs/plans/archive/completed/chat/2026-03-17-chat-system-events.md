@@ -1,5 +1,8 @@
 # Chat System Events Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add a bounded, durable system-event layer to live chat so important session lifecycle and moderation changes appear consistently in both realtime delivery and retained chat history.

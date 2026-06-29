@@ -1,5 +1,8 @@
 # Conventions Alignment Design
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** This design was approved before implementation. Use it as the decision record for the March 2, 2026 conventions pass.
 
 **Goal:** Align the current backend with the requested security, schema, typing, and API conventions while separating immediate low-risk changes from larger refactors that need dedicated plans.

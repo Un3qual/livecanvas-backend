@@ -1,5 +1,8 @@
 # Mobile Testing, Beta Distribution, And Release Readiness
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 Status: complete on 2026-06-25. The pre-beta product completeness blockers
 that deferred this plan were closed by
 `docs/plans/mobile/2026-06-24-pre-beta-product-completeness.md`: viewer media

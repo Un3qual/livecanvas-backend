@@ -1,5 +1,8 @@
 # Mobile Expo Bootstrap Design
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 Approved on 2026-03-19.
 
 This document captures the approved bootstrap slice for creating the initial

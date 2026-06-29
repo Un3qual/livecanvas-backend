@@ -1,7 +1,7 @@
 # Mobile XState Live Workflow Integration Implementation Plan
 
-Archived status: complete. The mobile lane has returned to release-candidate QA
-in `docs/plans/mobile/NOW.md`; use this document only for historical context.
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

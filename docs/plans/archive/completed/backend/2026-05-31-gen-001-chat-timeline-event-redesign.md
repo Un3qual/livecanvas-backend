@@ -1,5 +1,8 @@
 # GEN-001 Chat Timeline/Event Object Redesign
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 Last reviewed: 2026-05-31
 Status: implementation complete; final backend verification passed
 Owner lane: backend

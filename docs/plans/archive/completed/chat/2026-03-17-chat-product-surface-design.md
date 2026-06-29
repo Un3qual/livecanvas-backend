@@ -1,5 +1,8 @@
 # Chat Product Surface Design
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 Approved on 2026-03-17.
 
 Day-to-day execution ordering now lives in the lane-specific `NOW.md` files plus `docs/plans/chat/TRACK.md`, with `docs/plans/NOW.md` acting as the coordinator dashboard. Use this document for rationale and approved design decisions.

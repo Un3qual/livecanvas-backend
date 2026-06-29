@@ -1,5 +1,8 @@
 # Live Replay Feed Surfaces Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Expose visible ended live sessions with linked recordings through the Feed GraphQL surface while enforcing viewer-scoped `LiveSession` node refetch rules.

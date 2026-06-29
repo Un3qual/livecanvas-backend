@@ -1,7 +1,7 @@
 # Mobile App Overview Design
 
-Archived status: design snapshot. The checklist prompts below are historical
-planning prompts, not the current executable mobile lane.
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
 
 Approved on 2026-03-18.
 

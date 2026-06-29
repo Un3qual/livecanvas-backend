@@ -1,5 +1,8 @@
 # Mobile App Shell, Routing, And Global Providers Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Replace the default single-screen Expo entrypoint with a structured mobile app shell that has explicit route groups, provider boundaries, startup handling, and deep-link entry points for future auth and product surfaces.
