@@ -93,12 +93,15 @@ describe('release diagnostics probes', () => {
     expect(factoryCalled).toBe(false);
   });
 
-  test('websocket probe opens and immediately closes a short-lived socket', async () => {
+  test('websocket probe opens the Phoenix websocket transport without auth params', async () => {
     let closeCalled = false;
+    let openedUrl: string | null = null;
 
     const result = await runWebsocketReachabilityProbe({
-      websocketUrl: 'wss://preview-ws.livecanvas.example/socket',
-      createWebSocket: () => {
+      websocketUrl:
+        'wss://preview-ws.livecanvas.example/socket?token=secret-token#secret-fragment',
+      createWebSocket: (url) => {
+        openedUrl = url;
         const socket: ReleaseDiagnosticsWebSocket = {
           close: () => {
             closeCalled = true;
@@ -118,6 +121,11 @@ describe('release diagnostics probes', () => {
 
     expect(result).toEqual({ status: 'reachable' });
     expect(closeCalled).toBe(true);
+    expect(openedUrl).toBe(
+      'wss://preview-ws.livecanvas.example/socket/websocket?vsn=2.0.0',
+    );
+    expect(openedUrl).not.toContain('secret-token');
+    expect(openedUrl).not.toContain('secret-fragment');
   });
 
   test('websocket probe reports viewer-safe open failures', async () => {

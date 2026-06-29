@@ -33,6 +33,8 @@ describe('ReleaseDiagnosticsScreen', () => {
       { label: 'Reset reason', value: 'None' },
     ]);
     expect(JSON.stringify(model)).not.toContain('secret-access-token');
+    expect(JSON.stringify(model)).not.toContain('secret-refresh-token');
+    expect(JSON.stringify(model)).not.toContain('secret-fragment');
   });
 
   test('shows separate API and websocket probe actions and results', () => {
@@ -77,8 +79,10 @@ function screenModelInput(
     snapshot: {
       bootSessionState: 'authenticated',
       defaultHref: '/home',
-      initialHref: '/diagnostics',
-      initialUrl: 'livecanvas-mobile://diagnostics',
+      initialHref:
+        '/diagnostics?refresh_token=secret-refresh-token#secret-fragment',
+      initialUrl:
+        'livecanvas-mobile://diagnostics?access_token=secret-access-token#secret-fragment',
       landingHref: '/diagnostics',
       resetReason: null,
     },

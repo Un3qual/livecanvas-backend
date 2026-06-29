@@ -12,11 +12,11 @@ describe('release diagnostics presentation', () => {
     expect(
       describeDiagnosticsEndpoint({
         label: 'API URL',
-        url: 'https://preview-api.livecanvas.example',
+        url: 'https://preview-api.livecanvas.example/graphql?token=secret-token#secret-fragment',
       }),
     ).toEqual({
       label: 'API URL',
-      value: 'https://preview-api.livecanvas.example',
+      value: 'https://preview-api.livecanvas.example/graphql',
       badge: 'Configured endpoint',
       warning: null,
     });

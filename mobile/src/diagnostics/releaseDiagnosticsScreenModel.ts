@@ -6,6 +6,7 @@ import {
   formatAuthStatus,
   formatBootSessionState,
   formatProbeStatus,
+  formatTokenSafeDiagnosticUrl,
   type DiagnosticsEndpointPresentation,
   type DiagnosticsProbeStatus,
 } from './releaseDiagnosticsPresentation';
@@ -79,19 +80,19 @@ export function createReleaseDiagnosticsScreenModel({
       },
       {
         label: 'Initial URL',
-        value: snapshot.initialUrl ?? 'None',
+        value: formatOptionalUrl(snapshot.initialUrl),
       },
       {
         label: 'Initial href',
-        value: snapshot.initialHref ?? 'None',
+        value: formatOptionalUrl(snapshot.initialHref),
       },
       {
         label: 'Landing href',
-        value: snapshot.landingHref,
+        value: formatTokenSafeDiagnosticUrl(snapshot.landingHref),
       },
       {
         label: 'Default href',
-        value: snapshot.defaultHref,
+        value: formatTokenSafeDiagnosticUrl(snapshot.defaultHref),
       },
       {
         label: 'Reset reason',
@@ -99,4 +100,8 @@ export function createReleaseDiagnosticsScreenModel({
       },
     ],
   };
+}
+
+function formatOptionalUrl(value: string | null): string {
+  return value ? formatTokenSafeDiagnosticUrl(value) : 'None';
 }

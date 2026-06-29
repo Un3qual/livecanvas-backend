@@ -4,6 +4,8 @@ export const API_PROBE_TIMEOUT_MS = 5_000;
 export const WEBSOCKET_PROBE_TIMEOUT_MS = 3_000;
 
 const API_PROBE_QUERY = 'query ReleaseDiagnosticsProbe { __typename }';
+const PHOENIX_TRANSPORT_PATH = 'websocket';
+const PHOENIX_TRANSPORT_VSN = '2.0.0';
 
 type ApiProbeResponse = Pick<Response, 'ok' | 'status' | 'text'>;
 
@@ -80,10 +82,10 @@ export function runWebsocketReachabilityProbe({
   createWebSocket = createGlobalWebSocket,
   timeoutMs = WEBSOCKET_PROBE_TIMEOUT_MS,
 }: WebsocketProbeOptions): Promise<DiagnosticsProbeStatus> {
-  const validationFailure = validateWebsocketUrl(websocketUrl);
+  const transportUrl = phoenixWebsocketTransportUrl(websocketUrl);
 
-  if (validationFailure) {
-    return Promise.resolve(failed(validationFailure));
+  if (transportUrl.status === 'failed') {
+    return Promise.resolve(failed(transportUrl.reason));
   }
 
   return new Promise((resolve) => {
@@ -112,7 +114,7 @@ export function runWebsocketReachabilityProbe({
     }, timeoutMs);
 
     try {
-      socket = createWebSocket(websocketUrl);
+      socket = createWebSocket(transportUrl.url);
     } catch {
       finish(failed('Websocket connection failed'));
       return;
@@ -138,16 +140,42 @@ function trimTrailingSlash(value: string): string {
   return value.replace(/\/+$/, '');
 }
 
-function validateWebsocketUrl(rawUrl: string): string | null {
+type PhoenixTransportUrlResult =
+  | { status: 'ok'; url: string }
+  | { status: 'failed'; reason: string };
+
+function phoenixWebsocketTransportUrl(rawUrl: string): PhoenixTransportUrlResult {
   try {
     const url = new URL(rawUrl);
 
-    return url.protocol === 'ws:' || url.protocol === 'wss:'
-      ? null
-      : 'Websocket URL must start with ws:// or wss://';
+    if (url.protocol !== 'ws:' && url.protocol !== 'wss:') {
+      return {
+        status: 'failed',
+        reason: 'Websocket URL must start with ws:// or wss://',
+      };
+    }
+
+    url.username = '';
+    url.password = '';
+    url.search = '';
+    url.hash = '';
+    url.pathname = phoenixTransportPath(url.pathname);
+    url.searchParams.set('vsn', PHOENIX_TRANSPORT_VSN);
+
+    return { status: 'ok', url: url.toString() };
   } catch {
-    return 'Websocket URL is not valid';
+    return { status: 'failed', reason: 'Websocket URL is not valid' };
   }
+}
+
+function phoenixTransportPath(pathname: string): string {
+  const trimmedPathname = pathname.replace(/\/+$/, '');
+
+  if (trimmedPathname.endsWith(`/${PHOENIX_TRANSPORT_PATH}`)) {
+    return trimmedPathname;
+  }
+
+  return `${trimmedPathname}/${PHOENIX_TRANSPORT_PATH}`;
 }
 
 function createGlobalWebSocket(url: string): ReleaseDiagnosticsWebSocket {

@@ -30,7 +30,7 @@ export function describeDiagnosticsEndpoint({
 
   return {
     label,
-    value: url,
+    value: formatTokenSafeDiagnosticUrl(url),
     badge: isLocalDefault ? 'Local default' : 'Configured endpoint',
     warning: isLocalDefault ? LOCALHOST_PREVIEW_WARNING : null,
   };
@@ -71,6 +71,31 @@ export function formatProbeStatus(status: DiagnosticsProbeStatus): string {
   }
 }
 
+export function formatTokenSafeDiagnosticUrl(value: string): string {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return trimmed;
+  }
+
+  try {
+    return sanitizeParsedUrl(new URL(trimmed), trimmed);
+  } catch {
+    if (trimmed.startsWith('/')) {
+      try {
+        const parsed = new URL(trimmed, 'https://diagnostics.local');
+        parsed.search = '';
+        parsed.hash = '';
+        return parsed.pathname;
+      } catch {
+        return stripUnsafeSuffix(trimmed);
+      }
+    }
+
+    return stripUnsafeSuffix(trimmed);
+  }
+}
+
 function isLocalhostUrl(rawUrl: string): boolean {
   try {
     const { hostname } = new URL(rawUrl);
@@ -78,4 +103,33 @@ function isLocalhostUrl(rawUrl: string): boolean {
   } catch {
     return false;
   }
+}
+
+function sanitizeParsedUrl(url: URL, originalValue: string): string {
+  const shouldSanitize =
+    url.username.length > 0 ||
+    url.password.length > 0 ||
+    url.search.length > 0 ||
+    url.hash.length > 0;
+
+  if (!shouldSanitize) {
+    return originalValue;
+  }
+
+  url.username = '';
+  url.password = '';
+  url.search = '';
+  url.hash = '';
+
+  return url.toString();
+}
+
+function stripUnsafeSuffix(value: string): string {
+  const queryIndex = value.indexOf('?');
+  const fragmentIndex = value.indexOf('#');
+  const suffixIndexes = [queryIndex, fragmentIndex].filter((index) => index >= 0);
+
+  return suffixIndexes.length > 0
+    ? value.slice(0, Math.min(...suffixIndexes))
+    : value;
 }
