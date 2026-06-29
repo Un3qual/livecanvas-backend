@@ -120,6 +120,29 @@ describe('hostBroadcastLocalMediaControls', () => {
     });
   });
 
+  test('ignores non-writable tracks while toggling writable tracks', () => {
+    const readOnlyAudioTrack: HostBroadcastLocalMediaTrack = Object.freeze({
+      enabled: true,
+      kind: 'audio',
+    });
+    const writableAudioTrack: HostBroadcastLocalMediaTrack = {
+      enabled: true,
+      kind: 'audio',
+    };
+    const controls = createHostBroadcastLocalMediaControls(
+      createStream([readOnlyAudioTrack, writableAudioTrack]),
+    );
+
+    expect(() => controls?.setAudioEnabled(false)).not.toThrow();
+
+    expect(readOnlyAudioTrack.enabled).toBe(true);
+    expect(writableAudioTrack.enabled).toBe(false);
+    expect(controls?.snapshot()).toEqual({
+      audio: { available: true, enabled: false },
+      video: { available: false, enabled: false },
+    });
+  });
+
   test('treats a group as enabled only when every available track is enabled', () => {
     const controls = createHostBroadcastLocalMediaControls(
       createStream([

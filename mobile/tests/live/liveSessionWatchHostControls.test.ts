@@ -255,6 +255,56 @@ describe('live session watch host controls', () => {
     ).toBeNull();
   });
 
+  test('hides host controls for unknown future live session statuses', () => {
+    expect(typeof createLiveSessionWatchHostMediaControls).toBe('function');
+    if (!createLiveSessionWatchHostMediaControls) {
+      return;
+    }
+
+    const { controls } = createTracks();
+
+    expect(
+      createLiveSessionWatchHostMediaControls({
+        controls,
+        isHostOwnedSession: true,
+        normalizedStatus: '%future added value',
+        onSnapshotChanged() {
+          throw new Error('hidden controls should not update snapshots');
+        },
+        snapshot: controls.snapshot(),
+      }),
+    ).toBeNull();
+  });
+
+  test('toggles host media from the latest snapshot when pressed', () => {
+    expect(typeof createLiveSessionWatchHostMediaControls).toBe('function');
+    if (!createLiveSessionWatchHostMediaControls) {
+      return;
+    }
+
+    const { controls, tracks } = createTracks();
+    const initialSnapshot = controls.snapshot();
+    const snapshots: Array<ReturnType<typeof controls.snapshot>> = [];
+    const hostControls = createLiveSessionWatchHostMediaControls({
+      controls,
+      isHostOwnedSession: true,
+      normalizedStatus: 'LIVE',
+      onSnapshotChanged: (snapshot) => {
+        snapshots.push(snapshot);
+      },
+      snapshot: initialSnapshot,
+    });
+
+    controls.setAudioEnabled(false);
+    hostControls?.audio?.onPress();
+
+    expect(tracks[0].enabled).toBe(true);
+    expect(snapshots.at(-1)).toEqual({
+      audio: { available: true, enabled: true },
+      video: { available: true, enabled: true },
+    });
+  });
+
   test('shows only controls for available media types', () => {
     expect(typeof createLiveSessionWatchHostMediaControls).toBe('function');
     if (!createLiveSessionWatchHostMediaControls) {

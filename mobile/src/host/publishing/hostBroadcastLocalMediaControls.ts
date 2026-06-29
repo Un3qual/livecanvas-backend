@@ -43,7 +43,7 @@ export function createHostBroadcastLocalMediaControls(
 
   function setEnabled(kind: MediaTrackKind, enabled: boolean): void {
     for (const track of tracksFor(kind)) {
-      track.enabled = enabled;
+      trySetTrackEnabled(track, enabled);
     }
   }
 
@@ -79,6 +79,17 @@ export function createHostBroadcastLocalMediaControls(
       };
     },
   };
+}
+
+function trySetTrackEnabled(
+  track: HostBroadcastLocalMediaTrack,
+  enabled: boolean,
+): void {
+  try {
+    track.enabled = enabled;
+  } catch {
+    // Ignore accepted local track objects that expose non-writable properties.
+  }
 }
 
 function readLocalMediaTracks(

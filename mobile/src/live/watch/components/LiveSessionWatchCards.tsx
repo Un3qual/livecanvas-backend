@@ -51,7 +51,7 @@ export function createLiveSessionWatchHostMediaControls({
 }: LiveSessionWatchHostMediaControlsOptions): LiveSessionWatchHostMediaControlsProps | null {
   if (
     !isHostOwnedSession ||
-    normalizedStatus === 'ENDED' ||
+    normalizedStatus !== 'LIVE' ||
     !controls ||
     !snapshot
   ) {
@@ -62,7 +62,8 @@ export function createLiveSessionWatchHostMediaControls({
     ? {
         label: snapshot.audio.enabled ? 'Mute mic' : 'Unmute mic',
         onPress() {
-          controls.setAudioEnabled(!snapshot.audio.enabled);
+          const currentSnapshot = controls.snapshot();
+          controls.setAudioEnabled(!currentSnapshot.audio.enabled);
           onSnapshotChanged(controls.snapshot());
         },
       }
@@ -73,7 +74,8 @@ export function createLiveSessionWatchHostMediaControls({
           ? 'Turn camera off'
           : 'Turn camera on',
         onPress() {
-          controls.setVideoEnabled(!snapshot.video.enabled);
+          const currentSnapshot = controls.snapshot();
+          controls.setVideoEnabled(!currentSnapshot.video.enabled);
           onSnapshotChanged(controls.snapshot());
         },
       }
