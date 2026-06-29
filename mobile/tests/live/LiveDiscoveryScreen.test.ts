@@ -2,8 +2,20 @@ import { describe, expect, mock, test } from 'bun:test';
 import * as React from 'react';
 import type { ReactNode } from 'react';
 
+function NullComponent() {
+  return null;
+}
+
 mock.module('expo-router', () => ({
   useRouter: () => ({ push: () => undefined }),
+}));
+mock.module('react-native', () => ({
+  FlatList: NullComponent,
+  StyleSheet: {
+    create: (styles: unknown) => styles,
+  },
+  Text: NullComponent,
+  View: NullComponent,
 }));
 mock.module('react-relay', () => ({
   graphql: () => ({}),
@@ -71,11 +83,85 @@ const shouldShowHostCreationAction =
   liveDiscoveryScreen.shouldShowHostCreationAction as
     | ((currentSession: unknown) => boolean)
     | undefined;
+const createLiveDiscoveryHomeActions =
+  liveDiscoveryScreen.createLiveDiscoveryHomeActions as
+    | ((showHostCreationAction: boolean) => Array<{
+        key: string;
+        label: string;
+        route: string;
+        variant: string;
+      }>)
+    | undefined;
+const pushLiveDiscoveryHomeAction =
+  liveDiscoveryScreen.pushLiveDiscoveryHomeAction as
+    | ((
+        router: { push: (route: string) => void },
+        action: { route: string },
+      ) => void)
+    | undefined;
 
 describe('LiveDiscoveryScreen presentation', () => {
   test('only shows host creation when the viewer does not already have a current session', () => {
     expect(shouldShowHostCreationAction?.(null)).toBe(true);
     expect(shouldShowHostCreationAction?.()).toBe(true);
     expect(shouldShowHostCreationAction?.({ id: 'session-1' })).toBe(false);
+  });
+
+  test('keeps Diagnostics as a secondary home action near profile', () => {
+    expect(createLiveDiscoveryHomeActions?.(true)).toEqual([
+      {
+        key: 'host',
+        label: 'Host a live session',
+        route: '/host-broadcast',
+        variant: 'primary',
+      },
+      {
+        key: 'profile',
+        label: 'Open profile',
+        route: '/profile',
+        variant: 'secondary',
+      },
+      {
+        key: 'diagnostics',
+        label: 'Diagnostics',
+        route: '/diagnostics',
+        variant: 'secondary',
+      },
+    ]);
+
+    expect(createLiveDiscoveryHomeActions?.(false)).toEqual([
+      {
+        key: 'profile',
+        label: 'Open profile',
+        route: '/profile',
+        variant: 'secondary',
+      },
+      {
+        key: 'diagnostics',
+        label: 'Diagnostics',
+        route: '/diagnostics',
+        variant: 'secondary',
+      },
+    ]);
+  });
+
+  test('pushes the Diagnostics route when the home action is pressed', () => {
+    const pushedRoutes: string[] = [];
+    const diagnosticsAction = createLiveDiscoveryHomeActions?.(true).find(
+      (action) => action.key === 'diagnostics',
+    );
+
+    expect(diagnosticsAction).toBeDefined();
+
+    pushLiveDiscoveryHomeAction?.(
+      {
+        push: (route) => {
+          pushedRoutes.push(route);
+        },
+      },
+      diagnosticsAction!,
+    );
+
+    expect(pushedRoutes).toEqual(['/diagnostics']);
   });
 });
