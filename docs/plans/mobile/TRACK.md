@@ -53,6 +53,9 @@ streaming, and chat.
 - Release-candidate manual QA is tracked in
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`; no remote or
   authenticated EAS build/submit command is required by that checklist.
+- Candidate tangible follow-up plans are staged under
+  `docs/plans/mobile/follow-ups/` and should be promoted one at a time only
+  after the current release-candidate QA batch is recorded or paused.
 
 ## Completed Detailed Plans
 
@@ -87,6 +90,16 @@ streaming, and chat.
     live-device QA.
 11. Mobile XState live workflow cleanup for complex live protocol state.
 12. Release-candidate manual device QA using the one-host/one-viewer checklist.
+
+## Candidate Follow-Up Plans
+
+These plans are not active lane batches yet:
+
+- `docs/plans/mobile/follow-ups/2026-06-29-host-in-session-controls.md`
+- `docs/plans/mobile/follow-ups/2026-06-29-chat-history-pagination.md`
+- `docs/plans/mobile/follow-ups/2026-06-29-viewer-playback-recovery-controls.md`
+- `docs/plans/mobile/follow-ups/2026-06-29-post-live-recording-replay-affordance.md`
+- `docs/plans/mobile/follow-ups/2026-06-29-release-diagnostics-screen.md`
 
 ## Shared Constraints
 
