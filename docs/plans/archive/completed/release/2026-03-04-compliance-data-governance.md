@@ -1,5 +1,8 @@
 # Compliance Data Governance Baseline Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Deliver a v1-ready compliance baseline for retention/deletion/export by adding explicit policy docs plus enforceable backend workflows for export requests, account deletion requests, and retention cleanup.

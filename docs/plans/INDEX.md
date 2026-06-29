@@ -18,33 +18,35 @@ Use this file when:
 - State: idle
 - Completed track: Live Media Runtime Foundation
 - Completed source plan:
-  `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
+  `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
 - Notes: backend lane owns backend code and backend planning docs only
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: idle
+- State: active
 - Track: `docs/plans/mobile/TRACK.md`
-- Current product theme: chat realtime stream plus retained history complete
+- Current product theme: release-candidate one-host/one-viewer device QA
+- Active detailed plan: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
   payload normalization, and a completed backend media runtime foundation. The
   completed chat batch adds retained timeline history and live chat channel
-  integration. The next documented mobile theme is testing, beta distribution,
-  and release readiness.
+  integration. Frontend structure, TypeScript readability, and XState live
+  workflow cleanup are complete; the next executable batch is release-candidate
+  device QA.
 
 ## Track Registry
 
 ### Backend Live Media Signaling Contract
 
-- Plan: `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
+- Plan: `docs/plans/archive/completed/backend/2026-06-03-live-media-signaling-contract.md`
 - State: complete
 - Current theme: native mobile host broadcasting backend signaling contract
 - Notes: completed and handed off to mobile media signaling integration
 
 ### Backend Live Media Runtime Foundation
 
-- Plan: `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
+- Plan: `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
 - State: complete
 - Current theme: durable media readiness, ICE/TURN credential provider, and
   negotiation-driven runtime readiness
@@ -53,13 +55,13 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: idle
-- Current theme: chat realtime stream plus retained history complete
-- Active detailed plan: none selected
+- State: active
+- Current theme: release-candidate one-host/one-viewer device QA
+- Active detailed plan: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
 ### Backend Code Quality Cleanup
 
-- Plan: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
+- Plan: `docs/plans/archive/completed/backend/2026-05-22-code-quality-cleanup.md`
 - State: complete
 - Notes: all valid or partially valid cleanup issues have completed implementation
   stages; `SOCK-001` was merged into `SOCK-002`; `GEN-001` was split into its own
@@ -67,15 +69,15 @@ Use this file when:
 
 ### GEN-001 Chat Timeline/Event Object Redesign
 
-- Design: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
-- Implementation: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+- Design: `docs/plans/archive/completed/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
+- Implementation: `docs/plans/archive/completed/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
 - State: complete
 - Notes: first-class timeline events, timeline GraphQL, timeline channel
   broadcasts, and data-governance handling are implemented
 
 ### Live Session Channel State And Presence
 
-- Plan: `docs/plans/live/2026-03-22-live-session-channel-state-and-presence.md`
+- Plan: `docs/plans/archive/completed/live/2026-03-22-live-session-channel-state-and-presence.md`
 - State: complete
 - Notes: bounded aggregate room state and viewer-count updates are implemented on
   the existing live-session topic
@@ -94,21 +96,21 @@ Use this file when:
 ## Completed Work
 
 - User Profile Content And Live Entry:
-  `docs/plans/feed/2026-03-19-user-profile-content-and-live-entry.md`
+  `docs/plans/archive/completed/feed/2026-03-19-user-profile-content-and-live-entry.md`
 - Post Media Attachments And Story Feed:
-  `docs/plans/content/2026-03-18-post-media-attachments-and-story-feed.md`
+  `docs/plans/archive/completed/content/2026-03-18-post-media-attachments-and-story-feed.md`
 - Shared Read-Policy Query Composition:
-  `docs/plans/2026-03-18-query-policy-composition-and-reuse.md`
+  `docs/plans/archive/completed/backend/2026-03-18-query-policy-composition-and-reuse.md`
 - GraphQL batching and N+1 reduction:
-  `docs/plans/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md`
+  `docs/plans/archive/completed/graphql/2026-03-18-lcgql-dataloader-and-n-plus-one.md`
 - Chat product surface:
-  `docs/plans/chat/2026-03-17-chat-system-events.md`
+  `docs/plans/archive/completed/chat/2026-03-17-chat-system-events.md`
 - Live session client contract stabilization:
-  `docs/plans/live/2026-03-27-live-session-client-contract-stabilization.md`
+  `docs/plans/archive/completed/live/2026-03-27-live-session-client-contract-stabilization.md`
 - Post reporting:
-  `docs/plans/content/2026-04-24-post-reporting.md`
+  `docs/plans/archive/completed/content/2026-04-24-post-reporting.md`
 - Development seed data:
-  `docs/plans/2026-03-22-development-seed-data.md`
+  `docs/plans/archive/completed/backend/2026-03-22-development-seed-data.md`
 - Live replay and recording:
   `docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md`
 

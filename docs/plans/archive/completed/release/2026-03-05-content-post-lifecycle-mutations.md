@@ -1,5 +1,8 @@
 # Content Post Lifecycle Mutations Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Close the remaining Phase 2 content lifecycle gap by adding viewer-scoped post edit/delete APIs and Relay mutations that mobile clients can safely consume.

@@ -1,5 +1,8 @@
 # Account-Recovery Password Reset Foundation Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add a concrete password-reset account-recovery workflow so v1 has a first-class recovery path and auth-audit coverage can include recovery lifecycle outcomes.

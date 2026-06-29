@@ -1,5 +1,8 @@
 # Live Runtime Distributed Ownership Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add a production-safe multi-pod live runtime ownership model so each live session has exactly one active runtime owner while any pod can deterministically route join requests.

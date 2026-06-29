@@ -1,5 +1,8 @@
 # Auth Audit Expansion Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Expand auth audit coverage to additional high-risk identity lifecycle outcomes so security and release operations can inspect refresh-token rotation and credential-management behavior.

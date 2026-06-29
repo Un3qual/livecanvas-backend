@@ -1,5 +1,8 @@
 # Social GraphQL Relay Global ID Alignment Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Complete the remaining Relay-first migration work in the `Social` GraphQL surface by removing local ID parsing and requiring Relay global IDs for social reads and writes.

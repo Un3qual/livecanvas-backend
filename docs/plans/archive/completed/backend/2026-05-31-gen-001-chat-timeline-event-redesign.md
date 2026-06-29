@@ -1,0 +1,406 @@
+# GEN-001 Chat Timeline/Event Object Redesign
+
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
+Last reviewed: 2026-05-31
+Status: implementation complete; final backend verification passed
+Owner lane: backend
+
+## Goal
+
+Replace the client-facing model where system events are overloaded as chat messages with a first-class live-session timeline event model. The app was unreleased when this plan was written, so the redesign was allowed to break the former GraphQL and Phoenix Channel APIs to get the durable model right.
+
+## Implementation Closeout
+
+The backend implementation is complete. The old `chat_messages` model and `chat:message`/`chat:message_updated` realtime surface have been replaced by first-class live-session timeline event facts, current projection tables, Relay timeline event GraphQL types, and timeline-oriented channel broadcasts.
+
+Final verification on 2026-05-31:
+
+- `mix test test/live_canvas/chat_timeline_test.exs test/live_canvas_gql/chat/chat_queries_test.exs test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_gql/live/live_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs test/live_canvas_web/channels/live_session_channel_test.exs test/live_canvas/infra/data_governance_deletion_test.exs test/live_canvas/infra/data_governance_export_test.exs test/live_canvas/infra/data_governance_retention_test.exs` -> passed, 126 tests, 0 failures.
+- `mix compile` -> passed.
+- `mix typecheck` -> passed with `Total errors: 0, Skipped: 0, Unnecessary Skips: 0`.
+- `git diff --check` -> passed.
+- Broad stale-surface search with `rg -n "ChatMessage|chat_messages|chat:message|chat:message_updated|system_event|removeLiveChatMessage|chatMessages" lib test docs/architecture docs/plans/backend` -> remaining current hits are timeline names such as `ChatMessageEvent`, `LiveSessionTimelineChatMessage*`, `live_session_timeline_chat_messages`, and `removeLiveChatMessageEvent`; remaining docs hits are locked design/implementation history.
+- Precise stale-surface search with `rg -n "\bChatMessage\b|\bchat_messages\b|chat:message(_updated)?\b|\bsystem_event\b|\bremoveLiveChatMessage\b|\bchatMessages\b" config lib test docs/architecture` -> no hits.
+
+## Source Context
+
+`GEN-001` came from `docs/plans/backend/2026-05-22-code-quality-cleanup.md`: system events should become first-class client-facing timeline/event objects with matching GraphQL and websocket shapes. The old compatibility constraint was removed for this redesign, and the former `ChatMessage`/`chat:message` API was replaced.
+
+Legacy implementation that this redesign replaced:
+
+- `chat_messages.kind` stores both `:user_message` and `:system_event`.
+- GraphQL exposes system-event fields on `ChatMessage`.
+- Phoenix Channels broadcast both user messages and system events through `chat:message`.
+- Moderation updates currently mutate retained chat message visibility through redacted updates.
+
+## Research Notes
+
+Comparable platforms split into two useful patterns:
+
+- Slack history returns conversation "messages and events" through one history method, and Slack message events are used for both history and realtime delivery.
+- Matrix treats room history as a typed event timeline; events have a stable event id, event type, room id, sender, timestamp, and content, with redaction represented as event state.
+- YouTube Live Chat models one `liveChatMessage` resource whose `snippet.type` differentiates text, fan funding, poll, membership, and deleted-message cases.
+- Stream Chat exposes message mutations, member changes, typing, and custom changes as events, with separate event names for `message.new`, `message.updated`, and `message.deleted`.
+- Twitch EventSub separates many chat-adjacent events by subscription type, including chat message, message delete, chat notification, cheer, subscription, and raid events; it also documents at-least-once delivery and duplicate handling by message id.
+
+References:
+
+- Slack `conversations.history`: https://docs.slack.dev/reference/methods/conversations.history/
+- Slack `message` event: https://docs.slack.dev/reference/events/message/
+- Matrix Client-Server API event format and timeline pagination: https://spec.matrix.org/latest/client-server-api/
+- YouTube `liveChatMessages`: https://developers.google.com/youtube/v3/live/docs/liveChatMessages
+- Stream Chat event object: https://getstream.io/chat/docs/javascript/event_object/
+- Twitch EventSub: https://dev.twitch.tv/docs/eventsub/
+- Twitch EventSub subscription types: https://dev.twitch.tv/docs/eventsub/eventsub-subscription-types/
+
+Design conclusion: use a typed unified timeline for durable client history, but do not force every realtime signal into durable history. Durable history should be a current, policy-filtered projection over append-only facts.
+
+## Locked Decisions
+
+- The public API may be breaking.
+- The public client concept is `LiveSessionTimelineEvent`, not `ChatMessage`.
+- User chat messages are one timeline event type.
+- Moderator actions, live lifecycle events, and future gifts are sibling event types, not subfields on a chat message.
+- Durable facts are append-only. Client history/replay reads a current projection, not the raw event log.
+- Message removal hides the target message from recovery/replay by default. A redacted placeholder is an explicit product choice for later, not the default.
+- Message edits are append-only edit facts that update the current projection of the original message event. Recovery/replay returns the latest message body once, not the send event plus every edit event.
+- Phoenix realtime delivery should mirror the GraphQL event shape. Replace `chat:message` with timeline-oriented events such as `timeline:event`, `timeline:event_updated`, and `timeline:event_removed`.
+- Keep ephemeral signals such as typing, connection recovery, viewer-count updates, and low-value join/leave churn outside durable timeline history unless product explicitly makes them replayable.
+
+## PostgreSQL Design
+
+Use an event envelope table plus subtype-owned tables and mutable projection-state tables. Do not use a central "1-hot" table with one nullable foreign key per event subtype.
+
+Repo conventions still apply when this becomes Ecto migrations:
+
+- bigint primary keys
+- database-generated UUIDv7 `entropy_id`
+- `:utc_datetime_usec` timestamps
+- explicit indexes on foreign keys
+- text/check or lookup-table vocabularies instead of Postgres enums for evolving business event types
+
+### Event Envelope
+
+`live_session_timeline_events`
+
+| Column | Contract |
+| --- | --- |
+| `id` | bigint primary key |
+| `entropy_id` | UUIDv7, not null, unique, generated by Postgres |
+| `live_session_id` | bigint, not null, FK to `live_sessions(id)` with delete cascade |
+| `event_type` | text, not null; initially one of the locked event types below |
+| `actor_user_id` | bigint, nullable FK to `users(id)` with delete set null |
+| `target_event_id` | bigint, nullable FK to `live_session_timeline_events(id)` |
+| `occurred_at` | `:utc_datetime_usec`, not null |
+| `idempotency_key` | text, nullable |
+| `payload` | jsonb, not null, default `{}` |
+| `inserted_at`, `updated_at` | `:utc_datetime_usec` |
+
+Initial `event_type` values:
+
+- `chat_message_sent`
+- `chat_message_edited`
+- `chat_message_removed`
+- `live_session_started`
+- `live_session_ended`
+
+Future values should be additive, for example `gift_sent`, `viewer_muted`, `viewer_banned`, `poll_started`, or `raid_started`.
+
+Postgres constraints/indexes:
+
+- Primary key on `id`.
+- Unique index on `entropy_id`.
+- Unique index on `(id, live_session_id)` so same-session target constraints can use a composite FK.
+- FK index on `live_session_id`.
+- FK index on `actor_user_id`.
+- FK index on `target_event_id`.
+- Keyset pagination index on `(live_session_id, occurred_at, id)`.
+- Partial unique index on `(live_session_id, event_type, idempotency_key)` where `idempotency_key is not null`.
+- Composite FK from `(target_event_id, live_session_id)` to `(id, live_session_id)` so a target event cannot point outside its live session.
+
+### Projection State
+
+`live_session_timeline_event_states`
+
+| Column | Contract |
+| --- | --- |
+| `timeline_event_id` | bigint primary key, FK to `live_session_timeline_events(id)` with delete cascade |
+| `live_session_id` | bigint, not null |
+| `occurred_at` | `:utc_datetime_usec`, not null |
+| `projection_state` | text, not null |
+| `superseded_by_event_id` | bigint, nullable FK to `live_session_timeline_events(id)` plus composite same-session FK with `live_session_id` |
+| `moderation_action_id` | bigint, nullable FK to `live_session_moderation_actions(id)` |
+| `updated_at` | `:utc_datetime_usec`, not null |
+
+Initial `projection_state` values:
+
+- `visible`
+- `hidden`
+- `redacted_placeholder`
+- `internal`
+
+Default removal behavior is `hidden`. `redacted_placeholder` is reserved for a future visible tombstone UI.
+
+Indexes:
+
+- Partial current-history index on `(live_session_id, occurred_at, timeline_event_id)` where `projection_state in ('visible', 'redacted_placeholder')`.
+- FK index on `superseded_by_event_id`.
+- FK index on `moderation_action_id`.
+- Composite FK from `(superseded_by_event_id, live_session_id)` to `live_session_timeline_events(id, live_session_id)` so a removal/edit marker cannot supersede an event from another live session.
+
+This table is intentionally mutable so the insert-heavy event envelope remains append-only and avoids hot updates.
+
+### Chat Message Subtype
+
+`live_session_timeline_chat_messages`
+
+| Column | Contract |
+| --- | --- |
+| `timeline_event_id` | bigint primary key, FK to `live_session_timeline_events(id)` with delete cascade |
+| `body` | text, not null |
+| `body_format` | text, not null default `plain` |
+
+The message sender is `live_session_timeline_events.actor_user_id`. The subtype stores message-specific content only.
+
+### Chat Message Current State
+
+`live_session_timeline_chat_message_states`
+
+| Column | Contract |
+| --- | --- |
+| `timeline_event_id` | bigint primary key, FK to `live_session_timeline_events(id)` with delete cascade |
+| `current_body` | text, nullable |
+| `edit_count` | bigint, not null default `0`, check `edit_count >= 0` |
+| `last_edit_event_id` | bigint, nullable FK to `live_session_timeline_events(id)` |
+| `last_edited_at` | `:utc_datetime_usec`, nullable |
+| `updated_at` | `:utc_datetime_usec`, not null |
+
+Recovery and GraphQL history read `current_body`, not the original subtype body. The original subtype body remains the immutable first-send fact.
+
+### Chat Message Edit Subtype
+
+`live_session_timeline_chat_message_edits`
+
+| Column | Contract |
+| --- | --- |
+| `timeline_event_id` | bigint primary key, FK to `live_session_timeline_events(id)` with delete cascade |
+| `target_event_id` | bigint, not null FK to `live_session_timeline_events(id)` |
+| `previous_body` | text, not null |
+| `new_body` | text, not null |
+
+The editor is `live_session_timeline_events.actor_user_id`. Multiple edit rows may target the same original message event.
+
+Indexes:
+
+- `(target_event_id, timeline_event_id)` for audit reads and race checks.
+
+### Moderation Actions
+
+`live_session_moderation_actions`
+
+| Column | Contract |
+| --- | --- |
+| `id` | bigint primary key |
+| `entropy_id` | UUIDv7, not null, unique, generated by Postgres |
+| `live_session_id` | bigint, not null FK to `live_sessions(id)` with delete cascade |
+| `action_type` | text, not null |
+| `actor_user_id` | bigint, not null FK to `users(id)` with delete restrict |
+| `target_user_id` | bigint, nullable FK to `users(id)` with delete set null |
+| `target_event_id` | bigint, nullable FK to `live_session_timeline_events(id)` |
+| `reason_code` | text, nullable |
+| `internal_note` | text, nullable |
+| `expires_at` | `:utc_datetime_usec`, nullable |
+| `revoked_at` | `:utc_datetime_usec`, nullable |
+| `inserted_at`, `updated_at` | `:utc_datetime_usec` |
+
+Initial `action_type` values:
+
+- `message_removed`
+- `user_muted`
+- `user_banned`
+
+Indexes:
+
+- FK indexes on `live_session_id`, `actor_user_id`, `target_user_id`, and `target_event_id`.
+- Partial index on `(live_session_id, target_user_id, action_type)` where `revoked_at is null`.
+- Partial unique index on `(target_event_id, action_type)` where `revoked_at is null and action_type = 'message_removed'`.
+
+### Moderation Event Subtype
+
+`live_session_timeline_moderation_events`
+
+| Column | Contract |
+| --- | --- |
+| `timeline_event_id` | bigint primary key, FK to `live_session_timeline_events(id)` with delete cascade |
+| `moderation_action_id` | bigint, not null unique FK to `live_session_moderation_actions(id)` |
+
+This links the visible or internal timeline fact to the durable moderation action.
+
+### Gift Event Subtype
+
+Future gift events should not add nullable columns to the envelope. Add a subtype table:
+
+`live_session_timeline_gift_events`
+
+| Column | Contract |
+| --- | --- |
+| `timeline_event_id` | bigint primary key, FK to `live_session_timeline_events(id)` with delete cascade |
+| `purchase_id` | bigint, not null FK to the purchase table |
+| `virtual_currency_transaction_id` | bigint, not null FK to the virtual-currency transaction table |
+| `gift_sku_id` | bigint, not null FK to the gift SKU table |
+| `quantity` | bigint, not null, check `quantity > 0` |
+
+## Event Mutation Flows
+
+### User Sends A Message
+
+Single transaction:
+
+1. Insert `live_session_timeline_events` with `event_type = 'chat_message_sent'`, `actor_user_id = sender`, and `occurred_at`.
+2. Insert `live_session_timeline_chat_messages` with the original body.
+3. Insert `live_session_timeline_chat_message_states` with `current_body = body`.
+4. Insert `live_session_timeline_event_states` with `projection_state = 'visible'`.
+5. Commit and broadcast `timeline:event` with concrete type `ChatMessageEvent`.
+
+### User Edits A Message Multiple Times
+
+Each edit is a new append-only fact, but the public timeline updates the original message event.
+
+Example:
+
+- `E100 chat_message_sent` body `"helo world"`
+- `E104 chat_message_edited` targets `E100`, new body `"hello world"`
+- `E109 chat_message_edited` targets `E100`, new body `"hello, world"`
+
+For each edit, in one transaction:
+
+1. Lock `live_session_timeline_event_states` for the target message with `FOR UPDATE`.
+2. Validate actor authorization and current projection state.
+3. Lock `live_session_timeline_chat_message_states` for the target message with `FOR UPDATE`.
+4. Insert `live_session_timeline_events` with `event_type = 'chat_message_edited'` and `target_event_id = E100`.
+5. Insert `live_session_timeline_chat_message_edits` with previous and new body.
+6. Update `live_session_timeline_chat_message_states.current_body`, `edit_count`, `last_edit_event_id`, and `last_edited_at`.
+7. Commit and broadcast `timeline:event_updated` for `E100`.
+
+Recovery/replay returns only `E100` as a `ChatMessageEvent` with the latest body, `edited = true`, `editCount = 2`, and `editedAt` from `E109`. It does not return `E104` or `E109` as separate visible timeline items.
+
+### Moderator Removes A Previous Message
+
+Example:
+
+- `E100 chat_message_sent`
+- `E101` through `E105` other visible events
+- `E106 chat_message_removed` targets `E100`
+
+In one transaction:
+
+1. Lock `live_session_timeline_event_states` for `E100` with `FOR UPDATE`.
+2. Insert `live_session_moderation_actions` with `action_type = 'message_removed'`, target event, target user, actor, and reason.
+3. Insert `live_session_timeline_events` with `event_type = 'chat_message_removed'`, `target_event_id = E100`, and actor.
+4. Insert `live_session_timeline_moderation_events`.
+5. Update `E100` in `live_session_timeline_event_states` to `projection_state = 'hidden'`, `superseded_by_event_id = E106`, and `moderation_action_id`.
+6. Insert state for `E106` as `internal` unless product explicitly wants a visible "message removed" timeline item.
+7. Commit and broadcast `timeline:event_removed` for `E100`.
+
+Recovery/replay reads the current projection and returns `E101` through `E105` only. It does not send `E100` and then remove it later.
+
+## Client API Shape
+
+### GraphQL
+
+Replace `LiveSession.chatMessages` with a Relay connection such as:
+
+```graphql
+interface LiveSessionTimelineEvent {
+  id: ID!
+  eventType: LiveSessionTimelineEventType!
+  occurredAt: String!
+  actor: User
+}
+
+type ChatMessageEvent implements LiveSessionTimelineEvent {
+  id: ID!
+  eventType: LiveSessionTimelineEventType!
+  occurredAt: String!
+  actor: User
+  body: String!
+  edited: Boolean!
+  editCount: Int!
+  editedAt: String
+}
+
+type LiveSessionStartedEvent implements LiveSessionTimelineEvent {
+  id: ID!
+  eventType: LiveSessionTimelineEventType!
+  occurredAt: String!
+  actor: User
+}
+
+type LiveSessionEndedEvent implements LiveSessionTimelineEvent {
+  id: ID!
+  eventType: LiveSessionTimelineEventType!
+  occurredAt: String!
+  actor: User
+}
+```
+
+The public connection should return only visible or redacted-placeholder projection rows:
+
+```graphql
+type LiveSession {
+  timelineEvents(first: Int, after: String, last: Int, before: String): LiveSessionTimelineEventConnection!
+}
+```
+
+Cursor ordering remains `(occurred_at, id)` ascending.
+
+### Phoenix Channel
+
+Replace the retained chat event surface with timeline events:
+
+- `timeline:event` for a newly visible timeline event.
+- `timeline:event_updated` when the current projection of an existing visible event changes, such as message edit.
+- `timeline:event_removed` when a previously delivered event should be removed from the client timeline.
+
+Payloads should mirror the GraphQL concrete type names and fields closely enough that clients can reconcile websocket delivery with GraphQL recovery without maintaining incompatible models.
+
+## Projection Query Shape
+
+History/recovery query shape:
+
+```sql
+select e.*
+from live_session_timeline_event_states s
+join live_session_timeline_events e
+  on e.id = s.timeline_event_id
+where s.live_session_id = $1
+  and s.projection_state in ('visible', 'redacted_placeholder')
+order by s.occurred_at, s.timeline_event_id;
+```
+
+Concrete type resolvers should join the subtype/state tables they need. For `ChatMessageEvent`, the resolver reads `live_session_timeline_chat_message_states.current_body`, not the original immutable send body.
+
+## Implementation Plan
+
+Executable plan: `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+
+Expected task sequence:
+
+1. Add timeline event migrations, schemas, and context APIs for message-send projections behind focused tests.
+2. Add edit-event append and projection-update behavior.
+3. Add moderation-action and message-removal projection behavior.
+4. Replace GraphQL `chatMessages` with `timelineEvents` and concrete event types.
+5. Replace Phoenix Channel `chat:message` / `chat:message_updated` with timeline event delivery.
+6. Remove or migrate old `chat_messages` system-event coupling after the new history/recovery path is green.
+7. Update mobile contracts and backend conventions to record the durable timeline/projection rule.
+
+## Verification Expectations
+
+- Focused context tests for insert/edit/remove transactions and projection behavior.
+- GraphQL tests proving removed messages are absent from recovery and edited messages appear once with latest body.
+- Channel tests proving live clients receive update/remove deltas while reconnecting clients recover the current projection.
+- `mix compile`
+- focused `mix test` suites for Chat, GraphQL Chat, Live mutations, and LiveSessionChannel
+- `mix typecheck`

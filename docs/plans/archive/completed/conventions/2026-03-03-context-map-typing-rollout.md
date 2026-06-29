@@ -1,5 +1,8 @@
 # Context Map Typing Rollout Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Remove plain `map()` usage from context-facing specs by replacing it with typed maps and explicit shape aliases, without changing runtime behavior.

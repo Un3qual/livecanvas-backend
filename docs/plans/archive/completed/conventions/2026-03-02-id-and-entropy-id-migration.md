@@ -1,5 +1,8 @@
 # ID And Entropy ID Migration Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Adopt the default identifier convention without re-keying existing relations: keep bigint `id` primary keys for normal relational tables, add a Postgres-generated `entropy_id` (`uuidv7`) to those tables, and preserve explicit UUID-primary-key exceptions such as the current `users_tokens` table.

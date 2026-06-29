@@ -1,5 +1,8 @@
 # Webhooks And Async Jobs Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add a production-ready REST webhook ingress and a Postgres-backed async job pipeline so callback-triggered work is durable, idempotent, and retryable.

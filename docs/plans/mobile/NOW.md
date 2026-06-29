@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-27
-Status: TypeScript readability cleanup complete; release-candidate QA ready
+Last reviewed: 2026-06-29
+Status: XState live workflow cleanup complete; release-candidate QA active
 
 ## Lane Scope
 
@@ -15,6 +15,8 @@ Status: TypeScript readability cleanup complete; release-candidate QA ready
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Track: `docs/plans/mobile/TRACK.md`
 - Current task: run the one-host/one-viewer release-candidate device QA pass.
+- Latest completed prerequisite:
+  `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
 - Write scope:
   - `docs/plans/mobile/**`
   - `mobile/**` only for reproduced launch-blocker fixes
@@ -38,7 +40,8 @@ scope.
   docs handoff.
 - Do not expand the completed release-candidate checklist into implementation
   unless a launch blocker is reproduced and promoted.
-- Do not change GraphQL schema shape in the quality gate alignment batch.
+- Do not reactivate archived cleanup plans from this QA handoff.
+- Do not change GraphQL schema shape during the QA batch.
 - Do not decode Relay IDs client-side.
 - Do not construct media signaling topics client-side.
 - Backend live media runtime foundation and the viewer setup contract are

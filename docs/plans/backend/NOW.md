@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
-Last reviewed: 2026-06-04
-Status: idle
+Last reviewed: 2026-06-29
+Status: idle; completed backend plans archived
 
 ## Lane Scope
 
@@ -12,7 +12,7 @@ Status: idle
 ## Current Batch
 
 - Source plan:
-  `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
+  `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
 - Track: live media runtime foundation
 - Task: complete
 - Write scope: backend live runtime code, backend tests, migrations, backend
@@ -24,10 +24,10 @@ Status: idle
 ## Handoff Context
 
 Completed prerequisite:
-`docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
+`docs/plans/archive/completed/backend/2026-06-03-live-media-signaling-contract.md`
 
 Mobile integration:
-`docs/plans/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
+`docs/plans/archive/completed/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
 
 Mobile-facing contracts:
 
@@ -37,16 +37,16 @@ Mobile-facing contracts:
 ## Next Action
 
 No backend lane batch is currently selected. The next documented product batch
-is mobile chat realtime stream plus retained history from
-`docs/plans/mobile/TRACK.md`, unless the coordinator explicitly reprioritizes a
+is the mobile release-candidate one-host/one-viewer device QA pass from
+`docs/plans/mobile/NOW.md`, unless the coordinator explicitly reprioritizes a
 new backend plan.
 
 ## References
 
-- Cleanup inventory: `docs/plans/backend/2026-05-22-code-quality-cleanup.md`
+- Cleanup inventory: `docs/plans/archive/completed/backend/2026-05-22-code-quality-cleanup.md`
 - GEN-001 design:
-  `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
+  `docs/plans/archive/completed/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
 - GEN-001 implementation:
-  `docs/plans/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
+  `docs/plans/archive/completed/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
 - Live media signaling contract:
-  `docs/plans/backend/2026-06-03-live-media-signaling-contract.md`
+  `docs/plans/archive/completed/backend/2026-06-03-live-media-signaling-contract.md`

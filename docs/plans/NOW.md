@@ -1,7 +1,7 @@
 # Current Execution
 
-Last reviewed: 2026-06-04
-Status: idle
+Last reviewed: 2026-06-29
+Status: mobile release-candidate QA active; backend lane idle
 
 ## Purpose
 
@@ -17,15 +17,17 @@ details.
 - State: idle; live media runtime foundation is complete
 - Scope: backend code and backend planning docs
 - Completed source plan:
-  `docs/plans/backend/2026-06-04-live-media-runtime-foundation.md`
+  `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: idle; chat realtime stream plus retained history is complete
+- State: active; release-candidate one-host/one-viewer QA is current
 - Scope: `mobile/` and `docs/plans/mobile/**`
-- Completed source plan:
-  `docs/plans/mobile/2026-06-04-chat-realtime-retained-history.md`
+- Current source plan:
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+- Latest completed source plan:
+  `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
 
 ## Execution Rule
 
@@ -42,9 +44,9 @@ track docs.
 
 ## Next Coordinator Decision
 
-Select the next product-completeness batch. If the mobile lane remains the
-priority, promote testing, beta distribution, and release readiness from
-`docs/plans/mobile/TRACK.md`.
+Continue the mobile release-candidate device QA batch from
+`docs/plans/mobile/NOW.md`. Select the next product-completeness batch only
+after that QA pass is recorded or paused.
 
 ## Repair Conditions
 

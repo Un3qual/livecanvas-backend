@@ -1,5 +1,8 @@
 # Relay-First GraphQL Migration Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Move `LiveCanvasGQL` from "Relay macros with non-Relay behavior" to a real Relay-first API: refetchable nodes, opaque global IDs for all public ID lookups, connection-based pagination, and mutation payloads that return typed data instead of a bare success flag.

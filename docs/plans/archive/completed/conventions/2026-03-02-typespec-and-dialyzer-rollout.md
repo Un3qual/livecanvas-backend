@@ -1,5 +1,8 @@
 # TypeSpec and Dialyzer Rollout Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add an enforceable strict-typing baseline for this backend: covered public functions must have `@spec`, Dialyzer must run cleanly in local development, and `mix precommit` must fail when typing coverage or Dialyzer health regresses.

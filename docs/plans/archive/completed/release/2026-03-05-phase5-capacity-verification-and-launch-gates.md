@@ -1,5 +1,8 @@
 # Phase 5 Capacity Verification And Launch Gates Implementation Plan
 
+> **Archive status:** Completed or historical plan retained for reference.
+> Active execution starts from `docs/plans/NOW.md` and lane-specific `NOW.md` files.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Close the remaining Phase 5 roadmap gap by adding deterministic capacity verification for feed query load, channel fanout, and live-session concurrency, then wiring the drill into release gates and operator runbooks.
