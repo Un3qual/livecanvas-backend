@@ -1,119 +1,27 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import type { AuthState } from '../auth/types';
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
-import type { AppEnvironment } from '../config/environment';
-import type { StartupSnapshot } from '../config/runtime';
 import { useAuth } from '../auth/AuthProvider';
 import { useStartupState } from '../providers/StartupGate';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { spacing, typography } from '../theme/tokens';
 import {
-  describeDiagnosticsEndpoint,
-  formatAuthStatus,
-  formatBootSessionState,
-  formatProbeStatus,
   type DiagnosticsEndpointPresentation,
   type DiagnosticsProbeStatus,
 } from './releaseDiagnosticsPresentation';
 import {
+  createReleaseDiagnosticsScreenModel,
+  type DiagnosticsProbeRow,
+  type DiagnosticsStateRow,
+  type ReleaseDiagnosticsScreenModel,
+} from './releaseDiagnosticsScreenModel';
+import {
   runApiReachabilityProbe,
   runWebsocketReachabilityProbe,
 } from './releaseDiagnosticsProbes';
-
-type DiagnosticsStateRow = {
-  label: string;
-  value: string;
-};
-
-type DiagnosticsProbeRow = {
-  actionLabel: string;
-  disabled: boolean;
-  label: string;
-  statusLabel: string;
-};
-
-export type ReleaseDiagnosticsScreenModelInput = {
-  apiProbeStatus: DiagnosticsProbeStatus;
-  authStatus: AuthState['status'];
-  environment: AppEnvironment;
-  snapshot: StartupSnapshot;
-  websocketProbeStatus: DiagnosticsProbeStatus;
-};
-
-export type ReleaseDiagnosticsScreenModel = {
-  endpointRows: DiagnosticsEndpointPresentation[];
-  probeRows: DiagnosticsProbeRow[];
-  stateRows: DiagnosticsStateRow[];
-};
-
-export function createReleaseDiagnosticsScreenModel({
-  apiProbeStatus,
-  authStatus,
-  environment,
-  snapshot,
-  websocketProbeStatus,
-}: ReleaseDiagnosticsScreenModelInput): ReleaseDiagnosticsScreenModel {
-  return {
-    endpointRows: [
-      describeDiagnosticsEndpoint({
-        label: 'API URL',
-        url: environment.apiBaseUrl,
-      }),
-      describeDiagnosticsEndpoint({
-        label: 'Websocket URL',
-        url: environment.websocketUrl,
-      }),
-    ],
-    probeRows: [
-      {
-        actionLabel: 'Check API',
-        disabled: apiProbeStatus.status === 'checking',
-        label: 'API probe',
-        statusLabel: formatProbeStatus(apiProbeStatus),
-      },
-      {
-        actionLabel: 'Check websocket',
-        disabled: websocketProbeStatus.status === 'checking',
-        label: 'Websocket probe',
-        statusLabel: formatProbeStatus(websocketProbeStatus),
-      },
-    ],
-    stateRows: [
-      {
-        label: 'Boot session',
-        value: formatBootSessionState(snapshot.bootSessionState),
-      },
-      {
-        label: 'Current auth',
-        value: formatAuthStatus(authStatus),
-      },
-      {
-        label: 'Initial URL',
-        value: snapshot.initialUrl ?? 'None',
-      },
-      {
-        label: 'Initial href',
-        value: snapshot.initialHref ?? 'None',
-      },
-      {
-        label: 'Landing href',
-        value: snapshot.landingHref,
-      },
-      {
-        label: 'Default href',
-        value: snapshot.defaultHref,
-      },
-      {
-        label: 'Reset reason',
-        value: snapshot.resetReason ?? 'None',
-      },
-    ],
-  };
-}
 
 export function ReleaseDiagnosticsScreen() {
   const { environment, snapshot } = useStartupState();

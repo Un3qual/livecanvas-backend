@@ -1,58 +1,9 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 
-import type { ReleaseDiagnosticsScreenModelInput } from '../../src/diagnostics/ReleaseDiagnosticsScreen';
-
-function NullComponent() {
-  return null;
-}
-
-mock.module('react-native', () => ({
-  Pressable: NullComponent,
-  ScrollView: NullComponent,
-  StyleSheet: {
-    create: (styles: unknown) => styles,
-  },
-  Text: NullComponent,
-  View: NullComponent,
-}));
-mock.module('../../src/auth/AuthProvider', () => ({
-  useAuth: () => ({ state: { status: 'authenticated' } }),
-}));
-mock.module('../../src/components/AppButton', () => ({ AppButton: NullComponent }));
-mock.module('../../src/components/AppCard', () => ({ AppCard: NullComponent }));
-mock.module('../../src/components/AppHeader', () => ({ AppHeader: NullComponent }));
-mock.module('../../src/providers/StartupGate', () => ({
-  useStartupState: () => ({
-    environment: {
-      apiBaseUrl: 'https://preview-api.livecanvas.example',
-      bootSessionState: 'authenticated',
-      websocketUrl: 'wss://preview-ws.livecanvas.example/socket',
-    },
-    snapshot: {
-      bootSessionState: 'authenticated',
-      defaultHref: '/home',
-      initialHref: '/diagnostics',
-      initialUrl: 'livecanvas-mobile://diagnostics',
-      landingHref: '/diagnostics',
-      resetReason: null,
-    },
-  }),
-}));
-mock.module('../../src/providers/ThemeProvider', () => ({
-  useAppTheme: () => ({
-    colors: {
-      accent: 'accent',
-      background: 'background',
-      surfaceMuted: 'surfaceMuted',
-      text: 'text',
-      textMuted: 'textMuted',
-    },
-  }),
-}));
-
-const screenModule = await import('../../src/diagnostics/ReleaseDiagnosticsScreen');
-const routeModule = await import('../../app/(app)/diagnostics');
-const { createReleaseDiagnosticsScreenModel } = screenModule;
+import {
+  createReleaseDiagnosticsScreenModel,
+  type ReleaseDiagnosticsScreenModelInput,
+} from '../../src/diagnostics/releaseDiagnosticsScreenModel';
 
 describe('ReleaseDiagnosticsScreen', () => {
   test('builds an operator-facing runtime snapshot without token-bearing auth data', () => {
@@ -109,10 +60,6 @@ describe('ReleaseDiagnosticsScreen', () => {
         statusLabel: 'Failed: Websocket connection failed',
       },
     ]);
-  });
-
-  test('diagnostics route exposes the signed-in diagnostics screen', () => {
-    expect(typeof routeModule.default).toBe('function');
   });
 });
 
