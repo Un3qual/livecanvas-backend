@@ -279,7 +279,9 @@ export function createLiveSessionWatchControllerLifecycle({
         }
 
         releaseRetainedHostPublishingSession(liveSessionId);
-        stopViewerPlayback({ resetState: true });
+        if (currentLiveSessionId === liveSessionId) {
+          stopViewerPlayback({ resetState: true });
+        }
 
         if (!isMounted) {
           return;
@@ -306,6 +308,10 @@ export function createLiveSessionWatchControllerLifecycle({
   }
 
   function handleMembershipLost(liveSessionId: string) {
+    if (currentLiveSessionId !== liveSessionId) {
+      return;
+    }
+
     actor.send({ sessionId: liveSessionId, type: 'MEMBERSHIP_LOST' });
     publishState();
     stopViewerPlayback({ resetState: true });
@@ -315,8 +321,15 @@ export function createLiveSessionWatchControllerLifecycle({
     liveSessionId: string,
     closeChatChannel?: () => void,
   ) {
+    const isActiveSession = currentLiveSessionId === liveSessionId;
     actor.send({ sessionId: liveSessionId, type: 'SESSION_ENDED' });
     publishState();
+
+    if (!isActiveSession) {
+      releaseRetainedHostPublishingSession(liveSessionId);
+      return;
+    }
+
     stopViewerPlayback({ resetState: true });
     releaseRetainedHostPublishingSession(liveSessionId);
     closeChatChannel?.();

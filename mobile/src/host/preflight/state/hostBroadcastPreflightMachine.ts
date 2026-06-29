@@ -30,6 +30,7 @@ type HostBroadcastPreflightMachineContext = {
   readonly backendMediaContractReady: boolean;
   readonly cameraPermission: HostBroadcastPermissionState;
   readonly hasBackgroundEndRequestInFlight: boolean;
+  readonly hasGoneLive: boolean;
   readonly hasPreparedMedia: boolean;
   readonly liveSessionId: string | null;
   readonly microphonePermission: HostBroadcastPermissionState;
@@ -106,6 +107,7 @@ type HostBroadcastPreflightMachineGuards = {
   readonly canCreateSession: undefined;
   readonly canGoLive: undefined;
   readonly canPrepareMedia: undefined;
+  readonly hasGoneLive: undefined;
   readonly hasStartedSession: undefined;
   readonly isRetryableGoLiveFailure: undefined;
   readonly willBeReadyToPublish: undefined;
@@ -134,6 +136,7 @@ const initialHostBroadcastPreflightMachineContext: HostBroadcastPreflightMachine
       initialPreflightState.backendMediaContractReady,
     cameraPermission: initialPreflightState.cameraPermission,
     hasBackgroundEndRequestInFlight: false,
+    hasGoneLive: false,
     hasPreparedMedia: false,
     liveSessionId: null,
     microphonePermission: initialPreflightState.microphonePermission,
@@ -179,6 +182,7 @@ export const hostBroadcastPreflightMachine = setup<
     canPrepareMedia: ({ context }) =>
       context.liveSessionId !== null && !context.hasPreparedMedia,
     hasStartedSession: ({ context }) => context.liveSessionId !== null,
+    hasGoneLive: ({ context }) => context.hasGoneLive,
     isRetryableGoLiveFailure: ({ event }) =>
       event.type === 'GO_LIVE_FAILED' && event.retryable,
     willBeReadyToPublish: ({ context, event }) => {
@@ -232,6 +236,7 @@ export const hostBroadcastPreflightMachine = setup<
     requestCreateSession: assign({
       backendMediaContractReady: false,
       hasPreparedMedia: false,
+      hasGoneLive: false,
       liveSessionId: null,
       viewerSafeErrorText: null,
     }),
@@ -297,12 +302,14 @@ export const hostBroadcastPreflightMachine = setup<
       }
 
       return {
+        hasGoneLive: true,
         liveSessionId: event.liveSessionId,
         viewerSafeErrorText: null,
       };
     }),
     endSession: assign({
       backendMediaContractReady: false,
+      hasGoneLive: false,
       hasPreparedMedia: false,
       liveSessionId: null,
       viewerSafeErrorText: null,
@@ -511,6 +518,11 @@ export const hostBroadcastPreflightMachine = setup<
           target: 'ended',
         },
         END_FAILED: [
+          {
+            actions: 'failWorkflow',
+            guard: 'hasGoneLive',
+            target: 'live',
+          },
           {
             actions: 'failWorkflow',
             guard: 'canGoLive',

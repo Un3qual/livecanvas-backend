@@ -256,6 +256,31 @@ describe('hostBroadcastPreflightMachine', () => {
     });
   });
 
+  test('failed end from live keeps the workflow in live state', () => {
+    const actor = startMachine();
+
+    prepareReadyToPublish(actor);
+    actor.send({ type: 'GO_LIVE_REQUESTED' });
+    actor.send({ liveSessionId: 'live-session-id', type: 'GO_LIVE_SUCCEEDED' });
+    actor.send({ type: 'END_REQUESTED' });
+    actor.send({
+      type: 'END_FAILED',
+      viewerSafeErrorText: 'We could not end this live session.',
+    });
+
+    expect(selectHostBroadcastPreflightWorkflowStatus(actor.getSnapshot())).toBe(
+      'live',
+    );
+    expect(selectHostBroadcastPreflightWorkflowState(actor.getSnapshot())).toMatchObject({
+      canGoLive: false,
+      errorMessage: 'We could not end this live session.',
+      sessionState: {
+        liveSessionId: 'live-session-id',
+        status: 'starting',
+      },
+    });
+  });
+
   test('retryable go-live failure preserves prepared media so the host can retry', () => {
     const actor = startMachine();
 

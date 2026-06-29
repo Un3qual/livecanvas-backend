@@ -94,6 +94,9 @@ export type HostBroadcastPreflightControllerOptions = {
   readonly hostPublishingSessions: HostBroadcastPublishingSessionStore;
   readonly navigateBack: () => void;
   readonly navigateToLiveSession: (liveSessionId: string) => void;
+  readonly registerBeforeUnauthenticated?: (
+    callback: () => void | Promise<void>,
+  ) => () => void;
   readonly websocketUrl: string;
 };
 
@@ -127,11 +130,12 @@ export type HostBroadcastPreflightControllerLifecycle = {
     continueNavigation: () => void,
   ) => void;
   readonly handlePrepareMediaPress: () => void;
+  readonly cleanupBeforeUnauthenticated: () => Promise<void>;
   readonly mount: () => void;
   readonly requestPreflightEndLiveSession: (
     liveSessionId: string,
     options?: PreflightEndLiveSessionOptions,
-  ) => void;
+  ) => Promise<void>;
   readonly sendWorkflowEvent: (
     event: HostBroadcastPreflightMachineEvent,
   ) => HostBroadcastPreflightWorkflowViewState;
@@ -191,7 +195,7 @@ export function createHostBroadcastPreflightControllerLifecycle(
     endOptions: PreflightEndLiveSessionOptions = {
       navigateBackOnSuccess: false,
     },
-  ) {
+  ): Promise<void> {
     // Back cleanup reports failures to the mounted screen, while abandoned
     // cleanup only attempts non-blocking teardown after unmount.
     const updateSessionLifecycle =
@@ -201,7 +205,7 @@ export function createHostBroadcastPreflightControllerLifecycle(
 
     if (updateSessionLifecycle) {
       if (readWorkflowState().status === 'ending') {
-        return;
+        return Promise.resolve();
       }
 
       sendWorkflowEvent({ type: 'END_REQUESTED' });
@@ -212,23 +216,49 @@ export function createHostBroadcastPreflightControllerLifecycle(
           liveSessionId,
         )
       ) {
-        return;
+        return Promise.resolve();
       }
 
       sendWorkflowEvent({ type: 'BACKGROUND_END_REQUESTED' });
     }
 
-    options.commitEndLiveSession({
-      variables: {
-        input: {
-          liveSessionId,
+    return new Promise((resolve) => {
+      options.commitEndLiveSession({
+        variables: {
+          input: {
+            liveSessionId,
+          },
         },
-      },
-      onCompleted: (payload) => {
-        const result = payload.endLiveSession;
+        onCompleted: (payload) => {
+          const result = payload.endLiveSession;
 
-        if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
-          const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
+          if (!result?.liveSession || (result.errors?.length ?? 0) > 0) {
+            const viewerSafeErrorText = formatLiveMutationErrors(result?.errors);
+            if (updateSessionLifecycle) {
+              sendWorkflowEvent({
+                type: 'END_FAILED',
+                viewerSafeErrorText,
+              });
+            } else {
+              sendWorkflowEvent({ type: 'BACKGROUND_END_FINISHED' });
+            }
+            resolve();
+            return;
+          }
+
+          sendWorkflowEvent(
+            updateSessionLifecycle
+              ? { type: 'END_SUCCEEDED' }
+              : { type: 'BACKGROUND_END_FINISHED' },
+          );
+          if (endOptions.navigateBackOnSuccess) {
+            options.navigateBack();
+          }
+          endOptions.continueNavigationOnSuccess?.();
+          resolve();
+        },
+        onError: () => {
+          const viewerSafeErrorText = formatLiveMutationErrors([]);
           if (updateSessionLifecycle) {
             sendWorkflowEvent({
               type: 'END_FAILED',
@@ -237,30 +267,9 @@ export function createHostBroadcastPreflightControllerLifecycle(
           } else {
             sendWorkflowEvent({ type: 'BACKGROUND_END_FINISHED' });
           }
-          return;
-        }
-
-        sendWorkflowEvent(
-          updateSessionLifecycle
-            ? { type: 'END_SUCCEEDED' }
-            : { type: 'BACKGROUND_END_FINISHED' },
-        );
-        if (endOptions.navigateBackOnSuccess) {
-          options.navigateBack();
-        }
-        endOptions.continueNavigationOnSuccess?.();
-      },
-      onError: () => {
-        const viewerSafeErrorText = formatLiveMutationErrors([]);
-        if (updateSessionLifecycle) {
-          sendWorkflowEvent({
-            type: 'END_FAILED',
-            viewerSafeErrorText,
-          });
-        } else {
-          sendWorkflowEvent({ type: 'BACKGROUND_END_FINISHED' });
-        }
-      },
+          resolve();
+        },
+      });
     });
   }
 
@@ -277,6 +286,18 @@ export function createHostBroadcastPreflightControllerLifecycle(
     requestPreflightEndLiveSession(liveSessionId, {
       navigateBackOnSuccess: false,
     });
+  }
+
+  function cleanupBeforeUnauthenticated(): Promise<void> {
+    const liveSessionId = selectHostBroadcastPreflightCleanupLiveSessionId(
+      actor.getSnapshot(),
+    );
+
+    return liveSessionId
+      ? requestPreflightEndLiveSession(liveSessionId, {
+          navigateBackOnSuccess: false,
+        })
+      : Promise.resolve();
   }
 
   function handleCreateSessionPress() {
@@ -461,15 +482,16 @@ export function createHostBroadcastPreflightControllerLifecycle(
         options.navigateToLiveSession(result.liveSession.id);
       },
       onError: () => {
-        if (!isMounted) {
-          return;
-        }
-
         sendWorkflowEvent({
           retryable: true,
           type: 'GO_LIVE_FAILED',
           viewerSafeErrorText: formatLiveMutationErrors([]),
         });
+
+        if (!isMounted) {
+          requestAbandonedPreflightEndLiveSession(liveSessionId);
+          return;
+        }
       },
     });
   }
@@ -545,6 +567,7 @@ export function createHostBroadcastPreflightControllerLifecycle(
   }
 
   return {
+    cleanupBeforeUnauthenticated,
     handleBackPress,
     handleCreateSessionPress,
     handleGoLivePress,
@@ -570,6 +593,7 @@ export function useHostBroadcastPreflightController({
   hostPublishingSessions,
   navigateBack,
   navigateToLiveSession,
+  registerBeforeUnauthenticated,
   websocketUrl,
 }: HostBroadcastPreflightControllerOptions): HostBroadcastPreflightController {
   const native = useMemo(() => createNative(), [createNative]);
@@ -682,6 +706,14 @@ export function useHostBroadcastPreflightController({
   }
 
   const preflightLifecycle = preflightLifecycleRef.current;
+
+  useEffect(
+    () =>
+      registerBeforeUnauthenticated?.(
+        preflightLifecycle.cleanupBeforeUnauthenticated,
+      ),
+    [preflightLifecycle, registerBeforeUnauthenticated],
+  );
 
   const publishingController = useHostBroadcastPublishingController({
     authStatus,

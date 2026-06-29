@@ -480,6 +480,44 @@ describe('useHostBroadcastPreflightController lifecycle', () => {
     expect(harness.isGoingLive).toBe(false);
   });
 
+  test('requests abandoned cleanup when go-live errors after unmount', () => {
+    const harness = createHarness();
+
+    harness.prepareStartedSession();
+    harness.lifecycle.handleGoLivePress();
+    harness.lifecycle.unmount();
+    harness.goLiveCommits[0].onError?.();
+
+    expect(harness.endCommits).toHaveLength(1);
+    expect(harness.endCommits[0].variables.input.liveSessionId).toBe(
+      'live-session-id',
+    );
+    expect(harness.navigateBackCalls).toEqual([]);
+    expect(harness.navigatedLiveSessionIds).toEqual([]);
+  });
+
+  test('ends active preflight sessions before auth teardown clears tokens', async () => {
+    const harness = createHarness();
+
+    harness.lifecycle.handleCreateSessionPress();
+    harness.completeStartSession();
+
+    const cleanup = harness.lifecycle.cleanupBeforeUnauthenticated();
+
+    expect(harness.endCommits).toHaveLength(1);
+    expect(harness.endCommits[0].variables.input.liveSessionId).toBe(
+      'live-session-id',
+    );
+
+    harness.endCommits[0].onCompleted?.({
+      endLiveSession: {
+        errors: [],
+        liveSession: createLiveSessionPayload('live-session-id', 'STARTING'),
+      },
+    });
+    await cleanup;
+  });
+
   test('requests abandoned cleanup when unmounted after a start succeeds', () => {
     const harness = createHarness();
 

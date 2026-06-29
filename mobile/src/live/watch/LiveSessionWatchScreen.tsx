@@ -67,6 +67,10 @@ import {
   type LiveSessionWatchScreenQuery,
 } from './liveSessionWatchOperations';
 import { liveSessionWatchScreenStyles as styles } from './liveSessionWatchScreenStyles';
+import {
+  canUseLiveSessionChat,
+  resolveRejectedLiveSessionChatSend,
+} from './liveSessionWatchChat';
 import type {
   LiveSessionWatchScreenProps,
   StopViewerPlayback,
@@ -239,8 +243,11 @@ function LiveSessionWatchContent({
   const hasRetainedHostPublishingSession = session
     ? hostPublishingSessions.has(activeLiveSessionId ?? '')
     : false;
-  const shouldMaintainSessionRealtimeChannel =
-    isJoined || hasRetainedHostPublishingSession;
+  const canUseChat = canUseLiveSessionChat({
+    hasRetainedHostPublishingSession,
+    isJoined,
+  });
+  const shouldMaintainSessionRealtimeChannel = canUseChat;
   const { stopViewerPlayback, viewerPlaybackState } =
     useLiveSessionViewerPlaybackController({
       authStatus: auth.state.status,
@@ -389,6 +396,9 @@ function LiveSessionWatchContent({
       !activeLiveSessionChannelTopic ||
       auth.state.status !== 'authenticated'
     ) {
+      // Keep the channel only while a joined viewer or retained host publishing
+      // session needs it; otherwise clear the client so stale signaling cannot
+      // leak across sessions.
       chatChannelClientRef.current = null;
 
       if (activeLiveSessionId) {
@@ -641,7 +651,28 @@ function LiveSessionWatchContent({
     };
     sendChatChannelEvent({ sessionId: liveSessionId, type: 'SEND_STARTED' });
 
-    const result = await client.sendChatMessage(body);
+    let result: Awaited<ReturnType<LiveSessionChannelClient['sendChatMessage']>>;
+
+    try {
+      result = await client.sendChatMessage(body);
+    } catch (error: unknown) {
+      const rejectedSend = resolveRejectedLiveSessionChatSend({
+        didUnmount: didUnmountRef.current,
+        error,
+        liveSessionId,
+        pendingSend: chatSendPendingRef.current,
+        sendToken,
+      });
+
+      chatSendPendingRef.current = rejectedSend.nextPendingSend;
+
+      if (rejectedSend.failureEvent) {
+        sendChatChannelEvent(rejectedSend.failureEvent);
+      }
+
+      return false;
+    }
+
     const isActiveSend =
       chatSendPendingRef.current?.sessionId === liveSessionId &&
       chatSendPendingRef.current.token === sendToken;
@@ -720,7 +751,7 @@ function LiveSessionWatchContent({
 
       <LiveSessionChatPanel
         channelStatus={chatChannelStatus}
-        isJoined={isJoined}
+        isJoined={canUseChat}
         onSendMessage={handleSendChatMessage}
         rows={chatRows}
         sendError={chatSendError}

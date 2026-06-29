@@ -335,4 +335,22 @@ describe('useLiveSessionWatchController lifecycle', () => {
     expect(harness.closedChatSessions).toEqual(['session-1']);
     expect(harness.leaves).toHaveLength(0);
   });
+
+  test('ignores stale teardown side effects from previous sessions', () => {
+    const harness = createHarness();
+
+    harness.controller.syncSession('session-2');
+    harness.controller.handleMembershipLost('session-1');
+    harness.controller.handleSessionEnded('session-1', () => {
+      harness.closedChatSessions.push('session-1');
+    });
+
+    expect(harness.releasedHostPublishingSessions).toEqual(['session-1']);
+    expect(harness.stopPlaybackCalls).toEqual([]);
+    expect(harness.closedChatSessions).toEqual([]);
+    expect(harness.controller.getState('session-2')).toMatchObject({
+      hasActiveSubmission: false,
+      isJoined: false,
+    });
+  });
 });

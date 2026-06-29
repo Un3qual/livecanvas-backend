@@ -69,6 +69,7 @@ export function HostBroadcastPreflightScreen() {
     hostPublishingSessions,
     navigateBack,
     navigateToLiveSession,
+    registerBeforeUnauthenticated: auth.registerBeforeUnauthenticated,
     websocketUrl: environment.websocketUrl,
   });
   usePreventRemove(controller.shouldPreventNavigationRemoval, ({ data }) => {
