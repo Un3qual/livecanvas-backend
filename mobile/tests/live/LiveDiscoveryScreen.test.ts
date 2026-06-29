@@ -12,6 +12,8 @@ mock.module('react-relay', () => ({
     viewer: { currentLiveSession: null },
   }),
 }));
+// Bun keeps these module mocks process-wide in the full quality test run, so
+// keep shared UI mocks child-rendering for later component presentation tests.
 mock.module('../../src/components/AppButton', () => ({
   AppButton: ({
     disabled,
@@ -43,6 +45,8 @@ mock.module('../../src/providers/ThemeProvider', () => ({
     },
   }),
 }));
+// Keep the shared token mock export-complete for later style imports in the
+// same Bun test process.
 mock.module('../../src/theme/tokens', () => ({
   radius: { lg: 24, md: 14, pill: 999, sm: 8 },
   spacing: { lg: 16, md: 12, sm: 8 },
