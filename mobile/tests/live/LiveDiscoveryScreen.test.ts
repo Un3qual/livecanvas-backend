@@ -1,9 +1,38 @@
 import { describe, expect, mock, test } from 'bun:test';
-import * as React from 'react';
-import type { ReactNode } from 'react';
+import { createElement, type ReactNode } from 'react';
 
 function NullComponent() {
   return null;
+}
+
+function AppButtonMock({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  return createElement(
+    'Pressable',
+    { accessibilityRole: 'button', onPress },
+    label,
+  );
+}
+
+function AppCardMock({ children }: { children?: ReactNode }) {
+  return createElement('View', null, children);
+}
+
+function AppHeaderMock({
+  eyebrow,
+  subtitle,
+  title,
+}: {
+  eyebrow?: string;
+  subtitle?: string;
+  title: string;
+}) {
+  return createElement('View', null, eyebrow, title, subtitle);
 }
 
 mock.module('expo-router', () => ({
@@ -11,6 +40,8 @@ mock.module('expo-router', () => ({
 }));
 mock.module('react-native', () => ({
   FlatList: NullComponent,
+  Pressable: 'Pressable',
+  ScrollView: 'ScrollView',
   StyleSheet: {
     create: (styles: unknown) => styles,
   },
@@ -27,27 +58,13 @@ mock.module('react-relay', () => ({
 // Bun keeps these module mocks process-wide in the full quality test run, so
 // keep shared UI mocks child-rendering for later component presentation tests.
 mock.module('../../src/components/AppButton', () => ({
-  AppButton: ({
-    disabled,
-    label,
-    onPress,
-  }: {
-    disabled?: boolean;
-    label: string;
-    onPress: () => void;
-  }) =>
-    React.createElement(
-      'Pressable',
-      { disabled: disabled ?? false, onPress },
-      React.createElement('Text', null, label),
-    ),
+  AppButton: AppButtonMock,
 }));
-mock.module('../../src/components/AppCard', () => ({
-  AppCard: ({ children }: { children?: ReactNode }) =>
-    React.createElement('AppCard', null, children),
+mock.module('../../src/components/AppCard', () => ({ AppCard: AppCardMock }));
+mock.module('../../src/components/AppHeader', () => ({
+  AppHeader: AppHeaderMock,
 }));
-mock.module('../../src/components/AppHeader', () => ({ AppHeader: () => null }));
-mock.module('../../src/components/ScreenState', () => ({ ScreenState: () => null }));
+mock.module('../../src/components/ScreenState', () => ({ ScreenState: NullComponent }));
 mock.module('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
     colors: {
