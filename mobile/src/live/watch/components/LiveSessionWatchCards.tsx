@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, Text, View } from 'react-native';
 
 import { AppButton } from '../../../components/AppButton';
 import { AppCard } from '../../../components/AppCard';
@@ -19,6 +20,7 @@ import type {
   formatLiveSessionStatus,
   LiveSessionStatus,
 } from '../../liveSessionPresentation';
+import { formatLiveSessionRecordingPresentation } from '../../recording/liveSessionRecordingPresentation';
 import { liveSessionWatchScreenStyles as styles } from '../liveSessionWatchScreenStyles';
 import type { LiveSessionNode } from '../liveSessionWatchScreenTypes';
 
@@ -87,6 +89,9 @@ export function createLiveSessionWatchHostMediaControls({
 
   return { audio, video };
 }
+
+const recordingOpenFailureCopy =
+  'We could not open this recording. Try again in a moment.';
 
 export function LiveSessionDetailsCard({
   normalizedStatus,
@@ -335,35 +340,84 @@ function RecordingMetadata({
 }: {
   asset: LiveSessionNode['recordingMediaAsset'];
 }) {
+  const theme = useAppTheme();
+  const [openError, setOpenError] = useState<string | null>(null);
+
   if (!asset) {
     return null;
   }
 
+  const presentation = formatLiveSessionRecordingPresentation({
+    processingState: asset.processingState,
+    publicUrl: asset.publicUrl,
+  });
+
+  const handleOpenPress = () => {
+    if (!presentation.publicUrl) {
+      return;
+    }
+
+    setOpenError(null);
+    void openLiveSessionRecordingUrl(presentation.publicUrl).catch(() => {
+      setOpenError(recordingOpenFailureCopy);
+    });
+  };
+
   return (
     <View style={styles.recordingMetadata}>
       <SectionHeading title="Recording" />
-      <MetadataRow
-        label="Processing"
-        value={formatRecordingProcessingState(asset.processingState)}
-      />
-      {asset.publicUrl ? (
-        <MetadataRow label="Public URL" value={asset.publicUrl} />
+      <MetadataRow label="Status" value={presentation.statusLabel} />
+      <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+        {presentation.body}
+      </Text>
+      {presentation.canOpen ? (
+        <AppButton
+          label="Open recording"
+          onPress={handleOpenPress}
+          variant="secondary"
+        />
+      ) : null}
+      {openError ? (
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>
+          {openError}
+        </Text>
       ) : null}
     </View>
   );
 }
 
-function formatRecordingProcessingState(processingState: string): string {
-  switch (processingState) {
-    case 'PENDING_UPLOAD':
-      return 'Pending upload';
-    case 'UPLOADED':
-      return 'Uploaded';
-    case 'PROCESSED':
-      return 'Processed';
-    case 'FAILED':
-      return 'Failed';
-    default:
-      return 'Unavailable';
+export async function openLiveSessionRecordingUrl(
+  publicUrl: string,
+): Promise<void> {
+  const normalizedPublicUrl = publicUrl.trim();
+
+  if (!normalizedPublicUrl) {
+    throw new Error('Unsupported recording URL');
+  }
+
+  const parsedUrl = parseRecordingUrl(normalizedPublicUrl);
+
+  if (!parsedUrl) {
+    throw new Error('Unsupported recording URL');
+  }
+
+  if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
+    await Linking.openURL(normalizedPublicUrl);
+    return;
+  }
+
+  if (await Linking.canOpenURL(normalizedPublicUrl)) {
+    await Linking.openURL(normalizedPublicUrl);
+    return;
+  }
+
+  throw new Error('Unsupported recording URL');
+}
+
+function parseRecordingUrl(publicUrl: string): URL | null {
+  try {
+    return new URL(publicUrl);
+  } catch {
+    return null;
   }
 }
