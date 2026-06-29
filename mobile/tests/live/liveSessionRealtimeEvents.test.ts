@@ -129,6 +129,20 @@ describe('liveSessionRealtimeEvents', () => {
       kind: 'media_answer',
       senderRole: 'viewer',
     });
+    expect(
+      normalizeLiveSessionRealtimeEvent('media:offer', {
+        sender_role: 'viewer',
+        sdp: 'v=0\r\nviewer-offer',
+        type: 'offer',
+      }),
+    ).toBeNull();
+    expect(
+      normalizeLiveSessionRealtimeEvent('media:answer', {
+        sender_role: 'host',
+        sdp: 'v=0\r\nhost-answer',
+        type: 'answer',
+      }),
+    ).toBeNull();
   });
 
   test('normalizes media ICE candidate broadcasts', () => {
@@ -162,6 +176,11 @@ describe('liveSessionRealtimeEvents', () => {
       kind: 'media_viewer_ready',
       senderRole: 'viewer',
     });
+    expect(
+      normalizeLiveSessionRealtimeEvent('media:viewer_ready', {
+        sender_role: 'host',
+      }),
+    ).toBeNull();
   });
 
   test('reads role-specific media events for runtime consumers', () => {

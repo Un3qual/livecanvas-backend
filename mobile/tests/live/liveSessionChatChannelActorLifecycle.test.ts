@@ -24,6 +24,13 @@ describe('createLiveSessionChatChannelActorLifecycle', () => {
     });
 
     lifecycle.start();
+    expect(publishedStates.at(-1)).toEqual({
+      channelError: null,
+      channelStatus: 'idle',
+      sendError: null,
+      sendStatus: 'idle',
+    });
+
     lifecycle.send({ sessionId: 'session-1', type: 'SESSION_CHANGED' });
     lifecycle.send({ sessionId: 'session-1', type: 'CHANNEL_JOINED' });
 
@@ -39,7 +46,13 @@ describe('createLiveSessionChatChannelActorLifecycle', () => {
     lifecycle.stop();
     lifecycle.send({ sessionId: 'session-1', type: 'CHANNEL_CLOSED' });
 
-    expect(publishedStates).toHaveLength(publishCountAfterJoin);
+    expect(publishedStates).toHaveLength(publishCountAfterJoin + 1);
+    expect(publishedStates.at(-1)).toEqual({
+      channelError: null,
+      channelStatus: 'idle',
+      sendError: null,
+      sendStatus: 'idle',
+    });
     expect(lifecycle.getState()).toEqual({
       channelError: null,
       channelStatus: 'idle',

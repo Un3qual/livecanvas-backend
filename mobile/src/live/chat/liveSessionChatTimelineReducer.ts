@@ -30,6 +30,8 @@ export function liveSessionChatTimelineReducer(
         return state;
       }
 
+      // The first retained load seeds an empty window; later retained refreshes
+      // merge so row continuity and pageInfo edges stay consistent.
       return {
         ...state,
         ...(state.eventIds.length === 0

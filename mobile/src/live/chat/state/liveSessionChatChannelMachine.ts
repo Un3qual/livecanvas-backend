@@ -97,6 +97,8 @@ export const liveSessionChatChannelMachine = setup<
     }),
     closeChannel: assign(({ context }) => ({
       channelError: null,
+      // Channel teardown should fail any in-flight send so the UI can clear
+      // pending state and offer a retry.
       sendError:
         context.sendStatus === 'sending'
           ? CHAT_SEND_DISCONNECTED_ERROR
@@ -108,6 +110,8 @@ export const liveSessionChatChannelMachine = setup<
     })),
     failChannel: assign(({ context, event }) => ({
       channelError: readChannelError(event),
+      // Channel failures also surface through send state when a message was
+      // still in flight.
       sendError:
         context.sendStatus === 'sending'
           ? readChannelError(event)

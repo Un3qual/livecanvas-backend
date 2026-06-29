@@ -73,6 +73,8 @@ export function HostBroadcastPreflightScreen() {
   });
   usePreventRemove(controller.shouldPreventNavigationRemoval, ({ data }) => {
     controller.handleNavigationRemovalAttempt(() => {
+      // The controller owns the leave guard; only replay the original action
+      // after it has ended or retained any preflight session safely.
       navigation.dispatch(data.action);
     });
   });

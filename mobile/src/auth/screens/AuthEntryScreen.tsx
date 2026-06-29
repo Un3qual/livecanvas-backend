@@ -85,6 +85,8 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const copy = AUTH_ENTRY_COPY[mode];
   const returnToHref = readAuthReturnToParam(rawReturnTo);
+  // Only forward the sanitized returnTo value so auth switches cannot preserve
+  // an arbitrary redirect target.
   const successHref = returnToHref ?? '/home';
 
   const handlePasswordSubmit = async () => {

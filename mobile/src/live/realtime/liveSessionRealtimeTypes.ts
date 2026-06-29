@@ -55,7 +55,7 @@ export type LiveSessionRealtimeMediaOfferEvent = {
     readonly type: 'offer';
   };
   readonly kind: 'media_offer';
-  readonly senderRole: LiveSessionRealtimeMediaSenderRole;
+  readonly senderRole: 'host';
 };
 
 export type LiveSessionRealtimeMediaAnswerEvent = {
@@ -63,7 +63,7 @@ export type LiveSessionRealtimeMediaAnswerEvent = {
     readonly type: 'answer';
   };
   readonly kind: 'media_answer';
-  readonly senderRole: LiveSessionRealtimeMediaSenderRole;
+  readonly senderRole: 'viewer';
 };
 
 export type LiveSessionRealtimeMediaIceCandidateEvent = {
@@ -74,7 +74,7 @@ export type LiveSessionRealtimeMediaIceCandidateEvent = {
 
 export type LiveSessionRealtimeMediaViewerReadyEvent = {
   readonly kind: 'media_viewer_ready';
-  readonly senderRole: LiveSessionRealtimeMediaSenderRole;
+  readonly senderRole: 'viewer';
 };
 
 export type LiveSessionHostMediaOfferEvent =

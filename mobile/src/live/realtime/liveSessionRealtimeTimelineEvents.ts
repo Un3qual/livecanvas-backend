@@ -128,6 +128,8 @@ function readTimelineEventPayload(
 function readRealtimeStatus(
   value: unknown,
 ): 'STARTING' | 'LIVE' | 'ENDED' | null {
+  // Channel payloads use lowercase wire strings; the app state keeps GraphQL's
+  // uppercase enum casing.
   switch (value) {
     case 'starting':
       return 'STARTING';
@@ -143,6 +145,8 @@ function readRealtimeStatus(
 function readRealtimeVisibility(
   value: unknown,
 ): 'PUBLIC' | 'FOLLOWERS' | null {
+  // Channel payloads use lowercase wire strings; the app state keeps GraphQL's
+  // uppercase enum casing.
   switch (value) {
     case 'public':
       return 'PUBLIC';

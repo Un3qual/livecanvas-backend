@@ -169,7 +169,8 @@ function normalizeLiveMediaIceServer(
 ): LiveMediaIceServer | null {
   const urls =
     iceServer.urls
-      ?.map((url) => url.trim())
+      ?.filter((url): url is string => typeof url === 'string')
+      .map((url) => url.trim())
       .filter((url) => url.length > 0) ?? [];
 
   if (urls.length === 0) {

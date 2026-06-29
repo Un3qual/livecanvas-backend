@@ -265,7 +265,12 @@ describe('hostBroadcastMediaSignaling', () => {
           credential: 'turn-secret',
           credentialType: 'PASSWORD',
           username: 'turn-user',
-          urls: [' turn:turn.example.test:3478 ', ''],
+          urls: [
+            ' turn:turn.example.test:3478 ',
+            42 as unknown as string,
+            null as unknown as string,
+            '',
+          ],
         },
       ]),
     ).toEqual([

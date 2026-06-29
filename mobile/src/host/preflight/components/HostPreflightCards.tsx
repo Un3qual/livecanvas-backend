@@ -74,6 +74,8 @@ export function PreflightReadinessCard({
           state={
             preflightState.backendMediaContractReady
               ? readyStatus()
+              // Publishing setup is still pending until the backend contract is
+              // ready; only an explicit publishing error blocks readiness.
               : publishingStatus === 'errored'
                 ? { label: 'Blocked', tone: 'blocked' }
                 : pendingStatus(publishingStatusLabel(publishingStatus))

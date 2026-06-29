@@ -14,6 +14,8 @@ function textResponse(body: string, init: ResponseInit) {
 }
 
 function importAuthenticatedFetchModule() {
+  // Use a unique query string to bypass Bun's module cache so each test gets a
+  // fresh module instance wired to that case's mocked dependencies.
   return import(`../../src/auth/authenticatedFetch?test=${crypto.randomUUID()}`);
 }
 

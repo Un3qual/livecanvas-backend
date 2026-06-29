@@ -46,11 +46,11 @@ export function readMediaOfferEvent(
 ): LiveSessionRealtimeMediaOfferEvent | null {
   const event = readMediaDescriptionEvent('offer', payload);
 
-  return event
+  return event?.senderRole === 'host'
     ? {
         description: event.description,
         kind: 'media_offer',
-        senderRole: event.senderRole,
+        senderRole: 'host',
       }
     : null;
 }
@@ -60,11 +60,11 @@ export function readMediaAnswerEvent(
 ): LiveSessionRealtimeMediaAnswerEvent | null {
   const event = readMediaDescriptionEvent('answer', payload);
 
-  return event
+  return event?.senderRole === 'viewer'
     ? {
         description: event.description,
         kind: 'media_answer',
-        senderRole: event.senderRole,
+        senderRole: 'viewer',
       }
     : null;
 }
@@ -113,10 +113,10 @@ export function readMediaViewerReadyEvent(
 
   const senderRole = readSenderRole(payload.sender_role);
 
-  return senderRole
+  return senderRole === 'viewer'
     ? {
         kind: 'media_viewer_ready',
-        senderRole,
+        senderRole: 'viewer',
       }
     : null;
 }

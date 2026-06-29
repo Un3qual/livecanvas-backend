@@ -129,6 +129,8 @@ export function OtherUserProfileScreen({ id }: { id: string }) {
       return;
     }
 
+    // Keep confirmed relationship state in the parent while the keyed remount
+    // forces a fresh query, preventing a stale cached relationship flash.
     setRelationshipStateOverride({ profileId, state });
     retryQuery();
   };

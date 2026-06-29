@@ -300,6 +300,8 @@ function ViewerProfileContent() {
     request: FollowRequestSubmissionInput,
     action: FollowRequestActionKind,
   ) => {
+    // The ref closes the same-tick gap before reducer state reflects
+    // activeAction, so rapid taps cannot start duplicate mutations.
     if (
       followRequestState.activeAction ||
       activeFollowRequestActionRef.current

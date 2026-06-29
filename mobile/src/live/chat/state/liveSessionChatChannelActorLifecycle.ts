@@ -38,12 +38,14 @@ export function createLiveSessionChatChannelActorLifecycle({
 
     actor = createActor(liveSessionChatChannelMachine).start();
     currentState = selectLiveSessionChatChannelState(actor.getSnapshot());
+    onStateChanged(currentState);
   }
 
   function stop() {
     actor?.stop();
     actor = null;
     currentState = INITIAL_LIVE_SESSION_CHAT_CHANNEL_STATE;
+    onStateChanged(currentState);
   }
 
   function send(
