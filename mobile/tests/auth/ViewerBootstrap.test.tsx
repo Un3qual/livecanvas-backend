@@ -9,8 +9,11 @@ import {
 
 import type { AuthState } from '../../src/auth/types';
 
+type EffectCleanup = () => void;
+type EffectCallback = () => EffectCleanup | undefined;
+
 type HookDispatcher = {
-  useEffect: (effect: () => void | (() => void), deps?: unknown[]) => void;
+  useEffect: (effect: EffectCallback, deps?: unknown[]) => void;
   useReducer: <State, Action>(
     reducer: (state: State, action: Action) => State,
     initialArg: State,
