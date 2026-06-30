@@ -114,6 +114,8 @@ let pushedRoutes: unknown[];
 let hookIndex = 0;
 let hookStates: unknown[] = [];
 
+// This focused renderer replaces React's hook dispatcher. It only supports
+// useState, useReducer, and useRef, each consuming the next state slot in order.
 const reactInternals = (
   await import('react')
 ).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE as {

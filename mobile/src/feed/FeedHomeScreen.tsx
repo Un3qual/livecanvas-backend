@@ -205,6 +205,8 @@ export function FeedHomeContent() {
     reportPostReducer,
     createReportPostState(),
   );
+  // The ref closes the duplicate-tap gap before React commits reducer state.
+  // After a rerender, reportPostState is the committed source of truth.
   const activeReportPostIdRef = useRef<string | null>(null);
   const [commitReportPost] = useMutation<FeedHomeScreenReportPostMutation>(
     feedHomeScreenReportPostMutation,
@@ -351,6 +353,8 @@ export function FeedHomeContent() {
   }
 
   function reportPost(post: FeedHomePost) {
+    // Check the ref for same-render duplicate taps, then reducer state for
+    // committed report progress and confirmation.
     if (
       viewerId == null ||
       post.author.id === viewerId ||

@@ -67,19 +67,9 @@ export function formatPostCardPresentation(
 export function formatPostAuthorPresentation(
   author: FeedPostAuthorInput,
 ): FeedPostAuthorPresentation {
-  const email = author.email?.trim();
-
-  if (email) {
-    return {
-      title: email,
-      subtitle: 'Creator',
-      initials: email.charAt(0).toUpperCase(),
-    };
-  }
-
   return {
     title: 'LiveCanvas creator',
-    subtitle: `Profile ID ${author.id.slice(0, 8)}`,
+    subtitle: 'Creator',
     initials: 'LC',
   };
 }
@@ -201,7 +191,16 @@ function normalizeFeedMediaPublicUrl(
     return null;
   }
 
-  return parseFeedMediaPublicUrl(trimmedPublicUrl) ? trimmedPublicUrl : null;
+  const parsedUrl = parseFeedMediaPublicUrl(trimmedPublicUrl);
+
+  if (
+    parsedUrl == null ||
+    (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:')
+  ) {
+    return null;
+  }
+
+  return trimmedPublicUrl;
 }
 
 function parseFeedMediaPublicUrl(publicUrl: string): URL | null {

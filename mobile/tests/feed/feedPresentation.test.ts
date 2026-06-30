@@ -32,9 +32,9 @@ describe('feedPresentation', () => {
       timestampLabel: 'Jun 30, 2026',
       storyExpiryLabel: null,
       author: {
-        title: 'creator@example.com',
+        title: 'LiveCanvas creator',
         subtitle: 'Creator',
-        initials: 'C',
+        initials: 'LC',
       },
       mediaAssets: [],
     });
@@ -62,7 +62,7 @@ describe('feedPresentation', () => {
       storyExpiryLabel: 'Expires Jul 1, 2026',
       author: {
         title: 'LiveCanvas creator',
-        subtitle: 'Profile ID VXNlcjoy',
+        subtitle: 'Creator',
         initials: 'LC',
       },
       mediaAssets: [],
@@ -93,7 +93,7 @@ describe('feedPresentation', () => {
       storyExpiryLabel: 'Expiry unavailable',
       author: {
         title: 'LiveCanvas creator',
-        subtitle: 'Profile ID VXNlcjoz',
+        subtitle: 'Creator',
         initials: 'LC',
       },
       mediaAssets: [],
@@ -115,6 +115,42 @@ describe('feedPresentation', () => {
       publicUrl: 'https://media.example.test/post.jpg',
       body: 'Media is ready.',
     });
+
+    expect(
+      formatFeedMediaAssetPresentation({
+        id: 'TWVkaWFBc3NldDFi',
+        mimeType: 'image/jpeg',
+        processingState: 'PROCESSED',
+        publicUrl: '  HTTPS://media.example.test/post.jpg  ',
+      }),
+    ).toEqual({
+      id: 'TWVkaWFBc3NldDFi',
+      label: 'Image',
+      state: 'available',
+      publicUrl: 'HTTPS://media.example.test/post.jpg',
+      body: 'Media is ready.',
+    });
+
+    for (const publicUrl of [
+      'javascript:alert(1)',
+      'data:text/plain,post',
+      'file:///tmp/post.jpg',
+    ]) {
+      expect(
+        formatFeedMediaAssetPresentation({
+          id: `unsafe-${publicUrl}`,
+          mimeType: 'image/jpeg',
+          processingState: 'PROCESSED',
+          publicUrl,
+        }),
+      ).toEqual({
+        id: `unsafe-${publicUrl}`,
+        label: 'Image',
+        state: 'unavailable',
+        publicUrl: null,
+        body: 'Media is unavailable.',
+      });
+    }
 
     expect(
       formatFeedMediaAssetPresentation({
@@ -169,9 +205,9 @@ describe('feedPresentation', () => {
         email: '  author@example.com  ',
       }),
     ).toEqual({
-      title: 'author@example.com',
+      title: 'LiveCanvas creator',
       subtitle: 'Creator',
-      initials: 'A',
+      initials: 'LC',
     });
 
     expect(formatPostVisibilityLabel('PUBLIC')).toBe('Public');
