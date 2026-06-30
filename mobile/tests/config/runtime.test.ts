@@ -71,6 +71,12 @@ describe('routeHrefFromUrl', () => {
     );
   });
 
+  test('accepts the diagnostics deep link route', () => {
+    expect(routeHrefFromUrl('livecanvas-mobile://diagnostics')).toBe(
+      '/diagnostics',
+    );
+  });
+
   test('strips query params from known non-live routes', () => {
     expect(routeHrefFromUrl('livecanvas-mobile://sign-in?x=1')).toBe(
       '/sign-in',
@@ -238,6 +244,27 @@ describe('resolveLandingHrefForAuth', () => {
       ),
     ).toBe('/host-broadcast');
   });
+
+  test('preserves diagnostics deep links across auth routing', () => {
+    const snapshot = {
+      initialUrl: 'livecanvas-mobile://diagnostics',
+      initialHref: '/diagnostics',
+      landingHref: '/diagnostics',
+      defaultHref: '/home',
+      bootSessionState: 'authenticated' as const,
+      resetReason: null,
+    };
+
+    expect(resolveLandingHrefForAuth(snapshot, 'authenticated')).toBe(
+      '/diagnostics',
+    );
+    expect(
+      resolveLandingHrefForAuth(
+        { ...snapshot, bootSessionState: 'signed_out', defaultHref: '/sign-in' },
+        'unauthenticated',
+      ),
+    ).toBe('/sign-in?returnTo=%2Fdiagnostics');
+  });
 });
 
 describe('auth return targets', () => {
@@ -258,6 +285,12 @@ describe('auth return targets', () => {
     );
   });
 
+  test('encodes diagnostics return targets on auth routes', () => {
+    expect(authRouteHref('/sign-in', '/diagnostics')).toBe(
+      '/sign-in?returnTo=%2Fdiagnostics',
+    );
+  });
+
   test('reads only the first live-session return target', () => {
     expect(
       readAuthReturnToParam([
@@ -269,6 +302,10 @@ describe('auth return targets', () => {
 
   test('reads host-broadcast return targets', () => {
     expect(readAuthReturnToParam('/host-broadcast')).toBe('/host-broadcast');
+  });
+
+  test('reads diagnostics return targets', () => {
+    expect(readAuthReturnToParam('/diagnostics')).toBe('/diagnostics');
   });
 
   test('rejects external and auth-route return targets', () => {

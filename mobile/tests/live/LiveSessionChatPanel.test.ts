@@ -25,6 +25,9 @@ describe('LiveSessionChatPanel presentation model', () => {
           label: 'Timeline event',
         }),
       ],
+      canLoadOlder: false,
+      isLoadingOlder: false,
+      olderLoadError: null,
       sendError: null,
       sendStatus: 'idle',
     });
@@ -59,6 +62,9 @@ describe('LiveSessionChatPanel presentation model', () => {
         draftMessage: 'hello',
         isJoined: false,
         rows: [],
+        canLoadOlder: false,
+        isLoadingOlder: false,
+        olderLoadError: null,
         sendError: null,
         sendStatus: 'idle',
       }),
@@ -75,6 +81,9 @@ describe('LiveSessionChatPanel presentation model', () => {
         draftMessage: 'hello',
         isJoined: true,
         rows: [],
+        canLoadOlder: false,
+        isLoadingOlder: false,
+        olderLoadError: null,
         sendError: null,
         sendStatus: 'idle',
       }),
@@ -90,6 +99,9 @@ describe('LiveSessionChatPanel presentation model', () => {
         draftMessage: 'hello',
         isJoined: true,
         rows: [],
+        canLoadOlder: false,
+        isLoadingOlder: false,
+        olderLoadError: null,
         sendError: null,
         sendStatus: 'idle',
       }),
@@ -107,6 +119,9 @@ describe('LiveSessionChatPanel presentation model', () => {
         draftMessage: 'hello',
         isJoined: true,
         rows: [],
+        canLoadOlder: false,
+        isLoadingOlder: false,
+        olderLoadError: null,
         sendError: null,
         sendStatus: 'sending',
       }),
@@ -122,6 +137,9 @@ describe('LiveSessionChatPanel presentation model', () => {
         draftMessage: 'hello',
         isJoined: true,
         rows: [],
+        canLoadOlder: false,
+        isLoadingOlder: false,
+        olderLoadError: null,
         sendError: 'Message is too long.',
         sendStatus: 'failed',
       }),
@@ -138,6 +156,9 @@ describe('LiveSessionChatPanel presentation model', () => {
         draftMessage: '   ',
         isJoined: true,
         rows: [],
+        canLoadOlder: false,
+        isLoadingOlder: false,
+        olderLoadError: null,
         sendError: null,
         sendStatus: 'idle',
       }).sendButtonDisabled,
@@ -149,14 +170,17 @@ describe('LiveSessionChatPanel presentation model', () => {
         draftMessage: '  hello chat  ',
         isJoined: true,
         rows: [],
+        canLoadOlder: false,
+        isLoadingOlder: false,
+        olderLoadError: null,
         sendError: null,
         sendStatus: 'idle',
       }).sendButtonDisabled,
     ).toBe(false);
   });
 
-  test('bounds visible chat rows to the newest retained window', () => {
-    const rows = Array.from({ length: 55 }, (_, index) =>
+  test('keeps all explicitly loaded retained rows visible after older pagination', () => {
+    const rows = Array.from({ length: 65 }, (_, index) =>
       chatRow({
         body: `message-${index}`,
         id: `event-chat-${index}`,
@@ -167,13 +191,60 @@ describe('LiveSessionChatPanel presentation model', () => {
       draftMessage: '',
       isJoined: true,
       rows,
+      canLoadOlder: false,
+      isLoadingOlder: false,
+      olderLoadError: null,
       sendError: null,
       sendStatus: 'idle',
     });
 
-    expect(model.rows).toHaveLength(50);
-    expect(model.rows[0].id).toBe('event-chat-5');
-    expect(model.rows.at(-1)?.id).toBe('event-chat-54');
+    expect(model.rows).toHaveLength(65);
+    expect(model.rows[0].id).toBe('event-chat-0');
+    expect(model.rows.at(-1)?.id).toBe('event-chat-64');
+  });
+
+  test('exposes older retained history loading state separately from composer state', () => {
+    const loadable = createLiveSessionChatPanelModel({
+      channelStatus: 'joined',
+      draftMessage: 'hello',
+      isJoined: true,
+      rows: [chatRow({ id: 'event-chat-1' })],
+      canLoadOlder: true,
+      isLoadingOlder: false,
+      olderLoadError: null,
+      sendError: null,
+      sendStatus: 'idle',
+    });
+
+    expect(loadable).toMatchObject({
+      canLoadOlder: true,
+      olderLoadButtonDisabled: false,
+      olderLoadButtonLabel: 'Load older messages',
+      olderLoadError: null,
+      sendButtonDisabled: false,
+    });
+
+    const loading = createLiveSessionChatPanelModel({
+      channelStatus: 'joined',
+      draftMessage: 'hello',
+      isJoined: true,
+      rows: [chatRow({ id: 'event-chat-1' })],
+      canLoadOlder: true,
+      isLoadingOlder: true,
+      olderLoadError:
+        'We could not load older messages. Check your connection and try again.',
+      sendError: null,
+      sendStatus: 'idle',
+    });
+
+    expect(loading).toMatchObject({
+      canLoadOlder: true,
+      olderLoadButtonDisabled: true,
+      olderLoadButtonLabel: 'Loading older messages...',
+      olderLoadError:
+        'We could not load older messages. Check your connection and try again.',
+      sendButtonDisabled: false,
+    });
   });
 });
 

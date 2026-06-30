@@ -4,6 +4,7 @@ import {
   releaseHostBroadcastPublishingAfterAuthStateChange,
   releaseHostBroadcastPublishingBeforeAuthLoss,
 } from '../../src/host/publishing/hostBroadcastPublishingAuthCleanup';
+import type { HostBroadcastLocalMediaControls } from '../../src/host/publishing/hostBroadcastLocalMediaControls';
 import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
@@ -14,7 +15,9 @@ import {
   type HostBroadcastPublishingResource,
 } from '../../src/host/publishing/hostBroadcastPublishingSessionStore';
 
-function createResource(): HostBroadcastPublishingResource & {
+function createResource(
+  localMediaControls?: HostBroadcastLocalMediaControls,
+): HostBroadcastPublishingResource & {
   readonly disconnectCount: () => number;
   readonly disposeCount: () => number;
 } {
@@ -37,6 +40,24 @@ function createResource(): HostBroadcastPublishingResource & {
       start() {
         return Promise.resolve({ status: 'started' as const });
       },
+    },
+    ...(localMediaControls ? { localMediaControls } : {}),
+  };
+}
+
+function createLocalMediaControls(): HostBroadcastLocalMediaControls {
+  return {
+    setAudioEnabled() {
+      // Store tests only need object identity for retained controls.
+    },
+    setVideoEnabled() {
+      // Store tests only need object identity for retained controls.
+    },
+    snapshot() {
+      return {
+        audio: { available: true, enabled: true },
+        video: { available: true, enabled: true },
+      };
     },
   };
 }
@@ -108,6 +129,58 @@ describe('hostBroadcastPublishingSession', () => {
     expect(store.has('live-session-id')).toBe(false);
     expect(resource.disposeCount()).toBe(1);
     expect(resource.disconnectCount()).toBe(1);
+  });
+
+  test('returns controls for the current retained publishing resource', () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const controls = createLocalMediaControls();
+    const resource = createResource(controls);
+
+    expect(store.controlsFor('live-session-id')).toBeNull();
+
+    store.retain('live-session-id', resource);
+
+    expect(store.controlsFor('live-session-id')).toBe(controls);
+  });
+
+  test('does not require retained publishing resources to carry local controls', () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const resource = createResource();
+
+    store.retain('live-session-id', resource);
+
+    expect(store.controlsFor('live-session-id')).toBeNull();
+  });
+
+  test('invalidates stale retained controls after replacement and release', () => {
+    const store = createHostBroadcastPublishingSessionStore();
+    const firstControls = createLocalMediaControls();
+    const secondControls = createLocalMediaControls();
+    const firstResource = createResource(firstControls);
+    const secondResource = createResource(secondControls);
+
+    store.retain('live-session-id', firstResource);
+    expect(store.controlsFor('live-session-id')).toBe(firstControls);
+
+    store.retain('live-session-id', secondResource);
+    expect(store.controlsFor('live-session-id')).toBe(secondControls);
+    expect(firstResource.disposeCount()).toBe(1);
+    expect(firstResource.disconnectCount()).toBe(1);
+
+    expect(
+      releaseHostBroadcastPublishingRetainedResource(
+        'live-session-id',
+        firstResource,
+        store,
+      ),
+    ).toBe(false);
+    expect(store.controlsFor('live-session-id')).toBe(secondControls);
+
+    store.release('live-session-id');
+
+    expect(store.controlsFor('live-session-id')).toBeNull();
+    expect(secondResource.disposeCount()).toBe(1);
+    expect(secondResource.disconnectCount()).toBe(1);
   });
 
   test('ignores stale retained-resource termination after a replacement is retained for the same session', () => {

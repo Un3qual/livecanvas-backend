@@ -2,9 +2,11 @@ import type {
   HostBroadcastPublishingChannelTerminationReason,
   HostBroadcastPublishingRuntime,
 } from './hostBroadcastPublishingRuntime';
+import type { HostBroadcastLocalMediaControls } from './hostBroadcastLocalMediaControls';
 
 export type HostBroadcastPublishingResource = {
   readonly disconnectSocket: () => void;
+  readonly localMediaControls?: HostBroadcastLocalMediaControls;
   readonly runtime: HostBroadcastPublishingRuntime;
 };
 
@@ -14,6 +16,9 @@ export type HostBroadcastPublishingRetainedEntry = {
 };
 
 export type HostBroadcastPublishingSessionStore = {
+  readonly controlsFor: (
+    liveSessionId: string,
+  ) => HostBroadcastLocalMediaControls | null;
   readonly has: (liveSessionId: string) => boolean;
   readonly release: (liveSessionId: string) => void;
   readonly releaseAll: () => readonly string[];
@@ -52,6 +57,9 @@ export function createHostBroadcastPublishingSessionStore(): HostBroadcastPublis
   const resources = new Map<string, HostBroadcastPublishingResource>();
 
   return {
+    controlsFor(liveSessionId) {
+      return resources.get(liveSessionId)?.localMediaControls ?? null;
+    },
     has(liveSessionId) {
       return resources.has(liveSessionId);
     },

@@ -11,6 +11,7 @@ export type LiveSessionViewerPlaybackMachineEvent =
   | { readonly type: 'PREPARE_REQUESTED' }
   | { readonly type: 'CONNECT_REQUESTED' }
   | { readonly type: 'RUNTIME_STARTED' }
+  | { readonly type: 'RETRY_REQUESTED' }
   | {
       readonly remoteStreamUrl: string | null;
       readonly type: 'REMOTE_STREAM_RECEIVED';
@@ -177,8 +178,22 @@ export const liveSessionViewerPlaybackMachine = setup<
         },
       },
     },
-    closed: {},
-    errored: {},
+    closed: {
+      on: {
+        RETRY_REQUESTED: {
+          actions: 'resetPlayback',
+          target: 'preparing',
+        },
+      },
+    },
+    errored: {
+      on: {
+        RETRY_REQUESTED: {
+          actions: 'resetPlayback',
+          target: 'preparing',
+        },
+      },
+    },
   },
 });
 
@@ -194,6 +209,22 @@ export function selectLiveSessionViewerPlaybackState(
     remoteStreamUrl: snapshot.context.remoteStreamUrl,
     status: selectLiveSessionViewerPlaybackStatus(snapshot),
   };
+}
+
+export function canRetryLiveSessionViewerPlayback({
+  enterable,
+  isJoined,
+  state,
+}: {
+  readonly enterable: boolean;
+  readonly isJoined: boolean;
+  readonly state: ViewerPlaybackState;
+}): boolean {
+  return (
+    isJoined &&
+    enterable &&
+    (state.status === 'closed' || state.status === 'errored')
+  );
 }
 
 function selectLiveSessionViewerPlaybackStatus(

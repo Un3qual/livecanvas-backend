@@ -376,6 +376,83 @@ describe('liveSessionChatTimelineReducer', () => {
     });
   });
 
+  test('older retained page completion preserves realtime rows received while loading', () => {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
+      history: history(
+        [chatRowAt('event-3', 'already loaded', '2026-06-04T17:03:00.000000Z')],
+        pageInfo('cursor-event-3', 'cursor-event-3', { hasPreviousPage: true }),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+    const withRealtime = liveSessionChatTimelineReducer(initial, {
+      event: realtimeTimelineEventAt(
+        'event-4',
+        'live while older page loads',
+        '2026-06-04T17:04:00.000000Z',
+      ),
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+
+    const withOlder = liveSessionChatTimelineReducer(withRealtime, {
+      history: history(
+        [
+          chatRowAt('event-1', 'oldest', '2026-06-04T17:01:00.000000Z'),
+          chatRowAt('event-2', 'older', '2026-06-04T17:02:00.000000Z'),
+        ],
+        pageInfo('cursor-event-1', 'cursor-event-2', { hasPreviousPage: false }),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_older_loaded',
+    });
+
+    expect(withOlder.eventIds).toEqual([
+      'event-1',
+      'event-2',
+      'event-3',
+      'event-4',
+    ]);
+    expect(selectLiveSessionChatVisibleRows(withOlder).map((row) => row.id)).toEqual(
+      ['event-1', 'event-2', 'event-3', 'event-4'],
+    );
+    expect(withOlder.eventsById['event-4']).toMatchObject({
+      body: 'live while older page loads',
+      cursor: null,
+    });
+  });
+
+  test('session changes clear loaded older pagination state', () => {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
+      history: history(
+        [chatRow('event-3', 'already loaded')],
+        pageInfo('cursor-event-3', 'cursor-event-3', { hasPreviousPage: true }),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+    const withOlder = liveSessionChatTimelineReducer(initial, {
+      history: history(
+        [chatRow('event-1', 'older'), chatRow('event-2', 'overlap')],
+        pageInfo('cursor-event-1', 'cursor-event-2', { hasPreviousPage: false }),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_older_loaded',
+    });
+
+    const nextSession = liveSessionChatTimelineReducer(withOlder, {
+      sessionId: 'session-2',
+      type: 'session_changed',
+    });
+
+    expect(nextSession).toEqual({
+      activeSessionId: 'session-2',
+      eventIds: [],
+      eventsById: {},
+      pageInfo: null,
+    });
+  });
+
   test('newer retained catch-up appends rows without duplicate IDs', () => {
     const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history(

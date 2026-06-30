@@ -1,6 +1,7 @@
 import { Redirect, Stack } from 'expo-router';
 
 import { useAuth } from '../../src/auth/AuthProvider';
+import { ViewerBootstrap } from '../../src/auth/ViewerBootstrap';
 
 export default function AppLayout() {
   const { state } = useAuth();
@@ -14,11 +15,13 @@ export default function AppLayout() {
   }
 
   return (
-    <Stack
-      initialRouteName="home"
-      screenOptions={{
-        headerShown: false,
-      }}
-    />
+    <ViewerBootstrap>
+      <Stack
+        initialRouteName="home"
+        screenOptions={{
+          headerShown: false,
+        }}
+      />
+    </ViewerBootstrap>
   );
 }

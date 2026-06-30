@@ -6,7 +6,6 @@ import {
   type AppEnvironment,
 } from '../config/environment';
 import { AuthProvider } from '../auth/AuthProvider';
-import { ViewerBootstrap } from '../auth/ViewerBootstrap';
 import { HostBroadcastPublishingSessionProvider } from '../host/HostBroadcastPublishingSessionProvider';
 import { RelayEnvironmentProvider } from '../relay/RelayEnvironmentProvider';
 import { StartupGate } from './StartupGate';
@@ -42,9 +41,7 @@ function EnvironmentProviders({
 function SessionProviders({ children }: PropsWithChildren) {
   return (
     <HostBroadcastPublishingSessionProvider>
-      <RelayEnvironmentProvider>
-        <ViewerBootstrap>{children}</ViewerBootstrap>
-      </RelayEnvironmentProvider>
+      <RelayEnvironmentProvider>{children}</RelayEnvironmentProvider>
     </HostBroadcastPublishingSessionProvider>
   );
 }

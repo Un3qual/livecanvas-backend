@@ -45,6 +45,13 @@ const styles = StyleSheet.create({
   emptyText: typography.body,
 });
 
+type LiveDiscoveryHomeAction = {
+  key: 'host' | 'profile' | 'diagnostics';
+  label: string;
+  route: '/host-broadcast' | '/profile' | '/diagnostics';
+  variant: 'primary' | 'secondary';
+};
+
 export function LiveDiscoveryScreen() {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
 
@@ -65,6 +72,42 @@ export function shouldShowHostCreationAction(
   currentSession: LiveSessionSummary | null | undefined,
 ): boolean {
   return currentSession == null;
+}
+
+export function createLiveDiscoveryHomeActions(
+  showHostCreationAction: boolean,
+): LiveDiscoveryHomeAction[] {
+  return [
+    ...(showHostCreationAction
+      ? ([
+          {
+            key: 'host',
+            label: 'Host a live session',
+            route: '/host-broadcast',
+            variant: 'primary',
+          },
+        ] satisfies LiveDiscoveryHomeAction[])
+      : []),
+    {
+      key: 'profile',
+      label: 'Open profile',
+      route: '/profile',
+      variant: 'secondary',
+    },
+    {
+      key: 'diagnostics',
+      label: 'Diagnostics',
+      route: '/diagnostics',
+      variant: 'secondary',
+    },
+  ];
+}
+
+export function pushLiveDiscoveryHomeAction(
+  router: { push: (route: LiveDiscoveryHomeAction['route']) => void },
+  action: Pick<LiveDiscoveryHomeAction, 'route'>,
+) {
+  router.push(action.route);
 }
 
 type LiveDiscoveryErrorBoundaryProps = PropsWithChildren<{
@@ -148,20 +191,13 @@ function LiveDiscoveryContent() {
   const currentSession = data.viewer?.currentLiveSession ?? null;
   const currentSessionId = currentSession?.id;
   const showHostCreationAction = shouldShowHostCreationAction(currentSession);
+  const homeActions = createLiveDiscoveryHomeActions(showHostCreationAction);
   const liveNowSessions = readConnectionNodes(data.liveNow).filter(
     (session) => session.id !== currentSessionId,
   );
 
   function openLiveSession(session: LiveSessionSummary) {
     router.push(liveSessionHref(session.id));
-  }
-
-  function openViewerProfile() {
-    router.push('/profile');
-  }
-
-  function openHostBroadcast() {
-    router.push('/host-broadcast');
   }
 
   return (
@@ -189,15 +225,17 @@ function LiveDiscoveryContent() {
             subtitle="Join active sessions from people you can watch."
           />
           <View style={styles.actions}>
-            {showHostCreationAction ? (
-              <AppButton label="Host a live session" onPress={openHostBroadcast} />
-            ) : null}
-            <AppButton
-              label="Open profile"
-              onPress={openViewerProfile}
-              style={styles.profileAction}
-              variant="secondary"
-            />
+            {homeActions.map((action) => (
+              <AppButton
+                key={action.key}
+                label={action.label}
+                onPress={() => pushLiveDiscoveryHomeAction(router, action)}
+                style={
+                  action.key === 'profile' ? styles.profileAction : undefined
+                }
+                variant={action.variant}
+              />
+            ))}
           </View>
 
           {currentSession ? (

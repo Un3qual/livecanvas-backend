@@ -2,9 +2,11 @@ import { describe, expect, test } from 'bun:test';
 import { createActor } from 'xstate';
 
 import {
+  canRetryLiveSessionViewerPlayback,
   liveSessionViewerPlaybackMachine,
   selectLiveSessionViewerPlaybackState,
 } from '../../src/live/watch/state/liveSessionViewerPlaybackMachine';
+import type { ViewerPlaybackState } from '../../src/live/watch/liveSessionWatchScreenTypes';
 
 function startMachine() {
   return createActor(liveSessionViewerPlaybackMachine).start();
@@ -203,6 +205,145 @@ describe('liveSessionViewerPlaybackMachine', () => {
       error: null,
       remoteStreamUrl: null,
       status: 'idle',
+    });
+  });
+
+  test('marks only closed and errored playback as retryable for joined enterable sessions', () => {
+    const baseState: ViewerPlaybackState = {
+      error: null,
+      remoteStreamUrl: null,
+      status: 'closed',
+    };
+
+    expect(
+      canRetryLiveSessionViewerPlayback({
+        enterable: true,
+        isJoined: true,
+        state: baseState,
+      }),
+    ).toBe(true);
+    expect(
+      canRetryLiveSessionViewerPlayback({
+        enterable: true,
+        isJoined: true,
+        state: { ...baseState, error: 'connection failed', status: 'errored' },
+      }),
+    ).toBe(true);
+    expect(
+      canRetryLiveSessionViewerPlayback({
+        enterable: false,
+        isJoined: true,
+        state: baseState,
+      }),
+    ).toBe(false);
+    expect(
+      canRetryLiveSessionViewerPlayback({
+        enterable: true,
+        isJoined: false,
+        state: baseState,
+      }),
+    ).toBe(false);
+
+    for (const status of [
+      'idle',
+      'preparing',
+      'connecting',
+      'waiting_for_host',
+      'playing',
+    ] satisfies ViewerPlaybackState['status'][]) {
+      expect(
+        canRetryLiveSessionViewerPlayback({
+          enterable: true,
+          isJoined: true,
+          state: { ...baseState, status },
+        }),
+      ).toBe(false);
+    }
+  });
+
+  test('retry from closed and errored playback resets through preparing and connecting', () => {
+    const closedActor = startMachine();
+
+    closedActor.send({ type: 'PREPARE_REQUESTED' });
+    closedActor.send({ type: 'CONNECT_REQUESTED' });
+    closedActor.send({
+      remoteStreamUrl: 'stream://host-camera',
+      type: 'REMOTE_STREAM_RECEIVED',
+    });
+    closedActor.send({ type: 'CLOSED' });
+    closedActor.send({ type: 'RETRY_REQUESTED' });
+
+    expect(
+      selectLiveSessionViewerPlaybackState(closedActor.getSnapshot()),
+    ).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'preparing',
+    });
+
+    closedActor.send({ type: 'CONNECT_REQUESTED' });
+
+    expect(
+      selectLiveSessionViewerPlaybackState(closedActor.getSnapshot()),
+    ).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'connecting',
+    });
+
+    const erroredActor = startMachine();
+
+    erroredActor.send({ type: 'PREPARE_REQUESTED' });
+    erroredActor.send({
+      error: 'connection failed',
+      type: 'FAILED',
+    });
+    erroredActor.send({ type: 'RETRY_REQUESTED' });
+
+    expect(
+      selectLiveSessionViewerPlaybackState(erroredActor.getSnapshot()),
+    ).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'preparing',
+    });
+  });
+
+  test('ignores retry while playback is idle, active, or already playing', () => {
+    const actor = startMachine();
+
+    actor.send({ type: 'RETRY_REQUESTED' });
+    expect(selectLiveSessionViewerPlaybackState(actor.getSnapshot()).status).toBe(
+      'idle',
+    );
+
+    actor.send({ type: 'PREPARE_REQUESTED' });
+    actor.send({ type: 'RETRY_REQUESTED' });
+    expect(selectLiveSessionViewerPlaybackState(actor.getSnapshot()).status).toBe(
+      'preparing',
+    );
+
+    actor.send({ type: 'CONNECT_REQUESTED' });
+    actor.send({ type: 'RETRY_REQUESTED' });
+    expect(selectLiveSessionViewerPlaybackState(actor.getSnapshot()).status).toBe(
+      'connecting',
+    );
+
+    actor.send({ type: 'RUNTIME_STARTED' });
+    actor.send({ type: 'RETRY_REQUESTED' });
+    expect(selectLiveSessionViewerPlaybackState(actor.getSnapshot()).status).toBe(
+      'waiting_for_host',
+    );
+
+    actor.send({
+      remoteStreamUrl: 'stream://host-camera',
+      type: 'REMOTE_STREAM_RECEIVED',
+    });
+    actor.send({ type: 'RETRY_REQUESTED' });
+    expect(selectLiveSessionViewerPlaybackState(actor.getSnapshot())).toEqual({
+      error: null,
+      remoteStreamUrl: 'stream://host-camera',
+      status: 'playing',
     });
   });
 });
