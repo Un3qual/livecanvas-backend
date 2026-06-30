@@ -35,6 +35,17 @@ function AppHeaderMock({
   return createElement('View', null, eyebrow, title, subtitle);
 }
 
+function readLiveSessionIdParamMock(
+  value?: string | string[],
+): string | null {
+  const raw = Array.isArray(value)
+    ? value.find((candidate) => candidate.trim().length > 0)
+    : value;
+  const trimmed = raw?.trim();
+
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
 mock.module('expo-router', () => ({
   useRouter: () => ({ push: () => undefined }),
 }));
@@ -93,6 +104,7 @@ mock.module('../../src/live/liveSessionNavigation', () => ({
     params: { sessionId },
     pathname: '/live-session',
   }),
+  readLiveSessionIdParam: readLiveSessionIdParamMock,
 }));
 mock.module('../../src/live/components/LiveSessionSummaryCard', () => ({
   LiveSessionSummaryCard: () => null,

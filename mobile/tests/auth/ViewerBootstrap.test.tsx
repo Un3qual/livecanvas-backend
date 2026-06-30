@@ -42,6 +42,20 @@ let hookIndex = 0;
 let hookStates: unknown[];
 let viewerQueryCalls: number;
 
+function AppButtonMock({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  return createElement(
+    'Pressable',
+    { accessibilityRole: 'button', onPress },
+    label,
+  );
+}
+
 mock.module('react-relay', () => ({
   graphql: (query: TemplateStringsArray) => query,
   useLazyLoadQuery: () => {
@@ -81,7 +95,7 @@ mock.module('../../src/providers/ThemeProvider', () => ({
 }));
 
 mock.module('../../src/components/AppButton', () => ({
-  AppButton: ({ label }: { label: string }) => label,
+  AppButton: AppButtonMock,
 }));
 
 const { ViewerBootstrap } = await import('../../src/auth/ViewerBootstrap');

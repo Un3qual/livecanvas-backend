@@ -18,6 +18,9 @@ import type { StartupSnapshot } from '../../src/config/runtime';
 import type { DiagnosticsProbeStatus } from '../../src/diagnostics/releaseDiagnosticsPresentation';
 import type { ReleaseDiagnosticsScreenModelInput } from '../../src/diagnostics/releaseDiagnosticsScreenModel';
 
+const API_PROBE_TIMEOUT_MS = 5_000;
+const WEBSOCKET_PROBE_TIMEOUT_MS = 3_000;
+
 type StartupState = {
   environment: AppEnvironment;
   snapshot: StartupSnapshot;
@@ -98,6 +101,7 @@ mock.module('../../src/providers/ThemeProvider', () => ({
 }));
 
 mock.module('../../src/diagnostics/releaseDiagnosticsProbes', () => ({
+  API_PROBE_TIMEOUT_MS,
   runApiReachabilityProbe: ({ apiBaseUrl }: { apiBaseUrl: string }) => {
     apiProbeCalls.push(apiBaseUrl);
     return Promise.resolve(apiProbeResult);
@@ -117,6 +121,7 @@ mock.module('../../src/diagnostics/releaseDiagnosticsProbes', () => ({
       ? Promise.reject(websocketProbeError)
       : Promise.resolve(websocketProbeResult);
   },
+  WEBSOCKET_PROBE_TIMEOUT_MS,
 }));
 
 const { createReleaseDiagnosticsScreenModel } = await import(
