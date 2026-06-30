@@ -14,6 +14,9 @@ distribution build without `developmentClient`.
 No remote or authenticated EAS build or submit command is required by this
 checklist.
 
+Current status: deferred until product explicitly resumes release-candidate QA.
+Use `docs/plans/mobile/NOW.md` for the active non-QA product-batch selection.
+
 ## Entry Criteria
 
 - From `mobile/`, `bun run test:quality` passes.

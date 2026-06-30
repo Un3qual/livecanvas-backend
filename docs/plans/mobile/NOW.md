@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-30
-Status: feature-completeness follow-ups complete; release-candidate QA final gate active
+Status: feature-completeness follow-ups complete; release-candidate QA deferred
 
 ## Lane Scope
 
@@ -12,10 +12,9 @@ Status: feature-completeness follow-ups complete; release-candidate QA final gat
 ## Current Batch
 
 - Source plan:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+  `docs/plans/mobile/TRACK.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: run the one-host/one-viewer release-candidate device QA final
-  gate.
+- Current task: select or write the next non-QA product-completeness batch.
 - Latest completed prerequisite:
   `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 - Latest QA evidence:
@@ -25,28 +24,28 @@ Status: feature-completeness follow-ups complete; release-candidate QA final gat
   worker environment.
 - Write scope:
   - `docs/plans/mobile/**`
-  - `mobile/**` only for reproduced launch-blocker fixes
-- Done condition: entry criteria and manual device/simulator checks are recorded
-  as passing, or launch blockers are promoted into scoped follow-up plans.
+  - `mobile/**` only after a concrete product-completeness plan is promoted
+- Done condition: the next non-QA product-completeness batch is promoted into
+  this file with source plan, write scope, done condition, and verification; or
+  the lane is explicitly marked awaiting product direction.
 - Verification:
-  - From `mobile/`: `bun run test:quality`
-  - From `mobile/`: `bun run typecheck`
   - From repo root: `git diff --check`
 
 ## Do This Now
 
-Confirm the `preview` build installs, cold-launches, and reaches the configured
-API and websocket endpoints on the target beta device.
+Review the mobile track and product goals, then promote or write the next
+non-QA product-completeness plan. Keep the release-candidate checklist deferred
+until product explicitly resumes QA.
 
 ## Guardrails
 
 - Do not run remote or authenticated EAS build/submit commands from this lane
   handoff.
+- Do not run release-candidate manual device QA from this handoff.
 - Do not reactivate archived cleanup or feature follow-up plans from this QA
   handoff.
-- Do not expand the release-candidate checklist into implementation unless a
-  launch blocker is reproduced and promoted.
-- Do not change GraphQL schema shape during this QA batch.
+- Do not expand the release-candidate checklist into implementation.
+- Do not change GraphQL schema shape during this planning batch.
 - Do not decode Relay IDs client-side.
 - Do not construct media signaling topics client-side.
 - Backend live media runtime foundation and the viewer setup contract are
@@ -57,5 +56,5 @@ API and websocket endpoints on the target beta device.
 
 ## Next Action
 
-Confirm the `preview` build installs, cold-launches, and reaches the configured
-API and websocket endpoints on the target beta device.
+Review the mobile track and product goals, then promote or write the next
+non-QA product-completeness plan.

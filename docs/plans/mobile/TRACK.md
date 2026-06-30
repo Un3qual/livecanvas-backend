@@ -11,12 +11,13 @@ streaming, and chat.
 
 ## Status
 
-- Track state: active; release-candidate device QA final gate active
+- Track state: active; non-QA product batch selection active
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Last completed detailed plan:
   `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
-- Current theme: release-candidate one-host/one-viewer device QA after queued
-  live-session product follow-ups completed.
+- Current theme: select the next product-completeness batch after queued
+  live-session product follow-ups completed; release-candidate QA remains
+  deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in
@@ -52,10 +53,9 @@ streaming, and chat.
 - Feature follow-ups are archived through
   `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`.
 - Release-candidate manual QA remains tracked in
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md` and is now the
-  bottom-priority final gate because the queued product follow-ups are complete.
-  No remote or authenticated EAS build/submit command is required by that
-  checklist.
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`, but it is
+  deferred until product explicitly resumes QA. No remote or authenticated EAS
+  build/submit command is required by that checklist.
 
 ## Completed Detailed Plans
 
@@ -103,8 +103,8 @@ streaming, and chat.
 
 ## Active And Queued Follow-Up Plans
 
-All queued product follow-up plans are complete and archived. The only active
-remaining gate is:
+All queued product follow-up plans are complete and archived. The active work is
+to select or write the next non-QA product-completeness batch. Deferred QA gate:
 
 - `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 

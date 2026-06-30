@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-06-30
-Status: mobile release-candidate QA final gate active; backend lane idle
+Status: mobile product-batch selection active; release-candidate QA deferred; backend lane idle
 
 ## Purpose
 
@@ -22,10 +22,10 @@ details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active; release-candidate one-host/one-viewer QA is current
+- State: active; select the next non-QA product-completeness batch
 - Scope: `mobile/` and `docs/plans/mobile/**`
 - Current source plan:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+  `docs/plans/mobile/NOW.md`
 - Latest completed source plan:
   `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 
@@ -44,10 +44,10 @@ track docs.
 
 ## Next Coordinator Decision
 
-Continue the mobile release-candidate device QA final gate from
-`docs/plans/mobile/NOW.md`. The previously queued product follow-ups are
-implemented and archived, so release QA is back on deck as the bottom-priority
-remaining gate.
+Do not reactivate release-candidate QA yet. The previously queued mobile
+product follow-ups are implemented and archived; select or create the next
+non-QA product-completeness batch from `docs/plans/mobile/NOW.md` before any
+release-candidate device QA work resumes.
 
 ## Repair Conditions
 

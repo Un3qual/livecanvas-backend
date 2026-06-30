@@ -36,10 +36,9 @@ Mobile-facing contracts:
 
 ## Next Action
 
-No backend lane batch is currently selected. The next documented product batch
-is the mobile release-candidate one-host/one-viewer device QA final gate from
-`docs/plans/mobile/NOW.md`, unless the coordinator explicitly reprioritizes a
-new backend plan.
+No backend lane batch is currently selected. The current coordinator action is
+mobile non-QA product-batch selection from `docs/plans/mobile/NOW.md`, unless
+the coordinator explicitly reprioritizes a new backend plan.
 
 ## References
 
