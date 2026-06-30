@@ -69,6 +69,7 @@ mock.module('react-relay', () => ({
     liveNow: { edges: [] },
     viewer: { currentLiveSession: null },
   }),
+  useMutation: () => [() => undefined, false],
 }));
 // Bun keeps these module mocks process-wide in the full quality test run, so
 // keep shared UI mocks child-rendering for later component presentation tests.

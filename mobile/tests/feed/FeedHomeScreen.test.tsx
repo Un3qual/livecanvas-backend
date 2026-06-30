@@ -70,11 +70,38 @@ type LiveSessionNode = {
 
 type QueryVariables = Record<string, unknown>;
 
+type ReportPostMutationConfig = {
+  readonly variables: {
+    readonly input: {
+      readonly details: string | null;
+      readonly postId: string;
+      readonly reason: string;
+    };
+  };
+  readonly onCompleted?: (payload: {
+    readonly reportPost: {
+      readonly errors: ReadonlyArray<{
+        readonly field: string | null;
+        readonly message: string;
+      }>;
+      readonly report: {
+        readonly id: string;
+        readonly insertedAt: string;
+        readonly postId: string;
+        readonly reason: string;
+        readonly status: string;
+      } | null;
+    } | null;
+  }) => void;
+  readonly onError?: (error: Error) => void;
+};
+
 type HookDispatcher = {
   useReducer: <State, Action>(
     reducer: (state: State, action: Action) => State,
     initialArg: State,
   ) => [State, (action: Action) => void];
+  useRef: <Value>(initialValue: Value) => { current: Value };
   useState: <State>(
     initialState: State | (() => State),
   ) => [State, (nextState: State | ((current: State) => State)) => void];
@@ -82,6 +109,7 @@ type HookDispatcher = {
 
 let queryData: FeedHomeQueryData;
 let queryVariables: QueryVariables | null;
+let mutationCommits: ReportPostMutationConfig[];
 let pushedRoutes: unknown[];
 let hookIndex = 0;
 let hookStates: unknown[] = [];
@@ -233,6 +261,12 @@ mock.module('react-relay', () => ({
     queryVariables = variables;
     return queryData;
   },
+  useMutation: () => [
+    (config: ReportPostMutationConfig) => {
+      mutationCommits.push(config);
+    },
+    false,
+  ],
 }));
 
 mock.module('../../src/components/AppButton', () => ({
@@ -313,6 +347,7 @@ const {
 beforeEach(() => {
   queryData = createFilledQueryData();
   queryVariables = null;
+  mutationCommits = [];
   pushedRoutes = [];
   hookIndex = 0;
   hookStates = [];
@@ -440,6 +475,90 @@ describe('FeedHomeScreen', () => {
     findPressableByText(errorTree, 'Retry')?.props.onPress?.();
 
     expect(retryCalls).toEqual(['retry']);
+  });
+
+  test('reports non-owned posts while keeping own posts out of the action set', () => {
+    queryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({ bodyText: 'First public post', id: 'post-1' }),
+        post({
+          author: {
+            email: 'viewer@example.com',
+            id: 'viewer-1',
+          },
+          bodyText: 'Own post',
+          id: 'own-post',
+        }),
+      ]),
+      storyFeed: connection([]),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(findPressablesByText(tree, 'Report post')).toHaveLength(1);
+
+    findPressableByText(tree, 'Report post')?.props.onPress?.();
+
+    expect(mutationCommits).toHaveLength(1);
+    expect(mutationCommits[0].variables).toEqual({
+      input: {
+        details: null,
+        postId: 'post-1',
+        reason: 'SPAM',
+      },
+    });
+
+    mutationCommits[0].onCompleted?.({
+      reportPost: {
+        errors: [],
+        report: {
+          id: 'report-1',
+          insertedAt: '2026-06-30T18:15:30Z',
+          postId: 'post-1',
+          reason: 'SPAM',
+          status: 'OPEN',
+        },
+      },
+    });
+
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    const text = collectText(tree);
+    expect(text).toContain('First public post');
+    expect(text).toContain('Own post');
+    expect(text).toContain('Report submitted.');
+    expect(text).not.toContain('Report reason: SPAM');
+  });
+
+  test('blocks duplicate report taps and leaves payload errors retryable', () => {
+    queryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection([post({ id: 'post-1' })]),
+      storyFeed: connection([]),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+    const reportButton = findPressableByText(tree, 'Report post');
+
+    reportButton?.props.onPress?.();
+    reportButton?.props.onPress?.();
+
+    expect(mutationCommits).toHaveLength(1);
+
+    mutationCommits[0].onCompleted?.({
+      reportPost: {
+        errors: [{ field: 'postId', message: 'own_post' }],
+        report: null,
+      },
+    });
+
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('You cannot report your own post.');
+    findPressableByText(tree, 'Report post')?.props.onPress?.();
+
+    expect(mutationCommits).toHaveLength(2);
   });
 });
 
@@ -601,6 +720,17 @@ function renderWithHooks(node: ReactNode): RenderedTree {
         },
       ];
     },
+    useRef: <Value,>(initialValue: Value): { current: Value } => {
+      const currentIndex = hookIndex;
+
+      if (hookStates.length === currentIndex) {
+        hookStates.push({ current: initialValue });
+      }
+
+      hookIndex += 1;
+
+      return hookStates[currentIndex] as { current: Value };
+    },
   };
 
   try {
@@ -714,4 +844,22 @@ function findPressableByText(
   }
 
   return findPressableByText(tree.children, text);
+}
+
+function findPressablesByText(
+  tree: RenderedTree,
+  text: string,
+): HostNode[] {
+  if (tree === null || typeof tree === 'string') {
+    return [];
+  }
+
+  if (Array.isArray(tree)) {
+    return tree.flatMap((child) => findPressablesByText(child, text));
+  }
+
+  const currentMatch =
+    tree.type === 'Pressable' && collectText(tree).includes(text) ? [tree] : [];
+
+  return currentMatch.concat(findPressablesByText(tree.children, text));
 }

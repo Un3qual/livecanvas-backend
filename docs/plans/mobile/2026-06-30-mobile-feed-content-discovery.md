@@ -114,16 +114,16 @@ Evidence:
   - `mobile/tests/feed/FeedHomeScreen.test.tsx`
 
 Acceptance criteria:
-- [ ] Each visible post card offers a report action for non-owned visible posts
+- [x] Each visible post card offers a report action for non-owned visible posts
       when the backend data allows the action to be shown safely.
-- [ ] Reporting submits `reportPost(input: {postId, reason, details})` with the
+- [x] Reporting submits `reportPost(input: {postId, reason, details})` with the
       authenticated viewer implied by backend scope.
-- [ ] Supported reasons come from the schema enum values documented in
+- [x] Supported reasons come from the schema enum values documented in
       `docs/contracts/mobile-graphql-phase2.md`.
-- [ ] Duplicate taps cannot start duplicate report mutations for the same post.
-- [ ] Payload errors such as `own_post`, `not_found`, and `unauthenticated` show
+- [x] Duplicate taps cannot start duplicate report mutations for the same post.
+- [x] Payload errors such as `own_post`, `not_found`, and `unauthenticated` show
       viewer-safe copy and leave the card retryable.
-- [ ] A successful report shows a confirmation state without removing the post
+- [x] A successful report shows a confirmation state without removing the post
       from the feed.
 
 Implementation notes:
@@ -138,6 +138,11 @@ Focused verification:
 - From `mobile/`:
   - `bun test tests/feed/reportPostReducer.test.ts`
   - `bun test tests/feed/FeedHomeScreen.test.tsx`
+
+Evidence:
+- 2026-06-30: `bun test tests/feed/reportPostReducer.test.ts tests/feed/FeedHomeScreen.test.tsx`
+  passes with 10 tests after red/green implementation and Relay mutation
+  codegen.
 
 ### Task 4: Add section refresh and pagination affordances
 

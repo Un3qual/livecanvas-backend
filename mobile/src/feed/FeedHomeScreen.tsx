@@ -1,7 +1,12 @@
-import React, { Suspense, useReducer, type PropsWithChildren } from 'react';
+import React, {
+  Suspense,
+  useReducer,
+  useRef,
+  type PropsWithChildren,
+} from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { graphql, useLazyLoadQuery } from 'react-relay';
+import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
@@ -20,6 +25,16 @@ import {
   type FeedMediaAssetPresentation,
   type FeedPostCardInput,
 } from './feedPresentation';
+import {
+  DEFAULT_REPORT_POST_REASON,
+  canSubmitPostReport,
+  createReportPostState,
+  formatReportPostMutationErrors,
+  isPostReportConfirmed,
+  reportPostReducer,
+  type ReportPostState,
+} from './reportPostReducer';
+import type { FeedHomeScreenReportPostMutation } from '../__generated__/FeedHomeScreenReportPostMutation.graphql';
 import type { FeedHomeScreenQuery } from '../__generated__/FeedHomeScreenQuery.graphql';
 
 export const FEED_HOME_QUERY_VARIABLES = {
@@ -92,7 +107,28 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     padding: spacing.md,
   },
+  reportPanel: {
+    gap: spacing.xs,
+  },
 });
+
+const feedHomeScreenReportPostMutation = graphql`
+  mutation FeedHomeScreenReportPostMutation($input: ReportPostInput!) {
+    reportPost(input: $input) {
+      report {
+        id
+        postId
+        reason
+        status
+        insertedAt
+      }
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
 
 export function FeedHomeScreen() {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
@@ -165,6 +201,14 @@ export function pushFeedHomeAction(
 export function FeedHomeContent() {
   const theme = useAppTheme();
   const router = useRouter();
+  const [reportPostState, dispatchReportPost] = useReducer(
+    reportPostReducer,
+    createReportPostState(),
+  );
+  const activeReportPostIdRef = useRef<string | null>(null);
+  const [commitReportPost] = useMutation<FeedHomeScreenReportPostMutation>(
+    feedHomeScreenReportPostMutation,
+  );
   const data = useLazyLoadQuery<FeedHomeScreenQuery>(
     graphql`
       query FeedHomeScreenQuery(
@@ -291,6 +335,7 @@ export function FeedHomeContent() {
 
   const currentSession = data.viewer?.currentLiveSession ?? null;
   const currentSessionId = currentSession?.id;
+  const viewerId = data.viewer?.id ?? null;
   const homeActions = createFeedHomeActions(
     shouldShowFeedHomeHostAction(currentSession),
   );
@@ -303,6 +348,52 @@ export function FeedHomeContent() {
 
   function openLiveSession(session: LiveSessionSummary) {
     router.push(liveSessionHref(session.id));
+  }
+
+  function reportPost(post: FeedHomePost) {
+    if (
+      viewerId == null ||
+      post.author.id === viewerId ||
+      activeReportPostIdRef.current !== null ||
+      !canSubmitPostReport(reportPostState, post.id)
+    ) {
+      return;
+    }
+
+    activeReportPostIdRef.current = post.id;
+    dispatchReportPost({ postId: post.id, type: 'start' });
+    commitReportPost({
+      variables: {
+        input: {
+          details: null,
+          postId: post.id,
+          reason: DEFAULT_REPORT_POST_REASON,
+        },
+      },
+      onCompleted: (payload) => {
+        activeReportPostIdRef.current = null;
+        const result = payload.reportPost;
+
+        if (!result?.report || result.errors.length > 0) {
+          dispatchReportPost({
+            message: formatReportPostMutationErrors(result?.errors),
+            postId: post.id,
+            type: 'error',
+          });
+          return;
+        }
+
+        dispatchReportPost({ postId: post.id, type: 'success' });
+      },
+      onError: () => {
+        activeReportPostIdRef.current = null;
+        dispatchReportPost({
+          message: formatReportPostMutationErrors(null),
+          postId: post.id,
+          type: 'error',
+        });
+      },
+    });
   }
 
   return (
@@ -340,14 +431,20 @@ export function FeedHomeContent() {
 
       <PostSection
         emptyMessage="No stories are available yet."
+        onReportPost={reportPost}
         posts={stories}
+        reportPostState={reportPostState}
         title="Stories"
+        viewerId={viewerId}
       />
 
       <PostSection
         emptyMessage="No feed posts are available yet."
+        onReportPost={reportPost}
         posts={posts}
+        reportPostState={reportPostState}
         title="Home feed"
+        viewerId={viewerId}
       />
 
       <LiveSessionSection
@@ -426,17 +523,31 @@ function EmptySectionMessage({ message }: { message: string }) {
 
 function PostSection({
   emptyMessage,
+  onReportPost,
   posts,
+  reportPostState,
   title,
+  viewerId,
 }: {
   emptyMessage: string;
+  onReportPost: (post: FeedHomePost) => void;
   posts: ReadonlyArray<FeedHomePost>;
+  reportPostState: ReportPostState;
   title: string;
+  viewerId: string | null;
 }) {
   return (
     <FeedHomeSection title={title}>
       {posts.length > 0 ? (
-        posts.map((post) => <FeedPostCard key={post.id} post={post} />)
+        posts.map((post) => (
+          <FeedPostCard
+            key={post.id}
+            onReportPost={onReportPost}
+            post={post}
+            reportPostState={reportPostState}
+            viewerId={viewerId}
+          />
+        ))
       ) : (
         <EmptySectionMessage message={emptyMessage} />
       )}
@@ -444,9 +555,24 @@ function PostSection({
   );
 }
 
-function FeedPostCard({ post }: { post: FeedHomePost }) {
+function FeedPostCard({
+  onReportPost,
+  post,
+  reportPostState,
+  viewerId,
+}: {
+  onReportPost: (post: FeedHomePost) => void;
+  post: FeedHomePost;
+  reportPostState: ReportPostState;
+  viewerId: string | null;
+}) {
   const theme = useAppTheme();
   const presentation = formatPostCardPresentation(post);
+  const isOwnPost = viewerId != null && post.author.id === viewerId;
+  const isReportActive = reportPostState.activePostId === post.id;
+  const isReportConfirmed = isPostReportConfirmed(reportPostState, post.id);
+  const reportError = reportPostState.errorsByPostId[post.id] ?? null;
+  const showReportAction = viewerId != null && !isOwnPost;
 
   return (
     <AppCard>
@@ -500,6 +626,29 @@ function FeedPostCard({ post }: { post: FeedHomePost }) {
           {presentation.mediaAssets.map((asset) => (
             <MediaAssetRow asset={asset} key={asset.id} />
           ))}
+        </View>
+      ) : null}
+
+      {showReportAction ? (
+        <View style={styles.reportPanel}>
+          {isReportConfirmed ? (
+            <Text style={[styles.metadataText, { color: theme.colors.text }]}>
+              Report submitted.
+            </Text>
+          ) : (
+            <AppButton
+              disabled={isReportActive}
+              label={isReportActive ? 'Reporting...' : 'Report post'}
+              onPress={() => onReportPost(post)}
+              variant="secondary"
+            />
+          )}
+
+          {reportError ? (
+            <Text style={[styles.metadataText, { color: theme.colors.error }]}>
+              {reportError}
+            </Text>
+          ) : null}
         </View>
       ) : null}
     </AppCard>

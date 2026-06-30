@@ -14,7 +14,7 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
 - Source plan:
   `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: Task 3, add post reporting from feed cards.
+- Current task: Task 4, add section refresh and pagination affordances.
 - Latest completed prerequisite:
   `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 - Latest QA evidence:
@@ -25,10 +25,11 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
 - Write scope:
   - `mobile/**`
   - `docs/plans/mobile/**`
-- Done condition: the mobile home surface renders backend-backed content and
-  replay discovery plus post reporting from the existing GraphQL contract; the
-  completed plan is archived or the lane is explicitly marked awaiting product
-  direction for any contract mismatch.
+- Done condition: the mobile home surface renders backend-backed content,
+  replay discovery, post reporting, and section refresh/pagination affordances
+  from the existing GraphQL contract; the completed plan is archived or the
+  lane is explicitly marked awaiting product direction for any contract
+  mismatch.
 - Verification:
   - From `mobile/`: `bun test tests/feed/feedPresentation.test.ts`
   - From `mobile/`: `bun test tests/feed/FeedHomeScreen.test.tsx`
@@ -39,11 +40,11 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
 
 ## Do This Now
 
-Implement Task 3 in
-`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`: add post
-reporting from feed cards using the existing `reportPost` mutation and local
-duplicate-submit guards. Keep the release-candidate checklist deferred until
-product explicitly resumes QA.
+Implement Task 4 in
+`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`: add section
+refresh and pagination affordances for the home feed, stories, and replays.
+Keep the release-candidate checklist deferred until product explicitly resumes
+QA.
 
 ## Guardrails
 
@@ -64,5 +65,5 @@ product explicitly resumes QA.
 
 ## Next Action
 
-Implement Task 3 in
+Implement Task 4 in
 `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`.
