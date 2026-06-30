@@ -176,13 +176,17 @@ describe('LiveDiscoveryScreen presentation', () => {
 
     expect(diagnosticsAction).toBeDefined();
 
+    if (!diagnosticsAction) {
+      throw new Error('Diagnostics action should exist');
+    }
+
     pushLiveDiscoveryHomeAction?.(
       {
         push: (route) => {
           pushedRoutes.push(route);
         },
       },
-      diagnosticsAction!,
+      diagnosticsAction,
     );
 
     expect(pushedRoutes).toEqual(['/diagnostics']);
