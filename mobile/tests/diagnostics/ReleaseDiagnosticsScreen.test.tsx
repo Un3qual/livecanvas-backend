@@ -61,12 +61,23 @@ function nativeHost(name: string) {
 }
 
 mock.module('react-native', () => ({
+  ActivityIndicator: nativeHost('ActivityIndicator'),
+  FlatList: nativeHost('FlatList'),
+  Linking: {
+    canOpenURL: () => Promise.resolve(false),
+    getInitialURL: () => Promise.resolve(null),
+    openURL: () => Promise.resolve(),
+  },
+  Platform: {
+    OS: 'ios',
+  },
   Pressable: nativeHost('Pressable'),
   ScrollView: nativeHost('ScrollView'),
   StyleSheet: {
     create: <Styles,>(styles: Styles): Styles => styles,
   },
   Text: nativeHost('Text'),
+  TextInput: nativeHost('TextInput'),
   View: nativeHost('View'),
 }));
 
