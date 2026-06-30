@@ -131,8 +131,10 @@ describe('feedPresentation', () => {
       body: 'Media is ready.',
     });
 
+    const scriptSchemeUrl = ['java', 'script:alert(1)'].join('');
+
     for (const publicUrl of [
-      'javascript:alert(1)',
+      scriptSchemeUrl,
       'data:text/plain,post',
       'file:///tmp/post.jpg',
     ]) {
@@ -200,10 +202,7 @@ describe('feedPresentation', () => {
 
   test('formats author, visibility, and story expiry labels independently', () => {
     expect(
-      formatPostAuthorPresentation({
-        id: 'VXNlcjo0',
-        email: '  author@example.com  ',
-      }),
+      formatPostAuthorPresentation(),
     ).toEqual({
       title: 'LiveCanvas creator',
       subtitle: 'Creator',

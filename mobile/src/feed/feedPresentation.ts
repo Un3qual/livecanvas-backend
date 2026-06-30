@@ -56,7 +56,7 @@ export function formatPostCardPresentation(
     visibilityLabel: formatPostVisibilityLabel(post.visibility),
     timestampLabel: formatFeedDate(post.insertedAt),
     storyExpiryLabel: formatStoryExpiryLabel(post.expiresAt),
-    author: formatPostAuthorPresentation(post.author),
+    author: formatPostAuthorPresentation(),
     mediaAssets:
       post.mediaAssets?.map((asset) =>
         formatFeedMediaAssetPresentation(asset),
@@ -64,9 +64,7 @@ export function formatPostCardPresentation(
   };
 }
 
-export function formatPostAuthorPresentation(
-  author: FeedPostAuthorInput,
-): FeedPostAuthorPresentation {
+export function formatPostAuthorPresentation(): FeedPostAuthorPresentation {
   return {
     title: 'LiveCanvas creator',
     subtitle: 'Creator',
