@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 import {
   Fragment,
+  Suspense,
   createElement,
   isValidElement,
   type ReactElement,
@@ -9,6 +10,7 @@ import {
 import type { AuthState } from '../../src/auth/types';
 
 type HookDispatcher = {
+  useEffect: (effect: () => void | (() => void), deps?: unknown[]) => void;
   useReducer: <State, Action>(
     reducer: (state: State, action: Action) => State,
     initialArg: State,
@@ -35,6 +37,7 @@ const reactInternals = (
 let authState: AuthState;
 let hookIndex = 0;
 let hookStates: unknown[];
+let currentPathname: string;
 let landingHref: string;
 let viewerQueryCalls: number;
 
@@ -42,8 +45,19 @@ mock.module('react-relay', () => ({
   graphql: (query: TemplateStringsArray) => query,
   useLazyLoadQuery: () => {
     viewerQueryCalls += 1;
-    throw new Error('viewer bootstrap query should not run for diagnostics');
+    return {
+      viewer: {
+        email: 'viewer@example.com',
+        id: 'Viewer:1',
+        insertedAt: '2026-06-30T12:00:00.000Z',
+        privacyMode: 'PUBLIC',
+      },
+    };
   },
+}));
+
+mock.module('expo-router', () => ({
+  usePathname: () => currentPathname,
 }));
 
 mock.module('../../src/providers/StartupGate', () => ({
@@ -104,6 +118,7 @@ beforeEach(() => {
   };
   hookIndex = 0;
   hookStates = [];
+  currentPathname = '/diagnostics';
   landingHref = '/diagnostics';
   viewerQueryCalls = 0;
 });
@@ -114,6 +129,14 @@ describe('ViewerBootstrap', () => {
 
     expect(collectText(tree)).toContain('diagnostics child');
     expect(viewerQueryCalls).toBe(0);
+  });
+
+  test('runs viewer bootstrap after navigating away from diagnostics', () => {
+    currentPathname = '/home';
+
+    renderViewerBootstrap('home child');
+
+    expect(viewerQueryCalls).toBe(1);
   });
 });
 
@@ -128,6 +151,7 @@ function renderViewerBootstrap(child: string): RenderedTree {
 function withHookDispatcher<ReturnValue>(render: () => ReturnValue): ReturnValue {
   const previousDispatcher = reactInternals.H;
   reactInternals.H = {
+    useEffect: () => undefined,
     useReducer: <State, Action>(
       reducer: (state: State, action: Action) => State,
       initialArg: State,
@@ -209,7 +233,7 @@ function renderNode(node: unknown): RenderedTree {
 
   const element = node as ReactElement<{ children?: unknown }>;
 
-  if (element.type === Fragment) {
+  if (element.type === Fragment || element.type === Suspense) {
     return renderNode(element.props.children);
   }
 
