@@ -243,6 +243,8 @@ export function createLiveSessionOlderTimelinePageLoader({
     isMounted = true;
   }
 
+  // Apply responses only while mounted, still on the same session, and still
+  // matching the current request token so stale or abandoned fetches are ignored.
   function isActiveRequest(liveSessionId: string, token: number): boolean {
     return (
       isMounted &&

@@ -63,6 +63,8 @@ export function createLiveSessionWatchHostMediaControls({
     return null;
   }
 
+  // Labels reflect the rendered snapshot; handlers reread controls so a press
+  // toggles the latest media state instead of a stale prop snapshot.
   const audio = snapshot.audio.available
     ? {
         label: snapshot.audio.enabled ? 'Mute mic' : 'Unmute mic',
