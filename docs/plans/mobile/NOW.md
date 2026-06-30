@@ -17,6 +17,10 @@ Status: XState live workflow cleanup complete; release-candidate QA active
 - Current task: run the one-host/one-viewer release-candidate device QA pass.
 - Latest completed prerequisite:
   `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
+- Latest QA evidence:
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md#2026-06-29-local-entry-gate-pass`
+  records passing local entry gates and notes that preview build/device/account
+  manual QA remains pending in this worker environment.
 - Write scope:
   - `docs/plans/mobile/**`
   - `mobile/**` only for reproduced launch-blocker fixes

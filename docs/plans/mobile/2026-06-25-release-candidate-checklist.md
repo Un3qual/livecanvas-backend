@@ -1,6 +1,6 @@
 # Mobile Release Candidate Checklist
 
-Last reviewed: 2026-06-25
+Last reviewed: 2026-06-29
 
 Source plan:
 `docs/plans/archive/completed/mobile/2026-06-05-testing-beta-release-readiness.md`
@@ -30,6 +30,27 @@ checklist.
 - The beta scope is one host and one viewer. Broader viewer scale or long soak
   testing belongs in deferred follow-up unless product explicitly expands the
   release-candidate scope.
+
+## QA Evidence
+
+### 2026-06-29 Local Entry Gate Pass
+
+- `mobile/`: `bun run test:quality` passes after restoring the committed
+  pnpm dependency set with `pnpm install --frozen-lockfile`; the suite reported
+  app typecheck, test typecheck, lint, and 332 Bun tests passing.
+- `mobile/`: `bun run typecheck` passes.
+- Repo root: `git diff --check` passes.
+- Local config inspection only, with no remote EAS command run:
+  `mobile/eas.json` defines a `preview` profile with internal distribution
+  extending `production`, plus a `development` profile that enables
+  `developmentClient`; `mobile/app.json` includes camera/microphone permissions
+  and the WebRTC config plugin.
+- The mobile runtime reads `EXPO_PUBLIC_API_BASE_URL` and
+  `EXPO_PUBLIC_WEBSOCKET_URL`, falling back to localhost values in local
+  builds. Target remote EAS environment values, preview build availability,
+  beta test accounts, and physical host/viewer devices were not available in
+  this local worker environment, so the manual device QA sections below remain
+  pending and the full release-candidate device QA is not marked complete.
 
 ## Launch Blockers
 
