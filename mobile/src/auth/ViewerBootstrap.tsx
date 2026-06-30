@@ -13,6 +13,7 @@ import { ScreenState } from '../components/ScreenState';
 import { useAuth } from './AuthProvider';
 import type { AuthTokenPair } from './types';
 import type { ViewerBootstrapQuery } from '../__generated__/ViewerBootstrapQuery.graphql';
+import { useStartupState } from '../providers/StartupGate';
 
 type ViewerBootstrapViewer = NonNullable<ViewerBootstrapQuery['response']['viewer']>;
 type ResolvedViewerBootstrap = {
@@ -21,6 +22,7 @@ type ResolvedViewerBootstrap = {
 };
 
 const ViewerContext = createContext<ViewerBootstrapViewer | null>(null);
+const VIEWER_BOOTSTRAP_BYPASS_PATHNAMES = new Set(['/diagnostics']);
 
 export function useViewer(): ViewerBootstrapViewer {
   const viewer = useContext(ViewerContext);
@@ -34,6 +36,7 @@ export function useViewer(): ViewerBootstrapViewer {
 
 export function ViewerBootstrap({ children }: PropsWithChildren) {
   const { state } = useAuth();
+  const { snapshot } = useStartupState();
   const [queryRetryKey, retryViewerBootstrap] = useReducer(
     (key: number) => key + 1,
     0,
@@ -42,6 +45,15 @@ export function ViewerBootstrap({ children }: PropsWithChildren) {
     useState<ResolvedViewerBootstrap | null>(null);
 
   if (state.status !== 'authenticated') {
+    return children;
+  }
+
+  // Diagnostics must stay reachable when the viewer bootstrap query itself is failing.
+  if (
+    VIEWER_BOOTSTRAP_BYPASS_PATHNAMES.has(
+      routePathFromHref(snapshot.landingHref),
+    )
+  ) {
     return children;
   }
 
@@ -75,6 +87,10 @@ export function ViewerBootstrap({ children }: PropsWithChildren) {
       </Suspense>
     </ViewerBootstrapErrorBoundary>
   );
+}
+
+function routePathFromHref(href: string): string {
+  return href.split('?', 1)[0] ?? href;
 }
 
 type ViewerBootstrapErrorBoundaryProps = PropsWithChildren<{
