@@ -49,13 +49,13 @@ into a real mobile product surface without expanding backend scope.
 - Test: `mobile/tests/feed/feedPresentation.test.ts`
 
 Acceptance criteria:
-- [ ] `Post` card presentation handles `STANDARD` and `STORY` posts.
-- [ ] Empty or missing body text renders neutral fallback copy without throwing.
-- [ ] Media asset presentation distinguishes processed, processing, failed, and
+- [x] `Post` card presentation handles `STANDARD` and `STORY` posts.
+- [x] Empty or missing body text renders neutral fallback copy without throwing.
+- [x] Media asset presentation distinguishes processed, processing, failed, and
       unavailable media.
-- [ ] Author presentation uses available profile fields and keeps missing email
+- [x] Author presentation uses available profile fields and keeps missing email
       viewer-safe.
-- [ ] Story expiry and post visibility labels are derived in pure helpers so
+- [x] Story expiry and post visibility labels are derived in pure helpers so
       screen tests do not duplicate formatting logic.
 
 Implementation notes:
@@ -64,6 +64,10 @@ Implementation notes:
 
 Focused verification:
 - From `mobile/`: `bun test tests/feed/feedPresentation.test.ts`
+
+Evidence:
+- 2026-06-30: `bun test tests/feed/feedPresentation.test.ts` passes with 4
+  tests after red/green implementation.
 
 ### Task 2: Replace live-only home with a product home surface
 
