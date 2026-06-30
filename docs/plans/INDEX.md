@@ -26,15 +26,15 @@ Use this file when:
 - Pointer: `docs/plans/mobile/NOW.md`
 - State: active
 - Track: `docs/plans/mobile/TRACK.md`
-- Current product theme: host in-session controls
-- Active detailed plan:
-  `docs/plans/mobile/follow-ups/2026-06-29-host-in-session-controls.md`
+- Current product theme: release-candidate one-host/one-viewer device QA
+- Active detailed plan: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
   payload normalization, and a completed backend media runtime foundation. The
   completed chat batch adds retained timeline history and live chat channel
   integration. Frontend structure, TypeScript readability, and XState live
-  workflow cleanup are complete; release-candidate manual device QA is now the
-  bottom-priority final gate after queued product follow-ups.
+  workflow cleanup are complete. The queued feature follow-ups through release
+  diagnostics are complete; release-candidate manual device QA is now the
+  bottom-priority remaining gate.
 
 ## Track Registry
 
@@ -57,9 +57,8 @@ Use this file when:
 
 - Track: `docs/plans/mobile/TRACK.md`
 - State: active
-- Current theme: host in-session controls
-- Active detailed plan:
-  `docs/plans/mobile/follow-ups/2026-06-29-host-in-session-controls.md`
+- Current theme: release-candidate one-host/one-viewer device QA
+- Active detailed plan: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
 ### Backend Code Quality Cleanup
 

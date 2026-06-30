@@ -37,8 +37,9 @@ Mobile-facing contracts:
 ## Next Action
 
 No backend lane batch is currently selected. The next documented product batch
-is the mobile host in-session controls batch from `docs/plans/mobile/NOW.md`,
-unless the coordinator explicitly reprioritizes a new backend plan.
+is the mobile release-candidate one-host/one-viewer device QA final gate from
+`docs/plans/mobile/NOW.md`, unless the coordinator explicitly reprioritizes a
+new backend plan.
 
 ## References
 

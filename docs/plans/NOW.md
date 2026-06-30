@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-06-30
-Status: mobile feature-completeness follow-ups active; backend lane idle
+Status: mobile release-candidate QA final gate active; backend lane idle
 
 ## Purpose
 
@@ -22,12 +22,12 @@ details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active; host in-session controls are current
+- State: active; release-candidate one-host/one-viewer QA is current
 - Scope: `mobile/` and `docs/plans/mobile/**`
 - Current source plan:
-  `docs/plans/mobile/follow-ups/2026-06-29-host-in-session-controls.md`
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Latest completed source plan:
-  `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
+  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 
 ## Execution Rule
 
@@ -44,9 +44,10 @@ track docs.
 
 ## Next Coordinator Decision
 
-Continue the mobile feature-completeness queue from `docs/plans/mobile/NOW.md`.
-Release-candidate manual device QA is intentionally last-priority until the
-queued product follow-ups are implemented or explicitly deferred.
+Continue the mobile release-candidate device QA final gate from
+`docs/plans/mobile/NOW.md`. The previously queued product follow-ups are
+implemented and archived, so release QA is back on deck as the bottom-priority
+remaining gate.
 
 ## Repair Conditions
 

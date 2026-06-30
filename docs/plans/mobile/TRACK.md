@@ -11,12 +11,12 @@ streaming, and chat.
 
 ## Status
 
-- Track state: active; feature-completeness follow-ups active
+- Track state: active; release-candidate device QA final gate active
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Last completed detailed plan:
-  `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
-- Current theme: host in-session controls, followed by queued live-session
-  product follow-ups before release-candidate device QA.
+  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
+- Current theme: release-candidate one-host/one-viewer device QA after queued
+  live-session product follow-ups completed.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in
@@ -49,16 +49,13 @@ streaming, and chat.
   import shims stayed preserved and tests remained under `mobile/tests/**`.
 - XState live workflow cleanup is archived at
   `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`.
-- Active product follow-up:
-  `docs/plans/mobile/follow-ups/2026-06-29-host-in-session-controls.md`.
+- Feature follow-ups are archived through
+  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`.
 - Release-candidate manual QA remains tracked in
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`, but it is now
-  the bottom-priority final gate after queued product follow-ups. No remote or
-  authenticated EAS build/submit command is required by that checklist.
-- Candidate tangible follow-up plans are staged under
-  `docs/plans/mobile/follow-ups/` and should be promoted one at a time before
-  reactivating release-candidate manual QA unless product explicitly defers
-  them.
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md` and is now the
+  bottom-priority final gate because the queued product follow-ups are complete.
+  No remote or authenticated EAS build/submit command is required by that
+  checklist.
 
 ## Completed Detailed Plans
 
@@ -76,6 +73,11 @@ streaming, and chat.
 - `docs/plans/archive/completed/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`
 - `docs/plans/archive/completed/mobile/2026-06-27-mobile-typescript-quality-readability.md`
 - `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
+- `docs/plans/archive/completed/mobile/2026-06-29-host-in-session-controls.md`
+- `docs/plans/archive/completed/mobile/2026-06-29-viewer-playback-recovery-controls.md`
+- `docs/plans/archive/completed/mobile/2026-06-29-chat-history-pagination.md`
+- `docs/plans/archive/completed/mobile/2026-06-29-post-live-recording-replay-affordance.md`
+- `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 
 ## Recommended Plan Order
 
@@ -101,17 +103,10 @@ streaming, and chat.
 
 ## Active And Queued Follow-Up Plans
 
-Promote these plans one at a time through `docs/plans/mobile/NOW.md`:
+All queued product follow-up plans are complete and archived. The only active
+remaining gate is:
 
-- Active:
-  `docs/plans/mobile/follow-ups/2026-06-29-host-in-session-controls.md`
-- Next:
-  `docs/plans/mobile/follow-ups/2026-06-29-viewer-playback-recovery-controls.md`
-- `docs/plans/mobile/follow-ups/2026-06-29-chat-history-pagination.md`
-- `docs/plans/mobile/follow-ups/2026-06-29-post-live-recording-replay-affordance.md`
-- `docs/plans/mobile/follow-ups/2026-06-29-release-diagnostics-screen.md`
-- Final gate:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+- `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
 ## Shared Constraints
 

@@ -103,7 +103,8 @@ Focused verification:
 ### Task 4: Keep replay scoped out of live playback
 
 **Files:**
-- Modify: `docs/plans/mobile/follow-ups/2026-06-29-post-live-recording-replay-affordance.md`
+- Modify:
+  `docs/plans/archive/completed/mobile/2026-06-29-post-live-recording-replay-affordance.md`
   only if implementation discovers a real contract mismatch.
 
 Acceptance criteria:

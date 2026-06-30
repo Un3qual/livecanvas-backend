@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-06-30
-Status: feature-completeness follow-ups active; release-candidate QA deferred
+Status: feature-completeness follow-ups complete; release-candidate QA final gate active
 
 ## Lane Scope
 
@@ -12,45 +12,41 @@ Status: feature-completeness follow-ups active; release-candidate QA deferred
 ## Current Batch
 
 - Source plan:
-  `docs/plans/mobile/follow-ups/2026-06-29-host-in-session-controls.md`
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: implement host in-session microphone and camera controls.
+- Current task: run the one-host/one-viewer release-candidate device QA final
+  gate.
 - Latest completed prerequisite:
-  `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
+  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 - Latest QA evidence:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md#2026-06-29-local-entry-gate-pass`
-  records passing local entry gates and notes that preview build/device/account
-  manual QA remains pending in this worker environment. Treat that QA as the
-  final gate after queued product follow-ups, not as the current batch.
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md#2026-06-30-product-follow-up-queue-completion`
+  records passing mobile quality gates after the completed feature queue and
+  notes that preview build/device/account manual QA remains pending in this
+  worker environment.
 - Write scope:
   - `docs/plans/mobile/**`
-  - `mobile/**`
-- Done condition: host-owned live sessions with retained publishing resources
-  expose tested mic and camera toggles, viewer/ended sessions do not expose
-  them, and the source plan verification passes.
+  - `mobile/**` only for reproduced launch-blocker fixes
+- Done condition: entry criteria and manual device/simulator checks are recorded
+  as passing, or launch blockers are promoted into scoped follow-up plans.
 - Verification:
-  - From `mobile/`: `bun test tests/host/hostBroadcastLocalMediaControls.test.ts`
-  - From `mobile/`: `bun test tests/host/hostBroadcastPublishingSession.test.ts`
-  - From `mobile/`: `bun test tests/host/useHostBroadcastPublishingController.test.ts`
-  - From `mobile/`: `bun test tests/live/liveSessionWatchHostControls.test.ts`
   - From `mobile/`: `bun run test:quality`
   - From `mobile/`: `bun run typecheck`
   - From repo root: `git diff --check`
 
 ## Do This Now
 
-Start Task 1 of the host in-session controls plan: add local media control
-helpers that can safely inspect and toggle audio/video tracks for retained host
-publishing resources.
+Confirm the `preview` build installs, cold-launches, and reaches the configured
+API and websocket endpoints on the target beta device.
 
 ## Guardrails
 
 - Do not run remote or authenticated EAS build/submit commands from this lane
   handoff.
-- Do not reactivate release-candidate manual QA until the queued product
-  follow-ups are implemented or explicitly deferred.
-- Do not reactivate archived cleanup plans from this feature handoff.
-- Do not change GraphQL schema shape during this mobile feature batch.
+- Do not reactivate archived cleanup or feature follow-up plans from this QA
+  handoff.
+- Do not expand the release-candidate checklist into implementation unless a
+  launch blocker is reproduced and promoted.
+- Do not change GraphQL schema shape during this QA batch.
 - Do not decode Relay IDs client-side.
 - Do not construct media signaling topics client-side.
 - Backend live media runtime foundation and the viewer setup contract are
@@ -61,6 +57,5 @@ publishing resources.
 
 ## Next Action
 
-Create `mobile/src/host/publishing/hostBroadcastLocalMediaControls.ts` and
-`mobile/tests/host/hostBroadcastLocalMediaControls.test.ts` from the source
-plan's Task 1.
+Confirm the `preview` build installs, cold-launches, and reaches the configured
+API and websocket endpoints on the target beta device.
