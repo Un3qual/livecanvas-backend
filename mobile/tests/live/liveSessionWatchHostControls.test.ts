@@ -6,10 +6,6 @@ import {
   type HostBroadcastLocalMediaTrack,
 } from '../../src/host/publishing/hostBroadcastLocalMediaControls';
 
-function NullComponent() {
-  return null;
-}
-
 function NativeComponent({
   children,
   ...props

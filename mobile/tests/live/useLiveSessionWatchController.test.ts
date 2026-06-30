@@ -389,9 +389,9 @@ describe('older retained timeline page loading', () => {
     }> = [];
     const states: OlderTimelinePageLoaderState[] = [];
     const loader = createLiveSessionOlderTimelinePageLoader({
-      fetchOlderTimelinePage: async (request) => {
+      fetchOlderTimelinePage: (request) => {
         requests.push(request);
-        return history;
+        return Promise.resolve(history);
       },
       onOlderTimelinePageLoaded: (loaded) => {
         loadedPages.push(loaded);
@@ -548,9 +548,8 @@ describe('older retained timeline page loading', () => {
       readonly sessionId: string;
     }> = [];
     const loader = createLiveSessionOlderTimelinePageLoader({
-      fetchOlderTimelinePage: async () => {
-        throw new Error('database exploded');
-      },
+      fetchOlderTimelinePage: () =>
+        Promise.reject(new Error('database exploded')),
       onOlderTimelinePageLoaded: (loaded) => {
         loadedPages.push(loaded);
       },
@@ -579,7 +578,7 @@ describe('older retained timeline page loading', () => {
       readonly sessionId: string;
     }> = [];
     const loader = createLiveSessionOlderTimelinePageLoader({
-      fetchOlderTimelinePage: async () => null,
+      fetchOlderTimelinePage: () => Promise.resolve(null),
       onOlderTimelinePageLoaded: (loaded) => {
         loadedPages.push(loaded);
       },
@@ -674,7 +673,7 @@ describe('older retained timeline page loading', () => {
     }> = [];
     const states: OlderTimelinePageLoaderState[] = [];
     const loader = createLiveSessionOlderTimelinePageLoader({
-      fetchOlderTimelinePage: async () => history,
+      fetchOlderTimelinePage: () => Promise.resolve(history),
       onOlderTimelinePageLoaded: (loaded) => {
         loadedPages.push(loaded);
       },

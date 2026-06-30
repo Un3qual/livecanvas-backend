@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
-import * as React from 'react';
-import { isValidElement, type ReactElement, type ReactNode } from 'react';
+import {
+  createElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 
 type LinkingMock = {
   canOpenURL: ReturnType<typeof mock>;
@@ -9,9 +13,9 @@ type LinkingMock = {
 };
 
 const linkingMock: LinkingMock = {
-  canOpenURL: mock(async () => false),
-  getInitialURL: mock(async () => null),
-  openURL: mock(async () => undefined),
+  canOpenURL: mock(() => Promise.resolve(false)),
+  getInitialURL: mock(() => Promise.resolve(null)),
+  openURL: mock(() => Promise.resolve(undefined)),
 };
 
 function NativeComponent({
@@ -21,7 +25,7 @@ function NativeComponent({
   children?: ReactNode;
   [key: string]: unknown;
 }) {
-  return React.createElement('NativeComponent', props, children);
+  return createElement('NativeComponent', props, children);
 }
 
 mock.module('react-native', () => ({
@@ -38,7 +42,7 @@ mock.module('react-native', () => ({
     children?: ReactNode;
     [key: string]: unknown;
   }) {
-    return React.createElement('Pressable', props, children);
+    return createElement('Pressable', props, children);
   },
   StyleSheet: {
     create: <Styles,>(styles: Styles): Styles => styles,
@@ -51,7 +55,7 @@ mock.module('react-native', () => ({
     children?: ReactNode;
     [key: string]: unknown;
   }) {
-    return React.createElement('Text', props, children);
+    return createElement('Text', props, children);
   },
   TextInput: NativeComponent,
   View: NativeComponent,
@@ -67,7 +71,7 @@ mock.module('../../src/components/AppButton', () => ({
     label: string;
     onPress: () => void;
   }) =>
-    React.createElement(
+    createElement(
       'Pressable',
       { accessibilityRole: 'button', disabled: disabled ?? false, onPress },
       label,
@@ -128,11 +132,17 @@ type RenderedNode = {
 
 type RenderedTree = RenderedNode | string;
 
+const reactInternals = (
+  await import('react')
+).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE as {
+  H: unknown;
+};
+
 describe('LiveSessionWatchCards recording metadata', () => {
   beforeEach(() => {
-    linkingMock.canOpenURL = mock(async () => false);
-    linkingMock.getInitialURL = mock(async () => null);
-    linkingMock.openURL = mock(async () => undefined);
+    linkingMock.canOpenURL = mock(() => Promise.resolve(false));
+    linkingMock.getInitialURL = mock(() => Promise.resolve(null));
+    linkingMock.openURL = mock(() => Promise.resolve(undefined));
   });
 
   test('omits the recording section when the session has no recording asset', () => {
@@ -261,9 +271,9 @@ describe('LiveSessionWatchCards recording metadata', () => {
   });
 
   test('opens processed recording URLs and renders a retryable failure message', async () => {
-    linkingMock.openURL = mock(async () => {
-      throw new Error('browser unavailable');
-    });
+    linkingMock.openURL = mock(() =>
+      Promise.reject(new Error('browser unavailable')),
+    );
 
     const renderer = createRenderer();
     const props = {
@@ -302,14 +312,14 @@ describe('LiveSessionWatchCards recording metadata', () => {
   });
 
   test('opens custom schemes only when the platform reports support', async () => {
-    linkingMock.canOpenURL = mock(async () => false);
+    linkingMock.canOpenURL = mock(() => Promise.resolve(false));
 
     await expect(
       openLiveSessionRecordingUrl('livecanvas://recording/1'),
     ).rejects.toThrow('Unsupported recording URL');
     expect(linkingMock.openURL).not.toHaveBeenCalled();
 
-    linkingMock.canOpenURL = mock(async () => true);
+    linkingMock.canOpenURL = mock(() => Promise.resolve(true));
 
     await openLiveSessionRecordingUrl('livecanvas://recording/1');
 
@@ -365,17 +375,14 @@ function sessionWithRecording(
 function createRenderer() {
   // Temporary test renderer: the component under test only uses useState, so
   // this narrow dispatcher shim avoids installing a full React Native renderer.
-  const internals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE as {
-    H: unknown;
-  };
-  const previousDispatcher = internals.H;
+  const previousDispatcher = reactInternals.H;
   const states: unknown[] = [];
 
   return {
     render(node: ReactNode): ReadonlyArray<RenderedTree> {
       let stateIndex = 0;
 
-      internals.H = {
+      reactInternals.H = {
         useState<State>(initialState: State): [State, (nextState: State) => void] {
           const currentIndex = stateIndex;
 
@@ -397,7 +404,7 @@ function createRenderer() {
       try {
         return renderNode(node);
       } finally {
-        internals.H = previousDispatcher;
+        reactInternals.H = previousDispatcher;
       }
     },
   };
