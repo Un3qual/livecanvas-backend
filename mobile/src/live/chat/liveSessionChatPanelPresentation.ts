@@ -14,28 +14,36 @@ export type LiveSessionChatPanelRowModel = {
 export type LiveSessionChatPanelModel = {
   readonly channelStatusLabel: string;
   readonly composerDisabled: boolean;
+  readonly canLoadOlder: boolean;
   readonly emptyStateMessage: string | null;
-  readonly rows: ReadonlyArray<LiveSessionChatPanelRowModel>;
+  readonly olderLoadButtonDisabled: boolean;
+  readonly olderLoadButtonLabel: string;
+  readonly olderLoadError: string | null;
+  readonly rows: ReadonlyArray<LiveSessionTimelineHistoryRow>;
   readonly sendButtonDisabled: boolean;
   readonly sendButtonLabel: string;
   readonly sendError: string | null;
 };
 
 export type LiveSessionChatPanelModelInput = {
+  readonly canLoadOlder: boolean;
   readonly channelStatus: LiveSessionChatChannelStatus;
   readonly draftMessage: string;
   readonly isJoined: boolean;
+  readonly isLoadingOlder: boolean;
+  readonly olderLoadError: string | null;
   readonly rows: ReadonlyArray<LiveSessionTimelineHistoryRow>;
   readonly sendError: string | null;
   readonly sendStatus: LiveSessionChatSendStatus;
 };
 
-const MAX_VISIBLE_CHAT_PANEL_ROWS = 50;
-
 export function createLiveSessionChatPanelModel({
+  canLoadOlder,
   channelStatus,
   draftMessage,
   isJoined,
+  isLoadingOlder,
+  olderLoadError,
   rows,
   sendError,
   sendStatus,
@@ -51,19 +59,23 @@ export function createLiveSessionChatPanelModel({
       channelStatus,
       isJoined,
     ),
+    canLoadOlder,
     composerDisabled,
     emptyStateMessage:
       rows.length === 0 ? 'Chat history will appear here.' : null,
-    rows: rows
-      .slice(-MAX_VISIBLE_CHAT_PANEL_ROWS)
-      .map(formatLiveSessionChatPanelRow),
+    olderLoadButtonDisabled: isLoadingOlder,
+    olderLoadButtonLabel: isLoadingOlder
+      ? 'Loading older messages...'
+      : 'Load older messages',
+    olderLoadError,
+    rows,
     sendButtonDisabled: composerDisabled || !hasSendBody,
     sendButtonLabel: sendStatus === 'sending' ? 'Sending...' : 'Send',
     sendError,
   };
 }
 
-function formatLiveSessionChatPanelRow(
+export function formatLiveSessionChatPanelRow(
   row: LiveSessionTimelineHistoryRow,
 ): LiveSessionChatPanelRowModel {
   switch (row.kind) {

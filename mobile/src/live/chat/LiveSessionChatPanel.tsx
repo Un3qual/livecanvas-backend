@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type ListRenderItem,
+} from 'react-native';
 
 import { AppButton } from '../../components/AppButton';
 import { AppCard } from '../../components/AppCard';
@@ -9,12 +16,19 @@ import type {
   LiveSessionChatChannelStatus,
   LiveSessionChatSendStatus,
 } from './liveSessionChatState';
-import { createLiveSessionChatPanelModel } from './liveSessionChatPanelPresentation';
+import {
+  createLiveSessionChatPanelModel,
+  formatLiveSessionChatPanelRow,
+} from './liveSessionChatPanelPresentation';
 import type { LiveSessionTimelineHistoryRow } from '../liveSessionTimelineHistory';
 
 type LiveSessionChatPanelProps = {
+  readonly canLoadOlder: boolean;
   readonly channelStatus: LiveSessionChatChannelStatus;
   readonly isJoined: boolean;
+  readonly isLoadingOlder: boolean;
+  readonly olderLoadError: string | null;
+  readonly onLoadOlder: () => void;
   readonly onSendMessage: (body: string) => Promise<boolean>;
   readonly rows: ReadonlyArray<LiveSessionTimelineHistoryRow>;
   readonly sendError: string | null;
@@ -31,7 +45,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  timeline: {
+  timelineList: {
+    maxHeight: 320,
+  },
+  timelineContent: {
     gap: spacing.sm,
   },
   timelineRow: {
@@ -55,6 +72,9 @@ const styles = StyleSheet.create({
   composer: {
     gap: spacing.sm,
   },
+  loadOlderButton: {
+    alignSelf: 'stretch',
+  },
   input: {
     ...typography.body,
     borderRadius: radius.md,
@@ -69,8 +89,12 @@ const styles = StyleSheet.create({
 });
 
 export function LiveSessionChatPanel({
+  canLoadOlder,
   channelStatus,
   isJoined,
+  isLoadingOlder,
+  olderLoadError,
+  onLoadOlder,
   onSendMessage,
   rows,
   sendError,
@@ -79,13 +103,43 @@ export function LiveSessionChatPanel({
   const theme = useAppTheme();
   const [draftMessage, setDraftMessage] = useState('');
   const model = createLiveSessionChatPanelModel({
+    canLoadOlder,
     channelStatus,
     draftMessage,
     isJoined,
+    isLoadingOlder,
+    olderLoadError,
     rows,
     sendError,
     sendStatus,
   });
+  const renderTimelineItem: ListRenderItem<LiveSessionTimelineHistoryRow> = ({
+    item,
+  }) => {
+    const row = formatLiveSessionChatPanelRow(item);
+
+    return (
+      <View
+        style={[
+          styles.timelineRow,
+          {
+            backgroundColor:
+              row.tone === 'chat'
+                ? theme.colors.surfaceMuted
+                : theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.rowDetail, { color: theme.colors.textMuted }]}>
+          {row.detail}
+        </Text>
+        <Text style={[styles.rowTitle, { color: theme.colors.text }]}>
+          {row.title}
+        </Text>
+      </View>
+    );
+  };
 
   async function handleSendPress() {
     const body = draftMessage.trim();
@@ -112,36 +166,37 @@ export function LiveSessionChatPanel({
         </Text>
       </View>
 
-      <View style={styles.timeline}>
-        {model.rows.length > 0 ? (
-          model.rows.map((row) => (
-            <View
-              key={row.id}
-              style={[
-                styles.timelineRow,
-                {
-                  backgroundColor:
-                    row.tone === 'chat'
-                      ? theme.colors.surfaceMuted
-                      : theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.rowDetail, { color: theme.colors.textMuted }]}>
-                {row.detail}
-              </Text>
-              <Text style={[styles.rowTitle, { color: theme.colors.text }]}>
-                {row.title}
-              </Text>
-            </View>
-          ))
-        ) : (
+      {model.canLoadOlder ? (
+        <AppButton
+          disabled={model.olderLoadButtonDisabled}
+          label={model.olderLoadButtonLabel}
+          onPress={onLoadOlder}
+          style={styles.loadOlderButton}
+          variant="secondary"
+        />
+      ) : null}
+
+      {model.olderLoadError ? (
+        <Text style={[styles.errorText, { color: theme.colors.error }]}>
+          {model.olderLoadError}
+        </Text>
+      ) : null}
+
+      <FlatList
+        contentContainerStyle={styles.timelineContent}
+        data={model.rows}
+        keyExtractor={(row) => row.id}
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
           <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
             {model.emptyStateMessage}
           </Text>
-        )}
-      </View>
+        }
+        nestedScrollEnabled
+        renderItem={renderTimelineItem}
+        showsVerticalScrollIndicator={false}
+        style={styles.timelineList}
+      />
 
       {model.sendError ? (
         <Text style={[styles.errorText, { color: theme.colors.error }]}>

@@ -10,6 +10,11 @@ import {
 import type { HostBroadcastMediaPreparation } from '../../hostBroadcastMediaSignaling';
 import type { HostBroadcastNative } from '../../hostBroadcastNative';
 import {
+  createHostBroadcastLocalMediaControls,
+  type HostBroadcastLocalMediaControls,
+  type HostBroadcastLocalMediaStream,
+} from '../../publishing/hostBroadcastLocalMediaControls';
+import {
   createDefaultHostBroadcastPeerConnectionFactory,
   createHostBroadcastPublishingRuntime,
   type HostBroadcastPublishingPeerConnectionFactory,
@@ -55,6 +60,9 @@ export type HostBroadcastPublishingControllerLifecycle = {
 };
 
 export type HostBroadcastPublishingControllerLifecycleOptions = {
+  readonly createLocalMediaControls?: (
+    stream: HostBroadcastLocalMediaStream,
+  ) => HostBroadcastLocalMediaControls | null;
   readonly createPeerConnectionFactory?: () =>
     | HostBroadcastPublishingPeerConnectionFactory
     | null;
@@ -95,6 +103,7 @@ export type HostBroadcastPublishingController = {
 };
 
 export function createHostBroadcastPublishingControllerLifecycle({
+  createLocalMediaControls = createHostBroadcastLocalMediaControls,
   createPeerConnectionFactory = createDefaultHostBroadcastPeerConnectionFactory,
   createPublishingRuntime = createHostBroadcastPublishingRuntime,
   createSocket = createPhoenixSocket,
@@ -176,6 +185,9 @@ export function createHostBroadcastPublishingControllerLifecycle({
         return;
       }
 
+      const localMediaControls =
+        createRetainedHostBroadcastLocalMediaControls(localStream);
+
       runtime = createPublishingRuntime({
         disposeLocalMedia: native.releasePreviewStream,
         localStream,
@@ -249,6 +261,7 @@ export function createHostBroadcastPublishingControllerLifecycle({
         disconnectSocket: () => {
           socket.disconnect();
         },
+        ...(localMediaControls ? { localMediaControls } : {}),
         runtime,
       };
       publishingPreflightController.attachResource(publishingResource);
@@ -306,6 +319,18 @@ export function createHostBroadcastPublishingControllerLifecycle({
     return retainedResource;
   }
 
+  function createRetainedHostBroadcastLocalMediaControls(
+    localStream: HostBroadcastLocalMediaStream,
+  ): HostBroadcastLocalMediaControls | null {
+    try {
+      return createLocalMediaControls(localStream);
+    } catch {
+      // Keep publishing alive; without local controls, retained host controls
+      // stay hidden.
+      return null;
+    }
+  }
+
   return {
     hasRetainedPublishingResource() {
       return hasRetainedPublishingResourceRef.current;
@@ -317,6 +342,7 @@ export function createHostBroadcastPublishingControllerLifecycle({
 
 export function useHostBroadcastPublishingController({
   authStatus,
+  createLocalMediaControls,
   createPeerConnectionFactory,
   createPublishingRuntime,
   createSocket,
@@ -339,6 +365,7 @@ export function useHostBroadcastPublishingController({
   const lifecycle = useMemo(
     () =>
       createHostBroadcastPublishingControllerLifecycle({
+        createLocalMediaControls,
         createPeerConnectionFactory,
         createPublishingRuntime,
         createSocket,
@@ -358,6 +385,7 @@ export function useHostBroadcastPublishingController({
         websocketUrl,
       }),
     [
+      createLocalMediaControls,
       createPeerConnectionFactory,
       createPublishingRuntime,
       createSocket,

@@ -7,12 +7,14 @@ const KNOWN_ROUTE_HREFS = new Set([
   '/sign-up',
   '/home',
   '/profile',
+  '/diagnostics',
   '/live-session',
   '/host-broadcast',
 ]);
 
 const AUTH_ROUTE_HREFS = new Set(['/sign-in', '/sign-up']);
 const AUTH_RETURN_TO_ROUTE_HREFS = new Set([
+  '/diagnostics',
   '/live-session',
   '/host-broadcast',
 ]);

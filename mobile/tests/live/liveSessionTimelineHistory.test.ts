@@ -1,12 +1,64 @@
 import { describe, expect, test } from 'bun:test';
 
-import { readLiveSessionTimelineHistory } from '../../src/live/liveSessionTimelineHistory';
+import {
+  readLiveSessionTimelineHistory,
+  readLiveSessionTimelinePage,
+} from '../../src/live/liveSessionTimelineHistory';
 import type {
   LiveSessionWatchData,
   LiveSessionWatchModel,
 } from '../../src/live/watch/liveSessionWatchScreenTypes';
 
 describe('readLiveSessionTimelineHistory', () => {
+  test('reads page cursors for older retained timeline pagination from Relay pageInfo', () => {
+    const page = readLiveSessionTimelinePage({
+      edges: [
+        {
+          cursor: 'cursor-chat',
+          node: {
+            __typename: 'ChatMessageEvent',
+            actor: { id: 'relay-user-id:viewer' },
+            body: 'older retained message',
+            editCount: 0,
+            edited: false,
+            editedAt: null,
+            eventType: 'CHAT_MESSAGE_SENT',
+            id: 'relay-event-id:older-chat/opaque',
+            occurredAt: '2026-06-04T16:58:00.000000Z',
+          },
+        },
+      ],
+      pageInfo: {
+        endCursor: 'cursor-chat',
+        hasNextPage: true,
+        hasPreviousPage: true,
+        startCursor: 'cursor-chat',
+      },
+    });
+
+    expect(page.pageInfo).toEqual({
+      endCursor: 'cursor-chat',
+      hasNextPage: true,
+      hasPreviousPage: true,
+      startCursor: 'cursor-chat',
+    });
+    expect(page.rows).toEqual([
+      {
+        __typename: 'ChatMessageEvent',
+        actor: { id: 'relay-user-id:viewer' },
+        body: 'older retained message',
+        cursor: 'cursor-chat',
+        editCount: 0,
+        edited: false,
+        editedAt: null,
+        eventType: 'CHAT_MESSAGE_SENT',
+        id: 'relay-event-id:older-chat/opaque',
+        kind: 'chat_message',
+        occurredAt: '2026-06-04T16:58:00.000000Z',
+      },
+    ]);
+  });
+
   test('uses the generated live watch model for Relay timeline connections', () => {
     const liveSession: LiveSessionWatchModel = {
       __typename: 'LiveSession',

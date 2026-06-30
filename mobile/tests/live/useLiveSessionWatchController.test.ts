@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  createLiveSessionOlderTimelinePageLoader,
   createLiveSessionWatchControllerLifecycle,
   type LiveSessionWatchControllerLifecycle,
 } from '../../src/live/watch/hooks/useLiveSessionWatchController';
+import type { LiveSessionTimelineHistory } from '../../src/live/liveSessionTimelineHistory';
 
 type MutationConfig<TPayload> = {
   readonly onCompleted?: (payload: TPayload) => void;
@@ -43,6 +45,18 @@ type EndPayload = {
     }>;
     readonly liveSession: { readonly id: string } | null;
   } | null;
+};
+
+type OlderTimelinePageLoaderState = {
+  readonly error: string | null;
+  readonly isLoading: boolean;
+};
+
+type OlderTimelinePageLoadRequest = {
+  readonly canLoadOlder: boolean;
+  readonly liveSessionId: string;
+  readonly timelineBefore: string | null;
+  readonly timelineLast: number;
 };
 
 function createHarness() {
@@ -334,6 +348,11 @@ describe('useLiveSessionWatchController lifecycle', () => {
     ]);
     expect(harness.closedChatSessions).toEqual(['session-1']);
     expect(harness.leaves).toHaveLength(0);
+    expect(harness.controller.getState()).toMatchObject({
+      hasActiveSubmission: false,
+      isJoined: false,
+      isLeaving: false,
+    });
   });
 
   test('ignores stale teardown side effects from previous sessions', () => {
@@ -354,3 +373,370 @@ describe('useLiveSessionWatchController lifecycle', () => {
     });
   });
 });
+
+describe('older retained timeline page loading', () => {
+  test('loads older timeline pages with the current Relay session ID and before cursor', async () => {
+    const history = retainedHistory(['event-older'], {
+      endCursor: 'cursor-event-older',
+      hasNextPage: true,
+      hasPreviousPage: false,
+      startCursor: 'cursor-event-older',
+    });
+    const requests: Omit<OlderTimelinePageLoadRequest, 'canLoadOlder'>[] = [];
+    const loadedPages: Array<{
+      readonly history: LiveSessionTimelineHistory;
+      readonly sessionId: string;
+    }> = [];
+    const states: OlderTimelinePageLoaderState[] = [];
+    const loader = createLiveSessionOlderTimelinePageLoader({
+      fetchOlderTimelinePage: (request) => {
+        requests.push(request);
+        return Promise.resolve(history);
+      },
+      onOlderTimelinePageLoaded: (loaded) => {
+        loadedPages.push(loaded);
+      },
+      onStateChanged: (state) => {
+        states.push(state);
+      },
+    });
+
+    loader.syncSession('relay-live-session-id:opaque');
+    loader.requestOlderPage({
+      canLoadOlder: true,
+      liveSessionId: 'relay-live-session-id:opaque',
+      timelineBefore: 'cursor-current-start',
+      timelineLast: 30,
+    });
+    await Promise.resolve();
+
+    expect(requests).toEqual([
+      {
+        liveSessionId: 'relay-live-session-id:opaque',
+        timelineBefore: 'cursor-current-start',
+        timelineLast: 30,
+      },
+    ]);
+    expect(loadedPages).toEqual([
+      {
+        history,
+        sessionId: 'relay-live-session-id:opaque',
+      },
+    ]);
+    expect(states).toEqual([
+      { error: null, isLoading: false },
+      { error: null, isLoading: true },
+      { error: null, isLoading: false },
+    ]);
+  });
+
+  test('ignores stale older-page responses after the active session changes', async () => {
+    const deferred = createDeferred<LiveSessionTimelineHistory | null>();
+    const loadedPages: Array<{
+      readonly history: LiveSessionTimelineHistory;
+      readonly sessionId: string;
+    }> = [];
+    const states: OlderTimelinePageLoaderState[] = [];
+    const loader = createLiveSessionOlderTimelinePageLoader({
+      fetchOlderTimelinePage: () => deferred.promise,
+      onOlderTimelinePageLoaded: (loaded) => {
+        loadedPages.push(loaded);
+      },
+      onStateChanged: (state) => {
+        states.push(state);
+      },
+    });
+
+    loader.syncSession('session-1');
+    loader.requestOlderPage({
+      canLoadOlder: true,
+      liveSessionId: 'session-1',
+      timelineBefore: 'cursor-session-1',
+      timelineLast: 30,
+    });
+    loader.syncSession('session-2');
+    deferred.resolve(
+      retainedHistory(['event-stale'], {
+        endCursor: 'cursor-event-stale',
+        hasNextPage: true,
+        hasPreviousPage: false,
+        startCursor: 'cursor-event-stale',
+      }),
+    );
+    await deferred.promise;
+    await Promise.resolve();
+
+    expect(loadedPages).toEqual([]);
+    expect(loader.getState()).toEqual({ error: null, isLoading: false });
+    expect(states.at(-1)).toEqual({ error: null, isLoading: false });
+  });
+
+  test('resets loading state when unmount abandons an older-page request', async () => {
+    const abandonedRequest = createDeferred<LiveSessionTimelineHistory | null>();
+    const remountedHistory = retainedHistory(['event-after-abandon'], {
+      endCursor: 'cursor-event-after-abandon',
+      hasNextPage: true,
+      hasPreviousPage: false,
+      startCursor: 'cursor-event-after-abandon',
+    });
+    const requests: Omit<OlderTimelinePageLoadRequest, 'canLoadOlder'>[] = [];
+    const loadedPages: Array<{
+      readonly history: LiveSessionTimelineHistory;
+      readonly sessionId: string;
+    }> = [];
+    const loader = createLiveSessionOlderTimelinePageLoader({
+      fetchOlderTimelinePage: (request) => {
+        requests.push(request);
+        return requests.length === 1
+          ? abandonedRequest.promise
+          : Promise.resolve(remountedHistory);
+      },
+      onOlderTimelinePageLoaded: (loaded) => {
+        loadedPages.push(loaded);
+      },
+    });
+
+    loader.syncSession('session-1');
+    loader.requestOlderPage({
+      canLoadOlder: true,
+      liveSessionId: 'session-1',
+      timelineBefore: 'cursor-before-abandon',
+      timelineLast: 30,
+    });
+    loader.unmount();
+    loader.mount();
+    loader.requestOlderPage({
+      canLoadOlder: true,
+      liveSessionId: 'session-1',
+      timelineBefore: 'cursor-after-remount',
+      timelineLast: 30,
+    });
+    await flushPromises();
+
+    abandonedRequest.resolve(
+      retainedHistory(['event-abandoned'], {
+        endCursor: 'cursor-event-abandoned',
+        hasNextPage: true,
+        hasPreviousPage: false,
+        startCursor: 'cursor-event-abandoned',
+      }),
+    );
+    await abandonedRequest.promise;
+    await flushPromises();
+
+    expect(requests).toEqual([
+      {
+        liveSessionId: 'session-1',
+        timelineBefore: 'cursor-before-abandon',
+        timelineLast: 30,
+      },
+      {
+        liveSessionId: 'session-1',
+        timelineBefore: 'cursor-after-remount',
+        timelineLast: 30,
+      },
+    ]);
+    expect(loadedPages).toEqual([
+      { history: remountedHistory, sessionId: 'session-1' },
+    ]);
+    expect(loader.getState()).toEqual({ error: null, isLoading: false });
+  });
+
+  test('keeps existing rows untouched and exposes a viewer-safe retry error when older load fails', async () => {
+    const loadedPages: Array<{
+      readonly history: LiveSessionTimelineHistory;
+      readonly sessionId: string;
+    }> = [];
+    const loader = createLiveSessionOlderTimelinePageLoader({
+      fetchOlderTimelinePage: () =>
+        Promise.reject(new Error('database exploded')),
+      onOlderTimelinePageLoaded: (loaded) => {
+        loadedPages.push(loaded);
+      },
+    });
+
+    loader.syncSession('session-1');
+    loader.requestOlderPage({
+      canLoadOlder: true,
+      liveSessionId: 'session-1',
+      timelineBefore: 'cursor-session-1',
+      timelineLast: 30,
+    });
+    await flushPromises();
+
+    expect(loadedPages).toEqual([]);
+    expect(loader.getState()).toEqual({
+      error:
+        'We could not load older messages. Check your connection and try again.',
+      isLoading: false,
+    });
+  });
+
+  test('exposes the viewer-safe retry error when older load returns no history', async () => {
+    const loadedPages: Array<{
+      readonly history: LiveSessionTimelineHistory;
+      readonly sessionId: string;
+    }> = [];
+    const loader = createLiveSessionOlderTimelinePageLoader({
+      fetchOlderTimelinePage: () => Promise.resolve(null),
+      onOlderTimelinePageLoaded: (loaded) => {
+        loadedPages.push(loaded);
+      },
+    });
+
+    loader.syncSession('session-1');
+    loader.requestOlderPage({
+      canLoadOlder: true,
+      liveSessionId: 'session-1',
+      timelineBefore: 'cursor-session-1',
+      timelineLast: 30,
+    });
+    await flushPromises();
+
+    expect(loadedPages).toEqual([]);
+    expect(loader.getState()).toEqual({
+      error:
+        'We could not load older messages. Check your connection and try again.',
+      isLoading: false,
+    });
+  });
+
+  test('does not request older pages when unavailable, missing a cursor, or already loading', async () => {
+    const loadingRequest = createDeferred<LiveSessionTimelineHistory | null>();
+    const requests: Omit<OlderTimelinePageLoadRequest, 'canLoadOlder'>[] = [];
+    const loader = createLiveSessionOlderTimelinePageLoader({
+      fetchOlderTimelinePage: (request) => {
+        requests.push(request);
+        return loadingRequest.promise;
+      },
+      onOlderTimelinePageLoaded: () => undefined,
+    });
+
+    loader.syncSession('session-1');
+    loader.requestOlderPage({
+      canLoadOlder: false,
+      liveSessionId: 'session-1',
+      timelineBefore: 'cursor-unavailable',
+      timelineLast: 30,
+    });
+    loader.requestOlderPage({
+      canLoadOlder: true,
+      liveSessionId: 'session-1',
+      timelineBefore: null,
+      timelineLast: 30,
+    });
+    loader.requestOlderPage({
+      canLoadOlder: true,
+      liveSessionId: 'session-1',
+      timelineBefore: 'cursor-loading',
+      timelineLast: 30,
+    });
+    loader.requestOlderPage({
+      canLoadOlder: true,
+      liveSessionId: 'session-1',
+      timelineBefore: 'cursor-while-loading',
+      timelineLast: 30,
+    });
+
+    expect(requests).toEqual([
+      {
+        liveSessionId: 'session-1',
+        timelineBefore: 'cursor-loading',
+        timelineLast: 30,
+      },
+    ]);
+
+    loadingRequest.resolve(
+      retainedHistory(['event-loading'], {
+        endCursor: 'cursor-event-loading',
+        hasNextPage: true,
+        hasPreviousPage: false,
+        startCursor: 'cursor-event-loading',
+      }),
+    );
+    await loadingRequest.promise;
+    await flushPromises();
+
+    expect(loader.getState()).toEqual({ error: null, isLoading: false });
+  });
+
+  test('reactivates after unmount so a remounted loader can load older pages', async () => {
+    const history = retainedHistory(['event-after-remount'], {
+      endCursor: 'cursor-event-after-remount',
+      hasNextPage: true,
+      hasPreviousPage: false,
+      startCursor: 'cursor-event-after-remount',
+    });
+    const loadedPages: Array<{
+      readonly history: LiveSessionTimelineHistory;
+      readonly sessionId: string;
+    }> = [];
+    const states: OlderTimelinePageLoaderState[] = [];
+    const loader = createLiveSessionOlderTimelinePageLoader({
+      fetchOlderTimelinePage: () => Promise.resolve(history),
+      onOlderTimelinePageLoaded: (loaded) => {
+        loadedPages.push(loaded);
+      },
+      onStateChanged: (state) => {
+        states.push(state);
+      },
+    });
+
+    loader.syncSession('session-1');
+    loader.unmount();
+    loader.mount();
+    loader.requestOlderPage({
+      canLoadOlder: true,
+      liveSessionId: 'session-1',
+      timelineBefore: 'cursor-current-start',
+      timelineLast: 30,
+    });
+    await Promise.resolve();
+
+    expect(loadedPages).toEqual([{ history, sessionId: 'session-1' }]);
+    expect(loader.getState()).toEqual({ error: null, isLoading: false });
+    expect(states.at(-1)).toEqual({ error: null, isLoading: false });
+  });
+});
+
+function retainedHistory(
+  eventIds: ReadonlyArray<string>,
+  pageInfo: NonNullable<LiveSessionTimelineHistory['pageInfo']>,
+): LiveSessionTimelineHistory {
+  return {
+    pageInfo,
+    rows: eventIds.map((eventId) => ({
+      __typename: 'ChatMessageEvent',
+      actor: { id: `actor-${eventId}` },
+      body: `body ${eventId}`,
+      cursor: `cursor-${eventId}`,
+      editCount: 0,
+      edited: false,
+      editedAt: null,
+      eventType: 'CHAT_MESSAGE_SENT',
+      id: eventId,
+      kind: 'chat_message',
+      occurredAt: '2026-06-04T17:00:00.000000Z',
+    })),
+  };
+}
+
+function createDeferred<T>(): {
+  readonly promise: Promise<T>;
+  readonly reject: (error: unknown) => void;
+  readonly resolve: (value: T) => void;
+} {
+  let reject!: (error: unknown) => void;
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, reject, resolve };
+}
+
+async function flushPromises() {
+  await Promise.resolve();
+  await Promise.resolve();
+}

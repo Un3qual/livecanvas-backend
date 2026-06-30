@@ -10,11 +10,17 @@ import React, {
 } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView } from 'react-native';
-import { useLazyLoadQuery, useMutation } from 'react-relay';
+import {
+  fetchQuery,
+  useLazyLoadQuery,
+  useMutation,
+  useRelayEnvironment,
+} from 'react-relay';
 
 import { useAuth } from '../../auth/AuthProvider';
 import { ScreenState } from '../../components/ScreenState';
 import { useHostBroadcastPublishingSessions } from '../../host/HostBroadcastPublishingSessionProvider';
+import type { HostBroadcastLocalMediaControlsSnapshot } from '../../host/publishing/hostBroadcastLocalMediaControls';
 import { useStartupState } from '../../providers/StartupGate';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import { createPhoenixSocket } from '../../realtime/phoenixSocket';
@@ -44,15 +50,24 @@ import {
   normalizeLiveSessionStatus,
   type LiveSessionStatus,
 } from '../liveSessionPresentation';
-import { readLiveSessionTimelineHistory } from '../liveSessionTimelineHistory';
 import {
+  readLiveSessionTimelineHistory,
+  readLiveSessionTimelinePage,
+} from '../liveSessionTimelineHistory';
+import {
+  createLiveSessionWatchHostMediaControls,
   LiveSessionDetailsCard,
   LiveSessionHero,
   LiveSessionWatchControlsCard,
   UnavailableLiveSession,
 } from './components/LiveSessionWatchCards';
 import { LiveSessionViewerPlaybackSurface } from './components/LiveSessionViewerPlaybackSurface';
-import { useLiveSessionWatchController } from './hooks/useLiveSessionWatchController';
+import {
+  createLiveSessionOlderTimelinePageLoader,
+  useLiveSessionWatchController,
+  type LiveSessionOlderTimelinePageLoadState,
+  type LiveSessionOlderTimelinePageLoaderLifecycle,
+} from './hooks/useLiveSessionWatchController';
 import { useLiveSessionViewerPlaybackController } from './hooks/useLiveSessionViewerPlaybackController';
 import {
   liveSessionWatchScreenEndMutation,
@@ -67,6 +82,9 @@ import {
   type LiveSessionWatchScreenQuery,
 } from './liveSessionWatchOperations';
 import { liveSessionWatchScreenStyles as styles } from './liveSessionWatchScreenStyles';
+import {
+  canRetryLiveSessionViewerPlayback,
+} from './state/liveSessionViewerPlaybackMachine';
 import {
   canUseLiveSessionChat,
   resolveRejectedLiveSessionChatSend,
@@ -144,6 +162,7 @@ function LiveSessionWatchContent({
   const router = useRouter();
   const auth = useAuth();
   const { environment } = useStartupState();
+  const relayEnvironment = useRelayEnvironment();
   const hostPublishingSessions = useHostBroadcastPublishingSessions();
   const data = useLazyLoadQuery<LiveSessionWatchScreenQuery>(
     liveSessionWatchScreenQuery,
@@ -194,10 +213,65 @@ function LiveSessionWatchContent({
   const releaseRetainedHostPublishingSessionRef = useRef<
     (liveSessionId: string) => void
   >(() => undefined);
+  const [hostMediaControlsSnapshot, setHostMediaControlsSnapshot] =
+    useState<HostBroadcastLocalMediaControlsSnapshot | null>(null);
+  const [olderTimelinePageLoadState, setOlderTimelinePageLoadState] =
+    useState<LiveSessionOlderTimelinePageLoadState>(() => ({
+      error: null,
+      isLoading: false,
+    }));
+  const olderTimelinePageLoaderRef =
+    useRef<LiveSessionOlderTimelinePageLoaderLifecycle | null>(null);
 
   releaseRetainedHostPublishingSessionRef.current = (liveSessionId) => {
     hostPublishingSessions.release(liveSessionId);
   };
+
+  // Keep one loader instance across renders so its request/session tokens can
+  // reject stale older-page responses from previous sessions.
+  if (!olderTimelinePageLoaderRef.current) {
+    olderTimelinePageLoaderRef.current =
+      createLiveSessionOlderTimelinePageLoader({
+        fetchOlderTimelinePage: async ({
+          liveSessionId,
+          timelineBefore,
+          timelineLast,
+        }) => {
+          const olderTimelineData =
+            await fetchQuery<LiveSessionWatchScreenQuery>(
+              relayEnvironment,
+              liveSessionWatchScreenQuery,
+              {
+                id: liveSessionId,
+                timelineBefore,
+                timelineLast,
+              },
+              { fetchPolicy: 'network-only' },
+            ).toPromise();
+          const olderTimelineSession =
+            olderTimelineData?.node?.__typename === 'LiveSession'
+              ? olderTimelineData.node
+              : null;
+
+          if (!olderTimelineSession) {
+            return null;
+          }
+
+          return readLiveSessionTimelinePage(
+            olderTimelineSession.timelineEvents,
+          );
+        },
+        onOlderTimelinePageLoaded: ({ history, sessionId: loadedSessionId }) => {
+          dispatchChatAction({
+            history,
+            sessionId: loadedSessionId,
+            type: 'retained_older_loaded',
+          });
+        },
+        onStateChanged: setOlderTimelinePageLoadState,
+      });
+  }
+  const olderTimelinePageLoader = olderTimelinePageLoaderRef.current;
 
   const watchController = useLiveSessionWatchController({
     commitEndLiveSession,
@@ -235,6 +309,9 @@ function LiveSessionWatchContent({
   const isEnding = watchController.isEnding;
   const hasActiveSubmission = watchController.hasActiveSubmission;
   const chatRows = selectLiveSessionChatVisibleRows(chatState);
+  const canLoadOlderChatHistory =
+    chatState.pageInfo?.hasPreviousPage === true;
+  const olderTimelineBeforeCursor = chatState.pageInfo?.startCursor ?? null;
   const chatChannelStatus = chatChannelState.channelStatus;
   const chatSendStatus = chatChannelState.sendStatus;
   const chatSendError = chatChannelState.sendError;
@@ -243,12 +320,23 @@ function LiveSessionWatchContent({
   const hasRetainedHostPublishingSession = session
     ? hostPublishingSessions.has(activeLiveSessionId ?? '')
     : false;
+  const hostLocalMediaControls = session
+    ? hostPublishingSessions.controlsFor(activeLiveSessionId ?? '')
+    : null;
+  const hostControls = createLiveSessionWatchHostMediaControls({
+    controls: hostLocalMediaControls,
+    isHostOwnedSession: data.viewer?.id === session?.host.id,
+    normalizedStatus,
+    onSnapshotChanged: setHostMediaControlsSnapshot,
+    snapshot:
+      hostMediaControlsSnapshot ?? hostLocalMediaControls?.snapshot() ?? null,
+  });
   const canUseChat = canUseLiveSessionChat({
     hasRetainedHostPublishingSession,
     isJoined,
   });
   const shouldMaintainSessionRealtimeChannel = canUseChat;
-  const { stopViewerPlayback, viewerPlaybackState } =
+  const { retryViewerPlayback, stopViewerPlayback, viewerPlaybackState } =
     useLiveSessionViewerPlaybackController({
       authStatus: auth.state.status,
       commitPrepareLiveSessionMedia,
@@ -358,16 +446,21 @@ function LiveSessionWatchContent({
 
   useEffect(() => {
     dispatchChatAction({ type: 'session_changed', sessionId });
+    olderTimelinePageLoader.syncSession(sessionId);
     sendChatChannelEvent({ sessionId, type: 'SESSION_CHANGED' });
     chatSendPendingRef.current = null;
     setRealtimeSessionStatuses(new Map());
-  }, [sendChatChannelEvent, sessionId]);
+  }, [olderTimelinePageLoader, sendChatChannelEvent, sessionId]);
 
   useEffect(() => {
     if (activeLiveSessionId && normalizedStatus === 'ENDED') {
       handleWatchSessionEnded(activeLiveSessionId);
     }
   }, [activeLiveSessionId, handleWatchSessionEnded, normalizedStatus]);
+
+  useEffect(() => {
+    setHostMediaControlsSnapshot(hostLocalMediaControls?.snapshot() ?? null);
+  }, [activeLiveSessionId, hostLocalMediaControls]);
 
   useEffect(() => {
     if (!activeLiveSessionId) {
@@ -388,6 +481,17 @@ function LiveSessionWatchContent({
       didUnmountRef.current = true;
     };
   }, []);
+
+  useEffect(
+    () => {
+      olderTimelinePageLoader.mount();
+
+      return () => {
+        olderTimelinePageLoader.unmount();
+      };
+    },
+    [olderTimelinePageLoader],
+  );
 
   useEffect(() => {
     if (
@@ -594,6 +698,24 @@ function LiveSessionWatchContent({
     shouldMaintainSessionRealtimeChannel,
   ]);
 
+  const handleLoadOlderChatMessages = useCallback(() => {
+    if (!activeLiveSessionId) {
+      return;
+    }
+
+    olderTimelinePageLoader.requestOlderPage({
+      canLoadOlder: canLoadOlderChatHistory,
+      liveSessionId: activeLiveSessionId,
+      timelineBefore: olderTimelineBeforeCursor,
+      timelineLast: INITIAL_TIMELINE_HISTORY_COUNT,
+    });
+  }, [
+    activeLiveSessionId,
+    canLoadOlderChatHistory,
+    olderTimelineBeforeCursor,
+    olderTimelinePageLoader,
+  ]);
+
   const liveSession = session;
 
   if (!liveSession) {
@@ -724,6 +846,14 @@ function LiveSessionWatchContent({
 
       <LiveSessionViewerPlaybackSurface
         isJoined={isJoined}
+        recovery={{
+          canRetry: canRetryLiveSessionViewerPlayback({
+            enterable,
+            isJoined,
+            state: viewerPlaybackState,
+          }),
+          onRetry: retryViewerPlayback,
+        }}
         state={viewerPlaybackState}
       />
 
@@ -737,6 +867,7 @@ function LiveSessionWatchContent({
         canEndLiveSession={canEndLiveSession}
         enterable={enterable}
         hasActiveSubmission={hasActiveSubmission}
+        hostControls={hostControls}
         isEnding={isEnding}
         isHostOwnedSession={isCurrentViewerHost}
         isJoined={isJoined}
@@ -750,8 +881,12 @@ function LiveSessionWatchContent({
       />
 
       <LiveSessionChatPanel
+        canLoadOlder={canLoadOlderChatHistory}
         channelStatus={chatChannelStatus}
         isJoined={canUseChat}
+        isLoadingOlder={olderTimelinePageLoadState.isLoading}
+        olderLoadError={olderTimelinePageLoadState.error}
+        onLoadOlder={handleLoadOlderChatMessages}
         onSendMessage={handleSendChatMessage}
         rows={chatRows}
         sendError={chatSendError}

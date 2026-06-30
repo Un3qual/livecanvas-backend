@@ -516,7 +516,7 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
 
     harness.runtimes[0].startDeferred.resolve({
       reason: 'stale runtime failure',
-      status: 'failed',
+      status: 'error',
     });
     await flushAsyncHandlers();
 
@@ -633,5 +633,186 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
       remoteStreamUrl: null,
       status: 'closed',
     });
+  });
+
+  test('retries closed playback with a fresh prepare and runtime generation', async () => {
+    const harness = createHarness();
+
+    harness.sync();
+    harness.completePrepare(0, {
+      ...createPrepareMediaPayload('session-1'),
+      prepareLiveMediaSession: {
+        ...createPrepareMediaPayload('session-1').prepareLiveMediaSession,
+        signalingTopic: 'live_session_media:session-1:first',
+      },
+    });
+    harness.runtimes[0].options.onChannelTerminated?.();
+
+    expect(harness.state).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'closed',
+    });
+
+    harness.controller.retryViewerPlayback();
+
+    expect(harness.state).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'preparing',
+    });
+    expect(harness.commits).toHaveLength(2);
+    expect(harness.commits[1].variables.input.liveSessionId).toBe('session-1');
+
+    harness.completePrepare(1, {
+      ...createPrepareMediaPayload('session-1'),
+      prepareLiveMediaSession: {
+        ...createPrepareMediaPayload('session-1').prepareLiveMediaSession,
+        signalingTopic: 'live_session_media:session-1:retry',
+      },
+    });
+
+    expect(harness.runtimes).toHaveLength(2);
+    expect(harness.sockets).toHaveLength(2);
+    expect(harness.runtimes[1].options.preparedMedia.signalingTopic).toBe(
+      'live_session_media:session-1:retry',
+    );
+    expect(harness.runtimes[1].startCount).toBe(1);
+    expect(harness.state.status).toBe('connecting');
+
+    harness.runtimes[0].startDeferred.resolve({
+      reason: 'stale retry failure',
+      status: 'error',
+    });
+    await flushAsyncHandlers();
+
+    expect(harness.state.status).toBe('connecting');
+
+    harness.runtimes[1].startDeferred.resolve({ status: 'started' });
+    await flushAsyncHandlers();
+
+    expect(harness.state).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'waiting_for_host',
+    });
+  });
+
+  test('ignores retry after leave or unmount clears playback eligibility', () => {
+    const leaveHarness = createHarness();
+
+    leaveHarness.sync();
+    leaveHarness.completePrepare();
+    leaveHarness.runtimes[0].options.onChannelTerminated?.();
+    leaveHarness.sync({ isJoined: false });
+    leaveHarness.controller.retryViewerPlayback();
+
+    expect(leaveHarness.commits).toHaveLength(1);
+    expect(leaveHarness.state).toEqual(leaveHarness.initialState);
+
+    const unmountHarness = createHarness();
+
+    unmountHarness.sync();
+    unmountHarness.completePrepare();
+    unmountHarness.runtimes[0].options.onChannelTerminated?.();
+    unmountHarness.controller.unmount();
+    unmountHarness.controller.retryViewerPlayback();
+
+    expect(unmountHarness.commits).toHaveLength(1);
+    expect(unmountHarness.state).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'closed',
+    });
+  });
+
+  test('leaving while retry playback is pending disposes the retry generation once', async () => {
+    const harness = createHarness();
+
+    harness.sync();
+    harness.completePrepare();
+    harness.runtimes[0].options.onChannelTerminated?.();
+    harness.controller.retryViewerPlayback();
+    harness.completePrepare(1);
+
+    expect(harness.runtimes[1].disposeCount).toBe(0);
+    expect(harness.sockets[1].disconnectCount).toBe(0);
+
+    harness.sync({ isLeaving: true });
+
+    expect(harness.runtimes[1].disposeCount).toBe(1);
+    expect(harness.sockets[1].disconnectCount).toBe(1);
+    expect(harness.state).toEqual(harness.initialState);
+
+    harness.runtimes[1].startDeferred.resolve({ status: 'started' });
+    await flushAsyncHandlers();
+
+    expect(harness.runtimes[1].disposeCount).toBe(1);
+    expect(harness.sockets[1].disconnectCount).toBe(1);
+    expect(harness.state).toEqual(harness.initialState);
+  });
+
+  test('ended sessions suppress retry and clear pending retry playback', async () => {
+    const endedBeforeRetryHarness = createHarness();
+
+    endedBeforeRetryHarness.sync();
+    endedBeforeRetryHarness.completePrepare();
+    endedBeforeRetryHarness.runtimes[0].options.onChannelTerminated?.();
+    endedBeforeRetryHarness.sync({ normalizedStatus: 'ENDED' });
+    endedBeforeRetryHarness.controller.retryViewerPlayback();
+
+    expect(endedBeforeRetryHarness.commits).toHaveLength(1);
+    expect(endedBeforeRetryHarness.state).toEqual(
+      endedBeforeRetryHarness.initialState,
+    );
+
+    const endedDuringRetryHarness = createHarness();
+
+    endedDuringRetryHarness.sync();
+    endedDuringRetryHarness.completePrepare();
+    endedDuringRetryHarness.runtimes[0].options.onChannelTerminated?.();
+    endedDuringRetryHarness.controller.retryViewerPlayback();
+    endedDuringRetryHarness.completePrepare(1);
+    endedDuringRetryHarness.sync({ normalizedStatus: 'ENDED' });
+
+    expect(endedDuringRetryHarness.runtimes[1].disposeCount).toBe(1);
+    expect(endedDuringRetryHarness.sockets[1].disconnectCount).toBe(1);
+    expect(endedDuringRetryHarness.state).toEqual(
+      endedDuringRetryHarness.initialState,
+    );
+
+    endedDuringRetryHarness.runtimes[1].options.onChannelTerminated?.();
+    endedDuringRetryHarness.runtimes[1].startDeferred.resolve({
+      status: 'started',
+    });
+    await flushAsyncHandlers();
+
+    expect(endedDuringRetryHarness.state).toEqual(
+      endedDuringRetryHarness.initialState,
+    );
+  });
+
+  test('channel termination during retry remains recoverable for joined enterable sessions', () => {
+    const harness = createHarness();
+
+    harness.sync();
+    harness.completePrepare();
+    harness.runtimes[0].options.onChannelTerminated?.();
+    harness.controller.retryViewerPlayback();
+    harness.completePrepare(1);
+    harness.runtimes[1].options.onChannelTerminated?.();
+
+    expect(harness.runtimes[1].disposeCount).toBe(1);
+    expect(harness.sockets[1].disconnectCount).toBe(1);
+    expect(harness.state).toEqual({
+      error: null,
+      remoteStreamUrl: null,
+      status: 'closed',
+    });
+
+    harness.controller.retryViewerPlayback();
+
+    expect(harness.commits).toHaveLength(3);
+    expect(harness.state.status).toBe('preparing');
   });
 });

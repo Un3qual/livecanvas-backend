@@ -1,12 +1,16 @@
 import { Stack } from 'expo-router';
 
+import { ViewerBootstrap } from '../../src/auth/ViewerBootstrap';
+
 export default function ModalLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        presentation: 'modal',
-      }}
-    />
+    <ViewerBootstrap>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+    </ViewerBootstrap>
   );
 }
