@@ -201,9 +201,12 @@ function normalizeFeedMediaPublicUrl(
     return null;
   }
 
+  return parseFeedMediaPublicUrl(trimmedPublicUrl) ? trimmedPublicUrl : null;
+}
+
+function parseFeedMediaPublicUrl(publicUrl: string): URL | null {
   try {
-    new URL(trimmedPublicUrl);
-    return trimmedPublicUrl;
+    return new URL(publicUrl);
   } catch {
     return null;
   }

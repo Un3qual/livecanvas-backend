@@ -40,6 +40,13 @@ export type ReportPostAction =
     };
 
 const REPORT_POST_FALLBACK_ERROR = 'We could not report this post.';
+const REPORT_POST_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  invalid_id: REPORT_POST_FALLBACK_ERROR,
+  invalid_type: REPORT_POST_FALLBACK_ERROR,
+  not_found: 'This post is no longer available.',
+  own_post: 'You cannot report your own post.',
+  unauthenticated: 'Sign in again to report this post.',
+};
 
 export function createReportPostState(): ReportPostState {
   return {
@@ -109,6 +116,9 @@ export function reportPostReducer(
           [action.postId]: action.message,
         },
       };
+
+    default:
+      return state;
   }
 }
 
@@ -134,16 +144,6 @@ function omitPostId(
     return values;
   }
 
-  const nextValues = { ...values };
-  delete nextValues[postId];
-
-  return nextValues;
+  const { [postId]: _removed, ...rest } = values;
+  return rest;
 }
-
-const REPORT_POST_ERROR_MESSAGES: Readonly<Record<string, string>> = {
-  invalid_id: REPORT_POST_FALLBACK_ERROR,
-  invalid_type: REPORT_POST_FALLBACK_ERROR,
-  not_found: 'This post is no longer available.',
-  own_post: 'You cannot report your own post.',
-  unauthenticated: 'Sign in again to report this post.',
-};
