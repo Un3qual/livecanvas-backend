@@ -19,7 +19,7 @@ export type LiveSessionChatPanelModel = {
   readonly olderLoadButtonDisabled: boolean;
   readonly olderLoadButtonLabel: string;
   readonly olderLoadError: string | null;
-  readonly rows: ReadonlyArray<LiveSessionChatPanelRowModel>;
+  readonly rows: ReadonlyArray<LiveSessionTimelineHistoryRow>;
   readonly sendButtonDisabled: boolean;
   readonly sendButtonLabel: string;
   readonly sendError: string | null;
@@ -68,14 +68,14 @@ export function createLiveSessionChatPanelModel({
       ? 'Loading older messages...'
       : 'Load older messages',
     olderLoadError,
-    rows: rows.map(formatLiveSessionChatPanelRow),
+    rows,
     sendButtonDisabled: composerDisabled || !hasSendBody,
     sendButtonLabel: sendStatus === 'sending' ? 'Sending...' : 'Send',
     sendError,
   };
 }
 
-function formatLiveSessionChatPanelRow(
+export function formatLiveSessionChatPanelRow(
   row: LiveSessionTimelineHistoryRow,
 ): LiveSessionChatPanelRowModel {
   switch (row.kind) {

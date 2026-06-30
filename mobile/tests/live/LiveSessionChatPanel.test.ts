@@ -1,30 +1,126 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, mock, test } from 'bun:test';
+import {
+  Fragment,
+  createElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 
 import { createLiveSessionChatPanelModel } from '../../src/live/chat/liveSessionChatPanelPresentation';
 import type { LiveSessionTimelineHistoryRow } from '../../src/live/liveSessionTimelineHistory';
 
+function NativeComponent({
+  children,
+  ...props
+}: {
+  children?: ReactNode;
+  [key: string]: unknown;
+}) {
+  return createElement('NativeComponent', props, children);
+}
+
+function FlatListMock(props: { [key: string]: unknown }) {
+  return createElement('FlatList', props);
+}
+
+mock.module('react-native', () => ({
+  FlatList: FlatListMock,
+  Pressable: NativeComponent,
+  StyleSheet: {
+    create: <Styles,>(styles: Styles): Styles => styles,
+  },
+  Text: function Text({
+    children,
+    ...props
+  }: {
+    children?: ReactNode;
+    [key: string]: unknown;
+  }) {
+    return createElement('Text', props, children);
+  },
+  TextInput: NativeComponent,
+  View: NativeComponent,
+}));
+
+mock.module('../../src/components/AppButton', () => ({
+  AppButton: ({
+    disabled,
+    label,
+    onPress,
+  }: {
+    disabled?: boolean;
+    label: string;
+    onPress: () => void;
+  }) =>
+    createElement(
+      'Pressable',
+      { accessibilityRole: 'button', disabled: disabled ?? false, onPress },
+      label,
+    ),
+}));
+
+mock.module('../../src/components/AppCard', () => ({
+  AppCard: ({ children }: { children?: ReactNode }) =>
+    createElement('View', null, children),
+}));
+
+mock.module('../../src/providers/ThemeProvider', () => ({
+  useAppTheme: () => ({
+    colors: {
+      accent: 'accent',
+      accentText: 'accentText',
+      background: 'background',
+      border: 'border',
+      error: 'error',
+      surface: 'surface',
+      surfaceMuted: 'surfaceMuted',
+      text: 'text',
+      textMuted: 'textMuted',
+    },
+  }),
+}));
+
+mock.module('../../src/theme/tokens', () => ({
+  radius: { lg: 24, md: 14, pill: 999, sm: 8 },
+  spacing: { lg: 16, md: 12, sm: 8, xs: 4 },
+  touchTarget: { min: 44 },
+  typography: { body: {}, label: {} },
+}));
+
+const { LiveSessionChatPanel } = await import(
+  '../../src/live/chat/LiveSessionChatPanel'
+);
+
+const reactInternals = (
+  await import('react')
+).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE as {
+  H: unknown;
+};
+
 describe('LiveSessionChatPanel presentation model', () => {
-  test('labels retained chat, lifecycle, and future timeline rows', () => {
+  test('keeps retained chat, lifecycle, and future timeline rows available for lazy rendering', () => {
+    const rows = [
+      chatRow({
+        body: 'Retained hello',
+        edited: true,
+        editCount: 2,
+        id: 'event-chat-1',
+      }),
+      lifecycleRow({
+        id: 'event-started-1',
+        label: 'Live started',
+      }),
+      unknownRow({
+        id: 'event-future-1',
+        label: 'Timeline event',
+      }),
+    ];
     const model = createLiveSessionChatPanelModel({
       channelStatus: 'joined',
       draftMessage: 'hello',
       isJoined: true,
-      rows: [
-        chatRow({
-          body: 'Retained hello',
-          edited: true,
-          editCount: 2,
-          id: 'event-chat-1',
-        }),
-        lifecycleRow({
-          id: 'event-started-1',
-          label: 'Live started',
-        }),
-        unknownRow({
-          id: 'event-future-1',
-          label: 'Timeline event',
-        }),
-      ],
+      rows,
       canLoadOlder: false,
       isLoadingOlder: false,
       olderLoadError: null,
@@ -33,26 +129,7 @@ describe('LiveSessionChatPanel presentation model', () => {
     });
 
     expect(model.emptyStateMessage).toBeNull();
-    expect(model.rows).toEqual([
-      {
-        detail: 'Edited',
-        id: 'event-chat-1',
-        tone: 'chat',
-        title: 'Retained hello',
-      },
-      {
-        detail: 'System',
-        id: 'event-started-1',
-        tone: 'lifecycle',
-        title: 'Live started',
-      },
-      {
-        detail: 'System',
-        id: 'event-future-1',
-        tone: 'system',
-        title: 'Timeline event',
-      },
-    ]);
+    expect(model.rows).toBe(rows);
   });
 
   test('disables the composer until the viewer is joined and the channel is joined', () => {
@@ -179,7 +256,7 @@ describe('LiveSessionChatPanel presentation model', () => {
     ).toBe(false);
   });
 
-  test('keeps all explicitly loaded retained rows visible after older pagination', () => {
+  test('keeps all explicitly loaded retained rows available after older pagination', () => {
     const rows = Array.from({ length: 65 }, (_, index) =>
       chatRow({
         body: `message-${index}`,
@@ -248,6 +325,37 @@ describe('LiveSessionChatPanel presentation model', () => {
   });
 });
 
+describe('LiveSessionChatPanel timeline rendering', () => {
+  test('uses a virtualized list for retained and paginated timeline rows', () => {
+    const rows = Array.from({ length: 65 }, (_, index) =>
+      chatRow({
+        body: `message-${index}`,
+        edited: index === 0,
+        id: `event-chat-${index}`,
+      }),
+    );
+
+    const tree = renderPanel({ rows });
+    const list = findNodeByType(tree, 'FlatList');
+
+    expect(list).not.toBeNull();
+    expect(list?.props.data).toBe(rows);
+    expect(
+      (list?.props.keyExtractor as (row: LiveSessionTimelineHistoryRow) => string)(
+        rows[64],
+      ),
+    ).toBe('event-chat-64');
+
+    const rowTree = renderPanelNode(
+      (list?.props.renderItem as (info: {
+        item: LiveSessionTimelineHistoryRow;
+      }) => ReactNode)({ item: rows[0] }),
+    );
+
+    expect(collectText(rowTree)).toEqual(['Edited', 'message-0']);
+  });
+});
+
 function chatRow(
   overrides: Partial<Extract<LiveSessionTimelineHistoryRow, { kind: 'chat_message' }>>,
 ): Extract<LiveSessionTimelineHistoryRow, { kind: 'chat_message' }> {
@@ -265,6 +373,128 @@ function chatRow(
     occurredAt: '2026-06-04T12:00:00Z',
     ...overrides,
   };
+}
+
+type RenderedNode = {
+  readonly type: string;
+  readonly props: Record<string, unknown>;
+  readonly children: ReadonlyArray<RenderedTree>;
+};
+
+type RenderedTree = RenderedNode | string;
+
+function renderPanel({
+  rows,
+}: {
+  rows: ReadonlyArray<LiveSessionTimelineHistoryRow>;
+}): ReadonlyArray<RenderedTree> {
+  return withHookDispatcher(() =>
+    renderPanelNode(
+      createElement(LiveSessionChatPanel, {
+        canLoadOlder: true,
+        channelStatus: 'joined',
+        isJoined: true,
+        isLoadingOlder: false,
+        olderLoadError: null,
+        onLoadOlder: () => undefined,
+        onSendMessage: () => Promise.resolve(true),
+        rows,
+        sendError: null,
+        sendStatus: 'idle',
+      }),
+    ),
+  );
+}
+
+function withHookDispatcher<ReturnValue>(
+  render: () => ReturnValue,
+): ReturnValue {
+  const previousDispatcher = reactInternals.H;
+  reactInternals.H = {
+    useState<State>(
+      initialState: State,
+    ): [State, (nextState: State) => void] {
+      return [initialState, () => undefined];
+    },
+  };
+
+  try {
+    return render();
+  } finally {
+    reactInternals.H = previousDispatcher;
+  }
+}
+
+function renderPanelNode(node: ReactNode): ReadonlyArray<RenderedTree> {
+  if (node === null || node === undefined || typeof node === 'boolean') {
+    return [];
+  }
+
+  if (typeof node === 'string' || typeof node === 'number') {
+    return [String(node)];
+  }
+
+  if (Array.isArray(node)) {
+    return node.flatMap((child) => renderPanelNode(child));
+  }
+
+  if (!isValidElement(node)) {
+    return [];
+  }
+
+  const element = node as ReactElement<{
+    children?: ReactNode;
+    [key: string]: unknown;
+  }>;
+
+  if (element.type === Fragment) {
+    return renderPanelNode(element.props.children);
+  }
+
+  if (typeof element.type === 'function') {
+    return renderPanelNode(element.type(element.props));
+  }
+
+  return [
+    {
+      type: String(element.type),
+      props: element.props,
+      children: renderPanelNode(element.props.children),
+    },
+  ];
+}
+
+function findNodeByType(
+  tree: ReadonlyArray<RenderedTree>,
+  type: string,
+): RenderedNode | null {
+  for (const node of tree) {
+    if (typeof node === 'string') {
+      continue;
+    }
+
+    if (node.type === type) {
+      return node;
+    }
+
+    const childMatch = findNodeByType(node.children, type);
+
+    if (childMatch) {
+      return childMatch;
+    }
+  }
+
+  return null;
+}
+
+function collectText(tree: ReadonlyArray<RenderedTree>): ReadonlyArray<string> {
+  return tree.flatMap((node) => {
+    if (typeof node === 'string') {
+      return [node];
+    }
+
+    return collectText(node.children);
+  });
 }
 
 function lifecycleRow(

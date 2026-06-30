@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type ListRenderItem,
+} from 'react-native';
 
 import { AppButton } from '../../components/AppButton';
 import { AppCard } from '../../components/AppCard';
@@ -9,7 +16,10 @@ import type {
   LiveSessionChatChannelStatus,
   LiveSessionChatSendStatus,
 } from './liveSessionChatState';
-import { createLiveSessionChatPanelModel } from './liveSessionChatPanelPresentation';
+import {
+  createLiveSessionChatPanelModel,
+  formatLiveSessionChatPanelRow,
+} from './liveSessionChatPanelPresentation';
 import type { LiveSessionTimelineHistoryRow } from '../liveSessionTimelineHistory';
 
 type LiveSessionChatPanelProps = {
@@ -35,7 +45,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  timeline: {
+  timelineList: {
+    maxHeight: 320,
+  },
+  timelineContent: {
     gap: spacing.sm,
   },
   timelineRow: {
@@ -100,6 +113,33 @@ export function LiveSessionChatPanel({
     sendError,
     sendStatus,
   });
+  const renderTimelineItem: ListRenderItem<LiveSessionTimelineHistoryRow> = ({
+    item,
+  }) => {
+    const row = formatLiveSessionChatPanelRow(item);
+
+    return (
+      <View
+        style={[
+          styles.timelineRow,
+          {
+            backgroundColor:
+              row.tone === 'chat'
+                ? theme.colors.surfaceMuted
+                : theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.rowDetail, { color: theme.colors.textMuted }]}>
+          {row.detail}
+        </Text>
+        <Text style={[styles.rowTitle, { color: theme.colors.text }]}>
+          {row.title}
+        </Text>
+      </View>
+    );
+  };
 
   async function handleSendPress() {
     const body = draftMessage.trim();
@@ -142,36 +182,21 @@ export function LiveSessionChatPanel({
         </Text>
       ) : null}
 
-      <View style={styles.timeline}>
-        {model.rows.length > 0 ? (
-          model.rows.map((row) => (
-            <View
-              key={row.id}
-              style={[
-                styles.timelineRow,
-                {
-                  backgroundColor:
-                    row.tone === 'chat'
-                      ? theme.colors.surfaceMuted
-                      : theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-              ]}
-            >
-              <Text style={[styles.rowDetail, { color: theme.colors.textMuted }]}>
-                {row.detail}
-              </Text>
-              <Text style={[styles.rowTitle, { color: theme.colors.text }]}>
-                {row.title}
-              </Text>
-            </View>
-          ))
-        ) : (
+      <FlatList
+        contentContainerStyle={styles.timelineContent}
+        data={model.rows}
+        keyExtractor={(row) => row.id}
+        keyboardShouldPersistTaps="handled"
+        ListEmptyComponent={
           <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
             {model.emptyStateMessage}
           </Text>
-        )}
-      </View>
+        }
+        nestedScrollEnabled
+        renderItem={renderTimelineItem}
+        showsVerticalScrollIndicator={false}
+        style={styles.timelineList}
+      />
 
       {model.sendError ? (
         <Text style={[styles.errorText, { color: theme.colors.error }]}>
