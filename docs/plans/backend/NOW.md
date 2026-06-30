@@ -1,6 +1,6 @@
 # Backend Lane NOW
 
-Last reviewed: 2026-06-29
+Last reviewed: 2026-06-30
 Status: idle; completed backend plans archived
 
 ## Lane Scope
@@ -37,9 +37,8 @@ Mobile-facing contracts:
 ## Next Action
 
 No backend lane batch is currently selected. The next documented product batch
-is the mobile release-candidate one-host/one-viewer device QA pass from
-`docs/plans/mobile/NOW.md`, unless the coordinator explicitly reprioritizes a
-new backend plan.
+is the mobile host in-session controls batch from `docs/plans/mobile/NOW.md`,
+unless the coordinator explicitly reprioritizes a new backend plan.
 
 ## References
 
