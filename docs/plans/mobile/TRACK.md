@@ -6,18 +6,18 @@ Use this file for mobile plan order and dependency context. Use
 ## Goal
 
 Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durable
-data, Phoenix Channels for realtime state, and supports auth, profiles, live
-streaming, and chat.
+data, Phoenix Channels for realtime state, and supports auth, profiles, feed
+and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: active; non-QA product batch selection active
+- Track state: active; mobile feed/content product batch active
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Last completed detailed plan:
   `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
-- Current theme: select the next product-completeness batch after queued
-  live-session product follow-ups completed; release-candidate QA remains
-  deferred.
+- Current theme: mobile home feed/content discovery over the existing GraphQL
+  `homeFeed`, `storyFeed`, `replayFeed`, and `reportPost` contract;
+  release-candidate QA remains deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in
@@ -99,12 +99,17 @@ streaming, and chat.
 14. Chat history pagination.
 15. Post-live recording replay affordance.
 16. Release diagnostics screen.
-17. Release-candidate manual device QA using the one-host/one-viewer checklist.
+17. Mobile feed and content discovery surface.
+18. Release-candidate manual device QA using the one-host/one-viewer checklist.
 
 ## Active And Queued Follow-Up Plans
 
-All queued product follow-up plans are complete and archived. The active work is
-to select or write the next non-QA product-completeness batch. Deferred QA gate:
+Active product batch:
+
+- `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
+
+All previously queued live-session product follow-up plans are complete and
+archived. Deferred QA gate:
 
 - `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
@@ -117,8 +122,9 @@ to select or write the next non-QA product-completeness batch. Deferred QA gate:
   development build rather than Expo Go.
 - Durable reads and writes should use the Relay-first GraphQL contract.
 - Realtime live-session and chat behavior should integrate with Phoenix Channels.
-- Product completeness for auth, live, and chat takes priority over non-product
-  hardening until the core app loop is implemented.
+- Product completeness for auth, profiles, feed/content discovery, live, and
+  chat takes priority over non-product hardening until the core app loop is
+  implemented.
 
 ## Source Rationale
 
@@ -130,3 +136,4 @@ to select or write the next non-QA product-completeness batch. Deferred QA gate:
 - Backend architecture: `ARCHITECTURE.md`
 - Mobile GraphQL contract: `docs/contracts/mobile-graphql-phase2.md`
 - Mobile chat-history contract: `docs/contracts/mobile-graphql-chat-history.md`
+- Mobile live-session contract: `docs/contracts/mobile-live-session-graphql.md`
