@@ -1,5 +1,5 @@
-import { LiveDiscoveryScreen } from '../../src/live/discovery/LiveDiscoveryScreen';
+import { FeedHomeScreen } from '../../src/feed/FeedHomeScreen';
 
 export default function HomeScreen() {
-  return <LiveDiscoveryScreen />;
+  return <FeedHomeScreen />;
 }

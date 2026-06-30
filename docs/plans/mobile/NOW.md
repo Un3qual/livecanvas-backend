@@ -14,7 +14,7 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
 - Source plan:
   `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: Task 2, replace live-only home with a product home surface.
+- Current task: Task 3, add post reporting from feed cards.
 - Latest completed prerequisite:
   `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 - Latest QA evidence:
@@ -30,8 +30,8 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
   completed plan is archived or the lane is explicitly marked awaiting product
   direction for any contract mismatch.
 - Verification:
-  - From `mobile/`: `bun test tests/feed/FeedHomeScreen.test.tsx`
   - From `mobile/`: `bun test tests/feed/feedPresentation.test.ts`
+  - From `mobile/`: `bun test tests/feed/FeedHomeScreen.test.tsx`
   - From `mobile/`: `bun test tests/feed/reportPostReducer.test.ts`
   - From `mobile/`: `bun run test:quality`
   - From `mobile/`: `bun run typecheck`
@@ -39,11 +39,11 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
 
 ## Do This Now
 
-Implement Task 2 in
-`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`: replace the
-live-only home route with a product home surface backed by the existing feed,
-story, replay, live-now, and viewer-current-session GraphQL reads. Keep the
-release-candidate checklist deferred until product explicitly resumes QA.
+Implement Task 3 in
+`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`: add post
+reporting from feed cards using the existing `reportPost` mutation and local
+duplicate-submit guards. Keep the release-candidate checklist deferred until
+product explicitly resumes QA.
 
 ## Guardrails
 
@@ -64,5 +64,5 @@ release-candidate checklist deferred until product explicitly resumes QA.
 
 ## Next Action
 
-Implement Task 2 in
+Implement Task 3 in
 `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`.

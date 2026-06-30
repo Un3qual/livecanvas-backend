@@ -77,17 +77,17 @@ Evidence:
 - Test: `mobile/tests/feed/FeedHomeScreen.test.tsx`
 
 Acceptance criteria:
-- [ ] `/home` renders a signed-in product home with sections for stories, home
+- [x] `/home` renders a signed-in product home with sections for stories, home
       feed posts, live now, replays, and the viewer's current live session when
       present.
-- [ ] Existing home actions remain reachable: host a live session when the
+- [x] Existing home actions remain reachable: host a live session when the
       viewer has no current session, open profile, and diagnostics.
-- [ ] `homeFeed(first:)`, `storyFeed(first:)`, `replayFeed(first:)`,
+- [x] `homeFeed(first:)`, `storyFeed(first:)`, `replayFeed(first:)`,
       `liveNow(first:)`, `viewer.id`, and `viewer.currentLiveSession` are
       queried from Relay.
-- [ ] Live and replay rows use `liveSessionHref(session.id)` rather than
+- [x] Live and replay rows use `liveSessionHref(session.id)` rather than
       decoding Relay IDs.
-- [ ] Empty, loading, and query-error states are covered for the combined home
+- [x] Empty, loading, and query-error states are covered for the combined home
       surface.
 
 Implementation notes:
@@ -99,6 +99,10 @@ Implementation notes:
 
 Focused verification:
 - From `mobile/`: `bun test tests/feed/FeedHomeScreen.test.tsx`
+
+Evidence:
+- 2026-06-30: `bun test tests/feed/FeedHomeScreen.test.tsx` passes with 5
+  tests after red/green implementation and Relay codegen.
 
 ### Task 3: Add post reporting from feed cards
 
