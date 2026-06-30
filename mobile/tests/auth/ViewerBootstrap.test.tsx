@@ -69,6 +69,7 @@ mock.module('react-relay', () => ({
       },
     };
   },
+  useMutation: () => [() => undefined, false],
 }));
 
 mock.module('../../src/auth/AuthProvider', () => ({

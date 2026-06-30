@@ -6,18 +6,18 @@ Use this file for mobile plan order and dependency context. Use
 ## Goal
 
 Deliver an Expo mobile app in `mobile/` that uses Relay-first GraphQL for durable
-data, Phoenix Channels for realtime state, and supports auth, profiles, live
-streaming, and chat.
+data, Phoenix Channels for realtime state, and supports auth, profiles, feed
+and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: active; release-candidate device QA active
+- Track state: active; mobile feed/content product batch active
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Last completed detailed plan:
-  `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
-- Current theme: release-candidate one-host/one-viewer device QA after local
-  quality gates, TypeScript readability cleanup, and XState live workflow
-  cleanup.
+  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
+- Current theme: mobile home feed/content discovery over the existing GraphQL
+  `homeFeed`, `storyFeed`, `replayFeed`, and `reportPost` contract;
+  release-candidate QA remains deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in
@@ -50,12 +50,12 @@ streaming, and chat.
   import shims stayed preserved and tests remained under `mobile/tests/**`.
 - XState live workflow cleanup is archived at
   `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`.
-- Release-candidate manual QA is tracked in
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`; no remote or
-  authenticated EAS build/submit command is required by that checklist.
-- Candidate tangible follow-up plans are staged under
-  `docs/plans/mobile/follow-ups/` and should be promoted one at a time only
-  after the current release-candidate QA batch is recorded or paused.
+- Feature follow-ups are archived through
+  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`.
+- Release-candidate manual QA remains tracked in
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`, but it is
+  deferred until product explicitly resumes QA. No remote or authenticated EAS
+  build/submit command is required by that checklist.
 
 ## Completed Detailed Plans
 
@@ -73,6 +73,11 @@ streaming, and chat.
 - `docs/plans/archive/completed/mobile/2026-06-27-mobile-frontend-structure-cleanup.md`
 - `docs/plans/archive/completed/mobile/2026-06-27-mobile-typescript-quality-readability.md`
 - `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
+- `docs/plans/archive/completed/mobile/2026-06-29-host-in-session-controls.md`
+- `docs/plans/archive/completed/mobile/2026-06-29-viewer-playback-recovery-controls.md`
+- `docs/plans/archive/completed/mobile/2026-06-29-chat-history-pagination.md`
+- `docs/plans/archive/completed/mobile/2026-06-29-post-live-recording-replay-affordance.md`
+- `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 
 ## Recommended Plan Order
 
@@ -84,22 +89,29 @@ streaming, and chat.
 6. Chat realtime stream plus retained history.
 7. Pre-beta product completeness: viewer setup contract, host publishing, and
    viewer playback.
-8. Testing, beta distribution, and release readiness.
-9. Mobile frontend structure cleanup before continued release-candidate QA.
+8. Testing, beta distribution, and release readiness foundations.
+9. Mobile frontend structure cleanup before continued feature follow-ups.
 10. Mobile TypeScript readability cleanup for live broadcast code before deeper
-    live-device QA.
+    live-session feature work.
 11. Mobile XState live workflow cleanup for complex live protocol state.
-12. Release-candidate manual device QA using the one-host/one-viewer checklist.
+12. Host in-session controls.
+13. Viewer playback recovery controls.
+14. Chat history pagination.
+15. Post-live recording replay affordance.
+16. Release diagnostics screen.
+17. Mobile feed and content discovery surface.
+18. Release-candidate manual device QA using the one-host/one-viewer checklist.
 
-## Candidate Follow-Up Plans
+## Active And Queued Follow-Up Plans
 
-These plans are not active lane batches yet:
+Active product batch:
 
-- `docs/plans/mobile/follow-ups/2026-06-29-host-in-session-controls.md`
-- `docs/plans/mobile/follow-ups/2026-06-29-chat-history-pagination.md`
-- `docs/plans/mobile/follow-ups/2026-06-29-viewer-playback-recovery-controls.md`
-- `docs/plans/mobile/follow-ups/2026-06-29-post-live-recording-replay-affordance.md`
-- `docs/plans/mobile/follow-ups/2026-06-29-release-diagnostics-screen.md`
+- `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
+
+All previously queued live-session product follow-up plans are complete and
+archived. Deferred QA gate:
+
+- `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
 ## Shared Constraints
 
@@ -110,8 +122,9 @@ These plans are not active lane batches yet:
   development build rather than Expo Go.
 - Durable reads and writes should use the Relay-first GraphQL contract.
 - Realtime live-session and chat behavior should integrate with Phoenix Channels.
-- Product completeness for auth, live, and chat takes priority over non-product
-  hardening until the core app loop is implemented.
+- Product completeness for auth, profiles, feed/content discovery, live, and
+  chat takes priority over non-product hardening until the core app loop is
+  implemented.
 
 ## Source Rationale
 
@@ -123,3 +136,4 @@ These plans are not active lane batches yet:
 - Backend architecture: `ARCHITECTURE.md`
 - Mobile GraphQL contract: `docs/contracts/mobile-graphql-phase2.md`
 - Mobile chat-history contract: `docs/contracts/mobile-graphql-chat-history.md`
+- Mobile live-session contract: `docs/contracts/mobile-live-session-graphql.md`

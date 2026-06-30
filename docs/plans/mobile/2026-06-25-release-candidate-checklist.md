@@ -1,6 +1,6 @@
 # Mobile Release Candidate Checklist
 
-Last reviewed: 2026-06-29
+Last reviewed: 2026-06-30
 
 Source plan:
 `docs/plans/archive/completed/mobile/2026-06-05-testing-beta-release-readiness.md`
@@ -13,6 +13,9 @@ distribution build without `developmentClient`.
 
 No remote or authenticated EAS build or submit command is required by this
 checklist.
+
+Current status: deferred until product explicitly resumes release-candidate QA.
+Use `docs/plans/mobile/NOW.md` for the active non-QA product-batch selection.
 
 ## Entry Criteria
 
@@ -51,6 +54,21 @@ checklist.
   beta test accounts, and physical host/viewer devices were not available in
   this local worker environment, so the manual device QA sections below remain
   pending and the full release-candidate device QA is not marked complete.
+
+### 2026-06-30 Product Follow-Up Queue Completion
+
+- The product follow-up queue above release-candidate QA is complete in the
+  current checkout: host in-session controls, viewer playback recovery controls,
+  chat history pagination, post-live recording replay affordance, and the
+  release diagnostics screen are implemented and covered by mobile tests.
+- `mobile/`: `bun run test:quality` passes with typecheck, test typecheck,
+  lint, and 411 Bun tests passing.
+- `mobile/`: `bun run typecheck` passes.
+- Repo root: `git diff --check` passes.
+- Target remote EAS environment values, preview build availability, beta test
+  accounts, and physical host/viewer devices were not available in this local
+  worker environment, so the manual device QA sections below remain pending and
+  the full release-candidate device QA is not marked complete.
 
 ## Launch Blockers
 

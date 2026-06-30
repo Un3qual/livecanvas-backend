@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-29
-Status: XState live workflow cleanup complete; release-candidate QA active
+Last reviewed: 2026-06-30
+Status: mobile feed/content product batch active; release-candidate QA deferred
 
 ## Lane Scope
 
@@ -12,40 +12,49 @@ Status: XState live workflow cleanup complete; release-candidate QA active
 ## Current Batch
 
 - Source plan:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+  `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: run the one-host/one-viewer release-candidate device QA pass.
+- Current task: Task 4, add section refresh and pagination affordances.
 - Latest completed prerequisite:
-  `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
+  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 - Latest QA evidence:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md#2026-06-29-local-entry-gate-pass`
-  records passing local entry gates and notes that preview build/device/account
-  manual QA remains pending in this worker environment.
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md#2026-06-30-product-follow-up-queue-completion`
+  records passing mobile quality gates after the completed feature queue and
+  notes that preview build/device/account manual QA remains pending in this
+  worker environment.
 - Write scope:
+  - `mobile/**`
   - `docs/plans/mobile/**`
-  - `mobile/**` only for reproduced launch-blocker fixes
-- Done condition: entry criteria and manual device/simulator checks are recorded
-  as passing, or launch blockers are promoted into scoped follow-up plans.
+- Done condition: the mobile home surface renders backend-backed content,
+  replay discovery, post reporting, and section refresh/pagination affordances
+  from the existing GraphQL contract; the completed plan is archived or the
+  lane is explicitly marked awaiting product direction for any contract
+  mismatch.
 - Verification:
+  - From `mobile/`: `bun test tests/feed/feedPresentation.test.ts`
+  - From `mobile/`: `bun test tests/feed/FeedHomeScreen.test.tsx`
+  - From `mobile/`: `bun test tests/feed/reportPostReducer.test.ts`
   - From `mobile/`: `bun run test:quality`
   - From `mobile/`: `bun run typecheck`
   - From repo root: `git diff --check`
 
 ## Do This Now
 
-Start with the release-candidate checklist entry criteria, then run the auth,
-profiles, live discovery/watch, host preflight, media signaling/WebRTC, realtime
-chat, retained replay, and cleanup checks for the one-host/one-viewer beta
-scope.
+Implement Task 4 in
+`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`: add section
+refresh and pagination affordances for the home feed, stories, and replays.
+Keep the release-candidate checklist deferred until product explicitly resumes
+QA.
 
 ## Guardrails
 
-- Do not run remote or authenticated EAS build/submit commands from this local
-  docs handoff.
-- Do not expand the completed release-candidate checklist into implementation
-  unless a launch blocker is reproduced and promoted.
-- Do not reactivate archived cleanup plans from this QA handoff.
-- Do not change GraphQL schema shape during the QA batch.
+- Do not run remote or authenticated EAS build/submit commands from this lane
+  handoff.
+- Do not run release-candidate manual device QA from this handoff.
+- Do not reactivate archived cleanup or completed live-session feature
+  follow-up plans from this batch.
+- Do not expand the release-candidate checklist into implementation.
+- Do not change GraphQL schema shape during this batch.
 - Do not decode Relay IDs client-side.
 - Do not construct media signaling topics client-side.
 - Backend live media runtime foundation and the viewer setup contract are
@@ -56,5 +65,5 @@ scope.
 
 ## Next Action
 
-Confirm the `preview` build installs, cold-launches, and reaches the configured
-API and websocket endpoints on the target beta device.
+Implement Task 4 in
+`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`.

@@ -1,7 +1,7 @@
 # Current Execution
 
-Last reviewed: 2026-06-29
-Status: mobile release-candidate QA active; backend lane idle
+Last reviewed: 2026-06-30
+Status: mobile feed/content product batch active; release-candidate QA deferred; backend lane idle
 
 ## Purpose
 
@@ -22,12 +22,12 @@ details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active; release-candidate one-host/one-viewer QA is current
+- State: active; implement mobile feed/content discovery surface
 - Scope: `mobile/` and `docs/plans/mobile/**`
 - Current source plan:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+  `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
 - Latest completed source plan:
-  `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`
+  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 
 ## Execution Rule
 
@@ -44,9 +44,10 @@ track docs.
 
 ## Next Coordinator Decision
 
-Continue the mobile release-candidate device QA batch from
-`docs/plans/mobile/NOW.md`. Select the next product-completeness batch only
-after that QA pass is recorded or paused.
+Do not reactivate release-candidate QA yet. The active mobile lane batch is the
+feed/content discovery surface in
+`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`; execute from
+`docs/plans/mobile/NOW.md` before any release-candidate device QA work resumes.
 
 ## Repair Conditions
 
