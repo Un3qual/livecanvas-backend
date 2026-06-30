@@ -37,8 +37,6 @@ const reactInternals = (
 let authState: AuthState;
 let hookIndex = 0;
 let hookStates: unknown[];
-let currentPathname: string;
-let landingHref: string;
 let viewerQueryCalls: number;
 
 mock.module('react-relay', () => ({
@@ -54,28 +52,6 @@ mock.module('react-relay', () => ({
       },
     };
   },
-}));
-
-mock.module('expo-router', () => ({
-  usePathname: () => currentPathname,
-}));
-
-mock.module('../../src/providers/StartupGate', () => ({
-  useStartupState: () => ({
-    environment: {
-      apiBaseUrl: 'https://preview-api.livecanvas.example',
-      bootSessionState: 'authenticated',
-      websocketUrl: 'wss://preview-ws.livecanvas.example/socket',
-    },
-    snapshot: {
-      bootSessionState: 'authenticated',
-      defaultHref: '/home',
-      initialHref: '/diagnostics',
-      initialUrl: 'livecanvas-mobile://diagnostics',
-      landingHref,
-      resetReason: null,
-    },
-  }),
 }));
 
 mock.module('../../src/auth/AuthProvider', () => ({
@@ -118,25 +94,23 @@ beforeEach(() => {
   };
   hookIndex = 0;
   hookStates = [];
-  currentPathname = '/diagnostics';
-  landingHref = '/diagnostics';
   viewerQueryCalls = 0;
 });
 
 describe('ViewerBootstrap', () => {
-  test('lets diagnostics render for authenticated users without viewer bootstrap', () => {
-    const tree = renderViewerBootstrap('diagnostics child');
-
-    expect(collectText(tree)).toContain('diagnostics child');
-    expect(viewerQueryCalls).toBe(0);
-  });
-
-  test('runs viewer bootstrap after navigating away from diagnostics', () => {
-    currentPathname = '/home';
-
+  test('runs viewer bootstrap for authenticated route children', () => {
     renderViewerBootstrap('home child');
 
     expect(viewerQueryCalls).toBe(1);
+  });
+
+  test('lets unauthenticated route children render without viewer bootstrap', () => {
+    authState = { status: 'unauthenticated' };
+
+    const tree = renderViewerBootstrap('sign-in child');
+
+    expect(collectText(tree)).toContain('sign-in child');
+    expect(viewerQueryCalls).toBe(0);
   });
 });
 
