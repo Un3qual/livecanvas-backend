@@ -15,7 +15,7 @@ type LinkingMock = {
 const linkingMock: LinkingMock = {
   canOpenURL: mock(() => Promise.resolve(false)),
   getInitialURL: mock(() => Promise.resolve(null)),
-  openURL: mock(() => Promise.resolve(undefined)),
+  openURL: mock(() => Promise.resolve()),
 };
 
 function NativeComponent({
@@ -142,7 +142,7 @@ describe('LiveSessionWatchCards recording metadata', () => {
   beforeEach(() => {
     linkingMock.canOpenURL = mock(() => Promise.resolve(false));
     linkingMock.getInitialURL = mock(() => Promise.resolve(null));
-    linkingMock.openURL = mock(() => Promise.resolve(undefined));
+    linkingMock.openURL = mock(() => Promise.resolve());
   });
 
   test('omits the recording section when the session has no recording asset', () => {
