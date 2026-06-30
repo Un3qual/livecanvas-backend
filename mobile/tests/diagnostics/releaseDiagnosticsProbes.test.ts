@@ -14,7 +14,7 @@ describe('release diagnostics probes', () => {
 
     const result = await runApiReachabilityProbe({
       apiBaseUrl:
-        'https://user:password@preview-api.livecanvas.example/graphql?token=secret-token#secret-fragment',
+        'https://user:password@preview-api.livecanvas.example?token=secret-token#secret-fragment',
       fetchImpl: (url, init = {}) => {
         calls.push({ url: String(url), init });
         return Promise.resolve(
@@ -77,6 +77,28 @@ describe('release diagnostics probes', () => {
       status: 'failed',
       reason: 'Network request failed',
     });
+  });
+
+  test('API probe mirrors the app GraphQL path suffix construction', async () => {
+    const calls: string[] = [];
+
+    await expect(
+      runApiReachabilityProbe({
+        apiBaseUrl: 'https://preview-api.livecanvas.example/graphql',
+        fetchImpl: (url) => {
+          calls.push(String(url));
+          return Promise.resolve(
+            new Response(JSON.stringify({ data: { __typename: 'Query' } }), {
+              status: 200,
+            }),
+          );
+        },
+      }),
+    ).resolves.toEqual({ status: 'reachable' });
+
+    expect(calls).toEqual([
+      'https://preview-api.livecanvas.example/graphql/graphql',
+    ]);
   });
 
   test('websocket probe validates URL shape before opening a socket', async () => {
@@ -166,6 +188,35 @@ describe('release diagnostics probes', () => {
     );
     expect(openedUrl).not.toContain('secret-token');
     expect(openedUrl).not.toContain('secret-fragment');
+  });
+
+  test('websocket probe mirrors Phoenix endpoint expansion for full transport URLs', async () => {
+    let openedUrl: string | null = null;
+
+    const result = await runWebsocketReachabilityProbe({
+      getAccessToken: () => 'diagnostic-access-token',
+      websocketUrl: 'wss://preview-ws.livecanvas.example/socket/websocket',
+      createWebSocket: (url) => {
+        openedUrl = url;
+        const socket: ReleaseDiagnosticsWebSocket = {
+          close: () => undefined,
+          onclose: null,
+          onerror: null,
+          onopen: null,
+        };
+
+        queueMicrotask(() => {
+          socket.onopen?.();
+        });
+
+        return socket;
+      },
+    });
+
+    expect(result).toEqual({ status: 'reachable' });
+    expect(openedUrl).toBe(
+      'wss://preview-ws.livecanvas.example/socket/websocket/websocket?vsn=2.0.0&token=diagnostic-access-token',
+    );
   });
 
   test('websocket probe allows local ws fallback for development', async () => {

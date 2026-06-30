@@ -159,10 +159,6 @@ function apiGraphqlProbeUrl(rawUrl: string): string {
 function graphqlPath(pathname: string): string {
   const trimmedPathname = pathname.replace(/\/+$/, '');
 
-  if (trimmedPathname.endsWith('/graphql')) {
-    return trimmedPathname;
-  }
-
   return `${trimmedPathname}/graphql`;
 }
 
@@ -215,10 +211,6 @@ function phoenixWebsocketTransportUrl(
 
 function phoenixTransportPath(pathname: string): string {
   const trimmedPathname = pathname.replace(/\/+$/, '');
-
-  if (trimmedPathname.endsWith(`/${PHOENIX_TRANSPORT_PATH}`)) {
-    return trimmedPathname;
-  }
 
   return `${trimmedPathname}/${PHOENIX_TRANSPORT_PATH}`;
 }
