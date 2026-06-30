@@ -84,11 +84,16 @@ export function ReleaseDiagnosticsScreen() {
 
   async function checkApi() {
     setApiProbeStatus({ status: 'checking' });
-    setApiProbeStatus(
-      await runApiReachabilityProbe({
+    try {
+      setApiProbeStatus(await runApiReachabilityProbe({
         apiBaseUrl: environment.apiBaseUrl,
-      }),
-    );
+      }));
+    } catch {
+      setApiProbeStatus({
+        status: 'failed',
+        reason: 'API probe failed',
+      });
+    }
   }
 
   async function checkWebsocket() {

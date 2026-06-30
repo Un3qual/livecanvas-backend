@@ -49,6 +49,7 @@ const reactInternals = (
 let authStatus: AuthState['status'];
 let startupState: StartupState;
 let apiProbeResult: DiagnosticsProbeStatus;
+let apiProbeError: Error | null;
 let websocketProbeResult: DiagnosticsProbeStatus;
 let websocketProbeError: Error | null;
 let hookStates: unknown[];
@@ -115,7 +116,9 @@ mock.module('../../src/diagnostics/releaseDiagnosticsProbes', () => ({
   API_PROBE_TIMEOUT_MS,
   runApiReachabilityProbe: ({ apiBaseUrl }: { apiBaseUrl: string }) => {
     apiProbeCalls.push(apiBaseUrl);
-    return Promise.resolve(apiProbeResult);
+    return apiProbeError
+      ? Promise.reject(apiProbeError)
+      : Promise.resolve(apiProbeResult);
   },
   runWebsocketReachabilityProbe: ({
     getAccessToken,
@@ -146,6 +149,7 @@ beforeEach(() => {
   authStatus = 'authenticated';
   startupState = screenModelInput();
   apiProbeResult = { status: 'reachable' };
+  apiProbeError = null;
   websocketProbeResult = {
     status: 'failed',
     reason: 'Websocket connection failed',
@@ -267,6 +271,19 @@ describe('ReleaseDiagnosticsScreen', () => {
     const texts = collectText(screen);
 
     expect(texts).toContain('Failed: Websocket probe failed');
+    expect(texts.join(' ')).not.toContain('secret token');
+  });
+
+  test('renders a failed API probe when the diagnostic rejects', async () => {
+    apiProbeError = new Error('API internal failure with secret token');
+    let screen = renderScreen();
+
+    await pressButton(screen, 'Check API');
+    screen = renderScreen();
+
+    const texts = collectText(screen);
+
+    expect(texts).toContain('Failed: API probe failed');
     expect(texts.join(' ')).not.toContain('secret token');
   });
 });

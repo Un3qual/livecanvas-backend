@@ -146,6 +146,8 @@ function stripUnsafeSuffix(value: string): string {
 }
 
 function redactTokenPathSegments(pathname: string): string {
+  // Redact both `/token-key/secret` and `token-key=secret` path styles; deep links
+  // can carry release tokens as either path segments or segment-local values.
   const segments = pathname.split('/');
 
   return segments
@@ -172,6 +174,8 @@ function redactTokenPathSegments(pathname: string): string {
 }
 
 function isTokenPathSegmentKey(segment: string): boolean {
+  // Treat broad `*token` suffixes as sensitive so new token-bearing segment names
+  // are redacted by default instead of waiting for a diagnostics-specific update.
   const normalized = segment.toLowerCase().replace(/[^a-z]/g, '');
   return (
     normalized === 'confirmemail' ||

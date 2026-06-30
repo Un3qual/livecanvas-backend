@@ -39,13 +39,21 @@ export async function runApiReachabilityProbe({
   fetchImpl = fetch,
   timeoutMs = API_PROBE_TIMEOUT_MS,
 }: ApiProbeOptions): Promise<DiagnosticsProbeStatus> {
+  let probeUrl: string;
+
+  try {
+    probeUrl = apiGraphqlProbeUrl(apiBaseUrl);
+  } catch {
+    return failed('API URL is not valid');
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => {
     controller.abort();
   }, timeoutMs);
 
   try {
-    const response = await fetchImpl(apiGraphqlProbeUrl(apiBaseUrl), {
+    const response = await fetchImpl(probeUrl, {
       body: JSON.stringify({
         query: API_PROBE_QUERY,
         variables: {},

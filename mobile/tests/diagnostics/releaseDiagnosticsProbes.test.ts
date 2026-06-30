@@ -79,6 +79,25 @@ describe('release diagnostics probes', () => {
     });
   });
 
+  test('API probe reports malformed endpoint configuration separately from network failures', async () => {
+    let fetchCalled = false;
+
+    await expect(
+      runApiReachabilityProbe({
+        apiBaseUrl: 'not a valid url',
+        fetchImpl: () => {
+          fetchCalled = true;
+          return Promise.reject(new Error('should not fetch'));
+        },
+      }),
+    ).resolves.toEqual({
+      status: 'failed',
+      reason: 'API URL is not valid',
+    });
+
+    expect(fetchCalled).toBe(false);
+  });
+
   test('API probe mirrors the app GraphQL path suffix construction', async () => {
     const calls: string[] = [];
 
