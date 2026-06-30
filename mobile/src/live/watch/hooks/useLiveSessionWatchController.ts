@@ -233,6 +233,10 @@ export function createLiveSessionOlderTimelinePageLoader({
   function unmount() {
     isMounted = false;
     activeRequest = null;
+
+    if (state.isLoading) {
+      publishState({ error: null, isLoading: false });
+    }
   }
 
   function mount() {

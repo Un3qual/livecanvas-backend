@@ -10,19 +10,24 @@ export type LiveSessionRecordingPresentation = {
   readonly publicUrl: string | null;
 };
 
+export type NormalizedLiveSessionRecordingPublicUrl = {
+  readonly protocol: string;
+  readonly publicUrl: string;
+};
+
 export function formatLiveSessionRecordingPresentation({
   processingState,
   publicUrl,
 }: LiveSessionRecordingPresentationInput): LiveSessionRecordingPresentation {
   if (processingState === 'PROCESSED') {
-    const normalizedPublicUrl = normalizePublicUrl(publicUrl);
+    const normalizedPublicUrl = normalizeLiveSessionRecordingPublicUrl(publicUrl);
 
     if (normalizedPublicUrl) {
       return {
         statusLabel: 'Replay ready',
         body: 'This session recording is ready to watch.',
         canOpen: true,
-        publicUrl: normalizedPublicUrl,
+        publicUrl: normalizedPublicUrl.publicUrl,
       };
     }
 
@@ -50,10 +55,25 @@ export function formatLiveSessionRecordingPresentation({
   return recordingUnavailable();
 }
 
-function normalizePublicUrl(publicUrl: string | null | undefined): string | null {
+export function normalizeLiveSessionRecordingPublicUrl(
+  publicUrl: string | null | undefined,
+): NormalizedLiveSessionRecordingPublicUrl | null {
   const trimmedPublicUrl = publicUrl?.trim();
 
-  return trimmedPublicUrl ? trimmedPublicUrl : null;
+  if (!trimmedPublicUrl) {
+    return null;
+  }
+
+  const parsedPublicUrl = parsePublicUrl(trimmedPublicUrl);
+
+  if (!parsedPublicUrl) {
+    return null;
+  }
+
+  return {
+    protocol: parsedPublicUrl.protocol,
+    publicUrl: trimmedPublicUrl,
+  };
 }
 
 function recordingUnavailable(): LiveSessionRecordingPresentation {
@@ -63,4 +83,12 @@ function recordingUnavailable(): LiveSessionRecordingPresentation {
     canOpen: false,
     publicUrl: null,
   };
+}
+
+function parsePublicUrl(publicUrl: string): URL | null {
+  try {
+    return new URL(publicUrl);
+  } catch {
+    return null;
+  }
 }

@@ -28,6 +28,7 @@ export type ReleaseDiagnosticsWebSocket = {
 };
 
 type WebsocketProbeOptions = {
+  getAccessToken?: () => string | null;
   websocketUrl: string;
   createWebSocket?: (url: string) => ReleaseDiagnosticsWebSocket;
   timeoutMs?: number;
@@ -44,7 +45,7 @@ export async function runApiReachabilityProbe({
   }, timeoutMs);
 
   try {
-    const response = await fetchImpl(`${trimTrailingSlash(apiBaseUrl)}/graphql`, {
+    const response = await fetchImpl(apiGraphqlProbeUrl(apiBaseUrl), {
       body: JSON.stringify({
         query: API_PROBE_QUERY,
         variables: {},
@@ -61,6 +62,7 @@ export async function runApiReachabilityProbe({
     const bodyText = await response.text();
 
     try {
+      // This is a transport probe: any valid JSON response proves GraphQL replied.
       JSON.parse(bodyText);
       return { status: 'reachable' };
     } catch {
@@ -78,11 +80,15 @@ export async function runApiReachabilityProbe({
 }
 
 export function runWebsocketReachabilityProbe({
-  websocketUrl,
   createWebSocket = createGlobalWebSocket,
+  getAccessToken = () => null,
   timeoutMs = WEBSOCKET_PROBE_TIMEOUT_MS,
+  websocketUrl,
 }: WebsocketProbeOptions): Promise<DiagnosticsProbeStatus> {
-  const transportUrl = phoenixWebsocketTransportUrl(websocketUrl);
+  const transportUrl = phoenixWebsocketTransportUrl(
+    websocketUrl,
+    getAccessToken(),
+  );
 
   if (transportUrl.status === 'failed') {
     return Promise.resolve(failed(transportUrl.reason));
@@ -91,14 +97,17 @@ export function runWebsocketReachabilityProbe({
   return new Promise((resolve) => {
     let socket: ReleaseDiagnosticsWebSocket | null = null;
     let settled = false;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
 
-    const finish = (status: DiagnosticsProbeStatus) => {
+    function finish(status: DiagnosticsProbeStatus) {
       if (settled) {
         return;
       }
 
       settled = true;
-      clearTimeout(timeout);
+      if (timeout) {
+        clearTimeout(timeout);
+      }
 
       try {
         socket?.close();
@@ -107,9 +116,9 @@ export function runWebsocketReachabilityProbe({
       }
 
       resolve(status);
-    };
+    }
 
-    const timeout = setTimeout(() => {
+    timeout = setTimeout(() => {
       finish(failed('Websocket probe timed out'));
     }, timeoutMs);
 
@@ -136,15 +145,35 @@ function failed(reason: string): DiagnosticsProbeStatus {
   return { status: 'failed', reason };
 }
 
-function trimTrailingSlash(value: string): string {
-  return value.replace(/\/+$/, '');
+function apiGraphqlProbeUrl(rawUrl: string): string {
+  const url = new URL(rawUrl.trim());
+  url.username = '';
+  url.password = '';
+  url.pathname = graphqlPath(url.pathname);
+  url.search = '';
+  url.hash = '';
+
+  return url.toString();
+}
+
+function graphqlPath(pathname: string): string {
+  const trimmedPathname = pathname.replace(/\/+$/, '');
+
+  if (trimmedPathname.endsWith('/graphql')) {
+    return trimmedPathname;
+  }
+
+  return `${trimmedPathname}/graphql`;
 }
 
 type PhoenixTransportUrlResult =
   | { status: 'ok'; url: string }
   | { status: 'failed'; reason: string };
 
-function phoenixWebsocketTransportUrl(rawUrl: string): PhoenixTransportUrlResult {
+function phoenixWebsocketTransportUrl(
+  rawUrl: string,
+  accessToken: string | null,
+): PhoenixTransportUrlResult {
   try {
     const url = new URL(rawUrl);
 
@@ -155,12 +184,28 @@ function phoenixWebsocketTransportUrl(rawUrl: string): PhoenixTransportUrlResult
       };
     }
 
+    if (url.protocol === 'ws:' && !isLocalWebsocketHost(url.hostname)) {
+      return {
+        status: 'failed',
+        reason: 'Remote websocket URL must use wss://',
+      };
+    }
+
+    const token = accessToken?.trim();
+    if (!token) {
+      return {
+        status: 'failed',
+        reason: 'Websocket probe requires an authenticated session',
+      };
+    }
+
     url.username = '';
     url.password = '';
     url.search = '';
     url.hash = '';
     url.pathname = phoenixTransportPath(url.pathname);
     url.searchParams.set('vsn', PHOENIX_TRANSPORT_VSN);
+    url.searchParams.set('token', token);
 
     return { status: 'ok', url: url.toString() };
   } catch {
@@ -176,6 +221,15 @@ function phoenixTransportPath(pathname: string): string {
   }
 
   return `${trimmedPathname}/${PHOENIX_TRANSPORT_PATH}`;
+}
+
+function isLocalWebsocketHost(hostname: string): boolean {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '::1' ||
+    hostname === '[::1]'
+  );
 }
 
 function createGlobalWebSocket(url: string): ReleaseDiagnosticsWebSocket {

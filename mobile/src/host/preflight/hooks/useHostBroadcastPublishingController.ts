@@ -325,6 +325,8 @@ export function createHostBroadcastPublishingControllerLifecycle({
     try {
       return createLocalMediaControls(localStream);
     } catch {
+      // Keep publishing alive; without local controls, retained host controls
+      // stay hidden.
       return null;
     }
   }

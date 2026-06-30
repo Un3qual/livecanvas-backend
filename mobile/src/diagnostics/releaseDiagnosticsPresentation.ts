@@ -3,6 +3,7 @@ import type { BootSessionState } from '../config/environment';
 
 const LOCALHOST_PREVIEW_WARNING =
   'Localhost is the development fallback. Preview builds should normally use target EAS environment values.';
+const TOKEN_PATH_SEGMENT_REDACTION = 'redacted';
 
 type DiagnosticsEndpointInput = {
   label: string;
@@ -44,6 +45,8 @@ export function formatBootSessionState(state: BootSessionState): string {
       return 'Forced logout';
     case 'signed_out':
       return 'Signed out';
+    default:
+      return formatUnexpectedValue(state);
   }
 }
 
@@ -55,6 +58,8 @@ export function formatAuthStatus(status: AuthState['status']): string {
       return 'Loading';
     case 'unauthenticated':
       return 'Signed out';
+    default:
+      return formatUnexpectedValue(status);
   }
 }
 
@@ -68,6 +73,8 @@ export function formatProbeStatus(status: DiagnosticsProbeStatus): string {
       return 'Not run';
     case 'reachable':
       return 'Reachable';
+    default:
+      return formatUnexpectedValue(status);
   }
 }
 
@@ -83,16 +90,17 @@ export function formatTokenSafeDiagnosticUrl(value: string): string {
   } catch {
     if (trimmed.startsWith('/')) {
       try {
+        // The synthetic origin exists only for URL parsing; only the safe path is returned.
         const parsed = new URL(trimmed, 'https://diagnostics.local');
         parsed.search = '';
         parsed.hash = '';
-        return parsed.pathname;
+        return redactTokenPathSegments(parsed.pathname);
       } catch {
-        return stripUnsafeSuffix(trimmed);
+        return redactTokenPathSegments(stripUnsafeSuffix(trimmed));
       }
     }
 
-    return stripUnsafeSuffix(trimmed);
+    return redactTokenPathSegments(stripUnsafeSuffix(trimmed));
   }
 }
 
@@ -106,9 +114,11 @@ function isLocalhostUrl(rawUrl: string): boolean {
 }
 
 function sanitizeParsedUrl(url: URL, originalValue: string): string {
+  const safePathname = redactTokenPathSegments(url.pathname);
   const shouldSanitize =
     url.username.length > 0 ||
     url.password.length > 0 ||
+    safePathname !== url.pathname ||
     url.search.length > 0 ||
     url.hash.length > 0;
 
@@ -118,6 +128,7 @@ function sanitizeParsedUrl(url: URL, originalValue: string): string {
 
   url.username = '';
   url.password = '';
+  url.pathname = safePathname;
   url.search = '';
   url.hash = '';
 
@@ -132,4 +143,53 @@ function stripUnsafeSuffix(value: string): string {
   return suffixIndexes.length > 0
     ? value.slice(0, Math.min(...suffixIndexes))
     : value;
+}
+
+function redactTokenPathSegments(pathname: string): string {
+  const segments = pathname.split('/');
+
+  return segments
+    .map((segment, index) => {
+      const previousSegment = segments[index - 1];
+
+      if (
+        previousSegment &&
+        isTokenPathSegmentKey(safeDecodeURIComponent(previousSegment))
+      ) {
+        return TOKEN_PATH_SEGMENT_REDACTION;
+      }
+
+      const decodedSegment = safeDecodeURIComponent(segment);
+      const [segmentKey, ...segmentValue] = decodedSegment.split('=');
+
+      if (segmentValue.length > 0 && isTokenPathSegmentKey(segmentKey)) {
+        return `${segmentKey}=${TOKEN_PATH_SEGMENT_REDACTION}`;
+      }
+
+      return segment;
+    })
+    .join('/');
+}
+
+function isTokenPathSegmentKey(segment: string): boolean {
+  const normalized = segment.toLowerCase().replace(/[^a-z]/g, '');
+  return (
+    normalized === 'confirmemail' ||
+    normalized === 'login' ||
+    normalized === 'resetpassword' ||
+    normalized === 'token' ||
+    normalized.endsWith('token')
+  );
+}
+
+function safeDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function formatUnexpectedValue(value: never): string {
+  return String(value);
 }

@@ -47,10 +47,11 @@ let authStatus: AuthState['status'];
 let startupState: StartupState;
 let apiProbeResult: DiagnosticsProbeStatus;
 let websocketProbeResult: DiagnosticsProbeStatus;
+let websocketProbeError: Error | null;
 let hookStates: unknown[];
 let hookIndex = 0;
 let apiProbeCalls: string[];
-let websocketProbeCalls: string[];
+let websocketProbeCalls: Array<{ token: string | null; url: string }>;
 
 function nativeHost(name: string) {
   return name;
@@ -67,7 +68,10 @@ mock.module('react-native', () => ({
 }));
 
 mock.module('../../src/auth/AuthProvider', () => ({
-  useAuth: () => ({ state: { status: authStatus } }),
+  useAuth: () => ({
+    getAccessToken: () => 'diagnostic-access-token',
+    state: { status: authStatus },
+  }),
 }));
 
 mock.module('../../src/providers/StartupGate', () => ({
@@ -94,17 +98,24 @@ mock.module('../../src/providers/ThemeProvider', () => ({
 }));
 
 mock.module('../../src/diagnostics/releaseDiagnosticsProbes', () => ({
-  runApiReachabilityProbe: async ({ apiBaseUrl }: { apiBaseUrl: string }) => {
+  runApiReachabilityProbe: ({ apiBaseUrl }: { apiBaseUrl: string }) => {
     apiProbeCalls.push(apiBaseUrl);
-    return apiProbeResult;
+    return Promise.resolve(apiProbeResult);
   },
-  runWebsocketReachabilityProbe: async ({
+  runWebsocketReachabilityProbe: ({
+    getAccessToken,
     websocketUrl,
   }: {
+    getAccessToken: () => string | null;
     websocketUrl: string;
   }) => {
-    websocketProbeCalls.push(websocketUrl);
-    return websocketProbeResult;
+    websocketProbeCalls.push({
+      token: getAccessToken(),
+      url: websocketUrl,
+    });
+    return websocketProbeError
+      ? Promise.reject(websocketProbeError)
+      : Promise.resolve(websocketProbeResult);
   },
 }));
 
@@ -123,6 +134,7 @@ beforeEach(() => {
     status: 'failed',
     reason: 'Websocket connection failed',
   };
+  websocketProbeError = null;
   hookStates = [];
   hookIndex = 0;
   apiProbeCalls = [];
@@ -220,10 +232,26 @@ describe('ReleaseDiagnosticsScreen', () => {
 
     expect(apiProbeCalls).toEqual(['https://preview-api.livecanvas.example']);
     expect(websocketProbeCalls).toEqual([
-      'wss://preview-ws.livecanvas.example/socket',
+      {
+        token: 'diagnostic-access-token',
+        url: 'wss://preview-ws.livecanvas.example/socket',
+      },
     ]);
     expect(texts).toContain('Reachable');
     expect(texts).toContain('Failed: Websocket connection failed');
+  });
+
+  test('renders a failed websocket probe when the diagnostic rejects', async () => {
+    websocketProbeError = new Error('socket internal failure with secret token');
+    let screen = renderScreen();
+
+    await pressButton(screen, 'Check websocket');
+    screen = renderScreen();
+
+    const texts = collectText(screen);
+
+    expect(texts).toContain('Failed: Websocket probe failed');
+    expect(texts.join(' ')).not.toContain('secret token');
   });
 });
 
@@ -262,6 +290,8 @@ function renderScreen(): RenderedTree {
 }
 
 function withHookDispatcher<ReturnValue>(render: () => ReturnValue): ReturnValue {
+  // Temporary test renderer: Bun has no project-local public RN renderer here.
+  // This private dispatcher mock supports only the useState calls this screen uses.
   const previousDispatcher = reactInternals.H;
   reactInternals.H = {
     useState: <State,>(

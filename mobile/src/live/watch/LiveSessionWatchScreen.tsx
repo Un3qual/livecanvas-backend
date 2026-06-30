@@ -227,6 +227,8 @@ function LiveSessionWatchContent({
     hostPublishingSessions.release(liveSessionId);
   };
 
+  // Keep one loader instance across renders so its request/session tokens can
+  // reject stale older-page responses from previous sessions.
   if (!olderTimelinePageLoaderRef.current) {
     olderTimelinePageLoaderRef.current =
       createLiveSessionOlderTimelinePageLoader({

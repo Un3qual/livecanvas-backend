@@ -9,18 +9,21 @@ import {
 } from '../../src/diagnostics/releaseDiagnosticsProbes';
 
 describe('release diagnostics probes', () => {
-  test('API probe posts a minimal GraphQL payload without auth headers', async () => {
+  test('API probe posts a sanitized GraphQL payload without auth headers', async () => {
     const calls: Array<{ url: string; init: RequestInit }> = [];
 
     const result = await runApiReachabilityProbe({
-      apiBaseUrl: 'https://preview-api.livecanvas.example',
-      fetchImpl: async (url, init = {}) => {
+      apiBaseUrl:
+        'https://user:password@preview-api.livecanvas.example/graphql?token=secret-token#secret-fragment',
+      fetchImpl: (url, init = {}) => {
         calls.push({ url: String(url), init });
-        return new Response(
-          JSON.stringify({
-            errors: [{ message: 'unauthenticated' }],
-          }),
-          { status: 200 },
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              errors: [{ message: 'unauthenticated' }],
+            }),
+            { status: 200 },
+          ),
         );
       },
     });
@@ -30,6 +33,8 @@ describe('release diagnostics probes', () => {
     expect(calls[0]?.url).toBe(
       'https://preview-api.livecanvas.example/graphql',
     );
+    expect(calls[0]?.url).not.toContain('secret-token');
+    expect(calls[0]?.url).not.toContain('password');
     expect(calls[0]?.init.method).toBe('POST');
     expect(calls[0]?.init.headers).toEqual({
       'Content-Type': 'application/json',
@@ -44,7 +49,7 @@ describe('release diagnostics probes', () => {
     await expect(
       runApiReachabilityProbe({
         apiBaseUrl: 'https://preview-api.livecanvas.example',
-        fetchImpl: async () => new Response('down', { status: 503 }),
+        fetchImpl: () => Promise.resolve(new Response('down', { status: 503 })),
       }),
     ).resolves.toEqual({
       status: 'failed',
@@ -54,7 +59,8 @@ describe('release diagnostics probes', () => {
     await expect(
       runApiReachabilityProbe({
         apiBaseUrl: 'https://preview-api.livecanvas.example',
-        fetchImpl: async () => new Response('not json', { status: 200 }),
+        fetchImpl: () =>
+          Promise.resolve(new Response('not json', { status: 200 })),
       }),
     ).resolves.toEqual({
       status: 'failed',
@@ -64,9 +70,8 @@ describe('release diagnostics probes', () => {
     await expect(
       runApiReachabilityProbe({
         apiBaseUrl: 'https://preview-api.livecanvas.example',
-        fetchImpl: async () => {
-          throw new Error('secret token abc123 leaked by transport');
-        },
+        fetchImpl: () =>
+          Promise.reject(new Error('secret token abc123 leaked by transport')),
       }),
     ).resolves.toEqual({
       status: 'failed',
@@ -91,13 +96,48 @@ describe('release diagnostics probes', () => {
     });
 
     expect(factoryCalled).toBe(false);
+
+    await expect(
+      runWebsocketReachabilityProbe({
+        websocketUrl: 'ws://preview-ws.livecanvas.example/socket',
+        createWebSocket: () => {
+          factoryCalled = true;
+          throw new Error('should not be called');
+        },
+      }),
+    ).resolves.toEqual({
+      status: 'failed',
+      reason: 'Remote websocket URL must use wss://',
+    });
+
+    expect(factoryCalled).toBe(false);
   });
 
-  test('websocket probe opens the Phoenix websocket transport without auth params', async () => {
+  test('websocket probe requires an authenticated session before opening a socket', async () => {
+    let factoryCalled = false;
+
+    await expect(
+      runWebsocketReachabilityProbe({
+        websocketUrl: 'wss://preview-ws.livecanvas.example/socket',
+        createWebSocket: () => {
+          factoryCalled = true;
+          throw new Error('should not be called');
+        },
+      }),
+    ).resolves.toEqual({
+      status: 'failed',
+      reason: 'Websocket probe requires an authenticated session',
+    });
+
+    expect(factoryCalled).toBe(false);
+  });
+
+  test('websocket probe opens the Phoenix websocket transport with auth params', async () => {
     let closeCalled = false;
     let openedUrl: string | null = null;
 
     const result = await runWebsocketReachabilityProbe({
+      getAccessToken: () => 'diagnostic-access-token',
       websocketUrl:
         'wss://preview-ws.livecanvas.example/socket?token=secret-token#secret-fragment',
       createWebSocket: (url) => {
@@ -122,14 +162,44 @@ describe('release diagnostics probes', () => {
     expect(result).toEqual({ status: 'reachable' });
     expect(closeCalled).toBe(true);
     expect(openedUrl).toBe(
-      'wss://preview-ws.livecanvas.example/socket/websocket?vsn=2.0.0',
+      'wss://preview-ws.livecanvas.example/socket/websocket?vsn=2.0.0&token=diagnostic-access-token',
     );
     expect(openedUrl).not.toContain('secret-token');
     expect(openedUrl).not.toContain('secret-fragment');
   });
 
+  test('websocket probe allows local ws fallback for development', async () => {
+    let openedUrl: string | null = null;
+
+    const result = await runWebsocketReachabilityProbe({
+      getAccessToken: () => 'local-access-token',
+      websocketUrl: 'ws://localhost:4000/socket',
+      createWebSocket: (url) => {
+        openedUrl = url;
+        const socket: ReleaseDiagnosticsWebSocket = {
+          close: () => undefined,
+          onclose: null,
+          onerror: null,
+          onopen: null,
+        };
+
+        queueMicrotask(() => {
+          socket.onopen?.();
+        });
+
+        return socket;
+      },
+    });
+
+    expect(result).toEqual({ status: 'reachable' });
+    expect(openedUrl).toBe(
+      'ws://localhost:4000/socket/websocket?vsn=2.0.0&token=local-access-token',
+    );
+  });
+
   test('websocket probe reports viewer-safe open failures', async () => {
     const result = await runWebsocketReachabilityProbe({
+      getAccessToken: () => 'diagnostic-access-token',
       websocketUrl: 'wss://preview-ws.livecanvas.example/socket',
       createWebSocket: () => {
         const socket: ReleaseDiagnosticsWebSocket = {

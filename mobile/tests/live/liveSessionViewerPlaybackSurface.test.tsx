@@ -17,6 +17,8 @@ const { LiveSessionViewerPlaybackSurface } = await import(
   '../../src/live/watch/components/LiveSessionViewerPlaybackSurface'
 );
 
+// Direct component calls plus element-tree inspection only cover prop/text
+// branching here, not renderer-driven hooks or effects.
 type ReactElementWithProps = React.ReactElement<{
   readonly children?: React.ReactNode;
   readonly label?: string;

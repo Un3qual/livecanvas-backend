@@ -23,6 +23,46 @@ import {
   runWebsocketReachabilityProbe,
 } from './releaseDiagnosticsProbes';
 
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  content: {
+    alignItems: 'center',
+    gap: spacing.lg,
+    padding: spacing.lg,
+  },
+  sectionTitle: typography.label,
+  row: {
+    gap: spacing.xs,
+  },
+  rowText: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  label: typography.label,
+  value: typography.body,
+  warning: {
+    ...typography.body,
+    fontSize: 14,
+  },
+  badge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    ...typography.label,
+  },
+  probeRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+});
+
 export function ReleaseDiagnosticsScreen() {
   const { environment, snapshot } = useStartupState();
   const auth = useAuth();
@@ -53,11 +93,17 @@ export function ReleaseDiagnosticsScreen() {
 
   async function checkWebsocket() {
     setWebsocketProbeStatus({ status: 'checking' });
-    setWebsocketProbeStatus(
-      await runWebsocketReachabilityProbe({
+    try {
+      setWebsocketProbeStatus(await runWebsocketReachabilityProbe({
+        getAccessToken: auth.getAccessToken,
         websocketUrl: environment.websocketUrl,
-      }),
-    );
+      }));
+    } catch {
+      setWebsocketProbeStatus({
+        status: 'failed',
+        reason: 'Websocket probe failed',
+      });
+    }
   }
 
   return (
@@ -211,43 +257,3 @@ function SectionTitle({ title }: { title: string }) {
     </Text>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  content: {
-    alignItems: 'center',
-    gap: spacing.lg,
-    padding: spacing.lg,
-  },
-  sectionTitle: typography.label,
-  row: {
-    gap: spacing.xs,
-  },
-  rowText: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  label: typography.label,
-  value: typography.body,
-  warning: {
-    ...typography.body,
-    fontSize: 14,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    overflow: 'hidden',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    ...typography.label,
-  },
-  probeRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-  },
-});

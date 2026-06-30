@@ -226,6 +226,8 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
       return;
     }
 
+    // Re-read latest sync options and actor state before retrying; leaving,
+    // ending, or a newer playback generation in flight makes retry ineligible.
     startViewerPlayback(liveSessionId, 'RETRY_REQUESTED');
   }
 

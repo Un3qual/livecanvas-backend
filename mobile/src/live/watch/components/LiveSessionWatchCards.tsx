@@ -20,7 +20,10 @@ import type {
   formatLiveSessionStatus,
   LiveSessionStatus,
 } from '../../liveSessionPresentation';
-import { formatLiveSessionRecordingPresentation } from '../../recording/liveSessionRecordingPresentation';
+import {
+  formatLiveSessionRecordingPresentation,
+  normalizeLiveSessionRecordingPublicUrl,
+} from '../../recording/liveSessionRecordingPresentation';
 import { liveSessionWatchScreenStyles as styles } from '../liveSessionWatchScreenStyles';
 import type { LiveSessionNode } from '../liveSessionWatchScreenTypes';
 
@@ -358,7 +361,9 @@ function RecordingMetadata({
     }
 
     setOpenError(null);
-    void openLiveSessionRecordingUrl(presentation.publicUrl).catch(() => {
+    const openRecording = openLiveSessionRecordingUrl(presentation.publicUrl);
+
+    openRecording.catch(() => {
       setOpenError(recordingOpenFailureCopy);
     });
   };
@@ -389,35 +394,24 @@ function RecordingMetadata({
 export async function openLiveSessionRecordingUrl(
   publicUrl: string,
 ): Promise<void> {
-  const normalizedPublicUrl = publicUrl.trim();
+  const normalizedPublicUrl = normalizeLiveSessionRecordingPublicUrl(publicUrl);
 
   if (!normalizedPublicUrl) {
     throw new Error('Unsupported recording URL');
   }
 
-  const parsedUrl = parseRecordingUrl(normalizedPublicUrl);
-
-  if (!parsedUrl) {
-    throw new Error('Unsupported recording URL');
-  }
-
-  if (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') {
-    await Linking.openURL(normalizedPublicUrl);
+  if (
+    normalizedPublicUrl.protocol === 'http:' ||
+    normalizedPublicUrl.protocol === 'https:'
+  ) {
+    await Linking.openURL(normalizedPublicUrl.publicUrl);
     return;
   }
 
-  if (await Linking.canOpenURL(normalizedPublicUrl)) {
-    await Linking.openURL(normalizedPublicUrl);
+  if (await Linking.canOpenURL(normalizedPublicUrl.publicUrl)) {
+    await Linking.openURL(normalizedPublicUrl.publicUrl);
     return;
   }
 
   throw new Error('Unsupported recording URL');
-}
-
-function parseRecordingUrl(publicUrl: string): URL | null {
-  try {
-    return new URL(publicUrl);
-  } catch {
-    return null;
-  }
 }

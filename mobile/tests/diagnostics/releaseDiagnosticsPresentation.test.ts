@@ -23,6 +23,43 @@ describe('release diagnostics presentation', () => {
 
     expect(
       describeDiagnosticsEndpoint({
+        label: 'API URL',
+        url: 'https://preview-api.livecanvas.example/reset/access_token/secret-token',
+      }).value,
+    ).toBe(
+      'https://preview-api.livecanvas.example/reset/access_token/redacted',
+    );
+
+    expect(
+      describeDiagnosticsEndpoint({
+        label: 'Initial href',
+        url: '/diagnostics/refresh_token/secret-refresh-token?x=1#fragment',
+      }).value,
+    ).toBe('/diagnostics/refresh_token/redacted');
+
+    expect(
+      describeDiagnosticsEndpoint({
+        label: 'Initial URL',
+        url: 'livecanvas-mobile://users/log-in/sign-in-token?x=1',
+      }).value,
+    ).toBe('livecanvas-mobile://users/log-in/redacted');
+
+    expect(
+      describeDiagnosticsEndpoint({
+        label: 'Initial URL',
+        url: 'livecanvas-mobile://users/reset-password/reset-token',
+      }).value,
+    ).toBe('livecanvas-mobile://users/reset-password/redacted');
+
+    expect(
+      describeDiagnosticsEndpoint({
+        label: 'Initial href',
+        url: '/users/settings/confirm-email/confirm-token#secret-fragment',
+      }).value,
+    ).toBe('/users/settings/confirm-email/redacted');
+
+    expect(
+      describeDiagnosticsEndpoint({
         label: 'Websocket URL',
         url: 'wss://preview-ws.livecanvas.example/socket',
       }).value,

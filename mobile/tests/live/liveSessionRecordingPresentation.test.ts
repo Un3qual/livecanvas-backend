@@ -43,6 +43,20 @@ describe('liveSessionRecordingPresentation', () => {
     });
   });
 
+  test('keeps malformed processed URLs unavailable for opening', () => {
+    expect(
+      formatLiveSessionRecordingPresentation({
+        processingState: 'PROCESSED',
+        publicUrl: 'not a url',
+      }),
+    ).toEqual({
+      statusLabel: 'Recording unavailable',
+      body: 'The replay is not available yet.',
+      canOpen: false,
+      publicUrl: null,
+    });
+  });
+
   test('formats upload and processing states as in-progress copy', () => {
     for (const processingState of ['PENDING_UPLOAD', 'UPLOADED']) {
       expect(

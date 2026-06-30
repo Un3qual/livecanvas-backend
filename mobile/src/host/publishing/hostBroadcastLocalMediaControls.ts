@@ -104,6 +104,7 @@ function readLocalMediaTracks(
 
     return tracks.filter(isLocalMediaTrack);
   } catch {
+    // Treat unreadable preview streams as having no controllable tracks.
     return [];
   }
 }

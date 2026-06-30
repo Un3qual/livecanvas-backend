@@ -3,12 +3,14 @@ import * as React from 'react';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 
 type LinkingMock = {
-  canOpenURL?: ReturnType<typeof mock>;
+  canOpenURL: ReturnType<typeof mock>;
+  getInitialURL: ReturnType<typeof mock>;
   openURL: ReturnType<typeof mock>;
 };
 
 const linkingMock: LinkingMock = {
   canOpenURL: mock(async () => false),
+  getInitialURL: mock(async () => null),
   openURL: mock(async () => undefined),
 };
 
@@ -23,7 +25,12 @@ function NativeComponent({
 }
 
 mock.module('react-native', () => ({
+  ActivityIndicator: NativeComponent,
+  FlatList: NativeComponent,
   Linking: linkingMock,
+  Platform: {
+    OS: 'ios',
+  },
   Pressable: function Pressable({
     children,
     ...props
@@ -36,6 +43,7 @@ mock.module('react-native', () => ({
   StyleSheet: {
     create: <Styles,>(styles: Styles): Styles => styles,
   },
+  ScrollView: NativeComponent,
   Text: function Text({
     children,
     ...props
@@ -45,7 +53,25 @@ mock.module('react-native', () => ({
   }) {
     return React.createElement('Text', props, children);
   },
+  TextInput: NativeComponent,
   View: NativeComponent,
+}));
+
+mock.module('../../src/components/AppButton', () => ({
+  AppButton: ({
+    disabled,
+    label,
+    onPress,
+  }: {
+    disabled?: boolean;
+    label: string;
+    onPress: () => void;
+  }) =>
+    React.createElement(
+      'Pressable',
+      { accessibilityRole: 'button', disabled: disabled ?? false, onPress },
+      label,
+    ),
 }));
 
 mock.module('../../src/providers/ThemeProvider', () => ({
@@ -105,6 +131,7 @@ type RenderedTree = RenderedNode | string;
 describe('LiveSessionWatchCards recording metadata', () => {
   beforeEach(() => {
     linkingMock.canOpenURL = mock(async () => false);
+    linkingMock.getInitialURL = mock(async () => null);
     linkingMock.openURL = mock(async () => undefined);
   });
 
@@ -208,6 +235,31 @@ describe('LiveSessionWatchCards recording metadata', () => {
     }
   });
 
+  test('does not render an open action for blank or malformed processed recording URLs', () => {
+    const rejectedUrls = ['   ', 'not a url'];
+
+    for (const publicUrl of rejectedUrls) {
+      const renderer = createRenderer();
+      const tree = renderer.render(
+        <LiveSessionDetailsCard
+          normalizedStatus="ENDED"
+          session={sessionWithRecording({
+            id: 'recording-1',
+            processingState: 'PROCESSED',
+            publicUrl,
+          })}
+          status={{ label: 'Ended', tone: 'ended' }}
+        />,
+      );
+
+      expect(collectText(tree)).toContain('Recording unavailable');
+      expect(findPressableByText(tree, 'Open recording')).toBeNull();
+    }
+
+    expect(linkingMock.canOpenURL).not.toHaveBeenCalled();
+    expect(linkingMock.openURL).not.toHaveBeenCalled();
+  });
+
   test('opens processed recording URLs and renders a retryable failure message', async () => {
     linkingMock.openURL = mock(async () => {
       throw new Error('browser unavailable');
@@ -268,6 +320,17 @@ describe('LiveSessionWatchCards recording metadata', () => {
       'livecanvas://recording/1',
     );
   });
+
+  test('rejects blank or malformed recording URLs without calling Linking', async () => {
+    for (const publicUrl of ['   ', 'not a url']) {
+      await expect(openLiveSessionRecordingUrl(publicUrl)).rejects.toThrow(
+        'Unsupported recording URL',
+      );
+    }
+
+    expect(linkingMock.canOpenURL).not.toHaveBeenCalled();
+    expect(linkingMock.openURL).not.toHaveBeenCalled();
+  });
 });
 
 function sessionWithRecording(
@@ -300,6 +363,8 @@ function sessionWithRecording(
 }
 
 function createRenderer() {
+  // Temporary test renderer: the component under test only uses useState, so
+  // this narrow dispatcher shim avoids installing a full React Native renderer.
   const internals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE as {
     H: unknown;
   };
