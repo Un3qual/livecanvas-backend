@@ -38,16 +38,21 @@ This batch implements only text post creation in mobile. Media upload via
 - Test: `mobile/tests/feed/postComposerState.test.ts`
 
 Acceptance criteria:
-- [ ] Empty drafts cannot submit.
-- [ ] Standard and story post kinds map to schema enum values `STANDARD` and
+- [x] Empty drafts cannot submit.
+- [x] Standard and story post kinds map to schema enum values `STANDARD` and
       `STORY`.
-- [ ] Visibility defaults to `FOLLOWERS`, matching the current backend resolver
+- [x] Visibility defaults to `FOLLOWERS`, matching the current backend resolver
       and post schema defaults, unless product explicitly changes this before
       implementation.
-- [ ] Payload errors such as `unauthenticated` render viewer-safe copy.
+- [x] Payload errors such as `unauthenticated` render viewer-safe copy.
 
 Focused verification:
 - From `mobile/`: `bun test tests/feed/postComposerState.test.ts`
+
+Evidence:
+- 2026-07-01: From `mobile/`,
+  `bun test tests/feed/postComposerState.test.ts` -> 4 pass, 0 fail,
+  22 expect() calls.
 
 ### Task 2: Add composer route and screen
 
