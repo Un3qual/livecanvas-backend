@@ -74,7 +74,8 @@ type FetchQueryCall = { readonly variables: QueryVariables };
 type FetchQueryImplementation = (
   variables: QueryVariables,
 ) => Promise<FeedHomeQueryData | null | undefined>;
-type EffectCallback = () => void | (() => void);
+type EffectCleanup = () => void;
+type EffectCallback = () => EffectCleanup | undefined;
 type EffectState = {
   cleanup?: () => void;
   deps?: readonly unknown[];
@@ -611,7 +612,7 @@ describe('FeedHomeScreen', () => {
         { endCursor: 'story-cursor', hasNextPage: true },
       ),
     };
-    fetchQueryImplementation = () => new Promise(() => undefined);
+    fetchQueryImplementation = (_variables) => new Promise(() => undefined);
 
     const tree = renderWithHooks(createElement(FeedHomeContent));
     const loadMoreStories = findPressableByText(tree, 'Load more stories');
@@ -936,7 +937,8 @@ describe('FeedHomeScreen', () => {
   });
 
   test('surfaces refresh failures to the viewer', async () => {
-    fetchQueryImplementation = () => Promise.reject(new Error('offline'));
+    fetchQueryImplementation = (_variables) =>
+      Promise.reject(new Error('offline'));
 
     let tree = renderWithHooks(createElement(FeedHomeContent));
     const scrollView = findHostNodeByType(tree, 'NativeComponent');

@@ -14,7 +14,8 @@ type HostNode = {
 };
 
 type RenderedTree = HostNode | string | null | readonly RenderedTree[];
-type EffectCallback = () => void | (() => void);
+type EffectCleanup = () => void;
+type EffectCallback = () => EffectCleanup | undefined;
 type EffectState = {
   cleanup?: () => void;
   deps?: readonly unknown[];

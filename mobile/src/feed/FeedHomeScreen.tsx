@@ -492,7 +492,7 @@ export function FeedHomeContent() {
         return;
 
       default:
-        return assertNever(section);
+        assertNever(section);
     }
   }
 
