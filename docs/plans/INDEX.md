@@ -41,6 +41,17 @@ Use this file when:
 
 ## Track Registry
 
+### Cross-Lane Product Week
+
+- Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
+- State: planned
+- Current theme: finish the active mobile feed/content surface, promote backend
+  fixes only for reproduced product issues, and prepare the next product-facing
+  batch
+- Notes: release-candidate manual QA, compliance hard-delete enablement, and
+  backend starter-kit extraction remain outside this week unless explicitly
+  resumed
+
 ### Backend Live Media Signaling Contract
 
 - Plan: `docs/plans/archive/completed/backend/2026-06-03-live-media-signaling-contract.md`

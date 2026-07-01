@@ -1,6 +1,6 @@
 # Current Execution
 
-Last reviewed: 2026-06-30
+Last reviewed: 2026-07-01
 Status: mobile feed/content product batch active; backend issues may be promoted as needed; release-candidate QA deferred
 
 ## Purpose
@@ -43,6 +43,14 @@ batch. Do not defer a verified backend contract, resolver, runtime, or data
 issue solely because the current visible surface is mobile/frontend. Promote
 that backend work into the backend lane, keep the write scope explicit, and
 verify both sides that are affected.
+
+## Week Plan
+
+- Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
+- Horizon: 2026-07-01 through 2026-07-07
+- Focus: finish mobile feed/content discovery, verify backend feed/reporting
+  contracts as needed, close the lane, then promote the next product-facing
+  batch instead of reopening broad backend roadmap work.
 
 ## Shared File Policy
 
