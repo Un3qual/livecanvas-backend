@@ -1,0 +1,244 @@
+/**
+ * @generated SignedSource<<acecbce901d3f6fc8b152cc5a1537d36>>
+ * @lightSyntaxTransform
+ * @nogrep
+ */
+
+/* tslint:disable */
+/* eslint-disable */
+// @ts-nocheck
+
+import { ConcreteRequest } from 'relay-runtime';
+export type CreatePostKind = "STANDARD" | "STORY" | "%future added value";
+export type MediaProcessingState = "FAILED" | "PENDING_UPLOAD" | "PROCESSED" | "UPLOADED" | "%future added value";
+export type PostKind = "STANDARD" | "STORY" | "%future added value";
+export type PostVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
+export type CreatePostInput = {
+  bodyText?: string | null | undefined;
+  kind: CreatePostKind;
+  mediaAssetIds?: ReadonlyArray<string> | null | undefined;
+  visibility?: PostVisibility | null | undefined;
+};
+export type postComposerOperationsCreatePostMutation$variables = {
+  input: CreatePostInput;
+};
+export type postComposerOperationsCreatePostMutation$data = {
+  readonly createPost: {
+    readonly errors: ReadonlyArray<{
+      readonly field: string | null | undefined;
+      readonly message: string;
+    }>;
+    readonly post: {
+      readonly author: {
+        readonly email: string | null | undefined;
+        readonly id: string;
+      };
+      readonly bodyText: string | null | undefined;
+      readonly expiresAt: string | null | undefined;
+      readonly id: string;
+      readonly insertedAt: string;
+      readonly kind: PostKind;
+      readonly mediaAssets: ReadonlyArray<{
+        readonly id: string;
+        readonly mimeType: string;
+        readonly processingState: MediaProcessingState;
+        readonly publicUrl: string | null | undefined;
+      }>;
+      readonly visibility: PostVisibility;
+    } | null | undefined;
+  } | null | undefined;
+};
+export type postComposerOperationsCreatePostMutation = {
+  response: postComposerOperationsCreatePostMutation$data;
+  variables: postComposerOperationsCreatePostMutation$variables;
+};
+
+const node: ConcreteRequest = (function(){
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "input"
+  }
+],
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v2 = [
+  {
+    "alias": null,
+    "args": [
+      {
+        "kind": "Variable",
+        "name": "input",
+        "variableName": "input"
+      }
+    ],
+    "concreteType": "CreatePostPayload",
+    "kind": "LinkedField",
+    "name": "createPost",
+    "plural": false,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "Post",
+        "kind": "LinkedField",
+        "name": "post",
+        "plural": false,
+        "selections": [
+          (v1/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "kind",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "bodyText",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "visibility",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "expiresAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "insertedAt",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "User",
+            "kind": "LinkedField",
+            "name": "author",
+            "plural": false,
+            "selections": [
+              (v1/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "email",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "concreteType": "PostMediaAsset",
+            "kind": "LinkedField",
+            "name": "mediaAssets",
+            "plural": true,
+            "selections": [
+              (v1/*: any*/),
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "mimeType",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "processingState",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "publicUrl",
+                "storageKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "concreteType": "UserError",
+        "kind": "LinkedField",
+        "name": "errors",
+        "plural": true,
+        "selections": [
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "field",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "message",
+            "storageKey": null
+          }
+        ],
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*: any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "postComposerOperationsCreatePostMutation",
+    "selections": (v2/*: any*/),
+    "type": "RootMutationType",
+    "abstractKey": null
+  },
+  "kind": "Request",
+  "operation": {
+    "argumentDefinitions": (v0/*: any*/),
+    "kind": "Operation",
+    "name": "postComposerOperationsCreatePostMutation",
+    "selections": (v2/*: any*/)
+  },
+  "params": {
+    "cacheID": "8e9a7cc5891f91b8af59d2207c636575",
+    "id": null,
+    "metadata": {},
+    "name": "postComposerOperationsCreatePostMutation",
+    "operationKind": "mutation",
+    "text": "mutation postComposerOperationsCreatePostMutation(\n  $input: CreatePostInput!\n) {\n  createPost(input: $input) {\n    post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        email\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+  }
+};
+})();
+
+(node as any).hash = "a25c79f8eba57fb359852a1b7746379f";
+
+export default node;

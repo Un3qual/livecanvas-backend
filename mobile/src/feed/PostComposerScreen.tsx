@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   ScrollView,
@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useMutation } from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
@@ -20,18 +21,18 @@ import {
   buildCreatePostInput,
   canSubmitPostComposer,
   createPostComposerState,
+  formatCreatePostMutationErrors,
   getPostComposerValidationMessage,
   selectPostComposerKind,
   selectPostComposerVisibility,
   updatePostComposerBody,
-  type CreatePostInput,
   type PostComposerKind,
   type PostComposerVisibility,
 } from './postComposerState';
-
-export type PostComposerScreenProps = {
-  onSubmitInput?: (input: CreatePostInput) => void;
-};
+import {
+  postComposerCreatePostMutation,
+  type PostComposerCreatePostMutation,
+} from './postComposerOperations';
 
 const POST_COMPOSER_KIND_LABELS: Record<PostComposerKind, string> = {
   STANDARD: 'Standard',
@@ -91,24 +92,36 @@ const styles = StyleSheet.create({
   },
 });
 
-export function PostComposerScreen({
-  onSubmitInput,
-}: PostComposerScreenProps) {
+export function PostComposerScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const activeCreatePostRef = useRef(false);
   const [state, setState] = useState(() => createPostComposerState());
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [bodyBlurred, setBodyBlurred] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [commitCreatePost, isCreatePostInFlight] =
+    useMutation<PostComposerCreatePostMutation>(
+      postComposerCreatePostMutation,
+    );
   const trimmedBodyLength = state.bodyText.trim().length;
   const validationMessage = getPostComposerValidationMessage(state);
   const canSubmit = canSubmitPostComposer(state);
+  const isSubmitting = isCreatePostInFlight || activeCreatePostRef.current;
   const shouldShowValidation =
     validationMessage !== null &&
     (submitAttempted ||
       bodyBlurred ||
       trimmedBodyLength > POST_COMPOSER_BODY_TEXT_MAX_LENGTH);
+  const visibleMessage =
+    state.errorMessage ??
+    (shouldShowValidation ? validationMessage : null);
 
   function handleSubmit() {
+    if (isCreatePostInFlight || activeCreatePostRef.current) {
+      return;
+    }
+
     const input = buildCreatePostInput(state);
 
     if (input === null) {
@@ -116,7 +129,37 @@ export function PostComposerScreen({
       return;
     }
 
-    onSubmitInput?.(input);
+    setSubmitAttempted(true);
+    setSuccessMessage(null);
+    activeCreatePostRef.current = true;
+    commitCreatePost({
+      variables: { input },
+      onCompleted: (payload) => {
+        activeCreatePostRef.current = false;
+        const result = payload.createPost;
+
+        if (!result?.post || result.errors.length > 0) {
+          setState((current) => ({
+            ...current,
+            errorMessage: formatCreatePostMutationErrors(result?.errors),
+          }));
+          return;
+        }
+
+        setState(createPostComposerState());
+        setSubmitAttempted(false);
+        setBodyBlurred(false);
+        setSuccessMessage('Post created.');
+        router.replace('/home');
+      },
+      onError: () => {
+        activeCreatePostRef.current = false;
+        setState((current) => ({
+          ...current,
+          errorMessage: formatCreatePostMutationErrors(null),
+        }));
+      },
+    });
   }
 
   return (
@@ -143,6 +186,7 @@ export function PostComposerScreen({
               setBodyBlurred(true);
             }}
             onChangeText={(bodyText) => {
+              setSuccessMessage(null);
               setState((current) =>
                 updatePostComposerBody(current, bodyText),
               );
@@ -162,9 +206,14 @@ export function PostComposerScreen({
           <Text style={[styles.counter, { color: theme.colors.textMuted }]}>
             {trimmedBodyLength}/{POST_COMPOSER_BODY_TEXT_MAX_LENGTH}
           </Text>
-          {shouldShowValidation ? (
+          {visibleMessage ? (
             <Text style={[styles.validation, { color: theme.colors.error }]}>
-              {validationMessage}
+              {visibleMessage}
+            </Text>
+          ) : null}
+          {successMessage ? (
+            <Text style={[styles.validation, { color: theme.colors.accent }]}>
+              {successMessage}
             </Text>
           ) : null}
         </View>
@@ -179,6 +228,7 @@ export function PostComposerScreen({
                 key={kind}
                 label={POST_COMPOSER_KIND_LABELS[kind]}
                 onPress={() => {
+                  setSuccessMessage(null);
                   setState((current) =>
                     selectPostComposerKind(current, kind),
                   );
@@ -200,6 +250,7 @@ export function PostComposerScreen({
                 key={visibility}
                 label={POST_COMPOSER_VISIBILITY_LABELS[visibility]}
                 onPress={() => {
+                  setSuccessMessage(null);
                   setState((current) =>
                     selectPostComposerVisibility(current, visibility),
                   );
@@ -222,8 +273,8 @@ export function PostComposerScreen({
             variant="secondary"
           />
           <AppButton
-            disabled={!canSubmit}
-            label="Post"
+            disabled={!canSubmit || isSubmitting}
+            label={isSubmitting ? 'Posting...' : 'Post'}
             onPress={handleSubmit}
             variant="primary"
           />

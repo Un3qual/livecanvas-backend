@@ -16,14 +16,25 @@ type HostNode = {
 type RenderedTree = HostNode | string | null | readonly RenderedTree[];
 
 type HookDispatcher = {
+  useRef: <Value>(initialValue: Value) => { current: Value };
   useState: <State>(
     initialState: State | (() => State),
   ) => [State, (nextState: State | ((current: State) => State)) => void];
 };
 
 let backCalls: string[];
+let replaceCalls: string[];
 let hookIndex = 0;
 let hookStates: unknown[] = [];
+
+type CreatePostCommitConfig = {
+  onCompleted?: (payload: unknown) => void;
+  onError?: () => void;
+  variables: unknown;
+};
+
+let createPostCommitCalls: CreatePostCommitConfig[];
+let createPostInFlight = false;
 
 const reactInternals = (
   await import('react')
@@ -100,7 +111,20 @@ mock.module('expo-router', () => ({
     back: () => {
       backCalls.push('back');
     },
+    replace: (route: string) => {
+      replaceCalls.push(route);
+    },
   }),
+}));
+
+mock.module('react-relay', () => ({
+  graphql: (query: TemplateStringsArray) => query,
+  useMutation: () => [
+    (config: CreatePostCommitConfig) => {
+      createPostCommitCalls.push(config);
+    },
+    createPostInFlight,
+  ],
 }));
 
 mock.module('react-native', () => ({
@@ -191,6 +215,9 @@ const { PostComposerScreen } = composerScreen;
 
 beforeEach(() => {
   backCalls = [];
+  replaceCalls = [];
+  createPostCommitCalls = [];
+  createPostInFlight = false;
   hookIndex = 0;
   hookStates = [];
 });
@@ -263,55 +290,95 @@ describe('PostComposerScreen', () => {
     expectButtonSelection(tree, 'Public', true);
   });
 
-  test('maps kind and visibility controls to createPost input values', () => {
-    const submittedInputs: unknown[] = [];
-
-    let tree = renderWithHooks(
-      createElement(PostComposerScreen, {
-        onSubmitInput: (input: unknown) => {
-          submittedInputs.push(input);
-        },
-      }),
-    );
+  test('commits createPost with trimmed input values', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
 
     findHostNodeByProps(tree, {
       accessibilityLabel: 'Post body',
-    })?.props.onChangeText?.('Story update');
-    tree = renderWithHooks(
-      createElement(PostComposerScreen, {
-        onSubmitInput: (input: unknown) => {
-          submittedInputs.push(input);
-        },
-      }),
-    );
+    })?.props.onChangeText?.('  Story update  ');
+    tree = renderWithHooks(createElement(PostComposerScreen));
 
     findPressableByText(tree, 'Story')?.props.onPress?.();
-    tree = renderWithHooks(
-      createElement(PostComposerScreen, {
-        onSubmitInput: (input: unknown) => {
-          submittedInputs.push(input);
-        },
-      }),
-    );
+    tree = renderWithHooks(createElement(PostComposerScreen));
 
     findPressableByText(tree, 'Public')?.props.onPress?.();
-    tree = renderWithHooks(
-      createElement(PostComposerScreen, {
-        onSubmitInput: (input: unknown) => {
-          submittedInputs.push(input);
-        },
-      }),
-    );
+    tree = renderWithHooks(createElement(PostComposerScreen));
 
     findPressableByText(tree, 'Post')?.props.onPress?.();
 
-    expect(submittedInputs).toEqual([
-      {
+    expect(createPostCommitCalls).toHaveLength(1);
+    expect(createPostCommitCalls[0]?.variables).toEqual({
+      input: {
         bodyText: 'Story update',
         kind: 'STORY',
         visibility: 'PUBLIC',
       },
-    ]);
+    });
+  });
+
+  test('blocks duplicate createPost submissions before rerender', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findHostNodeByProps(tree, {
+      accessibilityLabel: 'Post body',
+    })?.props.onChangeText?.('Duplicate guard');
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findPressableByText(tree, 'Post')?.props.onPress?.();
+    findPressableByText(tree, 'Post')?.props.onPress?.();
+
+    expect(createPostCommitCalls).toHaveLength(1);
+  });
+
+  test('shows confirmation and returns home after successful creation', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findHostNodeByProps(tree, {
+      accessibilityLabel: 'Post body',
+    })?.props.onChangeText?.('Successful post');
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findPressableByText(tree, 'Post')?.props.onPress?.();
+    createPostCommitCalls[0]?.onCompleted?.({
+      createPost: {
+        errors: [],
+        post: { id: 'post-1' },
+      },
+    });
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    expect(collectText(tree)).toContain('Post created.');
+    expect(replaceCalls).toEqual(['/home']);
+  });
+
+  test('keeps payload errors retryable without losing the draft body', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findHostNodeByProps(tree, {
+      accessibilityLabel: 'Post body',
+    })?.props.onChangeText?.('Retry this post');
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findPressableByText(tree, 'Post')?.props.onPress?.();
+    createPostCommitCalls[0]?.onCompleted?.({
+      createPost: {
+        errors: [{ field: null, message: 'unauthenticated' }],
+        post: null,
+      },
+    });
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    expect(collectText(tree)).toContain('Sign in again to create a post.');
+    expect(
+      findHostNodeByProps(tree, {
+        accessibilityLabel: 'Post body',
+      })?.props.value,
+    ).toBe('Retry this post');
+    expect(findPressableByText(tree, 'Post')?.props.disabled).toBe(false);
+
+    findPressableByText(tree, 'Post')?.props.onPress?.();
+
+    expect(createPostCommitCalls).toHaveLength(2);
   });
 
   test('cancels through router back', () => {
@@ -327,6 +394,17 @@ function renderWithHooks(node: ReactNode): RenderedTree {
   hookIndex = 0;
   const previousDispatcher = reactInternals.H;
   reactInternals.H = {
+    useRef: <Value,>(initialValue: Value): { current: Value } => {
+      const currentIndex = hookIndex;
+
+      if (hookStates.length === currentIndex) {
+        hookStates.push({ current: initialValue });
+      }
+
+      hookIndex += 1;
+
+      return hookStates[currentIndex] as { current: Value };
+    },
     useState: <State,>(
       initialState: State | (() => State),
     ): [State, (nextState: State | ((current: State) => State)) => void] => {

@@ -92,15 +92,22 @@ Evidence:
 - Test: `mobile/tests/feed/PostComposerScreen.test.tsx`
 
 Acceptance criteria:
-- [ ] Submit calls `createPost(input: {kind, bodyText, visibility})`.
-- [ ] Duplicate taps cannot start duplicate create mutations.
-- [ ] Successful creation shows confirmation and returns the viewer to `/home`
+- [x] Submit calls `createPost(input: {kind, bodyText, visibility})`.
+- [x] Duplicate taps cannot start duplicate create mutations.
+- [x] Successful creation shows confirmation and returns the viewer to `/home`
       or refreshes the feed in a tested way.
-- [ ] Payload errors remain retryable without losing the draft body.
+- [x] Payload errors remain retryable without losing the draft body.
 
 Focused verification:
 - From `mobile/`: `bun test tests/feed/PostComposerScreen.test.tsx`
 - From `mobile/`: `bun run relay`
+
+Evidence:
+- 2026-07-01: From `mobile/`,
+  `bun test tests/feed/PostComposerScreen.test.tsx` -> 9 pass, 0 fail,
+  29 expect() calls.
+- 2026-07-01: From `mobile/`, `bun run relay` -> passed; Relay compiler
+  completed 20 reader, 20 normalization, and 20 operation text documents.
 
 ### Task 4: Final verification and lane evidence
 
