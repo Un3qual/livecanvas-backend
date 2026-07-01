@@ -44,9 +44,11 @@ Status: mobile post composer product batch active; release-candidate QA deferred
 ## Do This Now
 
 Implement Task 1 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`:
-add feed-local post composer state helpers and focused tests. Keep media upload
-out of the first composer task and keep the release-candidate checklist deferred
-until product explicitly resumes QA.
+add feed-local post composer state helpers and focused tests. Use the Task 1
+detail plan in
+`docs/plans/mobile/2026-07-01-post-composer-state-helpers.md`. Keep media
+upload out of the first composer task and keep the release-candidate checklist
+deferred until product explicitly resumes QA.
 
 ## Guardrails
 

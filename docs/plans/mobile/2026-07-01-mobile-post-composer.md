@@ -41,8 +41,9 @@ Acceptance criteria:
 - [ ] Empty drafts cannot submit.
 - [ ] Standard and story post kinds map to schema enum values `STANDARD` and
       `STORY`.
-- [ ] Visibility defaults to `PUBLIC` unless the existing schema or product
-      direction says otherwise before implementation.
+- [ ] Visibility defaults to `FOLLOWERS`, matching the current backend resolver
+      and post schema defaults, unless product explicitly changes this before
+      implementation.
 - [ ] Payload errors such as `unauthenticated` render viewer-safe copy.
 
 Focused verification:
