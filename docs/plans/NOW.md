@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-01
-Status: mobile post composer product batch active; backend issues may be promoted as needed; release-candidate QA deferred
+Status: mobile post composer product batch complete; backend issues may be promoted as needed; release-candidate QA deferred
 
 ## Purpose
 
@@ -23,9 +23,9 @@ details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active; implement mobile post composer
+- State: complete; next mobile product task not selected
 - Scope: `mobile/` and `docs/plans/mobile/**`
-- Current source plan:
+- Completed source plan:
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Latest completed source plan:
   `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
@@ -38,7 +38,7 @@ explicitly asks for registry/backlog lookup.
 
 ## Cross-Lane Policy
 
-Work through backend and frontend issues as needed for the active product
+Work through backend and frontend issues as needed for the selected product
 batch. Do not defer a verified backend contract, resolver, runtime, or data
 issue solely because the current visible surface is mobile/frontend. Promote
 that backend work into the backend lane, keep the write scope explicit, and
@@ -61,11 +61,11 @@ track docs.
 
 ## Next Coordinator Decision
 
-Do not reactivate release-candidate QA yet. The active mobile lane batch is the
-post composer surface in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`;
-execute from `docs/plans/mobile/NOW.md`, promoting backend fixes when the
-active product work proves they are needed, before any release-candidate device
-QA work resumes.
+Do not reactivate release-candidate QA yet. The mobile post composer batch is
+complete; execute the next mobile step from `docs/plans/mobile/NOW.md` after a
+new product task is selected or planned. Promote backend fixes only when active
+product work proves they are needed, before any release-candidate device QA
+work resumes.
 
 ## Repair Conditions
 

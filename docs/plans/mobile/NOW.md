@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-01
-Status: mobile post composer product batch active; release-candidate QA deferred
+Status: mobile post composer product batch complete; release-candidate QA deferred
 
 ## Lane Scope
 
@@ -16,8 +16,8 @@ Status: mobile post composer product batch active; release-candidate QA deferred
 - Source plan:
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: Task 4, final verification and lane evidence.
-- Current detail plan: Task 4 in the source plan; no separate detail plan.
+- Current task: none; Task 4 final verification is complete.
+- Current detail plan: none; the source plan is complete.
 - Latest completed source plan:
   `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 - Latest completed detail plan:
@@ -30,10 +30,10 @@ Status: mobile post composer product batch active; release-candidate QA deferred
 - Write scope:
   - `mobile/**`
   - `docs/plans/mobile/**`
-- Done condition: signed-in mobile viewers can create text-only standard posts
-  and stories from the home surface through the existing Relay `createPost`
-  mutation, with focused tests and final mobile gates recorded in the source
-  plan.
+- Done condition: met; signed-in mobile viewers can create text-only standard
+  posts and stories from the home surface through the existing Relay
+  `createPost` mutation, with focused tests and final mobile gates recorded in
+  the source plan.
 - Verification:
   - From `mobile/`: `bun test tests/feed/postComposerState.test.ts`
   - From `mobile/`:
@@ -44,12 +44,10 @@ Status: mobile post composer product batch active; release-candidate QA deferred
 
 ## Do This Now
 
-Complete Task 4 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`:
-run the final focused composer/feed checks, typecheck, quality gate, and
-`git diff --check`, then record exact evidence in the source plan. Keep native
-media picking, signed upload, media attachment UI, and release-candidate
-checklist work out of this task unless a verified issue is promoted by the
-active implementation.
+No executable mobile implementation task is selected. Pick or plan the next
+product-completeness task from the mobile track before implementation. Keep
+native media picking, signed upload, media attachment UI, and release-candidate
+checklist work out unless the next selected task explicitly promotes them.
 
 ## Guardrails
 
@@ -74,5 +72,4 @@ active implementation.
 
 ## Next Action
 
-Complete Task 4 final verification and lane evidence in
-`docs/plans/mobile/2026-07-01-mobile-post-composer.md`.
+Select or write the next mobile product task plan before implementation.

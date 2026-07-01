@@ -104,8 +104,8 @@ Focused verification:
 
 Evidence:
 - 2026-07-01: From `mobile/`,
-  `bun test tests/feed/PostComposerScreen.test.tsx` -> 9 pass, 0 fail,
-  29 expect() calls.
+  `bun test tests/feed/PostComposerScreen.test.tsx` -> 10 pass, 0 fail,
+  33 expect() calls.
 - 2026-07-01: From `mobile/`, `bun run relay` -> passed; Relay compiler
   completed 20 reader, 20 normalization, and 20 operation text documents.
 
@@ -116,11 +116,11 @@ Evidence:
 - Modify if pointer state changes: `docs/plans/mobile/NOW.md`
 
 Acceptance criteria:
-- [ ] Focused composer and feed tests pass.
-- [ ] `bun run typecheck` passes.
-- [ ] `bun run test:quality` passes, or any unrelated pre-existing failure is
+- [x] Focused composer and feed tests pass.
+- [x] `bun run typecheck` passes.
+- [x] `bun run test:quality` passes, or any unrelated pre-existing failure is
       recorded with exact failing test names and no success claim.
-- [ ] Backend remains unchanged unless a reproduced contract mismatch is
+- [x] Backend remains unchanged unless a reproduced contract mismatch is
       promoted into `docs/plans/backend/NOW.md`.
 
 Final verification:
@@ -130,3 +130,17 @@ Final verification:
 - From `mobile/`: `bun run typecheck`
 - From `mobile/`: `bun run test:quality`
 - From repo root: `git diff --check`
+
+Evidence:
+- 2026-07-01: From `mobile/`,
+  `bun test tests/feed/postComposerState.test.ts` -> 4 pass, 0 fail,
+  22 expect() calls.
+- 2026-07-01: From `mobile/`,
+  `bun test tests/feed/PostComposerScreen.test.tsx tests/feed/FeedHomeScreen.test.tsx`
+  -> 20 pass, 0 fail, 84 expect() calls.
+- 2026-07-01: From `mobile/`, `bun run typecheck` -> passed.
+- 2026-07-01: From `mobile/`, `bun run test:quality` -> 445 pass,
+  0 fail, 1637 expect() calls across 57 files.
+- 2026-07-01: From repo root, `git diff --check` -> passed.
+- 2026-07-01: No backend code, GraphQL schema, or shared contract changes were
+  needed for this mobile batch.

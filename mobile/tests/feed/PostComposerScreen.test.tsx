@@ -381,6 +381,31 @@ describe('PostComposerScreen', () => {
     expect(createPostCommitCalls).toHaveLength(2);
   });
 
+  test('keeps network errors retryable without losing the draft body', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findHostNodeByProps(tree, {
+      accessibilityLabel: 'Post body',
+    })?.props.onChangeText?.('Retry after network error');
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findPressableByText(tree, 'Post')?.props.onPress?.();
+    createPostCommitCalls[0]?.onError?.();
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    expect(collectText(tree)).toContain('We could not create this post.');
+    expect(
+      findHostNodeByProps(tree, {
+        accessibilityLabel: 'Post body',
+      })?.props.value,
+    ).toBe('Retry after network error');
+    expect(findPressableByText(tree, 'Post')?.props.disabled).toBe(false);
+
+    findPressableByText(tree, 'Post')?.props.onPress?.();
+
+    expect(createPostCommitCalls).toHaveLength(2);
+  });
+
   test('cancels through router back', () => {
     const tree = renderWithHooks(createElement(PostComposerScreen));
 
