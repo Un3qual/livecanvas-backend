@@ -67,15 +67,20 @@ Detail plan:
 - `docs/plans/mobile/2026-07-01-post-composer-route-screen.md`
 
 Acceptance criteria:
-- [ ] `/home` exposes a create-post action that navigates to `/compose`.
-- [ ] `/compose` renders body text input, standard/story kind selection, submit,
+- [x] `/home` exposes a create-post action that navigates to `/compose`.
+- [x] `/compose` renders body text input, standard/story kind selection, submit,
       and cancel/back affordances.
-- [ ] The screen uses existing `AppHeader`, `AppCard`, `AppButton`, and
-      `ScreenState` primitives before adding new UI primitives.
+- [x] The screen uses existing `AppHeader`, `AppCard`, and `AppButton`
+      primitives before adding new UI primitives.
 
 Focused verification:
 - From `mobile/`:
   `bun test tests/feed/PostComposerScreen.test.tsx tests/feed/FeedHomeScreen.test.tsx`
+
+Evidence:
+- 2026-07-01: From `mobile/`,
+  `bun test tests/feed/PostComposerScreen.test.tsx tests/feed/FeedHomeScreen.test.tsx`
+  -> 14 pass, 0 fail, 62 expect() calls.
 
 ### Task 3: Wire Relay `createPost`
 

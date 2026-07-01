@@ -16,11 +16,11 @@ Status: mobile post composer product batch active; release-candidate QA deferred
 - Source plan:
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: Task 2, add composer route and screen.
+- Current task: Task 3, wire Relay `createPost`.
 - Latest completed source plan:
   `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 - Latest completed detail plan:
-  `docs/plans/archive/completed/mobile/2026-07-01-feed-section-refresh-pagination.md`
+  `docs/plans/mobile/2026-07-01-post-composer-route-screen.md`
 - Latest QA evidence:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md#2026-06-30-product-follow-up-queue-completion`
   records passing mobile quality gates after the completed feature queue and
@@ -43,12 +43,11 @@ Status: mobile post composer product batch active; release-candidate QA deferred
 
 ## Do This Now
 
-Implement Task 2 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`:
-add the `/compose` route, composer screen shell, and home navigation affordance.
-Use the Task 2 detail plan in
-`docs/plans/mobile/2026-07-01-post-composer-route-screen.md`. Keep Relay
-`createPost` wiring, media upload, and release-candidate checklist work out of
-this task unless a verified issue is promoted by the active implementation.
+Implement Task 3 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`:
+wire the existing Relay `createPost` mutation into the composer screen. Keep
+native media picking, signed upload, media attachment UI, and release-candidate
+checklist work out of this task unless a verified issue is promoted by the
+active implementation.
 
 ## Guardrails
 
@@ -73,4 +72,4 @@ this task unless a verified issue is promoted by the active implementation.
 
 ## Next Action
 
-Implement Task 2 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`.
+Implement Task 3 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`.

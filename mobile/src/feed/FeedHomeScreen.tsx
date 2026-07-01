@@ -62,9 +62,9 @@ import {
 } from './reportPostReducer';
 
 type FeedHomeAction = {
-  key: 'host' | 'profile' | 'diagnostics';
+  key: 'compose' | 'host' | 'profile' | 'diagnostics';
   label: string;
-  route: '/host-broadcast' | '/profile' | '/diagnostics';
+  route: '/compose' | '/host-broadcast' | '/profile' | '/diagnostics';
   variant: 'primary' | 'secondary';
 };
 
@@ -177,6 +177,12 @@ export function createFeedHomeActions(
   showHostCreationAction: boolean,
 ): FeedHomeAction[] {
   return [
+    {
+      key: 'compose',
+      label: 'Create post',
+      route: '/compose',
+      variant: 'primary',
+    },
     ...(showHostCreationAction
       ? ([
           {

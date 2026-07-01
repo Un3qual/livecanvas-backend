@@ -526,15 +526,42 @@ describe('FeedHomeScreen', () => {
     expect(findPressablesByText(tree, 'Load more stories')).toHaveLength(0);
   });
 
-  test('keeps host, profile, and diagnostics actions reachable from home', () => {
+  test('keeps compose, host, profile, and diagnostics actions reachable from home', () => {
     expect(shouldShowFeedHomeHostAction(null)).toBe(true);
     expect(shouldShowFeedHomeHostAction({ id: 'live-1' })).toBe(false);
 
     expect(createFeedHomeActions(true)).toEqual([
       {
+        key: 'compose',
+        label: 'Create post',
+        route: '/compose',
+        variant: 'primary',
+      },
+      {
         key: 'host',
         label: 'Host a live session',
         route: '/host-broadcast',
+        variant: 'primary',
+      },
+      {
+        key: 'profile',
+        label: 'Open profile',
+        route: '/profile',
+        variant: 'secondary',
+      },
+      {
+        key: 'diagnostics',
+        label: 'Diagnostics',
+        route: '/diagnostics',
+        variant: 'secondary',
+      },
+    ]);
+
+    expect(createFeedHomeActions(false)).toEqual([
+      {
+        key: 'compose',
+        label: 'Create post',
+        route: '/compose',
         variant: 'primary',
       },
       {
@@ -558,10 +585,16 @@ describe('FeedHomeScreen', () => {
           routes.push(route);
         },
       },
-      { route: '/diagnostics' },
+      { route: '/compose' },
     );
 
-    expect(routes).toEqual(['/diagnostics']);
+    expect(routes).toEqual(['/compose']);
+
+    const tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Create post')?.props.onPress?.();
+
+    expect(pushedRoutes).toEqual(['/compose']);
   });
 
   test('renders section-specific empty states', () => {
