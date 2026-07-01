@@ -12,6 +12,10 @@ const nextPage: FeedHomePaginationPageInfo = {
   hasNextPage: true,
 };
 
+type PageInfoWithBase = FeedHomePaginationPageInfo & {
+  readonly basePageIdentity?: string;
+};
+
 describe('feedHomePaginationReducer', () => {
   test('loads more stories without affecting home feed or replays', () => {
     const initialState = createFeedHomePaginationState({});
@@ -265,4 +269,55 @@ describe('feedHomePaginationReducer', () => {
       hasNextPage: true,
     });
   });
+
+  test('resets locally paged cursors when the query base page changes', () => {
+    const initialState = createFeedHomePaginationState({
+      homeFeed: pageInfoWithBase('home-base-cursor', true, 'post-1'),
+    });
+    const locallyPagedState = feedHomePaginationReducer(
+      feedHomePaginationReducer(initialState, {
+        section: 'homeFeed',
+        type: 'load_more_start',
+      }),
+      {
+        pageInfo: {
+          endCursor: 'home-older-cursor',
+          hasNextPage: true,
+        },
+        section: 'homeFeed',
+        type: 'load_more_success',
+      },
+    );
+
+    const syncedState = feedHomePaginationReducer(locallyPagedState, {
+      sections: {
+        homeFeed: pageInfoWithBase('home-new-base-cursor', true, 'post-0'),
+        replays: nextPage,
+        stories: nextPage,
+      },
+      type: 'query_page_info_sync',
+    });
+
+    expect(syncedState.sections.homeFeed).toEqual({
+      error: null,
+      hasLoadedMore: false,
+      isLoadingMore: false,
+      pageInfo: {
+        endCursor: 'home-new-base-cursor',
+        hasNextPage: true,
+      },
+    });
+    expect(selectFeedHomePageInfo(syncedState, 'homeFeed')).toEqual({
+      endCursor: 'home-new-base-cursor',
+      hasNextPage: true,
+    });
+  });
 });
+
+function pageInfoWithBase(
+  endCursor: string | null,
+  hasNextPage: boolean,
+  basePageIdentity: string,
+): PageInfoWithBase {
+  return { basePageIdentity, endCursor, hasNextPage };
+}

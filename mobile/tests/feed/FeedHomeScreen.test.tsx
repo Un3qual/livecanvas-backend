@@ -1154,6 +1154,54 @@ describe('FeedHomeScreen', () => {
     expect(text).toContain('Refreshed public post');
   });
 
+  test('keeps Relay query updates visible after a manual refresh', async () => {
+    queryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          bodyText: 'First public post',
+          id: 'post-1',
+          kind: 'STANDARD',
+        }),
+      ]),
+    };
+    fetchQueryResult = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          bodyText: 'Refreshed public post',
+          id: 'post-2',
+          kind: 'STANDARD',
+        }),
+      ]),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    getRefreshControl(tree).props.onRefresh?.();
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Refreshed public post');
+
+    queryData = {
+      ...queryData,
+      homeFeed: connection([
+        post({
+          bodyText: 'Relay live public post',
+          id: 'post-3',
+          kind: 'STANDARD',
+        }),
+      ]),
+    };
+
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    const text = collectText(tree);
+    expect(text).toContain('Relay live public post');
+    expect(text).not.toContain('Refreshed public post');
+  });
+
   test('surfaces refresh failures to the viewer', async () => {
     fetchQueryImplementation = (_variables) =>
       Promise.reject(new Error('offline'));

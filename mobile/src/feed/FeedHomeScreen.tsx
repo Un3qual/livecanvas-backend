@@ -51,6 +51,7 @@ import {
   selectFeedHomePageInfo,
   type FeedHomePaginationPageInfo,
   type FeedHomePaginationSection,
+  type FeedHomePaginationSectionInput,
 } from './feedHomePagination';
 import {
   DEFAULT_REPORT_POST_REASON,
@@ -88,6 +89,7 @@ type FeedHomeLoadMoreControl =
     };
 
 type FeedHomeLoadMoreRequest = {
+  readonly basePageIdentity: string;
   readonly cursor: string;
   readonly id: number;
   readonly section: FeedHomePaginationSection;
@@ -101,6 +103,11 @@ type FeedHomeLoadMoreRequestState = Record<
 type FeedHomeRetainedRows<Node> = {
   readonly basePageIdentity: string;
   readonly rows: Node[];
+};
+
+type FeedHomeManualRefreshSnapshot = {
+  readonly data: FeedHomeQueryResponse;
+  readonly queryDataAtStart: FeedHomeQueryResponse;
 };
 
 const styles = StyleSheet.create({
@@ -264,34 +271,14 @@ export function FeedHomeContent() {
     { fetchPolicy: 'store-and-network' },
   );
   const [refreshedHomeData, setRefreshedHomeData] =
-    useState<FeedHomeQueryResponse | null>(null);
-  const effectiveData = refreshedHomeData ?? data;
-  const [paginationState, dispatchPagination] = useReducer(
-    feedHomePaginationReducer,
-    createFeedHomePaginationState({
-      homeFeed: normalizePageInfo(effectiveData.homeFeed?.pageInfo),
-      replays: normalizePageInfo(effectiveData.replayFeed?.pageInfo),
-      stories: normalizePageInfo(effectiveData.storyFeed?.pageInfo),
-    }),
-  );
-  const queryPageInfo = {
-    homeFeed: normalizePageInfo(effectiveData.homeFeed?.pageInfo),
-    replays: normalizePageInfo(effectiveData.replayFeed?.pageInfo),
-    stories: normalizePageInfo(effectiveData.storyFeed?.pageInfo),
-  };
-  const queryHomeFeedEndCursor = queryPageInfo.homeFeed.endCursor;
-  const queryHomeFeedHasNextPage = queryPageInfo.homeFeed.hasNextPage;
-  const queryReplaysEndCursor = queryPageInfo.replays.endCursor;
-  const queryReplaysHasNextPage = queryPageInfo.replays.hasNextPage;
-  const queryStoriesEndCursor = queryPageInfo.stories.endCursor;
-  const queryStoriesHasNextPage = queryPageInfo.stories.hasNextPage;
-
+    useState<FeedHomeManualRefreshSnapshot | null>(null);
+  const effectiveData =
+    refreshedHomeData !== null && data === refreshedHomeData.queryDataAtStart
+      ? refreshedHomeData.data
+      : data;
   const currentSession = effectiveData.viewer?.currentLiveSession ?? null;
   const currentSessionId = currentSession?.id;
   const viewerId = effectiveData.viewer?.id ?? null;
-  const homeActions = createFeedHomeActions(
-    shouldShowFeedHomeHostAction(currentSession),
-  );
   const stories = readConnectionNodes<FeedHomePost>(effectiveData.storyFeed);
   const posts = readConnectionNodes<FeedHomePost>(effectiveData.homeFeed);
   const liveNowSessions = readConnectionNodes<LiveSessionSummary>(
@@ -303,6 +290,53 @@ export function FeedHomeContent() {
   const storiesBasePageIdentity = createBasePageIdentity(stories);
   const homeFeedBasePageIdentity = createBasePageIdentity(posts);
   const replaysBasePageIdentity = createBasePageIdentity(replaySessions);
+  const [paginationState, dispatchPagination] = useReducer(
+    feedHomePaginationReducer,
+    createFeedHomePaginationState({
+      homeFeed: createSectionPageInfo(
+        normalizePageInfo(effectiveData.homeFeed?.pageInfo),
+        homeFeedBasePageIdentity,
+      ),
+      replays: createSectionPageInfo(
+        normalizePageInfo(effectiveData.replayFeed?.pageInfo),
+        replaysBasePageIdentity,
+      ),
+      stories: createSectionPageInfo(
+        normalizePageInfo(effectiveData.storyFeed?.pageInfo),
+        storiesBasePageIdentity,
+      ),
+    }),
+  );
+  const queryPageInfo = {
+    homeFeed: createSectionPageInfo(
+      normalizePageInfo(effectiveData.homeFeed?.pageInfo),
+      homeFeedBasePageIdentity,
+    ),
+    replays: createSectionPageInfo(
+      normalizePageInfo(effectiveData.replayFeed?.pageInfo),
+      replaysBasePageIdentity,
+    ),
+    stories: createSectionPageInfo(
+      normalizePageInfo(effectiveData.storyFeed?.pageInfo),
+      storiesBasePageIdentity,
+    ),
+  };
+  const queryHomeFeedEndCursor = queryPageInfo.homeFeed.endCursor;
+  const queryHomeFeedHasNextPage = queryPageInfo.homeFeed.hasNextPage;
+  const queryHomeFeedBasePageIdentity =
+    queryPageInfo.homeFeed.basePageIdentity ?? '';
+  const queryReplaysEndCursor = queryPageInfo.replays.endCursor;
+  const queryReplaysHasNextPage = queryPageInfo.replays.hasNextPage;
+  const queryReplaysBasePageIdentity =
+    queryPageInfo.replays.basePageIdentity ?? '';
+  const queryStoriesEndCursor = queryPageInfo.stories.endCursor;
+  const queryStoriesHasNextPage = queryPageInfo.stories.hasNextPage;
+  const queryStoriesBasePageIdentity =
+    queryPageInfo.stories.basePageIdentity ?? '';
+
+  const homeActions = createFeedHomeActions(
+    shouldShowFeedHomeHostAction(currentSession),
+  );
   const [olderStories, setOlderStories] = useState<
     FeedHomeRetainedRows<FeedHomePost>
   >(() => createRetainedRows(''));
@@ -362,29 +396,50 @@ export function FeedHomeContent() {
   useEffect(() => {
     dispatchPagination({
       sections: {
-        homeFeed: {
-          endCursor: queryHomeFeedEndCursor,
-          hasNextPage: queryHomeFeedHasNextPage,
-        },
-        replays: {
-          endCursor: queryReplaysEndCursor,
-          hasNextPage: queryReplaysHasNextPage,
-        },
-        stories: {
-          endCursor: queryStoriesEndCursor,
-          hasNextPage: queryStoriesHasNextPage,
-        },
+        homeFeed: createSectionPageInfo(
+          {
+            endCursor: queryHomeFeedEndCursor,
+            hasNextPage: queryHomeFeedHasNextPage,
+          },
+          queryHomeFeedBasePageIdentity,
+        ),
+        replays: createSectionPageInfo(
+          {
+            endCursor: queryReplaysEndCursor,
+            hasNextPage: queryReplaysHasNextPage,
+          },
+          queryReplaysBasePageIdentity,
+        ),
+        stories: createSectionPageInfo(
+          {
+            endCursor: queryStoriesEndCursor,
+            hasNextPage: queryStoriesHasNextPage,
+          },
+          queryStoriesBasePageIdentity,
+        ),
       },
       type: 'query_page_info_sync',
     });
   }, [
     queryHomeFeedEndCursor,
     queryHomeFeedHasNextPage,
+    queryHomeFeedBasePageIdentity,
     queryReplaysEndCursor,
     queryReplaysHasNextPage,
+    queryReplaysBasePageIdentity,
     queryStoriesEndCursor,
     queryStoriesHasNextPage,
+    queryStoriesBasePageIdentity,
   ]);
+
+  useEffect(() => {
+    if (
+      refreshedHomeData !== null &&
+      data !== refreshedHomeData.queryDataAtStart
+    ) {
+      setRefreshedHomeData(null);
+    }
+  }, [data, refreshedHomeData]);
 
   function openLiveSession(session: LiveSessionSummary) {
     router.push(liveSessionHref(session.id));
@@ -419,15 +474,39 @@ export function FeedHomeContent() {
         return;
       }
 
-      setRefreshedHomeData(refreshedData ?? null);
+      setRefreshedHomeData(
+        refreshedData === null || refreshedData === undefined
+          ? null
+          : {
+              data: refreshedData,
+              queryDataAtStart: data,
+            },
+      );
       setOlderStories(createRetainedRows(''));
       setOlderPosts(createRetainedRows(''));
       setOlderReplays(createRetainedRows(''));
       dispatchPagination({
         sections: {
-          homeFeed: normalizePageInfo(refreshedData?.homeFeed?.pageInfo),
-          replays: normalizePageInfo(refreshedData?.replayFeed?.pageInfo),
-          stories: normalizePageInfo(refreshedData?.storyFeed?.pageInfo),
+          homeFeed: createSectionPageInfo(
+            normalizePageInfo(refreshedData?.homeFeed?.pageInfo),
+            createBasePageIdentity(
+              readConnectionNodes<FeedHomePost>(refreshedData?.homeFeed),
+            ),
+          ),
+          replays: createSectionPageInfo(
+            normalizePageInfo(refreshedData?.replayFeed?.pageInfo),
+            createBasePageIdentity(
+              readConnectionNodes<LiveSessionSummary>(
+                refreshedData?.replayFeed,
+              ),
+            ),
+          ),
+          stories: createSectionPageInfo(
+            normalizePageInfo(refreshedData?.storyFeed?.pageInfo),
+            createBasePageIdentity(
+              readConnectionNodes<FeedHomePost>(refreshedData?.storyFeed),
+            ),
+          ),
         },
         type: 'refresh_success',
       });
@@ -461,6 +540,7 @@ export function FeedHomeContent() {
     }
 
     const request = {
+      basePageIdentity: selectSectionBasePageIdentity(section),
       cursor: pageInfo.endCursor,
       id: loadMoreRequestIdRef.current + 1,
       section,
@@ -492,6 +572,7 @@ export function FeedHomeContent() {
 
       appendOlderSectionRows(section, pageData);
       dispatchPagination({
+        basePageIdentity: request.basePageIdentity,
         pageInfo: selectLoadedSectionPageInfo(pageData, section),
         section,
         type: 'load_more_success',
@@ -553,6 +634,24 @@ export function FeedHomeContent() {
 
       default:
         assertNever(section);
+    }
+  }
+
+  function selectSectionBasePageIdentity(
+    section: FeedHomePaginationSection,
+  ): string {
+    switch (section) {
+      case 'homeFeed':
+        return homeFeedBasePageIdentity;
+
+      case 'replays':
+        return replaysBasePageIdentity;
+
+      case 'stories':
+        return storiesBasePageIdentity;
+
+      default:
+        return assertNever(section);
     }
   }
 
@@ -697,6 +796,13 @@ function createRetainedRows<Node>(
   rows: Node[] = [],
 ): FeedHomeRetainedRows<Node> {
   return { basePageIdentity, rows };
+}
+
+function createSectionPageInfo(
+  pageInfo: FeedHomePaginationPageInfo,
+  basePageIdentity: string,
+): FeedHomePaginationSectionInput {
+  return { ...pageInfo, basePageIdentity };
 }
 
 function selectRetainedRows<Node>(

@@ -5,6 +5,10 @@ export type FeedHomePaginationPageInfo = {
   readonly hasNextPage: boolean;
 };
 
+export type FeedHomePaginationSectionInput = FeedHomePaginationPageInfo & {
+  readonly basePageIdentity?: string;
+};
+
 export type FeedHomeSectionPaginationState = {
   readonly error: string | null;
   readonly hasLoadedMore: boolean;
@@ -15,6 +19,7 @@ export type FeedHomeSectionPaginationState = {
 export type FeedHomePaginationState = {
   readonly isRefreshing: boolean;
   readonly refreshError: string | null;
+  readonly sectionBasePageIdentities: Record<FeedHomePaginationSection, string>;
   readonly sections: Record<
     FeedHomePaginationSection,
     FeedHomeSectionPaginationState
@@ -32,6 +37,7 @@ export type FeedHomePaginationAction =
       readonly type: 'load_more_error';
     }
   | {
+      readonly basePageIdentity?: string;
       readonly pageInfo: FeedHomePaginationPageInfo;
       readonly section: FeedHomePaginationSection;
       readonly type: 'load_more_success';
@@ -46,14 +52,14 @@ export type FeedHomePaginationAction =
   | {
       readonly sections: Record<
         FeedHomePaginationSection,
-        FeedHomePaginationPageInfo
+        FeedHomePaginationSectionInput
       >;
       readonly type: 'refresh_success';
     }
   | {
       readonly sections: Record<
         FeedHomePaginationSection,
-        FeedHomePaginationPageInfo
+        FeedHomePaginationSectionInput
       >;
       readonly type: 'query_page_info_sync';
     };
@@ -64,13 +70,18 @@ const EMPTY_PAGE_INFO: FeedHomePaginationPageInfo = {
 };
 
 export function createFeedHomePaginationState(sections: {
-  readonly homeFeed?: FeedHomePaginationPageInfo | null;
-  readonly replays?: FeedHomePaginationPageInfo | null;
-  readonly stories?: FeedHomePaginationPageInfo | null;
+  readonly homeFeed?: FeedHomePaginationSectionInput | null;
+  readonly replays?: FeedHomePaginationSectionInput | null;
+  readonly stories?: FeedHomePaginationSectionInput | null;
 }): FeedHomePaginationState {
   return {
     isRefreshing: false,
     refreshError: null,
+    sectionBasePageIdentities: {
+      homeFeed: basePageIdentityFromInput(sections.homeFeed),
+      replays: basePageIdentityFromInput(sections.replays),
+      stories: basePageIdentityFromInput(sections.stories),
+    },
     sections: {
       homeFeed: createSectionState(sections.homeFeed),
       replays: createSectionState(sections.replays),
@@ -104,7 +115,10 @@ export function feedHomePaginationReducer(
 
     case 'load_more_success':
       return updateSection(state, action.section, (sectionState) =>
-        sectionState.isLoadingMore
+        sectionState.isLoadingMore &&
+        state.sectionBasePageIdentities[action.section] ===
+          (action.basePageIdentity ??
+            state.sectionBasePageIdentities[action.section])
           ? {
               ...sectionState,
               error: null,
@@ -138,6 +152,11 @@ export function feedHomePaginationReducer(
         ...state,
         isRefreshing: false,
         refreshError: null,
+        sectionBasePageIdentities: {
+          homeFeed: basePageIdentityFromInput(action.sections.homeFeed),
+          replays: basePageIdentityFromInput(action.sections.replays),
+          stories: basePageIdentityFromInput(action.sections.stories),
+        },
         sections: {
           homeFeed: createSectionState(action.sections.homeFeed),
           replays: createSectionState(action.sections.replays),
@@ -148,14 +167,17 @@ export function feedHomePaginationReducer(
     case 'query_page_info_sync':
       return {
         ...state,
+        sectionBasePageIdentities: {
+          homeFeed: basePageIdentityFromInput(action.sections.homeFeed),
+          replays: basePageIdentityFromInput(action.sections.replays),
+          stories: basePageIdentityFromInput(action.sections.stories),
+        },
         sections: updateAllSections(state.sections, (sectionState, section) =>
-          sectionState.hasLoadedMore
-            ? sectionState
-            : {
-                ...sectionState,
-                error: null,
-                pageInfo: action.sections[section],
-              },
+          syncSectionPageInfo(
+            sectionState,
+            state.sectionBasePageIdentities[section],
+            action.sections[section],
+          ),
         ),
       };
 
@@ -172,14 +194,49 @@ export function selectFeedHomePageInfo(
 }
 
 function createSectionState(
-  pageInfo?: FeedHomePaginationPageInfo | null,
+  pageInfo?: FeedHomePaginationSectionInput | null,
 ): FeedHomeSectionPaginationState {
   return {
     error: null,
     hasLoadedMore: false,
     isLoadingMore: false,
-    pageInfo: pageInfo ?? EMPTY_PAGE_INFO,
+    pageInfo: pageInfoFromInput(pageInfo),
   };
+}
+
+function syncSectionPageInfo(
+  sectionState: FeedHomeSectionPaginationState,
+  currentBasePageIdentity: string,
+  pageInfo: FeedHomePaginationSectionInput,
+): FeedHomeSectionPaginationState {
+  if (currentBasePageIdentity !== basePageIdentityFromInput(pageInfo)) {
+    return createSectionState(pageInfo);
+  }
+
+  return sectionState.hasLoadedMore
+    ? sectionState
+    : {
+        ...sectionState,
+        error: null,
+        pageInfo: pageInfoFromInput(pageInfo),
+      };
+}
+
+function pageInfoFromInput(
+  pageInfo?: FeedHomePaginationSectionInput | null,
+): FeedHomePaginationPageInfo {
+  return pageInfo
+    ? {
+        endCursor: pageInfo.endCursor,
+        hasNextPage: pageInfo.hasNextPage,
+      }
+    : EMPTY_PAGE_INFO;
+}
+
+function basePageIdentityFromInput(
+  pageInfo?: FeedHomePaginationSectionInput | null,
+): string {
+  return pageInfo?.basePageIdentity ?? '';
 }
 
 function updateAllSections(
