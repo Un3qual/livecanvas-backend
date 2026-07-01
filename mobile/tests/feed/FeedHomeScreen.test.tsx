@@ -361,9 +361,12 @@ describe('FeedHomeScreen', () => {
 
     expect(collectText(tree)).toContain('Home');
     expect(queryVariables).toEqual({
+      feedAfter: null,
       feedFirst: 10,
       liveFirst: 20,
+      replayAfter: null,
       replayFirst: 10,
+      storyAfter: null,
       storyFirst: 10,
     });
   });

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<969b3630256f783af09aa80d50d33d52>>
+ * @generated SignedSource<<75ab9348bf928490dfd1ac30de18b653>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,10 +16,10 @@ export type ReportPostInput = {
   postId: string;
   reason: PostReportReason;
 };
-export type FeedHomeScreenReportPostMutation$variables = {
+export type feedHomeOperationsReportPostMutation$variables = {
   input: ReportPostInput;
 };
-export type FeedHomeScreenReportPostMutation$data = {
+export type feedHomeOperationsReportPostMutation$data = {
   readonly reportPost: {
     readonly errors: ReadonlyArray<{
       readonly field: string | null | undefined;
@@ -34,9 +34,9 @@ export type FeedHomeScreenReportPostMutation$data = {
     } | null | undefined;
   } | null | undefined;
 };
-export type FeedHomeScreenReportPostMutation = {
-  response: FeedHomeScreenReportPostMutation$data;
-  variables: FeedHomeScreenReportPostMutation$variables;
+export type feedHomeOperationsReportPostMutation = {
+  response: feedHomeOperationsReportPostMutation$data;
+  variables: feedHomeOperationsReportPostMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -142,7 +142,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "FeedHomeScreenReportPostMutation",
+    "name": "feedHomeOperationsReportPostMutation",
     "selections": (v1/*: any*/),
     "type": "RootMutationType",
     "abstractKey": null
@@ -151,20 +151,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "FeedHomeScreenReportPostMutation",
+    "name": "feedHomeOperationsReportPostMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "fc5b5a1ea73de2a24ce40551992ad58d",
+    "cacheID": "95d512298acf3b69ca2e6bd0ddd024b3",
     "id": null,
     "metadata": {},
-    "name": "FeedHomeScreenReportPostMutation",
+    "name": "feedHomeOperationsReportPostMutation",
     "operationKind": "mutation",
-    "text": "mutation FeedHomeScreenReportPostMutation(\n  $input: ReportPostInput!\n) {\n  reportPost(input: $input) {\n    report {\n      id\n      postId\n      reason\n      status\n      insertedAt\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation feedHomeOperationsReportPostMutation(\n  $input: ReportPostInput!\n) {\n  reportPost(input: $input) {\n    report {\n      id\n      postId\n      reason\n      status\n      insertedAt\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cb144f1064283a70a8a591335a51beac";
+(node as any).hash = "00cedd21b9bb5ae5cf1056b89323a5ba";
 
 export default node;

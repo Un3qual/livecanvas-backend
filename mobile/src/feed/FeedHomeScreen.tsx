@@ -6,7 +6,7 @@ import React, {
 } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
+import { useLazyLoadQuery, useMutation } from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
@@ -26,6 +26,13 @@ import {
   type FeedPostCardInput,
 } from './feedPresentation';
 import {
+  FEED_HOME_QUERY_VARIABLES,
+  feedHomeScreenQuery,
+  feedHomeScreenReportPostMutation,
+  type FeedHomeScreenQuery,
+  type FeedHomeScreenReportPostMutation,
+} from './feedHomeOperations';
+import {
   DEFAULT_REPORT_POST_REASON,
   canSubmitPostReport,
   createReportPostState,
@@ -34,15 +41,6 @@ import {
   reportPostReducer,
   type ReportPostState,
 } from './reportPostReducer';
-import type { FeedHomeScreenReportPostMutation } from '../__generated__/FeedHomeScreenReportPostMutation.graphql';
-import type { FeedHomeScreenQuery } from '../__generated__/FeedHomeScreenQuery.graphql';
-
-export const FEED_HOME_QUERY_VARIABLES = {
-  feedFirst: 10,
-  liveFirst: 20,
-  replayFirst: 10,
-  storyFirst: 10,
-} as const;
 
 type FeedHomeAction = {
   key: 'host' | 'profile' | 'diagnostics';
@@ -111,24 +109,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
 });
-
-const feedHomeScreenReportPostMutation = graphql`
-  mutation FeedHomeScreenReportPostMutation($input: ReportPostInput!) {
-    reportPost(input: $input) {
-      report {
-        id
-        postId
-        reason
-        status
-        insertedAt
-      }
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
 
 export function FeedHomeScreen() {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
@@ -212,125 +192,7 @@ export function FeedHomeContent() {
     feedHomeScreenReportPostMutation,
   );
   const data = useLazyLoadQuery<FeedHomeScreenQuery>(
-    graphql`
-      query FeedHomeScreenQuery(
-        $feedFirst: Int!
-        $liveFirst: Int!
-        $replayFirst: Int!
-        $storyFirst: Int!
-      ) {
-        viewer {
-          id
-          currentLiveSession {
-            id
-            channelTopic
-            status
-            visibility
-            insertedAt
-            startedAt
-            endedAt
-            host {
-              id
-              email
-            }
-          }
-        }
-        storyFeed(first: $storyFirst) {
-          edges {
-            node {
-              id
-              kind
-              bodyText
-              visibility
-              expiresAt
-              insertedAt
-              author {
-                id
-                email
-              }
-              mediaAssets {
-                id
-                mimeType
-                processingState
-                publicUrl
-              }
-            }
-          }
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-        }
-        homeFeed(first: $feedFirst) {
-          edges {
-            node {
-              id
-              kind
-              bodyText
-              visibility
-              expiresAt
-              insertedAt
-              author {
-                id
-                email
-              }
-              mediaAssets {
-                id
-                mimeType
-                processingState
-                publicUrl
-              }
-            }
-          }
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-        }
-        liveNow(first: $liveFirst) {
-          edges {
-            node {
-              id
-              channelTopic
-              status
-              visibility
-              insertedAt
-              startedAt
-              endedAt
-              host {
-                id
-                email
-              }
-            }
-          }
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-        }
-        replayFeed(first: $replayFirst) {
-          edges {
-            node {
-              id
-              channelTopic
-              status
-              visibility
-              insertedAt
-              startedAt
-              endedAt
-              host {
-                id
-                email
-              }
-            }
-          }
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-        }
-      }
-    `,
+    feedHomeScreenQuery,
     FEED_HOME_QUERY_VARIABLES,
     { fetchPolicy: 'store-and-network' },
   );
