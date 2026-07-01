@@ -57,6 +57,9 @@ function AppButtonMock({
 }
 
 mock.module('react-relay', () => ({
+  fetchQuery: () => ({
+    toPromise: () => Promise.resolve(null),
+  }),
   graphql: (query: TemplateStringsArray) => query,
   useLazyLoadQuery: () => {
     viewerQueryCalls += 1;
@@ -69,6 +72,7 @@ mock.module('react-relay', () => ({
       },
     };
   },
+  useRelayEnvironment: () => ({}),
   useMutation: () => [() => undefined, false],
 }));
 

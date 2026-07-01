@@ -234,9 +234,9 @@ export function FeedHomeContent() {
   const [paginationState, dispatchPagination] = useReducer(
     feedHomePaginationReducer,
     createFeedHomePaginationState({
-      homeFeed: effectiveData.homeFeed?.pageInfo ?? null,
-      replays: effectiveData.replayFeed?.pageInfo ?? null,
-      stories: effectiveData.storyFeed?.pageInfo ?? null,
+      homeFeed: normalizePageInfo(effectiveData.homeFeed?.pageInfo),
+      replays: normalizePageInfo(effectiveData.replayFeed?.pageInfo),
+      stories: normalizePageInfo(effectiveData.storyFeed?.pageInfo),
     }),
   );
   const [olderStories, setOlderStories] = useState<FeedHomePost[]>([]);
@@ -249,12 +249,14 @@ export function FeedHomeContent() {
   const homeActions = createFeedHomeActions(
     shouldShowFeedHomeHostAction(currentSession),
   );
-  const stories = readConnectionNodes(effectiveData.storyFeed);
-  const posts = readConnectionNodes(effectiveData.homeFeed);
-  const liveNowSessions = readConnectionNodes(effectiveData.liveNow).filter(
-    (session) => session.id !== currentSessionId,
+  const stories = readConnectionNodes<FeedHomePost>(effectiveData.storyFeed);
+  const posts = readConnectionNodes<FeedHomePost>(effectiveData.homeFeed);
+  const liveNowSessions = readConnectionNodes<LiveSessionSummary>(
+    effectiveData.liveNow,
+  ).filter((session) => session.id !== currentSessionId);
+  const replaySessions = readConnectionNodes<LiveSessionSummary>(
+    effectiveData.replayFeed,
   );
-  const replaySessions = readConnectionNodes(effectiveData.replayFeed);
   const storiesPageInfo = selectFeedHomePageInfo(paginationState, 'stories');
   const homeFeedPageInfo = selectFeedHomePageInfo(
     paginationState,

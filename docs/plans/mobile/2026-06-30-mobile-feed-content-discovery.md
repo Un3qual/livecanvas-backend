@@ -154,13 +154,13 @@ Detailed task plan:
 - `docs/plans/mobile/2026-07-01-feed-section-refresh-pagination.md`
 
 Acceptance criteria:
-- [ ] Home feed, stories, and replays expose explicit load-more affordances when
+- [x] Home feed, stories, and replays expose explicit load-more affordances when
       their Relay connections have a next page.
-- [ ] Loading older content is section-scoped and does not block live-now or the
+- [x] Loading older content is section-scoped and does not block live-now or the
       viewer current-session card.
-- [ ] Pull-to-refresh or retry refreshes the combined home query without losing
+- [x] Pull-to-refresh or retry refreshes the combined home query without losing
       already visible local report confirmation state.
-- [ ] Pagination uses Relay cursors and never constructs offsets or decodes
+- [x] Pagination uses Relay cursors and never constructs offsets or decodes
       Relay IDs client-side.
 
 Implementation notes:
@@ -172,6 +172,16 @@ Implementation notes:
 
 Focused verification:
 - From `mobile/`: `bun test tests/feed/FeedHomeScreen.test.tsx`
+
+Evidence:
+- 2026-07-01: `bun test tests/feed/feedHomePagination.test.ts tests/feed/FeedHomeScreen.test.tsx`
+  passes with 13 tests after section-scoped cursor loading and refresh.
+- 2026-07-01: `bun test tests/feed/feedPresentation.test.ts tests/feed/reportPostReducer.test.ts tests/feed/feedHomePagination.test.ts tests/feed/FeedHomeScreen.test.tsx`
+  passes with 20 feed tests.
+- 2026-07-01: `bun run relay` completes with no generated file changes after
+  the feed home cursor variable extraction.
+- 2026-07-01: `bun run typecheck` and `bun run test:quality` pass after
+  normalizing Relay page info and shared test mocks for refresh/fetch imports.
 
 ### Task 5: Close the lane batch
 

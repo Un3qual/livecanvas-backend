@@ -14,6 +14,7 @@ mock.module('react-native', () => ({
     OS: 'ios',
   },
   Pressable: NullComponent,
+  RefreshControl: NullComponent,
   ScrollView: NullComponent,
   StyleSheet: {
     create: <Styles>(styles: Styles): Styles => styles,
