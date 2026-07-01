@@ -63,6 +63,9 @@ Evidence:
 - Test: `mobile/tests/feed/PostComposerScreen.test.tsx`
 - Test: `mobile/tests/feed/FeedHomeScreen.test.tsx`
 
+Detail plan:
+- `docs/plans/mobile/2026-07-01-post-composer-route-screen.md`
+
 Acceptance criteria:
 - [ ] `/home` exposes a create-post action that navigates to `/compose`.
 - [ ] `/compose` renders body text input, standard/story kind selection, submit,

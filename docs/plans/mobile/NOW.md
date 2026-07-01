@@ -16,7 +16,7 @@ Status: mobile post composer product batch active; release-candidate QA deferred
 - Source plan:
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: Task 1, add composer state helpers.
+- Current task: Task 2, add composer route and screen.
 - Latest completed source plan:
   `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 - Latest completed detail plan:
@@ -43,12 +43,12 @@ Status: mobile post composer product batch active; release-candidate QA deferred
 
 ## Do This Now
 
-Implement Task 1 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`:
-add feed-local post composer state helpers and focused tests. Use the Task 1
-detail plan in
-`docs/plans/mobile/2026-07-01-post-composer-state-helpers.md`. Keep media
-upload out of the first composer task and keep the release-candidate checklist
-deferred until product explicitly resumes QA.
+Implement Task 2 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`:
+add the `/compose` route, composer screen shell, and home navigation affordance.
+Use the Task 2 detail plan in
+`docs/plans/mobile/2026-07-01-post-composer-route-screen.md`. Keep Relay
+`createPost` wiring, media upload, and release-candidate checklist work out of
+this task unless a verified issue is promoted by the active implementation.
 
 ## Guardrails
 
@@ -73,4 +73,4 @@ deferred until product explicitly resumes QA.
 
 ## Next Action
 
-Implement Task 1 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`.
+Implement Task 2 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`.
