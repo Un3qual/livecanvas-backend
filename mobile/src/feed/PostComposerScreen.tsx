@@ -98,12 +98,14 @@ export function PostComposerScreen({
   const theme = useAppTheme();
   const [state, setState] = useState(() => createPostComposerState());
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [bodyBlurred, setBodyBlurred] = useState(false);
   const trimmedBodyLength = state.bodyText.trim().length;
   const validationMessage = getPostComposerValidationMessage(state);
   const canSubmit = canSubmitPostComposer(state);
   const shouldShowValidation =
     validationMessage !== null &&
     (submitAttempted ||
+      bodyBlurred ||
       trimmedBodyLength > POST_COMPOSER_BODY_TEXT_MAX_LENGTH);
 
   function handleSubmit() {
@@ -137,6 +139,9 @@ export function PostComposerScreen({
           <TextInput
             accessibilityLabel="Post body"
             multiline
+            onBlur={() => {
+              setBodyBlurred(true);
+            }}
             onChangeText={(bodyText) => {
               setState((current) =>
                 updatePostComposerBody(current, bodyText),
@@ -179,6 +184,7 @@ export function PostComposerScreen({
                   );
                 }}
                 variant={state.kind === kind ? 'primary' : 'secondary'}
+                selected={state.kind === kind}
               />
             ))}
           </View>
@@ -201,6 +207,7 @@ export function PostComposerScreen({
                 variant={
                   state.visibility === visibility ? 'primary' : 'secondary'
                 }
+                selected={state.visibility === visibility}
               />
             ))}
           </View>

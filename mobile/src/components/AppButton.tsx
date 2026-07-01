@@ -7,6 +7,7 @@ type AppButtonProps = {
   disabled?: boolean;
   label: string;
   onPress: () => void;
+  selected?: boolean;
   variant?: 'primary' | 'secondary';
   style?: StyleProp<ViewStyle>;
 };
@@ -31,17 +32,20 @@ export function AppButton({
   disabled = false,
   label,
   onPress,
+  selected,
   variant = 'primary',
   style,
 }: AppButtonProps) {
   const theme = useAppTheme();
 
   const isPrimary = variant === 'primary';
+  const accessibilityState =
+    selected === undefined ? { disabled } : { disabled, selected };
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled }}
+      accessibilityState={accessibilityState}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [

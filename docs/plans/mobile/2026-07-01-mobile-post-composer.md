@@ -80,7 +80,7 @@ Focused verification:
 Evidence:
 - 2026-07-01: From `mobile/`,
   `bun test tests/feed/PostComposerScreen.test.tsx tests/feed/FeedHomeScreen.test.tsx`
-  -> 14 pass, 0 fail, 62 expect() calls.
+  -> 16 pass, 0 fail, 72 expect() calls.
 
 ### Task 3: Wire Relay `createPost`
 

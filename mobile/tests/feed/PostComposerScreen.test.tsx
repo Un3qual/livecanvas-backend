@@ -45,14 +45,26 @@ function AppButtonMock({
   disabled,
   label,
   onPress,
+  selected,
 }: {
   disabled?: boolean;
   label: string;
   onPress: () => void;
+  selected?: boolean;
 }) {
+  const accessibilityState =
+    selected === undefined
+      ? { disabled: disabled ?? false }
+      : { disabled: disabled ?? false, selected };
+
   return createElement(
     'Pressable',
-    { accessibilityRole: 'button', disabled: disabled ?? false, onPress },
+    {
+      accessibilityRole: 'button',
+      accessibilityState,
+      disabled: disabled ?? false,
+      onPress,
+    },
     label,
   );
 }
@@ -218,6 +230,37 @@ describe('PostComposerScreen', () => {
       'Posts must be 5,000 characters or fewer.',
     );
     expect(findPressableByText(tree, 'Post')?.props.disabled).toBe(true);
+  });
+
+  test('shows empty validation after the body field is touched', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findHostNodeByProps(tree, {
+      accessibilityLabel: 'Post body',
+    })?.props.onBlur?.();
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    expect(collectText(tree)).toContain('Add text before posting.');
+    expect(findPressableByText(tree, 'Post')?.props.disabled).toBe(true);
+  });
+
+  test('marks active kind and visibility controls as selected', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
+
+    expectButtonSelection(tree, 'Standard', true);
+    expectButtonSelection(tree, 'Story', false);
+    expectButtonSelection(tree, 'Followers', true);
+    expectButtonSelection(tree, 'Public', false);
+
+    findPressableByText(tree, 'Story')?.props.onPress?.();
+    tree = renderWithHooks(createElement(PostComposerScreen));
+    findPressableByText(tree, 'Public')?.props.onPress?.();
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    expectButtonSelection(tree, 'Standard', false);
+    expectButtonSelection(tree, 'Story', true);
+    expectButtonSelection(tree, 'Followers', false);
+    expectButtonSelection(tree, 'Public', true);
   });
 
   test('maps kind and visibility controls to createPost input values', () => {
@@ -439,4 +482,15 @@ function findPressableByText(
   }
 
   return findPressableByText(tree.children, text);
+}
+
+function expectButtonSelection(
+  tree: RenderedTree,
+  label: string,
+  selected: boolean,
+) {
+  expect(findPressableByText(tree, label)?.props.accessibilityState).toEqual({
+    disabled: false,
+    selected,
+  });
 }
