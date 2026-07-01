@@ -2,11 +2,17 @@ import React, {
   Suspense,
   useReducer,
   useRef,
+  useState,
   type PropsWithChildren,
 } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useLazyLoadQuery, useMutation } from 'react-relay';
+import {
+  fetchQuery,
+  useLazyLoadQuery,
+  useMutation,
+  useRelayEnvironment,
+} from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
@@ -60,6 +66,7 @@ type FeedHomePost = NonNullable<
   ReturnType<typeof readConnectionNodes<FeedHomePostNode>>[number]
 >;
 type FeedHomePostNode = FeedPostCardInput;
+type FeedHomeQueryResponse = FeedHomeScreenQuery['response'];
 
 type FeedHomeLoadMoreControl = {
   readonly error: string | null;
@@ -199,6 +206,7 @@ export function pushFeedHomeAction(
 export function FeedHomeContent() {
   const theme = useAppTheme();
   const router = useRouter();
+  const relayEnvironment = useRelayEnvironment();
   const [reportPostState, dispatchReportPost] = useReducer(
     reportPostReducer,
     createReportPostState(),
@@ -222,6 +230,9 @@ export function FeedHomeContent() {
       stories: data.storyFeed?.pageInfo ?? null,
     }),
   );
+  const [olderStories, setOlderStories] = useState<FeedHomePost[]>([]);
+  const [olderPosts, setOlderPosts] = useState<FeedHomePost[]>([]);
+  const [olderReplays, setOlderReplays] = useState<LiveSessionSummary[]>([]);
 
   const currentSession = data.viewer?.currentLiveSession ?? null;
   const currentSessionId = currentSession?.id;
@@ -245,14 +256,14 @@ export function FeedHomeContent() {
     error: paginationState.sections.stories.error,
     isLoading: paginationState.sections.stories.isLoadingMore,
     label: 'Load more stories',
-    onLoadMore: () => startLoadMore('stories'),
+    onLoadMore: () => loadMoreSection('stories'),
     pageInfo: storiesPageInfo,
   });
   const homeFeedLoadMoreControl = createLoadMoreControl({
     error: paginationState.sections.homeFeed.error,
     isLoading: paginationState.sections.homeFeed.isLoadingMore,
     label: 'Load more feed posts',
-    onLoadMore: () => startLoadMore('homeFeed'),
+    onLoadMore: () => loadMoreSection('homeFeed'),
     pageInfo: homeFeedPageInfo,
   });
   const liveNowLoadMoreControl: FeedHomeLoadMoreControl = {
@@ -266,7 +277,7 @@ export function FeedHomeContent() {
     error: paginationState.sections.replays.error,
     isLoading: paginationState.sections.replays.isLoadingMore,
     label: 'Load more replays',
-    onLoadMore: () => startLoadMore('replays'),
+    onLoadMore: () => loadMoreSection('replays'),
     pageInfo: replayPageInfo,
   });
 
@@ -274,8 +285,66 @@ export function FeedHomeContent() {
     router.push(liveSessionHref(session.id));
   }
 
-  function startLoadMore(section: FeedHomePaginationSection) {
+  async function loadMoreSection(section: FeedHomePaginationSection) {
+    const pageInfo = selectFeedHomePageInfo(paginationState, section);
+
+    if (!pageInfo.hasNextPage || pageInfo.endCursor == null) {
+      return;
+    }
+
     dispatchPagination({ section, type: 'load_more_start' });
+
+    try {
+      const pageData = await fetchQuery<FeedHomeScreenQuery>(
+        relayEnvironment,
+        feedHomeScreenQuery,
+        {
+          ...FEED_HOME_QUERY_VARIABLES,
+          feedAfter: section === 'homeFeed' ? pageInfo.endCursor : null,
+          replayAfter: section === 'replays' ? pageInfo.endCursor : null,
+          storyAfter: section === 'stories' ? pageInfo.endCursor : null,
+        },
+        { fetchPolicy: 'network-only' },
+      ).toPromise();
+
+      appendOlderSectionRows(section, pageData);
+      dispatchPagination({
+        pageInfo: selectLoadedSectionPageInfo(pageData, section),
+        section,
+        type: 'load_more_success',
+      });
+    } catch {
+      dispatchPagination({
+        message: loadMoreErrorMessage(section),
+        section,
+        type: 'load_more_error',
+      });
+    }
+  }
+
+  function appendOlderSectionRows(
+    section: FeedHomePaginationSection,
+    pageData: FeedHomeQueryResponse | null | undefined,
+  ) {
+    switch (section) {
+      case 'homeFeed':
+        setOlderPosts((current) =>
+          current.concat(readConnectionNodes(pageData?.homeFeed)),
+        );
+        return;
+
+      case 'replays':
+        setOlderReplays((current) =>
+          current.concat(readConnectionNodes(pageData?.replayFeed)),
+        );
+        return;
+
+      case 'stories':
+        setOlderStories((current) =>
+          current.concat(readConnectionNodes(pageData?.storyFeed)),
+        );
+        return;
+    }
   }
 
   function reportPost(post: FeedHomePost) {
@@ -363,7 +432,7 @@ export function FeedHomeContent() {
         emptyMessage="No stories are available yet."
         loadMoreControl={storiesLoadMoreControl}
         onReportPost={reportPost}
-        posts={stories}
+        posts={stories.concat(olderStories)}
         reportPostState={reportPostState}
         title="Stories"
         viewerId={viewerId}
@@ -373,7 +442,7 @@ export function FeedHomeContent() {
         emptyMessage="No feed posts are available yet."
         loadMoreControl={homeFeedLoadMoreControl}
         onReportPost={reportPost}
-        posts={posts}
+        posts={posts.concat(olderPosts)}
         reportPostState={reportPostState}
         title="Home feed"
         viewerId={viewerId}
@@ -393,11 +462,55 @@ export function FeedHomeContent() {
         emptyMessage="No replays are available yet."
         loadMoreControl={replayLoadMoreControl}
         onOpen={openLiveSession}
-        sessions={replaySessions}
+        sessions={replaySessions.concat(olderReplays)}
         title="Replays"
       />
     </ScrollView>
   );
+}
+
+function selectLoadedSectionPageInfo(
+  pageData: FeedHomeQueryResponse | null | undefined,
+  section: FeedHomePaginationSection,
+): FeedHomePaginationPageInfo {
+  switch (section) {
+    case 'homeFeed':
+      return normalizePageInfo(pageData?.homeFeed?.pageInfo);
+
+    case 'replays':
+      return normalizePageInfo(pageData?.replayFeed?.pageInfo);
+
+    case 'stories':
+      return normalizePageInfo(pageData?.storyFeed?.pageInfo);
+  }
+}
+
+function normalizePageInfo(
+  pageInfo:
+    | {
+        readonly endCursor?: string | null;
+        readonly hasNextPage?: boolean;
+      }
+    | null
+    | undefined,
+): FeedHomePaginationPageInfo {
+  return {
+    endCursor: pageInfo?.endCursor ?? null,
+    hasNextPage: pageInfo?.hasNextPage ?? false,
+  };
+}
+
+function loadMoreErrorMessage(section: FeedHomePaginationSection): string {
+  switch (section) {
+    case 'homeFeed':
+      return 'Could not load more feed posts.';
+
+    case 'replays':
+      return 'Could not load more replays.';
+
+    case 'stories':
+      return 'Could not load more stories.';
+  }
 }
 
 type FeedHomeErrorBoundaryProps = PropsWithChildren<{

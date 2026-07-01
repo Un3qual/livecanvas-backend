@@ -70,6 +70,8 @@ type LiveSessionNode = {
 
 type QueryVariables = Record<string, unknown>;
 
+type FetchQueryCall = { readonly variables: QueryVariables };
+
 type ReportPostMutationConfig = {
   readonly variables: {
     readonly input: {
@@ -109,6 +111,8 @@ type HookDispatcher = {
 
 let queryData: FeedHomeQueryData;
 let queryVariables: QueryVariables | null;
+let fetchQueryCalls: FetchQueryCall[];
+let fetchQueryResult: FeedHomeQueryData;
 let mutationCommits: ReportPostMutationConfig[];
 let pushedRoutes: unknown[];
 let hookIndex = 0;
@@ -255,6 +259,17 @@ mock.module('react-native', () => ({
 }));
 
 mock.module('react-relay', () => ({
+  fetchQuery: (
+    _environment: unknown,
+    _query: unknown,
+    variables: QueryVariables,
+  ) => {
+    fetchQueryCalls.push({ variables });
+
+    return {
+      toPromise: () => Promise.resolve(fetchQueryResult),
+    };
+  },
   graphql: (query: TemplateStringsArray) => query,
   useLazyLoadQuery: (
     _query: unknown,
@@ -263,6 +278,7 @@ mock.module('react-relay', () => ({
     queryVariables = variables;
     return queryData;
   },
+  useRelayEnvironment: () => ({ environment: 'relay' }),
   useMutation: () => [
     (config: ReportPostMutationConfig) => {
       mutationCommits.push(config);
@@ -349,6 +365,8 @@ const {
 beforeEach(() => {
   queryData = createFilledQueryData();
   queryVariables = null;
+  fetchQueryCalls = [];
+  fetchQueryResult = createFilledQueryData();
   mutationCommits = [];
   pushedRoutes = [];
   hookIndex = 0;
@@ -456,6 +474,55 @@ describe('FeedHomeScreen', () => {
     expect(findPressablesByText(tree, 'Load more live sessions')).toHaveLength(
       0,
     );
+  });
+
+  test('loads older story pages with section cursors without blocking live rows', async () => {
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryResult = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Older story',
+            expiresAt: '2026-07-01T15:15:30Z',
+            id: 'story-2',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor-2', hasNextPage: false },
+      ),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('live-host@example.com');
+    expect(fetchQueryCalls[0].variables).toMatchObject({
+      feedAfter: null,
+      replayAfter: null,
+      storyAfter: 'story-cursor',
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Older story');
+    expect(findPressablesByText(tree, 'Load more stories')).toHaveLength(0);
   });
 
   test('keeps host, profile, and diagnostics actions reachable from home', () => {
