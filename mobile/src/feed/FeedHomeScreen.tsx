@@ -6,7 +6,13 @@ import React, {
   type PropsWithChildren,
 } from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   fetchQuery,
   useLazyLoadQuery,
@@ -222,30 +228,33 @@ export function FeedHomeContent() {
     FEED_HOME_QUERY_VARIABLES,
     { fetchPolicy: 'store-and-network' },
   );
+  const [refreshedHomeData, setRefreshedHomeData] =
+    useState<FeedHomeQueryResponse | null>(null);
+  const effectiveData = refreshedHomeData ?? data;
   const [paginationState, dispatchPagination] = useReducer(
     feedHomePaginationReducer,
     createFeedHomePaginationState({
-      homeFeed: data.homeFeed?.pageInfo ?? null,
-      replays: data.replayFeed?.pageInfo ?? null,
-      stories: data.storyFeed?.pageInfo ?? null,
+      homeFeed: effectiveData.homeFeed?.pageInfo ?? null,
+      replays: effectiveData.replayFeed?.pageInfo ?? null,
+      stories: effectiveData.storyFeed?.pageInfo ?? null,
     }),
   );
   const [olderStories, setOlderStories] = useState<FeedHomePost[]>([]);
   const [olderPosts, setOlderPosts] = useState<FeedHomePost[]>([]);
   const [olderReplays, setOlderReplays] = useState<LiveSessionSummary[]>([]);
 
-  const currentSession = data.viewer?.currentLiveSession ?? null;
+  const currentSession = effectiveData.viewer?.currentLiveSession ?? null;
   const currentSessionId = currentSession?.id;
-  const viewerId = data.viewer?.id ?? null;
+  const viewerId = effectiveData.viewer?.id ?? null;
   const homeActions = createFeedHomeActions(
     shouldShowFeedHomeHostAction(currentSession),
   );
-  const stories = readConnectionNodes(data.storyFeed);
-  const posts = readConnectionNodes(data.homeFeed);
-  const liveNowSessions = readConnectionNodes(data.liveNow).filter(
+  const stories = readConnectionNodes(effectiveData.storyFeed);
+  const posts = readConnectionNodes(effectiveData.homeFeed);
+  const liveNowSessions = readConnectionNodes(effectiveData.liveNow).filter(
     (session) => session.id !== currentSessionId,
   );
-  const replaySessions = readConnectionNodes(data.replayFeed);
+  const replaySessions = readConnectionNodes(effectiveData.replayFeed);
   const storiesPageInfo = selectFeedHomePageInfo(paginationState, 'stories');
   const homeFeedPageInfo = selectFeedHomePageInfo(
     paginationState,
@@ -283,6 +292,37 @@ export function FeedHomeContent() {
 
   function openLiveSession(session: LiveSessionSummary) {
     router.push(liveSessionHref(session.id));
+  }
+
+  async function refreshHome() {
+    dispatchPagination({ type: 'refresh_start' });
+
+    try {
+      const refreshedData = await fetchQuery<FeedHomeScreenQuery>(
+        relayEnvironment,
+        feedHomeScreenQuery,
+        FEED_HOME_QUERY_VARIABLES,
+        { fetchPolicy: 'network-only' },
+      ).toPromise();
+
+      setRefreshedHomeData(refreshedData ?? null);
+      setOlderStories([]);
+      setOlderPosts([]);
+      setOlderReplays([]);
+      dispatchPagination({
+        sections: {
+          homeFeed: normalizePageInfo(refreshedData?.homeFeed?.pageInfo),
+          replays: normalizePageInfo(refreshedData?.replayFeed?.pageInfo),
+          stories: normalizePageInfo(refreshedData?.storyFeed?.pageInfo),
+        },
+        type: 'refresh_success',
+      });
+    } catch {
+      dispatchPagination({
+        message: 'Could not refresh home.',
+        type: 'refresh_error',
+      });
+    }
   }
 
   async function loadMoreSection(section: FeedHomePaginationSection) {
@@ -400,6 +440,12 @@ export function FeedHomeContent() {
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          onRefresh={() => void refreshHome()}
+          refreshing={paginationState.isRefreshing}
+        />
+      }
     >
       <AppHeader
         eyebrow="Home"

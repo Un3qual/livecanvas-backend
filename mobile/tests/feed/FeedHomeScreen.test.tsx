@@ -241,6 +241,7 @@ mock.module('react-native', () => ({
   }) {
     return createElement('Pressable', props, children);
   },
+  RefreshControl: NativeComponent,
   ScrollView: NativeComponent,
   StyleSheet: {
     create: <Styles,>(styles: Styles): Styles => styles,
@@ -663,6 +664,78 @@ describe('FeedHomeScreen', () => {
     expect(text).not.toContain('Report reason: SPAM');
   });
 
+  test('refreshes the home query without clearing local report confirmation', async () => {
+    queryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          bodyText: 'First public post',
+          id: 'post-1',
+          kind: 'STANDARD',
+        }),
+      ]),
+    };
+    fetchQueryResult = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          bodyText: 'First public post',
+          id: 'post-1',
+          kind: 'STANDARD',
+        }),
+        post({
+          bodyText: 'Refreshed public post',
+          id: 'post-2',
+          kind: 'STANDARD',
+        }),
+      ]),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Report post')?.props.onPress?.();
+
+    expect(mutationCommits).toHaveLength(1);
+
+    mutationCommits[0].onCompleted?.({
+      reportPost: {
+        errors: [],
+        report: {
+          id: 'report-1',
+          insertedAt: '2026-06-30T18:15:30Z',
+          postId: 'post-1',
+          reason: 'SPAM',
+          status: 'OPEN',
+        },
+      },
+    });
+
+    tree = renderWithHooks(createElement(FeedHomeContent));
+    expect(collectText(tree)).toContain('Report submitted.');
+
+    const scrollView = findHostNodeByType(tree, 'NativeComponent');
+    const refreshControl = scrollView?.props.refreshControl;
+
+    if (!isValidElement<{ onRefresh?: () => void }>(refreshControl)) {
+      throw new Error('Expected ScrollView to receive a RefreshControl.');
+    }
+
+    refreshControl.props.onRefresh?.();
+
+    expect(fetchQueryCalls[0].variables).toMatchObject({
+      feedAfter: null,
+      replayAfter: null,
+      storyAfter: null,
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    const text = collectText(tree);
+    expect(text).toContain('Report submitted.');
+    expect(text).toContain('Refreshed public post');
+  });
+
   test('blocks duplicate report taps and leaves payload errors retryable', () => {
     queryData = {
       ...createFilledQueryData(),
@@ -953,6 +1026,33 @@ function collectText(tree: RenderedTree): string[] {
   }
 
   return tree.children.flatMap((child) => collectText(child));
+}
+
+function findHostNodeByType(
+  tree: RenderedTree,
+  type: string,
+): HostNode | null {
+  if (tree === null || typeof tree === 'string') {
+    return null;
+  }
+
+  if (Array.isArray(tree)) {
+    for (const child of tree) {
+      const match = findHostNodeByType(child, type);
+
+      if (match) {
+        return match;
+      }
+    }
+
+    return null;
+  }
+
+  if (tree.type === type) {
+    return tree;
+  }
+
+  return findHostNodeByType(tree.children, type);
 }
 
 function findPressableByText(
