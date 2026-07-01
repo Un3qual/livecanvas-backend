@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-06-30
-Status: mobile feed/content product batch active; release-candidate QA deferred
+Last reviewed: 2026-07-01
+Status: mobile post composer product batch active; release-candidate QA deferred
 
 ## Lane Scope
 
@@ -14,13 +14,13 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
 ## Current Batch
 
 - Source plan:
-  `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
-- Task detail plan:
-  `docs/plans/mobile/2026-07-01-feed-section-refresh-pagination.md`
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: Task 4, add section refresh and pagination affordances.
-- Latest completed prerequisite:
-  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
+- Current task: Task 1, add composer state helpers.
+- Latest completed source plan:
+  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
+- Latest completed detail plan:
+  `docs/plans/archive/completed/mobile/2026-07-01-feed-section-refresh-pagination.md`
 - Latest QA evidence:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md#2026-06-30-product-follow-up-queue-completion`
   records passing mobile quality gates after the completed feature queue and
@@ -29,28 +29,24 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
 - Write scope:
   - `mobile/**`
   - `docs/plans/mobile/**`
-- Done condition: the mobile home surface renders backend-backed content,
-  replay discovery, post reporting, and section refresh/pagination affordances
-  from the existing GraphQL contract; the completed plan is archived or the
-  lane is explicitly marked awaiting product direction for any contract
-  mismatch.
+- Done condition: signed-in mobile viewers can create text-only standard posts
+  and stories from the home surface through the existing Relay `createPost`
+  mutation, with focused tests and final mobile gates recorded in the source
+  plan.
 - Verification:
-  - From `mobile/`: `bun test tests/feed/feedPresentation.test.ts`
-  - From `mobile/`: `bun test tests/feed/FeedHomeScreen.test.tsx`
-  - From `mobile/`: `bun test tests/feed/reportPostReducer.test.ts`
-  - From `mobile/`: `bun run test:quality`
+  - From `mobile/`: `bun test tests/feed/postComposerState.test.ts`
+  - From `mobile/`:
+    `bun test tests/feed/PostComposerScreen.test.tsx tests/feed/FeedHomeScreen.test.tsx`
   - From `mobile/`: `bun run typecheck`
+  - From `mobile/`: `bun run test:quality`
   - From repo root: `git diff --check`
 
 ## Do This Now
 
-Implement Task 4 in
-`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`: add section
-refresh and pagination affordances for the home feed, stories, and replays.
-Use `docs/plans/mobile/2026-07-01-feed-section-refresh-pagination.md` as the
-task-level implementation plan.
-Keep the release-candidate checklist deferred until product explicitly resumes
-QA.
+Implement Task 1 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`:
+add feed-local post composer state helpers and focused tests. Keep media upload
+out of the first composer task and keep the release-candidate checklist deferred
+until product explicitly resumes QA.
 
 ## Guardrails
 
@@ -60,6 +56,8 @@ QA.
 - Do not reactivate archived cleanup or completed live-session feature
   follow-up plans from this batch.
 - Do not expand the release-candidate checklist into implementation.
+- Do not implement native media picking, signed upload, or media attachment UI
+  in the first composer task.
 - Do not change GraphQL schema shape during this batch unless the active
   product work proves a backend contract mismatch that must be promoted into
   the backend lane.
@@ -73,6 +71,4 @@ QA.
 
 ## Next Action
 
-Implement Task 4 in
-`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md` using
-`docs/plans/mobile/2026-07-01-feed-section-refresh-pagination.md`.
+Implement Task 1 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`.

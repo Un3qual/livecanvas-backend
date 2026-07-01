@@ -194,11 +194,19 @@ Evidence:
   - `docs/plans/INDEX.md`
 
 Acceptance criteria:
-- [ ] Completed tasks are checked off with concise evidence.
-- [ ] The lane either promotes the next non-QA product batch or explicitly marks
-      mobile product direction needed.
-- [ ] Release-candidate manual QA remains deferred unless product explicitly
+- [x] Completed tasks are checked off with concise evidence.
+- [x] The lane promotes the next non-QA product batch: mobile post composition
+      over the existing `createPost` GraphQL contract.
+- [x] Release-candidate manual QA remains deferred unless product explicitly
       resumes it.
+
+Evidence:
+- 2026-07-01: Tasks 1-4 were already complete with focused feed evidence,
+  Relay codegen evidence, `bun run typecheck`, and `bun run test:quality`.
+- 2026-07-01: Close-out verified `docs/plans/mobile/NOW.md` was stale on Task 4,
+  archived the completed feed/content plans, and promoted
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md` as the next mobile
+  product batch.
 
 ## Final Verification
 

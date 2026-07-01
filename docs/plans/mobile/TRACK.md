@@ -11,13 +11,12 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: active; mobile feed/content product batch active
+- Track state: active; mobile post composer product batch active
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Last completed detailed plan:
-  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
-- Current theme: mobile home feed/content discovery over the existing GraphQL
-  `homeFeed`, `storyFeed`, `replayFeed`, and `reportPost` contract;
-  release-candidate QA remains deferred.
+  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
+- Current theme: mobile post composer over the existing Relay `createPost`
+  contract; release-candidate QA remains deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in
@@ -51,7 +50,9 @@ and content discovery, live streaming, and chat.
 - XState live workflow cleanup is archived at
   `docs/plans/archive/completed/mobile/2026-06-27-mobile-xstate-live-workflows.md`.
 - Feature follow-ups are archived through
-  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`.
+  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`.
+- Feed section refresh and pagination detail evidence is archived at
+  `docs/plans/archive/completed/mobile/2026-07-01-feed-section-refresh-pagination.md`.
 - Release-candidate manual QA remains tracked in
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`, but it is
   deferred until product explicitly resumes QA. No remote or authenticated EAS
@@ -78,6 +79,7 @@ and content discovery, live streaming, and chat.
 - `docs/plans/archive/completed/mobile/2026-06-29-chat-history-pagination.md`
 - `docs/plans/archive/completed/mobile/2026-06-29-post-live-recording-replay-affordance.md`
 - `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
+- `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 
 ## Recommended Plan Order
 
@@ -100,16 +102,17 @@ and content discovery, live streaming, and chat.
 15. Post-live recording replay affordance.
 16. Release diagnostics screen.
 17. Mobile feed and content discovery surface.
-18. Release-candidate manual device QA using the one-host/one-viewer checklist.
+18. Mobile post composer over `createPost`.
+19. Release-candidate manual device QA using the one-host/one-viewer checklist.
 
 ## Active And Queued Follow-Up Plans
 
 Active product batch:
 
-- `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
+- `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 
-All previously queued live-session product follow-up plans are complete and
-archived. Deferred QA gate:
+All previously queued live-session and feed/content product follow-up plans are
+complete and archived. Deferred QA gate:
 
 - `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 

@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-01
-Status: mobile feed/content product batch active; backend issues may be promoted as needed; release-candidate QA deferred
+Status: mobile post composer product batch active; backend issues may be promoted as needed; release-candidate QA deferred
 
 ## Purpose
 
@@ -23,12 +23,12 @@ details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active; implement mobile feed/content discovery surface
+- State: active; implement mobile post composer
 - Scope: `mobile/` and `docs/plans/mobile/**`
 - Current source plan:
-  `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Latest completed source plan:
-  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
+  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 
 ## Execution Rule
 
@@ -48,9 +48,9 @@ verify both sides that are affected.
 
 - Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
 - Horizon: 2026-07-01 through 2026-07-07
-- Focus: finish mobile feed/content discovery, verify backend feed/reporting
-  contracts as needed, close the lane, then promote the next product-facing
-  batch instead of reopening broad backend roadmap work.
+- Focus: implement mobile text post composition over the existing `createPost`
+  contract, verify backend issues only when reproduced by active product work,
+  and keep release-candidate manual QA deferred.
 
 ## Shared File Policy
 
@@ -62,11 +62,10 @@ track docs.
 ## Next Coordinator Decision
 
 Do not reactivate release-candidate QA yet. The active mobile lane batch is the
-feed/content discovery surface in
-`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`; execute from
-`docs/plans/mobile/NOW.md`, promoting backend fixes when the active product
-work proves they are needed, before any release-candidate device QA work
-resumes.
+post composer surface in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`;
+execute from `docs/plans/mobile/NOW.md`, promoting backend fixes when the
+active product work proves they are needed, before any release-candidate device
+QA work resumes.
 
 ## Repair Conditions
 

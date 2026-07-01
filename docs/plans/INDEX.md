@@ -28,16 +28,16 @@ Use this file when:
 - Pointer: `docs/plans/mobile/NOW.md`
 - State: active
 - Track: `docs/plans/mobile/TRACK.md`
-- Current product theme: mobile feed/content discovery surface
+- Current product theme: mobile post composer
 - Active detailed plan:
-  `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
   payload normalization, and a completed backend media runtime foundation. The
   completed chat batch adds retained timeline history and live chat channel
   integration. Frontend structure, TypeScript readability, and XState live
-  workflow cleanup are complete. The queued feature follow-ups through release
-  diagnostics are complete; release-candidate manual device QA remains
-  deferred while the mobile feed/content discovery batch runs.
+  workflow cleanup are complete. The queued feature follow-ups through feed and
+  content discovery are complete; release-candidate manual device QA remains
+  deferred while the mobile post composer batch runs.
 
 ## Track Registry
 
@@ -45,9 +45,8 @@ Use this file when:
 
 - Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
 - State: planned
-- Current theme: finish the active mobile feed/content surface, promote backend
-  fixes only for reproduced product issues, and prepare the next product-facing
-  batch
+- Current theme: implement the active mobile post composer surface and promote
+  backend fixes only for reproduced product issues
 - Notes: release-candidate manual QA, compliance hard-delete enablement, and
   backend starter-kit extraction remain outside this week unless explicitly
   resumed
@@ -71,9 +70,9 @@ Use this file when:
 
 - Track: `docs/plans/mobile/TRACK.md`
 - State: active
-- Current theme: mobile feed/content discovery surface
+- Current theme: mobile post composer
 - Active detailed plan:
-  `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 
 ### Backend Code Quality Cleanup
 
@@ -130,5 +129,7 @@ Use this file when:
   `docs/plans/archive/completed/backend/2026-03-22-development-seed-data.md`
 - Live replay and recording:
   `docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md`
+- Mobile feed/content discovery surface:
+  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 
 Checklist-complete plans belong in `docs/plans/archive/completed/`.
