@@ -314,7 +314,10 @@ export function getPostComposerValidationMessage(
     return EMPTY_BODY_ERROR;
   }
 
-  if (bodyText.length > POST_COMPOSER_BODY_TEXT_MAX_LENGTH) {
+  if (
+    countPostComposerBodyTextCharacters(bodyText) >
+    POST_COMPOSER_BODY_TEXT_MAX_LENGTH
+  ) {
     return BODY_TOO_LONG_ERROR;
   }
 

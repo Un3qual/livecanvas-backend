@@ -28,25 +28,26 @@ Use this file when:
 - Pointer: `docs/plans/mobile/NOW.md`
 - State: active
 - Track: `docs/plans/mobile/TRACK.md`
-- Current product theme: mobile post composer
-- Active detailed plan:
+- Latest completed product theme: mobile post composer
+- Latest completed detailed plan:
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
   payload normalization, and a completed backend media runtime foundation. The
   completed chat batch adds retained timeline history and live chat channel
   integration. Frontend structure, TypeScript readability, and XState live
-  workflow cleanup are complete. The queued feature follow-ups through feed and
-  content discovery are complete; release-candidate manual device QA remains
-  deferred while the mobile post composer batch runs.
+  workflow cleanup are complete. The queued feature follow-ups through feed,
+  content discovery, and mobile post composer are complete; release-candidate
+  manual device QA remains deferred while the next product task is selected.
 
 ## Track Registry
 
 ### Cross-Lane Product Week
 
 - Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
-- State: planned
-- Current theme: implement the active mobile post composer surface and promote
-  backend fixes only for reproduced product issues
+- State: active
+- Current theme: select the next product-completeness task after completing the
+  mobile post composer surface; promote backend fixes only for reproduced
+  product issues
 - Notes: release-candidate manual QA, compliance hard-delete enablement, and
   backend starter-kit extraction remain outside this week unless explicitly
   resumed
@@ -70,8 +71,8 @@ Use this file when:
 
 - Track: `docs/plans/mobile/TRACK.md`
 - State: active
-- Current theme: mobile post composer
-- Active detailed plan:
+- Latest completed theme: mobile post composer
+- Latest completed detailed plan:
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 
 ### Backend Code Quality Cleanup

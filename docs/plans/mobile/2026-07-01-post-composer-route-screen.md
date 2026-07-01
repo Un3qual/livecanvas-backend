@@ -187,8 +187,9 @@ Screen content:
     `placeholder="What do you want to share?"`, `value={state.bodyText}`, and
     `placeholderTextColor={theme.colors.textMuted}`.
   - Counter text using tabular numbers:
-    `${state.bodyText.trim().length}/5000`
-  - Validation text when `submitAttempted` is true or the draft is over limit.
+    `${countPostComposerBodyTextCharacters(state.bodyText.trim())}/5000`
+  - Validation text when `submitAttempted` is true, the body field has blurred,
+    or the draft is over limit.
   - Kind controls for `Standard` and `Story` backed by `POST_COMPOSER_KINDS`.
   - Audience controls for `Followers` and `Public` backed by
     `POST_COMPOSER_VISIBILITIES`.

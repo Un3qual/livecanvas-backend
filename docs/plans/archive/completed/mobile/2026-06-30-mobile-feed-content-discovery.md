@@ -214,7 +214,9 @@ From `mobile/`:
 
 - `bun test tests/feed/feedPresentation.test.ts`
 - `bun test tests/feed/reportPostReducer.test.ts`
+- `bun test tests/feed/feedHomePagination.test.ts`
 - `bun test tests/feed/FeedHomeScreen.test.tsx`
+- `bun run relay`
 - `bun run test:quality`
 - `bun run typecheck`
 

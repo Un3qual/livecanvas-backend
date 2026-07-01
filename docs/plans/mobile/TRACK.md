@@ -11,12 +11,13 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: active; mobile post composer product batch active
+- Track state: active; mobile post composer product batch complete; next
+  product-completeness task not selected
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Last completed detailed plan:
   `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
-- Current theme: mobile post composer over the existing Relay `createPost`
-  contract; release-candidate QA remains deferred.
+- Recent theme: mobile post composer over the existing Relay `createPost`
+  contract is complete; release-candidate QA remains deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in

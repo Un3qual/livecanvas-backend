@@ -14,8 +14,18 @@ type HostNode = {
 };
 
 type RenderedTree = HostNode | string | null | readonly RenderedTree[];
+type EffectCallback = () => void | (() => void);
+type EffectState = {
+  cleanup?: () => void;
+  deps?: readonly unknown[];
+  kind: 'effect';
+};
 
 type HookDispatcher = {
+  useEffect: (
+    effect: EffectCallback,
+    deps?: readonly unknown[],
+  ) => void;
   useRef: <Value>(initialValue: Value) => { current: Value };
   useState: <State>(
     initialState: State | (() => State),
@@ -259,6 +269,18 @@ describe('PostComposerScreen', () => {
     expect(findPressableByText(tree, 'Post')?.props.disabled).toBe(true);
   });
 
+  test('counts emoji as backend graphemes in the body counter', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findHostNodeByProps(tree, {
+      accessibilityLabel: 'Post body',
+    })?.props.onChangeText?.('😀😀😀');
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    expect(collectText(tree).join('')).toContain('3/5000');
+    expect(findPressableByText(tree, 'Post')?.props.disabled).toBe(false);
+  });
+
   test('shows empty validation after the body field is touched', () => {
     let tree = renderWithHooks(createElement(PostComposerScreen));
 
@@ -351,6 +373,26 @@ describe('PostComposerScreen', () => {
     expect(replaceCalls).toEqual(['/home']);
   });
 
+  test('ignores createPost callbacks after the composer unmounts', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findHostNodeByProps(tree, {
+      accessibilityLabel: 'Post body',
+    })?.props.onChangeText?.('Leave before callback');
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findPressableByText(tree, 'Post')?.props.onPress?.();
+    runEffectCleanups();
+    createPostCommitCalls[0]?.onCompleted?.({
+      createPost: {
+        errors: [],
+        post: { id: 'post-1' },
+      },
+    });
+
+    expect(replaceCalls).toEqual([]);
+  });
+
   test('keeps payload errors retryable without losing the draft body', () => {
     let tree = renderWithHooks(createElement(PostComposerScreen));
 
@@ -419,6 +461,28 @@ function renderWithHooks(node: ReactNode): RenderedTree {
   hookIndex = 0;
   const previousDispatcher = reactInternals.H;
   reactInternals.H = {
+    useEffect: (effect, deps) => {
+      const currentIndex = hookIndex;
+      const previousState = hookStates[currentIndex];
+      const previousEffectState = isEffectState(previousState)
+        ? previousState
+        : null;
+      const shouldRun =
+        previousEffectState === null ||
+        !areHookDepsEqual(previousEffectState.deps, deps);
+
+      if (shouldRun) {
+        previousEffectState?.cleanup?.();
+        const cleanup = effect();
+        hookStates[currentIndex] = {
+          cleanup: typeof cleanup === 'function' ? cleanup : undefined,
+          deps,
+          kind: 'effect',
+        } satisfies EffectState;
+      }
+
+      hookIndex += 1;
+    },
     useRef: <Value,>(initialValue: Value): { current: Value } => {
       const currentIndex = hookIndex;
 
@@ -464,6 +528,33 @@ function renderWithHooks(node: ReactNode): RenderedTree {
   } finally {
     reactInternals.H = previousDispatcher;
   }
+}
+
+function runEffectCleanups() {
+  for (const hookState of hookStates) {
+    if (isEffectState(hookState)) {
+      hookState.cleanup?.();
+    }
+  }
+}
+
+function isEffectState(value: unknown): value is EffectState {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { kind?: unknown }).kind === 'effect'
+  );
+}
+
+function areHookDepsEqual(
+  left: readonly unknown[] | undefined,
+  right: readonly unknown[] | undefined,
+): boolean {
+  if (left === undefined || right === undefined || left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => Object.is(value, right[index]));
 }
 
 function renderNode(node: ReactNode): RenderedTree {

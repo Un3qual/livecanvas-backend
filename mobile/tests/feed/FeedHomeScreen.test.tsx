@@ -71,6 +71,20 @@ type LiveSessionNode = {
 type QueryVariables = Record<string, unknown>;
 
 type FetchQueryCall = { readonly variables: QueryVariables };
+type FetchQueryImplementation = (
+  variables: QueryVariables,
+) => Promise<FeedHomeQueryData | null | undefined>;
+type EffectCallback = () => void | (() => void);
+type EffectState = {
+  cleanup?: () => void;
+  deps?: readonly unknown[];
+  kind: 'effect';
+};
+type Deferred<Value> = {
+  promise: Promise<Value>;
+  reject: (error: unknown) => void;
+  resolve: (value: Value) => void;
+};
 
 type ReportPostMutationConfig = {
   readonly variables: {
@@ -99,6 +113,10 @@ type ReportPostMutationConfig = {
 };
 
 type HookDispatcher = {
+  useEffect: (
+    effect: EffectCallback,
+    deps?: readonly unknown[],
+  ) => void;
   useReducer: <State, Action>(
     reducer: (state: State, action: Action) => State,
     initialArg: State,
@@ -112,14 +130,15 @@ type HookDispatcher = {
 let queryData: FeedHomeQueryData;
 let queryVariables: QueryVariables | null;
 let fetchQueryCalls: FetchQueryCall[];
+let fetchQueryImplementation: FetchQueryImplementation | null;
 let fetchQueryResult: FeedHomeQueryData;
 let mutationCommits: ReportPostMutationConfig[];
 let pushedRoutes: unknown[];
 let hookIndex = 0;
 let hookStates: unknown[] = [];
 
-// This focused renderer replaces React's hook dispatcher. It only supports
-// useState, useReducer, and useRef, each consuming the next state slot in order.
+// This focused renderer replaces React's hook dispatcher. It only supports the
+// small hook set FeedHomeContent uses, each consuming the next state slot.
 const reactInternals = (
   await import('react')
 ).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE as {
@@ -268,7 +287,10 @@ mock.module('react-relay', () => ({
     fetchQueryCalls.push({ variables });
 
     return {
-      toPromise: () => Promise.resolve(fetchQueryResult),
+      toPromise: () =>
+        fetchQueryImplementation
+          ? fetchQueryImplementation(variables)
+          : Promise.resolve(fetchQueryResult),
     };
   },
   graphql: (query: TemplateStringsArray) => query,
@@ -367,6 +389,7 @@ beforeEach(() => {
   queryData = createFilledQueryData();
   queryVariables = null;
   fetchQueryCalls = [];
+  fetchQueryImplementation = null;
   fetchQueryResult = createFilledQueryData();
   mutationCommits = [];
   pushedRoutes = [];
@@ -524,6 +547,149 @@ describe('FeedHomeScreen', () => {
 
     expect(collectText(tree)).toContain('Older story');
     expect(findPressablesByText(tree, 'Load more stories')).toHaveLength(0);
+  });
+
+  test('syncs load-more controls when Relay delivers newer query pageInfo', () => {
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: null, hasNextPage: false },
+      ),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(findPressablesByText(tree, 'Load more stories')).toHaveLength(0);
+
+    queryData = {
+      ...queryData,
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-network-cursor', hasNextPage: true },
+      ),
+    };
+
+    renderWithHooks(createElement(FeedHomeContent));
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(findPressablesByText(tree, 'Load more stories')).toHaveLength(1);
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+
+    expect(fetchQueryCalls[0].variables).toMatchObject({
+      storyAfter: 'story-network-cursor',
+    });
+  });
+
+  test('blocks duplicate load-more taps before rerender', () => {
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryImplementation = () => new Promise(() => undefined);
+
+    const tree = renderWithHooks(createElement(FeedHomeContent));
+    const loadMoreStories = findPressableByText(tree, 'Load more stories');
+
+    loadMoreStories?.props.onPress?.();
+    loadMoreStories?.props.onPress?.();
+
+    expect(fetchQueryCalls).toHaveLength(1);
+  });
+
+  test('ignores stale load-more responses after refresh succeeds', async () => {
+    const loadMoreDeferred =
+      createDeferred<FeedHomeQueryData | null | undefined>();
+    const refreshDeferred = createDeferred<FeedHomeQueryData | null | undefined>();
+
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryImplementation = (variables) =>
+      variables.storyAfter === 'story-cursor'
+        ? loadMoreDeferred.promise
+        : refreshDeferred.promise;
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+    const scrollView = findHostNodeByType(tree, 'NativeComponent');
+    const refreshControl = scrollView?.props.refreshControl;
+
+    if (!isValidElement<{ onRefresh?: () => void }>(refreshControl)) {
+      throw new Error('Expected ScrollView to receive a RefreshControl.');
+    }
+
+    refreshControl.props.onRefresh?.();
+    refreshDeferred.resolve({
+      ...createFilledQueryData(),
+      storyFeed: connection([
+        post({
+          bodyText: 'Refreshed story',
+          expiresAt: '2026-07-01T18:15:30Z',
+          id: 'story-refreshed',
+          kind: 'STORY',
+        }),
+      ]),
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Refreshed story');
+
+    loadMoreDeferred.resolve({
+      ...createFilledQueryData(),
+      storyFeed: connection([
+        post({
+          bodyText: 'Stale older story',
+          expiresAt: '2026-07-01T15:15:30Z',
+          id: 'story-stale',
+          kind: 'STORY',
+        }),
+      ]),
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).not.toContain('Stale older story');
   });
 
   test('keeps compose, host, profile, and diagnostics actions reachable from home', () => {
@@ -769,6 +935,25 @@ describe('FeedHomeScreen', () => {
     expect(text).toContain('Refreshed public post');
   });
 
+  test('surfaces refresh failures to the viewer', async () => {
+    fetchQueryImplementation = () => Promise.reject(new Error('offline'));
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+    const scrollView = findHostNodeByType(tree, 'NativeComponent');
+    const refreshControl = scrollView?.props.refreshControl;
+
+    if (!isValidElement<{ onRefresh?: () => void }>(refreshControl)) {
+      throw new Error('Expected ScrollView to receive a RefreshControl.');
+    }
+
+    refreshControl.props.onRefresh?.();
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Could not refresh home.');
+  });
+
   test('blocks duplicate report taps and leaves payload errors retryable', () => {
     queryData = {
       ...createFilledQueryData(),
@@ -859,6 +1044,25 @@ function connection<Node>(
   };
 }
 
+function createDeferred<Value>(): Deferred<Value> {
+  let resolveDeferred: ((value: Value) => void) | null = null;
+  let rejectDeferred: ((error: unknown) => void) | null = null;
+  const promise = new Promise<Value>((resolve, reject) => {
+    resolveDeferred = resolve;
+    rejectDeferred = reject;
+  });
+
+  if (resolveDeferred === null || rejectDeferred === null) {
+    throw new Error('Expected deferred promise handlers to be initialized.');
+  }
+
+  return {
+    promise,
+    reject: rejectDeferred,
+    resolve: resolveDeferred,
+  };
+}
+
 function post(overrides: Partial<PostNode> = {}): PostNode {
   return {
     author: {
@@ -913,6 +1117,28 @@ function renderWithHooks(node: ReactNode): RenderedTree {
   hookIndex = 0;
   const previousDispatcher = reactInternals.H;
   reactInternals.H = {
+    useEffect: (effect, deps) => {
+      const currentIndex = hookIndex;
+      const previousState = hookStates[currentIndex];
+      const previousEffectState = isEffectState(previousState)
+        ? previousState
+        : null;
+      const shouldRun =
+        previousEffectState === null ||
+        !areHookDepsEqual(previousEffectState.deps, deps);
+
+      if (shouldRun) {
+        previousEffectState?.cleanup?.();
+        const cleanup = effect();
+        hookStates[currentIndex] = {
+          cleanup: typeof cleanup === 'function' ? cleanup : undefined,
+          deps,
+          kind: 'effect',
+        } satisfies EffectState;
+      }
+
+      hookIndex += 1;
+    },
     useReducer: <State, Action>(
       reducer: (state: State, action: Action) => State,
       initialArg: State,
@@ -980,6 +1206,25 @@ function renderWithHooks(node: ReactNode): RenderedTree {
   } finally {
     reactInternals.H = previousDispatcher;
   }
+}
+
+function isEffectState(value: unknown): value is EffectState {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { kind?: unknown }).kind === 'effect'
+  );
+}
+
+function areHookDepsEqual(
+  left: readonly unknown[] | undefined,
+  right: readonly unknown[] | undefined,
+): boolean {
+  if (left === undefined || right === undefined || left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => Object.is(value, right[index]));
 }
 
 function renderNode(node: ReactNode): RenderedTree {

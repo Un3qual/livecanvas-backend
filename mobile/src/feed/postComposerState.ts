@@ -81,6 +81,25 @@ export function canSubmitPostComposer(state: PostComposerState): boolean {
   return getPostComposerValidationMessage(state) == null;
 }
 
+export function countPostComposerBodyTextCharacters(bodyText: string): number {
+  const segmenter = (
+    Intl as typeof Intl & {
+      Segmenter?: new (
+        locale: string,
+        options: { granularity: 'grapheme' },
+      ) => { segment: (input: string) => Iterable<unknown> };
+    }
+  ).Segmenter;
+
+  if (segmenter) {
+    return Array.from(
+      new segmenter('en-US', { granularity: 'grapheme' }).segment(bodyText),
+    ).length;
+  }
+
+  return Array.from(bodyText).length;
+}
+
 export function buildCreatePostInput(
   state: PostComposerState,
 ): CreatePostInput | null {
@@ -104,7 +123,10 @@ export function getPostComposerValidationMessage(
     return EMPTY_BODY_ERROR;
   }
 
-  if (bodyText.length > POST_COMPOSER_BODY_TEXT_MAX_LENGTH) {
+  if (
+    countPostComposerBodyTextCharacters(bodyText) >
+    POST_COMPOSER_BODY_TEXT_MAX_LENGTH
+  ) {
     return BODY_TOO_LONG_ERROR;
   }
 

@@ -36,6 +36,7 @@ describe('feedHomePaginationReducer', () => {
 
     expect(loadedState.sections.stories).toEqual({
       error: null,
+      hasLoadedMore: true,
       isLoadingMore: false,
       pageInfo: {
         endCursor: 'story-cursor-2',
@@ -52,7 +53,10 @@ describe('feedHomePaginationReducer', () => {
 
   test('stores retryable story load-more errors without clearing other section errors', () => {
     const replayFailedState = feedHomePaginationReducer(
-      createFeedHomePaginationState({}),
+      feedHomePaginationReducer(createFeedHomePaginationState({}), {
+        section: 'replays',
+        type: 'load_more_start',
+      }),
       {
         message: 'Replays could not load.',
         section: 'replays',
@@ -71,6 +75,7 @@ describe('feedHomePaginationReducer', () => {
 
     expect(storiesFailedState.sections.stories).toEqual({
       error: 'Stories could not load.',
+      hasLoadedMore: false,
       isLoadingMore: false,
       pageInfo: {
         endCursor: null,
@@ -142,6 +147,7 @@ describe('feedHomePaginationReducer', () => {
     expect(refreshedState.refreshError).toBeNull();
     expect(refreshedState.sections.homeFeed).toEqual({
       error: null,
+      hasLoadedMore: false,
       isLoadingMore: false,
       pageInfo: {
         endCursor: 'home-cursor-2',
@@ -150,6 +156,7 @@ describe('feedHomePaginationReducer', () => {
     });
     expect(refreshedState.sections.replays).toEqual({
       error: null,
+      hasLoadedMore: false,
       isLoadingMore: false,
       pageInfo: {
         endCursor: 'replay-cursor-2',
@@ -158,11 +165,68 @@ describe('feedHomePaginationReducer', () => {
     });
     expect(refreshedState.sections.stories).toEqual({
       error: null,
+      hasLoadedMore: false,
       isLoadingMore: false,
       pageInfo: {
         endCursor: 'story-cursor-2',
         hasNextPage: true,
       },
+    });
+  });
+
+  test('syncs query pageInfo until a local load-more page is applied', () => {
+    const initialState = createFeedHomePaginationState({
+      stories: {
+        endCursor: null,
+        hasNextPage: false,
+      },
+    });
+    const syncedState = feedHomePaginationReducer(initialState, {
+      sections: {
+        homeFeed: nextPage,
+        replays: nextPage,
+        stories: {
+          endCursor: 'story-network-cursor',
+          hasNextPage: true,
+        },
+      },
+      type: 'query_page_info_sync',
+    });
+
+    expect(selectFeedHomePageInfo(syncedState, 'stories')).toEqual({
+      endCursor: 'story-network-cursor',
+      hasNextPage: true,
+    });
+
+    const locallyPagedState = feedHomePaginationReducer(
+      feedHomePaginationReducer(syncedState, {
+        section: 'stories',
+        type: 'load_more_start',
+      }),
+      {
+        pageInfo: {
+          endCursor: 'story-local-cursor',
+          hasNextPage: true,
+        },
+        section: 'stories',
+        type: 'load_more_success',
+      },
+    );
+    const resyncedState = feedHomePaginationReducer(locallyPagedState, {
+      sections: {
+        homeFeed: nextPage,
+        replays: nextPage,
+        stories: {
+          endCursor: 'story-network-cursor-2',
+          hasNextPage: false,
+        },
+      },
+      type: 'query_page_info_sync',
+    });
+
+    expect(selectFeedHomePageInfo(resyncedState, 'stories')).toEqual({
+      endCursor: 'story-local-cursor',
+      hasNextPage: true,
     });
   });
 });

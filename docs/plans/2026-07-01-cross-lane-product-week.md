@@ -5,15 +5,15 @@
 > `superpowers:executing-plans` to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Finish the current mobile feed/content surface, promote backend fixes
-only when verified by that work, and prepare the next product-facing mobile
-batch.
+**Goal:** Carry the mobile feed/content surface through close-out, promote
+backend fixes only when verified by product work, and complete the next
+product-facing mobile batch.
 
 **Architecture:** Keep `docs/plans/mobile/NOW.md` as the executable pointer for
-the active feed/content batch. Backend work is issue-driven: only promote a
-backend lane task when frontend/mobile work exposes a concrete GraphQL contract,
-resolver, runtime, or data issue. Shared coordinator docs own the week-level
-sequence and must stay short enough to route execution quickly.
+the mobile lane. Backend work is issue-driven: only promote a backend lane task
+when frontend/mobile work exposes a concrete GraphQL contract, resolver,
+runtime, or data issue. Shared coordinator docs own the week-level sequence and
+must stay short enough to route execution quickly.
 
 **Tech Stack:** Expo React Native, Relay, Bun, Absinthe Relay, Ecto, ExUnit,
 Mix verification gates.
@@ -32,9 +32,12 @@ of this product week.
 
 ## Context
 
-- Active mobile plan:
-  `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
-- Active mobile task: Task 4, section refresh and pagination affordances.
+- Completed mobile feed/content plan:
+  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
+- Completed mobile post composer plan:
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+- Active mobile task: none selected; choose the next product-completeness task
+  from `docs/plans/mobile/NOW.md`.
 - Backend lane state: issue-driven; no standalone backend batch selected.
 - Feed contracts:
   - `docs/contracts/mobile-graphql-phase2.md`

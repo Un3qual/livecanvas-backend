@@ -111,10 +111,6 @@ export const feedHomeScreenQuery = graphql`
           }
         }
       }
-      pageInfo {
-        endCursor
-        hasNextPage
-      }
     }
     replayFeed(first: $replayFirst, after: $replayAfter) {
       edges {

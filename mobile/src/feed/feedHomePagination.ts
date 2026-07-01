@@ -7,6 +7,7 @@ export type FeedHomePaginationPageInfo = {
 
 export type FeedHomeSectionPaginationState = {
   readonly error: string | null;
+  readonly hasLoadedMore: boolean;
   readonly isLoadingMore: boolean;
   readonly pageInfo: FeedHomePaginationPageInfo;
 };
@@ -48,6 +49,13 @@ export type FeedHomePaginationAction =
         FeedHomePaginationPageInfo
       >;
       readonly type: 'refresh_success';
+    }
+  | {
+      readonly sections: Record<
+        FeedHomePaginationSection,
+        FeedHomePaginationPageInfo
+      >;
+      readonly type: 'query_page_info_sync';
     };
 
 const EMPTY_PAGE_INFO: FeedHomePaginationPageInfo = {
@@ -84,25 +92,38 @@ export function feedHomePaginationReducer(
       }));
 
     case 'load_more_error':
-      return updateSection(state, action.section, (sectionState) => ({
-        ...sectionState,
-        error: action.message,
-        isLoadingMore: false,
-      }));
+      return updateSection(state, action.section, (sectionState) =>
+        sectionState.isLoadingMore
+          ? {
+              ...sectionState,
+              error: action.message,
+              isLoadingMore: false,
+            }
+          : sectionState,
+      );
 
     case 'load_more_success':
-      return updateSection(state, action.section, (sectionState) => ({
-        ...sectionState,
-        error: null,
-        isLoadingMore: false,
-        pageInfo: action.pageInfo,
-      }));
+      return updateSection(state, action.section, (sectionState) =>
+        sectionState.isLoadingMore
+          ? {
+              ...sectionState,
+              error: null,
+              hasLoadedMore: true,
+              isLoadingMore: false,
+              pageInfo: action.pageInfo,
+            }
+          : sectionState,
+      );
 
     case 'refresh_start':
       return {
         ...state,
         isRefreshing: true,
         refreshError: null,
+        sections: updateAllSections(state.sections, (sectionState) => ({
+          ...sectionState,
+          isLoadingMore: false,
+        })),
       };
 
     case 'refresh_error':
@@ -124,6 +145,20 @@ export function feedHomePaginationReducer(
         },
       };
 
+    case 'query_page_info_sync':
+      return {
+        ...state,
+        sections: updateAllSections(state.sections, (sectionState, section) =>
+          sectionState.hasLoadedMore
+            ? sectionState
+            : {
+                ...sectionState,
+                isLoadingMore: false,
+                pageInfo: action.sections[section],
+              },
+        ),
+      };
+
     default:
       return state;
   }
@@ -141,8 +176,23 @@ function createSectionState(
 ): FeedHomeSectionPaginationState {
   return {
     error: null,
+    hasLoadedMore: false,
     isLoadingMore: false,
     pageInfo: pageInfo ?? EMPTY_PAGE_INFO,
+  };
+}
+
+function updateAllSections(
+  sections: FeedHomePaginationState['sections'],
+  update: (
+    sectionState: FeedHomeSectionPaginationState,
+    section: FeedHomePaginationSection,
+  ) => FeedHomeSectionPaginationState,
+): FeedHomePaginationState['sections'] {
+  return {
+    homeFeed: update(sections.homeFeed, 'homeFeed'),
+    replays: update(sections.replays, 'replays'),
+    stories: update(sections.stories, 'stories'),
   };
 }
 

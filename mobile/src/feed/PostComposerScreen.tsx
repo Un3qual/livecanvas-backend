@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
   ScrollView,
@@ -20,6 +20,7 @@ import {
   POST_COMPOSER_VISIBILITIES,
   buildCreatePostInput,
   canSubmitPostComposer,
+  countPostComposerBodyTextCharacters,
   createPostComposerState,
   formatCreatePostMutationErrors,
   getPostComposerValidationMessage,
@@ -95,6 +96,7 @@ const styles = StyleSheet.create({
 export function PostComposerScreen() {
   const router = useRouter();
   const theme = useAppTheme();
+  const isMountedRef = useRef(true);
   const activeCreatePostRef = useRef(false);
   const [state, setState] = useState(() => createPostComposerState());
   const [submitAttempted, setSubmitAttempted] = useState(false);
@@ -104,7 +106,9 @@ export function PostComposerScreen() {
     useMutation<PostComposerCreatePostMutation>(
       postComposerCreatePostMutation,
     );
-  const trimmedBodyLength = state.bodyText.trim().length;
+  const trimmedBodyLength = countPostComposerBodyTextCharacters(
+    state.bodyText.trim(),
+  );
   const validationMessage = getPostComposerValidationMessage(state);
   const canSubmit = canSubmitPostComposer(state);
   const isSubmitting = isCreatePostInFlight || activeCreatePostRef.current;
@@ -114,8 +118,15 @@ export function PostComposerScreen() {
       bodyBlurred ||
       trimmedBodyLength > POST_COMPOSER_BODY_TEXT_MAX_LENGTH);
   const visibleMessage =
-    state.errorMessage ??
-    (shouldShowValidation ? validationMessage : null);
+    state.errorMessage ?? (shouldShowValidation ? validationMessage : null);
+
+  useEffect(
+    () => () => {
+      isMountedRef.current = false;
+      activeCreatePostRef.current = false;
+    },
+    [],
+  );
 
   function handleSubmit() {
     if (isCreatePostInFlight || activeCreatePostRef.current) {
@@ -135,6 +146,11 @@ export function PostComposerScreen() {
     commitCreatePost({
       variables: { input },
       onCompleted: (payload) => {
+        if (!isMountedRef.current) {
+          activeCreatePostRef.current = false;
+          return;
+        }
+
         activeCreatePostRef.current = false;
         const result = payload.createPost;
 
@@ -153,6 +169,11 @@ export function PostComposerScreen() {
         router.replace('/home');
       },
       onError: () => {
+        if (!isMountedRef.current) {
+          activeCreatePostRef.current = false;
+          return;
+        }
+
         activeCreatePostRef.current = false;
         setState((current) => ({
           ...current,

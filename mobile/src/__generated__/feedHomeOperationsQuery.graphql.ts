@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e9f67031a53d4994990ddba1394b2f16>>
+ * @generated SignedSource<<f88a898e99be818d2b3d89f9f63fe03c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -66,10 +66,6 @@ export type feedHomeOperationsQuery$data = {
         readonly visibility: LiveSessionVisibility;
       } | null | undefined;
     } | null | undefined> | null | undefined;
-    readonly pageInfo: {
-      readonly endCursor: string | null | undefined;
-      readonly hasNextPage: boolean;
-    };
   } | null | undefined;
   readonly replayFeed: {
     readonly edges: ReadonlyArray<{
@@ -369,30 +365,27 @@ v7 = [
   },
   (v6/*: any*/)
 ],
-v8 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "LiveSessionEdge",
-    "kind": "LinkedField",
-    "name": "edges",
-    "plural": true,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "LiveSession",
-        "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
-        "selections": (v5/*: any*/),
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
-  (v6/*: any*/)
-],
+v8 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "LiveSessionEdge",
+  "kind": "LinkedField",
+  "name": "edges",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "LiveSession",
+      "kind": "LinkedField",
+      "name": "node",
+      "plural": false,
+      "selections": (v5/*: any*/),
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
 v9 = [
   {
     "alias": null,
@@ -471,7 +464,9 @@ v9 = [
     "kind": "LinkedField",
     "name": "liveNow",
     "plural": false,
-    "selections": (v8/*: any*/),
+    "selections": [
+      (v8/*: any*/)
+    ],
     "storageKey": null
   },
   {
@@ -492,7 +487,10 @@ v9 = [
     "kind": "LinkedField",
     "name": "replayFeed",
     "plural": false,
-    "selections": (v8/*: any*/),
+    "selections": [
+      (v8/*: any*/),
+      (v6/*: any*/)
+    ],
     "storageKey": null
   }
 ];
@@ -514,16 +512,16 @@ return {
     "selections": (v9/*: any*/)
   },
   "params": {
-    "cacheID": "843319321daf5330c89705d814f8ad3b",
+    "cacheID": "5ab885132e5de3ff2909a30677341498",
     "id": null,
     "metadata": {},
     "name": "feedHomeOperationsQuery",
     "operationKind": "query",
-    "text": "query feedHomeOperationsQuery(\n  $feedAfter: String\n  $feedFirst: Int!\n  $liveFirst: Int!\n  $replayAfter: String\n  $replayFirst: Int!\n  $storyAfter: String\n  $storyFirst: Int!\n) {\n  viewer {\n    id\n    currentLiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n  }\n  storyFeed(first: $storyFirst, after: $storyAfter) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          email\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  homeFeed(first: $feedFirst, after: $feedAfter) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          email\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  liveNow(first: $liveFirst) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  replayFeed(first: $replayFirst, after: $replayAfter) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query feedHomeOperationsQuery(\n  $feedAfter: String\n  $feedFirst: Int!\n  $liveFirst: Int!\n  $replayAfter: String\n  $replayFirst: Int!\n  $storyAfter: String\n  $storyFirst: Int!\n) {\n  viewer {\n    id\n    currentLiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n  }\n  storyFeed(first: $storyFirst, after: $storyAfter) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          email\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  homeFeed(first: $feedFirst, after: $feedAfter) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          email\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  liveNow(first: $liveFirst) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n  }\n  replayFeed(first: $replayFirst, after: $replayAfter) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "84102473adef7b160c49917e1cfe35ed";
+(node as any).hash = "b083140aa8eaa2b3acbe0d74ec6a7afe";
 
 export default node;

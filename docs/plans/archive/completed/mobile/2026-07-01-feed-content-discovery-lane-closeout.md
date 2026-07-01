@@ -109,7 +109,7 @@ change is a pointer repair rather than more feed implementation.
 Run:
 
 ```bash
-rg -n "createPost|requestMediaUpload|PostComposer|composer" mobile docs/contracts test/live_canvas_gql/content/content_mutations_test.exs
+rg -n "createPost|requestMediaUpload|PostComposer|composer|compose" mobile docs/contracts test/live_canvas_gql/content/content_mutations_test.exs
 ```
 
 Expected:

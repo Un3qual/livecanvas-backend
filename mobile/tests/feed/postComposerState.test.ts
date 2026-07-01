@@ -86,6 +86,29 @@ describe('postComposerState', () => {
     );
   });
 
+  test('counts astral emoji as one backend character for validation', () => {
+    const maxEmojiBody = '😀'.repeat(POST_COMPOSER_BODY_TEXT_MAX_LENGTH);
+    const maxEmojiState = updatePostComposerBody(
+      createPostComposerState(),
+      maxEmojiBody,
+    );
+
+    expect(canSubmitPostComposer(maxEmojiState)).toBe(true);
+    expect(buildCreatePostInput(maxEmojiState)?.bodyText).toBe(maxEmojiBody);
+    expect(getPostComposerValidationMessage(maxEmojiState)).toBeNull();
+
+    const oversizedEmojiState = updatePostComposerBody(
+      createPostComposerState(),
+      `${maxEmojiBody}😀`,
+    );
+
+    expect(canSubmitPostComposer(oversizedEmojiState)).toBe(false);
+    expect(buildCreatePostInput(oversizedEmojiState)).toBeNull();
+    expect(getPostComposerValidationMessage(oversizedEmojiState)).toBe(
+      'Posts must be 5,000 characters or fewer.',
+    );
+  });
+
   test('formats known createPost payload errors as viewer-safe copy', () => {
     const examples = [
       {
