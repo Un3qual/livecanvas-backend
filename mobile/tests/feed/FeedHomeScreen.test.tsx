@@ -738,6 +738,67 @@ describe('FeedHomeScreen', () => {
     expect(text).not.toContain('Loading...');
   });
 
+  test('drops retained older feed posts when the base page changes', async () => {
+    queryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection(
+        [
+          post({
+            bodyText: 'First public post',
+            id: 'post-1',
+            kind: 'STANDARD',
+          }),
+        ],
+        { endCursor: 'home-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryResult = {
+      ...createFilledQueryData(),
+      homeFeed: connection(
+        [
+          post({
+            bodyText: 'Older public post',
+            id: 'post-2',
+            kind: 'STANDARD',
+          }),
+        ],
+        { endCursor: null, hasNextPage: false },
+      ),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Load more feed posts')?.props.onPress?.();
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Older public post');
+
+    queryData = {
+      ...queryData,
+      homeFeed: connection(
+        [
+          post({
+            bodyText: 'New top public post',
+            id: 'post-0',
+            kind: 'STANDARD',
+          }),
+          post({
+            bodyText: 'First public post',
+            id: 'post-1',
+            kind: 'STANDARD',
+          }),
+        ],
+        { endCursor: 'new-home-cursor', hasNextPage: true },
+      ),
+    };
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    const text = collectText(tree);
+    expect(text).toContain('New top public post');
+    expect(text).not.toContain('Older public post');
+  });
+
   test('ignores stale load-more responses after refresh succeeds', async () => {
     const loadMoreDeferred =
       createDeferred<FeedHomeQueryData | null | undefined>();

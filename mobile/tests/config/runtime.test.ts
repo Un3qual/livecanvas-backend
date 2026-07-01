@@ -15,10 +15,15 @@ type ModalElement = ReactElement<{
   sessionId?: string;
 }> | null;
 
+let appPathname = '/home';
 let modalAuthStatus: ModalAuthStatus = 'authenticated';
 let modalSearchParams: { sessionId?: string | string[] } = {};
 
 function RedirectMock(_props: { href: string }) {
+  return null;
+}
+
+function StackMock(_props: { initialRouteName?: string }) {
   return null;
 }
 
@@ -32,7 +37,9 @@ function LiveSessionWatchScreenMock(_props: { sessionId: string }) {
 
 mock.module('expo-router', () => ({
   Redirect: RedirectMock,
+  Stack: StackMock,
   useLocalSearchParams: () => modalSearchParams,
+  usePathname: () => appPathname,
   useRouter: () => ({ push: () => undefined }),
 }));
 
@@ -48,6 +55,7 @@ mock.module('../../src/live/watch/LiveSessionWatchScreen', () => ({
   LiveSessionWatchScreen: LiveSessionWatchScreenMock,
 }));
 
+const { default: AppLayout } = await import('../../app/(app)/_layout');
 const { default: LiveSessionModal } = await import(
   '../../app/(modals)/live-session'
 );
@@ -347,6 +355,18 @@ describe('auth return targets', () => {
     expect(readAuthReturnToParam('https://example.com')).toBeNull();
     expect(readAuthReturnToParam('/sign-in')).toBeNull();
     expect(readAuthReturnToParam('/profile')).toBeNull();
+  });
+});
+
+describe('AppLayout auth guard', () => {
+  test('preserves direct compose routes through unauthenticated app redirects', () => {
+    modalAuthStatus = 'unauthenticated';
+    appPathname = '/compose';
+
+    const element = AppLayout() as ModalElement;
+
+    expect(element?.type).toBe(RedirectMock);
+    expect(element?.props.href).toBe('/sign-in?returnTo=%2Fcompose');
   });
 });
 

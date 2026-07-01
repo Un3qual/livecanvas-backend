@@ -98,6 +98,11 @@ type FeedHomeLoadMoreRequestState = Record<
   FeedHomeLoadMoreRequest | null
 >;
 
+type FeedHomeRetainedRows<Node> = {
+  readonly basePageIdentity: string;
+  readonly rows: Node[];
+};
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -269,9 +274,6 @@ export function FeedHomeContent() {
       stories: normalizePageInfo(effectiveData.storyFeed?.pageInfo),
     }),
   );
-  const [olderStories, setOlderStories] = useState<FeedHomePost[]>([]);
-  const [olderPosts, setOlderPosts] = useState<FeedHomePost[]>([]);
-  const [olderReplays, setOlderReplays] = useState<LiveSessionSummary[]>([]);
   const queryPageInfo = {
     homeFeed: normalizePageInfo(effectiveData.homeFeed?.pageInfo),
     replays: normalizePageInfo(effectiveData.replayFeed?.pageInfo),
@@ -297,6 +299,30 @@ export function FeedHomeContent() {
   ).filter((session) => session.id !== currentSessionId);
   const replaySessions = readConnectionNodes<LiveSessionSummary>(
     effectiveData.replayFeed,
+  );
+  const storiesBasePageIdentity = createBasePageIdentity(stories);
+  const homeFeedBasePageIdentity = createBasePageIdentity(posts);
+  const replaysBasePageIdentity = createBasePageIdentity(replaySessions);
+  const [olderStories, setOlderStories] = useState<
+    FeedHomeRetainedRows<FeedHomePost>
+  >(() => createRetainedRows(''));
+  const [olderPosts, setOlderPosts] = useState<
+    FeedHomeRetainedRows<FeedHomePost>
+  >(() => createRetainedRows(''));
+  const [olderReplays, setOlderReplays] = useState<
+    FeedHomeRetainedRows<LiveSessionSummary>
+  >(() => createRetainedRows(''));
+  const retainedOlderStories = selectRetainedRows(
+    olderStories,
+    storiesBasePageIdentity,
+  );
+  const retainedOlderPosts = selectRetainedRows(
+    olderPosts,
+    homeFeedBasePageIdentity,
+  );
+  const retainedOlderReplays = selectRetainedRows(
+    olderReplays,
+    replaysBasePageIdentity,
   );
   const storiesPageInfo = selectFeedHomePageInfo(paginationState, 'stories');
   const homeFeedPageInfo = selectFeedHomePageInfo(
@@ -394,9 +420,9 @@ export function FeedHomeContent() {
       }
 
       setRefreshedHomeData(refreshedData ?? null);
-      setOlderStories([]);
-      setOlderPosts([]);
-      setOlderReplays([]);
+      setOlderStories(createRetainedRows(''));
+      setOlderPosts(createRetainedRows(''));
+      setOlderReplays(createRetainedRows(''));
       dispatchPagination({
         sections: {
           homeFeed: normalizePageInfo(refreshedData?.homeFeed?.pageInfo),
@@ -497,19 +523,31 @@ export function FeedHomeContent() {
     switch (section) {
       case 'homeFeed':
         setOlderPosts((current) =>
-          current.concat(readConnectionNodes(pageData?.homeFeed)),
+          appendRetainedRows(
+            current,
+            homeFeedBasePageIdentity,
+            readConnectionNodes(pageData?.homeFeed),
+          ),
         );
         return;
 
       case 'replays':
         setOlderReplays((current) =>
-          current.concat(readConnectionNodes(pageData?.replayFeed)),
+          appendRetainedRows(
+            current,
+            replaysBasePageIdentity,
+            readConnectionNodes(pageData?.replayFeed),
+          ),
         );
         return;
 
       case 'stories':
         setOlderStories((current) =>
-          current.concat(readConnectionNodes(pageData?.storyFeed)),
+          appendRetainedRows(
+            current,
+            storiesBasePageIdentity,
+            readConnectionNodes(pageData?.storyFeed),
+          ),
         );
         return;
 
@@ -617,7 +655,7 @@ export function FeedHomeContent() {
         emptyMessage="No stories are available yet."
         loadMoreControl={storiesLoadMoreControl}
         onReportPost={reportPost}
-        posts={stories.concat(olderStories)}
+        posts={stories.concat(retainedOlderStories)}
         reportPostState={reportPostState}
         title="Stories"
         viewerId={viewerId}
@@ -627,7 +665,7 @@ export function FeedHomeContent() {
         emptyMessage="No feed posts are available yet."
         loadMoreControl={homeFeedLoadMoreControl}
         onReportPost={reportPost}
-        posts={posts.concat(olderPosts)}
+        posts={posts.concat(retainedOlderPosts)}
         reportPostState={reportPostState}
         title="Home feed"
         viewerId={viewerId}
@@ -647,11 +685,46 @@ export function FeedHomeContent() {
         emptyMessage="No replays are available yet."
         loadMoreControl={replayLoadMoreControl}
         onOpen={openLiveSession}
-        sessions={replaySessions.concat(olderReplays)}
+        sessions={replaySessions.concat(retainedOlderReplays)}
         title="Replays"
       />
     </ScrollView>
   );
+}
+
+function createRetainedRows<Node>(
+  basePageIdentity: string,
+  rows: Node[] = [],
+): FeedHomeRetainedRows<Node> {
+  return { basePageIdentity, rows };
+}
+
+function selectRetainedRows<Node>(
+  retainedRows: FeedHomeRetainedRows<Node>,
+  currentBasePageIdentity: string,
+): Node[] {
+  return retainedRows.basePageIdentity === currentBasePageIdentity
+    ? retainedRows.rows
+    : [];
+}
+
+function appendRetainedRows<Node>(
+  retainedRows: FeedHomeRetainedRows<Node>,
+  currentBasePageIdentity: string,
+  nextRows: Node[],
+): FeedHomeRetainedRows<Node> {
+  return createRetainedRows(
+    currentBasePageIdentity,
+    retainedRows.basePageIdentity === currentBasePageIdentity
+      ? retainedRows.rows.concat(nextRows)
+      : nextRows,
+  );
+}
+
+function createBasePageIdentity(
+  nodes: readonly { readonly id: string }[],
+): string {
+  return JSON.stringify(nodes.map((node) => node.id));
 }
 
 function selectLoadedSectionPageInfo(

@@ -46,6 +46,10 @@ const POST_COMPOSER_VISIBILITY_LABELS: Record<PostComposerVisibility, string> =
     PUBLIC: 'Public',
   };
 
+type PostComposerRouter = ReturnType<typeof useRouter> & {
+  canGoBack?: () => boolean;
+};
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -94,7 +98,7 @@ const styles = StyleSheet.create({
 });
 
 export function PostComposerScreen() {
-  const router = useRouter();
+  const router = useRouter() as PostComposerRouter;
   const theme = useAppTheme();
   const isMountedRef = useRef(true);
   const activeCreatePostRef = useRef(false);
@@ -188,7 +192,12 @@ export function PostComposerScreen() {
       return;
     }
 
-    router.back();
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    router.replace('/home');
   }
 
   return (

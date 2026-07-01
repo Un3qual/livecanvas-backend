@@ -34,6 +34,7 @@ type HookDispatcher = {
 };
 
 let backCalls: string[];
+let canGoBack = true;
 let replaceCalls: string[];
 let hookIndex = 0;
 let hookStates: unknown[] = [];
@@ -122,6 +123,7 @@ mock.module('expo-router', () => ({
     back: () => {
       backCalls.push('back');
     },
+    canGoBack: () => canGoBack,
     replace: (route: string) => {
       replaceCalls.push(route);
     },
@@ -231,6 +233,7 @@ const { PostComposerScreen } = composerScreen;
 
 beforeEach(() => {
   backCalls = [];
+  canGoBack = true;
   replaceCalls = [];
   createPostCommitCalls = [];
   createPostInFlight = false;
@@ -478,6 +481,17 @@ describe('PostComposerScreen', () => {
     findPressableByText(tree, 'Cancel')?.props.onPress?.();
 
     expect(backCalls).toEqual(['back']);
+    expect(replaceCalls).toEqual([]);
+  });
+
+  test('cancels direct compose routes by replacing home', () => {
+    canGoBack = false;
+    const tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findPressableByText(tree, 'Cancel')?.props.onPress?.();
+
+    expect(backCalls).toEqual([]);
+    expect(replaceCalls).toEqual(['/home']);
   });
 });
 
