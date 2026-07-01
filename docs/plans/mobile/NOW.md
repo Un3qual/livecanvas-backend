@@ -6,8 +6,10 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
 ## Lane Scope
 
 - Own `mobile/` and `docs/plans/mobile/**`.
-- Do not edit backend Elixir/GraphQL code, shared contract docs, or coordinator
-  docs unless explicitly assigned.
+- Do not make speculative backend Elixir/GraphQL, shared contract, or
+  coordinator-doc changes from this lane. If active mobile work exposes a
+  verified backend contract, resolver, runtime, or data issue, promote it as
+  cross-lane work and update the backend lane write scope before implementation.
 
 ## Current Batch
 
@@ -54,12 +56,14 @@ QA.
 - Do not reactivate archived cleanup or completed live-session feature
   follow-up plans from this batch.
 - Do not expand the release-candidate checklist into implementation.
-- Do not change GraphQL schema shape during this batch.
+- Do not change GraphQL schema shape during this batch unless the active
+  product work proves a backend contract mismatch that must be promoted into
+  the backend lane.
 - Do not decode Relay IDs client-side.
 - Do not construct media signaling topics client-side.
 - Backend live media runtime foundation and the viewer setup contract are
-  complete; do not change backend code unless a viewer-runtime blocker is
-  reproduced and promoted.
+  complete; do not change backend code unless a backend issue is reproduced and
+  promoted with an explicit cross-lane scope.
 - Implement retained history against the current `LiveSession.timelineEvents`
   schema, not the stale removed `chatMessages` API.
 

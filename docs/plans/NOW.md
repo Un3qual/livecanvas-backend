@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-06-30
-Status: mobile feed/content product batch active; release-candidate QA deferred; backend lane idle
+Status: mobile feed/content product batch active; backend issues may be promoted as needed; release-candidate QA deferred
 
 ## Purpose
 
@@ -14,7 +14,8 @@ details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: idle; live media runtime foundation is complete
+- State: issue-driven; live media runtime foundation is complete and no
+  standalone backend batch is selected
 - Scope: backend code and backend planning docs
 - Completed source plan:
   `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
@@ -35,6 +36,14 @@ For ordinary work, open the relevant lane pointer and execute from that file.
 Use `docs/plans/INDEX.md` only if a lane pointer is stale, blocked, empty, or
 explicitly asks for registry/backlog lookup.
 
+## Cross-Lane Policy
+
+Work through backend and frontend issues as needed for the active product
+batch. Do not defer a verified backend contract, resolver, runtime, or data
+issue solely because the current visible surface is mobile/frontend. Promote
+that backend work into the backend lane, keep the write scope explicit, and
+verify both sides that are affected.
+
 ## Shared File Policy
 
 Only a coordinator-assigned task edits `docs/plans/NOW.md`,
@@ -47,7 +56,9 @@ track docs.
 Do not reactivate release-candidate QA yet. The active mobile lane batch is the
 feed/content discovery surface in
 `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`; execute from
-`docs/plans/mobile/NOW.md` before any release-candidate device QA work resumes.
+`docs/plans/mobile/NOW.md`, promoting backend fixes when the active product
+work proves they are needed, before any release-candidate device QA work
+resumes.
 
 ## Repair Conditions
 

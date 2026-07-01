@@ -15,11 +15,13 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: idle
+- State: issue-driven
 - Completed track: Live Media Runtime Foundation
 - Completed source plan:
   `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
-- Notes: backend lane owns backend code and backend planning docs only
+- Notes: backend lane owns backend code and backend planning docs, and should be
+  promoted when active frontend/mobile product work exposes a verified backend
+  contract, resolver, runtime, or data issue
 
 ### Mobile Lane
 
@@ -90,7 +92,8 @@ Use this file when:
 - Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 - State: paused
 - Notes: return to this roadmap only after the backend lane is explicitly
-  reprioritized
+  reprioritized; issue-driven backend fixes can still be promoted from active
+  product work without reopening the whole roadmap
 
 ## Paused Or Deferred
 

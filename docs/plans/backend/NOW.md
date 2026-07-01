@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-06-30
-Status: idle; completed backend plans archived
+Status: issue-driven; completed backend plans archived
 
 ## Lane Scope
 
@@ -36,9 +36,11 @@ Mobile-facing contracts:
 
 ## Next Action
 
-No backend lane batch is currently selected. The current coordinator action is
-mobile non-QA product-batch selection from `docs/plans/mobile/NOW.md`, unless
-the coordinator explicitly reprioritizes a new backend plan.
+No standalone backend lane batch is currently selected. Work through backend
+issues as needed when active frontend/mobile product work exposes a verified
+GraphQL contract, resolver, runtime, data, or release-readiness problem. When
+that happens, promote the backend issue here with an explicit write scope and
+verification list before implementation.
 
 ## References
 
