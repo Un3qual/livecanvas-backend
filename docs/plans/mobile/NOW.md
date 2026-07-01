@@ -17,6 +17,8 @@ Status: mobile post composer product batch active; release-candidate QA deferred
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Track: `docs/plans/mobile/TRACK.md`
 - Current task: Task 3, wire Relay `createPost`.
+- Current detail plan:
+  `docs/plans/mobile/2026-07-01-post-composer-create-post-relay.md`
 - Latest completed source plan:
   `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 - Latest completed detail plan:
@@ -44,8 +46,9 @@ Status: mobile post composer product batch active; release-candidate QA deferred
 ## Do This Now
 
 Implement Task 3 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`:
-wire the existing Relay `createPost` mutation into the composer screen. Keep
-native media picking, signed upload, media attachment UI, and release-candidate
+wire the existing Relay `createPost` mutation into the composer screen using
+`docs/plans/mobile/2026-07-01-post-composer-create-post-relay.md`. Keep native
+media picking, signed upload, media attachment UI, and release-candidate
 checklist work out of this task unless a verified issue is promoted by the
 active implementation.
 
@@ -72,4 +75,5 @@ active implementation.
 
 ## Next Action
 
-Implement Task 3 in `docs/plans/mobile/2026-07-01-mobile-post-composer.md`.
+Implement Task 3 using
+`docs/plans/mobile/2026-07-01-post-composer-create-post-relay.md`.
