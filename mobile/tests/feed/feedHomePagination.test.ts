@@ -1,14 +1,20 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  type FeedHomePaginationPageInfo,
   createFeedHomePaginationState,
   feedHomePaginationReducer,
   selectFeedHomePageInfo,
 } from '../../src/feed/feedHomePagination';
 
+const nextPage: FeedHomePaginationPageInfo = {
+  endCursor: 'cursor-1',
+  hasNextPage: true,
+};
+
 describe('feedHomePaginationReducer', () => {
   test('loads more stories without affecting home feed or replays', () => {
-    const initialState = createFeedHomePaginationState();
+    const initialState = createFeedHomePaginationState({});
     const loadingState = feedHomePaginationReducer(initialState, {
       section: 'stories',
       type: 'load_more_start',
@@ -46,7 +52,7 @@ describe('feedHomePaginationReducer', () => {
 
   test('stores retryable story load-more errors without clearing other section errors', () => {
     const replayFailedState = feedHomePaginationReducer(
-      createFeedHomePaginationState(),
+      createFeedHomePaginationState({}),
       {
         message: 'Replays could not load.',
         section: 'replays',
@@ -78,56 +84,44 @@ describe('feedHomePaginationReducer', () => {
   });
 
   test('refresh keeps existing cursors until success updates every section pageInfo', () => {
-    const pagedState = feedHomePaginationReducer(
+    const pagedState = createFeedHomePaginationState({
+      homeFeed: nextPage,
+      replays: nextPage,
+      stories: nextPage,
+    });
+    const dirtyState = feedHomePaginationReducer(
       feedHomePaginationReducer(
-        feedHomePaginationReducer(createFeedHomePaginationState(), {
-          pageInfo: {
-            endCursor: 'home-cursor-1',
-            hasNextPage: true,
-          },
-          section: 'homeFeed',
-          type: 'load_more_success',
-        }),
+        pagedState,
         {
-          pageInfo: {
-            endCursor: 'replay-cursor-1',
-            hasNextPage: true,
-          },
+          message: 'Replays could not load.',
           section: 'replays',
-          type: 'load_more_success',
+          type: 'load_more_error',
         },
       ),
       {
-        pageInfo: {
-          endCursor: 'story-cursor-1',
-          hasNextPage: true,
-        },
         section: 'stories',
-        type: 'load_more_success',
+        type: 'load_more_start',
       },
     );
 
-    const refreshingState = feedHomePaginationReducer(pagedState, {
+    const refreshingState = feedHomePaginationReducer(dirtyState, {
       type: 'refresh_start',
     });
 
     expect(refreshingState.isRefreshing).toBe(true);
     expect(refreshingState.refreshError).toBeNull();
-    expect(selectFeedHomePageInfo(refreshingState, 'homeFeed')).toEqual({
-      endCursor: 'home-cursor-1',
-      hasNextPage: true,
-    });
-    expect(selectFeedHomePageInfo(refreshingState, 'replays')).toEqual({
-      endCursor: 'replay-cursor-1',
-      hasNextPage: true,
-    });
-    expect(selectFeedHomePageInfo(refreshingState, 'stories')).toEqual({
-      endCursor: 'story-cursor-1',
-      hasNextPage: true,
-    });
+    expect(selectFeedHomePageInfo(refreshingState, 'homeFeed')).toEqual(
+      nextPage,
+    );
+    expect(selectFeedHomePageInfo(refreshingState, 'replays')).toEqual(
+      nextPage,
+    );
+    expect(selectFeedHomePageInfo(refreshingState, 'stories')).toEqual(
+      nextPage,
+    );
 
     const refreshedState = feedHomePaginationReducer(refreshingState, {
-      pageInfo: {
+      sections: {
         homeFeed: {
           endCursor: 'home-cursor-2',
           hasNextPage: false,
@@ -146,17 +140,29 @@ describe('feedHomePaginationReducer', () => {
 
     expect(refreshedState.isRefreshing).toBe(false);
     expect(refreshedState.refreshError).toBeNull();
-    expect(selectFeedHomePageInfo(refreshedState, 'homeFeed')).toEqual({
-      endCursor: 'home-cursor-2',
-      hasNextPage: false,
+    expect(refreshedState.sections.homeFeed).toEqual({
+      error: null,
+      isLoadingMore: false,
+      pageInfo: {
+        endCursor: 'home-cursor-2',
+        hasNextPage: false,
+      },
     });
-    expect(selectFeedHomePageInfo(refreshedState, 'replays')).toEqual({
-      endCursor: 'replay-cursor-2',
-      hasNextPage: false,
+    expect(refreshedState.sections.replays).toEqual({
+      error: null,
+      isLoadingMore: false,
+      pageInfo: {
+        endCursor: 'replay-cursor-2',
+        hasNextPage: false,
+      },
     });
-    expect(selectFeedHomePageInfo(refreshedState, 'stories')).toEqual({
-      endCursor: 'story-cursor-2',
-      hasNextPage: true,
+    expect(refreshedState.sections.stories).toEqual({
+      error: null,
+      isLoadingMore: false,
+      pageInfo: {
+        endCursor: 'story-cursor-2',
+        hasNextPage: true,
+      },
     });
   });
 });

@@ -43,26 +43,30 @@ export type FeedHomePaginationAction =
       readonly type: 'refresh_error';
     }
   | {
-      readonly pageInfo: Record<
+      readonly sections: Record<
         FeedHomePaginationSection,
         FeedHomePaginationPageInfo
       >;
       readonly type: 'refresh_success';
     };
 
-export const EMPTY_PAGE_INFO: FeedHomePaginationPageInfo = {
+const EMPTY_PAGE_INFO: FeedHomePaginationPageInfo = {
   endCursor: null,
   hasNextPage: false,
 };
 
-export function createFeedHomePaginationState(): FeedHomePaginationState {
+export function createFeedHomePaginationState(sections: {
+  readonly homeFeed?: FeedHomePaginationPageInfo | null;
+  readonly replays?: FeedHomePaginationPageInfo | null;
+  readonly stories?: FeedHomePaginationPageInfo | null;
+}): FeedHomePaginationState {
   return {
     isRefreshing: false,
     refreshError: null,
     sections: {
-      homeFeed: createSectionPaginationState(),
-      replays: createSectionPaginationState(),
-      stories: createSectionPaginationState(),
+      homeFeed: createSectionState(sections.homeFeed),
+      replays: createSectionState(sections.replays),
+      stories: createSectionState(sections.stories),
     },
   };
 }
@@ -114,18 +118,9 @@ export function feedHomePaginationReducer(
         isRefreshing: false,
         refreshError: null,
         sections: {
-          homeFeed: {
-            ...state.sections.homeFeed,
-            pageInfo: action.pageInfo.homeFeed,
-          },
-          replays: {
-            ...state.sections.replays,
-            pageInfo: action.pageInfo.replays,
-          },
-          stories: {
-            ...state.sections.stories,
-            pageInfo: action.pageInfo.stories,
-          },
+          homeFeed: createSectionState(action.sections.homeFeed),
+          replays: createSectionState(action.sections.replays),
+          stories: createSectionState(action.sections.stories),
         },
       };
 
@@ -141,11 +136,13 @@ export function selectFeedHomePageInfo(
   return state.sections[section].pageInfo;
 }
 
-function createSectionPaginationState(): FeedHomeSectionPaginationState {
+function createSectionState(
+  pageInfo?: FeedHomePaginationPageInfo | null,
+): FeedHomeSectionPaginationState {
   return {
     error: null,
     isLoadingMore: false,
-    pageInfo: EMPTY_PAGE_INFO,
+    pageInfo: pageInfo ?? EMPTY_PAGE_INFO,
   };
 }
 
