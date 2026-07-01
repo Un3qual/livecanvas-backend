@@ -26,7 +26,7 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active
+- State: complete; next product-completeness task not selected
 - Track: `docs/plans/mobile/TRACK.md`
 - Latest completed product theme: mobile post composer
 - Latest completed detailed plan:
@@ -70,7 +70,7 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: active
+- State: complete; next product-completeness task not selected
 - Latest completed theme: mobile post composer
 - Latest completed detailed plan:
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`

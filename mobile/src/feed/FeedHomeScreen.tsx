@@ -251,6 +251,8 @@ export function FeedHomeContent() {
     stories: null,
   });
   const loadMoreRequestIdRef = useRef(0);
+  const refreshRequestIdRef = useRef(0);
+  const activeRefreshRequestIdRef = useRef<number | null>(null);
   const data = useLazyLoadQuery<FeedHomeScreenQuery>(
     feedHomeScreenQuery,
     FEED_HOME_QUERY_VARIABLES,
@@ -304,14 +306,18 @@ export function FeedHomeContent() {
   const replayPageInfo = selectFeedHomePageInfo(paginationState, 'replays');
   const storiesLoadMoreControl = createLoadMoreControl({
     error: paginationState.sections.stories.error,
-    isLoading: paginationState.sections.stories.isLoadingMore,
+    isLoading:
+      paginationState.isRefreshing ||
+      paginationState.sections.stories.isLoadingMore,
     label: 'Load more stories',
     onLoadMore: () => loadMoreSection('stories'),
     pageInfo: storiesPageInfo,
   });
   const homeFeedLoadMoreControl = createLoadMoreControl({
     error: paginationState.sections.homeFeed.error,
-    isLoading: paginationState.sections.homeFeed.isLoadingMore,
+    isLoading:
+      paginationState.isRefreshing ||
+      paginationState.sections.homeFeed.isLoadingMore,
     label: 'Load more feed posts',
     onLoadMore: () => loadMoreSection('homeFeed'),
     pageInfo: homeFeedPageInfo,
@@ -319,18 +325,15 @@ export function FeedHomeContent() {
   const liveNowLoadMoreControl: FeedHomeLoadMoreControl = { visible: false };
   const replayLoadMoreControl = createLoadMoreControl({
     error: paginationState.sections.replays.error,
-    isLoading: paginationState.sections.replays.isLoadingMore,
+    isLoading:
+      paginationState.isRefreshing ||
+      paginationState.sections.replays.isLoadingMore,
     label: 'Load more replays',
     onLoadMore: () => loadMoreSection('replays'),
     pageInfo: replayPageInfo,
   });
 
   useEffect(() => {
-    activeLoadMoreRequestRef.current = {
-      homeFeed: null,
-      replays: null,
-      stories: null,
-    };
     dispatchPagination({
       sections: {
         homeFeed: {
@@ -362,6 +365,8 @@ export function FeedHomeContent() {
   }
 
   function clearActiveLoadMoreRequests() {
+    // Refresh is the invalidation boundary: clearing request identities makes
+    // pre-refresh load-more completions no-op without appending stale rows.
     activeLoadMoreRequestRef.current = {
       homeFeed: null,
       replays: null,
@@ -370,6 +375,9 @@ export function FeedHomeContent() {
   }
 
   async function refreshHome() {
+    const requestId = refreshRequestIdRef.current + 1;
+    refreshRequestIdRef.current = requestId;
+    activeRefreshRequestIdRef.current = requestId;
     clearActiveLoadMoreRequests();
     dispatchPagination({ type: 'refresh_start' });
 
@@ -380,6 +388,10 @@ export function FeedHomeContent() {
         FEED_HOME_QUERY_VARIABLES,
         { fetchPolicy: 'network-only' },
       ).toPromise();
+
+      if (activeRefreshRequestIdRef.current !== requestId) {
+        return;
+      }
 
       setRefreshedHomeData(refreshedData ?? null);
       setOlderStories([]);
@@ -394,10 +406,18 @@ export function FeedHomeContent() {
         type: 'refresh_success',
       });
     } catch {
+      if (activeRefreshRequestIdRef.current !== requestId) {
+        return;
+      }
+
       dispatchPagination({
         message: 'Could not refresh home.',
         type: 'refresh_error',
       });
+    } finally {
+      if (activeRefreshRequestIdRef.current === requestId) {
+        activeRefreshRequestIdRef.current = null;
+      }
     }
   }
 
@@ -407,6 +427,8 @@ export function FeedHomeContent() {
     if (
       !pageInfo.hasNextPage ||
       pageInfo.endCursor == null ||
+      activeRefreshRequestIdRef.current !== null ||
+      paginationState.isRefreshing ||
       activeLoadMoreRequestRef.current[section] !== null
     ) {
       return;

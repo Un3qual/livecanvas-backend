@@ -623,6 +623,121 @@ describe('FeedHomeScreen', () => {
     expect(fetchQueryCalls).toHaveLength(1);
   });
 
+  test('blocks load-more while refresh is in flight before rerender', () => {
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryImplementation = (_variables) => new Promise(() => undefined);
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    getRefreshControl(tree).props.onRefresh?.();
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+
+    expect(fetchQueryCalls).toHaveLength(1);
+    expect(fetchQueryCalls[0].variables).toMatchObject({
+      storyAfter: null,
+    });
+
+    tree = renderWithHooks(createElement(FeedHomeContent));
+    expect(findPressableByText(tree, 'Loading...')?.props.disabled).toBe(true);
+  });
+
+  test('keeps in-flight load-more requests active across query pageInfo sync', async () => {
+    const secondLoadMoreDeferred =
+      createDeferred<FeedHomeQueryData | null | undefined>();
+
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryImplementation = (variables) =>
+      variables.storyAfter === 'story-cursor-2'
+        ? secondLoadMoreDeferred.promise
+        : Promise.resolve({
+            ...createFilledQueryData(),
+            storyFeed: connection(
+              [
+                post({
+                  bodyText: 'Older story',
+                  expiresAt: '2026-07-01T15:15:30Z',
+                  id: 'story-2',
+                  kind: 'STORY',
+                }),
+              ],
+              { endCursor: 'story-cursor-2', hasNextPage: true },
+            ),
+          });
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Older story');
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+    queryData = {
+      ...queryData,
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-network-cursor', hasNextPage: true },
+      ),
+    };
+
+    renderWithHooks(createElement(FeedHomeContent));
+    secondLoadMoreDeferred.resolve({
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Second older story',
+            expiresAt: '2026-07-01T14:15:30Z',
+            id: 'story-3',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: null, hasNextPage: false },
+      ),
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    const text = collectText(tree);
+    expect(text).toContain('Second older story');
+    expect(text).not.toContain('Loading...');
+  });
+
   test('ignores stale load-more responses after refresh succeeds', async () => {
     const loadMoreDeferred =
       createDeferred<FeedHomeQueryData | null | undefined>();
@@ -650,14 +765,7 @@ describe('FeedHomeScreen', () => {
     let tree = renderWithHooks(createElement(FeedHomeContent));
 
     findPressableByText(tree, 'Load more stories')?.props.onPress?.();
-    const scrollView = findHostNodeByType(tree, 'NativeComponent');
-    const refreshControl = scrollView?.props.refreshControl;
-
-    if (!isValidElement<{ onRefresh?: () => void }>(refreshControl)) {
-      throw new Error('Expected ScrollView to receive a RefreshControl.');
-    }
-
-    refreshControl.props.onRefresh?.();
+    getRefreshControl(tree).props.onRefresh?.();
     refreshDeferred.resolve({
       ...createFilledQueryData(),
       storyFeed: connection([
@@ -691,6 +799,62 @@ describe('FeedHomeScreen', () => {
     tree = renderWithHooks(createElement(FeedHomeContent));
 
     expect(collectText(tree)).not.toContain('Stale older story');
+  });
+
+  test('ignores stale refresh responses when refreshes overlap', async () => {
+    const firstRefreshDeferred =
+      createDeferred<FeedHomeQueryData | null | undefined>();
+    const secondRefreshDeferred =
+      createDeferred<FeedHomeQueryData | null | undefined>();
+    let refreshCount = 0;
+
+    fetchQueryImplementation = (_variables) => {
+      refreshCount += 1;
+
+      return refreshCount === 1
+        ? firstRefreshDeferred.promise
+        : secondRefreshDeferred.promise;
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+    const refreshControl = getRefreshControl(tree);
+
+    refreshControl.props.onRefresh?.();
+    refreshControl.props.onRefresh?.();
+    secondRefreshDeferred.resolve({
+      ...createFilledQueryData(),
+      storyFeed: connection([
+        post({
+          bodyText: 'Newest refreshed story',
+          expiresAt: '2026-07-01T18:30:00Z',
+          id: 'story-newest',
+          kind: 'STORY',
+        }),
+      ]),
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Newest refreshed story');
+
+    firstRefreshDeferred.resolve({
+      ...createFilledQueryData(),
+      storyFeed: connection([
+        post({
+          bodyText: 'Stale refreshed story',
+          expiresAt: '2026-07-01T18:00:00Z',
+          id: 'story-stale-refresh',
+          kind: 'STORY',
+        }),
+      ]),
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Newest refreshed story');
+    expect(collectText(tree)).not.toContain('Stale refreshed story');
   });
 
   test('keeps compose, host, profile, and diagnostics actions reachable from home', () => {
@@ -913,14 +1077,7 @@ describe('FeedHomeScreen', () => {
     tree = renderWithHooks(createElement(FeedHomeContent));
     expect(collectText(tree)).toContain('Report submitted.');
 
-    const scrollView = findHostNodeByType(tree, 'NativeComponent');
-    const refreshControl = scrollView?.props.refreshControl;
-
-    if (!isValidElement<{ onRefresh?: () => void }>(refreshControl)) {
-      throw new Error('Expected ScrollView to receive a RefreshControl.');
-    }
-
-    refreshControl.props.onRefresh?.();
+    getRefreshControl(tree).props.onRefresh?.();
 
     expect(fetchQueryCalls[0].variables).toMatchObject({
       feedAfter: null,
@@ -941,14 +1098,7 @@ describe('FeedHomeScreen', () => {
       Promise.reject(new Error('offline'));
 
     let tree = renderWithHooks(createElement(FeedHomeContent));
-    const scrollView = findHostNodeByType(tree, 'NativeComponent');
-    const refreshControl = scrollView?.props.refreshControl;
-
-    if (!isValidElement<{ onRefresh?: () => void }>(refreshControl)) {
-      throw new Error('Expected ScrollView to receive a RefreshControl.');
-    }
-
-    refreshControl.props.onRefresh?.();
+    getRefreshControl(tree).props.onRefresh?.();
 
     await Promise.resolve();
     tree = renderWithHooks(createElement(FeedHomeContent));
@@ -1063,6 +1213,19 @@ function createDeferred<Value>(): Deferred<Value> {
     reject: rejectDeferred,
     resolve: resolveDeferred,
   };
+}
+
+function getRefreshControl(
+  tree: RenderedTree,
+): ReactElement<{ onRefresh?: () => void }> {
+  const scrollView = findHostNodeByType(tree, 'NativeComponent');
+  const refreshControl = scrollView?.props.refreshControl;
+
+  if (!isValidElement<{ onRefresh?: () => void }>(refreshControl)) {
+    throw new Error('Expected ScrollView to receive a RefreshControl.');
+  }
+
+  return refreshControl;
 }
 
 function post(overrides: Partial<PostNode> = {}): PostNode {

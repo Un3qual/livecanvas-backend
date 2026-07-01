@@ -153,7 +153,7 @@ export function feedHomePaginationReducer(
             ? sectionState
             : {
                 ...sectionState,
-                isLoadingMore: false,
+                error: null,
                 pageInfo: action.sections[section],
               },
         ),

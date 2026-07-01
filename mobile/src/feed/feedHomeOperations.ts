@@ -17,6 +17,43 @@ export const FEED_HOME_QUERY_VARIABLES = {
   storyFirst: 10,
 } as const;
 
+export const feedHomeOperationsPostFields = graphql`
+  fragment feedHomeOperationsPostFields on Post {
+    id
+    kind
+    bodyText
+    visibility
+    expiresAt
+    insertedAt
+    author {
+      id
+      email
+    }
+    mediaAssets {
+      id
+      mimeType
+      processingState
+      publicUrl
+    }
+  }
+`;
+
+export const feedHomeOperationsLiveSessionFields = graphql`
+  fragment feedHomeOperationsLiveSessionFields on LiveSession {
+    id
+    channelTopic
+    status
+    visibility
+    insertedAt
+    startedAt
+    endedAt
+    host {
+      id
+      email
+    }
+  }
+`;
+
 export const feedHomeScreenQuery = graphql`
   query feedHomeOperationsQuery(
     $feedAfter: String
@@ -30,38 +67,13 @@ export const feedHomeScreenQuery = graphql`
     viewer {
       id
       currentLiveSession {
-        id
-        channelTopic
-        status
-        visibility
-        insertedAt
-        startedAt
-        endedAt
-        host {
-          id
-          email
-        }
+        ...feedHomeOperationsLiveSessionFields @relay(mask: false)
       }
     }
     storyFeed(first: $storyFirst, after: $storyAfter) {
       edges {
         node {
-          id
-          kind
-          bodyText
-          visibility
-          expiresAt
-          insertedAt
-          author {
-            id
-            email
-          }
-          mediaAssets {
-            id
-            mimeType
-            processingState
-            publicUrl
-          }
+          ...feedHomeOperationsPostFields @relay(mask: false)
         }
       }
       pageInfo {
@@ -72,22 +84,7 @@ export const feedHomeScreenQuery = graphql`
     homeFeed(first: $feedFirst, after: $feedAfter) {
       edges {
         node {
-          id
-          kind
-          bodyText
-          visibility
-          expiresAt
-          insertedAt
-          author {
-            id
-            email
-          }
-          mediaAssets {
-            id
-            mimeType
-            processingState
-            publicUrl
-          }
+          ...feedHomeOperationsPostFields @relay(mask: false)
         }
       }
       pageInfo {
@@ -98,34 +95,14 @@ export const feedHomeScreenQuery = graphql`
     liveNow(first: $liveFirst) {
       edges {
         node {
-          id
-          channelTopic
-          status
-          visibility
-          insertedAt
-          startedAt
-          endedAt
-          host {
-            id
-            email
-          }
+          ...feedHomeOperationsLiveSessionFields @relay(mask: false)
         }
       }
     }
     replayFeed(first: $replayFirst, after: $replayAfter) {
       edges {
         node {
-          id
-          channelTopic
-          status
-          visibility
-          insertedAt
-          startedAt
-          endedAt
-          host {
-            id
-            email
-          }
+          ...feedHomeOperationsLiveSessionFields @relay(mask: false)
         }
       }
       pageInfo {

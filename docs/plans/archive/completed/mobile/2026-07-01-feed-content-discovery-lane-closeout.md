@@ -434,16 +434,10 @@ rg -n "2026-06-30-mobile-feed-content-discovery|2026-07-01-feed-section-refresh-
 Expected: active pointers reference the post composer plan; completed feed plans
 reference archive paths.
 
-- [ ] **Step 3: Archive this close-out plan**
+- [x] **Step 3: Archive this close-out plan**
 
-Run:
-
-```bash
-git mv docs/plans/mobile/2026-07-01-feed-content-discovery-lane-closeout.md docs/plans/archive/completed/mobile/2026-07-01-feed-content-discovery-lane-closeout.md
-```
-
-Expected: this plan is no longer in the active mobile plans folder after its
-execution is complete.
+This close-out plan is already archived under
+`docs/plans/archive/completed/mobile/`.
 
 - [ ] **Step 4: Commit and push**
 

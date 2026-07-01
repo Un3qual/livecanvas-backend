@@ -88,6 +88,42 @@ describe('feedHomePaginationReducer', () => {
     expect(storiesFailedState.sections.homeFeed.error).toBeNull();
   });
 
+  test('clears stale load-more errors when fresh query pageInfo syncs', () => {
+    const failedState = feedHomePaginationReducer(
+      feedHomePaginationReducer(createFeedHomePaginationState({}), {
+        section: 'stories',
+        type: 'load_more_start',
+      }),
+      {
+        message: 'Stories could not load.',
+        section: 'stories',
+        type: 'load_more_error',
+      },
+    );
+
+    const syncedState = feedHomePaginationReducer(failedState, {
+      sections: {
+        homeFeed: nextPage,
+        replays: nextPage,
+        stories: {
+          endCursor: 'story-network-cursor',
+          hasNextPage: true,
+        },
+      },
+      type: 'query_page_info_sync',
+    });
+
+    expect(syncedState.sections.stories).toEqual({
+      error: null,
+      hasLoadedMore: false,
+      isLoadingMore: false,
+      pageInfo: {
+        endCursor: 'story-network-cursor',
+        hasNextPage: true,
+      },
+    });
+  });
+
   test('refresh keeps existing cursors until success updates every section pageInfo', () => {
     const pagedState = createFeedHomePaginationState({
       homeFeed: nextPage,

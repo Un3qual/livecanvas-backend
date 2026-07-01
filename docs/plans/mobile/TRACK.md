@@ -15,7 +15,7 @@ and content discovery, live streaming, and chat.
   product-completeness task not selected
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Last completed detailed plan:
-  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Recent theme: mobile post composer over the existing Relay `createPost`
   contract is complete; release-candidate QA remains deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
@@ -81,6 +81,7 @@ and content discovery, live streaming, and chat.
 - `docs/plans/archive/completed/mobile/2026-06-29-post-live-recording-replay-affordance.md`
 - `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 - `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
+- `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 
 ## Recommended Plan Order
 
@@ -108,7 +109,9 @@ and content discovery, live streaming, and chat.
 
 ## Active And Queued Follow-Up Plans
 
-Active product batch:
+Current product batch: none selected.
+
+Recently completed product batch:
 
 - `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 

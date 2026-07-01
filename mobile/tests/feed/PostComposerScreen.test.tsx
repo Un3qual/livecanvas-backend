@@ -129,13 +129,18 @@ mock.module('expo-router', () => ({
 }));
 
 mock.module('react-relay', () => ({
+  fetchQuery: () => ({
+    toPromise: () => Promise.resolve(null),
+  }),
   graphql: (query: TemplateStringsArray) => query,
+  useLazyLoadQuery: () => null,
   useMutation: () => [
     (config: CreatePostCommitConfig) => {
       createPostCommitCalls.push(config);
     },
     createPostInFlight,
   ],
+  useRelayEnvironment: () => ({ environment: 'relay' }),
 }));
 
 mock.module('react-native', () => ({

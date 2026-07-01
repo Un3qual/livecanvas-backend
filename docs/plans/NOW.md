@@ -48,9 +48,9 @@ verify both sides that are affected.
 
 - Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
 - Horizon: 2026-07-01 through 2026-07-07
-- Focus: implement mobile text post composition over the existing `createPost`
-  contract, verify backend issues only when reproduced by active product work,
-  and keep release-candidate manual QA deferred.
+- Focus: select the next product-completeness task after the completed mobile
+  text post composer, verify backend issues only when reproduced by active
+  product work, and keep release-candidate manual QA deferred.
 
 ## Shared File Policy
 

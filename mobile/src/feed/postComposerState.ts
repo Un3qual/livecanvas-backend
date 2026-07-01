@@ -34,6 +34,20 @@ const CREATE_POST_FALLBACK_ERROR = 'We could not create this post.';
 const CREATE_POST_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   unauthenticated: 'Sign in again to create a post.',
 };
+const ZERO_WIDTH_JOINER = '\u200d';
+const COMBINING_MARK_REGEX = /^\p{Mark}$/u;
+const EMOJI_MODIFIER_REGEX = /^[\u{1f3fb}-\u{1f3ff}]$/u;
+const REGIONAL_INDICATOR_REGEX = /^[\u{1f1e6}-\u{1f1ff}]$/u;
+const VARIATION_SELECTOR_REGEX = /^[\ufe00-\ufe0f\u{e0100}-\u{e01ef}]$/u;
+
+type GraphemeSegmenter = new (
+  locale: string,
+  options: { granularity: 'grapheme' },
+) => { segment: (input: string) => Iterable<unknown> };
+
+type IntlWithSegmenter = typeof Intl & {
+  readonly Segmenter?: GraphemeSegmenter;
+};
 
 export function createPostComposerState(): PostComposerState {
   return {
@@ -82,14 +96,8 @@ export function canSubmitPostComposer(state: PostComposerState): boolean {
 }
 
 export function countPostComposerBodyTextCharacters(bodyText: string): number {
-  const segmenter = (
-    Intl as typeof Intl & {
-      Segmenter?: new (
-        locale: string,
-        options: { granularity: 'grapheme' },
-      ) => { segment: (input: string) => Iterable<unknown> };
-    }
-  ).Segmenter;
+  const segmenter = (globalThis.Intl as IntlWithSegmenter | undefined)
+    ?.Segmenter;
 
   if (segmenter) {
     return Array.from(
@@ -97,7 +105,7 @@ export function countPostComposerBodyTextCharacters(bodyText: string): number {
     ).length;
   }
 
-  return Array.from(bodyText).length;
+  return countFallbackGraphemeClusters(bodyText);
 }
 
 export function buildCreatePostInput(
@@ -159,4 +167,54 @@ export function formatCreatePostMutationErrors(
 
 function isBodyTextField(field: string | null | undefined): boolean {
   return field === 'bodyText' || field === 'body_text';
+}
+
+function countFallbackGraphemeClusters(bodyText: string): number {
+  let count = 0;
+  let joinsNextCluster = false;
+  let regionalIndicatorRun = 0;
+
+  for (const character of bodyText) {
+    if (character === ZERO_WIDTH_JOINER) {
+      joinsNextCluster = count > 0;
+      continue;
+    }
+
+    if (isGraphemeExtender(character)) {
+      if (count === 0) {
+        count = 1;
+      }
+
+      continue;
+    }
+
+    if (joinsNextCluster) {
+      joinsNextCluster = false;
+      regionalIndicatorRun = 0;
+      continue;
+    }
+
+    if (REGIONAL_INDICATOR_REGEX.test(character)) {
+      regionalIndicatorRun += 1;
+
+      if (regionalIndicatorRun % 2 === 1) {
+        count += 1;
+      }
+
+      continue;
+    }
+
+    regionalIndicatorRun = 0;
+    count += 1;
+  }
+
+  return count;
+}
+
+function isGraphemeExtender(character: string): boolean {
+  return (
+    COMBINING_MARK_REGEX.test(character) ||
+    EMOJI_MODIFIER_REGEX.test(character) ||
+    VARIATION_SELECTOR_REGEX.test(character)
+  );
 }

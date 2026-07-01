@@ -53,15 +53,15 @@ of this product week.
 
 1. 2026-07-01: Finish the mobile feed pagination/refresh design and failing
    screen tests.
-2. 2026-07-02: Implement mobile Task 4, regenerate Relay artifacts if needed,
-   and run focused mobile verification.
+2. 2026-07-02: Implement the mobile text post composer over the existing
+   `createPost` contract, regenerate Relay artifacts if needed, and run focused
+   mobile verification.
 3. 2026-07-03: Run backend feed/reporting contract verification against the
    exact mobile surface; promote and fix backend issues only if reproduced.
 4. 2026-07-06: Close the feed/content lane batch with evidence and run final
    mobile/backend gates that match the touched files.
-5. 2026-07-07: Create or promote the next product-facing batch. Default
-   candidate, if the feed lane closes cleanly, is a mobile post composer using
-   the existing `createPost` and `requestMediaUpload` GraphQL contract.
+5. 2026-07-07: Create or promote the next product-facing batch after the
+   completed mobile post composer work. No default candidate is selected yet.
 
 ## Tasks
 
@@ -105,7 +105,8 @@ Focused verification:
 - From repo root: `git diff --check`
 
 Milestone commit:
-- Commit mobile Task 4 implementation and its focused test updates together.
+- Commit the mobile feed pagination implementation and its focused test updates
+  together.
 
 ### Task 2: Verify Backend Feed And Reporting Contracts As Needed
 
@@ -150,8 +151,9 @@ Focused verification:
 
 Milestone commit:
 - If backend code or contracts change, commit that backend fix separately from
-  the mobile Task 4 commit. If no backend changes are needed, do not create a
-  docs-only evidence commit unless lane closure is happening in the same pass.
+  the mobile feed pagination commit. If no backend changes are needed, do not
+  create a docs-only evidence commit unless lane closure is happening in the same
+  pass.
 
 ### Task 3: Close The Feed/Content Discovery Lane
 
@@ -204,9 +206,8 @@ Acceptance criteria:
 - [ ] The audit lists shipped mobile surfaces for auth, profiles, home feed,
       live watch, chat, replay, reporting, diagnostics, and host preflight.
 - [ ] The audit lists missing product surfaces backed by existing backend
-      contracts, starting with mobile post creation because backend
-      `createPost`, `requestMediaUpload`, `updatePost`, and `deletePost`
-      already exist while mobile has no composer route.
+      contracts. Mobile text post creation is already complete, so the next
+      candidate must come from the remaining product gaps.
 - [ ] The audit selects one next batch and records why it beats release-candidate
       manual QA for product completeness, or explicitly recommends resuming QA
       if no product gap remains.
@@ -221,23 +222,22 @@ Milestone commit:
 
 ### Task 5: Promote The Next Product Batch
 
-Default batch if Task 4 confirms the gap:
-mobile post composer over the existing content GraphQL contract.
+Default batch:
+none selected. Choose the next product-completeness batch from Task 4's verified
+gap list.
 
 **Files:**
-- Create: `docs/plans/mobile/2026-07-07-mobile-post-composer.md`
+- Create or modify: the next selected `docs/plans/mobile/*.md` source plan
 - Modify: `docs/plans/mobile/NOW.md`
 - Modify: `docs/plans/mobile/TRACK.md`
 - Modify: `docs/plans/NOW.md`
 - Modify: `docs/plans/INDEX.md`
 
 Acceptance criteria:
-- [ ] The next batch is small enough to complete independently: text-only
-      `STANDARD` and `STORY` post creation first, with media upload either in a
-      second task or explicitly deferred inside the same plan.
-- [ ] The plan uses existing backend mutations before proposing backend schema
-      changes: `createPost(input:)` and, only for media follow-up,
-      `requestMediaUpload(input:)`.
+- [ ] The next batch is small enough to complete independently and names any
+      deferred product scope explicitly.
+- [ ] The plan uses existing backend contracts before proposing backend schema
+      changes.
 - [ ] The first task has focused mobile tests under `mobile/tests/**`, not
       colocated under `mobile/src/**`.
 - [ ] Backend work is only included if the mobile plan proves a missing contract
@@ -261,8 +261,8 @@ Milestone commit:
 
 ## Handoff
 
-Start with `docs/plans/mobile/NOW.md` and finish Task 4 in
-`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`. Use this weekly
-plan only to sequence the follow-up work after each milestone. If Task 1 or
-Task 2 reveals a backend contract mismatch, promote that issue into
-`docs/plans/backend/NOW.md` before editing backend code.
+Start with `docs/plans/mobile/NOW.md`. No mobile product batch is selected after
+the completed post composer work; use this weekly plan only to select and
+promote the next product-completeness task. If a future product task reveals a
+backend contract mismatch, promote that issue into `docs/plans/backend/NOW.md`
+before editing backend code.

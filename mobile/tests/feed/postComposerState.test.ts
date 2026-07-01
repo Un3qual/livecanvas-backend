@@ -8,6 +8,7 @@ import {
   POST_COMPOSER_VISIBILITIES,
   buildCreatePostInput,
   canSubmitPostComposer,
+  countPostComposerBodyTextCharacters,
   createPostComposerState,
   formatCreatePostMutationErrors,
   getPostComposerValidationMessage,
@@ -107,6 +108,28 @@ describe('postComposerState', () => {
     expect(getPostComposerValidationMessage(oversizedEmojiState)).toBe(
       'Posts must be 5,000 characters or fewer.',
     );
+  });
+
+  test('counts emoji modifiers and joined sequences consistently without Intl.Segmenter', () => {
+    expect(countPostComposerBodyTextCharacters('👍🏽')).toBe(1);
+    expect(countPostComposerBodyTextCharacters('👨‍👩‍👧‍👦')).toBe(1);
+
+    const originalIntl = globalThis.Intl;
+
+    try {
+      Object.defineProperty(globalThis, 'Intl', {
+        configurable: true,
+        value: undefined,
+      });
+
+      expect(countPostComposerBodyTextCharacters('👍🏽')).toBe(1);
+      expect(countPostComposerBodyTextCharacters('👨‍👩‍👧‍👦')).toBe(1);
+    } finally {
+      Object.defineProperty(globalThis, 'Intl', {
+        configurable: true,
+        value: originalIntl,
+      });
+    }
   });
 
   test('formats known createPost payload errors as viewer-safe copy', () => {
