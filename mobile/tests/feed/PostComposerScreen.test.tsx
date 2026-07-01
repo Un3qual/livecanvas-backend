@@ -358,6 +358,24 @@ describe('PostComposerScreen', () => {
     expect(createPostCommitCalls).toHaveLength(1);
   });
 
+  test('blocks cancel before rerender while createPost is in flight', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findHostNodeByProps(tree, {
+      accessibilityLabel: 'Post body',
+    })?.props.onChangeText?.('Do not hide this create');
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findPressableByText(tree, 'Post')?.props.onPress?.();
+    findPressableByText(tree, 'Cancel')?.props.onPress?.();
+
+    expect(backCalls).toEqual([]);
+
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    expect(findPressableByText(tree, 'Cancel')?.props.disabled).toBe(true);
+  });
+
   test('shows confirmation and returns home after successful creation', () => {
     let tree = renderWithHooks(createElement(PostComposerScreen));
 

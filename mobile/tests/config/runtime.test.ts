@@ -71,6 +71,10 @@ describe('routeHrefFromUrl', () => {
     );
   });
 
+  test('accepts the compose deep link route', () => {
+    expect(routeHrefFromUrl('livecanvas-mobile://compose')).toBe('/compose');
+  });
+
   test('accepts the diagnostics deep link route', () => {
     expect(routeHrefFromUrl('livecanvas-mobile://diagnostics')).toBe(
       '/diagnostics',
@@ -265,6 +269,27 @@ describe('resolveLandingHrefForAuth', () => {
       ),
     ).toBe('/sign-in?returnTo=%2Fdiagnostics');
   });
+
+  test('preserves compose deep links across auth routing', () => {
+    const snapshot = {
+      initialUrl: 'livecanvas-mobile://compose',
+      initialHref: '/compose',
+      landingHref: '/compose',
+      defaultHref: '/home',
+      bootSessionState: 'authenticated' as const,
+      resetReason: null,
+    };
+
+    expect(resolveLandingHrefForAuth(snapshot, 'authenticated')).toBe(
+      '/compose',
+    );
+    expect(
+      resolveLandingHrefForAuth(
+        { ...snapshot, bootSessionState: 'signed_out', defaultHref: '/sign-in' },
+        'unauthenticated',
+      ),
+    ).toBe('/sign-in?returnTo=%2Fcompose');
+  });
 });
 
 describe('auth return targets', () => {
@@ -291,6 +316,12 @@ describe('auth return targets', () => {
     );
   });
 
+  test('encodes compose return targets on auth routes', () => {
+    expect(authRouteHref('/sign-in', '/compose')).toBe(
+      '/sign-in?returnTo=%2Fcompose',
+    );
+  });
+
   test('reads only the first live-session return target', () => {
     expect(
       readAuthReturnToParam([
@@ -306,6 +337,10 @@ describe('auth return targets', () => {
 
   test('reads diagnostics return targets', () => {
     expect(readAuthReturnToParam('/diagnostics')).toBe('/diagnostics');
+  });
+
+  test('reads compose return targets', () => {
+    expect(readAuthReturnToParam('/compose')).toBe('/compose');
   });
 
   test('rejects external and auth-route return targets', () => {

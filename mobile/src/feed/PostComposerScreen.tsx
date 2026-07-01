@@ -183,6 +183,14 @@ export function PostComposerScreen() {
     });
   }
 
+  function handleCancel() {
+    if (isCreatePostInFlight || activeCreatePostRef.current) {
+      return;
+    }
+
+    router.back();
+  }
+
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
@@ -287,10 +295,9 @@ export function PostComposerScreen() {
 
         <View style={styles.actionRow}>
           <AppButton
+            disabled={isSubmitting}
             label="Cancel"
-            onPress={() => {
-              router.back();
-            }}
+            onPress={handleCancel}
             variant="secondary"
           />
           <AppButton
