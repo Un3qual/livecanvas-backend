@@ -15,6 +15,8 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
 
 - Source plan:
   `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
+- Task detail plan:
+  `docs/plans/mobile/2026-07-01-feed-section-refresh-pagination.md`
 - Track: `docs/plans/mobile/TRACK.md`
 - Current task: Task 4, add section refresh and pagination affordances.
 - Latest completed prerequisite:
@@ -45,6 +47,8 @@ Status: mobile feed/content product batch active; release-candidate QA deferred
 Implement Task 4 in
 `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`: add section
 refresh and pagination affordances for the home feed, stories, and replays.
+Use `docs/plans/mobile/2026-07-01-feed-section-refresh-pagination.md` as the
+task-level implementation plan.
 Keep the release-candidate checklist deferred until product explicitly resumes
 QA.
 
@@ -70,4 +74,5 @@ QA.
 ## Next Action
 
 Implement Task 4 in
-`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`.
+`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md` using
+`docs/plans/mobile/2026-07-01-feed-section-refresh-pagination.md`.

@@ -150,6 +150,9 @@ Evidence:
 - Modify: `mobile/src/feed/FeedHomeScreen.tsx`
 - Test: `mobile/tests/feed/FeedHomeScreen.test.tsx`
 
+Detailed task plan:
+- `docs/plans/mobile/2026-07-01-feed-section-refresh-pagination.md`
+
 Acceptance criteria:
 - [ ] Home feed, stories, and replays expose explicit load-more affordances when
       their Relay connections have a next page.
