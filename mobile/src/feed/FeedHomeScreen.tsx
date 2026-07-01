@@ -33,6 +33,13 @@ import {
   type FeedHomeScreenReportPostMutation,
 } from './feedHomeOperations';
 import {
+  createFeedHomePaginationState,
+  feedHomePaginationReducer,
+  selectFeedHomePageInfo,
+  type FeedHomePaginationPageInfo,
+  type FeedHomePaginationSection,
+} from './feedHomePagination';
+import {
   DEFAULT_REPORT_POST_REASON,
   canSubmitPostReport,
   createReportPostState,
@@ -53,6 +60,14 @@ type FeedHomePost = NonNullable<
   ReturnType<typeof readConnectionNodes<FeedHomePostNode>>[number]
 >;
 type FeedHomePostNode = FeedPostCardInput;
+
+type FeedHomeLoadMoreControl = {
+  readonly error: string | null;
+  readonly isLoading: boolean;
+  readonly label: string;
+  readonly onLoadMore: () => void;
+  readonly visible: boolean;
+};
 
 const styles = StyleSheet.create({
   screen: {
@@ -106,6 +121,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   reportPanel: {
+    gap: spacing.xs,
+  },
+  loadMorePanel: {
     gap: spacing.xs,
   },
 });
@@ -196,6 +214,14 @@ export function FeedHomeContent() {
     FEED_HOME_QUERY_VARIABLES,
     { fetchPolicy: 'store-and-network' },
   );
+  const [paginationState, dispatchPagination] = useReducer(
+    feedHomePaginationReducer,
+    createFeedHomePaginationState({
+      homeFeed: data.homeFeed?.pageInfo ?? null,
+      replays: data.replayFeed?.pageInfo ?? null,
+      stories: data.storyFeed?.pageInfo ?? null,
+    }),
+  );
 
   const currentSession = data.viewer?.currentLiveSession ?? null;
   const currentSessionId = currentSession?.id;
@@ -209,9 +235,47 @@ export function FeedHomeContent() {
     (session) => session.id !== currentSessionId,
   );
   const replaySessions = readConnectionNodes(data.replayFeed);
+  const storiesPageInfo = selectFeedHomePageInfo(paginationState, 'stories');
+  const homeFeedPageInfo = selectFeedHomePageInfo(
+    paginationState,
+    'homeFeed',
+  );
+  const replayPageInfo = selectFeedHomePageInfo(paginationState, 'replays');
+  const storiesLoadMoreControl = createLoadMoreControl({
+    error: paginationState.sections.stories.error,
+    isLoading: paginationState.sections.stories.isLoadingMore,
+    label: 'Load more stories',
+    onLoadMore: () => startLoadMore('stories'),
+    pageInfo: storiesPageInfo,
+  });
+  const homeFeedLoadMoreControl = createLoadMoreControl({
+    error: paginationState.sections.homeFeed.error,
+    isLoading: paginationState.sections.homeFeed.isLoadingMore,
+    label: 'Load more feed posts',
+    onLoadMore: () => startLoadMore('homeFeed'),
+    pageInfo: homeFeedPageInfo,
+  });
+  const liveNowLoadMoreControl: FeedHomeLoadMoreControl = {
+    error: null,
+    isLoading: false,
+    label: 'Load more live sessions',
+    onLoadMore: () => {},
+    visible: false,
+  };
+  const replayLoadMoreControl = createLoadMoreControl({
+    error: paginationState.sections.replays.error,
+    isLoading: paginationState.sections.replays.isLoadingMore,
+    label: 'Load more replays',
+    onLoadMore: () => startLoadMore('replays'),
+    pageInfo: replayPageInfo,
+  });
 
   function openLiveSession(session: LiveSessionSummary) {
     router.push(liveSessionHref(session.id));
+  }
+
+  function startLoadMore(section: FeedHomePaginationSection) {
+    dispatchPagination({ section, type: 'load_more_start' });
   }
 
   function reportPost(post: FeedHomePost) {
@@ -297,6 +361,7 @@ export function FeedHomeContent() {
 
       <PostSection
         emptyMessage="No stories are available yet."
+        loadMoreControl={storiesLoadMoreControl}
         onReportPost={reportPost}
         posts={stories}
         reportPostState={reportPostState}
@@ -306,6 +371,7 @@ export function FeedHomeContent() {
 
       <PostSection
         emptyMessage="No feed posts are available yet."
+        loadMoreControl={homeFeedLoadMoreControl}
         onReportPost={reportPost}
         posts={posts}
         reportPostState={reportPostState}
@@ -316,6 +382,7 @@ export function FeedHomeContent() {
       <LiveSessionSection
         buttonLabel="Watch live"
         emptyMessage="No live sessions are available right now."
+        loadMoreControl={liveNowLoadMoreControl}
         onOpen={openLiveSession}
         sessions={liveNowSessions}
         title="Live now"
@@ -324,6 +391,7 @@ export function FeedHomeContent() {
       <LiveSessionSection
         buttonLabel="Watch replay"
         emptyMessage="No replays are available yet."
+        loadMoreControl={replayLoadMoreControl}
         onOpen={openLiveSession}
         sessions={replaySessions}
         title="Replays"
@@ -389,6 +457,7 @@ function EmptySectionMessage({ message }: { message: string }) {
 
 function PostSection({
   emptyMessage,
+  loadMoreControl,
   onReportPost,
   posts,
   reportPostState,
@@ -396,6 +465,7 @@ function PostSection({
   viewerId,
 }: {
   emptyMessage: string;
+  loadMoreControl: FeedHomeLoadMoreControl;
   onReportPost: (post: FeedHomePost) => void;
   posts: ReadonlyArray<FeedHomePost>;
   reportPostState: ReportPostState;
@@ -417,6 +487,7 @@ function PostSection({
       ) : (
         <EmptySectionMessage message={emptyMessage} />
       )}
+      <FeedHomeLoadMoreControlView control={loadMoreControl} />
     </FeedHomeSection>
   );
 }
@@ -543,12 +614,14 @@ function MediaAssetRow({
 function LiveSessionSection({
   buttonLabel,
   emptyMessage,
+  loadMoreControl,
   onOpen,
   sessions,
   title,
 }: {
   buttonLabel: string;
   emptyMessage: string;
+  loadMoreControl: FeedHomeLoadMoreControl;
   onOpen: (session: LiveSessionSummary) => void;
   sessions: ReadonlyArray<LiveSessionSummary>;
   title: string;
@@ -567,6 +640,57 @@ function LiveSessionSection({
       ) : (
         <EmptySectionMessage message={emptyMessage} />
       )}
+      <FeedHomeLoadMoreControlView control={loadMoreControl} />
     </FeedHomeSection>
+  );
+}
+
+function createLoadMoreControl({
+  error,
+  isLoading,
+  label,
+  onLoadMore,
+  pageInfo,
+}: {
+  error: string | null;
+  isLoading: boolean;
+  label: string;
+  onLoadMore: () => void;
+  pageInfo: FeedHomePaginationPageInfo;
+}): FeedHomeLoadMoreControl {
+  return {
+    error,
+    isLoading,
+    label,
+    onLoadMore,
+    visible: pageInfo.hasNextPage && pageInfo.endCursor !== null,
+  };
+}
+
+function FeedHomeLoadMoreControlView({
+  control,
+}: {
+  control: FeedHomeLoadMoreControl;
+}) {
+  const theme = useAppTheme();
+
+  if (!control.visible) {
+    return null;
+  }
+
+  return (
+    <View style={styles.loadMorePanel}>
+      <AppButton
+        disabled={control.isLoading}
+        label={control.isLoading ? 'Loading...' : control.label}
+        onPress={control.onLoadMore}
+        variant="secondary"
+      />
+      {control.error ? (
+        <Text style={[styles.metadataText, { color: theme.colors.error }]}>
+          {control.error}
+        </Text>
+      ) : null}
+    </View>
   );
 }

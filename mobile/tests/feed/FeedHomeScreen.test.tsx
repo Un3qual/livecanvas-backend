@@ -398,6 +398,66 @@ describe('FeedHomeScreen', () => {
     ]);
   });
 
+  test('shows section load-more controls only for paginated content sections', () => {
+    queryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection(
+        [
+          post({
+            bodyText: 'First public post',
+            id: 'post-1',
+            kind: 'STANDARD',
+          }),
+        ],
+        { endCursor: 'home-cursor', hasNextPage: true },
+      ),
+      liveNow: connection(
+        [
+          liveSession({
+            hostEmail: 'viewer-host@example.com',
+            id: 'viewer-live',
+          }),
+          liveSession({
+            hostEmail: 'live-host@example.com',
+            id: 'live-1',
+          }),
+        ],
+        { endCursor: 'live-cursor', hasNextPage: true },
+      ),
+      replayFeed: connection(
+        [
+          liveSession({
+            endedAt: '2026-06-30T18:00:00Z',
+            hostEmail: 'replay-host@example.com',
+            id: 'replay-1',
+            status: 'ENDED',
+          }),
+        ],
+        { endCursor: 'replay-cursor', hasNextPage: true },
+      ),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+
+    const tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(findPressablesByText(tree, 'Load more stories')).toHaveLength(1);
+    expect(findPressablesByText(tree, 'Load more feed posts')).toHaveLength(1);
+    expect(findPressablesByText(tree, 'Load more replays')).toHaveLength(1);
+    expect(findPressablesByText(tree, 'Load more live sessions')).toHaveLength(
+      0,
+    );
+  });
+
   test('keeps host, profile, and diagnostics actions reachable from home', () => {
     expect(shouldShowFeedHomeHostAction(null)).toBe(true);
     expect(shouldShowFeedHomeHostAction({ id: 'live-1' })).toBe(false);
@@ -612,12 +672,16 @@ function createFilledQueryData(): FeedHomeQueryData {
   };
 }
 
-function connection<Node>(nodes: ReadonlyArray<Node>): Connection<Node> {
+function connection<Node>(
+  nodes: ReadonlyArray<Node>,
+  pageInfo: Partial<NonNullable<Connection<Node>['pageInfo']>> = {},
+): Connection<Node> {
   return {
     edges: nodes.map((node) => ({ node })),
     pageInfo: {
       endCursor: nodes.length > 0 ? 'cursor' : null,
       hasNextPage: false,
+      ...pageInfo,
     },
   };
 }
