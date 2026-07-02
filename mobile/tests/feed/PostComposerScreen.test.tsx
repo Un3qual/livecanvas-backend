@@ -168,6 +168,7 @@ mock.module('react-native', () => ({
   }) {
     return createElement('Pressable', props, children);
   },
+  RefreshControl: NativeComponent,
   ScrollView: NativeComponent,
   StyleSheet: {
     create: <Styles,>(styles: Styles): Styles => styles,
@@ -239,6 +240,7 @@ mock.module('../../src/theme/tokens', () => ({
   },
 }));
 
+const mockedReactNative = await import('react-native');
 const composerScreen = await import('../../src/feed/PostComposerScreen');
 const composeRoute = await import('../../app/(app)/compose');
 
@@ -255,6 +257,10 @@ beforeEach(() => {
 });
 
 describe('PostComposerScreen', () => {
+  test('keeps the local react-native mock compatible with feed refresh imports', () => {
+    expect(mockedReactNative.RefreshControl).toBe(NativeComponent);
+  });
+
   test('keeps compose route pointed at the post composer screen', () => {
     const tree = renderWithHooks(createElement(composeRoute.default));
     const text = collectText(tree);
