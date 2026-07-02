@@ -70,6 +70,23 @@ type LiveSessionNode = {
 
 type QueryVariables = Record<string, unknown>;
 
+type FetchQueryCall = { readonly variables: QueryVariables };
+type FetchQueryImplementation = (
+  variables: QueryVariables,
+) => Promise<FeedHomeQueryData | null | undefined>;
+type EffectCleanup = () => void;
+type EffectCallback = () => EffectCleanup | undefined;
+type EffectState = {
+  cleanup?: () => void;
+  deps?: readonly unknown[];
+  kind: 'effect';
+};
+type Deferred<Value> = {
+  promise: Promise<Value>;
+  reject: (error: unknown) => void;
+  resolve: (value: Value) => void;
+};
+
 type ReportPostMutationConfig = {
   readonly variables: {
     readonly input: {
@@ -97,6 +114,10 @@ type ReportPostMutationConfig = {
 };
 
 type HookDispatcher = {
+  useEffect: (
+    effect: EffectCallback,
+    deps?: readonly unknown[],
+  ) => void;
   useReducer: <State, Action>(
     reducer: (state: State, action: Action) => State,
     initialArg: State,
@@ -109,13 +130,16 @@ type HookDispatcher = {
 
 let queryData: FeedHomeQueryData;
 let queryVariables: QueryVariables | null;
+let fetchQueryCalls: FetchQueryCall[];
+let fetchQueryImplementation: FetchQueryImplementation | null;
+let fetchQueryResult: FeedHomeQueryData;
 let mutationCommits: ReportPostMutationConfig[];
 let pushedRoutes: unknown[];
 let hookIndex = 0;
 let hookStates: unknown[] = [];
 
-// This focused renderer replaces React's hook dispatcher. It only supports
-// useState, useReducer, and useRef, each consuming the next state slot in order.
+// This focused renderer replaces React's hook dispatcher. It only supports the
+// small hook set FeedHomeContent uses, each consuming the next state slot.
 const reactInternals = (
   await import('react')
 ).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE as {
@@ -210,6 +234,14 @@ function LiveSessionSummaryCardMock({
 }
 
 mock.module('expo-router', () => ({
+  Redirect: function RedirectMock(_props: { href: string }) {
+    return null;
+  },
+  Stack: function StackMock(_props: { initialRouteName?: string }) {
+    return null;
+  },
+  useLocalSearchParams: () => ({}),
+  usePathname: () => '/home',
   useRouter: () => ({
     push: (route: unknown) => {
       pushedRoutes.push(route);
@@ -237,6 +269,7 @@ mock.module('react-native', () => ({
   }) {
     return createElement('Pressable', props, children);
   },
+  RefreshControl: NativeComponent,
   ScrollView: NativeComponent,
   StyleSheet: {
     create: <Styles,>(styles: Styles): Styles => styles,
@@ -255,6 +288,20 @@ mock.module('react-native', () => ({
 }));
 
 mock.module('react-relay', () => ({
+  fetchQuery: (
+    _environment: unknown,
+    _query: unknown,
+    variables: QueryVariables,
+  ) => {
+    fetchQueryCalls.push({ variables });
+
+    return {
+      toPromise: () =>
+        fetchQueryImplementation
+          ? fetchQueryImplementation(variables)
+          : Promise.resolve(fetchQueryResult),
+    };
+  },
   graphql: (query: TemplateStringsArray) => query,
   useLazyLoadQuery: (
     _query: unknown,
@@ -263,6 +310,7 @@ mock.module('react-relay', () => ({
     queryVariables = variables;
     return queryData;
   },
+  useRelayEnvironment: () => ({ environment: 'relay' }),
   useMutation: () => [
     (config: ReportPostMutationConfig) => {
       mutationCommits.push(config);
@@ -291,6 +339,14 @@ mock.module('../../src/live/liveSessionNavigation', () => ({
     params: { sessionId },
     pathname: '/live-session',
   }),
+  readLiveSessionIdParam: (value?: string | string[]) => {
+    const raw = Array.isArray(value)
+      ? value.find((candidate) => candidate.trim().length > 0)
+      : value;
+    const trimmed = raw?.trim();
+
+    return trimmed && trimmed.length > 0 ? trimmed : null;
+  },
 }));
 mock.module('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
@@ -349,6 +405,9 @@ const {
 beforeEach(() => {
   queryData = createFilledQueryData();
   queryVariables = null;
+  fetchQueryCalls = [];
+  fetchQueryImplementation = null;
+  fetchQueryResult = createFilledQueryData();
   mutationCommits = [];
   pushedRoutes = [];
   hookIndex = 0;
@@ -361,9 +420,12 @@ describe('FeedHomeScreen', () => {
 
     expect(collectText(tree)).toContain('Home');
     expect(queryVariables).toEqual({
+      feedAfter: null,
       feedFirst: 10,
       liveFirst: 20,
+      replayAfter: null,
       replayFirst: 10,
+      storyAfter: null,
       storyFirst: 10,
     });
   });
@@ -395,15 +457,592 @@ describe('FeedHomeScreen', () => {
     ]);
   });
 
-  test('keeps host, profile, and diagnostics actions reachable from home', () => {
+  test('shows section load-more controls only for paginated content sections', () => {
+    queryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection(
+        [
+          post({
+            bodyText: 'First public post',
+            id: 'post-1',
+            kind: 'STANDARD',
+          }),
+        ],
+        { endCursor: 'home-cursor', hasNextPage: true },
+      ),
+      liveNow: connection(
+        [
+          liveSession({
+            hostEmail: 'viewer-host@example.com',
+            id: 'viewer-live',
+          }),
+          liveSession({
+            hostEmail: 'live-host@example.com',
+            id: 'live-1',
+          }),
+        ],
+        { endCursor: 'live-cursor', hasNextPage: true },
+      ),
+      replayFeed: connection(
+        [
+          liveSession({
+            endedAt: '2026-06-30T18:00:00Z',
+            hostEmail: 'replay-host@example.com',
+            id: 'replay-1',
+            status: 'ENDED',
+          }),
+        ],
+        { endCursor: 'replay-cursor', hasNextPage: true },
+      ),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+
+    const tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(findPressablesByText(tree, 'Load more stories')).toHaveLength(1);
+    expect(findPressablesByText(tree, 'Load more feed posts')).toHaveLength(1);
+    expect(findPressablesByText(tree, 'Load more replays')).toHaveLength(1);
+    expect(findPressablesByText(tree, 'Load more live sessions')).toHaveLength(
+      0,
+    );
+  });
+
+  test('loads older story pages with section cursors without blocking live rows', async () => {
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryResult = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Older story',
+            expiresAt: '2026-07-01T15:15:30Z',
+            id: 'story-2',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor-2', hasNextPage: false },
+      ),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('live-host@example.com');
+    expect(fetchQueryCalls[0].variables).toMatchObject({
+      feedAfter: null,
+      replayAfter: null,
+      storyAfter: 'story-cursor',
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Older story');
+    expect(findPressablesByText(tree, 'Load more stories')).toHaveLength(0);
+  });
+
+  test('syncs load-more controls when Relay delivers newer query pageInfo', () => {
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: null, hasNextPage: false },
+      ),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(findPressablesByText(tree, 'Load more stories')).toHaveLength(0);
+
+    queryData = {
+      ...queryData,
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-network-cursor', hasNextPage: true },
+      ),
+    };
+
+    renderWithHooks(createElement(FeedHomeContent));
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(findPressablesByText(tree, 'Load more stories')).toHaveLength(1);
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+
+    expect(fetchQueryCalls[0].variables).toMatchObject({
+      storyAfter: 'story-network-cursor',
+    });
+  });
+
+  test('blocks duplicate load-more taps before rerender', () => {
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryImplementation = (_variables) => new Promise(() => undefined);
+
+    const tree = renderWithHooks(createElement(FeedHomeContent));
+    const loadMoreStories = findPressableByText(tree, 'Load more stories');
+
+    loadMoreStories?.props.onPress?.();
+    loadMoreStories?.props.onPress?.();
+
+    expect(fetchQueryCalls).toHaveLength(1);
+  });
+
+  test('blocks load-more while refresh is in flight before rerender', () => {
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryImplementation = (_variables) => new Promise(() => undefined);
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    getRefreshControl(tree).props.onRefresh?.();
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+
+    expect(fetchQueryCalls).toHaveLength(1);
+    expect(fetchQueryCalls[0].variables).toMatchObject({
+      storyAfter: null,
+    });
+
+    tree = renderWithHooks(createElement(FeedHomeContent));
+    expect(findPressableByText(tree, 'Loading...')?.props.disabled).toBe(true);
+  });
+
+  test('keeps in-flight load-more requests active across query pageInfo sync', async () => {
+    const secondLoadMoreDeferred =
+      createDeferred<FeedHomeQueryData | null | undefined>();
+
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryImplementation = (variables) =>
+      variables.storyAfter === 'story-cursor-2'
+        ? secondLoadMoreDeferred.promise
+        : Promise.resolve({
+            ...createFilledQueryData(),
+            storyFeed: connection(
+              [
+                post({
+                  bodyText: 'Older story',
+                  expiresAt: '2026-07-01T15:15:30Z',
+                  id: 'story-2',
+                  kind: 'STORY',
+                }),
+              ],
+              { endCursor: 'story-cursor-2', hasNextPage: true },
+            ),
+          });
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Older story');
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+    queryData = {
+      ...queryData,
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-network-cursor', hasNextPage: true },
+      ),
+    };
+
+    renderWithHooks(createElement(FeedHomeContent));
+    secondLoadMoreDeferred.resolve({
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Second older story',
+            expiresAt: '2026-07-01T14:15:30Z',
+            id: 'story-3',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: null, hasNextPage: false },
+      ),
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    const text = collectText(tree);
+    expect(text).toContain('Second older story');
+    expect(text).not.toContain('Loading...');
+  });
+
+  test('clears stale load-more request refs when the base page changes', () => {
+    const staleLoadMoreDeferred =
+      createDeferred<FeedHomeQueryData | null | undefined>();
+
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryImplementation = (variables) =>
+      variables.storyAfter === 'story-cursor'
+        ? staleLoadMoreDeferred.promise
+        : Promise.resolve({
+            ...createFilledQueryData(),
+            storyFeed: connection(
+              [
+                post({
+                  bodyText: 'Older story from new window',
+                  expiresAt: '2026-07-01T16:15:30Z',
+                  id: 'story-new-older',
+                  kind: 'STORY',
+                }),
+              ],
+              { endCursor: null, hasNextPage: false },
+            ),
+          });
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+
+    expect(fetchQueryCalls).toHaveLength(1);
+    expect(fetchQueryCalls[0].variables).toMatchObject({
+      storyAfter: 'story-cursor',
+    });
+
+    queryData = {
+      ...queryData,
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'New base story',
+            expiresAt: '2026-07-01T18:15:30Z',
+            id: 'story-new-base',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-network-cursor', hasNextPage: true },
+      ),
+    };
+
+    renderWithHooks(createElement(FeedHomeContent));
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('New base story');
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+
+    expect(fetchQueryCalls).toHaveLength(2);
+    expect(fetchQueryCalls[1].variables).toMatchObject({
+      storyAfter: 'story-network-cursor',
+    });
+  });
+
+  test('drops retained older feed posts when the base page changes', async () => {
+    queryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection(
+        [
+          post({
+            bodyText: 'First public post',
+            id: 'post-1',
+            kind: 'STANDARD',
+          }),
+        ],
+        { endCursor: 'home-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryResult = {
+      ...createFilledQueryData(),
+      homeFeed: connection(
+        [
+          post({
+            bodyText: 'Older public post',
+            id: 'post-2',
+            kind: 'STANDARD',
+          }),
+        ],
+        { endCursor: null, hasNextPage: false },
+      ),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Load more feed posts')?.props.onPress?.();
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Older public post');
+
+    queryData = {
+      ...queryData,
+      homeFeed: connection(
+        [
+          post({
+            bodyText: 'New top public post',
+            id: 'post-0',
+            kind: 'STANDARD',
+          }),
+          post({
+            bodyText: 'First public post',
+            id: 'post-1',
+            kind: 'STANDARD',
+          }),
+        ],
+        { endCursor: 'new-home-cursor', hasNextPage: true },
+      ),
+    };
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    const text = collectText(tree);
+    expect(text).toContain('New top public post');
+    expect(text).not.toContain('Older public post');
+  });
+
+  test('ignores stale load-more responses after refresh succeeds', async () => {
+    const loadMoreDeferred =
+      createDeferred<FeedHomeQueryData | null | undefined>();
+    const refreshDeferred = createDeferred<FeedHomeQueryData | null | undefined>();
+
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryImplementation = (variables) =>
+      variables.storyAfter === 'story-cursor'
+        ? loadMoreDeferred.promise
+        : refreshDeferred.promise;
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+    getRefreshControl(tree).props.onRefresh?.();
+    refreshDeferred.resolve({
+      ...createFilledQueryData(),
+      storyFeed: connection([
+        post({
+          bodyText: 'Refreshed story',
+          expiresAt: '2026-07-01T18:15:30Z',
+          id: 'story-refreshed',
+          kind: 'STORY',
+        }),
+      ]),
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Refreshed story');
+
+    loadMoreDeferred.resolve({
+      ...createFilledQueryData(),
+      storyFeed: connection([
+        post({
+          bodyText: 'Stale older story',
+          expiresAt: '2026-07-01T15:15:30Z',
+          id: 'story-stale',
+          kind: 'STORY',
+        }),
+      ]),
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).not.toContain('Stale older story');
+  });
+
+  test('ignores stale refresh responses when refreshes overlap', async () => {
+    const firstRefreshDeferred =
+      createDeferred<FeedHomeQueryData | null | undefined>();
+    const secondRefreshDeferred =
+      createDeferred<FeedHomeQueryData | null | undefined>();
+    let refreshCount = 0;
+
+    fetchQueryImplementation = (_variables) => {
+      refreshCount += 1;
+
+      return refreshCount === 1
+        ? firstRefreshDeferred.promise
+        : secondRefreshDeferred.promise;
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+    const refreshControl = getRefreshControl(tree);
+
+    refreshControl.props.onRefresh?.();
+    refreshControl.props.onRefresh?.();
+    secondRefreshDeferred.resolve({
+      ...createFilledQueryData(),
+      storyFeed: connection([
+        post({
+          bodyText: 'Newest refreshed story',
+          expiresAt: '2026-07-01T18:30:00Z',
+          id: 'story-newest',
+          kind: 'STORY',
+        }),
+      ]),
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Newest refreshed story');
+
+    firstRefreshDeferred.resolve({
+      ...createFilledQueryData(),
+      storyFeed: connection([
+        post({
+          bodyText: 'Stale refreshed story',
+          expiresAt: '2026-07-01T18:00:00Z',
+          id: 'story-stale-refresh',
+          kind: 'STORY',
+        }),
+      ]),
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Newest refreshed story');
+    expect(collectText(tree)).not.toContain('Stale refreshed story');
+  });
+
+  test('keeps compose, host, profile, and diagnostics actions reachable from home', () => {
     expect(shouldShowFeedHomeHostAction(null)).toBe(true);
     expect(shouldShowFeedHomeHostAction({ id: 'live-1' })).toBe(false);
 
     expect(createFeedHomeActions(true)).toEqual([
       {
+        key: 'compose',
+        label: 'Create post',
+        route: '/compose',
+        variant: 'primary',
+      },
+      {
         key: 'host',
         label: 'Host a live session',
         route: '/host-broadcast',
+        variant: 'primary',
+      },
+      {
+        key: 'profile',
+        label: 'Open profile',
+        route: '/profile',
+        variant: 'secondary',
+      },
+      {
+        key: 'diagnostics',
+        label: 'Diagnostics',
+        route: '/diagnostics',
+        variant: 'secondary',
+      },
+    ]);
+
+    expect(createFeedHomeActions(false)).toEqual([
+      {
+        key: 'compose',
+        label: 'Create post',
+        route: '/compose',
         variant: 'primary',
       },
       {
@@ -427,10 +1066,16 @@ describe('FeedHomeScreen', () => {
           routes.push(route);
         },
       },
-      { route: '/diagnostics' },
+      { route: '/compose' },
     );
 
-    expect(routes).toEqual(['/diagnostics']);
+    expect(routes).toEqual(['/compose']);
+
+    const tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Create post')?.props.onPress?.();
+
+    expect(pushedRoutes).toEqual(['/compose']);
   });
 
   test('renders section-specific empty states', () => {
@@ -533,6 +1178,132 @@ describe('FeedHomeScreen', () => {
     expect(text).not.toContain('Report reason: SPAM');
   });
 
+  test('refreshes the home query without clearing local report confirmation', async () => {
+    queryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          bodyText: 'First public post',
+          id: 'post-1',
+          kind: 'STANDARD',
+        }),
+      ]),
+    };
+    fetchQueryResult = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          bodyText: 'First public post',
+          id: 'post-1',
+          kind: 'STANDARD',
+        }),
+        post({
+          bodyText: 'Refreshed public post',
+          id: 'post-2',
+          kind: 'STANDARD',
+        }),
+      ]),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Report post')?.props.onPress?.();
+
+    expect(mutationCommits).toHaveLength(1);
+
+    mutationCommits[0].onCompleted?.({
+      reportPost: {
+        errors: [],
+        report: {
+          id: 'report-1',
+          insertedAt: '2026-06-30T18:15:30Z',
+          postId: 'post-1',
+          reason: 'SPAM',
+          status: 'OPEN',
+        },
+      },
+    });
+
+    tree = renderWithHooks(createElement(FeedHomeContent));
+    expect(collectText(tree)).toContain('Report submitted.');
+
+    getRefreshControl(tree).props.onRefresh?.();
+
+    expect(fetchQueryCalls[0].variables).toMatchObject({
+      feedAfter: null,
+      replayAfter: null,
+      storyAfter: null,
+    });
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    const text = collectText(tree);
+    expect(text).toContain('Report submitted.');
+    expect(text).toContain('Refreshed public post');
+  });
+
+  test('keeps Relay query updates visible after a manual refresh', async () => {
+    queryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          bodyText: 'First public post',
+          id: 'post-1',
+          kind: 'STANDARD',
+        }),
+      ]),
+    };
+    fetchQueryResult = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          bodyText: 'Refreshed public post',
+          id: 'post-2',
+          kind: 'STANDARD',
+        }),
+      ]),
+    };
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    getRefreshControl(tree).props.onRefresh?.();
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Refreshed public post');
+
+    queryData = {
+      ...queryData,
+      homeFeed: connection([
+        post({
+          bodyText: 'Relay live public post',
+          id: 'post-3',
+          kind: 'STANDARD',
+        }),
+      ]),
+    };
+
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    const text = collectText(tree);
+    expect(text).toContain('Relay live public post');
+    expect(text).not.toContain('Refreshed public post');
+  });
+
+  test('surfaces refresh failures to the viewer', async () => {
+    fetchQueryImplementation = (_variables) =>
+      Promise.reject(new Error('offline'));
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+    getRefreshControl(tree).props.onRefresh?.();
+
+    await Promise.resolve();
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('Could not refresh home.');
+  });
+
   test('blocks duplicate report taps and leaves payload errors retryable', () => {
     queryData = {
       ...createFilledQueryData(),
@@ -609,14 +1380,50 @@ function createFilledQueryData(): FeedHomeQueryData {
   };
 }
 
-function connection<Node>(nodes: ReadonlyArray<Node>): Connection<Node> {
+function connection<Node>(
+  nodes: ReadonlyArray<Node>,
+  pageInfo: Partial<NonNullable<Connection<Node>['pageInfo']>> = {},
+): Connection<Node> {
   return {
     edges: nodes.map((node) => ({ node })),
     pageInfo: {
       endCursor: nodes.length > 0 ? 'cursor' : null,
       hasNextPage: false,
+      ...pageInfo,
     },
   };
+}
+
+function createDeferred<Value>(): Deferred<Value> {
+  let resolveDeferred: ((value: Value) => void) | null = null;
+  let rejectDeferred: ((error: unknown) => void) | null = null;
+  const promise = new Promise<Value>((resolve, reject) => {
+    resolveDeferred = resolve;
+    rejectDeferred = reject;
+  });
+
+  if (resolveDeferred === null || rejectDeferred === null) {
+    throw new Error('Expected deferred promise handlers to be initialized.');
+  }
+
+  return {
+    promise,
+    reject: rejectDeferred,
+    resolve: resolveDeferred,
+  };
+}
+
+function getRefreshControl(
+  tree: RenderedTree,
+): ReactElement<{ onRefresh?: () => void }> {
+  const scrollView = findHostNodeByType(tree, 'NativeComponent');
+  const refreshControl = scrollView?.props.refreshControl;
+
+  if (!isValidElement<{ onRefresh?: () => void }>(refreshControl)) {
+    throw new Error('Expected ScrollView to receive a RefreshControl.');
+  }
+
+  return refreshControl;
 }
 
 function post(overrides: Partial<PostNode> = {}): PostNode {
@@ -673,6 +1480,28 @@ function renderWithHooks(node: ReactNode): RenderedTree {
   hookIndex = 0;
   const previousDispatcher = reactInternals.H;
   reactInternals.H = {
+    useEffect: (effect, deps) => {
+      const currentIndex = hookIndex;
+      const previousState = hookStates[currentIndex];
+      const previousEffectState = isEffectState(previousState)
+        ? previousState
+        : null;
+      const shouldRun =
+        previousEffectState === null ||
+        !areHookDepsEqual(previousEffectState.deps, deps);
+
+      if (shouldRun) {
+        previousEffectState?.cleanup?.();
+        const cleanup = effect();
+        hookStates[currentIndex] = {
+          cleanup: typeof cleanup === 'function' ? cleanup : undefined,
+          deps,
+          kind: 'effect',
+        } satisfies EffectState;
+      }
+
+      hookIndex += 1;
+    },
     useReducer: <State, Action>(
       reducer: (state: State, action: Action) => State,
       initialArg: State,
@@ -740,6 +1569,25 @@ function renderWithHooks(node: ReactNode): RenderedTree {
   } finally {
     reactInternals.H = previousDispatcher;
   }
+}
+
+function isEffectState(value: unknown): value is EffectState {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { kind?: unknown }).kind === 'effect'
+  );
+}
+
+function areHookDepsEqual(
+  left: readonly unknown[] | undefined,
+  right: readonly unknown[] | undefined,
+): boolean {
+  if (left === undefined || right === undefined || left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((value, index) => Object.is(value, right[index]));
 }
 
 function renderNode(node: ReactNode): RenderedTree {
@@ -819,6 +1667,33 @@ function collectText(tree: RenderedTree): string[] {
   }
 
   return tree.children.flatMap((child) => collectText(child));
+}
+
+function findHostNodeByType(
+  tree: RenderedTree,
+  type: string,
+): HostNode | null {
+  if (tree === null || typeof tree === 'string') {
+    return null;
+  }
+
+  if (Array.isArray(tree)) {
+    for (const child of tree) {
+      const match = findHostNodeByType(child, type);
+
+      if (match) {
+        return match;
+      }
+    }
+
+    return null;
+  }
+
+  if (tree.type === type) {
+    return tree;
+  }
+
+  return findHostNodeByType(tree.children, type);
 }
 
 function findPressableByText(

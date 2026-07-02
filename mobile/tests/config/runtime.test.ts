@@ -15,10 +15,15 @@ type ModalElement = ReactElement<{
   sessionId?: string;
 }> | null;
 
+let appPathname = '/home';
 let modalAuthStatus: ModalAuthStatus = 'authenticated';
 let modalSearchParams: { sessionId?: string | string[] } = {};
 
 function RedirectMock(_props: { href: string }) {
+  return null;
+}
+
+function StackMock(_props: { initialRouteName?: string }) {
   return null;
 }
 
@@ -32,7 +37,9 @@ function LiveSessionWatchScreenMock(_props: { sessionId: string }) {
 
 mock.module('expo-router', () => ({
   Redirect: RedirectMock,
+  Stack: StackMock,
   useLocalSearchParams: () => modalSearchParams,
+  usePathname: () => appPathname,
   useRouter: () => ({ push: () => undefined }),
 }));
 
@@ -48,6 +55,7 @@ mock.module('../../src/live/watch/LiveSessionWatchScreen', () => ({
   LiveSessionWatchScreen: LiveSessionWatchScreenMock,
 }));
 
+const { default: AppLayout } = await import('../../app/(app)/_layout');
 const { default: LiveSessionModal } = await import(
   '../../app/(modals)/live-session'
 );
@@ -69,6 +77,10 @@ describe('routeHrefFromUrl', () => {
     expect(routeHrefFromUrl('livecanvas-mobile://host-broadcast')).toBe(
       '/host-broadcast',
     );
+  });
+
+  test('accepts the compose deep link route', () => {
+    expect(routeHrefFromUrl('livecanvas-mobile://compose')).toBe('/compose');
   });
 
   test('accepts the diagnostics deep link route', () => {
@@ -265,6 +277,27 @@ describe('resolveLandingHrefForAuth', () => {
       ),
     ).toBe('/sign-in?returnTo=%2Fdiagnostics');
   });
+
+  test('preserves compose deep links across auth routing', () => {
+    const snapshot = {
+      initialUrl: 'livecanvas-mobile://compose',
+      initialHref: '/compose',
+      landingHref: '/compose',
+      defaultHref: '/home',
+      bootSessionState: 'authenticated' as const,
+      resetReason: null,
+    };
+
+    expect(resolveLandingHrefForAuth(snapshot, 'authenticated')).toBe(
+      '/compose',
+    );
+    expect(
+      resolveLandingHrefForAuth(
+        { ...snapshot, bootSessionState: 'signed_out', defaultHref: '/sign-in' },
+        'unauthenticated',
+      ),
+    ).toBe('/sign-in?returnTo=%2Fcompose');
+  });
 });
 
 describe('auth return targets', () => {
@@ -291,6 +324,12 @@ describe('auth return targets', () => {
     );
   });
 
+  test('encodes compose return targets on auth routes', () => {
+    expect(authRouteHref('/sign-in', '/compose')).toBe(
+      '/sign-in?returnTo=%2Fcompose',
+    );
+  });
+
   test('reads only the first live-session return target', () => {
     expect(
       readAuthReturnToParam([
@@ -308,10 +347,26 @@ describe('auth return targets', () => {
     expect(readAuthReturnToParam('/diagnostics')).toBe('/diagnostics');
   });
 
+  test('reads compose return targets', () => {
+    expect(readAuthReturnToParam('/compose')).toBe('/compose');
+  });
+
   test('rejects external and auth-route return targets', () => {
     expect(readAuthReturnToParam('https://example.com')).toBeNull();
     expect(readAuthReturnToParam('/sign-in')).toBeNull();
     expect(readAuthReturnToParam('/profile')).toBeNull();
+  });
+});
+
+describe('AppLayout auth guard', () => {
+  test('preserves direct compose routes through unauthenticated app redirects', () => {
+    modalAuthStatus = 'unauthenticated';
+    appPathname = '/compose';
+
+    const element = AppLayout() as ModalElement;
+
+    expect(element?.type).toBe(RedirectMock);
+    expect(element?.props.href).toBe('/sign-in?returnTo=%2Fcompose');
   });
 });
 

@@ -150,14 +150,17 @@ Evidence:
 - Modify: `mobile/src/feed/FeedHomeScreen.tsx`
 - Test: `mobile/tests/feed/FeedHomeScreen.test.tsx`
 
+Detailed task plan:
+- `docs/plans/mobile/2026-07-01-feed-section-refresh-pagination.md`
+
 Acceptance criteria:
-- [ ] Home feed, stories, and replays expose explicit load-more affordances when
+- [x] Home feed, stories, and replays expose explicit load-more affordances when
       their Relay connections have a next page.
-- [ ] Loading older content is section-scoped and does not block live-now or the
+- [x] Loading older content is section-scoped and does not block live-now or the
       viewer current-session card.
-- [ ] Pull-to-refresh or retry refreshes the combined home query without losing
+- [x] Pull-to-refresh or retry refreshes the combined home query without losing
       already visible local report confirmation state.
-- [ ] Pagination uses Relay cursors and never constructs offsets or decodes
+- [x] Pagination uses Relay cursors and never constructs offsets or decodes
       Relay IDs client-side.
 
 Implementation notes:
@@ -170,6 +173,16 @@ Implementation notes:
 Focused verification:
 - From `mobile/`: `bun test tests/feed/FeedHomeScreen.test.tsx`
 
+Evidence:
+- 2026-07-01: `bun test tests/feed/feedHomePagination.test.ts tests/feed/FeedHomeScreen.test.tsx`
+  passes with 13 tests after section-scoped cursor loading and refresh.
+- 2026-07-01: `bun test tests/feed/feedPresentation.test.ts tests/feed/reportPostReducer.test.ts tests/feed/feedHomePagination.test.ts tests/feed/FeedHomeScreen.test.tsx`
+  passes with 20 feed tests.
+- 2026-07-01: `bun run relay` completes with no generated file changes after
+  the feed home cursor variable extraction.
+- 2026-07-01: `bun run typecheck` and `bun run test:quality` pass after
+  normalizing Relay page info and shared test mocks for refresh/fetch imports.
+
 ### Task 5: Close the lane batch
 
 **Files:**
@@ -181,11 +194,19 @@ Focused verification:
   - `docs/plans/INDEX.md`
 
 Acceptance criteria:
-- [ ] Completed tasks are checked off with concise evidence.
-- [ ] The lane either promotes the next non-QA product batch or explicitly marks
-      mobile product direction needed.
-- [ ] Release-candidate manual QA remains deferred unless product explicitly
+- [x] Completed tasks are checked off with concise evidence.
+- [x] The lane promotes the next non-QA product batch: mobile post composition
+      over the existing `createPost` GraphQL contract.
+- [x] Release-candidate manual QA remains deferred unless product explicitly
       resumes it.
+
+Evidence:
+- 2026-07-01: Tasks 1-4 were already complete with focused feed evidence,
+  Relay codegen evidence, `bun run typecheck`, and `bun run test:quality`.
+- 2026-07-01: Close-out verified `docs/plans/mobile/NOW.md` was stale on Task 4,
+  archived the completed feed/content plans, and promoted
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md` as the next mobile
+  product batch.
 
 ## Final Verification
 
@@ -193,7 +214,9 @@ From `mobile/`:
 
 - `bun test tests/feed/feedPresentation.test.ts`
 - `bun test tests/feed/reportPostReducer.test.ts`
+- `bun test tests/feed/feedHomePagination.test.ts`
 - `bun test tests/feed/FeedHomeScreen.test.tsx`
+- `bun run relay`
 - `bun run test:quality`
 - `bun run typecheck`
 

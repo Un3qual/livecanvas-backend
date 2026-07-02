@@ -1,12 +1,25 @@
 import React, {
   Suspense,
+  useEffect,
   useReducer,
   useRef,
+  useState,
   type PropsWithChildren,
 } from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import {
+  fetchQuery,
+  useLazyLoadQuery,
+  useMutation,
+  useRelayEnvironment,
+} from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
@@ -26,6 +39,21 @@ import {
   type FeedPostCardInput,
 } from './feedPresentation';
 import {
+  FEED_HOME_QUERY_VARIABLES,
+  feedHomeScreenQuery,
+  feedHomeScreenReportPostMutation,
+  type FeedHomeScreenQuery,
+  type FeedHomeScreenReportPostMutation,
+} from './feedHomeOperations';
+import {
+  createFeedHomePaginationState,
+  feedHomePaginationReducer,
+  selectFeedHomePageInfo,
+  type FeedHomePaginationPageInfo,
+  type FeedHomePaginationSection,
+  type FeedHomePaginationSectionInput,
+} from './feedHomePagination';
+import {
   DEFAULT_REPORT_POST_REASON,
   canSubmitPostReport,
   createReportPostState,
@@ -34,20 +62,11 @@ import {
   reportPostReducer,
   type ReportPostState,
 } from './reportPostReducer';
-import type { FeedHomeScreenReportPostMutation } from '../__generated__/FeedHomeScreenReportPostMutation.graphql';
-import type { FeedHomeScreenQuery } from '../__generated__/FeedHomeScreenQuery.graphql';
-
-export const FEED_HOME_QUERY_VARIABLES = {
-  feedFirst: 10,
-  liveFirst: 20,
-  replayFirst: 10,
-  storyFirst: 10,
-} as const;
 
 type FeedHomeAction = {
-  key: 'host' | 'profile' | 'diagnostics';
+  key: 'compose' | 'host' | 'profile' | 'diagnostics';
   label: string;
-  route: '/host-broadcast' | '/profile' | '/diagnostics';
+  route: '/compose' | '/host-broadcast' | '/profile' | '/diagnostics';
   variant: 'primary' | 'secondary';
 };
 
@@ -55,6 +74,47 @@ type FeedHomePost = NonNullable<
   ReturnType<typeof readConnectionNodes<FeedHomePostNode>>[number]
 >;
 type FeedHomePostNode = FeedPostCardInput;
+type FeedHomeQueryResponse = FeedHomeScreenQuery['response'];
+
+type FeedHomeLoadMoreControl =
+  | {
+      readonly visible: false;
+    }
+  | {
+      readonly error: string | null;
+      readonly isLoading: boolean;
+      readonly label: string;
+      readonly onLoadMore: () => void;
+      readonly visible: true;
+    };
+
+type FeedHomeLoadMoreRequest = {
+  readonly basePageIdentity: string;
+  readonly cursor: string;
+  readonly id: number;
+  readonly section: FeedHomePaginationSection;
+};
+
+type FeedHomeLoadMoreRequestState = Record<
+  FeedHomePaginationSection,
+  FeedHomeLoadMoreRequest | null
+>;
+
+type FeedHomeRetainedRows<Node> = {
+  readonly basePageIdentity: string;
+  readonly rows: Node[];
+};
+
+type FeedHomeManualRefreshSnapshot = {
+  readonly data: FeedHomeQueryResponse;
+  readonly queryDataAtStart: FeedHomeQueryResponse;
+};
+
+const FEED_HOME_PAGINATION_SECTIONS = [
+  'homeFeed',
+  'replays',
+  'stories',
+] as const satisfies readonly FeedHomePaginationSection[];
 
 const styles = StyleSheet.create({
   screen: {
@@ -110,25 +170,10 @@ const styles = StyleSheet.create({
   reportPanel: {
     gap: spacing.xs,
   },
+  loadMorePanel: {
+    gap: spacing.xs,
+  },
 });
-
-const feedHomeScreenReportPostMutation = graphql`
-  mutation FeedHomeScreenReportPostMutation($input: ReportPostInput!) {
-    reportPost(input: $input) {
-      report {
-        id
-        postId
-        reason
-        status
-        insertedAt
-      }
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
 
 export function FeedHomeScreen() {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
@@ -166,6 +211,12 @@ export function createFeedHomeActions(
   showHostCreationAction: boolean,
 ): FeedHomeAction[] {
   return [
+    {
+      key: 'compose',
+      label: 'Create post',
+      route: '/compose',
+      variant: 'primary',
+    },
     ...(showHostCreationAction
       ? ([
           {
@@ -201,6 +252,7 @@ export function pushFeedHomeAction(
 export function FeedHomeContent() {
   const theme = useAppTheme();
   const router = useRouter();
+  const relayEnvironment = useRelayEnvironment();
   const [reportPostState, dispatchReportPost] = useReducer(
     reportPostReducer,
     createReportPostState(),
@@ -211,145 +263,432 @@ export function FeedHomeContent() {
   const [commitReportPost] = useMutation<FeedHomeScreenReportPostMutation>(
     feedHomeScreenReportPostMutation,
   );
+  const activeLoadMoreRequestRef = useRef<FeedHomeLoadMoreRequestState>({
+    homeFeed: null,
+    replays: null,
+    stories: null,
+  });
+  const loadMoreRequestIdRef = useRef(0);
+  const refreshRequestIdRef = useRef(0);
+  const activeRefreshRequestIdRef = useRef<number | null>(null);
   const data = useLazyLoadQuery<FeedHomeScreenQuery>(
-    graphql`
-      query FeedHomeScreenQuery(
-        $feedFirst: Int!
-        $liveFirst: Int!
-        $replayFirst: Int!
-        $storyFirst: Int!
-      ) {
-        viewer {
-          id
-          currentLiveSession {
-            id
-            channelTopic
-            status
-            visibility
-            insertedAt
-            startedAt
-            endedAt
-            host {
-              id
-              email
-            }
-          }
-        }
-        storyFeed(first: $storyFirst) {
-          edges {
-            node {
-              id
-              kind
-              bodyText
-              visibility
-              expiresAt
-              insertedAt
-              author {
-                id
-                email
-              }
-              mediaAssets {
-                id
-                mimeType
-                processingState
-                publicUrl
-              }
-            }
-          }
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-        }
-        homeFeed(first: $feedFirst) {
-          edges {
-            node {
-              id
-              kind
-              bodyText
-              visibility
-              expiresAt
-              insertedAt
-              author {
-                id
-                email
-              }
-              mediaAssets {
-                id
-                mimeType
-                processingState
-                publicUrl
-              }
-            }
-          }
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-        }
-        liveNow(first: $liveFirst) {
-          edges {
-            node {
-              id
-              channelTopic
-              status
-              visibility
-              insertedAt
-              startedAt
-              endedAt
-              host {
-                id
-                email
-              }
-            }
-          }
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-        }
-        replayFeed(first: $replayFirst) {
-          edges {
-            node {
-              id
-              channelTopic
-              status
-              visibility
-              insertedAt
-              startedAt
-              endedAt
-              host {
-                id
-                email
-              }
-            }
-          }
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-        }
-      }
-    `,
+    feedHomeScreenQuery,
     FEED_HOME_QUERY_VARIABLES,
     { fetchPolicy: 'store-and-network' },
   );
-
-  const currentSession = data.viewer?.currentLiveSession ?? null;
+  const [refreshedHomeData, setRefreshedHomeData] =
+    useState<FeedHomeManualRefreshSnapshot | null>(null);
+  const effectiveData =
+    refreshedHomeData !== null && data === refreshedHomeData.queryDataAtStart
+      ? refreshedHomeData.data
+      : data;
+  const currentSession = effectiveData.viewer?.currentLiveSession ?? null;
   const currentSessionId = currentSession?.id;
-  const viewerId = data.viewer?.id ?? null;
+  const viewerId = effectiveData.viewer?.id ?? null;
+  const stories = readConnectionNodes<FeedHomePost>(effectiveData.storyFeed);
+  const posts = readConnectionNodes<FeedHomePost>(effectiveData.homeFeed);
+  const liveNowSessions = readConnectionNodes<LiveSessionSummary>(
+    effectiveData.liveNow,
+  ).filter((session) => session.id !== currentSessionId);
+  const replaySessions = readConnectionNodes<LiveSessionSummary>(
+    effectiveData.replayFeed,
+  );
+  const storiesBasePageIdentity = createBasePageIdentity(stories);
+  const homeFeedBasePageIdentity = createBasePageIdentity(posts);
+  const replaysBasePageIdentity = createBasePageIdentity(replaySessions);
+  const [paginationState, dispatchPagination] = useReducer(
+    feedHomePaginationReducer,
+    createFeedHomePaginationState({
+      homeFeed: createSectionPageInfo(
+        normalizePageInfo(effectiveData.homeFeed?.pageInfo),
+        homeFeedBasePageIdentity,
+      ),
+      replays: createSectionPageInfo(
+        normalizePageInfo(effectiveData.replayFeed?.pageInfo),
+        replaysBasePageIdentity,
+      ),
+      stories: createSectionPageInfo(
+        normalizePageInfo(effectiveData.storyFeed?.pageInfo),
+        storiesBasePageIdentity,
+      ),
+    }),
+  );
+  const queryPageInfo = {
+    homeFeed: createSectionPageInfo(
+      normalizePageInfo(effectiveData.homeFeed?.pageInfo),
+      homeFeedBasePageIdentity,
+    ),
+    replays: createSectionPageInfo(
+      normalizePageInfo(effectiveData.replayFeed?.pageInfo),
+      replaysBasePageIdentity,
+    ),
+    stories: createSectionPageInfo(
+      normalizePageInfo(effectiveData.storyFeed?.pageInfo),
+      storiesBasePageIdentity,
+    ),
+  };
+  const queryHomeFeedEndCursor = queryPageInfo.homeFeed.endCursor;
+  const queryHomeFeedHasNextPage = queryPageInfo.homeFeed.hasNextPage;
+  const queryHomeFeedBasePageIdentity =
+    queryPageInfo.homeFeed.basePageIdentity ?? '';
+  const queryReplaysEndCursor = queryPageInfo.replays.endCursor;
+  const queryReplaysHasNextPage = queryPageInfo.replays.hasNextPage;
+  const queryReplaysBasePageIdentity =
+    queryPageInfo.replays.basePageIdentity ?? '';
+  const queryStoriesEndCursor = queryPageInfo.stories.endCursor;
+  const queryStoriesHasNextPage = queryPageInfo.stories.hasNextPage;
+  const queryStoriesBasePageIdentity =
+    queryPageInfo.stories.basePageIdentity ?? '';
+
   const homeActions = createFeedHomeActions(
     shouldShowFeedHomeHostAction(currentSession),
   );
-  const stories = readConnectionNodes(data.storyFeed);
-  const posts = readConnectionNodes(data.homeFeed);
-  const liveNowSessions = readConnectionNodes(data.liveNow).filter(
-    (session) => session.id !== currentSessionId,
+  const [olderStories, setOlderStories] = useState<
+    FeedHomeRetainedRows<FeedHomePost>
+  >(() => createRetainedRows(''));
+  const [olderPosts, setOlderPosts] = useState<
+    FeedHomeRetainedRows<FeedHomePost>
+  >(() => createRetainedRows(''));
+  const [olderReplays, setOlderReplays] = useState<
+    FeedHomeRetainedRows<LiveSessionSummary>
+  >(() => createRetainedRows(''));
+  const retainedOlderStories = selectRetainedRows(
+    olderStories,
+    storiesBasePageIdentity,
   );
-  const replaySessions = readConnectionNodes(data.replayFeed);
+  const retainedOlderPosts = selectRetainedRows(
+    olderPosts,
+    homeFeedBasePageIdentity,
+  );
+  const retainedOlderReplays = selectRetainedRows(
+    olderReplays,
+    replaysBasePageIdentity,
+  );
+  const storiesPageInfo = selectFeedHomePageInfo(paginationState, 'stories');
+  const homeFeedPageInfo = selectFeedHomePageInfo(
+    paginationState,
+    'homeFeed',
+  );
+  const replayPageInfo = selectFeedHomePageInfo(paginationState, 'replays');
+  const storiesLoadMoreControl = createLoadMoreControl({
+    error: paginationState.sections.stories.error,
+    isLoading:
+      paginationState.isRefreshing ||
+      paginationState.sections.stories.isLoadingMore,
+    label: 'Load more stories',
+    onLoadMore: () => loadMoreSection('stories'),
+    pageInfo: storiesPageInfo,
+  });
+  const homeFeedLoadMoreControl = createLoadMoreControl({
+    error: paginationState.sections.homeFeed.error,
+    isLoading:
+      paginationState.isRefreshing ||
+      paginationState.sections.homeFeed.isLoadingMore,
+    label: 'Load more feed posts',
+    onLoadMore: () => loadMoreSection('homeFeed'),
+    pageInfo: homeFeedPageInfo,
+  });
+  const liveNowLoadMoreControl: FeedHomeLoadMoreControl = { visible: false };
+  const replayLoadMoreControl = createLoadMoreControl({
+    error: paginationState.sections.replays.error,
+    isLoading:
+      paginationState.isRefreshing ||
+      paginationState.sections.replays.isLoadingMore,
+    label: 'Load more replays',
+    onLoadMore: () => loadMoreSection('replays'),
+    pageInfo: replayPageInfo,
+  });
+
+  useEffect(() => {
+    const syncedSections = {
+      homeFeed: createSectionPageInfo(
+        {
+          endCursor: queryHomeFeedEndCursor,
+          hasNextPage: queryHomeFeedHasNextPage,
+        },
+        queryHomeFeedBasePageIdentity,
+      ),
+      replays: createSectionPageInfo(
+        {
+          endCursor: queryReplaysEndCursor,
+          hasNextPage: queryReplaysHasNextPage,
+        },
+        queryReplaysBasePageIdentity,
+      ),
+      stories: createSectionPageInfo(
+        {
+          endCursor: queryStoriesEndCursor,
+          hasNextPage: queryStoriesHasNextPage,
+        },
+        queryStoriesBasePageIdentity,
+      ),
+    };
+
+    clearStaleLoadMoreRequests(syncedSections);
+    dispatchPagination({
+      sections: syncedSections,
+      type: 'query_page_info_sync',
+    });
+  }, [
+    queryHomeFeedEndCursor,
+    queryHomeFeedHasNextPage,
+    queryHomeFeedBasePageIdentity,
+    queryReplaysEndCursor,
+    queryReplaysHasNextPage,
+    queryReplaysBasePageIdentity,
+    queryStoriesEndCursor,
+    queryStoriesHasNextPage,
+    queryStoriesBasePageIdentity,
+  ]);
+
+  useEffect(() => {
+    if (
+      refreshedHomeData !== null &&
+      data !== refreshedHomeData.queryDataAtStart
+    ) {
+      setRefreshedHomeData(null);
+    }
+  }, [data, refreshedHomeData]);
 
   function openLiveSession(session: LiveSessionSummary) {
     router.push(liveSessionHref(session.id));
+  }
+
+  function clearActiveLoadMoreRequests() {
+    // Refresh is the invalidation boundary: clearing request identities makes
+    // pre-refresh load-more completions no-op without appending stale rows.
+    activeLoadMoreRequestRef.current = {
+      homeFeed: null,
+      replays: null,
+      stories: null,
+    };
+  }
+
+  function clearStaleLoadMoreRequests(
+    sections: Record<
+      FeedHomePaginationSection,
+      FeedHomePaginationSectionInput
+    >,
+  ) {
+    let nextRequests = activeLoadMoreRequestRef.current;
+
+    for (const section of FEED_HOME_PAGINATION_SECTIONS) {
+      const request = activeLoadMoreRequestRef.current[section];
+      const incomingBasePageIdentity = sections[section].basePageIdentity ?? '';
+
+      if (
+        request !== null &&
+        request.basePageIdentity !== incomingBasePageIdentity
+      ) {
+        nextRequests =
+          nextRequests === activeLoadMoreRequestRef.current
+            ? { ...activeLoadMoreRequestRef.current }
+            : nextRequests;
+        nextRequests[section] = null;
+      }
+    }
+
+    activeLoadMoreRequestRef.current = nextRequests;
+  }
+
+  async function refreshHome() {
+    const requestId = refreshRequestIdRef.current + 1;
+    refreshRequestIdRef.current = requestId;
+    activeRefreshRequestIdRef.current = requestId;
+    clearActiveLoadMoreRequests();
+    dispatchPagination({ type: 'refresh_start' });
+
+    try {
+      const refreshedData = await fetchQuery<FeedHomeScreenQuery>(
+        relayEnvironment,
+        feedHomeScreenQuery,
+        FEED_HOME_QUERY_VARIABLES,
+        { fetchPolicy: 'network-only' },
+      ).toPromise();
+
+      if (activeRefreshRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      setRefreshedHomeData(
+        refreshedData === null || refreshedData === undefined
+          ? null
+          : {
+              data: refreshedData,
+              queryDataAtStart: data,
+            },
+      );
+      setOlderStories(createRetainedRows(''));
+      setOlderPosts(createRetainedRows(''));
+      setOlderReplays(createRetainedRows(''));
+      dispatchPagination({
+        sections: {
+          homeFeed: createSectionPageInfo(
+            normalizePageInfo(refreshedData?.homeFeed?.pageInfo),
+            createBasePageIdentity(
+              readConnectionNodes<FeedHomePost>(refreshedData?.homeFeed),
+            ),
+          ),
+          replays: createSectionPageInfo(
+            normalizePageInfo(refreshedData?.replayFeed?.pageInfo),
+            createBasePageIdentity(
+              readConnectionNodes<LiveSessionSummary>(
+                refreshedData?.replayFeed,
+              ),
+            ),
+          ),
+          stories: createSectionPageInfo(
+            normalizePageInfo(refreshedData?.storyFeed?.pageInfo),
+            createBasePageIdentity(
+              readConnectionNodes<FeedHomePost>(refreshedData?.storyFeed),
+            ),
+          ),
+        },
+        type: 'refresh_success',
+      });
+    } catch {
+      if (activeRefreshRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      dispatchPagination({
+        message: 'Could not refresh home.',
+        type: 'refresh_error',
+      });
+    } finally {
+      if (activeRefreshRequestIdRef.current === requestId) {
+        activeRefreshRequestIdRef.current = null;
+      }
+    }
+  }
+
+  async function loadMoreSection(section: FeedHomePaginationSection) {
+    const pageInfo = selectFeedHomePageInfo(paginationState, section);
+
+    if (
+      !pageInfo.hasNextPage ||
+      pageInfo.endCursor == null ||
+      activeRefreshRequestIdRef.current !== null ||
+      paginationState.isRefreshing ||
+      activeLoadMoreRequestRef.current[section] !== null
+    ) {
+      return;
+    }
+
+    const request = {
+      basePageIdentity: selectSectionBasePageIdentity(section),
+      cursor: pageInfo.endCursor,
+      id: loadMoreRequestIdRef.current + 1,
+      section,
+    };
+    loadMoreRequestIdRef.current = request.id;
+    activeLoadMoreRequestRef.current = {
+      ...activeLoadMoreRequestRef.current,
+      [section]: request,
+    };
+
+    dispatchPagination({ section, type: 'load_more_start' });
+
+    try {
+      const pageData = await fetchQuery<FeedHomeScreenQuery>(
+        relayEnvironment,
+        feedHomeScreenQuery,
+        {
+          ...FEED_HOME_QUERY_VARIABLES,
+          feedAfter: section === 'homeFeed' ? pageInfo.endCursor : null,
+          replayAfter: section === 'replays' ? pageInfo.endCursor : null,
+          storyAfter: section === 'stories' ? pageInfo.endCursor : null,
+        },
+        { fetchPolicy: 'network-only' },
+      ).toPromise();
+
+      if (activeLoadMoreRequestRef.current[section] !== request) {
+        return;
+      }
+
+      appendOlderSectionRows(section, pageData);
+      dispatchPagination({
+        basePageIdentity: request.basePageIdentity,
+        pageInfo: selectLoadedSectionPageInfo(pageData, section),
+        section,
+        type: 'load_more_success',
+      });
+    } catch {
+      if (activeLoadMoreRequestRef.current[section] !== request) {
+        return;
+      }
+
+      dispatchPagination({
+        message: loadMoreErrorMessage(section),
+        section,
+        type: 'load_more_error',
+      });
+    } finally {
+      if (activeLoadMoreRequestRef.current[section] === request) {
+        activeLoadMoreRequestRef.current = {
+          ...activeLoadMoreRequestRef.current,
+          [section]: null,
+        };
+      }
+    }
+  }
+
+  function appendOlderSectionRows(
+    section: FeedHomePaginationSection,
+    pageData: FeedHomeQueryResponse | null | undefined,
+  ) {
+    switch (section) {
+      case 'homeFeed':
+        setOlderPosts((current) =>
+          appendRetainedRows(
+            current,
+            homeFeedBasePageIdentity,
+            readConnectionNodes(pageData?.homeFeed),
+          ),
+        );
+        return;
+
+      case 'replays':
+        setOlderReplays((current) =>
+          appendRetainedRows(
+            current,
+            replaysBasePageIdentity,
+            readConnectionNodes(pageData?.replayFeed),
+          ),
+        );
+        return;
+
+      case 'stories':
+        setOlderStories((current) =>
+          appendRetainedRows(
+            current,
+            storiesBasePageIdentity,
+            readConnectionNodes(pageData?.storyFeed),
+          ),
+        );
+        return;
+
+      default:
+        assertNever(section);
+    }
+  }
+
+  function selectSectionBasePageIdentity(
+    section: FeedHomePaginationSection,
+  ): string {
+    switch (section) {
+      case 'homeFeed':
+        return homeFeedBasePageIdentity;
+
+      case 'replays':
+        return replaysBasePageIdentity;
+
+      case 'stories':
+        return storiesBasePageIdentity;
+
+      default:
+        return assertNever(section);
+    }
   }
 
   function reportPost(post: FeedHomePost) {
@@ -405,6 +744,14 @@ export function FeedHomeContent() {
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          onRefresh={() => {
+            refreshHome();
+          }}
+          refreshing={paginationState.isRefreshing}
+        />
+      }
     >
       <AppHeader
         eyebrow="Home"
@@ -423,6 +770,12 @@ export function FeedHomeContent() {
         ))}
       </View>
 
+      {paginationState.refreshError ? (
+        <Text style={[styles.metadataText, { color: theme.colors.error }]}>
+          {paginationState.refreshError}
+        </Text>
+      ) : null}
+
       {currentSession ? (
         <FeedHomeSection title="Your live session">
           <LiveSessionSummaryCard
@@ -435,8 +788,9 @@ export function FeedHomeContent() {
 
       <PostSection
         emptyMessage="No stories are available yet."
+        loadMoreControl={storiesLoadMoreControl}
         onReportPost={reportPost}
-        posts={stories}
+        posts={stories.concat(retainedOlderStories)}
         reportPostState={reportPostState}
         title="Stories"
         viewerId={viewerId}
@@ -444,8 +798,9 @@ export function FeedHomeContent() {
 
       <PostSection
         emptyMessage="No feed posts are available yet."
+        loadMoreControl={homeFeedLoadMoreControl}
         onReportPost={reportPost}
-        posts={posts}
+        posts={posts.concat(retainedOlderPosts)}
         reportPostState={reportPostState}
         title="Home feed"
         viewerId={viewerId}
@@ -454,6 +809,7 @@ export function FeedHomeContent() {
       <LiveSessionSection
         buttonLabel="Watch live"
         emptyMessage="No live sessions are available right now."
+        loadMoreControl={liveNowLoadMoreControl}
         onOpen={openLiveSession}
         sessions={liveNowSessions}
         title="Live now"
@@ -462,12 +818,109 @@ export function FeedHomeContent() {
       <LiveSessionSection
         buttonLabel="Watch replay"
         emptyMessage="No replays are available yet."
+        loadMoreControl={replayLoadMoreControl}
         onOpen={openLiveSession}
-        sessions={replaySessions}
+        sessions={replaySessions.concat(retainedOlderReplays)}
         title="Replays"
       />
     </ScrollView>
   );
+}
+
+function createRetainedRows<Node>(
+  basePageIdentity: string,
+  rows: Node[] = [],
+): FeedHomeRetainedRows<Node> {
+  return { basePageIdentity, rows };
+}
+
+function createSectionPageInfo(
+  pageInfo: FeedHomePaginationPageInfo,
+  basePageIdentity: string,
+): FeedHomePaginationSectionInput {
+  return { ...pageInfo, basePageIdentity };
+}
+
+function selectRetainedRows<Node>(
+  retainedRows: FeedHomeRetainedRows<Node>,
+  currentBasePageIdentity: string,
+): Node[] {
+  return retainedRows.basePageIdentity === currentBasePageIdentity
+    ? retainedRows.rows
+    : [];
+}
+
+function appendRetainedRows<Node>(
+  retainedRows: FeedHomeRetainedRows<Node>,
+  currentBasePageIdentity: string,
+  nextRows: Node[],
+): FeedHomeRetainedRows<Node> {
+  return createRetainedRows(
+    currentBasePageIdentity,
+    retainedRows.basePageIdentity === currentBasePageIdentity
+      ? retainedRows.rows.concat(nextRows)
+      : nextRows,
+  );
+}
+
+function createBasePageIdentity(
+  nodes: readonly { readonly id: string }[],
+): string {
+  return JSON.stringify(nodes.map((node) => node.id));
+}
+
+function selectLoadedSectionPageInfo(
+  pageData: FeedHomeQueryResponse | null | undefined,
+  section: FeedHomePaginationSection,
+): FeedHomePaginationPageInfo {
+  switch (section) {
+    case 'homeFeed':
+      return normalizePageInfo(pageData?.homeFeed?.pageInfo);
+
+    case 'replays':
+      return normalizePageInfo(pageData?.replayFeed?.pageInfo);
+
+    case 'stories':
+      return normalizePageInfo(pageData?.storyFeed?.pageInfo);
+
+    default:
+      return assertNever(section);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled feed home section: ${String(value)}`);
+}
+
+function normalizePageInfo(
+  pageInfo:
+    | {
+        readonly endCursor?: string | null;
+        readonly hasNextPage?: boolean;
+      }
+    | null
+    | undefined,
+): FeedHomePaginationPageInfo {
+  return {
+    endCursor: pageInfo?.endCursor ?? null,
+    hasNextPage: pageInfo?.hasNextPage ?? false,
+  };
+}
+
+function loadMoreErrorMessage(section: FeedHomePaginationSection): string {
+  switch (section) {
+    case 'homeFeed':
+      return 'Could not load more feed posts.';
+
+    case 'replays':
+      return 'Could not load more replays.';
+
+    case 'stories':
+      return 'Could not load more stories.';
+
+    default:
+      return assertNever(section);
+  }
 }
 
 type FeedHomeErrorBoundaryProps = PropsWithChildren<{
@@ -527,6 +980,7 @@ function EmptySectionMessage({ message }: { message: string }) {
 
 function PostSection({
   emptyMessage,
+  loadMoreControl,
   onReportPost,
   posts,
   reportPostState,
@@ -534,6 +988,7 @@ function PostSection({
   viewerId,
 }: {
   emptyMessage: string;
+  loadMoreControl: FeedHomeLoadMoreControl;
   onReportPost: (post: FeedHomePost) => void;
   posts: ReadonlyArray<FeedHomePost>;
   reportPostState: ReportPostState;
@@ -555,6 +1010,7 @@ function PostSection({
       ) : (
         <EmptySectionMessage message={emptyMessage} />
       )}
+      <FeedHomeLoadMoreControlView control={loadMoreControl} />
     </FeedHomeSection>
   );
 }
@@ -681,12 +1137,14 @@ function MediaAssetRow({
 function LiveSessionSection({
   buttonLabel,
   emptyMessage,
+  loadMoreControl,
   onOpen,
   sessions,
   title,
 }: {
   buttonLabel: string;
   emptyMessage: string;
+  loadMoreControl: FeedHomeLoadMoreControl;
   onOpen: (session: LiveSessionSummary) => void;
   sessions: ReadonlyArray<LiveSessionSummary>;
   title: string;
@@ -705,6 +1163,57 @@ function LiveSessionSection({
       ) : (
         <EmptySectionMessage message={emptyMessage} />
       )}
+      <FeedHomeLoadMoreControlView control={loadMoreControl} />
     </FeedHomeSection>
+  );
+}
+
+function createLoadMoreControl({
+  error,
+  isLoading,
+  label,
+  onLoadMore,
+  pageInfo,
+}: {
+  error: string | null;
+  isLoading: boolean;
+  label: string;
+  onLoadMore: () => void;
+  pageInfo: FeedHomePaginationPageInfo;
+}): FeedHomeLoadMoreControl {
+  return {
+    error,
+    isLoading,
+    label,
+    onLoadMore,
+    visible: pageInfo.hasNextPage && pageInfo.endCursor !== null,
+  };
+}
+
+function FeedHomeLoadMoreControlView({
+  control,
+}: {
+  control: FeedHomeLoadMoreControl;
+}) {
+  const theme = useAppTheme();
+
+  if (!control.visible) {
+    return null;
+  }
+
+  return (
+    <View style={styles.loadMorePanel}>
+      <AppButton
+        disabled={control.isLoading}
+        label={control.isLoading ? 'Loading...' : control.label}
+        onPress={control.onLoadMore}
+        variant="secondary"
+      />
+      {control.error ? (
+        <Text style={[styles.metadataText, { color: theme.colors.error }]}>
+          {control.error}
+        </Text>
+      ) : null}
+    </View>
   );
 }

@@ -56,6 +56,7 @@ mock.module('react-native', () => ({
     openURL: () => Promise.resolve(),
   },
   Pressable: 'Pressable',
+  RefreshControl: NullComponent,
   ScrollView: 'ScrollView',
   StyleSheet: {
     create: (styles: unknown) => styles,
@@ -64,11 +65,15 @@ mock.module('react-native', () => ({
   View: 'View',
 }));
 mock.module('react-relay', () => ({
+  fetchQuery: () => ({
+    toPromise: () => Promise.resolve(null),
+  }),
   graphql: () => ({}),
   useLazyLoadQuery: () => ({
     liveNow: { edges: [] },
     viewer: { currentLiveSession: null },
   }),
+  useRelayEnvironment: () => ({}),
   useMutation: () => [() => undefined, false],
 }));
 // Bun keeps these module mocks process-wide in the full quality test run, so

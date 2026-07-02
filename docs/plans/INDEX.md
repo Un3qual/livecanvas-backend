@@ -15,29 +15,42 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: idle
+- State: issue-driven
 - Completed track: Live Media Runtime Foundation
 - Completed source plan:
   `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
-- Notes: backend lane owns backend code and backend planning docs only
+- Notes: backend lane owns backend code and backend planning docs, and should be
+  promoted when active frontend/mobile product work exposes a verified backend
+  contract, resolver, runtime, or data issue
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active
+- State: complete; next product-completeness task not selected
 - Track: `docs/plans/mobile/TRACK.md`
-- Current product theme: mobile feed/content discovery surface
-- Active detailed plan:
-  `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
+- Latest completed product theme: mobile post composer
+- Latest completed detailed plan:
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
   payload normalization, and a completed backend media runtime foundation. The
   completed chat batch adds retained timeline history and live chat channel
   integration. Frontend structure, TypeScript readability, and XState live
-  workflow cleanup are complete. The queued feature follow-ups through release
-  diagnostics are complete; release-candidate manual device QA remains
-  deferred while the mobile feed/content discovery batch runs.
+  workflow cleanup are complete. The queued feature follow-ups through feed,
+  content discovery, and mobile post composer are complete; release-candidate
+  manual device QA remains deferred while the next product task is selected.
 
 ## Track Registry
+
+### Cross-Lane Product Week
+
+- Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
+- State: active
+- Current theme: select the next product-completeness task after completing the
+  mobile post composer surface; promote backend fixes only for reproduced
+  product issues
+- Notes: release-candidate manual QA, compliance hard-delete enablement, and
+  backend starter-kit extraction remain outside this week unless explicitly
+  resumed
 
 ### Backend Live Media Signaling Contract
 
@@ -57,10 +70,10 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: active
-- Current theme: mobile feed/content discovery surface
-- Active detailed plan:
-  `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
+- State: complete; next product-completeness task not selected
+- Latest completed theme: mobile post composer
+- Latest completed detailed plan:
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 
 ### Backend Code Quality Cleanup
 
@@ -90,7 +103,8 @@ Use this file when:
 - Source: `docs/plans/2026-03-03-backend-release-readiness-roadmap.md`
 - State: paused
 - Notes: return to this roadmap only after the backend lane is explicitly
-  reprioritized
+  reprioritized; issue-driven backend fixes can still be promoted from active
+  product work without reopening the whole roadmap
 
 ## Paused Or Deferred
 
@@ -116,5 +130,7 @@ Use this file when:
   `docs/plans/archive/completed/backend/2026-03-22-development-seed-data.md`
 - Live replay and recording:
   `docs/plans/archive/completed/live/2026-03-18-live-replay-feed-surfaces.md`
+- Mobile feed/content discovery surface:
+  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 
 Checklist-complete plans belong in `docs/plans/archive/completed/`.

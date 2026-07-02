@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<963d38b1de85d234b7f7f35654e5ce1b>>
+ * @generated SignedSource<<0fd5d5b6001ad55135da5b4bdddaeb0e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,13 +14,16 @@ export type LiveSessionVisibility = "FOLLOWERS" | "PUBLIC" | "%future added valu
 export type MediaProcessingState = "FAILED" | "PENDING_UPLOAD" | "PROCESSED" | "UPLOADED" | "%future added value";
 export type PostKind = "STANDARD" | "STORY" | "%future added value";
 export type PostVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
-export type FeedHomeScreenQuery$variables = {
+export type feedHomeOperationsQuery$variables = {
+  feedAfter?: string | null | undefined;
   feedFirst: number;
   liveFirst: number;
+  replayAfter?: string | null | undefined;
   replayFirst: number;
+  storyAfter?: string | null | undefined;
   storyFirst: number;
 };
-export type FeedHomeScreenQuery$data = {
+export type feedHomeOperationsQuery$data = {
   readonly homeFeed: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -63,10 +66,6 @@ export type FeedHomeScreenQuery$data = {
         readonly visibility: LiveSessionVisibility;
       } | null | undefined;
     } | null | undefined> | null | undefined;
-    readonly pageInfo: {
-      readonly endCursor: string | null | undefined;
-      readonly hasNextPage: boolean;
-    };
   } | null | undefined;
   readonly replayFeed: {
     readonly edges: ReadonlyArray<{
@@ -132,13 +131,18 @@ export type FeedHomeScreenQuery$data = {
     readonly id: string;
   } | null | undefined;
 };
-export type FeedHomeScreenQuery = {
-  response: FeedHomeScreenQuery$data;
-  variables: FeedHomeScreenQuery$variables;
+export type feedHomeOperationsQuery = {
+  response: feedHomeOperationsQuery$data;
+  variables: feedHomeOperationsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
 var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "feedAfter"
+  },
   {
     "defaultValue": null,
     "kind": "LocalArgument",
@@ -152,7 +156,17 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
+    "name": "replayAfter"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
     "name": "replayFirst"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "storyAfter"
   },
   {
     "defaultValue": null,
@@ -351,30 +365,27 @@ v7 = [
   },
   (v6/*: any*/)
 ],
-v8 = [
-  {
-    "alias": null,
-    "args": null,
-    "concreteType": "LiveSessionEdge",
-    "kind": "LinkedField",
-    "name": "edges",
-    "plural": true,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "LiveSession",
-        "kind": "LinkedField",
-        "name": "node",
-        "plural": false,
-        "selections": (v5/*: any*/),
-        "storageKey": null
-      }
-    ],
-    "storageKey": null
-  },
-  (v6/*: any*/)
-],
+v8 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "LiveSessionEdge",
+  "kind": "LinkedField",
+  "name": "edges",
+  "plural": true,
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "LiveSession",
+      "kind": "LinkedField",
+      "name": "node",
+      "plural": false,
+      "selections": (v5/*: any*/),
+      "storageKey": null
+    }
+  ],
+  "storageKey": null
+},
 v9 = [
   {
     "alias": null,
@@ -403,6 +414,11 @@ v9 = [
     "args": [
       {
         "kind": "Variable",
+        "name": "after",
+        "variableName": "storyAfter"
+      },
+      {
+        "kind": "Variable",
         "name": "first",
         "variableName": "storyFirst"
       }
@@ -417,6 +433,11 @@ v9 = [
   {
     "alias": null,
     "args": [
+      {
+        "kind": "Variable",
+        "name": "after",
+        "variableName": "feedAfter"
+      },
       {
         "kind": "Variable",
         "name": "first",
@@ -443,12 +464,19 @@ v9 = [
     "kind": "LinkedField",
     "name": "liveNow",
     "plural": false,
-    "selections": (v8/*: any*/),
+    "selections": [
+      (v8/*: any*/)
+    ],
     "storageKey": null
   },
   {
     "alias": null,
     "args": [
+      {
+        "kind": "Variable",
+        "name": "after",
+        "variableName": "replayAfter"
+      },
       {
         "kind": "Variable",
         "name": "first",
@@ -459,7 +487,10 @@ v9 = [
     "kind": "LinkedField",
     "name": "replayFeed",
     "plural": false,
-    "selections": (v8/*: any*/),
+    "selections": [
+      (v8/*: any*/),
+      (v6/*: any*/)
+    ],
     "storageKey": null
   }
 ];
@@ -468,7 +499,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "FeedHomeScreenQuery",
+    "name": "feedHomeOperationsQuery",
     "selections": (v9/*: any*/),
     "type": "RootQueryType",
     "abstractKey": null
@@ -477,20 +508,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "FeedHomeScreenQuery",
+    "name": "feedHomeOperationsQuery",
     "selections": (v9/*: any*/)
   },
   "params": {
-    "cacheID": "790dd8c76829b6c553d2a497decf4240",
+    "cacheID": "5ab885132e5de3ff2909a30677341498",
     "id": null,
     "metadata": {},
-    "name": "FeedHomeScreenQuery",
+    "name": "feedHomeOperationsQuery",
     "operationKind": "query",
-    "text": "query FeedHomeScreenQuery(\n  $feedFirst: Int!\n  $liveFirst: Int!\n  $replayFirst: Int!\n  $storyFirst: Int!\n) {\n  viewer {\n    id\n    currentLiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n  }\n  storyFeed(first: $storyFirst) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          email\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  homeFeed(first: $feedFirst) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          email\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  liveNow(first: $liveFirst) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  replayFeed(first: $replayFirst) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query feedHomeOperationsQuery(\n  $feedAfter: String\n  $feedFirst: Int!\n  $liveFirst: Int!\n  $replayAfter: String\n  $replayFirst: Int!\n  $storyAfter: String\n  $storyFirst: Int!\n) {\n  viewer {\n    id\n    currentLiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n  }\n  storyFeed(first: $storyFirst, after: $storyAfter) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          email\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  homeFeed(first: $feedFirst, after: $feedAfter) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          email\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  liveNow(first: $liveFirst) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n  }\n  replayFeed(first: $replayFirst, after: $replayAfter) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3741c6055e9e376c0f54650dd50755d3";
+(node as any).hash = "e3cd662efa13b68ad44f77d607e0a04b";
 
 export default node;

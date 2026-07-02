@@ -1,7 +1,7 @@
 # Current Execution
 
-Last reviewed: 2026-06-30
-Status: mobile feed/content product batch active; release-candidate QA deferred; backend lane idle
+Last reviewed: 2026-07-01
+Status: mobile post composer product batch complete; backend issues may be promoted as needed; release-candidate QA deferred
 
 ## Purpose
 
@@ -14,7 +14,8 @@ details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: idle; live media runtime foundation is complete
+- State: issue-driven; live media runtime foundation is complete and no
+  standalone backend batch is selected
 - Scope: backend code and backend planning docs
 - Completed source plan:
   `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
@@ -22,18 +23,34 @@ details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active; implement mobile feed/content discovery surface
+- State: complete; next mobile product task not selected
 - Scope: `mobile/` and `docs/plans/mobile/**`
-- Current source plan:
-  `docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`
+- Completed source plan:
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 - Latest completed source plan:
-  `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
+  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 
 ## Execution Rule
 
 For ordinary work, open the relevant lane pointer and execute from that file.
 Use `docs/plans/INDEX.md` only if a lane pointer is stale, blocked, empty, or
 explicitly asks for registry/backlog lookup.
+
+## Cross-Lane Policy
+
+Work through backend and frontend issues as needed for the selected product
+batch. Do not defer a verified backend contract, resolver, runtime, or data
+issue solely because the current visible surface is mobile/frontend. Promote
+that backend work into the backend lane, keep the write scope explicit, and
+verify both sides that are affected.
+
+## Week Plan
+
+- Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
+- Horizon: 2026-07-01 through 2026-07-07
+- Focus: select the next product-completeness task after the completed mobile
+  text post composer, verify backend issues only when reproduced by active
+  product work, and keep release-candidate manual QA deferred.
 
 ## Shared File Policy
 
@@ -44,10 +61,11 @@ track docs.
 
 ## Next Coordinator Decision
 
-Do not reactivate release-candidate QA yet. The active mobile lane batch is the
-feed/content discovery surface in
-`docs/plans/mobile/2026-06-30-mobile-feed-content-discovery.md`; execute from
-`docs/plans/mobile/NOW.md` before any release-candidate device QA work resumes.
+Do not reactivate release-candidate QA yet. The mobile post composer batch is
+complete; execute the next mobile step from `docs/plans/mobile/NOW.md` after a
+new product task is selected or planned. Promote backend fixes only when active
+product work proves they are needed, before any release-candidate device QA
+work resumes.
 
 ## Repair Conditions
 
