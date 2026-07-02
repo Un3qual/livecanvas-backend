@@ -54,16 +54,6 @@ const reactInternals = (
   H: HookDispatcher | null;
 };
 
-function NativeComponent({
-  children,
-  ...props
-}: {
-  children?: ReactNode;
-  [key: string]: unknown;
-}) {
-  return createElement('NativeComponent', props, children);
-}
-
 function AppButtonMock({
   disabled,
   label,
@@ -153,39 +143,6 @@ mock.module('react-relay', () => ({
   useRelayEnvironment: () => ({ environment: 'relay' }),
 }));
 
-mock.module('react-native', () => ({
-  Linking: {
-    canOpenURL: () => Promise.resolve(false),
-    getInitialURL: () => Promise.resolve(null),
-    openURL: () => Promise.resolve(),
-  },
-  Pressable: function Pressable({
-    children,
-    ...props
-  }: {
-    children?: ReactNode;
-    [key: string]: unknown;
-  }) {
-    return createElement('Pressable', props, children);
-  },
-  RefreshControl: NativeComponent,
-  ScrollView: NativeComponent,
-  StyleSheet: {
-    create: <Styles,>(styles: Styles): Styles => styles,
-  },
-  Text: function Text({
-    children,
-    ...props
-  }: {
-    children?: ReactNode;
-    [key: string]: unknown;
-  }) {
-    return createElement('Text', props, children);
-  },
-  TextInput: NativeComponent,
-  View: NativeComponent,
-}));
-
 mock.module('../../src/components/AppButton', () => ({
   AppButton: AppButtonMock,
 }));
@@ -257,8 +214,8 @@ beforeEach(() => {
 });
 
 describe('PostComposerScreen', () => {
-  test('keeps the local react-native mock compatible with feed refresh imports', () => {
-    expect(mockedReactNative.RefreshControl).toBe(NativeComponent);
+  test('keeps the shared react-native mock compatible with feed refresh imports', () => {
+    expect(typeof mockedReactNative.RefreshControl).toBe('function');
   });
 
   test('keeps compose route pointed at the post composer screen', () => {

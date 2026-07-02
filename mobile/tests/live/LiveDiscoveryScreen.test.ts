@@ -49,21 +49,6 @@ function readLiveSessionIdParamMock(
 mock.module('expo-router', () => ({
   useRouter: () => ({ push: () => undefined }),
 }));
-mock.module('react-native', () => ({
-  FlatList: NullComponent,
-  Linking: {
-    canOpenURL: () => Promise.resolve(false),
-    openURL: () => Promise.resolve(),
-  },
-  Pressable: 'Pressable',
-  RefreshControl: NullComponent,
-  ScrollView: 'ScrollView',
-  StyleSheet: {
-    create: (styles: unknown) => styles,
-  },
-  Text: 'Text',
-  View: 'View',
-}));
 mock.module('react-relay', () => ({
   fetchQuery: () => ({
     toPromise: () => Promise.resolve(null),

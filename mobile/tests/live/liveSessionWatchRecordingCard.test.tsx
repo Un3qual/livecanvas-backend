@@ -6,60 +6,10 @@ import {
   type ReactNode,
 } from 'react';
 
-type LinkingMock = {
-  canOpenURL: ReturnType<typeof mock>;
-  getInitialURL: ReturnType<typeof mock>;
-  openURL: ReturnType<typeof mock>;
-};
-
-const linkingMock: LinkingMock = {
-  canOpenURL: mock(() => Promise.resolve(false)),
-  getInitialURL: mock(() => Promise.resolve(null)),
-  openURL: mock(() => Promise.resolve()),
-};
-
-function NativeComponent({
-  children,
-  ...props
-}: {
-  children?: ReactNode;
-  [key: string]: unknown;
-}) {
-  return createElement('NativeComponent', props, children);
-}
-
-mock.module('react-native', () => ({
-  ActivityIndicator: NativeComponent,
-  FlatList: NativeComponent,
-  Linking: linkingMock,
-  Platform: {
-    OS: 'ios',
-  },
-  Pressable: function Pressable({
-    children,
-    ...props
-  }: {
-    children?: ReactNode;
-    [key: string]: unknown;
-  }) {
-    return createElement('Pressable', props, children);
-  },
-  StyleSheet: {
-    create: <Styles,>(styles: Styles): Styles => styles,
-  },
-  ScrollView: NativeComponent,
-  Text: function Text({
-    children,
-    ...props
-  }: {
-    children?: ReactNode;
-    [key: string]: unknown;
-  }) {
-    return createElement('Text', props, children);
-  },
-  TextInput: NativeComponent,
-  View: NativeComponent,
-}));
+import {
+  reactNativeLinkingMock,
+  resetReactNativeLinkingMock,
+} from '../setup/reactNative';
 
 mock.module('../../src/components/AppButton', () => ({
   AppButton: ({
@@ -140,9 +90,7 @@ const reactInternals = (
 
 describe('LiveSessionWatchCards recording metadata', () => {
   beforeEach(() => {
-    linkingMock.canOpenURL = mock(() => Promise.resolve(false));
-    linkingMock.getInitialURL = mock(() => Promise.resolve(null));
-    linkingMock.openURL = mock(() => Promise.resolve());
+    resetReactNativeLinkingMock();
   });
 
   test('omits the recording section when the session has no recording asset', () => {
@@ -266,12 +214,12 @@ describe('LiveSessionWatchCards recording metadata', () => {
       expect(findPressableByText(tree, 'Open recording')).toBeNull();
     }
 
-    expect(linkingMock.canOpenURL).not.toHaveBeenCalled();
-    expect(linkingMock.openURL).not.toHaveBeenCalled();
+    expect(reactNativeLinkingMock.canOpenURL).not.toHaveBeenCalled();
+    expect(reactNativeLinkingMock.openURL).not.toHaveBeenCalled();
   });
 
   test('opens processed recording URLs and renders a retryable failure message', async () => {
-    linkingMock.openURL = mock(() =>
+    reactNativeLinkingMock.openURL = mock(() =>
       Promise.reject(new Error('browser unavailable')),
     );
 
@@ -297,7 +245,7 @@ describe('LiveSessionWatchCards recording metadata', () => {
     (onPress as () => void)();
     await flushPromises();
 
-    expect(linkingMock.openURL).toHaveBeenCalledWith(
+    expect(reactNativeLinkingMock.openURL).toHaveBeenCalledWith(
       'https://media.example.test/replay/session-1.m3u8',
     );
 
@@ -312,21 +260,21 @@ describe('LiveSessionWatchCards recording metadata', () => {
   });
 
   test('opens custom schemes only when the platform reports support', async () => {
-    linkingMock.canOpenURL = mock(() => Promise.resolve(false));
+    reactNativeLinkingMock.canOpenURL = mock(() => Promise.resolve(false));
 
     await expect(
       openLiveSessionRecordingUrl('livecanvas://recording/1'),
     ).rejects.toThrow('Unsupported recording URL');
-    expect(linkingMock.openURL).not.toHaveBeenCalled();
+    expect(reactNativeLinkingMock.openURL).not.toHaveBeenCalled();
 
-    linkingMock.canOpenURL = mock(() => Promise.resolve(true));
+    reactNativeLinkingMock.canOpenURL = mock(() => Promise.resolve(true));
 
     await openLiveSessionRecordingUrl('livecanvas://recording/1');
 
-    expect(linkingMock.canOpenURL).toHaveBeenCalledWith(
+    expect(reactNativeLinkingMock.canOpenURL).toHaveBeenCalledWith(
       'livecanvas://recording/1',
     );
-    expect(linkingMock.openURL).toHaveBeenCalledWith(
+    expect(reactNativeLinkingMock.openURL).toHaveBeenCalledWith(
       'livecanvas://recording/1',
     );
   });
@@ -338,8 +286,8 @@ describe('LiveSessionWatchCards recording metadata', () => {
       );
     }
 
-    expect(linkingMock.canOpenURL).not.toHaveBeenCalled();
-    expect(linkingMock.openURL).not.toHaveBeenCalled();
+    expect(reactNativeLinkingMock.canOpenURL).not.toHaveBeenCalled();
+    expect(reactNativeLinkingMock.openURL).not.toHaveBeenCalled();
   });
 });
 
