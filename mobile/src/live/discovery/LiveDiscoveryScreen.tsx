@@ -69,7 +69,7 @@ export function LiveDiscoveryScreen() {
 }
 
 export function shouldShowHostCreationAction(
-  currentSession: LiveSessionSummary | null | undefined,
+  currentSession?: LiveSessionSummary | null,
 ): boolean {
   return currentSession == null;
 }

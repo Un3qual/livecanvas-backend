@@ -122,7 +122,7 @@ const liveDiscoveryScreen = await import(
 
 const shouldShowHostCreationAction =
   liveDiscoveryScreen.shouldShowHostCreationAction as
-    | ((currentSession: unknown) => boolean)
+    | ((currentSession?: unknown) => boolean)
     | undefined;
 const createLiveDiscoveryHomeActions =
   liveDiscoveryScreen.createLiveDiscoveryHomeActions as
@@ -144,7 +144,7 @@ const pushLiveDiscoveryHomeAction =
 describe('LiveDiscoveryScreen presentation', () => {
   test('only shows host creation when the viewer does not already have a current session', () => {
     expect(shouldShowHostCreationAction?.(null)).toBe(true);
-    expect(shouldShowHostCreationAction?.(undefined)).toBe(true);
+    expect(shouldShowHostCreationAction?.()).toBe(true);
     expect(shouldShowHostCreationAction?.({ id: 'session-1' })).toBe(false);
   });
 
