@@ -119,6 +119,14 @@ function ScreenStateMock({
 }
 
 mock.module('expo-router', () => ({
+  Redirect: function RedirectMock(_props: { href: string }) {
+    return null;
+  },
+  Stack: function StackMock(_props: { initialRouteName?: string }) {
+    return null;
+  },
+  useLocalSearchParams: () => ({}),
+  usePathname: () => '/compose',
   useRouter: () => ({
     back: () => {
       backCalls.push('back');
@@ -146,6 +154,11 @@ mock.module('react-relay', () => ({
 }));
 
 mock.module('react-native', () => ({
+  Linking: {
+    canOpenURL: () => Promise.resolve(false),
+    getInitialURL: () => Promise.resolve(null),
+    openURL: () => Promise.resolve(),
+  },
   Pressable: function Pressable({
     children,
     ...props
@@ -377,6 +390,61 @@ describe('PostComposerScreen', () => {
     tree = renderWithHooks(createElement(PostComposerScreen));
 
     expect(findPressableByText(tree, 'Cancel')?.props.disabled).toBe(true);
+  });
+
+  test('freezes draft controls while createPost is in flight', () => {
+    let tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findHostNodeByProps(tree, {
+      accessibilityLabel: 'Post body',
+    })?.props.onChangeText?.('Original post body');
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findPressableByText(tree, 'Story')?.props.onPress?.();
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findPressableByText(tree, 'Public')?.props.onPress?.();
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    findPressableByText(tree, 'Post')?.props.onPress?.();
+    findHostNodeByProps(tree, {
+      accessibilityLabel: 'Post body',
+    })?.props.onChangeText?.('Edited while posting');
+    findPressableByText(tree, 'Standard')?.props.onPress?.();
+    findPressableByText(tree, 'Followers')?.props.onPress?.();
+
+    tree = renderWithHooks(createElement(PostComposerScreen));
+
+    expect(
+      findHostNodeByProps(tree, {
+        accessibilityLabel: 'Post body',
+      })?.props.value,
+    ).toBe('Original post body');
+    expect(
+      findHostNodeByProps(tree, {
+        accessibilityLabel: 'Post body',
+      })?.props.editable,
+    ).toBe(false);
+    expect(findPressableByText(tree, 'Standard')?.props.disabled).toBe(true);
+    expect(findPressableByText(tree, 'Story')?.props.disabled).toBe(true);
+    expect(findPressableByText(tree, 'Followers')?.props.disabled).toBe(true);
+    expect(findPressableByText(tree, 'Public')?.props.disabled).toBe(true);
+    expect(findPressableByText(tree, 'Standard')?.props.accessibilityState).toEqual({
+      disabled: true,
+      selected: false,
+    });
+    expect(findPressableByText(tree, 'Story')?.props.accessibilityState).toEqual({
+      disabled: true,
+      selected: true,
+    });
+    expect(findPressableByText(tree, 'Followers')?.props.accessibilityState).toEqual({
+      disabled: true,
+      selected: false,
+    });
+    expect(findPressableByText(tree, 'Public')?.props.accessibilityState).toEqual({
+      disabled: true,
+      selected: true,
+    });
   });
 
   test('shows confirmation and returns home after successful creation', () => {

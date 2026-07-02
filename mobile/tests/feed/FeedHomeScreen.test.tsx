@@ -234,6 +234,14 @@ function LiveSessionSummaryCardMock({
 }
 
 mock.module('expo-router', () => ({
+  Redirect: function RedirectMock(_props: { href: string }) {
+    return null;
+  },
+  Stack: function StackMock(_props: { initialRouteName?: string }) {
+    return null;
+  },
+  useLocalSearchParams: () => ({}),
+  usePathname: () => '/home',
   useRouter: () => ({
     push: (route: unknown) => {
       pushedRoutes.push(route);
@@ -331,6 +339,14 @@ mock.module('../../src/live/liveSessionNavigation', () => ({
     params: { sessionId },
     pathname: '/live-session',
   }),
+  readLiveSessionIdParam: (value?: string | string[]) => {
+    const raw = Array.isArray(value)
+      ? value.find((candidate) => candidate.trim().length > 0)
+      : value;
+    const trimmed = raw?.trim();
+
+    return trimmed && trimmed.length > 0 ? trimmed : null;
+  },
 }));
 mock.module('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
@@ -736,6 +752,79 @@ describe('FeedHomeScreen', () => {
     const text = collectText(tree);
     expect(text).toContain('Second older story');
     expect(text).not.toContain('Loading...');
+  });
+
+  test('clears stale load-more request refs when the base page changes', () => {
+    const staleLoadMoreDeferred =
+      createDeferred<FeedHomeQueryData | null | undefined>();
+
+    queryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Story update',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    fetchQueryImplementation = (variables) =>
+      variables.storyAfter === 'story-cursor'
+        ? staleLoadMoreDeferred.promise
+        : Promise.resolve({
+            ...createFilledQueryData(),
+            storyFeed: connection(
+              [
+                post({
+                  bodyText: 'Older story from new window',
+                  expiresAt: '2026-07-01T16:15:30Z',
+                  id: 'story-new-older',
+                  kind: 'STORY',
+                }),
+              ],
+              { endCursor: null, hasNextPage: false },
+            ),
+          });
+
+    let tree = renderWithHooks(createElement(FeedHomeContent));
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+
+    expect(fetchQueryCalls).toHaveLength(1);
+    expect(fetchQueryCalls[0].variables).toMatchObject({
+      storyAfter: 'story-cursor',
+    });
+
+    queryData = {
+      ...queryData,
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'New base story',
+            expiresAt: '2026-07-01T18:15:30Z',
+            id: 'story-new-base',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-network-cursor', hasNextPage: true },
+      ),
+    };
+
+    renderWithHooks(createElement(FeedHomeContent));
+    tree = renderWithHooks(createElement(FeedHomeContent));
+
+    expect(collectText(tree)).toContain('New base story');
+
+    findPressableByText(tree, 'Load more stories')?.props.onPress?.();
+
+    expect(fetchQueryCalls).toHaveLength(2);
+    expect(fetchQueryCalls[1].variables).toMatchObject({
+      storyAfter: 'story-network-cursor',
+    });
   });
 
   test('drops retained older feed posts when the base page changes', async () => {

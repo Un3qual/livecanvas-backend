@@ -110,6 +110,12 @@ type FeedHomeManualRefreshSnapshot = {
   readonly queryDataAtStart: FeedHomeQueryResponse;
 };
 
+const FEED_HOME_PAGINATION_SECTIONS = [
+  'homeFeed',
+  'replays',
+  'stories',
+] as const satisfies readonly FeedHomePaginationSection[];
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -394,30 +400,33 @@ export function FeedHomeContent() {
   });
 
   useEffect(() => {
+    const syncedSections = {
+      homeFeed: createSectionPageInfo(
+        {
+          endCursor: queryHomeFeedEndCursor,
+          hasNextPage: queryHomeFeedHasNextPage,
+        },
+        queryHomeFeedBasePageIdentity,
+      ),
+      replays: createSectionPageInfo(
+        {
+          endCursor: queryReplaysEndCursor,
+          hasNextPage: queryReplaysHasNextPage,
+        },
+        queryReplaysBasePageIdentity,
+      ),
+      stories: createSectionPageInfo(
+        {
+          endCursor: queryStoriesEndCursor,
+          hasNextPage: queryStoriesHasNextPage,
+        },
+        queryStoriesBasePageIdentity,
+      ),
+    };
+
+    clearStaleLoadMoreRequests(syncedSections);
     dispatchPagination({
-      sections: {
-        homeFeed: createSectionPageInfo(
-          {
-            endCursor: queryHomeFeedEndCursor,
-            hasNextPage: queryHomeFeedHasNextPage,
-          },
-          queryHomeFeedBasePageIdentity,
-        ),
-        replays: createSectionPageInfo(
-          {
-            endCursor: queryReplaysEndCursor,
-            hasNextPage: queryReplaysHasNextPage,
-          },
-          queryReplaysBasePageIdentity,
-        ),
-        stories: createSectionPageInfo(
-          {
-            endCursor: queryStoriesEndCursor,
-            hasNextPage: queryStoriesHasNextPage,
-          },
-          queryStoriesBasePageIdentity,
-        ),
-      },
+      sections: syncedSections,
       type: 'query_page_info_sync',
     });
   }, [
@@ -453,6 +462,33 @@ export function FeedHomeContent() {
       replays: null,
       stories: null,
     };
+  }
+
+  function clearStaleLoadMoreRequests(
+    sections: Record<
+      FeedHomePaginationSection,
+      FeedHomePaginationSectionInput
+    >,
+  ) {
+    let nextRequests = activeLoadMoreRequestRef.current;
+
+    for (const section of FEED_HOME_PAGINATION_SECTIONS) {
+      const request = activeLoadMoreRequestRef.current[section];
+      const incomingBasePageIdentity = sections[section].basePageIdentity ?? '';
+
+      if (
+        request !== null &&
+        request.basePageIdentity !== incomingBasePageIdentity
+      ) {
+        nextRequests =
+          nextRequests === activeLoadMoreRequestRef.current
+            ? { ...activeLoadMoreRequestRef.current }
+            : nextRequests;
+        nextRequests[section] = null;
+      }
+    }
+
+    activeLoadMoreRequestRef.current = nextRequests;
   }
 
   async function refreshHome() {

@@ -115,7 +115,7 @@ export function PostComposerScreen() {
   );
   const validationMessage = getPostComposerValidationMessage(state);
   const canSubmit = canSubmitPostComposer(state);
-  const isSubmitting = isCreatePostInFlight || activeCreatePostRef.current;
+  const isSubmitting = isPostSubmissionActive();
   const shouldShowValidation =
     validationMessage !== null &&
     (submitAttempted ||
@@ -133,7 +133,7 @@ export function PostComposerScreen() {
   );
 
   function handleSubmit() {
-    if (isCreatePostInFlight || activeCreatePostRef.current) {
+    if (isPostSubmissionActive()) {
       return;
     }
 
@@ -188,7 +188,7 @@ export function PostComposerScreen() {
   }
 
   function handleCancel() {
-    if (isCreatePostInFlight || activeCreatePostRef.current) {
+    if (isPostSubmissionActive()) {
       return;
     }
 
@@ -198,6 +198,10 @@ export function PostComposerScreen() {
     }
 
     router.replace('/home');
+  }
+
+  function isPostSubmissionActive() {
+    return isCreatePostInFlight || activeCreatePostRef.current;
   }
 
   return (
@@ -219,11 +223,16 @@ export function PostComposerScreen() {
           </Text>
           <TextInput
             accessibilityLabel="Post body"
+            editable={!isSubmitting}
             multiline
             onBlur={() => {
               setBodyBlurred(true);
             }}
             onChangeText={(bodyText) => {
+              if (isPostSubmissionActive()) {
+                return;
+              }
+
               setSuccessMessage(null);
               setState((current) =>
                 updatePostComposerBody(current, bodyText),
@@ -263,9 +272,14 @@ export function PostComposerScreen() {
           <View style={styles.buttonRow}>
             {POST_COMPOSER_KINDS.map((kind) => (
               <AppButton
+                disabled={isSubmitting}
                 key={kind}
                 label={POST_COMPOSER_KIND_LABELS[kind]}
                 onPress={() => {
+                  if (isPostSubmissionActive()) {
+                    return;
+                  }
+
                   setSuccessMessage(null);
                   setState((current) =>
                     selectPostComposerKind(current, kind),
@@ -285,9 +299,14 @@ export function PostComposerScreen() {
           <View style={styles.buttonRow}>
             {POST_COMPOSER_VISIBILITIES.map((visibility) => (
               <AppButton
+                disabled={isSubmitting}
                 key={visibility}
                 label={POST_COMPOSER_VISIBILITY_LABELS[visibility]}
                 onPress={() => {
+                  if (isPostSubmissionActive()) {
+                    return;
+                  }
+
                   setSuccessMessage(null);
                   setState((current) =>
                     selectPostComposerVisibility(current, visibility),
