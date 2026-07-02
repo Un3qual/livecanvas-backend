@@ -443,7 +443,7 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
       name: 'Load more stories',
     });
 
-    await act(async () => {
+    await act(() => {
       getRefreshControl(view).props.onRefresh?.();
     });
     await user.press(loadMoreStories);
@@ -707,7 +707,7 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     const view = await render(<FeedHomeContent />);
 
     await user.press(screen.getByRole('button', { name: 'Load more stories' }));
-    await act(async () => {
+    await act(() => {
       getRefreshControl(view).props.onRefresh?.();
     });
     await act(async () => {
@@ -763,7 +763,7 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     const view = await render(<FeedHomeContent />);
     const refreshControl = getRefreshControl(view);
 
-    await act(async () => {
+    await act(() => {
       refreshControl.props.onRefresh?.();
       refreshControl.props.onRefresh?.();
     });
@@ -941,7 +941,7 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
       storyFeed: connection([]),
     };
 
-    const view = await render(<FeedHomeContent />);
+    await render(<FeedHomeContent />);
 
     expect(
       screen.queryAllByRole('button', { name: 'Report post' }),
