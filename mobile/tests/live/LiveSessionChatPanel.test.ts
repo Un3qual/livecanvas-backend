@@ -10,39 +10,6 @@ import {
 import { createLiveSessionChatPanelModel } from '../../src/live/chat/liveSessionChatPanelPresentation';
 import type { LiveSessionTimelineHistoryRow } from '../../src/live/liveSessionTimelineHistory';
 
-function NativeComponent({
-  children,
-  ...props
-}: {
-  children?: ReactNode;
-  [key: string]: unknown;
-}) {
-  return createElement('NativeComponent', props, children);
-}
-
-function FlatListMock(props: { [key: string]: unknown }) {
-  return createElement('FlatList', props);
-}
-
-mock.module('react-native', () => ({
-  FlatList: FlatListMock,
-  Pressable: NativeComponent,
-  StyleSheet: {
-    create: <Styles,>(styles: Styles): Styles => styles,
-  },
-  Text: function Text({
-    children,
-    ...props
-  }: {
-    children?: ReactNode;
-    [key: string]: unknown;
-  }) {
-    return createElement('Text', props, children);
-  },
-  TextInput: NativeComponent,
-  View: NativeComponent,
-}));
-
 mock.module('../../src/components/AppButton', () => ({
   AppButton: ({
     disabled,

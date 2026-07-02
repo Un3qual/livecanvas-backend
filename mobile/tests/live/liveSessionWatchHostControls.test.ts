@@ -6,28 +6,6 @@ import {
   type HostBroadcastLocalMediaTrack,
 } from '../../src/host/publishing/hostBroadcastLocalMediaControls';
 
-function NativeComponent({
-  children,
-  ...props
-}: {
-  children?: ReactNode;
-  [key: string]: unknown;
-}) {
-  return createElement('NativeComponent', props, children);
-}
-
-mock.module('react-native', () => ({
-  Linking: {
-    canOpenURL: () => Promise.resolve(false),
-    openURL: () => Promise.resolve(),
-  },
-  Pressable: NativeComponent,
-  StyleSheet: {
-    create: <Styles>(styles: Styles): Styles => styles,
-  },
-  Text: NativeComponent,
-  View: NativeComponent,
-}));
 mock.module('../../src/components/AppButton', () => ({
   AppButton: ({
     disabled,

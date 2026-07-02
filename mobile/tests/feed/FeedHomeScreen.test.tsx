@@ -146,16 +146,6 @@ const reactInternals = (
   H: HookDispatcher | null;
 };
 
-function NativeComponent({
-  children,
-  ...props
-}: {
-  children?: ReactNode;
-  [key: string]: unknown;
-}) {
-  return createElement('NativeComponent', props, children);
-}
-
 function AppButtonMock({
   disabled,
   label,
@@ -247,44 +237,6 @@ mock.module('expo-router', () => ({
       pushedRoutes.push(route);
     },
   }),
-}));
-
-mock.module('react-native', () => ({
-  ActivityIndicator: NativeComponent,
-  FlatList: NativeComponent,
-  Linking: {
-    canOpenURL: () => Promise.resolve(false),
-    getInitialURL: () => Promise.resolve(null),
-    openURL: () => Promise.resolve(),
-  },
-  Platform: {
-    OS: 'ios',
-  },
-  Pressable: function Pressable({
-    children,
-    ...props
-  }: {
-    children?: ReactNode;
-    [key: string]: unknown;
-  }) {
-    return createElement('Pressable', props, children);
-  },
-  RefreshControl: NativeComponent,
-  ScrollView: NativeComponent,
-  StyleSheet: {
-    create: <Styles,>(styles: Styles): Styles => styles,
-  },
-  Text: function Text({
-    children,
-    ...props
-  }: {
-    children?: ReactNode;
-    [key: string]: unknown;
-  }) {
-    return createElement('Text', props, children);
-  },
-  TextInput: NativeComponent,
-  View: NativeComponent,
 }));
 
 mock.module('react-relay', () => ({
@@ -1416,7 +1368,7 @@ function createDeferred<Value>(): Deferred<Value> {
 function getRefreshControl(
   tree: RenderedTree,
 ): ReactElement<{ onRefresh?: () => void }> {
-  const scrollView = findHostNodeByType(tree, 'NativeComponent');
+  const scrollView = findHostNodeByType(tree, 'ScrollView');
   const refreshControl = scrollView?.props.refreshControl;
 
   if (!isValidElement<{ onRefresh?: () => void }>(refreshControl)) {
