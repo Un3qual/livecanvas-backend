@@ -13,7 +13,7 @@ import {
 describe('liveWebRtcAdapter', () => {
   test('creates peer connection factories and reads media devices from the native module boundary', () => {
     type MockPeerConnectionConfig = Readonly<{
-      iceServers: ReadonlyArray<never>;
+      iceServers: ReadonlyArray<unknown>;
     }>;
 
     class MockPeerConnection {
@@ -49,7 +49,7 @@ describe('liveWebRtcAdapter', () => {
 
     expect(peerConnection).toBeInstanceOf(MockPeerConnection);
     expect(peerConnection?.config).toBe(config);
-    expect(readLiveWebRtcMediaDevices(nativeModule)).toBe(mediaDevices);
+    expect(readLiveWebRtcMediaDevices({ mediaDevices })).toBe(mediaDevices);
   });
 });
 

@@ -7,6 +7,7 @@ import type {
   HostBroadcastLocalMediaStream,
   HostBroadcastLocalMediaTrack,
 } from '../../src/host/publishing/hostBroadcastLocalMediaControls';
+import type { PhoenixSocket } from '../../src/realtime/phoenixSocket';
 import {
   createHostBroadcastPublishingPreflightController,
   createHostBroadcastPublishingSessionStore,
@@ -28,7 +29,11 @@ type Deferred<T> = {
   readonly resolve: (value: T) => void;
 };
 
-function failPublishingRuntimeChannel() {
+type PreviewTrack = HostBroadcastLocalMediaTrack & {
+  stop: () => void;
+};
+
+function failPublishingRuntimeChannel(): never {
   throw new Error('controller tests replace the publishing runtime boundary');
 }
 
@@ -36,7 +41,7 @@ class FakeSocket {
   connectCount = 0;
   disconnectCount = 0;
 
-  readonly channel = failPublishingRuntimeChannel;
+  readonly channel: PhoenixSocket['channel'] = failPublishingRuntimeChannel;
 
   connect(): void {
     this.connectCount += 1;
@@ -111,9 +116,9 @@ function createHarness(
     current: new Map<HostBroadcastPublishingResource, string>(),
   };
   const hasRetainedPublishingResourceRef = { current: false };
-  const previewTracks: HostBroadcastLocalMediaTrack[] = [
-    { enabled: true, kind: 'audio' },
-    { enabled: true, kind: 'video' },
+  const previewTracks: PreviewTrack[] = [
+    { enabled: true, kind: 'audio', stop: () => undefined },
+    { enabled: true, kind: 'video', stop: () => undefined },
   ];
   const previewStream = {
     getTracks() {
@@ -275,8 +280,10 @@ describe('useHostBroadcastPublishingController lifecycle', () => {
 
     expect(harness.previewTracks[0].enabled).toBe(false);
     expect(harness.previewTracks[1].enabled).toBe(true);
-    expect(harness.hostPublishingSessions.controlsFor('live-session-id')).toBe(
-      retainedResource?.localMediaControls,
+    expect(
+      harness.hostPublishingSessions.controlsFor('live-session-id') ?? null,
+    ).toBe(
+      retainedResource?.localMediaControls ?? null,
     );
   });
 

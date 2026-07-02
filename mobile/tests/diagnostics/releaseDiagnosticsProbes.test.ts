@@ -202,7 +202,7 @@ describe('release diagnostics probes', () => {
 
     expect(result).toEqual({ status: 'reachable' });
     expect(closeCalled).toBe(true);
-    expect(openedUrl).toBe(
+    expect(openedUrl as string | null).toBe(
       'wss://preview-ws.livecanvas.example/socket/websocket?vsn=2.0.0&token=diagnostic-access-token',
     );
     expect(openedUrl).not.toContain('secret-token');
@@ -233,7 +233,7 @@ describe('release diagnostics probes', () => {
     });
 
     expect(result).toEqual({ status: 'reachable' });
-    expect(openedUrl).toBe(
+    expect(openedUrl as string | null).toBe(
       'wss://preview-ws.livecanvas.example/socket/websocket/websocket?vsn=2.0.0&token=diagnostic-access-token',
     );
   });
@@ -262,7 +262,7 @@ describe('release diagnostics probes', () => {
     });
 
     expect(result).toEqual({ status: 'reachable' });
-    expect(openedUrl).toBe(
+    expect(openedUrl as string | null).toBe(
       'ws://localhost:4000/socket/websocket?vsn=2.0.0&token=local-access-token',
     );
   });

@@ -4,6 +4,7 @@ import {
   Suspense,
   createElement,
   isValidElement,
+  type Component,
   type ReactElement,
 } from 'react';
 
@@ -29,10 +30,22 @@ type HostNode = {
   type: string;
 };
 
-type RenderedTree = HostNode | string | null | readonly RenderedTree[];
+type RenderedTree = HostNode | string | null | RenderedTree[];
+
+type ClassComponentConstructor = new (props: {
+  children?: unknown;
+}) => Component<{ children?: unknown }>;
+
+type FunctionComponentRenderer = (props: { children?: unknown }) => unknown;
+
+type ReactRuntimeWithClientInternals = typeof import('react') & {
+  __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE: {
+    H: HookDispatcher | null;
+  };
+};
 
 const reactInternals = (
-  await import('react')
+  (await import('react')) as unknown as ReactRuntimeWithClientInternals
 ).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE as {
   H: HookDispatcher | null;
 };
@@ -239,12 +252,14 @@ function renderNode(node: unknown): RenderedTree {
       element.type.prototype &&
       'isReactComponent' in element.type.prototype
     ) {
-      const instance = new element.type(element.props);
+      const ComponentType = element.type as ClassComponentConstructor;
+      const instance = new ComponentType(element.props);
 
       return renderNode(instance.render());
     }
 
-    return renderNode(element.type(element.props));
+    const renderFunction = element.type as FunctionComponentRenderer;
+    return renderNode(renderFunction(element.props));
   }
 
   if (typeof element.type === 'string') {

@@ -2,14 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["bun"]
+    "types": ["bun-types/test"]
   },
-  "exclude": [
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/*.spec.ts",
-    "**/*.spec.tsx",
-    "tests/**/*.rntl.tsx"
-  ],
+  "exclude": ["tests/**/*.rntl.tsx"],
   "include": ["tests/**/*.ts", "tests/**/*.tsx"]
 }

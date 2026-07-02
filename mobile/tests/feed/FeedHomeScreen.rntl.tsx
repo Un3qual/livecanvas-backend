@@ -114,7 +114,8 @@ let mockFetchQueryCalls: FetchQueryCall[];
 let mockFetchQueryImplementation: FetchQueryImplementation | null;
 let mockFetchQueryResult: FeedHomeQueryData;
 let mockPushedRoutes: unknown[];
-const mockReportPostCommit = jest.fn<void, [ReportPostMutationConfig]>();
+const mockReportPostCommit =
+  jest.fn<undefined, [ReportPostMutationConfig]>();
 
 jest.mock('expo-router', () => ({
   Redirect: function RedirectMock(_props: { href: string }) {
@@ -188,7 +189,7 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
   test('renders stories, home feed, live now, replays, and current session sections', async () => {
     const user = userEvent.setup();
 
-    const view = await render(<FeedHomeContent />);
+    await render(<FeedHomeContent />);
 
     expect(screen.getByText('Stories')).toBeOnTheScreen();
     expect(screen.getByText('Story update')).toBeOnTheScreen();
@@ -263,7 +264,7 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
       ),
     };
 
-    const view = await render(<FeedHomeContent />);
+    await render(<FeedHomeContent />);
 
     expect(
       screen.queryAllByRole('button', { name: 'Load more stories' }),
@@ -1161,7 +1162,7 @@ async function completeReportPost(
 
   expect(config).toBeDefined();
 
-  await act(async () => {
+  await act(() => {
     config?.onCompleted?.(payload);
   });
 }

@@ -12,6 +12,7 @@ import {
   type LiveSessionViewerPlaybackControllerLifecycleOptions,
 } from '../../src/live/watch/hooks/useLiveSessionViewerPlaybackController';
 import type { ViewerPlaybackState } from '../../src/live/watch/liveSessionWatchScreenTypes';
+import type { PhoenixSocket } from '../../src/realtime/phoenixSocket';
 
 type PrepareMediaCommitConfig = {
   readonly onCompleted?: (payload: PrepareMediaPayload) => void;
@@ -49,7 +50,7 @@ type Deferred<T> = {
   readonly resolve: (value: T) => void;
 };
 
-function failViewerPlaybackRuntimeChannel() {
+function failViewerPlaybackRuntimeChannel(): never {
   throw new Error('controller tests replace the runtime boundary');
 }
 
@@ -59,7 +60,7 @@ class FakeSocket {
 
   constructor(
     readonly websocketUrl = 'wss://example.test/socket',
-    readonly accessToken = 'viewer-token',
+    readonly accessToken: string | null = 'viewer-token',
   ) {}
 
   connect(): void {
@@ -70,7 +71,7 @@ class FakeSocket {
     this.disconnectCount += 1;
   }
 
-  readonly channel = failViewerPlaybackRuntimeChannel;
+  readonly channel: PhoenixSocket['channel'] = failViewerPlaybackRuntimeChannel;
 }
 
 class FakeRuntime implements LiveSessionViewerPlaybackRuntime {
@@ -134,7 +135,7 @@ function createHarness() {
       return runtime;
     },
     createSocket: ({ getAccessToken, websocketUrl }) => {
-      const socket = new FakeSocket(websocketUrl, getAccessToken());
+      const socket = new FakeSocket(websocketUrl, getAccessToken() ?? undefined);
       sockets.push(socket);
       return socket;
     },
@@ -376,7 +377,7 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
             stateHistory,
           }),
           createSocket: ({ getAccessToken, websocketUrl }) => {
-            const socket = new FakeSocket(websocketUrl, getAccessToken());
+            const socket = new FakeSocket(websocketUrl, getAccessToken() ?? undefined);
             sockets.push(socket);
             return socket;
           },
@@ -414,7 +415,7 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
             stateHistory,
           }),
           createSocket: ({ getAccessToken, websocketUrl }) => {
-            const socket = new FakeSocket(websocketUrl, getAccessToken());
+            const socket = new FakeSocket(websocketUrl, getAccessToken() ?? undefined);
             sockets.push(socket);
             return socket;
           },

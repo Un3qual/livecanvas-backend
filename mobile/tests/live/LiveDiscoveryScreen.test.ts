@@ -144,7 +144,7 @@ const pushLiveDiscoveryHomeAction =
 describe('LiveDiscoveryScreen presentation', () => {
   test('only shows host creation when the viewer does not already have a current session', () => {
     expect(shouldShowHostCreationAction?.(null)).toBe(true);
-    expect(shouldShowHostCreationAction?.()).toBe(true);
+    expect(shouldShowHostCreationAction?.(undefined)).toBe(true);
     expect(shouldShowHostCreationAction?.({ id: 'session-1' })).toBe(false);
   });
 

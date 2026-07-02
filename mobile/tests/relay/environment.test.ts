@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
+import type { RequestParameters } from 'relay-runtime';
 
 const originalFetch = globalThis.fetch;
 
@@ -28,6 +29,17 @@ function mockRelayRuntime() {
   }));
 }
 
+function requestParameters(text: string | null): RequestParameters {
+  return {
+    cacheID: text ?? 'missing-text',
+    id: null,
+    metadata: {},
+    name: 'ViewerQuery',
+    operationKind: 'query',
+    text,
+  };
+}
+
 describe('createBasicFetch', () => {
   test('falls back to an empty query string when Relay operation text is unavailable', async () => {
     mockRelayRuntime();
@@ -44,14 +56,18 @@ describe('createBasicFetch', () => {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
-    }) as typeof globalThis.fetch;
+    }) as unknown as typeof globalThis.fetch;
 
     const fetchFn = createBasicFetch('https://api.example.com');
 
     await expect(
-      fetchFn({ text: undefined } as Parameters<ReturnType<typeof createBasicFetch>>[0], {
-        id: 'viewer-1',
-      }),
+      fetchFn(
+        requestParameters(null),
+        {
+          id: 'viewer-1',
+        },
+        {},
+      ),
     ).resolves.toEqual({ data: { viewer: null } });
   });
 
@@ -66,14 +82,16 @@ describe('createBasicFetch', () => {
         statusText: 'Bad Gateway',
         headers: { 'Content-Type': 'text/html' },
       });
-    }) as typeof globalThis.fetch;
+    }) as unknown as typeof globalThis.fetch;
 
     const fetchFn = createBasicFetch('https://api.example.com');
 
     await expect(
-      fetchFn({ text: 'query ViewerQuery { viewer { id } }' } as Parameters<
-        ReturnType<typeof createBasicFetch>
-      >[0], {}),
+      fetchFn(
+        requestParameters('query ViewerQuery { viewer { id } }'),
+        {},
+        {},
+      ),
     ).rejects.toThrow('GraphQL request failed with 502 Bad Gateway');
   });
 
@@ -88,14 +106,16 @@ describe('createBasicFetch', () => {
         statusText: 'Unauthorized',
         headers: { 'Content-Type': 'application/json' },
       });
-    }) as typeof globalThis.fetch;
+    }) as unknown as typeof globalThis.fetch;
 
     const fetchFn = createBasicFetch('https://api.example.com');
 
     await expect(
-      fetchFn({ text: 'query ViewerQuery { viewer { id } }' } as Parameters<
-        ReturnType<typeof createBasicFetch>
-      >[0], {}),
+      fetchFn(
+        requestParameters('query ViewerQuery { viewer { id } }'),
+        {},
+        {},
+      ),
     ).resolves.toEqual({ errors: [{ message: 'unauthenticated' }] });
   });
 });

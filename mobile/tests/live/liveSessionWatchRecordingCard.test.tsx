@@ -131,9 +131,18 @@ type RenderedNode = {
 };
 
 type RenderedTree = RenderedNode | string;
+type RecordingProcessingState = NonNullable<
+  LiveSessionNode['recordingMediaAsset']
+>['processingState'];
+
+type ReactRuntimeWithClientInternals = typeof import('react') & {
+  __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE: {
+    H: unknown;
+  };
+};
 
 const reactInternals = (
-  await import('react')
+  (await import('react')) as unknown as ReactRuntimeWithClientInternals
 ).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE as {
   H: unknown;
 };
@@ -168,7 +177,7 @@ describe('LiveSessionWatchCards recording metadata', () => {
 
   test('renders processed, processing, failed, and unavailable recording states', () => {
     const cases: ReadonlyArray<{
-      readonly processingState: string;
+      readonly processingState: RecordingProcessingState;
       readonly publicUrl?: string | null;
       readonly expectedBody: string;
       readonly expectedStatus: string;
@@ -433,7 +442,10 @@ function renderNode(node: ReactNode): ReadonlyArray<RenderedTree> {
   }>;
 
   if (typeof element.type === 'function') {
-    return renderNode(element.type(element.props));
+    const renderFunction = element.type as (
+      props: typeof element.props,
+    ) => ReactNode;
+    return renderNode(renderFunction(element.props));
   }
 
   return [

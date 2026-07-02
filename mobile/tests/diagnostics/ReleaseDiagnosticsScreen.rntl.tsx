@@ -178,7 +178,9 @@ describe('ReleaseDiagnosticsScreen with React Native Testing Library', () => {
         url: 'wss://preview-ws.livecanvas.example/socket',
       },
     ]);
-    expect(screen.getByText('Reachable')).toBeOnTheScreen();
+    await waitFor(() => {
+      expect(screen.getByText('Reachable')).toBeOnTheScreen();
+    });
     await waitFor(() => {
       expect(
         screen.getByText('Failed: Websocket connection failed'),
@@ -189,7 +191,9 @@ describe('ReleaseDiagnosticsScreen with React Native Testing Library', () => {
   test('renders a failed websocket probe when the diagnostic rejects', async () => {
     const user = userEvent.setup();
 
-    mockWebsocketProbeError = new Error('socket internal failure with secret token');
+    mockWebsocketProbeError = new Error(
+      'socket internal failure with secret token',
+    );
 
     await render(<ReleaseDiagnosticsScreen />);
 

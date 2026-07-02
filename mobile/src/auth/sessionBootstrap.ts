@@ -9,12 +9,16 @@ import {
 const ACCESS_TOKEN_TTL_DAYS = 14;
 const GRAPHQL_ENDPOINT_PATH = '/graphql';
 
-type FetchImpl = typeof fetch;
+type Awaitable<T> = T | Promise<T>;
+type FetchImpl = (
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+) => Response | Promise<Response>;
 
 type SessionRestoreDependencies = {
-  readTokens: () => Promise<AuthTokenPair | null>;
-  storeTokens: (tokens: AuthTokenPair) => Promise<void>;
-  clearTokens: () => Promise<void>;
+  readTokens: () => Awaitable<AuthTokenPair | null>;
+  storeTokens: (tokens: AuthTokenPair) => Awaitable<void>;
+  clearTokens: () => Awaitable<void>;
   fetchImpl?: FetchImpl;
 };
 
@@ -90,7 +94,7 @@ function hasDefinitiveSessionRejection(response: unknown): boolean {
   });
 }
 
-async function clearStoredTokens(clearTokens: () => Promise<void>): Promise<void> {
+async function clearStoredTokens(clearTokens: () => Awaitable<void>): Promise<void> {
   try {
     await clearTokens();
   } catch {

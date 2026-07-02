@@ -27,7 +27,8 @@ const mockRouter = {
   canGoBack: jest.fn(() => true),
   replace: jest.fn(),
 };
-const mockCreatePostCommit = jest.fn<void, [CreatePostCommitConfig]>();
+const mockCreatePostCommit =
+  jest.fn<undefined, [CreatePostCommitConfig]>();
 let mockCreatePostInFlight = false;
 
 jest.mock('expo-router', () => ({
@@ -285,7 +286,7 @@ describe('PostComposerScreen with React Native Testing Library', () => {
 
     const config = mockCreatePostCommit.mock.calls[0]?.[0];
 
-    await act(async () => {
+    await act(() => {
       config?.onError?.();
     });
 
@@ -334,7 +335,7 @@ async function completeCreatePost(
 
   expect(config).toBeDefined();
 
-  await act(async () => {
+  await act(() => {
     config?.onCompleted?.({ createPost });
   });
 }
