@@ -4,5 +4,12 @@
     "noEmit": true,
     "types": ["bun"]
   },
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "tests/**/*.rntl.tsx"
+  ],
   "include": ["tests/**/*.ts", "tests/**/*.tsx"]
 }

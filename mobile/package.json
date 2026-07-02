@@ -9,9 +9,11 @@
     "web": "expo start --web",
     "relay": "relay-compiler",
     "lint": "eslint . --max-warnings=0",
-    "test:quality": "bun run typecheck && bun run typecheck:tests && bun run lint && bun test --preload ./tests/setup/reactNative.ts tests",
+    "test:bun": "bun test --preload ./tests/setup/reactNative.ts tests",
+    "test:jest": "jest --config ./jest.config.js",
+    "test:quality": "bun run typecheck && bun run typecheck:tests && bun run lint && bun run test:bun && bun run test:jest",
     "typecheck": "tsc --noEmit",
-    "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json"
+    "typecheck:tests": "tsc --noEmit -p tsconfig.tests.json && tsc --noEmit -p tsconfig.jest-tests.json"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^14.0.0",
@@ -36,7 +38,9 @@
     "xstate": "^5.32.2"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^14.0.1",
     "@types/bun": "^1.3.14",
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.2.2",
     "@types/react-relay": "^18.2.1",
     "@types/relay-runtime": "^20.1.1",
@@ -45,7 +49,11 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-testing-library": "^7.16.2",
+    "jest": "^29.7.0",
+    "jest-expo": "^55.0.19",
     "relay-compiler": "^20.1.1",
+    "test-renderer": "^1.2.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.62.0"
   },
