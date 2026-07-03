@@ -203,19 +203,19 @@ Milestone commit:
   - `docs/contracts/mobile-graphql-phase2.md`
 
 Acceptance criteria:
-- [ ] The audit lists shipped mobile surfaces for auth, profiles, home feed,
+- [x] The audit lists shipped mobile surfaces for auth, profiles, home feed,
       live watch, chat, replay, reporting, diagnostics, and host preflight.
-- [ ] The audit lists missing product surfaces backed by existing backend
+- [x] The audit lists missing product surfaces backed by existing backend
       contracts. Mobile text post creation is already complete, so the next
       candidate must come from the remaining product gaps.
-- [ ] The audit selects one next batch and records why it beats release-candidate
+- [x] The audit selects one next batch and records why it beats release-candidate
       manual QA for product completeness, or explicitly recommends resuming QA
       if no product gap remains.
-- [ ] The audit names backend issues to promote only when backed by a contract
+- [x] The audit names backend issues to promote only when backed by a contract
       mismatch or failing verification.
 
 Focused verification:
-- From repo root: `git diff --check`
+- 2026-07-03: From repo root, `git diff --check` -> passed.
 
 Milestone commit:
 - Commit the audit and any pointer updates together.
