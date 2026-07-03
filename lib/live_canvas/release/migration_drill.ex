@@ -7,7 +7,7 @@ defmodule LC.Release.MigrationDrill do
 
   @type drill_step :: MixStep.t()
   @type drill_failure :: MixStep.failure()
-  @type runner_fun :: (String.t(), [String.t()] -> :ok | {:error, term()})
+  @type runner_fun :: MixStep.runner_fun()
 
   @spec command_plan(pos_integer()) :: [drill_step()]
   def command_plan(step \\ 1) when is_integer(step) and step > 0 do

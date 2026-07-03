@@ -1,4 +1,4 @@
-defmodule LC.Infra.Payload do
+defmodule LCPayload.Payload do
   @moduledoc """
   Helpers for fixed-key boundary payload lookup.
 

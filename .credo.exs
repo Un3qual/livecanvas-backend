@@ -6,7 +6,7 @@
         {ExSlop, []},
         {ExDNA.Credo,
          [
-           min_mass: 40,
+           min_mass: 30,
            excluded_macros: [:schema, :pipe_through, :plug],
            normalize_pipes: true
          ]}

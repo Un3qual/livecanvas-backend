@@ -24,6 +24,7 @@ defmodule LC.Release.MixStep do
   def run_steps([], _runner), do: :ok
 
   def run_steps([step | remaining], runner) do
+    # Fail fast so callers report the first failed operator step deterministically.
     case runner.(step.task, step.args) do
       :ok -> run_steps(remaining, runner)
       {:error, reason} -> {:error, %{step: step, reason: reason}}

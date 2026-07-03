@@ -7,7 +7,7 @@ defmodule LC.Release.Gates do
 
   @type gate_step :: MixStep.t()
   @type gate_failure :: MixStep.failure()
-  @type runner_fun :: (String.t(), [String.t()] -> :ok | {:error, term()})
+  @type runner_fun :: MixStep.runner_fun()
   @type mix_command_runner :: (String.t(), [String.t()], keyword() -> {String.t(), integer()})
 
   @spec default_steps() :: [gate_step()]

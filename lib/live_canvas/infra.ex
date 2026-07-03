@@ -2,6 +2,7 @@ defmodule LC.Infra do
   @moduledoc false
 
   use Boundary,
+    deps: [LCPayload],
     exports: [
       AsyncJobs,
       AsyncJobs.Handler,
@@ -11,7 +12,6 @@ defmodule LC.Infra do
       DataGovernance.Retention,
       Mailer,
       ObjectStorage,
-      Payload,
       Repo,
       SMS,
       WebhookEvent

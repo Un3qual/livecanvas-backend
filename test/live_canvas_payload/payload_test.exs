@@ -1,7 +1,7 @@
-defmodule LC.Infra.PayloadTest do
+defmodule LCPayload.PayloadTest do
   use ExUnit.Case, async: true
 
-  alias LC.Infra.Payload
+  alias LCPayload.Payload
 
   describe "value_for/2" do
     test "reads fixed known atom and string keys without creating atoms" do

@@ -3,6 +3,8 @@ defmodule LCWeb.Plugs.ObservabilityContext do
 
   @behaviour Plug
 
+  alias LCPayload.Payload
+
   import Plug.Conn, only: [assign: 3, get_req_header: 2, get_resp_header: 2, put_resp_header: 3]
 
   require Logger
@@ -51,8 +53,8 @@ defmodule LCWeb.Plugs.ObservabilityContext do
   @spec build_socket_context(map(), pos_integer() | nil) :: context()
   def build_socket_context(params, viewer_id \\ nil) when is_map(params) do
     %{
-      request_id: request_id_from_value(value_for(params, :request_id)),
-      trace_id: trace_id_from_value(value_for(params, :trace_id)),
+      request_id: request_id_from_value(Payload.value_for(params, :request_id)),
+      trace_id: trace_id_from_value(Payload.value_for(params, :trace_id)),
       viewer_id: viewer_id,
       live_session_id: nil
     }
@@ -164,18 +166,5 @@ defmodule LCWeb.Plugs.ObservabilityContext do
     @generated_trace_id_bytes
     |> :crypto.strong_rand_bytes()
     |> Base.encode16(case: :lower)
-  end
-
-  @spec value_for(map(), :request_id | :trace_id) :: term()
-  defp value_for(values, :request_id) when is_map(values) do
-    get_known_key(values, :request_id, "request_id")
-  end
-
-  defp value_for(values, :trace_id) when is_map(values) do
-    get_known_key(values, :trace_id, "trace_id")
-  end
-
-  defp get_known_key(values, atom_key, string_key) do
-    Map.get(values, atom_key) || Map.get(values, string_key)
   end
 end

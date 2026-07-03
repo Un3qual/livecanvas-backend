@@ -3,7 +3,8 @@ defmodule LC.Infra.DataGovernance.Requests do
 
   import Ecto.Query, only: [from: 2]
 
-  alias LC.Infra.{Payload, Repo}
+  alias LC.Infra.Repo
+  alias LCPayload.Payload
   alias LCSchemas.Accounts.User
   alias LCSchemas.Infra.AsyncJob
 
@@ -34,6 +35,7 @@ defmodule LC.Infra.DataGovernance.Requests do
          %{} = request <- Repo.get(request_schema, request_id) do
       request_handler.(request)
     else
+      # Missing request rows are successful no-ops so retried jobs stay idempotent.
       nil -> :ok
       {:error, reason} -> {:error, reason}
     end

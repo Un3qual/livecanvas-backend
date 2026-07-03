@@ -44,10 +44,9 @@ defmodule LC.Chat.TimelineBroadcasts do
 
   def broadcast_event_removed(_timeline_event_id, _topic), do: :ok
 
-  @spec broadcast_timeline(String.t(), String.t(), map()) :: :ok
   defp broadcast_timeline(topic, event, payload)
        when is_binary(topic) and is_binary(event) and is_map(payload) do
-    Phoenix.PubSub.broadcast(
+    Phoenix.PubSub.broadcast!(
       LC.PubSub,
       topic,
       %Broadcast{topic: topic, event: event, payload: payload}

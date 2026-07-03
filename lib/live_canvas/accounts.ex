@@ -1835,6 +1835,8 @@ defmodule LC.Accounts do
     )
   end
 
+  # Generic join reconciler shared by email/phone syncing: resolve desired IDs,
+  # prune joins no longer desired, then upsert the remaining join rows.
   defp sync_contact_entry_identifiers(
          contact_entry_id,
          normalized_values,

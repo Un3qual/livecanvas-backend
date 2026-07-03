@@ -3,11 +3,12 @@ defmodule LC.Content do
   The Content context.
   """
 
-  use Boundary, deps: [LC.Infra, LCSchemas]
+  use Boundary, deps: [LC.Infra, LCPayload, LCSchemas]
   import Ecto.Query, warn: false
 
   alias LC.Content.{MediaAsset, Post, PostReport}
-  alias LC.Infra.{AsyncJobs, ObjectStorage, Payload, Repo, WebhookEvent}
+  alias LC.Infra.{AsyncJobs, ObjectStorage, Repo, WebhookEvent}
+  alias LCPayload.Payload
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema

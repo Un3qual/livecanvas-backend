@@ -44,15 +44,26 @@ defmodule LC.Release.CapacityDrill do
         }
 
   @type probe_report :: %{
-          probe: probe(),
-          sample_size: pos_integer(),
-          success_rate: float(),
-          mean_latency_ms: float(),
-          p95_latency_ms: float(),
-          threshold: map(),
-          passed?: boolean(),
-          failure_reasons: [String.t()]
+          required(:probe) => probe(),
+          required(:sample_size) => pos_integer(),
+          required(:success_rate) => float(),
+          required(:mean_latency_ms) => float(),
+          required(:p95_latency_ms) => float(),
+          required(:threshold) => map(),
+          required(:passed?) => boolean(),
+          required(:failure_reasons) => [String.t()],
+          optional(:delivery_rate) => float()
         }
+  @typep base_probe_report :: %{
+           required(:probe) => probe(),
+           required(:sample_size) => pos_integer(),
+           required(:success_rate) => float(),
+           required(:mean_latency_ms) => float(),
+           required(:p95_latency_ms) => float(),
+           required(:threshold) => probe_threshold(),
+           required(:passed?) => boolean(),
+           required(:failure_reasons) => [String.t()]
+         }
   @typep latency_metrics :: %{
            sample_size: pos_integer(),
            success_count: non_neg_integer(),
@@ -60,6 +71,10 @@ defmodule LC.Release.CapacityDrill do
            mean_latency_ms: float(),
            p95_latency_ms: float()
          }
+  @typep probe_threshold ::
+           %{mean_latency_ms: float(), p95_latency_ms: float()}
+           | %{min_delivery_rate: float(), p95_latency_ms: float()}
+           | %{min_success_rate: float(), p95_latency_ms: float()}
 
   @type report :: %{
           evaluated_at: DateTime.t(),
@@ -651,6 +666,8 @@ defmodule LC.Release.CapacityDrill do
     }
   end
 
+  @spec latency_probe_report(probe(), latency_metrics(), probe_threshold(), [String.t()]) ::
+          base_probe_report()
   defp latency_probe_report(probe, latency, threshold, failure_reasons) do
     %{
       probe: probe,

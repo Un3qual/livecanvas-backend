@@ -13,7 +13,7 @@ defmodule LC do
 
   use Boundary,
     top_level?: true,
-    deps: [LCSchemas],
+    deps: [LCPayload, LCSchemas],
     exports:
       [Accounts, Authz, Chat, Content, Feed, Live, RateLimiter, RealtimeRuntime, Social] ++
         @test_support_exports

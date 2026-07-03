@@ -4,7 +4,8 @@ defmodule LC.Content.MediaProcessingJob do
   import Ecto.Changeset
 
   alias LC.Content.{MediaAsset, MediaProcessing}
-  alias LC.Infra.{Payload, Repo}
+  alias LC.Infra.Repo
+  alias LCPayload.Payload
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
 
