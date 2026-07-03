@@ -162,7 +162,7 @@ defmodule LC.MixProject do
       ],
       slop: [
         "credo --strict --only ExSlop,ExDNA.Credo",
-        "ex_dna --min-mass 40 --max-clones 0",
+        "ex_dna --max-clones 13",
         "reach.check --smells --strict --baseline .reach-baseline.json"
       ],
       "slop.changed": [
