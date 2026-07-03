@@ -26,8 +26,11 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: complete; next product-completeness task not selected
+- State: active; mobile post media attachment batch selected
 - Track: `docs/plans/mobile/TRACK.md`
+- Current product theme: mobile post media attachments
+- Current source plan:
+  `docs/plans/mobile/2026-07-03-mobile-post-media-attachments.md`
 - Latest completed product theme: mobile post composer
 - Latest completed detailed plan:
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
@@ -36,8 +39,9 @@ Use this file when:
   completed chat batch adds retained timeline history and live chat channel
   integration. Frontend structure, TypeScript readability, and XState live
   workflow cleanup are complete. The queued feature follow-ups through feed,
-  content discovery, and mobile post composer are complete; release-candidate
-  manual device QA remains deferred while the next product task is selected.
+  content discovery, and mobile post composer are complete; media attachments
+  are selected as the next product batch. Release-candidate manual device QA
+  remains deferred.
 
 ## Track Registry
 
@@ -45,9 +49,9 @@ Use this file when:
 
 - Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
 - State: active
-- Current theme: select the next product-completeness task after completing the
-  mobile post composer surface; promote backend fixes only for reproduced
-  product issues
+- Current theme: execute the selected mobile post media attachment batch after
+  completing the mobile post composer surface; promote backend fixes only for
+  reproduced product issues
 - Notes: release-candidate manual QA, compliance hard-delete enablement, and
   backend starter-kit extraction remain outside this week unless explicitly
   resumed
@@ -70,7 +74,10 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: complete; next product-completeness task not selected
+- State: active; mobile post media attachment batch selected
+- Current theme: mobile post media attachments
+- Current source plan:
+  `docs/plans/mobile/2026-07-03-mobile-post-media-attachments.md`
 - Latest completed theme: mobile post composer
 - Latest completed detailed plan:
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`

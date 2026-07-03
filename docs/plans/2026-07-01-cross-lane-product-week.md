@@ -234,19 +234,19 @@ gap list.
 - Modify: `docs/plans/INDEX.md`
 
 Acceptance criteria:
-- [ ] The next batch is small enough to complete independently and names any
+- [x] The next batch is small enough to complete independently and names any
       deferred product scope explicitly.
-- [ ] The plan uses existing backend contracts before proposing backend schema
+- [x] The plan uses existing backend contracts before proposing backend schema
       changes.
-- [ ] The first task has focused mobile tests under `mobile/tests/**`, not
+- [x] The first task has focused mobile tests under `mobile/tests/**`, not
       colocated under `mobile/src/**`.
-- [ ] Backend work is only included if the mobile plan proves a missing contract
+- [x] Backend work is only included if the mobile plan proves a missing contract
       or resolver behavior. Any such work is promoted to `docs/plans/backend/NOW.md`
       with verification.
-- [ ] Release-candidate QA remains deferred unless product explicitly resumes it.
+- [x] Release-candidate QA remains deferred unless product explicitly resumes it.
 
 Focused verification:
-- From repo root: `git diff --check`
+- 2026-07-03: From repo root, `git diff --check` -> passed.
 
 Milestone commit:
 - Commit the promoted plan and lane pointers as a planning commit.

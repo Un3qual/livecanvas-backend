@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-07-01
-Status: mobile post composer product batch complete; release-candidate QA deferred
+Last reviewed: 2026-07-03
+Status: mobile post media attachment batch selected; release-candidate QA deferred
 
 ## Lane Scope
 
@@ -14,14 +14,16 @@ Status: mobile post composer product batch complete; release-candidate QA deferr
 ## Current Batch
 
 - Source plan:
-  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+  `docs/plans/mobile/2026-07-03-mobile-post-media-attachments.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: none; Task 4 final verification is complete.
-- Current detail plan: none; the source plan is complete.
+- Current task: Task 1, add composer attachment state helpers.
+- Current detail plan: none; execute directly from the source plan.
 - Latest completed source plan:
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+- Latest completed feed/content plan:
   `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
-- Latest completed detail plan:
-  `docs/plans/mobile/2026-07-01-post-composer-create-post-relay.md`
+- Selected-by audit:
+  `docs/plans/2026-07-06-cross-lane-product-gap-audit.md`
 - Latest QA evidence:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md#2026-06-30-product-follow-up-queue-completion`
   records passing mobile quality gates after the completed feature queue and
@@ -30,24 +32,27 @@ Status: mobile post composer product batch complete; release-candidate QA deferr
 - Write scope:
   - `mobile/**`
   - `docs/plans/mobile/**`
-- Done condition: met; signed-in mobile viewers can create text-only standard
-  posts and stories from the home surface through the existing Relay
-  `createPost` mutation, with focused tests and final mobile gates recorded in
-  the source plan.
+- Done condition: signed-in mobile viewers can attach one picked image or video
+  to a standard post or story from `/compose`, upload it through the existing
+  `requestMediaUpload` signed upload contract, and submit the returned media
+  asset ID through `createPost(mediaAssetIds:)`, with focused tests and final
+  mobile gates recorded in the source plan.
 - Verification:
-  - From `mobile/`: `bun test tests/feed/postComposerState.test.ts`
   - From `mobile/`:
-    `bun test tests/feed/PostComposerScreen.test.tsx tests/feed/FeedHomeScreen.test.tsx`
+    `bun test tests/feed/postComposerAttachmentState.test.ts tests/feed/postComposerState.test.ts`
+  - From `mobile/`:
+    `bun test tests/feed/postComposerMediaPicker.test.ts tests/feed/postComposerMediaUpload.test.ts`
+  - From `mobile/`: `bun test tests/feed/PostComposerScreen.test.tsx`
+  - From `mobile/`: `bun run relay`
   - From `mobile/`: `bun run typecheck`
   - From `mobile/`: `bun run test:quality`
   - From repo root: `git diff --check`
 
 ## Do This Now
 
-No executable mobile implementation task is selected. Pick or plan the next
-product-completeness task from the mobile track before implementation. Keep
-native media picking, signed upload, media attachment UI, and release-candidate
-checklist work out unless the next selected task explicitly promotes them.
+Implement Task 1 in
+`docs/plans/mobile/2026-07-03-mobile-post-media-attachments.md`: add composer
+attachment state helpers and focused tests under `mobile/tests/feed/**`.
 
 ## Guardrails
 
@@ -57,8 +62,10 @@ checklist work out unless the next selected task explicitly promotes them.
 - Do not reactivate archived cleanup or completed live-session feature
   follow-up plans from this batch.
 - Do not expand the release-candidate checklist into implementation.
-- Do not implement native media picking, signed upload, or media attachment UI
-  in the first composer task.
+- This batch explicitly promotes native media picking, signed upload, and media
+  attachment UI. Keep the first implementation to one attachment and the
+  existing backend contracts.
+- Do not implement post edit/delete owner controls in this batch.
 - Do not change GraphQL schema shape during this batch unless the active
   product work proves a backend contract mismatch that must be promoted into
   the backend lane.
@@ -72,4 +79,4 @@ checklist work out unless the next selected task explicitly promotes them.
 
 ## Next Action
 
-Select or write the next mobile product task plan before implementation.
+Implement Task 1 from the source plan.
