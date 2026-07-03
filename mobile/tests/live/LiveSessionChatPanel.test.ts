@@ -92,8 +92,14 @@ const { LiveSessionChatPanel } = await import(
   '../../src/live/chat/LiveSessionChatPanel'
 );
 
+type ReactRuntimeWithClientInternals = typeof import('react') & {
+  __CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE: {
+    H: unknown;
+  };
+};
+
 const reactInternals = (
-  await import('react')
+  (await import('react')) as unknown as ReactRuntimeWithClientInternals
 ).__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE as {
   H: unknown;
 };
@@ -452,7 +458,10 @@ function renderPanelNode(node: ReactNode): ReadonlyArray<RenderedTree> {
   }
 
   if (typeof element.type === 'function') {
-    return renderPanelNode(element.type(element.props));
+    const renderFunction = element.type as (
+      props: typeof element.props,
+    ) => ReactNode;
+    return renderPanelNode(renderFunction(element.props));
   }
 
   return [

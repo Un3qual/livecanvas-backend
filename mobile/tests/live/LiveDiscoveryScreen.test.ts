@@ -122,7 +122,7 @@ const liveDiscoveryScreen = await import(
 
 const shouldShowHostCreationAction =
   liveDiscoveryScreen.shouldShowHostCreationAction as
-    | ((currentSession: unknown) => boolean)
+    | ((currentSession?: unknown) => boolean)
     | undefined;
 const createLiveDiscoveryHomeActions =
   liveDiscoveryScreen.createLiveDiscoveryHomeActions as

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["jest"]
+  },
+  "exclude": [],
+  "include": ["tests/**/*.rntl.tsx", "tests/setup/jest.ts"]
+}

@@ -6,6 +6,11 @@ import {
   submitPasswordAuthMutation,
 } from '../../src/auth/authMutationClient';
 
+type TestFetch = (
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+) => Response | Promise<Response>;
+
 describe('authMutationClient', () => {
   test('returns a validation error before calling sign-up when passwords do not match', async () => {
     const fetchImpl = mock(() => {
@@ -34,7 +39,7 @@ describe('authMutationClient', () => {
   });
 
   test('preserves matching password confirmation spacing during sign-up', async () => {
-    const fetchImpl = mock(() =>
+    const fetchImpl = mock<TestFetch>((_url, _init) =>
       new Response(
         JSON.stringify({
           data: {
@@ -92,7 +97,7 @@ describe('authMutationClient', () => {
   });
 
   test('posts password sign-in variables and returns the issued tokens', async () => {
-    const fetchImpl = mock(() =>
+    const fetchImpl = mock<TestFetch>((_url, _init) =>
       new Response(
         JSON.stringify({
           data: {

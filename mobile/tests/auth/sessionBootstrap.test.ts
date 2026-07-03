@@ -4,6 +4,11 @@ import type { AuthTokenPair } from '../../src/auth/types';
 import { REFRESH_MUTATION } from '../../src/auth/authenticatedFetchHelpers';
 import { restoreStoredSession } from '../../src/auth/sessionBootstrap';
 
+type TestFetch = (
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+) => Response | Promise<Response>;
+
 function returnUndefined(): undefined {
   return undefined;
 }
@@ -20,7 +25,7 @@ describe('restoreStoredSession', () => {
       refreshToken: 'refreshed-refresh-token',
       expiresAt: '2026-05-02T00:00:00.000Z',
     };
-    const fetchImpl = mock(() =>
+    const fetchImpl = mock<TestFetch>((_url, _init) =>
       new Response(
         JSON.stringify({
           data: {
@@ -114,7 +119,7 @@ describe('restoreStoredSession', () => {
     };
     const cases: Array<{
       name: string;
-      fetchImpl: typeof fetch;
+      fetchImpl: TestFetch;
     }> = [
       {
         name: 'transport error',

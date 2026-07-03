@@ -6,7 +6,10 @@ const GRAPHQL_ENDPOINT_PATH = '/graphql';
 type MutationField = 'logIn' | 'signUp';
 type AuthMode = 'signIn' | 'signUp';
 type OauthProvider = 'GOOGLE' | 'APPLE';
-type FetchImpl = typeof fetch;
+type FetchImpl = (
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+) => Response | Promise<Response>;
 
 type GraphQLToken = {
   serializedValue?: unknown;

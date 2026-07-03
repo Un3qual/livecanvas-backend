@@ -22,6 +22,10 @@ import {
   FakeLiveSessionViewerPeerConnection as FakePeerConnection,
 } from './support/fakeWebRtcPeerConnection';
 
+type PrepareViewerMediaPayload = NonNullable<
+  Parameters<typeof readPreparedLiveSessionViewerMedia>[0]
+>;
+
 const preparedMedia = {
   iceServers: [
     {
@@ -210,7 +214,7 @@ describe('live session viewer media helpers', () => {
           },
           {
             credential: 'future-secret',
-            credentialType: 'TOKEN',
+            credentialType: '%future added value',
             username: 'future-user',
             urls: ['turn:future.example.test:3478'],
           },
@@ -258,13 +262,20 @@ describe('live session viewer media helpers', () => {
   test('rejects prepare payloads with errors, ended sessions, blank topics, or missing ICE servers', () => {
     const valid = {
       errors: [],
-      iceServers: [{ urls: ['stun:stun.example.test:3478'] }],
+      iceServers: [
+        {
+          credential: null,
+          credentialType: null,
+          username: null,
+          urls: ['stun:stun.example.test:3478'],
+        },
+      ],
       liveSession: {
         id: preparedMedia.liveSessionId,
         status: 'LIVE',
       },
       signalingTopic: preparedMedia.signalingTopic,
-    };
+    } satisfies PrepareViewerMediaPayload;
 
     expect(
       readPreparedLiveSessionViewerMedia({

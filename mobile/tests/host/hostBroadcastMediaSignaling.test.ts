@@ -11,6 +11,10 @@ import {
   normalizeLiveMediaIceServers,
 } from '../../src/live/media/liveMediaPayloads';
 
+type PrepareHostBroadcastMediaPayload = NonNullable<
+  Parameters<typeof readPreparedHostBroadcastMedia>[0]
+>;
+
 describe('hostBroadcastMediaSignaling', () => {
   test('normalizes successful prepare payloads without parsing opaque topics', () => {
     expect(
@@ -74,7 +78,7 @@ describe('hostBroadcastMediaSignaling', () => {
           },
           {
             credential: 'future-secret',
-            credentialType: 'TOKEN',
+            credentialType: '%future added value',
             username: 'future-user',
             urls: ['turn:future.example.test:3478'],
           },
@@ -124,14 +128,21 @@ describe('hostBroadcastMediaSignaling', () => {
   test('rejects payloads with errors, ended sessions, blank topics, or missing ICE servers', () => {
     const valid = {
       errors: [],
-      iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+      iceServers: [
+        {
+          credential: null,
+          credentialType: null,
+          username: null,
+          urls: ['stun:stun.l.google.com:19302'],
+        },
+      ],
       liveSession: {
         channelTopic: 'live_session:opaque-topic',
         id: 'TGl2ZVNlc3Npb246MQ==',
         status: 'STARTING',
       },
       signalingTopic: 'live_session:opaque-topic',
-    };
+    } satisfies PrepareHostBroadcastMediaPayload;
 
     expect(
       readPreparedHostBroadcastMedia({
@@ -257,7 +268,7 @@ describe('hostBroadcastMediaSignaling', () => {
         },
         {
           credential: 'future-secret',
-          credentialType: 'TOKEN',
+          credentialType: '%future added value',
           username: 'future-user',
           urls: ['turn:future.example.test:3478'],
         },
