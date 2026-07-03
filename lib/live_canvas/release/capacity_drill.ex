@@ -4,6 +4,7 @@ defmodule LC.Release.CapacityDrill do
   """
 
   alias LC.{Accounts, Content, Feed, Live, Social}
+  alias LC.Release.MixStep
   alias Phoenix.PubSub
 
   @default_probes [:feed, :channel, :live]
@@ -52,6 +53,13 @@ defmodule LC.Release.CapacityDrill do
           passed?: boolean(),
           failure_reasons: [String.t()]
         }
+  @typep latency_metrics :: %{
+           sample_size: pos_integer(),
+           success_count: non_neg_integer(),
+           success_rate: float(),
+           mean_latency_ms: float(),
+           p95_latency_ms: float()
+         }
 
   @type report :: %{
           evaluated_at: DateTime.t(),
@@ -145,9 +153,7 @@ defmodule LC.Release.CapacityDrill do
   end
 
   @spec format_step(drill_step()) :: String.t()
-  def format_step(%{name: name, command: command, success_criteria: success_criteria}) do
-    "#{name}: #{command} (success: #{success_criteria})"
-  end
+  def format_step(step), do: MixStep.format_operator(step)
 
   @spec command_plan(pos_integer(), pos_integer(), pos_integer(), [probe()]) :: [drill_step()]
   defp command_plan(feed_iterations, fanout_viewers, concurrency_viewers, probes)
@@ -562,109 +568,120 @@ defmodule LC.Release.CapacityDrill do
   @doc false
   @spec build_probe_report(probe(), map(), probe_thresholds()) :: probe_report()
   def build_probe_report(:feed, metrics, thresholds) do
-    sample_size = Map.fetch!(metrics, :sample_size)
-    success_count = Map.fetch!(metrics, :success_count)
-    latencies = Map.fetch!(metrics, :latency_ms)
-
-    mean_latency_ms = mean(latencies)
-    p95_latency_ms = percentile(latencies, @p95_percentile)
-    success_rate = ratio(success_count, sample_size)
+    latency = latency_metrics(metrics)
 
     mean_threshold = thresholds.feed_mean_latency_ms
     p95_threshold = thresholds.feed_p95_latency_ms
 
     failure_reasons =
-      []
-      |> maybe_add_failure(
-        mean_latency_ms > mean_threshold,
-        "mean latency #{mean_latency_ms}ms exceeded threshold #{mean_threshold}ms"
-      )
-      |> maybe_add_failure(
-        p95_latency_ms > p95_threshold,
-        "p95 latency #{p95_latency_ms}ms exceeded threshold #{p95_threshold}ms"
-      )
+      failure_reasons([
+        {latency.mean_latency_ms > mean_threshold,
+         "mean latency #{latency.mean_latency_ms}ms exceeded threshold #{mean_threshold}ms"},
+        {latency.p95_latency_ms > p95_threshold,
+         "p95 latency #{latency.p95_latency_ms}ms exceeded threshold #{p95_threshold}ms"}
+      ])
 
-    %{
-      probe: :feed,
-      sample_size: sample_size,
-      success_rate: success_rate,
-      mean_latency_ms: mean_latency_ms,
-      p95_latency_ms: p95_latency_ms,
-      threshold: %{mean_latency_ms: mean_threshold, p95_latency_ms: p95_threshold},
-      passed?: failure_reasons == [],
-      failure_reasons: failure_reasons
-    }
+    latency_probe_report(
+      :feed,
+      latency,
+      %{mean_latency_ms: mean_threshold, p95_latency_ms: p95_threshold},
+      failure_reasons
+    )
   end
 
   def build_probe_report(:channel, metrics, thresholds) do
-    sample_size = Map.fetch!(metrics, :sample_size)
-    success_count = Map.fetch!(metrics, :success_count)
-    latencies = Map.fetch!(metrics, :latency_ms)
-
-    mean_latency_ms = mean(latencies)
-    p95_latency_ms = percentile(latencies, @p95_percentile)
-    delivery_rate = ratio(success_count, sample_size)
+    latency = latency_metrics(metrics)
 
     min_delivery_rate = thresholds.channel_min_delivery_rate
     p95_threshold = thresholds.channel_p95_latency_ms
 
     failure_reasons =
-      []
-      |> maybe_add_failure(
-        delivery_rate < min_delivery_rate,
-        "delivery rate #{delivery_rate} below threshold #{min_delivery_rate}"
-      )
-      |> maybe_add_failure(
-        p95_latency_ms > p95_threshold,
-        "p95 delivery latency #{p95_latency_ms}ms exceeded threshold #{p95_threshold}ms"
+      rate_probe_failure_reasons(
+        latency,
+        min_delivery_rate,
+        "delivery rate",
+        p95_threshold,
+        "p95 delivery latency"
       )
 
-    %{
-      probe: :channel,
-      sample_size: sample_size,
-      success_rate: delivery_rate,
-      delivery_rate: delivery_rate,
-      mean_latency_ms: mean_latency_ms,
-      p95_latency_ms: p95_latency_ms,
-      threshold: %{min_delivery_rate: min_delivery_rate, p95_latency_ms: p95_threshold},
-      passed?: failure_reasons == [],
-      failure_reasons: failure_reasons
-    }
+    :channel
+    |> latency_probe_report(
+      latency,
+      %{min_delivery_rate: min_delivery_rate, p95_latency_ms: p95_threshold},
+      failure_reasons
+    )
+    |> Map.put(:delivery_rate, latency.success_rate)
   end
 
   def build_probe_report(:live, metrics, thresholds) do
-    sample_size = Map.fetch!(metrics, :sample_size)
-    success_count = Map.fetch!(metrics, :success_count)
-    latencies = Map.fetch!(metrics, :latency_ms)
-
-    mean_latency_ms = mean(latencies)
-    p95_latency_ms = percentile(latencies, @p95_percentile)
-    success_rate = ratio(success_count, sample_size)
+    latency = latency_metrics(metrics)
 
     min_success_rate = thresholds.live_min_success_rate
     p95_threshold = thresholds.live_p95_latency_ms
 
     failure_reasons =
-      []
-      |> maybe_add_failure(
-        success_rate < min_success_rate,
-        "join success rate #{success_rate} below threshold #{min_success_rate}"
-      )
-      |> maybe_add_failure(
-        p95_latency_ms > p95_threshold,
-        "p95 join latency #{p95_latency_ms}ms exceeded threshold #{p95_threshold}ms"
+      rate_probe_failure_reasons(
+        latency,
+        min_success_rate,
+        "join success rate",
+        p95_threshold,
+        "p95 join latency"
       )
 
+    latency_probe_report(
+      :live,
+      latency,
+      %{min_success_rate: min_success_rate, p95_latency_ms: p95_threshold},
+      failure_reasons
+    )
+  end
+
+  @spec latency_metrics(map()) :: latency_metrics()
+  defp latency_metrics(metrics) when is_map(metrics) do
+    sample_size = Map.fetch!(metrics, :sample_size)
+    success_count = Map.fetch!(metrics, :success_count)
+    latencies = Map.fetch!(metrics, :latency_ms)
+
     %{
-      probe: :live,
       sample_size: sample_size,
-      success_rate: success_rate,
-      mean_latency_ms: mean_latency_ms,
-      p95_latency_ms: p95_latency_ms,
-      threshold: %{min_success_rate: min_success_rate, p95_latency_ms: p95_threshold},
+      success_count: success_count,
+      success_rate: ratio(success_count, sample_size),
+      mean_latency_ms: mean(latencies),
+      p95_latency_ms: percentile(latencies, @p95_percentile)
+    }
+  end
+
+  defp latency_probe_report(probe, latency, threshold, failure_reasons) do
+    %{
+      probe: probe,
+      sample_size: latency.sample_size,
+      success_rate: latency.success_rate,
+      mean_latency_ms: latency.mean_latency_ms,
+      p95_latency_ms: latency.p95_latency_ms,
+      threshold: threshold,
       passed?: failure_reasons == [],
       failure_reasons: failure_reasons
     }
+  end
+
+  @spec rate_probe_failure_reasons(latency_metrics(), float(), String.t(), float(), String.t()) ::
+          [
+            String.t()
+          ]
+  defp rate_probe_failure_reasons(latency, min_success_rate, rate_label, p95_threshold, p95_label) do
+    failure_reasons([
+      {latency.success_rate < min_success_rate,
+       "#{rate_label} #{latency.success_rate} below threshold #{min_success_rate}"},
+      {latency.p95_latency_ms > p95_threshold,
+       "#{p95_label} #{latency.p95_latency_ms}ms exceeded threshold #{p95_threshold}ms"}
+    ])
+  end
+
+  @spec failure_reasons([{boolean(), String.t()}]) :: [String.t()]
+  defp failure_reasons(checks) when is_list(checks) do
+    Enum.reduce(checks, [], fn {failed?, reason}, reasons ->
+      maybe_add_failure(reasons, failed?, reason)
+    end)
   end
 
   @spec validate_thresholds(probe_thresholds()) :: :ok | {:error, run_error()}

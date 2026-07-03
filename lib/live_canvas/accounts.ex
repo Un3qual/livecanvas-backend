@@ -86,6 +86,7 @@ defmodule LC.Accounts do
   @type access_token_auth_result :: {:ok, Scope.t()} | {:error, access_token_auth_error()}
   @type refresh_token_auth_error :: :invalid_token | :expired_token | :revoked_token
   @type refresh_token_auth_result :: {:ok, Scope.t()} | {:error, refresh_token_auth_error()}
+  @typep token_auth_result :: {:ok, Scope.t()} | {:error, access_token_auth_error()}
   @type auth_event_type :: LCSchemas.Accounts.auth_event_type()
   @type auth_event_opts ::
           [
@@ -1432,18 +1433,7 @@ defmodule LC.Accounts do
   """
   @spec authenticate_access_token(String.t()) :: access_token_auth_result()
   def authenticate_access_token(serialized_value) when is_binary(serialized_value) do
-    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
-         {:ok, {user, user_token, current_email}} <- fetch_token_lookup_row(query),
-         :ok <- validate_access_token(user_token, raw_secret),
-         true <- active_user?(user) || {:error, :revoked_token} do
-      {:ok, scope_for_user(hydrate_user(user, user_token, current_email))}
-    else
-      :error ->
-        {:error, :invalid_token}
-
-      {:error, reason} when reason in [:invalid_token, :expired_token, :revoked_token] ->
-        {:error, reason}
-    end
+    authenticate_user_token(serialized_value, &validate_access_token/2)
   end
 
   def authenticate_access_token(_serialized_value), do: {:error, :invalid_token}
@@ -1453,18 +1443,7 @@ defmodule LC.Accounts do
   """
   @spec authenticate_refresh_token(String.t()) :: refresh_token_auth_result()
   def authenticate_refresh_token(serialized_value) when is_binary(serialized_value) do
-    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
-         {:ok, {user, user_token, current_email}} <- fetch_token_lookup_row(query),
-         :ok <- validate_refresh_token(user_token, raw_secret),
-         true <- active_user?(user) || {:error, :revoked_token} do
-      {:ok, scope_for_user(hydrate_user(user, user_token, current_email))}
-    else
-      :error ->
-        {:error, :invalid_token}
-
-      {:error, reason} when reason in [:invalid_token, :expired_token, :revoked_token] ->
-        {:error, reason}
-    end
+    authenticate_user_token(serialized_value, &validate_refresh_token/2)
   end
 
   def authenticate_refresh_token(_serialized_value), do: {:error, :invalid_token}
@@ -1837,75 +1816,71 @@ defmodule LC.Accounts do
   end
 
   defp sync_contact_entry_emails(contact_entry_id, normalized_emails) do
-    desired_email_ids =
-      normalized_emails
-      |> Enum.map(&find_or_create_email_address_id/1)
+    sync_contact_entry_identifiers(
+      contact_entry_id,
+      normalized_emails,
+      &find_or_create_email_address_id/1,
+      UserContactEntryEmailAddress,
+      :email_address_id
+    )
+  end
+
+  defp sync_contact_entry_phone_numbers(contact_entry_id, normalized_phone_numbers) do
+    sync_contact_entry_identifiers(
+      contact_entry_id,
+      normalized_phone_numbers,
+      &find_or_create_phone_number_id/1,
+      UserContactEntryPhoneNumber,
+      :phone_number_id
+    )
+  end
+
+  defp sync_contact_entry_identifiers(
+         contact_entry_id,
+         normalized_values,
+         find_or_create_identifier_id,
+         join_schema,
+         identifier_key
+       )
+       when is_integer(contact_entry_id) and is_list(normalized_values) and
+              is_function(find_or_create_identifier_id, 1) and is_atom(identifier_key) do
+    desired_ids =
+      normalized_values
+      |> Enum.map(find_or_create_identifier_id)
       |> Enum.uniq()
 
-    if desired_email_ids == [] do
-      Repo.delete_all(
-        from(join in UserContactEntryEmailAddress,
-          where: join.user_contact_entry_id == ^contact_entry_id
-        )
-      )
-    else
-      Repo.delete_all(
-        from(join in UserContactEntryEmailAddress,
-          where:
-            join.user_contact_entry_id == ^contact_entry_id and
-              join.email_address_id not in ^desired_email_ids
-        )
-      )
-    end
+    prune_contact_entry_identifiers(contact_entry_id, desired_ids, join_schema, identifier_key)
 
-    Enum.each(desired_email_ids, fn email_address_id ->
+    Enum.each(desired_ids, fn identifier_id ->
       Repo.insert(
-        %UserContactEntryEmailAddress{
-          user_contact_entry_id: contact_entry_id,
-          email_address_id: email_address_id
-        },
+        struct(join_schema, %{
+          identifier_key => identifier_id,
+          user_contact_entry_id: contact_entry_id
+        }),
         on_conflict: :nothing,
-        conflict_target: [:user_contact_entry_id, :email_address_id]
+        conflict_target: [:user_contact_entry_id, identifier_key]
       )
     end)
 
     :ok
   end
 
-  defp sync_contact_entry_phone_numbers(contact_entry_id, normalized_phone_numbers) do
-    desired_phone_number_ids =
-      normalized_phone_numbers
-      |> Enum.map(&find_or_create_phone_number_id/1)
-      |> Enum.uniq()
-
-    if desired_phone_number_ids == [] do
-      Repo.delete_all(
-        from(join in UserContactEntryPhoneNumber,
-          where: join.user_contact_entry_id == ^contact_entry_id
-        )
+  defp prune_contact_entry_identifiers(contact_entry_id, [], join_schema, _identifier_key) do
+    Repo.delete_all(
+      from(join in join_schema,
+        where: join.user_contact_entry_id == ^contact_entry_id
       )
-    else
-      Repo.delete_all(
-        from(join in UserContactEntryPhoneNumber,
-          where:
-            join.user_contact_entry_id == ^contact_entry_id and
-              join.phone_number_id not in ^desired_phone_number_ids
-        )
-      )
-    end
+    )
+  end
 
-    Enum.each(desired_phone_number_ids, fn phone_number_id ->
-      Repo.insert(
-        %UserContactEntryPhoneNumber{
-          user_contact_entry_id: contact_entry_id,
-          phone_number_id: phone_number_id
-        },
-        on_conflict: :nothing,
-        conflict_target: [:user_contact_entry_id, :phone_number_id]
+  defp prune_contact_entry_identifiers(contact_entry_id, desired_ids, join_schema, identifier_key) do
+    Repo.delete_all(
+      from(join in join_schema,
+        where:
+          join.user_contact_entry_id == ^contact_entry_id and
+            field(join, ^identifier_key) not in ^desired_ids
       )
-    end)
-
-    :ok
+    )
   end
 
   defp find_or_create_email_address_id(normalized_email) do
@@ -2217,37 +2192,55 @@ defmodule LC.Accounts do
     end
   end
 
-  @spec validate_access_token(UserToken.t(), binary()) ::
-          :ok | {:error, :invalid_token | :expired_token}
-  defp validate_access_token(%UserToken{context: context}, _raw_secret)
-       when context != :access_token,
-       do: {:error, :invalid_token}
-
-  defp validate_access_token(%UserToken{} = user_token, raw_secret) when is_binary(raw_secret) do
-    cond do
-      not Tokens.valid_secret?(user_token, raw_secret) ->
+  @spec authenticate_user_token(
+          String.t(),
+          (UserToken.t(), binary() -> :ok | {:error, access_token_auth_error()})
+        ) :: token_auth_result()
+  defp authenticate_user_token(serialized_value, validate_fun)
+       when is_binary(serialized_value) and is_function(validate_fun, 2) do
+    with {:ok, query, raw_secret} <- Tokens.user_token_lookup_query(serialized_value),
+         {:ok, {user, user_token, current_email}} <- fetch_token_lookup_row(query),
+         :ok <- validate_fun.(user_token, raw_secret),
+         true <- active_user?(user) || {:error, :revoked_token} do
+      {:ok, scope_for_user(hydrate_user(user, user_token, current_email))}
+    else
+      :error ->
         {:error, :invalid_token}
 
-      not Tokens.valid_session_token?(user_token, raw_secret) ->
-        {:error, :expired_token}
-
-      true ->
-        :ok
+      {:error, reason} when reason in [:invalid_token, :expired_token, :revoked_token] ->
+        {:error, reason}
     end
+  end
+
+  @spec validate_access_token(UserToken.t(), binary()) ::
+          :ok | {:error, :invalid_token | :expired_token}
+  defp validate_access_token(%UserToken{} = user_token, raw_secret) do
+    validate_token(user_token, raw_secret, :access_token, &Tokens.valid_session_token?/2)
   end
 
   @spec validate_refresh_token(UserToken.t(), binary()) ::
           :ok | {:error, :invalid_token | :expired_token}
-  defp validate_refresh_token(%UserToken{context: context}, _raw_secret)
-       when context != :refresh_token,
+  defp validate_refresh_token(%UserToken{} = user_token, raw_secret) do
+    validate_token(user_token, raw_secret, :refresh_token, &Tokens.valid_refresh_token?/2)
+  end
+
+  @spec validate_token(
+          UserToken.t(),
+          binary(),
+          LCSchemas.Accounts.user_token_context(),
+          (UserToken.t(), binary() -> boolean())
+        ) :: :ok | {:error, :invalid_token | :expired_token}
+  defp validate_token(%UserToken{context: context}, _raw_secret, expected_context, _valid_fun)
+       when context != expected_context,
        do: {:error, :invalid_token}
 
-  defp validate_refresh_token(%UserToken{} = user_token, raw_secret) when is_binary(raw_secret) do
+  defp validate_token(%UserToken{} = user_token, raw_secret, _expected_context, valid_fun)
+       when is_binary(raw_secret) and is_function(valid_fun, 2) do
     cond do
       not Tokens.valid_secret?(user_token, raw_secret) ->
         {:error, :invalid_token}
 
-      not Tokens.valid_refresh_token?(user_token, raw_secret) ->
+      not valid_fun.(user_token, raw_secret) ->
         {:error, :expired_token}
 
       true ->

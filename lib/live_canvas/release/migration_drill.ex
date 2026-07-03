@@ -3,8 +3,10 @@ defmodule LC.Release.MigrationDrill do
   Runs migration rehearsal steps in a deterministic, fail-fast order.
   """
 
-  @type drill_step :: LC.Release.MixStep.t()
-  @type drill_failure :: %{step: drill_step(), reason: term()}
+  alias LC.Release.MixStep
+
+  @type drill_step :: MixStep.t()
+  @type drill_failure :: MixStep.failure()
   @type runner_fun :: (String.t(), [String.t()] -> :ok | {:error, term()})
 
   @spec command_plan(pos_integer()) :: [drill_step()]
@@ -33,19 +35,8 @@ defmodule LC.Release.MigrationDrill do
       if dry_run? do
         {:dry_run, steps}
       else
-        run_steps(steps, runner)
+        MixStep.run_steps(steps, runner)
       end
-    end
-  end
-
-  @spec run_steps([drill_step()], runner_fun()) :: :ok | {:error, drill_failure()}
-  defp run_steps([], _runner), do: :ok
-
-  defp run_steps([step | remaining], runner) do
-    # Keep drill output trustworthy: stop at first failed migration command.
-    case runner.(step.task, step.args) do
-      :ok -> run_steps(remaining, runner)
-      {:error, reason} -> {:error, %{step: step, reason: reason}}
     end
   end
 

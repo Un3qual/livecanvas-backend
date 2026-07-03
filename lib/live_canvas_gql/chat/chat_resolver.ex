@@ -5,6 +5,7 @@ defmodule LCGQL.Chat.Resolver do
   alias LC.Chat.TimelineProjection
   alias LCGQL.MutationErrors
   alias LCGQL.Relay
+  alias LCGQL.Resolution
   alias LCTransport.LiveSessionTopics
 
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
@@ -28,7 +29,7 @@ defmodule LCGQL.Chat.Resolver do
 
   @spec timeline_events(map(), map(), Absinthe.Resolution.t()) :: connection_result()
   def timeline_events(%{id: _id} = live_session, args, resolution) do
-    with {:ok, viewer} <- viewer_from_resolution(resolution),
+    with {:ok, viewer} <- Resolution.viewer(resolution),
          # History reads stay valid after a session ends, so GraphQL must
          # consult the dedicated history policy instead of join-only rules.
          :ok <- Chat.authorize_history_access(viewer, live_session) do
@@ -184,16 +185,6 @@ defmodule LCGQL.Chat.Resolver do
     {:ok,
      %{removed_timeline_event_id: nil, errors: [timeline_event_error(nil, :unauthenticated)]}}
   end
-
-  @spec viewer_from_resolution(Absinthe.Resolution.t()) :: {:ok, map()} | :error
-  defp viewer_from_resolution(%Absinthe.Resolution{
-         context: %{current_scope: %{user: %{id: user_id} = viewer}}
-       })
-       when is_integer(user_id) do
-    {:ok, viewer}
-  end
-
-  defp viewer_from_resolution(_resolution), do: :error
 
   defp decode_chat_message_event_id(chat_message_event_id) do
     Relay.decode_global_id(chat_message_event_id, :chat_message_event, LCGQL.Schema)

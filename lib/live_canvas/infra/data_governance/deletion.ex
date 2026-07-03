@@ -4,7 +4,8 @@ defmodule LC.Infra.DataGovernance.Deletion do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
 
-  alias LC.Infra.{AsyncJobs, Payload, Repo}
+  alias LC.Infra.{AsyncJobs, Repo}
+  alias LC.Infra.DataGovernance.Requests
 
   alias LCSchemas.Accounts.{AuthEvent, User}
   alias LCSchemas.Infra.{AccountDeletionRequest, AsyncJob}
@@ -52,17 +53,13 @@ defmodule LC.Infra.DataGovernance.Deletion do
 
   @spec list(User.t()) :: [AccountDeletionRequest.t()]
   def list(%User{id: user_id}) when is_integer(user_id) and user_id > 0 do
-    from(request in AccountDeletionRequest,
-      where: request.user_id == ^user_id,
-      order_by: [desc: request.inserted_at, desc: request.id]
-    )
-    |> Repo.all()
+    Requests.list(AccountDeletionRequest, %User{id: user_id})
   end
 
   @spec get(User.t(), integer()) :: AccountDeletionRequest.t() | nil
   def get(%User{id: user_id}, request_id)
       when is_integer(user_id) and is_integer(request_id) do
-    Repo.get_by(AccountDeletionRequest, id: request_id, user_id: user_id)
+    Requests.get(AccountDeletionRequest, %User{id: user_id}, request_id)
   end
 
   @spec cancel(User.t(), pos_integer()) :: cancel_result()
@@ -95,22 +92,15 @@ defmodule LC.Infra.DataGovernance.Deletion do
 
   @impl LC.Infra.AsyncJobs.Handler
   @spec handle(AsyncJob.t()) :: LC.Infra.AsyncJobs.Handler.result()
-  def handle(%AsyncJob{kind: @job_kind, payload: payload}) when is_map(payload) do
-    with {:ok, request_id} <- Payload.positive_integer(payload, :account_deletion_request_id),
-         %AccountDeletionRequest{} = request <- Repo.get(AccountDeletionRequest, request_id) do
-      process_request(request)
-    else
-      nil ->
-        # Missing rows are treated as already-processed so retries can drain.
-        :ok
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+  def handle(%AsyncJob{} = job) do
+    Requests.handle_job(
+      job,
+      @job_kind,
+      AccountDeletionRequest,
+      :account_deletion_request_id,
+      &process_request/1
+    )
   end
-
-  def handle(%AsyncJob{kind: @job_kind}), do: {:error, :invalid_payload}
-  def handle(%AsyncJob{}), do: {:error, :unsupported_job_kind}
 
   @spec upsert_request_transaction(pos_integer(), DateTime.t(), DateTime.t(), pos_integer()) ::
           {:ok, {:created | :existing, AccountDeletionRequest.t()}}

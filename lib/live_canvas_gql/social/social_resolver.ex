@@ -1,6 +1,6 @@
 defmodule LCGQL.Social.Resolver do
   alias LC.{Accounts, Social}
-  alias LCGQL.{FieldNames, MutationErrors, Relay}
+  alias LCGQL.{FieldNames, MutationErrors, Relay, Resolution}
 
   @type fetch_user_error :: :invalid_id | :invalid_type | :not_found
   @type resolver_error ::
@@ -100,62 +100,20 @@ defmodule LCGQL.Social.Resolver do
 
   @spec block_user(any(), %{blocked_id: term()}, any()) ::
           {:ok, error_only_result_payload()}
-  def block_user(_parent, %{blocked_id: blocked_id}, %{
-        context: %{current_scope: %{user: %{id: _id} = blocker}}
-      }) do
-    with {:ok, blocked} <- fetch_user(blocked_id, :blocked_id),
-         {:ok, _block} <- Social.block_user(blocker, blocked) do
-      {:ok, %{errors: []}}
-    else
-      {:error, {field, reason}} ->
-        {:ok, %{errors: [error_payload(field, reason)]}}
-
-      {:error, reason} ->
-        {:ok, %{errors: [error_payload(nil, reason)]}}
-    end
-  end
-
-  def block_user(_parent, _args, _resolution) do
-    {:ok, %{errors: [error_payload(nil, :unauthenticated)]}}
+  def block_user(_parent, args, resolution) do
+    error_only_user_action(args, resolution, :blocked_id, &Social.block_user/2)
   end
 
   @spec mute_user(any(), %{muted_id: term()}, any()) ::
           {:ok, error_only_result_payload()}
-  def mute_user(_parent, %{muted_id: muted_id}, %{
-        context: %{current_scope: %{user: %{id: _id} = muter}}
-      }) do
-    with {:ok, muted} <- fetch_user(muted_id, :muted_id),
-         {:ok, _mute} <- Social.mute_user(muter, muted) do
-      {:ok, %{errors: []}}
-    else
-      {:error, {field, reason}} ->
-        {:ok, %{errors: [error_payload(field, reason)]}}
-
-      {:error, reason} ->
-        {:ok, %{errors: [error_payload(nil, reason)]}}
-    end
-  end
-
-  def mute_user(_parent, _args, _resolution) do
-    {:ok, %{errors: [error_payload(nil, :unauthenticated)]}}
+  def mute_user(_parent, args, resolution) do
+    error_only_user_action(args, resolution, :muted_id, &Social.mute_user/2)
   end
 
   @spec unmute_user(any(), %{muted_id: term()}, any()) ::
           {:ok, error_only_result_payload()}
-  def unmute_user(_parent, %{muted_id: muted_id}, %{
-        context: %{current_scope: %{user: %{id: _id} = muter}}
-      }) do
-    with {:ok, muted} <- fetch_user(muted_id, :muted_id),
-         :ok <- Social.unmute_user(muter, muted) do
-      {:ok, %{errors: []}}
-    else
-      {:error, {field, reason}} ->
-        {:ok, %{errors: [error_payload(field, reason)]}}
-    end
-  end
-
-  def unmute_user(_parent, _args, _resolution) do
-    {:ok, %{errors: [error_payload(nil, :unauthenticated)]}}
+  def unmute_user(_parent, args, resolution) do
+    error_only_user_action(args, resolution, :muted_id, &Social.unmute_user/2)
   end
 
   @spec relationship_state(any(), %{creator_id: term()}, Absinthe.Resolution.t()) ::
@@ -164,7 +122,7 @@ defmodule LCGQL.Social.Resolver do
     # Relationship-state reads are viewer-scoped in the stabilized mobile
     # contract, so GraphQL derives the viewer from auth scope instead of
     # trusting a caller-supplied viewer ID.
-    with {:ok, viewer} <- viewer_from_resolution(resolution),
+    with {:ok, viewer} <- Resolution.viewer(resolution),
          {:ok, creator} <- fetch_user(creator_id, :creator_id) do
       {:ok, Social.relationship_state(viewer, creator)}
     else
@@ -174,7 +132,7 @@ defmodule LCGQL.Social.Resolver do
 
   @spec is_muted(any(), %{creator_id: term()}, Absinthe.Resolution.t()) :: {:ok, boolean()}
   def is_muted(_parent, %{creator_id: creator_id}, resolution) do
-    with {:ok, viewer} <- viewer_from_resolution(resolution),
+    with {:ok, viewer} <- Resolution.viewer(resolution),
          {:ok, creator} <- fetch_user(creator_id, :creator_id) do
       {:ok, Social.muted?(viewer, creator)}
     else
@@ -229,6 +187,43 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
+  @spec error_only_user_action(map(), Absinthe.Resolution.t(), atom(), (map(), map() -> term())) ::
+          {:ok, error_only_result_payload()}
+  defp error_only_user_action(args, resolution, target_field, action_fun)
+       when is_map(args) and is_atom(target_field) and is_function(action_fun, 2) do
+    with {:ok, actor} <- Resolution.viewer(resolution),
+         {:ok, target_id} <- Map.fetch(args, target_field) do
+      run_error_only_user_action(actor, target_id, target_field, action_fun)
+    else
+      _other -> {:ok, %{errors: [error_payload(nil, :unauthenticated)]}}
+    end
+  end
+
+  defp error_only_user_action(_args, _resolution, _target_field, _action_fun) do
+    {:ok, %{errors: [error_payload(nil, :unauthenticated)]}}
+  end
+
+  @spec run_error_only_user_action(map(), term(), atom(), (map(), map() -> term())) ::
+          {:ok, error_only_result_payload()}
+  defp run_error_only_user_action(actor, target_id, target_field, action_fun) do
+    with {:ok, target} <- fetch_user(target_id, target_field),
+         :ok <- normalize_error_only_action(action_fun.(actor, target)) do
+      {:ok, %{errors: []}}
+    else
+      {:error, {field, reason}} ->
+        {:ok, %{errors: [error_payload(field, reason)]}}
+
+      {:error, reason} ->
+        {:ok, %{errors: [error_payload(nil, reason)]}}
+    end
+  end
+
+  @spec normalize_error_only_action(:ok | {:ok, term()} | {:error, term()}) ::
+          :ok | {:error, term()}
+  defp normalize_error_only_action(:ok), do: :ok
+  defp normalize_error_only_action({:ok, _result}), do: :ok
+  defp normalize_error_only_action({:error, _reason} = error), do: error
+
   @spec follow_payload(struct()) :: follow_payload()
   defp follow_payload(follow) do
     %{id: follow.id, state: follow.state}
@@ -244,21 +239,11 @@ defmodule LCGQL.Social.Resolver do
   defp format_field(nil), do: nil
   defp format_field(field), do: FieldNames.lower_camel(field)
 
-  @spec viewer_from_resolution(Absinthe.Resolution.t()) :: {:ok, map()} | :error
-  defp viewer_from_resolution(%Absinthe.Resolution{
-         context: %{current_scope: %{user: %{id: user_id} = viewer}}
-       })
-       when is_integer(user_id) do
-    {:ok, viewer}
-  end
-
-  defp viewer_from_resolution(_resolution), do: :error
-
   @spec can_view_relationship_graph?(map(), Absinthe.Resolution.t()) :: boolean()
   defp can_view_relationship_graph?(%{privacy_mode: :public}, _resolution), do: true
 
   defp can_view_relationship_graph?(%{} = user, resolution) do
-    case viewer_from_resolution(resolution) do
+    case Resolution.viewer(resolution) do
       {:ok, viewer} -> Social.can_view_user?(viewer, user)
       :error -> false
     end
