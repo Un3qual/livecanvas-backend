@@ -168,10 +168,14 @@ defmodule LCWeb.Plugs.ObservabilityContext do
 
   @spec value_for(map(), :request_id | :trace_id) :: term()
   defp value_for(values, :request_id) when is_map(values) do
-    Map.get(values, :request_id) || Map.get(values, "request_id")
+    get_known_key(values, :request_id, "request_id")
   end
 
   defp value_for(values, :trace_id) when is_map(values) do
-    Map.get(values, :trace_id) || Map.get(values, "trace_id")
+    get_known_key(values, :trace_id, "trace_id")
+  end
+
+  defp get_known_key(values, atom_key, string_key) do
+    Map.get(values, atom_key) || Map.get(values, string_key)
   end
 end

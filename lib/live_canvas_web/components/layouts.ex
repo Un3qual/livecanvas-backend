@@ -1,7 +1,6 @@
 defmodule LCWeb.Layouts do
   @moduledoc """
-  This module holds layouts and related functionality
-  used by your application.
+  Application layouts centralize the page chrome around rendered route content.
   """
   use LCWeb, :html
 

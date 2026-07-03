@@ -1,7 +1,6 @@
 defmodule LC.AccountsFixtures do
   @moduledoc """
-  This module defines test helpers for creating
-  entities via the `LC.Accounts` context.
+  Account fixtures create authenticated users and related identity records for tests.
   """
 
   import Ecto.Query

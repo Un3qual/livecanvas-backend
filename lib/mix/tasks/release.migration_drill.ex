@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Release.MigrationDrill do
   use Mix.Task
   use Boundary, classify_to: LC
 
-  alias LC.Release.MigrationDrill
+  alias LC.Release.{MigrationDrill, MixStep}
 
   @shortdoc "Runs migration rehearsal and rollback drill commands"
   @moduledoc """
@@ -45,7 +45,7 @@ defmodule Mix.Tasks.Release.MigrationDrill do
 
       {:dry_run, steps} ->
         Mix.shell().info("Release migration drill dry run (execution order):")
-        Enum.each(steps, &Mix.shell().info("- #{MigrationDrill.format_step(&1)}"))
+        Enum.each(steps, &Mix.shell().info("- #{MixStep.format(&1)}"))
         :ok
 
       {:error, :confirmation_required} ->
@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Release.MigrationDrill do
 
       {:error, %{step: failed_step, reason: reason}} ->
         Mix.raise(
-          "release migration drill failed at #{MigrationDrill.format_step(failed_step)}: #{format_reason(reason)}"
+          "release migration drill failed at #{MixStep.format(failed_step)}: #{format_reason(reason)}"
         )
     end
   end

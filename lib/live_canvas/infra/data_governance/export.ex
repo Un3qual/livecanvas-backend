@@ -6,6 +6,7 @@ defmodule LC.Infra.DataGovernance.Export do
 
   alias LC.Infra.{AsyncJobs, Payload, Repo}
   alias LCSchemas.Accounts.User
+
   alias LCSchemas.Chat.{
     LiveSessionTimelineChatMessageState,
     LiveSessionTimelineEvent,
@@ -95,8 +96,6 @@ defmodule LC.Infra.DataGovernance.Export do
           with {:ok, request} <- insert_request(user_id, format),
                {:ok, _job} <- enqueue_request(request) do
             {:ok, request}
-          else
-            {:error, reason} -> {:error, reason}
           end
       end
     end)
@@ -163,9 +162,6 @@ defmodule LC.Infra.DataGovernance.Export do
              artifact_metadata: artifact_metadata(processing_request)
            }) do
       :ok
-    else
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 

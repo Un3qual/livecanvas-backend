@@ -3,7 +3,7 @@ defmodule LC.Release.Gates do
   Runs deterministic release preflight gates in a fail-fast order.
   """
 
-  @type gate_step :: %{task: String.t(), args: [String.t()]}
+  @type gate_step :: LC.Release.MixStep.t()
   @type gate_failure :: %{step: gate_step(), reason: term()}
   @type runner_fun :: (String.t(), [String.t()] -> :ok | {:error, term()})
   @type mix_command_runner :: (String.t(), [String.t()], keyword() -> {String.t(), integer()})
@@ -40,10 +40,6 @@ defmodule LC.Release.Gates do
       run_steps(steps, runner)
     end
   end
-
-  @spec format_step(gate_step()) :: String.t()
-  def format_step(%{task: task, args: []}), do: "mix #{task}"
-  def format_step(%{task: task, args: args}), do: "mix #{task} #{Enum.join(args, " ")}"
 
   @spec run_steps([gate_step()], runner_fun()) :: :ok | {:error, gate_failure()}
   defp run_steps([], _runner), do: :ok

@@ -556,10 +556,7 @@ defmodule LC.Release.CapacityDrill do
     # repeated drill runs against long-lived environments.
     email = "#{prefix}-#{Ecto.UUID.generate()}@example.com"
 
-    case Accounts.register_user_with_email(%{email: email}) do
-      {:ok, user} -> {:ok, user}
-      {:error, reason} -> {:error, reason}
-    end
+    Accounts.register_user_with_email(%{email: email})
   end
 
   @doc false

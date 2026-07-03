@@ -36,6 +36,11 @@ defmodule LC.MixProject do
     [
       preferred_envs: [
         precommit: :test,
+        slop: :test,
+        "slop.changed": :test,
+        credo: :test,
+        ex_dna: :test,
+        "reach.check": :test,
         typecheck: :dev,
         dialyzer: :dev,
         "release.gates": :test,
@@ -61,6 +66,7 @@ defmodule LC.MixProject do
         ecto_deps(),
         absinthe_deps(),
         test_deps(),
+        quality_deps(),
         js_deps(),
         misc_deps()
       ])
@@ -96,8 +102,16 @@ defmodule LC.MixProject do
 
   defp test_deps,
     do: [
-      {:lazy_html, ">= 0.1.0", only: :test},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false}
+      {:lazy_html, ">= 0.1.0", only: :test}
+    ]
+
+  defp quality_deps,
+    do: [
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:ex_dna, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:ex_slop, "~> 0.4.2", only: [:dev, :test], runtime: false},
+      {:reach, "~> 2.7", only: [:dev, :test], runtime: false}
     ]
 
   defp js_deps,
@@ -146,6 +160,15 @@ defmodule LC.MixProject do
         "check.typespecs --strict",
         "dialyzer --format short"
       ],
+      slop: [
+        "credo --strict --only ExSlop,ExDNA.Credo",
+        "ex_dna --min-mass 40 --max-clones 0",
+        "reach.check --smells --strict --baseline .reach-baseline.json"
+      ],
+      "slop.changed": [
+        "credo diff --from-git-merge-base origin/main --strict --only ExSlop,ExDNA.Credo",
+        "reach.check --changed --base origin/main --smells --strict"
+      ],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind live_canvas", "esbuild live_canvas"],
       "assets.deploy": [
@@ -157,6 +180,7 @@ defmodule LC.MixProject do
         "compile --warnings-as-errors",
         "deps.unlock --unused",
         "format",
+        "slop",
         "test",
         "typecheck"
       ]

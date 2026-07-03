@@ -267,7 +267,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
         end)
 
       assert {:ok, %{data: %{"homeFeed" => %{"edges" => edges}}}} = result
-      assert length(edges) == 3
+      assert [_, _, _] = edges
 
       assert count_table_queries(queries, "users") <= 2
     end
@@ -528,7 +528,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
         end)
 
       assert {:ok, %{data: %{"liveNow" => %{"edges" => edges}}}} = result
-      assert length(edges) == 3
+      assert [_, _, _] = edges
 
       assert Enum.all?(edges, fn %{"node" => %{"channelTopic" => topic}} ->
                is_binary(topic) and String.starts_with?(topic, "live_session:")
@@ -848,7 +848,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
         end)
 
       assert {:ok, %{data: %{"liveNow" => %{"edges" => edges}}}} = result
-      assert length(edges) == 3
+      assert [_, _, _] = edges
 
       assert count_table_queries(queries, "users") <= 2
     end
@@ -1004,7 +1004,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
         end)
 
       assert {:ok, %{data: %{"replayFeed" => %{"edges" => edges}}}} = result
-      assert length(edges) == 2
+      assert [_, _] = edges
 
       assert count_table_queries(queries, "media_assets") <= 1
     end

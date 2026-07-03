@@ -46,8 +46,6 @@ defmodule LCWeb.LiveSessionChannel do
         :ok = maybe_broadcast_joined_session_state(topic_scope, session_id, live_session)
 
         {:ok, joined_socket, session_id}
-      else
-        {:error, reason} -> {:error, reason}
       end
 
     case result do
@@ -142,8 +140,6 @@ defmodule LCWeb.LiveSessionChannel do
           media_channel_broadcast_payload(event, reply_payload, current_user, live_session)
 
         {:ok, reply_payload, broadcast_payload}
-      else
-        {:error, reason} -> {:error, reason}
       end
 
     case result do
@@ -180,8 +176,6 @@ defmodule LCWeb.LiveSessionChannel do
            {:ok, timeline_event} <-
              Chat.create_timeline_chat_message(live_session, current_user, %{body: body}) do
         {:ok, %{event: timeline_event_channel_payload(timeline_event)}, timeline_event}
-      else
-        {:error, reason} -> {:error, reason}
       end
 
     :ok =

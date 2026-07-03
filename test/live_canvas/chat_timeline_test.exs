@@ -148,7 +148,6 @@ defmodule LC.ChatTimelineTest do
         )
         |> Repo.all()
 
-      assert length(edit_events) == 2
       assert [first_edit_event, second_edit_event] = edit_events
 
       edit_facts =

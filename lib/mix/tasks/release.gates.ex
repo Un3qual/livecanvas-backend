@@ -2,7 +2,7 @@ defmodule Mix.Tasks.Release.Gates do
   use Mix.Task
   use Boundary, classify_to: LC
 
-  alias LC.Release.Gates
+  alias LC.Release.{Gates, MixStep}
 
   @shortdoc "Runs deterministic release preflight gates"
   @moduledoc """
@@ -34,11 +34,11 @@ defmodule Mix.Tasks.Release.Gates do
 
       {:dry_run, steps} ->
         Mix.shell().info("Release gates dry run (execution order):")
-        Enum.each(steps, &Mix.shell().info("- #{Gates.format_step(&1)}"))
+        Enum.each(steps, &Mix.shell().info("- #{MixStep.format(&1)}"))
         :ok
 
       {:error, %{step: step, reason: reason}} ->
-        Mix.raise("release gates failed at #{Gates.format_step(step)}: #{format_reason(reason)}")
+        Mix.raise("release gates failed at #{MixStep.format(step)}: #{format_reason(reason)}")
     end
   end
 

@@ -125,8 +125,6 @@ defmodule LC.Infra.DataGovernance.Deletion do
           with {:ok, request} <- insert_request(user_id, now, scheduled_purge_at),
                {:ok, _job} <- enqueue_request(request, scheduled_purge_at, job_max_attempts) do
             {:ok, {:created, request}}
-          else
-            {:error, reason} -> {:error, reason}
           end
       end
     end)

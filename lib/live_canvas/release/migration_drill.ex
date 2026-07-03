@@ -3,7 +3,7 @@ defmodule LC.Release.MigrationDrill do
   Runs migration rehearsal steps in a deterministic, fail-fast order.
   """
 
-  @type drill_step :: %{task: String.t(), args: [String.t()]}
+  @type drill_step :: LC.Release.MixStep.t()
   @type drill_failure :: %{step: drill_step(), reason: term()}
   @type runner_fun :: (String.t(), [String.t()] -> :ok | {:error, term()})
 
@@ -37,10 +37,6 @@ defmodule LC.Release.MigrationDrill do
       end
     end
   end
-
-  @spec format_step(drill_step()) :: String.t()
-  def format_step(%{task: task, args: []}), do: "mix #{task}"
-  def format_step(%{task: task, args: args}), do: "mix #{task} #{Enum.join(args, " ")}"
 
   @spec run_steps([drill_step()], runner_fun()) :: :ok | {:error, drill_failure()}
   defp run_steps([], _runner), do: :ok

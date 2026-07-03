@@ -7,7 +7,7 @@ defmodule LC.Content do
   import Ecto.Query, warn: false
 
   alias LC.Content.{MediaAsset, Post, PostReport}
-  alias LC.Infra.{AsyncJobs, ObjectStorage, Repo, WebhookEvent}
+  alias LC.Infra.{AsyncJobs, ObjectStorage, Payload, Repo, WebhookEvent}
   alias LCSchemas.Accounts.User
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema
@@ -354,7 +354,7 @@ defmodule LC.Content do
   @spec normalize_media_asset_ids(map(), Ecto.Changeset.t()) ::
           {:ok, [pos_integer()]} | {:error, Ecto.Changeset.t()}
   defp normalize_media_asset_ids(attrs, %Ecto.Changeset{} = post_changeset) when is_map(attrs) do
-    case Map.get(attrs, :media_asset_ids) || Map.get(attrs, "media_asset_ids") do
+    case Payload.value_for(attrs, :media_asset_ids) do
       nil ->
         {:ok, []}
 
@@ -469,7 +469,7 @@ defmodule LC.Content do
 
   @spec mime_type_from_attrs(map()) :: String.t() | nil
   defp mime_type_from_attrs(attrs) do
-    Map.get(attrs, :mime_type) || Map.get(attrs, "mime_type")
+    Payload.value_for(attrs, :mime_type)
   end
 
   @spec mime_extension(String.t() | nil) :: String.t()

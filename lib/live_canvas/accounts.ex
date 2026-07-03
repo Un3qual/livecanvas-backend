@@ -642,9 +642,6 @@ defmodule LC.Accounts do
             {:error, changeset}
         end
       end)
-    else
-      {:error, :provider_verification_failed} ->
-        {:error, :provider_verification_failed}
     end
   end
 
@@ -673,9 +670,6 @@ defmodule LC.Accounts do
             {:error, :provider_verification_failed}
         end
       end)
-    else
-      {:error, :provider_verification_failed} ->
-        {:error, :provider_verification_failed}
     end
   end
 
