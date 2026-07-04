@@ -6,6 +6,7 @@ defmodule LC.FeedTest do
   import LC.SocialFixtures
 
   alias LC.{Accounts, Content, Feed, Live, ReadPolicy, Social}
+  alias LCSchemas.Accounts.User
   alias LCSchemas.Content.Post
   alias LCSchemas.Live.LiveSession, as: LiveSessionSchema
 
@@ -280,6 +281,20 @@ defmodule LC.FeedTest do
       assert [] = invoke_profile_posts(viewer, muted_owner, limit: 10)
       assert [] = invoke_profile_posts(viewer, suspended_owner, limit: 10)
     end
+
+    test "returns no posts for an unsaved profile owner instead of the viewer feed" do
+      viewer = user_fixture()
+      public_owner = user_fixture(privacy_mode: :public)
+
+      {:ok, _public_post} =
+        Content.create_post(public_owner, %{
+          kind: :standard,
+          body_text: "visible public post",
+          visibility: :public
+        })
+
+      assert [] = invoke_profile_posts(viewer, %User{}, limit: 10)
+    end
   end
 
   describe "profile_story_feed/3" do
@@ -359,6 +374,21 @@ defmodule LC.FeedTest do
       {:ok, _block} = Social.block_user(blocked_owner, viewer)
 
       assert [] = invoke_profile_story_feed(viewer, blocked_owner, limit: 10)
+    end
+
+    test "returns no stories for an unsaved profile owner instead of the viewer feed" do
+      viewer = user_fixture()
+      public_owner = user_fixture(privacy_mode: :public)
+
+      {:ok, _public_story} =
+        Content.create_post(public_owner, %{
+          kind: :story,
+          body_text: "visible public story",
+          visibility: :public,
+          expires_at: DateTime.add(DateTime.utc_now(), 60, :second)
+        })
+
+      assert [] = invoke_profile_story_feed(viewer, %User{}, limit: 10)
     end
   end
 

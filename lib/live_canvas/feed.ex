@@ -258,21 +258,30 @@ defmodule LC.Feed do
   def run_query(query), do: Repo.all(query)
 
   @spec visible_post_kind_query(User.t(), atom()) :: Ecto.Query.t()
-  defp visible_post_kind_query(%User{} = viewer, kind),
-    do: visible_post_kind_query(viewer, kind, nil)
-
-  @spec visible_post_kind_query(User.t(), atom(), pos_integer() | nil) :: Ecto.Query.t()
-  defp visible_post_kind_query(%User{} = viewer, kind, owner_id) when is_atom(kind) do
+  defp visible_post_kind_query(%User{} = viewer, kind) when is_atom(kind) do
     Post
     |> visible_post_query(viewer)
-    |> maybe_filter_author(owner_id)
     |> where([post], post.kind == ^kind)
     |> order_by([post], desc: post.inserted_at, desc: post.id)
   end
 
-  defp maybe_filter_author(query, nil), do: query
+  @spec visible_post_kind_query(User.t(), atom(), pos_integer() | nil) :: Ecto.Query.t()
+  defp visible_post_kind_query(%User{} = viewer, kind, owner_id)
+       when is_atom(kind) and is_integer(owner_id) do
+    viewer
+    |> visible_post_kind_query(kind)
+    |> filter_author(owner_id)
+  end
 
-  defp maybe_filter_author(query, owner_id) when is_integer(owner_id) do
+  defp visible_post_kind_query(%User{} = viewer, kind, nil) when is_atom(kind) do
+    # Profile feeds must fail closed for unsaved owner structs instead of
+    # widening into the viewer's full feed.
+    viewer
+    |> visible_post_kind_query(kind)
+    |> where([post], false)
+  end
+
+  defp filter_author(query, owner_id) when is_integer(owner_id) do
     where(query, [post], post.author_id == ^owner_id)
   end
 
