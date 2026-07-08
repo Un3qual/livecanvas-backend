@@ -13,7 +13,7 @@ defmodule LCSchemas.Accounts.StaffPermission do
   - `permission` is constrained to known staff permission values.
   - `(user_id, permission)` is unique while `revoked_at IS NULL`, allowing historical revoked grants.
   - Deleting the user cascades to staff permission rows.
-  - `(permission, revoked_at)` supports active permission loading for authorization scopes.
+  - `(user_id, granted_at, id) WHERE revoked_at IS NULL` supports active permission loading for authorization scopes.
   """
 
   @type attrs :: %{

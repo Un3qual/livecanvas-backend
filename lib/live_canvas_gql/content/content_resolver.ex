@@ -30,7 +30,12 @@ defmodule LCGQL.Content.Resolver do
   @type post_mutation_reason ::
           :invalid_id | :invalid_type | :not_found | :own_post | :unauthenticated
   @type post_report_mutation_reason ::
-          :invalid_id | :invalid_type | :invalid_transition | :not_authorized | :not_found
+          :invalid_id
+          | :invalid_status
+          | :invalid_type
+          | :invalid_transition
+          | :not_authorized
+          | :not_found
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
 
   @spec create_post(
@@ -242,6 +247,7 @@ defmodule LCGQL.Content.Resolver do
       {:error, reason}
       when reason in [
              :invalid_id,
+             :invalid_status,
              :invalid_type,
              :not_found,
              :not_authorized,
@@ -527,6 +533,9 @@ defmodule LCGQL.Content.Resolver do
 
   @spec post_report_error(post_report_mutation_reason()) :: mutation_error()
   defp post_report_error(:not_authorized), do: MutationErrors.user_error(nil, :not_authorized)
+
+  defp post_report_error(:invalid_status),
+    do: MutationErrors.user_error(FieldNames.lower_camel(:status), :invalid_status)
 
   defp post_report_error(reason),
     do: MutationErrors.user_error(FieldNames.lower_camel(:report_id), reason)

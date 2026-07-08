@@ -16,8 +16,11 @@ defmodule LiveCanvas.Repo.Migrations.CreateStaffPermissions do
              check: "permission IN ('post_report_moderation')"
            )
 
-    create index(:staff_permissions, [:user_id])
-    create index(:staff_permissions, [:permission, :revoked_at])
+    create index(:staff_permissions, [:user_id, :granted_at, :id],
+             where: "revoked_at IS NULL",
+             name: :staff_permissions_active_user_order_index
+           )
+
     create unique_index(:staff_permissions, [:entropy_id])
 
     create unique_index(:staff_permissions, [:user_id, :permission],

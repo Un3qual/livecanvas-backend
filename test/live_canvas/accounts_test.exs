@@ -499,6 +499,25 @@ defmodule LC.AccountsTest do
                Accounts.grant_staff_permission(user, :post_report_moderation)
     end
 
+    test "concurrent duplicate grants return the active permission" do
+      user = user_fixture()
+
+      grant_tasks =
+        for _index <- 1..2 do
+          Task.async(fn -> Accounts.grant_staff_permission(user, :post_report_moderation) end)
+        end
+
+      assert [
+               {:ok, %{__struct__: StaffPermission, id: first_permission_id}},
+               {:ok, %{__struct__: StaffPermission, id: second_permission_id}}
+             ] = Enum.map(grant_tasks, &Task.await(&1, 5_000))
+
+      assert first_permission_id == second_permission_id
+
+      assert [%{__struct__: StaffPermission, id: ^first_permission_id}] =
+               Accounts.list_active_staff_permissions(user)
+    end
+
     test "revokes active staff permissions and excludes revoked grants from reads" do
       user = user_fixture()
       assert {:ok, permission} = Accounts.grant_staff_permission(user, :post_report_moderation)

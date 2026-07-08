@@ -892,6 +892,7 @@ defmodule LC.Accounts do
           granted_at: now_utc()
         })
         |> Repo.insert()
+        |> handle_staff_permission_grant_insert(user_id, permission)
     end
   end
 
@@ -2194,6 +2195,46 @@ defmodule LC.Accounts do
     |> where([staff_permission], staff_permission.permission == ^permission)
     |> limit(1)
     |> Repo.one()
+  end
+
+  @spec handle_staff_permission_grant_insert(
+          staff_permission_result(),
+          pos_integer(),
+          staff_permission()
+        ) :: staff_permission_result()
+  defp handle_staff_permission_grant_insert(
+         {:ok, %StaffPermission{} = staff_permission},
+         _user_id,
+         _permission
+       ),
+       do: {:ok, staff_permission}
+
+  defp handle_staff_permission_grant_insert(
+         {:error, %Ecto.Changeset{} = changeset},
+         user_id,
+         permission
+       ) do
+    if active_staff_permission_conflict?(changeset) do
+      case active_staff_permission(user_id, permission) do
+        %StaffPermission{} = staff_permission -> {:ok, staff_permission}
+        nil -> {:error, changeset}
+      end
+    else
+      {:error, changeset}
+    end
+  end
+
+  @spec active_staff_permission_conflict?(Ecto.Changeset.t()) :: boolean()
+  defp active_staff_permission_conflict?(%Ecto.Changeset{errors: errors}) do
+    Enum.any?(errors, fn
+      {:user_id,
+       {_message,
+        constraint: :unique, constraint_name: "staff_permissions_active_user_permission_index"}} ->
+        true
+
+      _error ->
+        false
+    end)
   end
 
   @spec active_staff_permissions_query(pos_integer()) :: Ecto.Query.t()

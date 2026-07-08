@@ -28,7 +28,8 @@ defmodule LC.Content do
           {:ok, PostReportSchema.t()} | {:error, :not_authorized | :not_found}
   @type post_report_decision_result ::
           {:ok, PostReportSchema.t()}
-          | {:error, changeset() | :invalid_transition | :not_authorized | :not_found}
+          | {:error,
+             changeset() | :invalid_status | :invalid_transition | :not_authorized | :not_found}
   @type post_report_decision_attrs :: %{
           optional(:status | :decision_note | String.t()) => term()
         }
@@ -329,12 +330,31 @@ defmodule LC.Content do
   end
 
   @spec decision_status(map()) ::
-          {:ok, LCSchemas.Content.post_report_status()} | {:error, :invalid_transition}
+          {:ok, LCSchemas.Content.post_report_status()} | {:error, :invalid_status}
   defp decision_status(attrs) when is_map(attrs) do
     case option_value(attrs, :status) do
       status when status in @post_report_statuses -> {:ok, status}
-      _other -> {:error, :invalid_transition}
+      status when is_binary(status) -> string_post_report_status(status)
+      _other -> {:error, :invalid_status}
     end
+  end
+
+  @spec string_post_report_status(String.t()) ::
+          {:ok, LCSchemas.Content.post_report_status()} | {:error, :invalid_status}
+  defp string_post_report_status(status) when is_binary(status) do
+    normalized_status =
+      status
+      |> String.trim()
+      |> String.downcase()
+      |> String.to_existing_atom()
+
+    if normalized_status in @post_report_statuses do
+      {:ok, normalized_status}
+    else
+      {:error, :invalid_status}
+    end
+  rescue
+    ArgumentError -> {:error, :invalid_status}
   end
 
   @spec decision_attrs(map(), pos_integer(), LCSchemas.Content.post_report_status()) :: map()

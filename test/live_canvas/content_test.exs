@@ -450,6 +450,37 @@ defmodule LC.ContentTest do
                Content.decide_post_report(staff_scope, dismissed_report.id, %{status: :actioned})
     end
 
+    test "accepts params-style string decision statuses and separates invalid status input" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+      staff_scope = Accounts.scope_for_user(staff)
+
+      {:ok, first_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "string decision"})
+
+      {:ok, second_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "invalid decision"})
+
+      {:ok, first_report} = Content.report_post(reporter, first_post, %{reason: :spam})
+      {:ok, second_report} = Content.report_post(reporter, second_post, %{reason: :spam})
+
+      assert {:ok, dismissed_report} =
+               Content.decide_post_report(staff_scope, first_report.id, %{
+                 "status" => "dismissed",
+                 "decision_note" => "params-style status"
+               })
+
+      assert dismissed_report.status == :dismissed
+      assert dismissed_report.decision_note == "params-style status"
+
+      assert {:error, :invalid_status} =
+               Content.decide_post_report(staff_scope, second_report.id, %{
+                 "status" => "archived"
+               })
+    end
+
     test "rejects nonstaff decisions" do
       author = user_fixture()
       reporter = user_fixture()

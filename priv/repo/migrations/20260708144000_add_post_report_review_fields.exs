@@ -9,6 +9,19 @@ defmodule LiveCanvas.Repo.Migrations.AddPostReportReviewFields do
     end
 
     create index(:post_reports, [:reviewed_by_id])
-    create index(:post_reports, [:status, :inserted_at, :id])
+
+    create index(:post_reports, [:status, :inserted_at, :id],
+             name: :post_reports_status_inserted_id_index
+           )
+
+    create index(
+             :post_reports,
+             [
+               "(CASE status WHEN 'open' THEN 0 WHEN 'reviewed' THEN 1 WHEN 'dismissed' THEN 2 WHEN 'actioned' THEN 3 ELSE 4 END)",
+               :inserted_at,
+               :id
+             ],
+             name: :post_reports_moderation_queue_order_index
+           )
   end
 end

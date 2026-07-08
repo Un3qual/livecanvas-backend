@@ -13,7 +13,8 @@ defmodule LCSchemas.Content.PostReport do
   - `(reporter_id, post_id)` is unique.
   - Deleting the reporter or post cascades to reports.
   - Deleting the reviewer nullifies `reviewed_by_id` while preserving the moderation decision history.
-  - `(status, inserted_at, id)` supports moderation queue ordering.
+  - `(status, inserted_at, id)` supports status-filtered moderation queues.
+  - `post_reports_moderation_queue_order_index` matches the default moderation queue's custom status ordering.
   """
 
   @type t :: %__MODULE__{
