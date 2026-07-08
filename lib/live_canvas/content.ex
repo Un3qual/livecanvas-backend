@@ -298,6 +298,13 @@ defmodule LC.Content do
     where(query, [post_report], post_report.status == ^status)
   end
 
+  defp maybe_filter_post_report_status(query, status) when is_binary(status) do
+    case string_post_report_status(status) do
+      {:ok, normalized_status} -> maybe_filter_post_report_status(query, normalized_status)
+      {:error, :invalid_status} -> query
+    end
+  end
+
   defp maybe_filter_post_report_status(query, _status), do: query
 
   @spec locked_post_report_query(integer()) :: Ecto.Query.t()
@@ -318,7 +325,7 @@ defmodule LC.Content do
     with {:ok, status} <- decision_status(attrs),
          :ok <- validate_post_report_decision_transition(report.status, status) do
       report
-      |> PostReport.decision_changeset(decision_attrs(attrs, reviewer_id, status))
+      |> PostReport.decision_changeset(decision_attrs(report, attrs, reviewer_id, status))
       |> Repo.update()
       |> case do
         {:ok, updated_report} -> updated_report
@@ -357,8 +364,18 @@ defmodule LC.Content do
     ArgumentError -> {:error, :invalid_status}
   end
 
-  @spec decision_attrs(map(), pos_integer(), LCSchemas.Content.post_report_status()) :: map()
-  defp decision_attrs(attrs, reviewer_id, status) when is_map(attrs) do
+  @spec decision_attrs(
+          PostReportSchema.t(),
+          map(),
+          pos_integer(),
+          LCSchemas.Content.post_report_status()
+        ) :: map()
+  defp decision_attrs(%PostReportSchema{status: :reviewed}, _attrs, _reviewer_id, status)
+       when status in [:dismissed, :actioned] do
+    %{status: status}
+  end
+
+  defp decision_attrs(%PostReportSchema{}, attrs, reviewer_id, status) when is_map(attrs) do
     %{
       status: status,
       decision_note: option_value(attrs, :decision_note),

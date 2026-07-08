@@ -376,6 +376,20 @@ defmodule LC.ContentTest do
                |> Content.run_query()
                |> Enum.map(& &1.id)
 
+      assert {:ok, dismissed_report} =
+               Content.decide_post_report(staff_scope, second_report.id, %{
+                 status: :dismissed,
+                 decision_note: "not a violation"
+               })
+
+      assert {:ok, dismissed_query} =
+               Content.list_post_reports_for_moderation(staff_scope, %{"status" => "dismissed"})
+
+      assert [dismissed_report.id] ==
+               dismissed_query
+               |> Content.run_query()
+               |> Enum.map(& &1.id)
+
       assert {:ok, fetched_report} =
                Content.get_moderation_post_report(staff_scope, first_report.id)
 
@@ -395,8 +409,14 @@ defmodule LC.ContentTest do
       author = user_fixture()
       reporter = user_fixture()
       staff = user_fixture()
+      finalizer = user_fixture()
       assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+
+      assert {:ok, _permission} =
+               Accounts.grant_staff_permission(finalizer, :post_report_moderation)
+
       staff_scope = Accounts.scope_for_user(staff)
+      finalizer_scope = Accounts.scope_for_user(finalizer)
 
       {:ok, first_post} =
         Content.create_post(author, %{kind: :standard, body_text: "review then dismiss"})
@@ -419,17 +439,19 @@ defmodule LC.ContentTest do
 
       assert reviewed_report.status == :reviewed
       assert reviewed_report.reviewed_by_id == staff.id
-      assert %DateTime{} = reviewed_report.reviewed_at
+      assert %DateTime{} = reviewed_at = reviewed_report.reviewed_at
       assert reviewed_report.decision_note == "needs another look"
 
       assert {:ok, dismissed_after_review} =
-               Content.decide_post_report(staff_scope, first_report.id, %{
+               Content.decide_post_report(finalizer_scope, first_report.id, %{
                  status: :dismissed,
                  decision_note: "not a violation"
                })
 
       assert dismissed_after_review.status == :dismissed
-      assert dismissed_after_review.decision_note == "not a violation"
+      assert dismissed_after_review.reviewed_by_id == staff.id
+      assert dismissed_after_review.reviewed_at == reviewed_at
+      assert dismissed_after_review.decision_note == "needs another look"
 
       assert {:ok, actioned_report} =
                Content.decide_post_report(staff_scope, second_report.id, %{
