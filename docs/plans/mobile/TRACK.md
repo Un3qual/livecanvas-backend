@@ -11,11 +11,12 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: active; mobile post composer product batch complete; next
-  product-completeness task not selected
+- Track state: active; mobile post media attachment product batch selected
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Last completed detailed plan:
   `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+- Current theme: mobile post media attachments over the existing
+  `requestMediaUpload` and `createPost(mediaAssetIds:)` contracts.
 - Recent theme: mobile post composer over the existing Relay `createPost`
   contract is complete; release-candidate QA remains deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
@@ -54,6 +55,8 @@ and content discovery, live streaming, and chat.
   `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`.
 - Feed section refresh and pagination detail evidence is archived at
   `docs/plans/archive/completed/mobile/2026-07-01-feed-section-refresh-pagination.md`.
+- Product gap audit selected media attachments as the next batch:
+  `docs/plans/2026-07-06-cross-lane-product-gap-audit.md`.
 - Release-candidate manual QA remains tracked in
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`, but it is
   deferred until product explicitly resumes QA. No remote or authenticated EAS
@@ -105,11 +108,15 @@ and content discovery, live streaming, and chat.
 16. Release diagnostics screen.
 17. Mobile feed and content discovery surface.
 18. Mobile post composer over `createPost`.
-19. Release-candidate manual device QA using the one-host/one-viewer checklist.
+19. Mobile post media attachments over `requestMediaUpload` and
+    `createPost(mediaAssetIds:)`.
+20. Release-candidate manual device QA using the one-host/one-viewer checklist.
 
 ## Active And Queued Follow-Up Plans
 
-Current product batch: none selected.
+Current product batch:
+
+- `docs/plans/mobile/2026-07-03-mobile-post-media-attachments.md`
 
 Recently completed product batch:
 

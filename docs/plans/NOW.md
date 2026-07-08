@@ -1,7 +1,7 @@
 # Current Execution
 
-Last reviewed: 2026-07-01
-Status: mobile post composer product batch complete; backend issues may be promoted as needed; release-candidate QA deferred
+Last reviewed: 2026-07-03
+Status: mobile post media attachment batch selected; backend issues may be promoted as needed; release-candidate QA deferred
 
 ## Purpose
 
@@ -23,11 +23,13 @@ details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: complete; next mobile product task not selected
+- State: active; mobile post media attachment batch selected
 - Scope: `mobile/` and `docs/plans/mobile/**`
-- Completed source plan:
-  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+- Active source plan:
+  `docs/plans/mobile/2026-07-03-mobile-post-media-attachments.md`
 - Latest completed source plan:
+  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+- Latest completed feed/content plan:
   `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 
 ## Execution Rule
@@ -48,8 +50,8 @@ verify both sides that are affected.
 
 - Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
 - Horizon: 2026-07-01 through 2026-07-07
-- Focus: select the next product-completeness task after the completed mobile
-  text post composer, verify backend issues only when reproduced by active
+- Focus: execute the selected mobile post media attachment batch after the
+  completed text composer, verify backend issues only when reproduced by active
   product work, and keep release-candidate manual QA deferred.
 
 ## Shared File Policy
@@ -61,11 +63,10 @@ track docs.
 
 ## Next Coordinator Decision
 
-Do not reactivate release-candidate QA yet. The mobile post composer batch is
-complete; execute the next mobile step from `docs/plans/mobile/NOW.md` after a
-new product task is selected or planned. Promote backend fixes only when active
-product work proves they are needed, before any release-candidate device QA
-work resumes.
+Do not reactivate release-candidate QA yet. Execute the mobile post media
+attachment batch from `docs/plans/mobile/NOW.md`. Promote backend fixes only
+when active product work proves they are needed, before any release-candidate
+device QA work resumes.
 
 ## Repair Conditions
 

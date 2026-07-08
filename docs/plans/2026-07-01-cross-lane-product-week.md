@@ -203,19 +203,19 @@ Milestone commit:
   - `docs/contracts/mobile-graphql-phase2.md`
 
 Acceptance criteria:
-- [ ] The audit lists shipped mobile surfaces for auth, profiles, home feed,
+- [x] The audit lists shipped mobile surfaces for auth, profiles, home feed,
       live watch, chat, replay, reporting, diagnostics, and host preflight.
-- [ ] The audit lists missing product surfaces backed by existing backend
+- [x] The audit lists missing product surfaces backed by existing backend
       contracts. Mobile text post creation is already complete, so the next
       candidate must come from the remaining product gaps.
-- [ ] The audit selects one next batch and records why it beats release-candidate
+- [x] The audit selects one next batch and records why it beats release-candidate
       manual QA for product completeness, or explicitly recommends resuming QA
       if no product gap remains.
-- [ ] The audit names backend issues to promote only when backed by a contract
+- [x] The audit names backend issues to promote only when backed by a contract
       mismatch or failing verification.
 
 Focused verification:
-- From repo root: `git diff --check`
+- 2026-07-03: From repo root, `git diff --check` -> passed.
 
 Milestone commit:
 - Commit the audit and any pointer updates together.
@@ -234,19 +234,19 @@ gap list.
 - Modify: `docs/plans/INDEX.md`
 
 Acceptance criteria:
-- [ ] The next batch is small enough to complete independently and names any
+- [x] The next batch is small enough to complete independently and names any
       deferred product scope explicitly.
-- [ ] The plan uses existing backend contracts before proposing backend schema
+- [x] The plan uses existing backend contracts before proposing backend schema
       changes.
-- [ ] The first task has focused mobile tests under `mobile/tests/**`, not
+- [x] The first task has focused mobile tests under `mobile/tests/**`, not
       colocated under `mobile/src/**`.
-- [ ] Backend work is only included if the mobile plan proves a missing contract
+- [x] Backend work is only included if the mobile plan proves a missing contract
       or resolver behavior. Any such work is promoted to `docs/plans/backend/NOW.md`
       with verification.
-- [ ] Release-candidate QA remains deferred unless product explicitly resumes it.
+- [x] Release-candidate QA remains deferred unless product explicitly resumes it.
 
 Focused verification:
-- From repo root: `git diff --check`
+- 2026-07-03: From repo root, `git diff --check` -> passed.
 
 Milestone commit:
 - Commit the promoted plan and lane pointers as a planning commit.
