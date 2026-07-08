@@ -318,4 +318,103 @@ defmodule LCGQL.Content.ContentQueriesTest do
                context: context
              )
   end
+
+  describe "staffPostReports" do
+    test "returns a staff-only filtered Relay report queue with reported post access" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      nonstaff = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+
+      {:ok, first_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "first private report"})
+
+      {:ok, second_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "second private report"})
+
+      {:ok, first_report} = Content.report_post(reporter, first_post, %{reason: :spam})
+      {:ok, second_report} = Content.report_post(reporter, second_post, %{reason: :other})
+
+      first_report_id = Absinthe.Relay.Node.to_global_id(:post_report, first_report.id, LCGQL.Schema)
+      second_report_id = Absinthe.Relay.Node.to_global_id(:post_report, second_report.id, LCGQL.Schema)
+      first_post_id = Absinthe.Relay.Node.to_global_id(:post, first_post.id, LCGQL.Schema)
+      second_post_id = Absinthe.Relay.Node.to_global_id(:post, second_post.id, LCGQL.Schema)
+
+      query = """
+      query($first: Int!, $status: PostReportStatus) {
+        staffPostReports(first: $first, status: $status) {
+          edges {
+            node {
+              id
+              status
+              reason
+              decisionNote
+              reviewedAt
+              reviewedById
+              post {
+                id
+                bodyText
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "staffPostReports" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^first_report_id,
+                          "status" => "OPEN",
+                          "reason" => "SPAM",
+                          "decisionNote" => nil,
+                          "reviewedAt" => nil,
+                          "reviewedById" => nil,
+                          "post" => %{
+                            "id" => ^first_post_id,
+                            "bodyText" => "first private report"
+                          }
+                        }
+                      },
+                      %{
+                        "node" => %{
+                          "id" => ^second_report_id,
+                          "status" => "OPEN",
+                          "reason" => "OTHER",
+                          "post" => %{
+                            "id" => ^second_post_id,
+                            "bodyText" => "second private report"
+                          }
+                        }
+                      }
+                    ],
+                    "pageInfo" => %{"hasNextPage" => false}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"first" => 10, "status" => "OPEN"},
+                 context: %{current_scope: Accounts.scope_for_user(staff)}
+               )
+
+      assert {:ok, %{data: %{"staffPostReports" => %{"edges" => []}}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"first" => 10, "status" => "OPEN"},
+                 context: %{current_scope: Accounts.scope_for_user(nonstaff)}
+               )
+
+      assert {:ok, %{data: %{"staffPostReports" => %{"edges" => []}}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"first" => 10, "status" => "OPEN"}
+               )
+    end
+  end
 end

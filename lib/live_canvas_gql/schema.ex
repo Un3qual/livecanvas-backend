@@ -216,11 +216,28 @@ defmodule LCGQL.Schema do
     fetch_viewer_scoped_node(id, resolution, &Content.get_user_media_asset/2)
   end
 
-  # Post-report nodes are reporter-scoped because they describe moderation
-  # complaints submitted by a specific viewer.
+  # Post-report nodes are visible to their reporter or to staff moderators;
+  # both paths re-apply authorization before returning the globally refetchable ID.
   defp fetch_post_report_node(id, resolution) do
-    fetch_viewer_scoped_node(id, resolution, &Content.get_user_post_report/2)
+    with {:ok, local_id} <- cast_node_local_id(id) do
+      case fetch_staff_post_report_node(local_id, resolution) do
+        {:ok, %PostReport{} = report} ->
+          {:ok, report}
+
+        _other ->
+          fetch_viewer_scoped_node(id, resolution, &Content.get_user_post_report/2)
+      end
+    else
+      :error -> {:ok, nil}
+    end
   end
+
+  defp fetch_staff_post_report_node(local_id, %{context: %{current_scope: scope}})
+       when is_integer(local_id) do
+    Content.get_moderation_post_report(scope, local_id)
+  end
+
+  defp fetch_staff_post_report_node(_local_id, _resolution), do: {:error, :not_authorized}
 
   # Globally refetchable live-session IDs must re-apply viewer visibility so
   # replay/history surfaces cannot bypass ownership checks via `node(id:)`
