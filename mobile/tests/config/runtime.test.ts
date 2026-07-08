@@ -65,6 +65,26 @@ describe('routeHrefFromUrl', () => {
     expect(routeHrefFromUrl('livecanvas-mobile://sign-up')).toBe('/sign-up');
   });
 
+  test('accepts password recovery auth routes and reset tokens', () => {
+    expect(routeHrefFromUrl('livecanvas-mobile://password-recovery')).toBe(
+      '/password-recovery',
+    );
+    expect(
+      routeHrefFromUrl('livecanvas-mobile://reset-password?token=reset-token'),
+    ).toBe('/reset-password?token=reset-token');
+  });
+
+  test('maps backend password reset links to the mobile reset route', () => {
+    expect(
+      routeHrefFromUrl('livecanvas-mobile://users/reset-password/reset-token'),
+    ).toBe('/reset-password?token=reset-token');
+    expect(
+      routeHrefFromUrl(
+        'https://livecanvas.invalid/users/reset-password/reset-token',
+      ),
+    ).toBe('/reset-password?token=reset-token');
+  });
+
   test('preserves live-session query params in known protected deep links', () => {
     expect(
       routeHrefFromUrl(
@@ -139,6 +159,23 @@ describe('resolveLandingHrefForAuth', () => {
         'unauthenticated',
       ),
     ).toBe('/sign-up');
+  });
+
+  test('preserves reset-password deep links for unauthenticated sessions', () => {
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          initialUrl:
+            'livecanvas-mobile://users/reset-password/reset-token',
+          initialHref: '/reset-password?token=reset-token',
+          landingHref: '/reset-password?token=reset-token',
+          defaultHref: '/sign-in',
+          bootSessionState: 'signed_out',
+          resetReason: null,
+        },
+        'unauthenticated',
+      ),
+    ).toBe('/reset-password?token=reset-token');
   });
 
   test('sends authenticated auth-route cold starts to home', () => {

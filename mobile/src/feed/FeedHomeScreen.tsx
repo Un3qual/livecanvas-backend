@@ -84,13 +84,14 @@ import {
 } from './reportPostReducer';
 
 type FeedHomeAction = {
-  key: 'compose' | 'host' | 'profile' | 'contacts' | 'diagnostics';
+  key: 'compose' | 'host' | 'profile' | 'contacts' | 'settings' | 'diagnostics';
   label: string;
   route:
     | '/compose'
     | '/host-broadcast'
     | '/profile'
     | '/contacts'
+    | '/settings'
     | '/diagnostics';
   variant: 'primary' | 'secondary';
 };
@@ -306,6 +307,12 @@ export function createFeedHomeActions(
       key: 'contacts',
       label: 'Find contacts',
       route: '/contacts',
+      variant: 'secondary',
+    },
+    {
+      key: 'settings',
+      label: 'Settings',
+      route: '/settings',
       variant: 'secondary',
     },
     {

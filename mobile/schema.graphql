@@ -6,6 +6,7 @@ schema {
 type RootQueryType {
   viewer: User
   viewerDataExportRequests(after: String, first: Int!): DataExportRequestConnection
+  viewerAccountDeletionRequests(after: String, first: Int!): AccountDeletionRequestConnection
   viewerContactMatches(after: String, first: Int!): ContactMatchConnection
   post(id: ID!): Post
   mediaAsset(id: ID!): MediaAsset
@@ -710,6 +711,11 @@ type DataExportRequestConnection {
   edges: [DataExportRequestEdge]
 }
 
+type AccountDeletionRequestConnection {
+  pageInfo: PageInfo!
+  edges: [AccountDeletionRequestEdge]
+}
+
 "Supported auth providers for generic signup, login, and challenge flows."
 enum AuthProvider {
   PASSWORD
@@ -939,6 +945,11 @@ type PageInfo {
 
   "When paginating forwards, the cursor to continue."
   endCursor: String
+}
+
+type AccountDeletionRequestEdge {
+  node: AccountDeletionRequest
+  cursor: String
 }
 
 type DataExportRequestEdge {

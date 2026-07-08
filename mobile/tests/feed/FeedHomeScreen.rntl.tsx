@@ -910,6 +910,12 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
         variant: 'secondary',
       },
       {
+        key: 'settings',
+        label: 'Settings',
+        route: '/settings',
+        variant: 'secondary',
+      },
+      {
         key: 'diagnostics',
         label: 'Diagnostics',
         route: '/diagnostics',
@@ -937,6 +943,12 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
         variant: 'secondary',
       },
       {
+        key: 'settings',
+        label: 'Settings',
+        route: '/settings',
+        variant: 'secondary',
+      },
+      {
         key: 'diagnostics',
         label: 'Diagnostics',
         route: '/diagnostics',
@@ -960,8 +972,9 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
 
     await user.press(screen.getByRole('button', { name: 'Create post' }));
     await user.press(screen.getByRole('button', { name: 'Find contacts' }));
+    await user.press(screen.getByRole('button', { name: 'Settings' }));
 
-    expect(mockPushedRoutes).toEqual(['/compose', '/contacts']);
+    expect(mockPushedRoutes).toEqual(['/compose', '/contacts', '/settings']);
   });
 
   test('renders section-specific empty states', async () => {
