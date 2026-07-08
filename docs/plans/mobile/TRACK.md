@@ -115,6 +115,17 @@ Recently completed product batch:
 
 - `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
 
+Candidate product-gap plans, not yet ordered as the current batch:
+
+- `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
+- `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
+- `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
+- `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
+- `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
+
+The social-controls plan can start with existing mobile contracts, but reversible
+unfollow and unblock need an explicitly promoted backend contract batch.
+
 All previously queued live-session and feed/content product follow-up plans are
 complete and archived. Deferred QA gate:
 

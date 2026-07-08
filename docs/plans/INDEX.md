@@ -52,6 +52,25 @@ Use this file when:
   backend starter-kit extraction remain outside this week unless explicitly
   resumed
 
+### Product Gap Candidate Plans
+
+- State: draft backlog; none selected as a lane current batch
+- Mobile account settings and recovery:
+  `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
+- Mobile social controls:
+  `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
+- Mobile contact discovery:
+  `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
+- Mobile post owner controls:
+  `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
+- Mobile profile connection lists:
+  `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
+- Backend report moderation operations:
+  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
+- Notes: these plans document product-completeness gaps identified after the
+  mobile post composer batch. Promote one plan through the relevant lane
+  `NOW.md` before implementation.
+
 ### Backend Live Media Signaling Contract
 
 - Plan: `docs/plans/archive/completed/backend/2026-06-03-live-media-signaling-contract.md`
