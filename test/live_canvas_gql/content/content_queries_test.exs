@@ -8,6 +8,7 @@ defmodule LCGQL.Content.ContentQueriesTest do
 
   test "post query returns a public post by global ID" do
     author = user_fixture()
+
     {:ok, post} =
       Content.create_post(author, %{kind: :standard, body_text: "first post", visibility: :public})
 
@@ -103,8 +104,12 @@ defmodule LCGQL.Content.ContentQueriesTest do
       })
 
     post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
-    uploaded_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, uploaded_asset.id, LCGQL.Schema)
-    processed_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, processed_asset.id, LCGQL.Schema)
+
+    uploaded_asset_id =
+      Absinthe.Relay.Node.to_global_id(:media_asset, uploaded_asset.id, LCGQL.Schema)
+
+    processed_asset_id =
+      Absinthe.Relay.Node.to_global_id(:media_asset, processed_asset.id, LCGQL.Schema)
 
     query = """
     query($id: ID!) {
@@ -336,8 +341,12 @@ defmodule LCGQL.Content.ContentQueriesTest do
       {:ok, first_report} = Content.report_post(reporter, first_post, %{reason: :spam})
       {:ok, second_report} = Content.report_post(reporter, second_post, %{reason: :other})
 
-      first_report_id = Absinthe.Relay.Node.to_global_id(:post_report, first_report.id, LCGQL.Schema)
-      second_report_id = Absinthe.Relay.Node.to_global_id(:post_report, second_report.id, LCGQL.Schema)
+      first_report_id =
+        Absinthe.Relay.Node.to_global_id(:post_report, first_report.id, LCGQL.Schema)
+
+      second_report_id =
+        Absinthe.Relay.Node.to_global_id(:post_report, second_report.id, LCGQL.Schema)
+
       first_post_id = Absinthe.Relay.Node.to_global_id(:post, first_post.id, LCGQL.Schema)
       second_post_id = Absinthe.Relay.Node.to_global_id(:post, second_post.id, LCGQL.Schema)
 
@@ -412,9 +421,7 @@ defmodule LCGQL.Content.ContentQueriesTest do
                )
 
       assert {:ok, %{data: %{"staffPostReports" => %{"edges" => []}}}} =
-               Absinthe.run(query, LCGQL.Schema,
-                 variables: %{"first" => 10, "status" => "OPEN"}
-               )
+               Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10, "status" => "OPEN"})
     end
   end
 end

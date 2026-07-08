@@ -240,7 +240,13 @@ defmodule LCGQL.Content.Resolver do
          %{report: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
 
       {:error, reason}
-      when reason in [:invalid_id, :invalid_type, :not_found, :not_authorized, :invalid_transition] ->
+      when reason in [
+             :invalid_id,
+             :invalid_type,
+             :not_found,
+             :not_authorized,
+             :invalid_transition
+           ] ->
         {:ok, %{report: nil, errors: [post_report_error(reason)]}}
     end
   end
@@ -485,7 +491,10 @@ defmodule LCGQL.Content.Resolver do
   @spec staff_post_report_scope?(Absinthe.Resolution.t()) :: boolean()
   defp staff_post_report_scope?(%{
          context: %{
-           current_scope: %{user: %{id: user_id}, staff_permissions: %MapSet{} = staff_permissions}
+           current_scope: %{
+             user: %{id: user_id},
+             staff_permissions: %MapSet{} = staff_permissions
+           }
          }
        })
        when is_integer(user_id) do

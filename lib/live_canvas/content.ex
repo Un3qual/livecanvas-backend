@@ -309,7 +309,8 @@ defmodule LC.Content do
 
   @spec update_locked_post_report_decision(PostReportSchema.t() | nil, pos_integer(), map()) ::
           PostReportSchema.t() | no_return()
-  defp update_locked_post_report_decision(nil, _reviewer_id, _attrs), do: Repo.rollback(:not_found)
+  defp update_locked_post_report_decision(nil, _reviewer_id, _attrs),
+    do: Repo.rollback(:not_found)
 
   defp update_locked_post_report_decision(%PostReportSchema{} = report, reviewer_id, attrs)
        when is_integer(reviewer_id) and is_map(attrs) do

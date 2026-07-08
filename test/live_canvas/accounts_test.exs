@@ -492,6 +492,7 @@ defmodule LC.AccountsTest do
 
       assert [%{__struct__: StaffPermission, id: permission_id}] =
                Accounts.list_active_staff_permissions(user)
+
       assert permission_id == permission.id
 
       assert {:ok, %{__struct__: StaffPermission, id: ^permission_id}} =

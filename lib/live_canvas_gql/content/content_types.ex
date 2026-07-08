@@ -126,6 +126,7 @@ defmodule LCGQL.Content.Types do
     field :reason, non_null(:post_report_reason)
     field :details, :string
     field :status, non_null(:post_report_status)
+
     field :decision_note, :string do
       resolve(&Resolver.post_report_decision_note/3)
     end
