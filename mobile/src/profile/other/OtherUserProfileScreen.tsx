@@ -314,6 +314,18 @@ function OtherUserProfileContent({
       <SocialPreviewCard
         followersPreviewCount={followersPreviewCount}
         followingPreviewCount={followingPreviewCount}
+        onOpenFollowers={() =>
+          router.push({
+            params: { id: user.id },
+            pathname: '/profiles/[id]/followers',
+          })
+        }
+        onOpenFollowing={() =>
+          router.push({
+            params: { id: user.id },
+            pathname: '/profiles/[id]/following',
+          })
+        }
       />
     </ScrollView>
   );
