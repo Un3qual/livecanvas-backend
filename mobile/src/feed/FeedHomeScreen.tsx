@@ -84,9 +84,14 @@ import {
 } from './reportPostReducer';
 
 type FeedHomeAction = {
-  key: 'compose' | 'host' | 'profile' | 'diagnostics';
+  key: 'compose' | 'host' | 'profile' | 'contacts' | 'diagnostics';
   label: string;
-  route: '/compose' | '/host-broadcast' | '/profile' | '/diagnostics';
+  route:
+    | '/compose'
+    | '/host-broadcast'
+    | '/profile'
+    | '/contacts'
+    | '/diagnostics';
   variant: 'primary' | 'secondary';
 };
 
@@ -295,6 +300,12 @@ export function createFeedHomeActions(
       key: 'profile',
       label: 'Open profile',
       route: '/profile',
+      variant: 'secondary',
+    },
+    {
+      key: 'contacts',
+      label: 'Find contacts',
+      route: '/contacts',
       variant: 'secondary',
     },
     {

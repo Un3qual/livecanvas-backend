@@ -904,6 +904,12 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
         variant: 'secondary',
       },
       {
+        key: 'contacts',
+        label: 'Find contacts',
+        route: '/contacts',
+        variant: 'secondary',
+      },
+      {
         key: 'diagnostics',
         label: 'Diagnostics',
         route: '/diagnostics',
@@ -922,6 +928,12 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
         key: 'profile',
         label: 'Open profile',
         route: '/profile',
+        variant: 'secondary',
+      },
+      {
+        key: 'contacts',
+        label: 'Find contacts',
+        route: '/contacts',
         variant: 'secondary',
       },
       {
@@ -947,8 +959,9 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     await render(<FeedHomeContent />);
 
     await user.press(screen.getByRole('button', { name: 'Create post' }));
+    await user.press(screen.getByRole('button', { name: 'Find contacts' }));
 
-    expect(mockPushedRoutes).toEqual(['/compose']);
+    expect(mockPushedRoutes).toEqual(['/compose', '/contacts']);
   });
 
   test('renders section-specific empty states', async () => {

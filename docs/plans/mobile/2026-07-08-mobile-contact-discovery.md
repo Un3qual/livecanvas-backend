@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile
-Status: draft ready for review
+Status: implemented on `codex/execute-mobile-product-gaps`
 
 ## Executor Brief
 
@@ -33,12 +33,12 @@ Files:
 - Test: `mobile/tests/contacts/contactDiscoveryState.test.ts`
 
 Acceptance criteria:
-- [ ] Normalize email input for validation and `contactClientId` generation.
-- [ ] Reject empty and invalid email input before committing mutations.
-- [ ] Build `upsertViewerContactEntry` input for one manual email contact and
+- [x] Normalize email input for validation and `contactClientId` generation.
+- [x] Reject empty and invalid email input before committing mutations.
+- [x] Build `upsertViewerContactEntry` input for one manual email contact and
       optional display name.
-- [ ] Map common payload errors to viewer-safe copy.
-- [ ] Keep invite-copy helpers separate from mutation wiring.
+- [x] Map common payload errors to viewer-safe copy.
+- [x] Keep invite-copy helpers separate from mutation wiring.
 
 Focused verification:
 - From `mobile/`: `bun test tests/contacts/contactDiscoveryState.test.ts`
@@ -53,15 +53,15 @@ Files:
 - Test: `mobile/tests/contacts/ContactDiscoveryScreen.test.tsx`
 
 Acceptance criteria:
-- [ ] `/contacts` queries `viewerContactMatches(first: 20)`.
-- [ ] Match rows include the contact name, matched users, and pagination data
+- [x] `/contacts` queries `viewerContactMatches(first: 20)`.
+- [x] Match rows include the contact name, matched users, and pagination data
       needed by the UI.
-- [ ] Manual email submission commits `upsertViewerContactEntry`.
-- [ ] A returned match can navigate to `/profiles/[id]` using the opaque Relay
+- [x] Manual email submission commits `upsertViewerContactEntry`.
+- [x] A returned match can navigate to `/profiles/[id]` using the opaque Relay
       ID returned by GraphQL.
-- [ ] A no-match row can commit `deliverViewerContactInvite`.
-- [ ] Duplicate submit and invite taps are guarded independently.
-- [ ] Empty, loading, and error states are covered by tests.
+- [x] A no-match row can commit `deliverViewerContactInvite`.
+- [x] Duplicate submit and invite taps are guarded independently.
+- [x] Empty, loading, and error states are covered by tests.
 
 Focused verification:
 - From `mobile/`: `bun test tests/contacts/ContactDiscoveryScreen.test.tsx`
@@ -74,9 +74,20 @@ Files:
 - Test: `mobile/tests/feed/FeedHomeScreen.test.tsx`
 
 Acceptance criteria:
-- [ ] The signed-in home surface exposes a compact `Find contacts` action.
-- [ ] Tapping the action routes to `/contacts`.
-- [ ] The new action does not displace create-post or profile navigation.
+- [x] The signed-in home surface exposes a compact `Find contacts` action.
+- [x] Tapping the action routes to `/contacts`.
+- [x] The new action does not displace create-post or profile navigation.
+
+## Evidence
+
+- `bun test tests/contacts/contactDiscoveryState.test.ts` -> 4 pass.
+- `pnpm exec jest --config ./jest.config.js tests/contacts/ContactDiscoveryScreen.rntl.tsx --runInBand` -> 4 pass.
+- `pnpm exec jest --config ./jest.config.js tests/feed/FeedHomeScreen.rntl.tsx --runInBand` -> 22 pass.
+- `bun run relay` -> completed.
+- `bun run typecheck` -> passed.
+- `bun run typecheck:tests` -> passed.
+
+Note: component coverage uses the existing Jest/RNTL `*.rntl.tsx` convention.
 
 Focused verification:
 - From `mobile/`: `bun test tests/feed/FeedHomeScreen.test.tsx`
