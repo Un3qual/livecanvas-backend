@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, userEvent } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+} from '@testing-library/react-native';
 
 import { PendingFollowRequestsScreen } from '../../src/profile/PendingFollowRequestsScreen';
 
@@ -56,6 +63,8 @@ type DeclineConfig = {
 
 let mockQueryData: QueryData;
 let mockQueryVariables: QueryVariables | null;
+let mockFetchQueryResult: QueryData;
+let mockFetchQueryVariables: QueryVariables | null;
 let mockPushedRoutes: unknown[];
 const mockAcceptCommit = jest.fn<undefined, [AcceptConfig]>();
 const mockDeclineCommit = jest.fn<undefined, [DeclineConfig]>();
@@ -69,6 +78,17 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('react-relay', () => ({
+  fetchQuery: (
+    _environment: unknown,
+    _query: unknown,
+    variables: QueryVariables,
+  ) => {
+    mockFetchQueryVariables = variables;
+
+    return {
+      toPromise: () => Promise.resolve(mockFetchQueryResult),
+    };
+  },
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
   useLazyLoadQuery: (
     _query: unknown,
@@ -86,6 +106,7 @@ jest.mock('react-relay', () => ({
 
     return [mockAcceptCommit, false];
   },
+  useRelayEnvironment: () => ({ environment: 'relay' }),
 }));
 
 function mockRelayOperationName(mutation: unknown): string {
@@ -115,7 +136,20 @@ beforeEach(() => {
       }),
     ]),
   };
+  mockFetchQueryResult = {
+    viewerPendingFollowRequests: connection([
+      pendingRequest({
+        follower: {
+          email: 'later-requester@example.com',
+          id: 'opaque-user-2',
+          privacyMode: 'PUBLIC',
+        },
+        id: 'request-2',
+      }),
+    ]),
+  };
   mockQueryVariables = null;
+  mockFetchQueryVariables = null;
   mockPushedRoutes = [];
   mockAcceptCommit.mockClear();
   mockDeclineCommit.mockClear();
@@ -185,6 +219,38 @@ describe('PendingFollowRequestsScreen with React Native Testing Library', () => 
       { params: { id: 'opaque-user-1' }, pathname: '/profiles/[id]' },
     ]);
   });
+
+  test('loads additional pending requests from the next page', async () => {
+    const user = userEvent.setup();
+    mockQueryData = {
+      viewerPendingFollowRequests: connection(
+        [
+          pendingRequest({
+            follower: {
+              email: 'requester@example.com',
+              id: 'opaque-user-1',
+              privacyMode: 'PRIVATE',
+            },
+            id: 'request-1',
+          }),
+        ],
+        { endCursor: 'cursor-1', hasNextPage: true },
+      ),
+    };
+
+    await render(<PendingFollowRequestsScreen />);
+
+    await user.press(screen.getByRole('button', { name: 'Load more' }));
+
+    expect(mockFetchQueryVariables).toEqual({
+      after: 'cursor-1',
+      first: 20,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('later-requester@example.com')).toBeOnTheScreen();
+    });
+  });
 });
 
 async function completeAccept(
@@ -214,12 +280,14 @@ async function completeDecline(
 
 function connection(
   nodes: ReadonlyArray<PendingRequestNode>,
+  pageInfo: Partial<PendingRequestsConnection['pageInfo']> = {},
 ): PendingRequestsConnection {
   return {
     edges: nodes.map((node) => ({ node })),
     pageInfo: {
-      endCursor: null,
+      endCursor: nodes.length > 0 ? 'cursor' : null,
       hasNextPage: false,
+      ...pageInfo,
     },
   };
 }

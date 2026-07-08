@@ -1,4 +1,10 @@
-import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+} from '@testing-library/react-native';
 
 import { ProfileConnectionListScreen } from '../../src/profile/ProfileConnectionListScreen';
 
@@ -141,6 +147,42 @@ describe('ProfileConnectionListScreen with React Native Testing Library', () => 
     expect(mockPushedRoutes).toEqual([
       { params: { id: 'opaque-user-3' }, pathname: '/profiles/[id]' },
     ]);
+  });
+
+  test('resets paginated rows when the connection route changes', async () => {
+    const user = userEvent.setup();
+    const view = await render(
+      <ProfileConnectionListScreen kind="viewerFollowers" />,
+    );
+
+    await user.press(screen.getByRole('button', { name: 'Load more' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('second@example.com')).toBeOnTheScreen();
+    });
+
+    mockQueryData = {
+      viewer: {
+        following: connection([
+          {
+            email: 'following@example.com',
+            id: 'opaque-user-4',
+            privacyMode: 'PUBLIC',
+          },
+        ]),
+        id: 'viewer-id',
+      },
+    };
+
+    await act(async () => {
+      view.rerender(<ProfileConnectionListScreen kind="viewerFollowing" />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('following@example.com')).toBeOnTheScreen();
+    });
+    expect(screen.queryByText('first@example.com')).toBeNull();
+    expect(screen.queryByText('second@example.com')).toBeNull();
   });
 
   test('renders unavailable empty state without leaking private relationship detail', async () => {

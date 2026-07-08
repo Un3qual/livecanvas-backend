@@ -1,7 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useLazyLoadQuery, useMutation } from 'react-relay';
+import {
+  fetchQuery,
+  useLazyLoadQuery,
+  useMutation,
+  useRelayEnvironment,
+} from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
@@ -10,6 +15,10 @@ import { ScreenState } from '../components/ScreenState';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { radius, spacing, typography } from '../theme/tokens';
+import {
+  appendProfileConnectionNodes,
+  readProfileConnectionPageInfo,
+} from '../profile/profileConnectionPagination';
 import {
   CONTACT_DISCOVERY_QUERY_VARIABLES,
   contactDiscoveryDeliverInviteMutation,
@@ -83,16 +92,27 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
+  loadMorePanel: {
+    gap: spacing.sm,
+  },
 });
 
 export function ContactDiscoveryScreen() {
   const theme = useAppTheme();
   const router = useRouter();
+  const relayEnvironment = useRelayEnvironment();
   const data = useLazyLoadQuery<ContactDiscoveryQuery>(
     contactDiscoveryQuery,
     CONTACT_DISCOVERY_QUERY_VARIABLES,
     { fetchPolicy: 'store-and-network' },
   );
+  const queryConnection = data.viewerContactMatches;
+  const queryPageInfo = readProfileConnectionPageInfo(queryConnection);
+  const paginationResetKey = [
+    queryPageInfo.endCursor ?? '',
+    queryPageInfo.hasNextPage ? 'next' : 'end',
+  ].join(':');
+  const paginationResetKeyRef = useRef(paginationResetKey);
   const [commitUpsertContact] =
     useMutation<ContactDiscoveryUpsertMutation>(
       contactDiscoveryUpsertMutation,
@@ -108,6 +128,10 @@ export function ContactDiscoveryScreen() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [localMatches, setLocalMatches] = useState<ContactMatch[]>([]);
+  const [extraMatches, setExtraMatches] = useState<ContactMatch[]>([]);
+  const [pageInfo, setPageInfo] = useState(() => queryPageInfo);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [inviteRecipientsByContactId, setInviteRecipientsByContactId] =
     useState<Readonly<Record<string, string>>>({});
   const [activeInviteContactId, setActiveInviteContactId] =
@@ -119,9 +143,57 @@ export function ContactDiscoveryScreen() {
     Readonly<Record<string, string>>
   >({});
   const queryMatches = readConnectionNodes<ContactMatch>(
-    data.viewerContactMatches,
+    queryConnection,
   );
-  const contactMatches = mergeContactMatches(localMatches, queryMatches);
+  const contactMatches = mergeContactMatches(
+    localMatches,
+    queryMatches.concat(extraMatches),
+  );
+
+  useEffect(() => {
+    if (paginationResetKeyRef.current === paginationResetKey) {
+      return;
+    }
+
+    paginationResetKeyRef.current = paginationResetKey;
+    setExtraMatches([]);
+    setPageInfo(queryPageInfo);
+    setLoadMoreError(null);
+  }, [paginationResetKey, queryPageInfo]);
+
+  async function loadMore() {
+    if (isLoadingMore || !pageInfo.hasNextPage || pageInfo.endCursor == null) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    setLoadMoreError(null);
+
+    try {
+      const pageData = (await fetchQuery(
+        relayEnvironment,
+        contactDiscoveryQuery,
+        {
+          ...CONTACT_DISCOVERY_QUERY_VARIABLES,
+          after: pageInfo.endCursor,
+        },
+        { fetchPolicy: 'network-only' },
+      ).toPromise()) as ContactDiscoveryData | null | undefined;
+      const pageConnection = pageData?.viewerContactMatches;
+
+      setExtraMatches((current) =>
+        appendProfileConnectionNodes(
+          current,
+          readConnectionNodes<ContactMatch>(pageConnection),
+        ),
+      );
+      setPageInfo(readProfileConnectionPageInfo(pageConnection));
+    } catch {
+      setLoadMoreError('Could not load more contacts.');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
 
   function submitManualContact() {
     if (activeSearchRef.current || isSearching) {
@@ -318,6 +390,21 @@ export function ContactDiscoveryScreen() {
             message="No contacts have been searched yet."
           />
         )}
+        {pageInfo.hasNextPage && pageInfo.endCursor ? (
+          <View style={styles.loadMorePanel}>
+            <AppButton
+              disabled={isLoadingMore}
+              label={isLoadingMore ? 'Loading...' : 'Load more'}
+              onPress={loadMore}
+              variant="secondary"
+            />
+            {loadMoreError ? (
+              <Text style={[styles.metadataText, { color: theme.colors.error }]}>
+                {loadMoreError}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );

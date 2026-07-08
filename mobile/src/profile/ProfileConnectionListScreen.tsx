@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
@@ -106,16 +106,33 @@ export function ProfileConnectionListScreen({
     fetchPolicy: 'store-and-network',
   }) as ProfileConnectionQueryData;
   const initialConnection = selectProfileConnection(data, kind);
+  const initialPageInfo = readProfileConnectionPageInfo(initialConnection);
+  const resetKey = [
+    kind,
+    profileId ?? 'viewer',
+    initialPageInfo.endCursor ?? '',
+    initialPageInfo.hasNextPage ? 'next' : 'end',
+  ].join(':');
+  const resetKeyRef = useRef(resetKey);
   const [extraRows, setExtraRows] = useState<ProfileConnectionUser[]>([]);
-  const [pageInfo, setPageInfo] = useState(() =>
-    readProfileConnectionPageInfo(initialConnection),
-  );
+  const [pageInfo, setPageInfo] = useState(() => initialPageInfo);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const rows = appendProfileConnectionNodes(
     readConnectionNodes<ProfileConnectionUser>(initialConnection),
     extraRows,
   );
+
+  useEffect(() => {
+    if (resetKeyRef.current === resetKey) {
+      return;
+    }
+
+    resetKeyRef.current = resetKey;
+    setExtraRows([]);
+    setPageInfo(initialPageInfo);
+    setLoadMoreError(null);
+  }, [initialPageInfo, resetKey]);
 
   async function loadMore() {
     if (isLoadingMore || !pageInfo.hasNextPage || pageInfo.endCursor == null) {

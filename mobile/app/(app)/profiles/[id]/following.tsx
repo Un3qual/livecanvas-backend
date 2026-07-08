@@ -1,5 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 
+import { RelayRouteBoundary } from '../../../../src/components/RelayRouteBoundary';
 import { ScreenState } from '../../../../src/components/ScreenState';
 import { ProfileConnectionListScreen } from '../../../../src/profile/ProfileConnectionListScreen';
 import { readOptionalProfileIdParam } from '../../../../src/profile/profileRouteParams';
@@ -13,9 +14,14 @@ export default function OtherProfileFollowingRoute() {
   }
 
   return (
-    <ProfileConnectionListScreen
-      kind="otherFollowing"
-      profileId={profileId}
-    />
+    <RelayRouteBoundary
+      loadingMessage="Loading following..."
+      errorMessage="We could not load following."
+    >
+      <ProfileConnectionListScreen
+        kind="otherFollowing"
+        profileId={profileId}
+      />
+    </RelayRouteBoundary>
   );
 }

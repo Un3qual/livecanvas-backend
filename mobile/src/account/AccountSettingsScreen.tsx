@@ -153,6 +153,11 @@ export function AccountSettingsScreen() {
     return true;
   };
 
+  const handleMissingMutationResource = (): false => {
+    setError(formatAccountSettingsMutationErrors(null));
+    return false;
+  };
+
   const unlinkIdentity = (identity: AccountSettingsIdentity) => {
     const action = `unlink-identity:${identity.id}` as const;
 
@@ -196,7 +201,12 @@ export function AccountSettingsScreen() {
         const result = payload.requestViewerDataExport;
         const request = result?.dataExportRequest;
 
-        if (!handleResult(result) || !request) {
+        if (!handleResult(result)) {
+          return;
+        }
+
+        if (!request) {
+          handleMissingMutationResource();
           return;
         }
 
@@ -225,7 +235,12 @@ export function AccountSettingsScreen() {
         const result = payload.requestViewerAccountDeletion;
         const request = result?.accountDeletionRequest;
 
-        if (!handleResult(result) || !request) {
+        if (!handleResult(result)) {
+          return;
+        }
+
+        if (!request) {
+          handleMissingMutationResource();
           return;
         }
 
@@ -254,7 +269,12 @@ export function AccountSettingsScreen() {
         const result = payload.cancelViewerAccountDeletionRequest;
         const request = result?.accountDeletionRequest;
 
-        if (!handleResult(result) || !request) {
+        if (!handleResult(result)) {
+          return;
+        }
+
+        if (!request) {
+          handleMissingMutationResource();
           return;
         }
 

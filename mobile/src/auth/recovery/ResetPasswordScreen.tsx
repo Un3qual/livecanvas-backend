@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
@@ -30,7 +30,9 @@ export function ResetPasswordScreen() {
   const { token: rawToken } = useLocalSearchParams<{
     token?: string | string[];
   }>();
-  const [token, setToken] = useState(() => readResetPasswordTokenParam(rawToken));
+  const routeToken = readResetPasswordTokenParam(rawToken);
+  const routeTokenRef = useRef(routeToken);
+  const [token, setToken] = useState(() => routeToken);
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +42,17 @@ export function ResetPasswordScreen() {
     useMutation<passwordRecoveryOperationsResetMutation>(
       passwordRecoveryResetMutation,
     );
+
+  useEffect(() => {
+    if (routeTokenRef.current === routeToken) {
+      return;
+    }
+
+    routeTokenRef.current = routeToken;
+    setToken(routeToken);
+    setError(null);
+    setSuccessMessage(null);
+  }, [routeToken]);
 
   const submitPasswordReset = () => {
     if (activeResetRef.current || isResetInFlight) {

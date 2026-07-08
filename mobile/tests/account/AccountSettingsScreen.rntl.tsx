@@ -1,5 +1,6 @@
 import { act, render, screen, userEvent } from '@testing-library/react-native';
 
+import SettingsRoute from '../../app/(app)/settings';
 import { AccountSettingsScreen } from '../../src/account/AccountSettingsScreen';
 
 type MutationConfig = {
@@ -14,9 +15,16 @@ let mockUnlinkCommit: MutationCommit;
 let mockExportCommit: MutationCommit;
 let mockDeleteCommit: MutationCommit;
 let mockCancelDeleteCommit: MutationCommit;
+let mockQueryError: Error | null;
 
 jest.mock('react-relay', () => ({
-  useLazyLoadQuery: () => mockQueryData,
+  useLazyLoadQuery: () => {
+    if (mockQueryError) {
+      throw mockQueryError;
+    }
+
+    return mockQueryData;
+  },
   useMutation: (mutation: unknown) => {
     const operationName = mockOperationName(mutation);
 
@@ -39,6 +47,7 @@ jest.mock('react-relay', () => ({
 }));
 
 beforeEach(() => {
+  mockQueryError = null;
   mockUnlinkCommit = jest.fn();
   mockExportCommit = jest.fn();
   mockDeleteCommit = jest.fn();
@@ -78,6 +87,18 @@ describe('AccountSettingsScreen', () => {
     expect(screen.getByText('Google')).toBeOnTheScreen();
     expect(screen.getByText('No data export requests yet.')).toBeOnTheScreen();
     expect(screen.getByText('Scheduled')).toBeOnTheScreen();
+  });
+
+  test('settings route catches Relay query errors', async () => {
+    mockQueryError = new Error('relay query failed');
+
+    await withSuppressedConsoleError(async () => {
+      await render(<SettingsRoute />);
+    });
+
+    expect(
+      screen.getByText('We could not load account settings.'),
+    ).toBeOnTheScreen();
   });
 
   test('unlinks identities and starts export and deletion requests', async () => {
@@ -160,6 +181,47 @@ describe('AccountSettingsScreen', () => {
     });
     expect(screen.getByText('deletion_unavailable')).toBeOnTheScreen();
   });
+
+  test('shows retryable errors when successful mutations omit expected resources', async () => {
+    const user = userEvent.setup();
+
+    await render(<AccountSettingsScreen />);
+
+    await user.press(screen.getByRole('button', { name: 'Request data export' }));
+    await completeMutation(mockExportCommit, {
+      requestViewerDataExport: {
+        dataExportRequest: null,
+        errors: [],
+      },
+    });
+    expect(
+      screen.getByText('We could not update account settings.'),
+    ).toBeOnTheScreen();
+
+    await user.press(
+      screen.getByRole('button', { name: 'Request account deletion' }),
+    );
+    await completeMutation(mockDeleteCommit, {
+      requestViewerAccountDeletion: {
+        accountDeletionRequest: null,
+        errors: [],
+      },
+    });
+    expect(
+      screen.getByText('We could not update account settings.'),
+    ).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: 'Cancel request' }));
+    await completeMutation(mockCancelDeleteCommit, {
+      cancelViewerAccountDeletionRequest: {
+        accountDeletionRequest: null,
+        errors: [],
+      },
+    });
+    expect(
+      screen.getByText('We could not update account settings.'),
+    ).toBeOnTheScreen();
+  });
 });
 
 async function completeMutation(
@@ -195,4 +257,18 @@ function mockOperationName(operation: unknown): string {
   }
 
   return '';
+}
+
+async function withSuppressedConsoleError(
+  callback: () => Promise<void>,
+): Promise<void> {
+  const consoleError = jest
+    .spyOn(console, 'error')
+    .mockImplementation(() => undefined);
+
+  try {
+    await callback();
+  } finally {
+    consoleError.mockRestore();
+  }
 }

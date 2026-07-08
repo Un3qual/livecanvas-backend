@@ -1,7 +1,12 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useLazyLoadQuery, useMutation } from 'react-relay';
+import {
+  fetchQuery,
+  useLazyLoadQuery,
+  useMutation,
+  useRelayEnvironment,
+} from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
@@ -19,6 +24,10 @@ import {
   type ProfileConnectionAcceptFollowRequestMutation,
   type ProfileConnectionDeclineFollowRequestMutation,
 } from './profileConnectionOperations';
+import {
+  appendProfileConnectionNodes,
+  readProfileConnectionPageInfo,
+} from './profileConnectionPagination';
 
 type PendingFollowRequest = NonNullable<
   ReturnType<typeof readConnectionNodes<PendingFollowRequestNode>>[number]
@@ -63,16 +72,27 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
+  loadMorePanel: {
+    gap: spacing.sm,
+  },
 });
 
 export function PendingFollowRequestsScreen() {
   const theme = useAppTheme();
   const router = useRouter();
+  const relayEnvironment = useRelayEnvironment();
   const data = useLazyLoadQuery<PendingRequestsQuery>(
     pendingRequestsQuery,
     PROFILE_CONNECTION_QUERY_VARIABLES,
     { fetchPolicy: 'store-and-network' },
   );
+  const initialConnection = data.viewerPendingFollowRequests;
+  const initialPageInfo = readProfileConnectionPageInfo(initialConnection);
+  const paginationResetKey = [
+    initialPageInfo.endCursor ?? '',
+    initialPageInfo.hasNextPage ? 'next' : 'end',
+  ].join(':');
+  const paginationResetKeyRef = useRef(paginationResetKey);
   const [commitAcceptFollowRequest] =
     useMutation<ProfileConnectionAcceptFollowRequestMutation>(
       acceptFollowRequestMutation,
@@ -81,16 +101,67 @@ export function PendingFollowRequestsScreen() {
     useMutation<ProfileConnectionDeclineFollowRequestMutation>(
       declineFollowRequestMutation,
     );
-  const [requests, setRequests] = useState<PendingFollowRequest[]>(() =>
-    readConnectionNodes<PendingFollowRequest>(
-      data.viewerPendingFollowRequests,
-    ),
-  );
+  const [extraRequests, setExtraRequests] = useState<PendingFollowRequest[]>([]);
+  const [removedRequestIds, setRemovedRequestIds] = useState<
+    Readonly<Record<string, true>>
+  >({});
+  const [pageInfo, setPageInfo] = useState(() => initialPageInfo);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const activeActionRef = useRef<PendingAction>(null);
   const [activeAction, setActiveAction] = useState<PendingAction>(null);
   const [errorsByRequestId, setErrorsByRequestId] = useState<
     Readonly<Record<string, string>>
   >({});
+  const requests = appendProfileConnectionNodes(
+    readConnectionNodes<PendingFollowRequest>(initialConnection),
+    extraRequests,
+  ).filter((request) => removedRequestIds[request.id] !== true);
+
+  useEffect(() => {
+    if (paginationResetKeyRef.current === paginationResetKey) {
+      return;
+    }
+
+    paginationResetKeyRef.current = paginationResetKey;
+    setExtraRequests([]);
+    setPageInfo(initialPageInfo);
+    setLoadMoreError(null);
+  }, [initialPageInfo, paginationResetKey]);
+
+  async function loadMore() {
+    if (isLoadingMore || !pageInfo.hasNextPage || pageInfo.endCursor == null) {
+      return;
+    }
+
+    setIsLoadingMore(true);
+    setLoadMoreError(null);
+
+    try {
+      const pageData = (await fetchQuery(
+        relayEnvironment,
+        pendingRequestsQuery,
+        {
+          ...PROFILE_CONNECTION_QUERY_VARIABLES,
+          after: pageInfo.endCursor,
+        },
+        { fetchPolicy: 'network-only' },
+      ).toPromise()) as PendingRequestsQuery['response'] | null | undefined;
+      const pageConnection = pageData?.viewerPendingFollowRequests;
+
+      setExtraRequests((current) =>
+        appendProfileConnectionNodes(
+          current,
+          readConnectionNodes<PendingFollowRequest>(pageConnection),
+        ),
+      );
+      setPageInfo(readProfileConnectionPageInfo(pageConnection));
+    } catch {
+      setLoadMoreError('Could not load more follow requests.');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }
 
   function submitRequestAction(
     request: PendingFollowRequest,
@@ -117,9 +188,10 @@ export function PendingFollowRequestsScreen() {
     const handleSuccess = () => {
       activeActionRef.current = null;
       setActiveAction(null);
-      setRequests((current) =>
-        current.filter((currentRequest) => currentRequest.id !== request.id),
-      );
+      setRemovedRequestIds((current) => ({
+        ...current,
+        [request.id]: true,
+      }));
     };
 
     if (action === 'accept') {
@@ -188,6 +260,21 @@ export function PendingFollowRequestsScreen() {
         ) : (
           <ScreenState state="empty" message="No pending follow requests." />
         )}
+        {pageInfo.hasNextPage && pageInfo.endCursor ? (
+          <View style={styles.loadMorePanel}>
+            <AppButton
+              disabled={isLoadingMore}
+              label={isLoadingMore ? 'Loading...' : 'Load more'}
+              onPress={loadMore}
+              variant="secondary"
+            />
+            {loadMoreError ? (
+              <Text style={[styles.bodyText, { color: theme.colors.error }]}>
+                {loadMoreError}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );

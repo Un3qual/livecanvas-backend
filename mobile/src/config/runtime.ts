@@ -25,8 +25,10 @@ const AUTH_ROUTE_HREFS = new Set([
 ]);
 const AUTH_RETURN_TO_ROUTE_HREFS = new Set([
   '/compose',
+  '/contacts',
   '/diagnostics',
   '/live-session',
+  '/settings',
   '/host-broadcast',
 ]);
 
@@ -201,9 +203,17 @@ export function routeHrefFromUrl(initialUrl: string | null): string | null {
 
 function resetPasswordHrefFromBackendPath(candidate: string): string | null {
   const match = candidate.match(/^\/users\/reset-password\/([^/]+)$/);
-  const token = match?.[1]?.trim();
+  const token = decodeResetPasswordPathToken(match?.[1]?.trim() ?? '');
 
   return token ? `/reset-password?token=${encodeURIComponent(token)}` : null;
+}
+
+function decodeResetPasswordPathToken(token: string): string {
+  try {
+    return decodeURIComponent(token);
+  } catch {
+    return token;
+  }
 }
 
 function pathnameFromUrl(value: string): string {

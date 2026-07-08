@@ -1,4 +1,11 @@
-import { act, fireEvent, render, screen, userEvent } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+} from '@testing-library/react-native';
 
 import ContactsRoute from '../../app/(app)/contacts';
 import { ContactDiscoveryScreen } from '../../src/contacts/ContactDiscoveryScreen';
@@ -66,6 +73,9 @@ type DeliverInviteMutationConfig = {
 
 let mockQueryData: ContactDiscoveryQueryData;
 let mockQueryVariables: QueryVariables | null;
+let mockFetchQueryResult: ContactDiscoveryQueryData;
+let mockFetchQueryVariables: QueryVariables | null;
+let mockQueryError: Error | null;
 let mockPushedRoutes: unknown[];
 const mockUpsertContactCommit =
   jest.fn<undefined, [UpsertContactMutationConfig]>();
@@ -88,11 +98,26 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('react-relay', () => ({
+  fetchQuery: (
+    _environment: unknown,
+    _query: unknown,
+    variables: QueryVariables,
+  ) => {
+    mockFetchQueryVariables = variables;
+
+    return {
+      toPromise: () => Promise.resolve(mockFetchQueryResult),
+    };
+  },
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
   useLazyLoadQuery: (
     _query: unknown,
     variables: QueryVariables,
   ): ContactDiscoveryQueryData => {
+    if (mockQueryError) {
+      throw mockQueryError;
+    }
+
     mockQueryVariables = variables;
     return mockQueryData;
   },
@@ -105,6 +130,7 @@ jest.mock('react-relay', () => ({
 
     return [mockUpsertContactCommit, false];
   },
+  useRelayEnvironment: () => ({ environment: 'relay' }),
 }));
 
 function mockRelayOperationName(mutation: unknown): string {
@@ -128,10 +154,21 @@ function mockRelayOperationName(mutation: unknown): string {
 }
 
 beforeEach(() => {
+  mockQueryError = null;
   mockQueryData = {
     viewerContactMatches: connection([]),
   };
+  mockFetchQueryResult = {
+    viewerContactMatches: connection([
+      contactMatch({
+        contactName: 'Later Match',
+        id: 'contact-match-later',
+        matchedUsers: [],
+      }),
+    ]),
+  };
   mockQueryVariables = null;
+  mockFetchQueryVariables = null;
   mockPushedRoutes = [];
   mockUpsertContactCommit.mockClear();
   mockDeliverInviteCommit.mockClear();
@@ -146,6 +183,18 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
       after: null,
       first: 20,
     });
+  });
+
+  test('contacts route catches Relay query errors', async () => {
+    mockQueryError = new Error('relay query failed');
+
+    await withSuppressedConsoleError(async () => {
+      await render(<ContactsRoute />);
+    });
+
+    expect(
+      screen.getByText('We could not load contact discovery.'),
+    ).toBeOnTheScreen();
   });
 
   test('submits one normalized manual email contact and opens matched profiles', async () => {
@@ -262,6 +311,35 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
 
     expect(screen.getByText('Enter a valid email address.')).toBeOnTheScreen();
   });
+
+  test('loads additional contact matches from the next page', async () => {
+    const user = userEvent.setup();
+    mockQueryData = {
+      viewerContactMatches: connection(
+        [
+          contactMatch({
+            contactName: 'Existing Match',
+            id: 'contact-match-existing',
+            matchedUsers: [],
+          }),
+        ],
+        { endCursor: 'cursor-1', hasNextPage: true },
+      ),
+    };
+
+    await render(<ContactDiscoveryScreen />);
+
+    await user.press(screen.getByRole('button', { name: 'Load more' }));
+
+    expect(mockFetchQueryVariables).toEqual({
+      after: 'cursor-1',
+      first: 20,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Later Match')).toBeOnTheScreen();
+    });
+  });
 });
 
 async function completeUpsertContact(
@@ -309,4 +387,18 @@ function contactMatch(overrides: Partial<ContactMatchNode> = {}): ContactMatchNo
     matchedUsers: [],
     ...overrides,
   };
+}
+
+async function withSuppressedConsoleError(
+  callback: () => Promise<void>,
+): Promise<void> {
+  const consoleError = jest
+    .spyOn(console, 'error')
+    .mockImplementation(() => undefined);
+
+  try {
+    await callback();
+  } finally {
+    consoleError.mockRestore();
+  }
 }

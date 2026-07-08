@@ -1,4 +1,4 @@
-import { act, render, screen, userEvent } from '@testing-library/react-native';
+import { act, render, screen, userEvent, waitFor } from '@testing-library/react-native';
 
 import { PASSWORD_RESET_SUCCESS_COPY } from '../../src/auth/recovery/passwordRecoveryState';
 import { ResetPasswordScreen } from '../../src/auth/recovery/ResetPasswordScreen';
@@ -87,6 +87,21 @@ describe('ResetPasswordScreen', () => {
         passwordConfirmation: 'new-password-123',
         token: 'paste-token',
       },
+    });
+  });
+
+  test('updates the token field when the reset link changes in place', async () => {
+    const view = await render(<ResetPasswordScreen />);
+
+    expect(screen.getByDisplayValue('query-token')).toBeOnTheScreen();
+
+    mockSearchParams = { token: 'next-query-token' };
+    await act(async () => {
+      view.rerender(<ResetPasswordScreen />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('next-query-token')).toBeOnTheScreen();
     });
   });
 

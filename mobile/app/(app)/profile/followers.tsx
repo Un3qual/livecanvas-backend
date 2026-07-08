@@ -1,5 +1,13 @@
+import { RelayRouteBoundary } from '../../../src/components/RelayRouteBoundary';
 import { ProfileConnectionListScreen } from '../../../src/profile/ProfileConnectionListScreen';
 
 export default function ViewerFollowersRoute() {
-  return <ProfileConnectionListScreen kind="viewerFollowers" />;
+  return (
+    <RelayRouteBoundary
+      loadingMessage="Loading followers..."
+      errorMessage="We could not load followers."
+    >
+      <ProfileConnectionListScreen kind="viewerFollowers" />
+    </RelayRouteBoundary>
+  );
 }
