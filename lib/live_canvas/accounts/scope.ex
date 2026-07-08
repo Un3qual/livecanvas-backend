@@ -18,9 +18,12 @@ defmodule LC.Accounts.Scope do
 
   alias LCSchemas.Accounts.User
 
-  defstruct user: nil
+  defstruct user: nil, staff_permissions: MapSet.new()
 
-  @type t :: %__MODULE__{user: User.t() | nil}
+  @type t :: %__MODULE__{
+          user: User.t() | nil,
+          staff_permissions: MapSet.t(LCSchemas.Accounts.staff_permission())
+        }
 
   @doc """
   Creates a scope for the given user.
@@ -28,9 +31,22 @@ defmodule LC.Accounts.Scope do
   Returns nil if no user is given.
   """
   @spec for_user(User.t() | nil) :: t() | nil
-  def for_user(%User{} = user) do
-    %__MODULE__{user: user}
+  def for_user(user), do: for_user(user, [])
+
+  @spec for_user(User.t() | nil, Enumerable.t()) :: t() | nil
+  def for_user(%User{} = user, staff_permissions) do
+    %__MODULE__{user: user, staff_permissions: MapSet.new(staff_permissions)}
   end
 
-  def for_user(nil), do: nil
+  def for_user(nil, _staff_permissions), do: nil
+
+  @doc """
+  Returns whether the scope carries the given active staff permission.
+  """
+  @spec has_staff_permission?(t() | nil, LCSchemas.Accounts.staff_permission()) :: boolean()
+  def has_staff_permission?(%__MODULE__{staff_permissions: staff_permissions}, permission) do
+    MapSet.member?(staff_permissions, permission)
+  end
+
+  def has_staff_permission?(_scope, _permission), do: false
 end

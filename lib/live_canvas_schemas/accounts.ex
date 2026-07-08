@@ -3,6 +3,8 @@ defmodule LCSchemas.Accounts do
 
   @type user_privacy_mode :: :private | :public
 
+  @type staff_permission :: :post_report_moderation
+
   @type user_identity_provider ::
           :apple_provider
           | :google_provider

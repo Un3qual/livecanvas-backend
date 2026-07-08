@@ -4,6 +4,7 @@ defmodule LCSchemas.Accounts.User do
   alias LCSchemas.Accounts.{
     EmailAddress,
     PhoneNumber,
+    StaffPermission,
     UserContactEntry,
     UserEmailAddress,
     UserIdentity,
@@ -32,6 +33,7 @@ defmodule LCSchemas.Accounts.User do
           email_addresses: Ecto.Association.NotLoaded.t() | [EmailAddress.t()],
           user_phone_numbers: Ecto.Association.NotLoaded.t() | [UserPhoneNumber.t()],
           phone_numbers: Ecto.Association.NotLoaded.t() | [PhoneNumber.t()],
+          staff_permissions: Ecto.Association.NotLoaded.t() | [StaffPermission.t()],
           user_identities: Ecto.Association.NotLoaded.t() | [UserIdentity.t()],
           user_contact_entries: Ecto.Association.NotLoaded.t() | [UserContactEntry.t()],
           inserted_at: DateTime.t() | nil,
@@ -52,6 +54,7 @@ defmodule LCSchemas.Accounts.User do
     has_many :email_addresses, through: [:user_email_addresses, :email_address]
     has_many :user_phone_numbers, LCSchemas.Accounts.UserPhoneNumber
     has_many :phone_numbers, through: [:user_phone_numbers, :phone_number]
+    has_many :staff_permissions, LCSchemas.Accounts.StaffPermission
     has_many :user_identities, LCSchemas.Accounts.UserIdentity
     has_many :user_contact_entries, LCSchemas.Accounts.UserContactEntry
 
