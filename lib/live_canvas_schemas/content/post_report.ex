@@ -12,7 +12,8 @@ defmodule LCSchemas.Content.PostReport do
   - `reason` and `status` are enforced by database check constraints.
   - `(reporter_id, post_id)` is unique.
   - Deleting the reporter or post cascades to reports.
-  - `(status, inserted_at)` supports moderation queue ordering.
+  - Deleting the reviewer nullifies `reviewed_by_id` while preserving the moderation decision history.
+  - `(status, inserted_at, id)` supports moderation queue ordering.
   """
 
   @type t :: %__MODULE__{
@@ -20,11 +21,15 @@ defmodule LCSchemas.Content.PostReport do
           entropy_id: Ecto.UUID.t() | nil,
           reporter_id: pos_integer() | nil,
           reporter: User.t() | Ecto.Association.NotLoaded.t(),
+          reviewed_by_id: pos_integer() | nil,
+          reviewed_by: User.t() | Ecto.Association.NotLoaded.t(),
           post_id: pos_integer() | nil,
           post: Post.t() | Ecto.Association.NotLoaded.t(),
           reason: LCSchemas.Content.post_report_reason() | nil,
           details: String.t() | nil,
           status: LCSchemas.Content.post_report_status() | nil,
+          decision_note: String.t() | nil,
+          reviewed_at: DateTime.t() | nil,
           inserted_at: DateTime.t() | nil,
           updated_at: DateTime.t() | nil
         }
@@ -46,8 +51,11 @@ defmodule LCSchemas.Content.PostReport do
 
     field :details, :string
     field :status, Ecto.Enum, values: [:open, :reviewed, :dismissed, :actioned], default: :open
+    field :decision_note, :string
+    field :reviewed_at, :utc_datetime_usec
 
     belongs_to :reporter, User
+    belongs_to :reviewed_by, User
     belongs_to :post, Post
 
     timestamps()

@@ -3,9 +3,11 @@ defmodule LC.Content do
   The Content context.
   """
 
-  use Boundary, deps: [LC.Infra, LCPayload, LCSchemas]
+  use Boundary, deps: [LC.Accounts, LC.Authz, LC.Infra, LCPayload, LCSchemas]
   import Ecto.Query, warn: false
 
+  alias LC.Accounts.Scope
+  alias LC.Authz.Policy
   alias LC.Content.{MediaAsset, Post, PostReport}
   alias LC.Infra.{AsyncJobs, ObjectStorage, Repo, WebhookEvent}
   alias LCPayload.Payload
@@ -21,6 +23,15 @@ defmodule LC.Content do
   @type post_delete_result :: {:ok, PostSchema.t()} | {:error, changeset() | :not_found}
   @type post_report_result ::
           {:ok, PostReportSchema.t()} | {:error, changeset() | :not_found | :own_post}
+  @type post_report_query_result :: {:ok, Ecto.Query.t()} | {:error, :not_authorized}
+  @type post_report_moderation_fetch_result ::
+          {:ok, PostReportSchema.t()} | {:error, :not_authorized | :not_found}
+  @type post_report_decision_result ::
+          {:ok, PostReportSchema.t()}
+          | {:error, changeset() | :invalid_transition | :not_authorized | :not_found}
+  @type post_report_decision_attrs :: %{
+          optional(:status | :decision_note | String.t()) => term()
+        }
   @type media_asset_result :: {:ok, MediaAssetSchema.t()} | {:error, changeset()}
   @type live_recording_media_asset_opts :: [lock: :for_update]
   @type live_recording_media_asset_result ::
@@ -37,6 +48,7 @@ defmodule LC.Content do
           {:ok, [MediaAssetSchema.t()]} | {:error, Ecto.Changeset.t()}
   @media_processing_job_kind "media_asset_processing"
   @media_processing_job_max_attempts 2
+  @post_report_statuses [:open, :reviewed, :dismissed, :actioned]
   @post_media_asset_error "must reference viewer-owned uploaded or processed assets"
 
   @doc """
@@ -135,6 +147,59 @@ defmodule LC.Content do
   def get_user_post_report(%User{}, _report_id), do: nil
 
   @doc """
+  Returns a staff-authorized query for the moderation report queue.
+  """
+  @spec list_post_reports_for_moderation(Scope.t() | nil, keyword() | map()) ::
+          post_report_query_result()
+  def list_post_reports_for_moderation(scope, opts \\ []) do
+    with :ok <- authorize_post_report_moderation(scope) do
+      {:ok, post_reports_for_moderation_query(opts)}
+    end
+  end
+
+  @doc """
+  Gets a post report by ID for staff moderation.
+  """
+  @spec get_moderation_post_report(Scope.t() | nil, integer()) ::
+          post_report_moderation_fetch_result()
+  def get_moderation_post_report(scope, report_id)
+      when is_integer(report_id) do
+    with :ok <- authorize_post_report_moderation(scope) do
+      case Repo.get(PostReportSchema, report_id) do
+        %PostReportSchema{} = report -> {:ok, report}
+        nil -> {:error, :not_found}
+      end
+    end
+  end
+
+  @doc """
+  Records a staff decision for a post report.
+  """
+  @spec decide_post_report(Scope.t() | nil, integer(), post_report_decision_attrs()) ::
+          post_report_decision_result()
+  def decide_post_report(%Scope{user: %User{id: reviewer_id}} = scope, report_id, attrs)
+      when is_integer(reviewer_id) and is_integer(report_id) and is_map(attrs) do
+    with :ok <- authorize_post_report_moderation(scope) do
+      Repo.transaction(fn ->
+        report_id
+        |> locked_post_report_query()
+        |> Repo.one()
+        |> update_locked_post_report_decision(reviewer_id, attrs)
+      end)
+      |> case do
+        {:ok, %PostReportSchema{} = report} -> {:ok, report}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  def decide_post_report(_scope, _report_id, _attrs), do: {:error, :not_authorized}
+
+  @doc false
+  @spec run_query(Ecto.Query.t()) :: [term()]
+  def run_query(query), do: Repo.all(query)
+
+  @doc """
   Persists media metadata owned by the given user.
   """
   @spec create_media_asset(User.t(), map()) :: media_asset_result()
@@ -204,6 +269,105 @@ defmodule LC.Content do
     # Ownership is enforced in the lookup query so update/delete calls cannot
     # mutate posts across account boundaries.
     Repo.get_by(PostSchema, id: post_id, author_id: author_id)
+  end
+
+  @spec authorize_post_report_moderation(Scope.t() | nil) :: :ok | {:error, :not_authorized}
+  defp authorize_post_report_moderation(scope) do
+    Policy.authorize(:scope_post_report_moderation, scope, nil)
+  end
+
+  @spec post_reports_for_moderation_query(keyword() | map()) :: Ecto.Query.t()
+  defp post_reports_for_moderation_query(opts) do
+    from(post_report in PostReportSchema,
+      order_by: [
+        asc:
+          fragment(
+            "CASE ? WHEN 'open' THEN 0 WHEN 'reviewed' THEN 1 WHEN 'dismissed' THEN 2 WHEN 'actioned' THEN 3 ELSE 4 END",
+            post_report.status
+          ),
+        asc: post_report.inserted_at,
+        asc: post_report.id
+      ]
+    )
+    |> maybe_filter_post_report_status(option_value(opts, :status))
+  end
+
+  @spec maybe_filter_post_report_status(Ecto.Query.t(), term()) :: Ecto.Query.t()
+  defp maybe_filter_post_report_status(query, status) when status in @post_report_statuses do
+    where(query, [post_report], post_report.status == ^status)
+  end
+
+  defp maybe_filter_post_report_status(query, _status), do: query
+
+  @spec locked_post_report_query(integer()) :: Ecto.Query.t()
+  defp locked_post_report_query(report_id) when is_integer(report_id) do
+    from(post_report in PostReportSchema,
+      where: post_report.id == ^report_id,
+      lock: "FOR UPDATE"
+    )
+  end
+
+  @spec update_locked_post_report_decision(PostReportSchema.t() | nil, pos_integer(), map()) ::
+          PostReportSchema.t() | no_return()
+  defp update_locked_post_report_decision(nil, _reviewer_id, _attrs), do: Repo.rollback(:not_found)
+
+  defp update_locked_post_report_decision(%PostReportSchema{} = report, reviewer_id, attrs)
+       when is_integer(reviewer_id) and is_map(attrs) do
+    with {:ok, status} <- decision_status(attrs),
+         :ok <- validate_post_report_decision_transition(report.status, status) do
+      report
+      |> PostReport.decision_changeset(decision_attrs(attrs, reviewer_id, status))
+      |> Repo.update()
+      |> case do
+        {:ok, updated_report} -> updated_report
+        {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)
+      end
+    else
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  @spec decision_status(map()) ::
+          {:ok, LCSchemas.Content.post_report_status()} | {:error, :invalid_transition}
+  defp decision_status(attrs) when is_map(attrs) do
+    case option_value(attrs, :status) do
+      status when status in @post_report_statuses -> {:ok, status}
+      _other -> {:error, :invalid_transition}
+    end
+  end
+
+  @spec decision_attrs(map(), pos_integer(), LCSchemas.Content.post_report_status()) :: map()
+  defp decision_attrs(attrs, reviewer_id, status) when is_map(attrs) do
+    %{
+      status: status,
+      decision_note: option_value(attrs, :decision_note),
+      reviewed_by_id: reviewer_id,
+      reviewed_at: now_utc()
+    }
+  end
+
+  @spec validate_post_report_decision_transition(
+          LCSchemas.Content.post_report_status(),
+          LCSchemas.Content.post_report_status()
+        ) :: :ok | {:error, :invalid_transition}
+  defp validate_post_report_decision_transition(:open, status)
+       when status in [:reviewed, :dismissed, :actioned],
+       do: :ok
+
+  defp validate_post_report_decision_transition(:reviewed, status)
+       when status in [:dismissed, :actioned],
+       do: :ok
+
+  defp validate_post_report_decision_transition(_current_status, _next_status),
+    do: {:error, :invalid_transition}
+
+  defp option_value(opts, key) when is_list(opts) and is_atom(key), do: Keyword.get(opts, key)
+
+  defp option_value(opts, key) when is_map(opts) and is_atom(key) do
+    case Map.fetch(opts, key) do
+      {:ok, value} -> value
+      :error -> Map.get(opts, Atom.to_string(key))
+    end
   end
 
   @spec handle_post_report_insert_error(Ecto.Changeset.t(), pos_integer(), pos_integer()) ::
@@ -523,4 +687,7 @@ defmodule LC.Content do
   defp maybe_lock_live_recording_query(query, :for_update) do
     from(media_asset in query, lock: "FOR UPDATE")
   end
+
+  @spec now_utc() :: DateTime.t()
+  defp now_utc, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
 end

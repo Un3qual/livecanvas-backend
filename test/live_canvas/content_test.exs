@@ -3,7 +3,7 @@ defmodule LC.ContentTest do
 
   import LC.AccountsFixtures
 
-  alias LC.{Content, Live}
+  alias LC.{Accounts, Content, Live}
   alias LC.Content.MediaProcessingJob
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema
@@ -345,6 +345,122 @@ defmodule LC.ContentTest do
       assert %{id: report_id} = Content.get_user_post_report(reporter, report.id)
       assert report_id == report.id
       refute Content.get_user_post_report(other_user, report.id)
+    end
+  end
+
+  describe "post report moderation" do
+    test "lists and fetches reports only for staff moderators" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      nonstaff = user_fixture()
+
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+      staff_scope = Accounts.scope_for_user(staff)
+      nonstaff_scope = Accounts.scope_for_user(nonstaff)
+
+      {:ok, first_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "first reported"})
+
+      {:ok, second_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "second reported"})
+
+      {:ok, first_report} = Content.report_post(reporter, first_post, %{reason: :spam})
+      {:ok, second_report} = Content.report_post(reporter, second_post, %{reason: :other})
+
+      assert {:ok, query} =
+               Content.list_post_reports_for_moderation(staff_scope, status: :open)
+
+      assert [first_report.id, second_report.id] ==
+               query
+               |> Content.run_query()
+               |> Enum.map(& &1.id)
+
+      assert {:ok, fetched_report} =
+               Content.get_moderation_post_report(staff_scope, first_report.id)
+
+      assert fetched_report.id == first_report.id
+
+      assert {:error, :not_authorized} =
+               Content.list_post_reports_for_moderation(nonstaff_scope, status: :open)
+
+      assert {:error, :not_authorized} =
+               Content.get_moderation_post_report(nonstaff_scope, first_report.id)
+
+      assert {:error, :not_authorized} =
+               Content.list_post_reports_for_moderation(nil, status: :open)
+    end
+
+    test "records allowed decisions and keeps terminal report states closed" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+      staff_scope = Accounts.scope_for_user(staff)
+
+      {:ok, first_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "review then dismiss"})
+
+      {:ok, second_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "direct action"})
+
+      {:ok, third_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "direct dismiss"})
+
+      {:ok, first_report} = Content.report_post(reporter, first_post, %{reason: :spam})
+      {:ok, second_report} = Content.report_post(reporter, second_post, %{reason: :hate})
+      {:ok, third_report} = Content.report_post(reporter, third_post, %{reason: :other})
+
+      assert {:ok, reviewed_report} =
+               Content.decide_post_report(staff_scope, first_report.id, %{
+                 status: :reviewed,
+                 decision_note: "needs another look"
+               })
+
+      assert reviewed_report.status == :reviewed
+      assert reviewed_report.reviewed_by_id == staff.id
+      assert %DateTime{} = reviewed_report.reviewed_at
+      assert reviewed_report.decision_note == "needs another look"
+
+      assert {:ok, dismissed_after_review} =
+               Content.decide_post_report(staff_scope, first_report.id, %{
+                 status: :dismissed,
+                 decision_note: "not a violation"
+               })
+
+      assert dismissed_after_review.status == :dismissed
+      assert dismissed_after_review.decision_note == "not a violation"
+
+      assert {:ok, actioned_report} =
+               Content.decide_post_report(staff_scope, second_report.id, %{
+                 status: :actioned,
+                 decision_note: "policy action tracked elsewhere"
+               })
+
+      assert actioned_report.status == :actioned
+      assert Content.get_post(second_post.id).body_text == "direct action"
+
+      assert {:error, :invalid_transition} =
+               Content.decide_post_report(staff_scope, actioned_report.id, %{status: :dismissed})
+
+      assert {:ok, dismissed_report} =
+               Content.decide_post_report(staff_scope, third_report.id, %{status: :dismissed})
+
+      assert {:error, :invalid_transition} =
+               Content.decide_post_report(staff_scope, dismissed_report.id, %{status: :actioned})
+    end
+
+    test "rejects nonstaff decisions" do
+      author = user_fixture()
+      reporter = user_fixture()
+      nonstaff = user_fixture()
+      {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "reported"})
+      {:ok, report} = Content.report_post(reporter, post, %{reason: :spam})
+
+      assert {:error, :not_authorized} =
+               Content.decide_post_report(Accounts.scope_for_user(nonstaff), report.id, %{
+                 status: :dismissed
+               })
     end
   end
 
