@@ -4,8 +4,10 @@ defmodule LC.Infra.DataGovernance.Export do
   import Ecto.Changeset
   import Ecto.Query, only: [from: 2]
 
-  alias LC.Infra.{AsyncJobs, Payload, Repo}
+  alias LC.Infra.{AsyncJobs, Repo}
+  alias LC.Infra.DataGovernance.Requests
   alias LCSchemas.Accounts.User
+
   alias LCSchemas.Chat.{
     LiveSessionTimelineChatMessageState,
     LiveSessionTimelineEvent,
@@ -47,38 +49,26 @@ defmodule LC.Infra.DataGovernance.Export do
 
   @spec list(User.t()) :: [DataExportRequest.t()]
   def list(%User{id: user_id}) when is_integer(user_id) and user_id > 0 do
-    from(request in DataExportRequest,
-      where: request.user_id == ^user_id,
-      order_by: [desc: request.inserted_at, desc: request.id]
-    )
-    |> Repo.all()
+    Requests.list(DataExportRequest, %User{id: user_id})
   end
 
   @spec get(User.t(), integer()) :: DataExportRequest.t() | nil
   def get(%User{id: user_id}, request_id)
       when is_integer(user_id) and is_integer(request_id) do
-    Repo.get_by(DataExportRequest, id: request_id, user_id: user_id)
+    Requests.get(DataExportRequest, %User{id: user_id}, request_id)
   end
 
   @impl LC.Infra.AsyncJobs.Handler
   @spec handle(AsyncJob.t()) :: LC.Infra.AsyncJobs.Handler.result()
-  def handle(%AsyncJob{kind: @job_kind, payload: payload}) when is_map(payload) do
-    with {:ok, request_id} <- Payload.positive_integer(payload, :data_export_request_id),
-         %DataExportRequest{} = request <- Repo.get(DataExportRequest, request_id) do
-      complete_export_request(request)
-    else
-      nil ->
-        # Idempotent worker behavior: if the request was removed out-of-band,
-        # acknowledge and allow the queue to drain.
-        :ok
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+  def handle(%AsyncJob{} = job) do
+    Requests.handle_job(
+      job,
+      @job_kind,
+      DataExportRequest,
+      :data_export_request_id,
+      &complete_export_request/1
+    )
   end
-
-  def handle(%AsyncJob{kind: @job_kind}), do: {:error, :invalid_payload}
-  def handle(%AsyncJob{}), do: {:error, :unsupported_job_kind}
 
   @spec upsert_pending_request_transaction(
           pos_integer(),
@@ -95,8 +85,6 @@ defmodule LC.Infra.DataGovernance.Export do
           with {:ok, request} <- insert_request(user_id, format),
                {:ok, _job} <- enqueue_request(request) do
             {:ok, request}
-          else
-            {:error, reason} -> {:error, reason}
           end
       end
     end)
@@ -163,9 +151,6 @@ defmodule LC.Infra.DataGovernance.Export do
              artifact_metadata: artifact_metadata(processing_request)
            }) do
       :ok
-    else
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 

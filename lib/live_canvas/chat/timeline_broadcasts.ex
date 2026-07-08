@@ -21,15 +21,7 @@ defmodule LC.Chat.TimelineBroadcasts do
   @spec broadcast_event(TimelineProjection.t(), String.t()) :: :ok
   def broadcast_event(%{live_session_id: live_session_id} = timeline_event, topic)
       when is_integer(live_session_id) and is_binary(topic) do
-    Phoenix.PubSub.broadcast(
-      LC.PubSub,
-      topic,
-      %Broadcast{
-        topic: topic,
-        event: "timeline:event",
-        payload: %{event: event_payload(timeline_event)}
-      }
-    )
+    broadcast_timeline(topic, "timeline:event", %{event: event_payload(timeline_event)})
   end
 
   def broadcast_event(_timeline_event, _topic), do: :ok
@@ -37,15 +29,7 @@ defmodule LC.Chat.TimelineBroadcasts do
   @spec broadcast_event_update(TimelineProjection.t(), String.t()) :: :ok
   def broadcast_event_update(%{live_session_id: live_session_id} = timeline_event, topic)
       when is_integer(live_session_id) and is_binary(topic) do
-    Phoenix.PubSub.broadcast(
-      LC.PubSub,
-      topic,
-      %Broadcast{
-        topic: topic,
-        event: "timeline:event_updated",
-        payload: %{event: event_payload(timeline_event)}
-      }
-    )
+    broadcast_timeline(topic, "timeline:event_updated", %{event: event_payload(timeline_event)})
   end
 
   def broadcast_event_update(_timeline_event, _topic), do: :ok
@@ -53,18 +37,21 @@ defmodule LC.Chat.TimelineBroadcasts do
   @spec broadcast_event_removed(pos_integer(), String.t()) :: :ok
   def broadcast_event_removed(timeline_event_id, topic)
       when is_integer(timeline_event_id) and timeline_event_id > 0 and is_binary(topic) do
-    Phoenix.PubSub.broadcast(
-      LC.PubSub,
-      topic,
-      %Broadcast{
-        topic: topic,
-        event: "timeline:event_removed",
-        payload: %{removed_timeline_event_id: timeline_event_id}
-      }
-    )
+    broadcast_timeline(topic, "timeline:event_removed", %{
+      removed_timeline_event_id: timeline_event_id
+    })
   end
 
   def broadcast_event_removed(_timeline_event_id, _topic), do: :ok
+
+  defp broadcast_timeline(topic, event, payload)
+       when is_binary(topic) and is_binary(event) and is_map(payload) do
+    Phoenix.PubSub.broadcast!(
+      LC.PubSub,
+      topic,
+      %Broadcast{topic: topic, event: event, payload: payload}
+    )
+  end
 
   @spec event_payload(TimelineProjection.t()) :: event_payload()
   def event_payload(timeline_event) when is_map(timeline_event) do

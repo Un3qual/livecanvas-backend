@@ -250,7 +250,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
         end)
 
       assert {:ok, %{data: %{"viewer" => %{"userIdentities" => %{"edges" => edges}}}}} = result
-      assert length(edges) == 2
+      assert [_, _] = edges
 
       assert Enum.all?(edges, fn %{"node" => %{"user" => %{"id" => edge_user_id}}} ->
                edge_user_id == user_id

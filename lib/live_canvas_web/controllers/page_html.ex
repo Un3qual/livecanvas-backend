@@ -1,8 +1,7 @@
 defmodule LCWeb.PageHTML do
   @moduledoc """
-  This module contains pages rendered by PageController.
-
-  See the `page_html` directory for all templates available.
+  Page templates live under `page_html` so the controller remains a thin route
+  boundary.
   """
   use LCWeb, :html
 

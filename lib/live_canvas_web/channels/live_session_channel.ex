@@ -46,8 +46,6 @@ defmodule LCWeb.LiveSessionChannel do
         :ok = maybe_broadcast_joined_session_state(topic_scope, session_id, live_session)
 
         {:ok, joined_socket, session_id}
-      else
-        {:error, reason} -> {:error, reason}
       end
 
     case result do
@@ -142,8 +140,6 @@ defmodule LCWeb.LiveSessionChannel do
           media_channel_broadcast_payload(event, reply_payload, current_user, live_session)
 
         {:ok, reply_payload, broadcast_payload}
-      else
-        {:error, reason} -> {:error, reason}
       end
 
     case result do
@@ -180,8 +176,6 @@ defmodule LCWeb.LiveSessionChannel do
            {:ok, timeline_event} <-
              Chat.create_timeline_chat_message(live_session, current_user, %{body: body}) do
         {:ok, %{event: timeline_event_channel_payload(timeline_event)}, timeline_event}
-      else
-        {:error, reason} -> {:error, reason}
       end
 
     :ok =
@@ -264,23 +258,12 @@ defmodule LCWeb.LiveSessionChannel do
     if user_id == host_id, do: :ok, else: {:error, :not_authorized}
   end
 
-  defp authorize_live_media_event_role("media:answer", %{id: user_id}, %{
+  defp authorize_live_media_event_role(event, %{id: user_id}, %{
          id: live_session_id,
          host_id: host_id
        })
-       when is_integer(user_id) and is_integer(live_session_id) and is_integer(host_id) do
-    if user_id != host_id and Live.active_live_participant?(live_session_id, user_id) do
-      :ok
-    else
-      {:error, :not_authorized}
-    end
-  end
-
-  defp authorize_live_media_event_role("media:viewer_ready", %{id: user_id}, %{
-         id: live_session_id,
-         host_id: host_id
-       })
-       when is_integer(user_id) and is_integer(live_session_id) and is_integer(host_id) do
+       when event in ["media:answer", "media:viewer_ready"] and is_integer(user_id) and
+              is_integer(live_session_id) and is_integer(host_id) do
     if user_id != host_id and Live.active_live_participant?(live_session_id, user_id) do
       :ok
     else

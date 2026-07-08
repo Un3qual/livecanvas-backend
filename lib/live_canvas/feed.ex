@@ -103,10 +103,7 @@ defmodule LC.Feed do
   """
   @spec home_feed_query(User.t()) :: Ecto.Query.t()
   def home_feed_query(%User{} = viewer) do
-    Post
-    |> visible_post_query(viewer)
-    |> where([post], post.kind == :standard)
-    |> order_by([post], desc: post.inserted_at, desc: post.id)
+    visible_post_kind_query(viewer, :standard)
   end
 
   @doc """
@@ -114,10 +111,7 @@ defmodule LC.Feed do
   """
   @spec story_feed_query(User.t()) :: Ecto.Query.t()
   def story_feed_query(%User{} = viewer) do
-    Post
-    |> visible_post_query(viewer)
-    |> where([post], post.kind == :story)
-    |> order_by([post], desc: post.inserted_at, desc: post.id)
+    visible_post_kind_query(viewer, :story)
   end
 
   @doc """
@@ -125,10 +119,7 @@ defmodule LC.Feed do
   """
   @spec profile_posts_query(User.t(), User.t()) :: Ecto.Query.t()
   def profile_posts_query(%User{} = viewer, %User{id: owner_id}) do
-    Post
-    |> visible_post_query(viewer)
-    |> where([post], post.author_id == ^owner_id and post.kind == :standard)
-    |> order_by([post], desc: post.inserted_at, desc: post.id)
+    visible_post_kind_query(viewer, :standard, owner_id)
   end
 
   @doc """
@@ -136,10 +127,7 @@ defmodule LC.Feed do
   """
   @spec profile_story_feed_query(User.t(), User.t()) :: Ecto.Query.t()
   def profile_story_feed_query(%User{} = viewer, %User{id: owner_id}) do
-    Post
-    |> visible_post_query(viewer)
-    |> where([post], post.author_id == ^owner_id and post.kind == :story)
-    |> order_by([post], desc: post.inserted_at, desc: post.id)
+    visible_post_kind_query(viewer, :story, owner_id)
   end
 
   @doc """
@@ -268,6 +256,34 @@ defmodule LC.Feed do
   @doc false
   @spec run_query(Ecto.Query.t()) :: [term()]
   def run_query(query), do: Repo.all(query)
+
+  @spec visible_post_kind_query(User.t(), atom()) :: Ecto.Query.t()
+  defp visible_post_kind_query(%User{} = viewer, kind) when is_atom(kind) do
+    Post
+    |> visible_post_query(viewer)
+    |> where([post], post.kind == ^kind)
+    |> order_by([post], desc: post.inserted_at, desc: post.id)
+  end
+
+  @spec visible_post_kind_query(User.t(), atom(), pos_integer() | nil) :: Ecto.Query.t()
+  defp visible_post_kind_query(%User{} = viewer, kind, owner_id)
+       when is_atom(kind) and is_integer(owner_id) do
+    viewer
+    |> visible_post_kind_query(kind)
+    |> filter_author(owner_id)
+  end
+
+  defp visible_post_kind_query(%User{} = viewer, kind, nil) when is_atom(kind) do
+    # Profile feeds must fail closed for unsaved owner structs instead of
+    # widening into the viewer's full feed.
+    viewer
+    |> visible_post_kind_query(kind)
+    |> where([post], false)
+  end
+
+  defp filter_author(query, owner_id) when is_integer(owner_id) do
+    where(query, [post], post.author_id == ^owner_id)
+  end
 
   @spec visible_post_query(User.t()) :: Ecto.Query.t()
   defp visible_post_query(%User{} = viewer) do

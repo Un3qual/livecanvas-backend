@@ -44,13 +44,13 @@ defmodule LCGQL.Content.Resolver do
   def create_post(_parent, attrs, %{context: %{current_scope: %{user: %{id: _id} = author}}}) do
     with {:ok, post_attrs} <- create_post_attrs(attrs),
          {:ok, post} <- Content.create_post(author, post_attrs) do
-      {:ok, %{post: post, errors: []}}
+      post_payload(post)
     else
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{post: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
+        post_changeset_error(changeset)
 
       {:error, reason} when reason in [:invalid_id, :invalid_type] ->
-        {:ok, %{post: nil, errors: [post_error(:media_asset_ids, reason)]}}
+        post_payload_error(:media_asset_ids, reason)
     end
   end
 
@@ -121,13 +121,13 @@ defmodule LCGQL.Content.Resolver do
       }) do
     with {:ok, id} <- decode_post_id(post_id),
          {:ok, post} <- Content.update_user_post(viewer, id, update_post_attrs(attrs)) do
-      {:ok, %{post: post, errors: []}}
+      post_payload(post)
     else
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:ok, %{post: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
+        post_changeset_error(changeset)
 
       {:error, reason} when reason in [:invalid_id, :invalid_type, :not_found] ->
-        {:ok, %{post: nil, errors: [post_error(:post_id, reason)]}}
+        post_payload_error(:post_id, reason)
     end
   end
 
@@ -233,28 +233,16 @@ defmodule LCGQL.Content.Resolver do
   def media_asset(_parent, _args, _resolution), do: {:ok, nil}
 
   @spec media_asset_id(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
-  def media_asset_id(%{id: media_asset_id}, _args, _resolution)
-      when is_integer(media_asset_id) and media_asset_id > 0 do
-    {:ok, Absinthe.Relay.Node.to_global_id(:media_asset, media_asset_id, LCGQL.Schema)}
-  end
-
-  def media_asset_id(_media_asset, _args, _resolution), do: {:ok, nil}
+  def media_asset_id(media_asset, _args, _resolution),
+    do: global_id_field(media_asset, :media_asset)
 
   @spec post_report_post_id(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
-  def post_report_post_id(%{post_id: post_id}, _args, _resolution)
-      when is_integer(post_id) and post_id > 0 do
-    {:ok, Absinthe.Relay.Node.to_global_id(:post, post_id, LCGQL.Schema)}
-  end
-
-  def post_report_post_id(_post_report, _args, _resolution), do: {:ok, nil}
+  def post_report_post_id(post_report, _args, _resolution),
+    do: global_id_field(post_report, :post_id, :post)
 
   @spec post_report_reporter_id(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
-  def post_report_reporter_id(%{reporter_id: reporter_id}, _args, _resolution)
-      when is_integer(reporter_id) and reporter_id > 0 do
-    {:ok, Absinthe.Relay.Node.to_global_id(:user, reporter_id, LCGQL.Schema)}
-  end
-
-  def post_report_reporter_id(_post_report, _args, _resolution), do: {:ok, nil}
+  def post_report_reporter_id(post_report, _args, _resolution),
+    do: global_id_field(post_report, :reporter_id, :user)
 
   @spec media_asset_public_url(map(), map(), Absinthe.Resolution.t()) ::
           {:ok, String.t() | nil}
@@ -289,6 +277,32 @@ defmodule LCGQL.Content.Resolver do
   end
 
   def media_assets(_post, _args, _resolution), do: {:ok, []}
+
+  @spec post_payload(Post.t()) :: create_post_result() | update_post_result()
+  defp post_payload(%Post{} = post), do: {:ok, %{post: post, errors: []}}
+
+  @spec post_changeset_error(Ecto.Changeset.t()) :: create_post_result() | update_post_result()
+  defp post_changeset_error(%Ecto.Changeset{} = changeset) do
+    {:ok, %{post: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
+  end
+
+  defp post_payload_error(field, reason) do
+    {:ok, %{post: nil, errors: [post_error(field, reason)]}}
+  end
+
+  defp global_id_field(%{id: id}, type), do: global_id_field(id, type)
+
+  defp global_id_field(id, type) when is_integer(id) and id > 0 do
+    {:ok, Absinthe.Relay.Node.to_global_id(type, id, LCGQL.Schema)}
+  end
+
+  defp global_id_field(_record, _type), do: {:ok, nil}
+
+  defp global_id_field(record, field, type) when is_map(record) and is_atom(field) do
+    record
+    |> Map.get(field)
+    |> global_id_field(type)
+  end
 
   @spec signed_upload_view(LC.Infra.ObjectStorage.signed_upload()) :: signed_upload_view()
   defp signed_upload_view(upload) do

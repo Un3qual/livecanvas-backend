@@ -77,7 +77,7 @@ defmodule LC.Accounts.AuthEventTest do
 
       events = Accounts.list_user_auth_events(user, limit: 2)
 
-      assert length(events) == 2
+      assert [_, _] = events
 
       assert Enum.map(events, & &1.event_type) == [
                :password_login_failed,
@@ -101,7 +101,7 @@ defmodule LC.Accounts.AuthEventTest do
 
       events = Accounts.list_user_auth_events(user, limit: 0)
 
-      assert length(events) == 3
+      assert [_, _, _] = events
 
       assert Enum.map(events, & &1.event_type) == [
                :password_login_failed,
@@ -184,7 +184,7 @@ defmodule LC.Accounts.AuthEventTest do
         Accounts.list_user_auth_events(user, limit: 20)
         |> Enum.filter(&(&1.event_type == :refresh_token_revoked))
 
-      assert length(events) == 1
+      assert [_] = events
     end
 
     test "emits refresh-token rotation success and failure events" do

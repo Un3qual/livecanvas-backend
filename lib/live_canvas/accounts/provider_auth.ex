@@ -17,6 +17,28 @@ defmodule LC.Accounts.ProviderAuth do
 
   @callback verify_id_token(String.t(), verifier_opts()) :: verify_result()
 
+  @doc false
+  @spec verify_configured_rs256_identity(
+          module(),
+          verified_identity_provider(),
+          String.t(),
+          keyword()
+        ) ::
+          verify_result()
+  def verify_configured_rs256_identity(module, provider, id_token, opts)
+      when is_atom(module) and provider in [:google_provider, :apple_provider] and
+             is_binary(id_token) and is_list(opts) do
+    with {:ok, config} <- fetch_config(module, opts),
+         {:ok, claims} <- verify_rs256_id_token(id_token, Map.to_list(config)) do
+      normalize_claims(provider, claims)
+    else
+      _other -> {:error, :provider_verification_failed}
+    end
+  end
+
+  def verify_configured_rs256_identity(_module, _provider, _id_token, _opts),
+    do: {:error, :provider_verification_failed}
+
   @spec verify(provider(), String.t(), verifier_opts()) :: verify_result()
   def verify(provider, id_token, opts \\ [])
 
@@ -29,6 +51,43 @@ defmodule LC.Accounts.ProviderAuth do
   end
 
   def verify(_provider, _id_token, _opts), do: {:error, :provider_verification_failed}
+
+  @typep verified_identity_provider :: :google_provider | :apple_provider
+
+  @spec normalize_claims(verified_identity_provider(), map()) :: verify_result()
+  defp normalize_claims(provider, %{
+         "email" => email,
+         "email_verified" => email_verified,
+         "iss" => issuer,
+         "sub" => sub
+       })
+       when is_binary(email) and is_binary(issuer) and is_binary(sub) do
+    if verified_email?(email_verified) do
+      normalized_email = String.downcase(email)
+
+      {:ok,
+       %{
+         provider: provider,
+         provider_uid: sub,
+         email: normalized_email,
+         provider_data: %{
+           "email" => normalized_email,
+           "email_verified" => true,
+           "issuer" => issuer,
+           "subject" => sub
+         }
+       }}
+    else
+      {:error, :provider_verification_failed}
+    end
+  end
+
+  defp normalize_claims(_provider, _claims), do: {:error, :provider_verification_failed}
+
+  @spec verified_email?(term()) :: boolean()
+  defp verified_email?(true), do: true
+  defp verified_email?("true"), do: true
+  defp verified_email?(_value), do: false
 
   @doc false
   @spec fetch_config(module(), keyword()) ::

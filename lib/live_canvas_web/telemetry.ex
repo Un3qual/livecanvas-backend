@@ -117,20 +117,17 @@ defmodule LCWeb.Telemetry do
   end
 
   defp live_session_metrics do
-    Enum.flat_map(@live_session_events, fn event_type ->
-      event_name = [:live_canvas, :live, :session, event_type]
-      metric_name = [:live_canvas, :live, :session, event_type, :total]
-      tags = [:event_type, :result, :reason]
-      tag_values = fn metadata -> live_result_tag_values(event_type, metadata) end
-
-      [counter_metric(metric_name, event_name, tags, tag_values)]
-    end)
+    live_event_metrics(@live_session_events, :session)
   end
 
   defp live_channel_metrics do
-    Enum.flat_map(@live_channel_events, fn event_type ->
-      event_name = [:live_canvas, :live, :channel, event_type]
-      metric_name = [:live_canvas, :live, :channel, event_type, :total]
+    live_event_metrics(@live_channel_events, :channel)
+  end
+
+  defp live_event_metrics(events, category) when is_list(events) and is_atom(category) do
+    Enum.flat_map(events, fn event_type ->
+      event_name = [:live_canvas, :live, category, event_type]
+      metric_name = [:live_canvas, :live, category, event_type, :total]
       tags = [:event_type, :result, :reason]
       tag_values = fn metadata -> live_result_tag_values(event_type, metadata) end
 
@@ -169,7 +166,8 @@ defmodule LCWeb.Telemetry do
 
   # Metric tag values stay intentionally low-cardinality so the Task 2 exporter
   # can expose them safely without leaking request payloads or identifiers.
-  defp live_result_tag_values(event_type, metadata) when is_atom(event_type) and is_map(metadata) do
+  defp live_result_tag_values(event_type, metadata)
+       when is_atom(event_type) and is_map(metadata) do
     %{
       event_type: event_type,
       result: Map.get(metadata, :result, :unknown),
@@ -199,15 +197,15 @@ defmodule LCWeb.Telemetry do
   end
 
   @known_auth_reasons MapSet.new([
-    "already_revoked",
-    "expired_token",
-    "invalid_credentials",
-    "invalid_token",
-    "not_found",
-    "revoked_token",
-    "transaction_aborted",
-    "validation_failed"
-  ])
+                        "already_revoked",
+                        "expired_token",
+                        "invalid_credentials",
+                        "invalid_token",
+                        "not_found",
+                        "revoked_token",
+                        "transaction_aborted",
+                        "validation_failed"
+                      ])
 
   defp auth_reason_tag(:ok, _metadata), do: :none
 

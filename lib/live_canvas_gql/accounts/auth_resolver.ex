@@ -283,41 +283,7 @@ defmodule LCGQL.Accounts.AuthResolver do
 
   def sign_up(_parent, %{provider: :magic_link, magic_link: magic_link_input}, _resolution)
       when is_map(magic_link_input) do
-    with :ok <- require_auth_field(magic_link_input, :token, "magicLink") do
-      case Accounts.sign_up_with_magic_link(Map.fetch!(magic_link_input, :token)) do
-        {:ok, auth_entry} ->
-          {:ok, auth_entry_payload(auth_entry)}
-
-        {:error, :invalid_credentials} ->
-          {:ok,
-           auth_entry_error_payload([
-             MutationErrors.auth_error("magicLink.token", :invalid_credentials)
-           ])}
-
-        {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok,
-           auth_entry_error_payload(
-             MutationErrors.auth_changeset_errors(
-               changeset,
-               "magicLink",
-               &FieldNames.lower_camel/1
-             )
-           )}
-
-        {:error, :email_taken} ->
-          {:ok,
-           auth_entry_error_payload([
-             MutationErrors.auth_error(
-               "magicLink.email",
-               :email_taken,
-               "has already been taken"
-             )
-           ])}
-      end
-    else
-      {:error, auth_error} ->
-        {:ok, auth_entry_error_payload([auth_error])}
-    end
+    magic_link_auth_entry(magic_link_input, &Accounts.sign_up_with_magic_link/1, :sign_up)
   end
 
   def sign_up(_parent, %{provider: provider, oauth: oauth_input}, _resolution)
@@ -465,34 +431,7 @@ defmodule LCGQL.Accounts.AuthResolver do
 
   def log_in(_parent, %{provider: :magic_link, magic_link: magic_link_input}, _resolution)
       when is_map(magic_link_input) do
-    with :ok <- require_auth_field(magic_link_input, :token, "magicLink") do
-      case Accounts.log_in_with_magic_link(Map.fetch!(magic_link_input, :token)) do
-        {:ok, auth_entry} ->
-          {:ok, auth_entry_payload(auth_entry)}
-
-        {:error, :invalid_credentials} ->
-          {:ok,
-           auth_entry_error_payload([
-             MutationErrors.auth_error("magicLink.token", :invalid_credentials)
-           ])}
-
-        {:error, %Ecto.Changeset{} = changeset} ->
-          {:ok,
-           auth_entry_error_payload(
-             MutationErrors.auth_changeset_errors(
-               changeset,
-               "magicLink",
-               &FieldNames.lower_camel/1
-             )
-           )}
-
-        {:error, :email_taken} ->
-          {:ok, auth_entry_error_payload([MutationErrors.auth_error(nil, :invalid_input)])}
-      end
-    else
-      {:error, auth_error} ->
-        {:ok, auth_entry_error_payload([auth_error])}
-    end
+    magic_link_auth_entry(magic_link_input, &Accounts.log_in_with_magic_link/1, :log_in)
   end
 
   def log_in(_parent, %{provider: provider, oauth: oauth_input}, _resolution)
@@ -690,6 +629,51 @@ defmodule LCGQL.Accounts.AuthResolver do
   @spec refresh_auth_error(refresh_auth_error_reason()) :: mutation_error()
   defp refresh_auth_error(reason),
     do: MutationErrors.user_error("refreshToken", reason)
+
+  @spec magic_link_auth_entry(
+          map(),
+          (String.t() -> LC.Accounts.auth_entry_result()),
+          :log_in | :sign_up
+        ) ::
+          auth_entry_result()
+  defp magic_link_auth_entry(magic_link_input, auth_fun, flow)
+       when is_map(magic_link_input) and is_function(auth_fun, 1) and flow in [:log_in, :sign_up] do
+    with :ok <- require_auth_field(magic_link_input, :token, "magicLink") do
+      case auth_fun.(Map.fetch!(magic_link_input, :token)) do
+        {:ok, auth_entry} ->
+          {:ok, auth_entry_payload(auth_entry)}
+
+        {:error, :invalid_credentials} ->
+          {:ok,
+           auth_entry_error_payload([
+             MutationErrors.auth_error("magicLink.token", :invalid_credentials)
+           ])}
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          {:ok,
+           auth_entry_error_payload(
+             MutationErrors.auth_changeset_errors(
+               changeset,
+               "magicLink",
+               &FieldNames.lower_camel/1
+             )
+           )}
+
+        {:error, :email_taken} ->
+          {:ok, auth_entry_error_payload([magic_link_email_taken_error(flow)])}
+      end
+    else
+      {:error, auth_error} ->
+        {:ok, auth_entry_error_payload([auth_error])}
+    end
+  end
+
+  @spec magic_link_email_taken_error(:log_in | :sign_up) :: auth_error()
+  defp magic_link_email_taken_error(:sign_up) do
+    MutationErrors.auth_error("magicLink.email", :email_taken, "has already been taken")
+  end
+
+  defp magic_link_email_taken_error(:log_in), do: MutationErrors.auth_error(nil, :invalid_input)
 
   @spec auth_entry_payload(LC.Accounts.auth_entry_payload()) :: auth_entry_payload()
   defp auth_entry_payload(%{access_token: access_token, refresh_token: refresh_token}) do

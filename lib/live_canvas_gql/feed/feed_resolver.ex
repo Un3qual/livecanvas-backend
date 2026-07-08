@@ -1,50 +1,27 @@
 defmodule LCGQL.Feed.Resolver do
   alias LC.{Chat, Content, Feed}
+  alias LCGQL.Resolution
 
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
 
   @spec home_feed(term(), map(), Absinthe.Resolution.t()) :: connection_result()
   def home_feed(_parent, args, resolution) do
-    with {:ok, viewer} <- viewer_from_resolution(resolution) do
-      viewer
-      |> Feed.home_feed_query()
-      |> Absinthe.Relay.Connection.from_query(&Feed.run_query/1, args)
-    else
-      _ -> Absinthe.Relay.Connection.from_list([], args)
-    end
+    feed_connection(args, resolution, &Feed.home_feed_query/1)
   end
 
   @spec story_feed(term(), map(), Absinthe.Resolution.t()) :: connection_result()
   def story_feed(_parent, args, resolution) do
-    with {:ok, viewer} <- viewer_from_resolution(resolution) do
-      viewer
-      |> Feed.story_feed_query()
-      |> Absinthe.Relay.Connection.from_query(&Feed.run_query/1, args)
-    else
-      _ -> Absinthe.Relay.Connection.from_list([], args)
-    end
+    feed_connection(args, resolution, &Feed.story_feed_query/1)
   end
 
   @spec live_now(term(), map(), Absinthe.Resolution.t()) :: connection_result()
   def live_now(_parent, args, resolution) do
-    with {:ok, viewer} <- viewer_from_resolution(resolution) do
-      viewer
-      |> Feed.live_now_query()
-      |> Absinthe.Relay.Connection.from_query(&Feed.run_query/1, args)
-    else
-      _ -> Absinthe.Relay.Connection.from_list([], args)
-    end
+    feed_connection(args, resolution, &Feed.live_now_query/1)
   end
 
   @spec replay_feed(term(), map(), Absinthe.Resolution.t()) :: connection_result()
   def replay_feed(_parent, args, resolution) do
-    with {:ok, viewer} <- viewer_from_resolution(resolution) do
-      viewer
-      |> Feed.replay_feed_query()
-      |> Absinthe.Relay.Connection.from_query(&Feed.run_query/1, args)
-    else
-      _ -> Absinthe.Relay.Connection.from_list([], args)
-    end
+    feed_connection(args, resolution, &Feed.replay_feed_query/1)
   end
 
   @spec recording_media_asset(map(), map(), Absinthe.Resolution.t()) ::
@@ -55,7 +32,7 @@ defmodule LCGQL.Feed.Resolver do
         resolution
       )
       when is_integer(recording_media_asset_id) do
-    with {:ok, viewer} <- viewer_from_resolution(resolution),
+    with {:ok, viewer} <- Resolution.viewer(resolution),
          # Global node refetch remains available for `LiveSession`, so child
          # fields must re-apply retained-history visibility before following
          # foreign keys into durable recording assets.
@@ -76,13 +53,18 @@ defmodule LCGQL.Feed.Resolver do
 
   def recording_media_asset_id(_recording_media_asset, _args, _resolution), do: {:ok, nil}
 
-  defp viewer_from_resolution(%Absinthe.Resolution{
-         context: %{current_scope: %{user: %{id: user_id} = viewer}}
-       })
-       when is_integer(user_id),
-       do: {:ok, viewer}
-
-  defp viewer_from_resolution(_resolution), do: :error
+  @spec feed_connection(map(), Absinthe.Resolution.t(), (map() -> Ecto.Query.t())) ::
+          connection_result()
+  defp feed_connection(args, resolution, query_builder)
+       when is_map(args) and is_function(query_builder, 1) do
+    with {:ok, viewer} <- Resolution.viewer(resolution) do
+      viewer
+      |> query_builder.()
+      |> Absinthe.Relay.Connection.from_query(&Feed.run_query/1, args)
+    else
+      _ -> Absinthe.Relay.Connection.from_list([], args)
+    end
+  end
 
   @spec load_durable_recording_media_asset(map(), Absinthe.Resolution.t()) ::
           LCGQL.Dataloader.dataloader_result()

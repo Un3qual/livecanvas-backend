@@ -1,7 +1,6 @@
 defmodule LCGQL.Accounts.UserResolver do
   alias LC.{Accounts, Feed}
-  alias LCGQL.MutationErrors
-  alias LCGQL.Relay
+  alias LCGQL.{MutationErrors, Relay, Resolution}
   alias LCSchemas.Accounts.{User, UserIdentity}
   alias LCSchemas.Live.LiveSession
 
@@ -158,7 +157,7 @@ defmodule LCGQL.Accounts.UserResolver do
 
   @spec user_email(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
   def user_email(%{id: user_id}, _args, resolution) when is_integer(user_id) do
-    case viewer_from_resolution(resolution) do
+    case Resolution.viewer(resolution) do
       {:ok, %{id: ^user_id, email: email}} -> {:ok, email}
       _other -> {:ok, nil}
     end
@@ -189,7 +188,7 @@ defmodule LCGQL.Accounts.UserResolver do
           {:ok, LiveSession.t() | nil}
   def user_current_live_session(%{id: owner_id} = owner, _args, resolution)
       when is_integer(owner_id) do
-    with {:ok, viewer} <- viewer_from_resolution(resolution) do
+    with {:ok, viewer} <- Resolution.viewer(resolution) do
       # `User` nodes are globally refetchable, so child fields must reuse the
       # viewer-scoped feed policy instead of trusting the parent node shape.
       {:ok, Feed.profile_current_live_session(viewer, owner)}
@@ -214,7 +213,7 @@ defmodule LCGQL.Accounts.UserResolver do
           LCGQL.Dataloader.dataloader_result()
   def user_identity_user(%{user: %{id: user_id} = user}, _args, resolution)
       when is_integer(user_id) do
-    case viewer_id_from_resolution(resolution) do
+    case Resolution.viewer_id(resolution) do
       {:ok, ^user_id} -> {:ok, user}
       _other -> {:ok, nil}
     end
@@ -222,7 +221,7 @@ defmodule LCGQL.Accounts.UserResolver do
 
   def user_identity_user(%{user_id: user_id} = user_identity, _args, resolution)
       when is_integer(user_id) do
-    case viewer_id_from_resolution(resolution) do
+    case Resolution.viewer_id(resolution) do
       {:ok, ^user_id} -> LCGQL.Dataloader.load_assoc(user_identity, :user, Accounts, resolution)
       _other -> {:ok, nil}
     end
@@ -232,7 +231,7 @@ defmodule LCGQL.Accounts.UserResolver do
 
   @spec user_identities(map(), map(), Absinthe.Resolution.t()) :: connection_result()
   def user_identities(%{id: user_id} = user, args, resolution) when is_integer(user_id) do
-    case viewer_id_from_resolution(resolution) do
+    case Resolution.viewer_id(resolution) do
       {:ok, ^user_id} ->
         query = Accounts.user_identities_query(user)
         Absinthe.Relay.Connection.from_query(query, &Accounts.run_query/1, args)
@@ -245,24 +244,6 @@ defmodule LCGQL.Accounts.UserResolver do
   def user_identities(_user, args, _resolution),
     do: Absinthe.Relay.Connection.from_list([], args)
 
-  @spec viewer_id_from_resolution(Absinthe.Resolution.t()) :: {:ok, pos_integer()} | :error
-  defp viewer_id_from_resolution(%Absinthe.Resolution{
-         context: %{current_scope: %{user: %{id: user_id}}}
-       })
-       when is_integer(user_id),
-       do: {:ok, user_id}
-
-  defp viewer_id_from_resolution(_resolution), do: :error
-
-  @spec viewer_from_resolution(Absinthe.Resolution.t()) :: {:ok, map()} | :error
-  defp viewer_from_resolution(%Absinthe.Resolution{
-         context: %{current_scope: %{user: %{id: user_id} = user}}
-       })
-       when is_integer(user_id),
-       do: {:ok, user}
-
-  defp viewer_from_resolution(_resolution), do: :error
-
   @spec visible_profile_connection(
           map(),
           Absinthe.Resolution.t(),
@@ -270,7 +251,7 @@ defmodule LCGQL.Accounts.UserResolver do
         ) :: connection_result()
   defp visible_profile_connection(args, resolution, query_builder)
        when is_map(args) and is_function(query_builder, 1) do
-    with {:ok, viewer} <- viewer_from_resolution(resolution) do
+    with {:ok, viewer} <- Resolution.viewer(resolution) do
       # Relay user IDs can be reached from `viewer`, `post.author`, `host`, or
       # `node(id:)`, so each child connection rebuilds the feed query from the
       # current viewer instead of assuming parent ownership implies access.

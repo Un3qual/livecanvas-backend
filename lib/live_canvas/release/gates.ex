@@ -3,9 +3,11 @@ defmodule LC.Release.Gates do
   Runs deterministic release preflight gates in a fail-fast order.
   """
 
-  @type gate_step :: %{task: String.t(), args: [String.t()]}
-  @type gate_failure :: %{step: gate_step(), reason: term()}
-  @type runner_fun :: (String.t(), [String.t()] -> :ok | {:error, term()})
+  alias LC.Release.MixStep
+
+  @type gate_step :: MixStep.t()
+  @type gate_failure :: MixStep.failure()
+  @type runner_fun :: MixStep.runner_fun()
   @type mix_command_runner :: (String.t(), [String.t()], keyword() -> {String.t(), integer()})
 
   @spec default_steps() :: [gate_step()]
@@ -37,22 +39,7 @@ defmodule LC.Release.Gates do
     if Keyword.get(opts, :dry_run, false) do
       {:dry_run, steps}
     else
-      run_steps(steps, runner)
-    end
-  end
-
-  @spec format_step(gate_step()) :: String.t()
-  def format_step(%{task: task, args: []}), do: "mix #{task}"
-  def format_step(%{task: task, args: args}), do: "mix #{task} #{Enum.join(args, " ")}"
-
-  @spec run_steps([gate_step()], runner_fun()) :: :ok | {:error, gate_failure()}
-  defp run_steps([], _runner), do: :ok
-
-  defp run_steps([step | remaining], runner) do
-    # Fail fast so later gates do not run after the first broken prerequisite.
-    case runner.(step.task, step.args) do
-      :ok -> run_steps(remaining, runner)
-      {:error, reason} -> {:error, %{step: step, reason: reason}}
+      MixStep.run_steps(steps, runner)
     end
   end
 

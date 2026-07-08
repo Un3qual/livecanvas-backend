@@ -4,7 +4,8 @@ defmodule LC.Content.MediaProcessingJob do
   import Ecto.Changeset
 
   alias LC.Content.{MediaAsset, MediaProcessing}
-  alias LC.Infra.{Payload, Repo}
+  alias LC.Infra.Repo
+  alias LCPayload.Payload
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
 
@@ -203,7 +204,7 @@ defmodule LC.Content.MediaProcessingJob do
   @spec extract_event_payload(webhook_payload()) ::
           {:ok, webhook_payload()} | {:error, :invalid_payload}
   defp extract_event_payload(payload) when is_map(payload) do
-    case Map.get(payload, :payload) || Map.get(payload, "payload") do
+    case Payload.value_for(payload, :payload) do
       event_payload when is_map(event_payload) -> {:ok, event_payload}
       _ -> maybe_use_payload_as_event_payload(payload)
     end
@@ -212,7 +213,7 @@ defmodule LC.Content.MediaProcessingJob do
   @spec maybe_use_payload_as_event_payload(webhook_payload()) ::
           {:ok, webhook_payload()} | {:error, :invalid_payload}
   defp maybe_use_payload_as_event_payload(payload) do
-    case Map.get(payload, :media_asset_id) || Map.get(payload, "media_asset_id") do
+    case Payload.value_for(payload, :media_asset_id) do
       media_asset_id when is_integer(media_asset_id) and media_asset_id > 0 -> {:ok, payload}
       _ -> {:error, :invalid_payload}
     end
@@ -221,7 +222,7 @@ defmodule LC.Content.MediaProcessingJob do
   @spec extract_processing_state(webhook_payload()) ::
           {:ok, String.t()} | {:error, :invalid_payload}
   defp extract_processing_state(payload) when is_map(payload) do
-    case Map.get(payload, :processing_state) || Map.get(payload, "processing_state") do
+    case Payload.value_for(payload, :processing_state) do
       processing_state when is_binary(processing_state) -> {:ok, processing_state}
       _ -> {:error, :invalid_payload}
     end

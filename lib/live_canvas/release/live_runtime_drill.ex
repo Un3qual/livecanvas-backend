@@ -3,6 +3,8 @@ defmodule LC.Release.LiveRuntimeDrill do
   Builds and executes deterministic operator drill steps for live runtime failover rehearsal.
   """
 
+  alias LC.Release.MixStep
+
   @type drill_step :: %{
           name: String.t(),
           command: String.t(),
@@ -15,40 +17,31 @@ defmodule LC.Release.LiveRuntimeDrill do
   def command_plan(session_id, takeover_node)
       when is_integer(session_id) and session_id > 0 and is_binary(takeover_node) do
     [
-      %{
-        name: "Capture current shard owner",
-        command:
-          "Inspect realtime shard owner for live_session_id=#{session_id} and record shard routing state.",
-        success_criteria: "Shard owner is captured before any failover action."
-      },
-      %{
-        name: "Simulate owner-node partition",
-        command:
-          "Disconnect current owner node from takeover node #{takeover_node} to simulate a partition for live_session_id=#{session_id}.",
-        success_criteria:
-          "Ownership lookup from #{takeover_node} no longer reaches the previous owner."
-      },
-      %{
-        name: "Force shard ownership takeover on target node",
-        command:
-          "On takeover node #{takeover_node}, start/restart the shard owner and session runtime for live_session_id=#{session_id}.",
-        success_criteria:
-          "Shard ownership routes to #{takeover_node} and a local runtime process is present."
-      },
-      %{
-        name: "Run reconnect join probe",
-        command:
-          "Join session as a fresh viewer for live_session_id=#{session_id} and confirm join succeeds without ghost participants.",
-        success_criteria:
-          "Viewer reconnect succeeds and `live_participants` has no duplicate active rows."
-      },
-      %{
-        name: "Restore topology and verify steady shard owner",
-        command:
-          "Reconnect partitioned node, confirm shard routing is stable, and capture final owner for live_session_id=#{session_id}.",
-        success_criteria:
-          "Shard ownership remains single-owner with no duplicate authoritative runtimes."
-      }
+      drill_step(
+        "Capture current shard owner",
+        "Inspect realtime shard owner for live_session_id=#{session_id} and record shard routing state.",
+        "Shard owner is captured before any failover action."
+      ),
+      drill_step(
+        "Simulate owner-node partition",
+        "Disconnect current owner node from takeover node #{takeover_node} to simulate a partition for live_session_id=#{session_id}.",
+        "Ownership lookup from #{takeover_node} no longer reaches the previous owner."
+      ),
+      drill_step(
+        "Force shard ownership takeover on target node",
+        "On takeover node #{takeover_node}, start/restart the shard owner and session runtime for live_session_id=#{session_id}.",
+        "Shard ownership routes to #{takeover_node} and a local runtime process is present."
+      ),
+      drill_step(
+        "Run reconnect join probe",
+        "Join session as a fresh viewer for live_session_id=#{session_id} and confirm join succeeds without ghost participants.",
+        "Viewer reconnect succeeds and `live_participants` has no duplicate active rows."
+      ),
+      drill_step(
+        "Restore topology and verify steady shard owner",
+        "Reconnect partitioned node, confirm shard routing is stable, and capture final owner for live_session_id=#{session_id}.",
+        "Shard ownership remains single-owner with no duplicate authoritative runtimes."
+      )
     ]
   end
 
@@ -79,9 +72,7 @@ defmodule LC.Release.LiveRuntimeDrill do
   end
 
   @spec format_step(drill_step()) :: String.t()
-  def format_step(%{name: name, command: command, success_criteria: success_criteria}) do
-    "#{name}: #{command} (success: #{success_criteria})"
-  end
+  def format_step(step), do: MixStep.format_operator(step)
 
   @spec run_steps([drill_step()], runner_fun()) :: :ok | {:error, drill_failure()}
   defp run_steps([], _runner), do: :ok
@@ -116,6 +107,12 @@ defmodule LC.Release.LiveRuntimeDrill do
        do: :ok
 
   defp validate_takeover_node(_takeover_node), do: {:error, :invalid_takeover_node}
+
+  @spec drill_step(String.t(), String.t(), String.t()) :: drill_step()
+  defp drill_step(name, command, success_criteria)
+       when is_binary(name) and is_binary(command) and is_binary(success_criteria) do
+    %{name: name, command: command, success_criteria: success_criteria}
+  end
 
   @spec validate_confirmation(atom(), boolean()) :: :ok | {:error, :confirmation_required}
   defp validate_confirmation(:test, _confirm?), do: :ok

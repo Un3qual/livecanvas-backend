@@ -6,6 +6,7 @@ defmodule LCGQL.Schema do
 
   alias LC.{Accounts, Chat, Content, Feed, Live, Social}
   alias LCGQL.Dataloader
+  alias LCGQL.Resolution
   alias LCGQL.Accounts.ContactResolver
   alias LCSchemas.Accounts.{User, UserContactEntry, UserIdentity}
   alias LCSchemas.Content.{MediaAsset, Post, PostReport}
@@ -183,17 +184,9 @@ defmodule LCGQL.Schema do
 
   # User-identity nodes are viewer-scoped and active-only to prevent global ID
   # refetch from exposing revoked or cross-account identity metadata.
-  defp fetch_user_identity_node(id, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
-    case cast_node_local_id(id) do
-      {:ok, local_id} ->
-        {:ok, Accounts.get_active_user_identity(user, local_id)}
-
-      :error ->
-        {:ok, nil}
-    end
+  defp fetch_user_identity_node(id, resolution) do
+    fetch_viewer_scoped_node(id, resolution, &Accounts.get_active_user_identity/2)
   end
-
-  defp fetch_user_identity_node(_id, _resolution), do: {:ok, nil}
 
   # Post nodes must re-apply feed visibility so Relay refetch cannot turn a
   # follower-only post ID into a shortcut around author visibility policy.
@@ -219,31 +212,15 @@ defmodule LCGQL.Schema do
 
   # Media-asset nodes are viewer-scoped to avoid exposing object keys across
   # accounts through globally refetchable IDs.
-  defp fetch_media_asset_node(id, %{context: %{current_scope: %{user: %{id: _id} = viewer}}}) do
-    case cast_node_local_id(id) do
-      {:ok, local_id} ->
-        {:ok, Content.get_user_media_asset(viewer, local_id)}
-
-      :error ->
-        {:ok, nil}
-    end
+  defp fetch_media_asset_node(id, resolution) do
+    fetch_viewer_scoped_node(id, resolution, &Content.get_user_media_asset/2)
   end
-
-  defp fetch_media_asset_node(_id, _resolution), do: {:ok, nil}
 
   # Post-report nodes are reporter-scoped because they describe moderation
   # complaints submitted by a specific viewer.
-  defp fetch_post_report_node(id, %{context: %{current_scope: %{user: %{id: _id} = viewer}}}) do
-    case cast_node_local_id(id) do
-      {:ok, local_id} ->
-        {:ok, Content.get_user_post_report(viewer, local_id)}
-
-      :error ->
-        {:ok, nil}
-    end
+  defp fetch_post_report_node(id, resolution) do
+    fetch_viewer_scoped_node(id, resolution, &Content.get_user_post_report/2)
   end
-
-  defp fetch_post_report_node(_id, _resolution), do: {:ok, nil}
 
   # Globally refetchable live-session IDs must re-apply viewer visibility so
   # replay/history surfaces cannot bypass ownership checks via `node(id:)`
@@ -270,17 +247,9 @@ defmodule LCGQL.Schema do
 
   # Follow-request nodes are viewer-scoped because a pending request belongs to
   # the acted-on account and should not be globally enumerable or refetchable.
-  defp fetch_follow_request_node(id, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
-    case cast_node_local_id(id) do
-      {:ok, local_id} ->
-        {:ok, Social.get_pending_follow_request(user, local_id)}
-
-      :error ->
-        {:ok, nil}
-    end
+  defp fetch_follow_request_node(id, resolution) do
+    fetch_viewer_scoped_node(id, resolution, &Social.get_pending_follow_request/2)
   end
-
-  defp fetch_follow_request_node(_id, _resolution), do: {:ok, nil}
 
   # Timeline-event nodes are viewer-scoped because retained history remains
   # readable after a session ends, but only to viewers who still satisfy chat
@@ -305,54 +274,34 @@ defmodule LCGQL.Schema do
 
   # Export-request nodes are viewer-scoped because they carry private governance
   # workflow metadata; node refetch enforces ownership through the auth scope.
-  defp fetch_data_export_request_node(id, %{
-         context: %{current_scope: %{user: %{id: _id} = user}}
-       }) do
-    case cast_node_local_id(id) do
-      {:ok, local_id} ->
-        {:ok, Accounts.get_user_data_export_request(user, local_id)}
-
-      :error ->
-        {:ok, nil}
-    end
+  defp fetch_data_export_request_node(id, resolution) do
+    fetch_viewer_scoped_node(id, resolution, &Accounts.get_user_data_export_request/2)
   end
-
-  defp fetch_data_export_request_node(_id, _resolution), do: {:ok, nil}
 
   # Deletion-request nodes are viewer-scoped because they contain private
   # governance workflow state and must not be globally enumerable.
-  defp fetch_account_deletion_request_node(id, %{
-         context: %{current_scope: %{user: %{id: _id} = user}}
-       }) do
-    case cast_node_local_id(id) do
-      {:ok, local_id} ->
-        {:ok, Accounts.get_user_account_deletion_request(user, local_id)}
-
-      :error ->
-        {:ok, nil}
-    end
+  defp fetch_account_deletion_request_node(id, resolution) do
+    fetch_viewer_scoped_node(id, resolution, &Accounts.get_user_account_deletion_request/2)
   end
-
-  defp fetch_account_deletion_request_node(_id, _resolution), do: {:ok, nil}
 
   # Contact-match nodes are viewer-scoped, so node refetch must enforce
   # ownership via the authenticated scope instead of exposing raw ids globally.
-  defp fetch_contact_match_node(id, %{context: %{current_scope: %{user: %{id: _id} = user}}}) do
-    case cast_node_local_id(id) do
-      {:ok, local_id} ->
-        contact_match =
-          user
-          |> Accounts.get_user_contact_match(local_id)
-          |> maybe_contact_match_node()
-
-        {:ok, contact_match}
-
-      :error ->
-        {:ok, nil}
-    end
+  defp fetch_contact_match_node(id, resolution) do
+    fetch_viewer_scoped_node(id, resolution, fn user, local_id ->
+      user
+      |> Accounts.get_user_contact_match(local_id)
+      |> maybe_contact_match_node()
+    end)
   end
 
-  defp fetch_contact_match_node(_id, _resolution), do: {:ok, nil}
+  defp fetch_viewer_scoped_node(id, resolution, fetch_fun) when is_function(fetch_fun, 2) do
+    with {:ok, viewer} <- Resolution.viewer(resolution),
+         {:ok, local_id} <- cast_node_local_id(id) do
+      {:ok, fetch_fun.(viewer, local_id)}
+    else
+      _other -> {:ok, nil}
+    end
+  end
 
   @spec maybe_contact_match_node(Accounts.contact_match() | nil) ::
           ContactResolver.contact_match_node() | nil
