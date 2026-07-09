@@ -38,6 +38,7 @@ type AccountSettingsAction =
 
 type AccountSettingsIdentity = {
   readonly authProvider?: string | null;
+  readonly canUnlink: boolean;
   readonly id: string;
   readonly insertedAt: string;
   readonly provider: string;
@@ -371,12 +372,20 @@ function LinkedIdentitiesCard({
                 >
                   Linked {formatOptionalDate(identity.insertedAt)}
                 </Text>
-                <AppButton
-                  disabled={activeAction !== null}
-                  label={activeAction === action ? 'Unlinking...' : 'Unlink'}
-                  onPress={() => onUnlink(identity)}
-                  variant="secondary"
-                />
+                {identity.canUnlink ? (
+                  <AppButton
+                    disabled={activeAction !== null}
+                    label={activeAction === action ? 'Unlinking...' : 'Unlink'}
+                    onPress={() => onUnlink(identity)}
+                    variant="secondary"
+                  />
+                ) : (
+                  <Text
+                    style={[styles.rowSubtitle, { color: theme.colors.textMuted }]}
+                  >
+                    Add another sign-in method before unlinking this identity.
+                  </Text>
+                )}
               </View>
             );
           })}

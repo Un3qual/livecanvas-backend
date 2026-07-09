@@ -59,6 +59,7 @@ beforeEach(() => {
       userIdentities: connection([
         {
           authProvider: 'GOOGLE',
+          canUnlink: false,
           id: 'identity-1',
           insertedAt: '2026-07-01T00:00:00Z',
           provider: 'google_provider',
@@ -87,6 +88,10 @@ describe('AccountSettingsScreen', () => {
     expect(screen.getByText('Google')).toBeOnTheScreen();
     expect(screen.getByText('No data export requests yet.')).toBeOnTheScreen();
     expect(screen.getByText('Scheduled')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Unlink' })).toBeNull();
+    expect(
+      screen.getByText('Add another sign-in method before unlinking this identity.'),
+    ).toBeOnTheScreen();
   });
 
   test('settings route catches Relay query errors', async () => {
@@ -103,6 +108,21 @@ describe('AccountSettingsScreen', () => {
 
   test('unlinks identities and starts export and deletion requests', async () => {
     const user = userEvent.setup();
+    mockQueryData = {
+      ...mockQueryData,
+      viewer: {
+        ...(mockQueryData.viewer as Record<string, unknown>),
+        userIdentities: connection([
+          {
+            authProvider: 'GOOGLE',
+            canUnlink: true,
+            id: 'identity-1',
+            insertedAt: '2026-07-01T00:00:00Z',
+            provider: 'google_provider',
+          },
+        ]),
+      },
+    };
 
     await render(<AccountSettingsScreen />);
 

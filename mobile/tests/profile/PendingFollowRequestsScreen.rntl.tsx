@@ -159,6 +159,7 @@ describe('PendingFollowRequestsScreen with React Native Testing Library', () => 
   test('renders pending requests and accepts one row at a time', async () => {
     await render(<PendingFollowRequestsScreen />);
 
+    expect(screen.getByTestId('pending-follow-request-list')).toBeOnTheScreen();
     expect(screen.getByText('Follow requests')).toBeOnTheScreen();
     expect(screen.getByText('requester@example.com')).toBeOnTheScreen();
     expect(mockQueryVariables).toEqual({ after: null, first: 20 });

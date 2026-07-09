@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<edd44df9a1e47bc37a67df989770e4dc>>
+ * @generated SignedSource<<30e91323a1950e354b7609ee7cbcce20>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,7 @@ export type contactDiscoveryOperationsUpsertMutation$data = {
     readonly contactMatch: {
       readonly contactName: string | null | undefined;
       readonly id: string;
+      readonly inviteRecipient: string | null | undefined;
       readonly matchedUsers: ReadonlyArray<{
         readonly email: string | null | undefined;
         readonly id: string;
@@ -86,6 +87,13 @@ v2 = [
             "args": null,
             "kind": "ScalarField",
             "name": "contactName",
+            "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "inviteRecipient",
             "storageKey": null
           },
           {
@@ -164,12 +172,12 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "09870cdbbcf38583647d970920970f7d",
+    "cacheID": "5818ce928cbd17f1a7f00d2758058a5f",
     "id": null,
     "metadata": {},
     "name": "contactDiscoveryOperationsUpsertMutation",
     "operationKind": "mutation",
-    "text": "mutation contactDiscoveryOperationsUpsertMutation(\n  $input: UpsertViewerContactEntryInput!\n) {\n  upsertViewerContactEntry(input: $input) {\n    contactMatch {\n      id\n      contactName\n      matchedUsers {\n        id\n        email\n        privacyMode\n      }\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation contactDiscoveryOperationsUpsertMutation(\n  $input: UpsertViewerContactEntryInput!\n) {\n  upsertViewerContactEntry(input: $input) {\n    contactMatch {\n      id\n      contactName\n      inviteRecipient\n      matchedUsers {\n        id\n        email\n        privacyMode\n      }\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();

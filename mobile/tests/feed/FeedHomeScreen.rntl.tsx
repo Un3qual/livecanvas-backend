@@ -1156,6 +1156,39 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     expect(screen.queryByText('Own post')).toBeNull();
   });
 
+  test('blocks editing another post in the same tick as an owner update', async () => {
+    const user = userEvent.setup();
+    mockQueryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          author: { email: 'viewer@example.com', id: 'viewer-1' },
+          bodyText: 'First owned post',
+          id: 'own-post-1',
+        }),
+        post({
+          author: { email: 'viewer@example.com', id: 'viewer-1' },
+          bodyText: 'Second owned post',
+          id: 'own-post-2',
+        }),
+      ]),
+      storyFeed: connection([]),
+    };
+
+    await render(<FeedHomeContent />);
+
+    await user.press(screen.getAllByRole('button', { name: 'Edit post' })[0]);
+
+    const saveButton = screen.getByRole('button', { name: 'Save post' });
+    const secondEditButton = screen.getByRole('button', { name: 'Edit post' });
+
+    await fireEvent.press(saveButton);
+    await fireEvent.press(secondEditButton);
+
+    expect(mockUpdatePostCommit).toHaveBeenCalledTimes(1);
+    expect(screen.queryByDisplayValue('Second owned post')).toBeNull();
+  });
+
   test('confirms delete before removing viewer-owned rows locally', async () => {
     const user = userEvent.setup();
     mockQueryData = {

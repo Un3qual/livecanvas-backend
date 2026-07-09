@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<88afdf27006bb1bb5a241b90eb49fd13>>
+ * @generated SignedSource<<e0512d39e3a0ebe94b52961057ecb83a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,6 +22,7 @@ export type accountSettingsOperationsQuery$data = {
       readonly edges: ReadonlyArray<{
         readonly node: {
           readonly authProvider: AuthProvider | null | undefined;
+          readonly canUnlink: boolean;
           readonly id: string;
           readonly insertedAt: string;
           readonly provider: string;
@@ -162,6 +163,13 @@ v6 = [
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "canUnlink",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "insertedAt",
                     "storageKey": null
                   }
@@ -286,16 +294,16 @@ return {
     "selections": (v6/*: any*/)
   },
   "params": {
-    "cacheID": "3e7c1ebffac5f87ef81326b2303a7b7b",
+    "cacheID": "f888b4aa6d51c6629638c8aa6163be7c",
     "id": null,
     "metadata": {},
     "name": "accountSettingsOperationsQuery",
     "operationKind": "query",
-    "text": "query accountSettingsOperationsQuery {\n  viewer {\n    id\n    email\n    userIdentities(first: 20) {\n      edges {\n        node {\n          id\n          provider\n          authProvider\n          insertedAt\n        }\n      }\n    }\n  }\n  viewerDataExportRequests(first: 20) {\n    edges {\n      node {\n        id\n        status\n        format\n        requestedAt\n        completedAt\n        failureReason\n      }\n    }\n  }\n  viewerAccountDeletionRequests(first: 20) {\n    edges {\n      node {\n        id\n        status\n        requestedAt\n        scheduledPurgeAt\n        completedAt\n        failureReason\n      }\n    }\n  }\n}\n"
+    "text": "query accountSettingsOperationsQuery {\n  viewer {\n    id\n    email\n    userIdentities(first: 20) {\n      edges {\n        node {\n          id\n          provider\n          authProvider\n          canUnlink\n          insertedAt\n        }\n      }\n    }\n  }\n  viewerDataExportRequests(first: 20) {\n    edges {\n      node {\n        id\n        status\n        format\n        requestedAt\n        completedAt\n        failureReason\n      }\n    }\n  }\n  viewerAccountDeletionRequests(first: 20) {\n    edges {\n      node {\n        id\n        status\n        requestedAt\n        scheduledPurgeAt\n        completedAt\n        failureReason\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f8c8902aa429be6dc64d860a52f6c779";
+(node as any).hash = "6910cfafe3aad90cc13fd0b2f2aa94d2";
 
 export default node;

@@ -860,6 +860,10 @@ export function FeedHomeContent() {
   }
 
   function startOwnerEdit(post: FeedHomePost) {
+    if (activeOwnerActionRef.current !== null || ownerPendingAction !== null) {
+      return;
+    }
+
     setDeleteConfirmationPostId(null);
     setEditingPostId(post.id);
     setOwnerEditState(
@@ -872,17 +876,29 @@ export function FeedHomeContent() {
   }
 
   function cancelOwnerEdit() {
+    if (activeOwnerActionRef.current !== null || ownerPendingAction !== null) {
+      return;
+    }
+
     setEditingPostId(null);
     setOwnerEditState(null);
   }
 
   function updateOwnerEditBody(bodyText: string) {
+    if (activeOwnerActionRef.current !== null) {
+      return;
+    }
+
     setOwnerEditState((current) =>
       current ? updatePostOwnerEditBody(current, bodyText) : current,
     );
   }
 
   function selectOwnerEditVisibility(visibility: 'FOLLOWERS' | 'PUBLIC') {
+    if (activeOwnerActionRef.current !== null) {
+      return;
+    }
+
     setOwnerEditState((current) =>
       current ? selectPostOwnerEditVisibility(current, visibility) : current,
     );
@@ -957,6 +973,10 @@ export function FeedHomeContent() {
   }
 
   function requestDeletePostConfirmation(post: FeedHomePost) {
+    if (activeOwnerActionRef.current !== null || ownerPendingAction !== null) {
+      return;
+    }
+
     setEditingPostId(null);
     setOwnerEditState(null);
     setDeleteConfirmationPostId(post.id);
@@ -964,6 +984,10 @@ export function FeedHomeContent() {
   }
 
   function cancelDeletePost() {
+    if (activeOwnerActionRef.current !== null || ownerPendingAction !== null) {
+      return;
+    }
+
     setDeleteConfirmationPostId(null);
   }
 
@@ -1347,6 +1371,7 @@ function FeedPostCard({
   const isDeleting =
     ownerControls.pendingAction?.kind === 'delete' &&
     ownerControls.pendingAction.postId === post.id;
+  const isOwnerActionPending = ownerControls.pendingAction !== null;
 
   return (
     <AppCard>
@@ -1373,6 +1398,7 @@ function FeedPostCard({
         <View style={styles.editPanel}>
           <TextInput
             accessibilityLabel="Post body"
+            editable={!isOwnerActionPending}
             multiline
             onChangeText={ownerControls.onEditBodyChange}
             style={[
@@ -1386,6 +1412,7 @@ function FeedPostCard({
           />
           <View style={styles.visibilityControls}>
             <AppButton
+              disabled={isOwnerActionPending}
               label="Followers"
               onPress={() =>
                 ownerControls.onSelectEditVisibility('FOLLOWERS')
@@ -1394,6 +1421,7 @@ function FeedPostCard({
               variant="secondary"
             />
             <AppButton
+              disabled={isOwnerActionPending}
               label="Public"
               onPress={() => ownerControls.onSelectEditVisibility('PUBLIC')}
               selected={ownerControls.editState.visibility === 'PUBLIC'}
@@ -1402,12 +1430,12 @@ function FeedPostCard({
           </View>
           <View style={styles.ownerControls}>
             <AppButton
-              disabled={isUpdating}
+              disabled={isOwnerActionPending}
               label={isUpdating ? 'Saving...' : 'Save post'}
               onPress={() => ownerControls.onSaveEdit(post)}
             />
             <AppButton
-              disabled={isUpdating}
+              disabled={isOwnerActionPending}
               label="Cancel"
               onPress={ownerControls.onCancelEdit}
               variant="secondary"
@@ -1482,12 +1510,12 @@ function FeedPostCard({
               </Text>
               <View style={styles.ownerControls}>
                 <AppButton
-                  disabled={isDeleting}
+                  disabled={isOwnerActionPending}
                   label={isDeleting ? 'Deleting...' : 'Confirm delete'}
                   onPress={() => ownerControls.onConfirmDelete(post)}
                 />
                 <AppButton
-                  disabled={isDeleting}
+                  disabled={isOwnerActionPending}
                   label="Cancel"
                   onPress={ownerControls.onCancelDelete}
                   variant="secondary"
@@ -1497,11 +1525,13 @@ function FeedPostCard({
           ) : isEditing ? null : (
             <View style={styles.ownerControls}>
               <AppButton
+                disabled={isOwnerActionPending}
                 label="Edit post"
                 onPress={() => ownerControls.onStartEdit(post)}
                 variant="secondary"
               />
               <AppButton
+                disabled={isOwnerActionPending}
                 label="Delete post"
                 onPress={() => ownerControls.onDeletePost(post)}
                 variant="secondary"

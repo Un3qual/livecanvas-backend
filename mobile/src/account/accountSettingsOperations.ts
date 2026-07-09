@@ -11,6 +11,7 @@ export const accountSettingsQuery = graphql`
             id
             provider
             authProvider
+            canUnlink
             insertedAt
           }
         }

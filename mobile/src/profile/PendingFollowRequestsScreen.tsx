@@ -1,6 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ListRenderItemInfo,
+} from 'react-native';
 import {
   fetchQuery,
   useLazyLoadQuery,
@@ -163,44 +170,59 @@ export function PendingFollowRequestsScreen() {
     }
   }
 
-  function submitRequestAction(
-    request: PendingFollowRequest,
-    action: 'accept' | 'decline',
-  ) {
-    if (activeActionRef.current !== null || activeAction !== null) {
-      return;
-    }
+  const submitRequestAction = useCallback(
+    (request: PendingFollowRequest, action: 'accept' | 'decline') => {
+      if (activeActionRef.current !== null || activeAction !== null) {
+        return;
+      }
 
-    const nextAction = { action, requestId: request.id } as const;
-    activeActionRef.current = nextAction;
-    setActiveAction(nextAction);
-    setErrorsByRequestId((current) => omitRequestError(current, request.id));
+      const nextAction = { action, requestId: request.id } as const;
+      activeActionRef.current = nextAction;
+      setActiveAction(nextAction);
+      setErrorsByRequestId((current) => omitRequestError(current, request.id));
 
-    const variables = { input: { followerId: request.follower.id } };
-    const handleError = () => {
-      activeActionRef.current = null;
-      setActiveAction(null);
-      setErrorsByRequestId((current) => ({
-        ...current,
-        [request.id]: 'We could not update this follow request.',
-      }));
-    };
-    const handleSuccess = () => {
-      activeActionRef.current = null;
-      setActiveAction(null);
-      setRemovedRequestIds((current) => ({
-        ...current,
-        [request.id]: true,
-      }));
-    };
+      const variables = { input: { followerId: request.follower.id } };
+      const handleError = () => {
+        activeActionRef.current = null;
+        setActiveAction(null);
+        setErrorsByRequestId((current) => ({
+          ...current,
+          [request.id]: 'We could not update this follow request.',
+        }));
+      };
+      const handleSuccess = () => {
+        activeActionRef.current = null;
+        setActiveAction(null);
+        setRemovedRequestIds((current) => ({
+          ...current,
+          [request.id]: true,
+        }));
+      };
 
-    if (action === 'accept') {
-      commitAcceptFollowRequest({
+      if (action === 'accept') {
+        commitAcceptFollowRequest({
+          variables,
+          onCompleted: (payload) => {
+            const result = payload.acceptFollowRequest;
+
+            if (!result?.follow || result.errors.length > 0) {
+              handleError();
+              return;
+            }
+
+            handleSuccess();
+          },
+          onError: handleError,
+        });
+        return;
+      }
+
+      commitDeclineFollowRequest({
         variables,
         onCompleted: (payload) => {
-          const result = payload.acceptFollowRequest;
+          const result = payload.declineFollowRequest;
 
-          if (!result?.follow || result.errors.length > 0) {
+          if (!result || result.errors.length > 0) {
             handleError();
             return;
           }
@@ -209,58 +231,44 @@ export function PendingFollowRequestsScreen() {
         },
         onError: handleError,
       });
-      return;
-    }
+    },
+    [activeAction, commitAcceptFollowRequest, commitDeclineFollowRequest],
+  );
 
-    commitDeclineFollowRequest({
-      variables,
-      onCompleted: (payload) => {
-        const result = payload.declineFollowRequest;
-
-        if (!result || result.errors.length > 0) {
-          handleError();
-          return;
-        }
-
-        handleSuccess();
-      },
-      onError: handleError,
-    });
-  }
+  const renderPendingRequest = useCallback(
+    ({ item: request }: ListRenderItemInfo<PendingFollowRequest>) => (
+      <View style={styles.section}>
+        <PendingRequestRow
+          activeAction={activeAction}
+          errorMessage={errorsByRequestId[request.id] ?? null}
+          onAction={submitRequestAction}
+          onOpenProfile={(userId) =>
+            router.push({
+              params: { id: userId },
+              pathname: '/profiles/[id]',
+            })
+          }
+          request={request}
+        />
+      </View>
+    ),
+    [activeAction, errorsByRequestId, router, submitRequestAction],
+  );
 
   return (
-    <ScrollView
+    <FlatList
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
-    >
-      <AppHeader
-        eyebrow="Profile"
-        title="Follow requests"
-        subtitle="Review incoming follow requests."
-      />
-
-      <View style={styles.section}>
-        {requests.length > 0 ? (
-          requests.map((request) => (
-            <PendingRequestRow
-              activeAction={activeAction}
-              errorMessage={errorsByRequestId[request.id] ?? null}
-              key={request.id}
-              onAction={submitRequestAction}
-              onOpenProfile={(userId) =>
-                router.push({
-                  params: { id: userId },
-                  pathname: '/profiles/[id]',
-                })
-              }
-              request={request}
-            />
-          ))
-        ) : (
+      data={requests}
+      keyExtractor={pendingRequestKeyExtractor}
+      ListEmptyComponent={
+        <View style={styles.section}>
           <ScreenState state="empty" message="No pending follow requests." />
-        )}
-        {pageInfo.hasNextPage && pageInfo.endCursor ? (
+        </View>
+      }
+      ListFooterComponent={
+        pageInfo.hasNextPage && pageInfo.endCursor ? (
           <View style={styles.loadMorePanel}>
             <AppButton
               disabled={isLoadingMore}
@@ -274,10 +282,26 @@ export function PendingFollowRequestsScreen() {
               </Text>
             ) : null}
           </View>
-        ) : null}
-      </View>
-    </ScrollView>
+        ) : null
+      }
+      ListFooterComponentStyle={styles.section}
+      ListHeaderComponent={
+        <View style={styles.section}>
+          <AppHeader
+            eyebrow="Profile"
+            title="Follow requests"
+            subtitle="Review incoming follow requests."
+          />
+        </View>
+      }
+      renderItem={renderPendingRequest}
+      testID="pending-follow-request-list"
+    />
   );
+}
+
+function pendingRequestKeyExtractor(request: PendingFollowRequest): string {
+  return request.id;
 }
 
 function PendingRequestRow({

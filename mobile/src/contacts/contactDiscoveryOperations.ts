@@ -19,6 +19,7 @@ export const contactDiscoveryContactMatchFields = graphql`
   fragment contactDiscoveryOperationsContactMatchFields on ContactMatch {
     id
     contactName
+    inviteRecipient
     matchedUsers {
       id
       email

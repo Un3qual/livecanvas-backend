@@ -216,13 +216,12 @@ function OtherUserProfileContent({
   const theme = useAppTheme();
   const router = useRouter();
   const [relationshipError, setRelationshipError] = useState<string | null>(null);
-  const [activeSocialAction, setActiveSocialAction] =
+  const [activeRelationshipAction, setActiveRelationshipAction] =
     useState<RelationshipActionKind | null>(null);
   const [blockConfirmationVisible, setBlockConfirmationVisible] =
     useState(false);
   const [isMutedOverride, setIsMutedOverride] = useState<boolean | null>(null);
-  const activeFollowSubmissionRef = useRef(false);
-  const activeSocialActionRef = useRef<RelationshipActionKind | null>(null);
+  const activeRelationshipActionRef = useRef<RelationshipActionKind | null>(null);
   const [commitFollowUser, isFollowUserMutationInFlight] =
     useMutation<OtherUserProfileScreenFollowUserMutation>(
       otherUserProfileScreenFollowUserMutation,
@@ -246,9 +245,8 @@ function OtherUserProfileContent({
   );
 
   useEffect(() => {
-    activeFollowSubmissionRef.current = false;
-    activeSocialActionRef.current = null;
-    setActiveSocialAction(null);
+    activeRelationshipActionRef.current = null;
+    setActiveRelationshipAction(null);
     setBlockConfirmationVisible(false);
     setIsMutedOverride(null);
     setRelationshipError(null);
@@ -272,13 +270,12 @@ function OtherUserProfileContent({
     isMuted,
     state: relationshipState,
   });
-  const isSocialControlInFlight =
-    activeSocialAction !== null ||
+  const isRelationshipActionInFlight =
+    activeRelationshipAction !== null ||
+    isFollowUserMutationInFlight ||
     isMuteUserMutationInFlight ||
     isUnmuteUserMutationInFlight ||
     isBlockUserMutationInFlight;
-  const isRelationshipActionInFlight =
-    isFollowUserMutationInFlight || isSocialControlInFlight;
   const currentLiveSession = user.currentLiveSession ?? null;
   const followersPreviewCount = formatConnectionPreviewCount({
     hasNextPage: user.followers?.pageInfo.hasNextPage,
@@ -293,12 +290,13 @@ function OtherUserProfileContent({
     if (
       !relationship.canFollow ||
       isRelationshipActionInFlight ||
-      activeFollowSubmissionRef.current
+      activeRelationshipActionRef.current !== null
     ) {
       return;
     }
 
-    activeFollowSubmissionRef.current = true;
+    activeRelationshipActionRef.current = 'follow';
+    setActiveRelationshipAction('follow');
     setBlockConfirmationVisible(false);
     setRelationshipError(null);
     commitFollowUser({
@@ -308,7 +306,8 @@ function OtherUserProfileContent({
         },
       },
       onCompleted: (payload) => {
-        activeFollowSubmissionRef.current = false;
+        activeRelationshipActionRef.current = null;
+        setActiveRelationshipAction(null);
         const result = payload.followUser;
 
         if (!result?.follow || result.errors.length > 0) {
@@ -319,7 +318,8 @@ function OtherUserProfileContent({
         onRelationshipMutationSuccess(id, result.follow.state);
       },
       onError: () => {
-        activeFollowSubmissionRef.current = false;
+        activeRelationshipActionRef.current = null;
+        setActiveRelationshipAction(null);
         setRelationshipError(
           'We could not update this relationship. Check your connection and try again.',
         );
@@ -335,7 +335,7 @@ function OtherUserProfileContent({
 
     if (
       isRelationshipActionInFlight ||
-      activeSocialActionRef.current !== null
+      activeRelationshipActionRef.current !== null
     ) {
       return;
     }
@@ -355,7 +355,7 @@ function OtherUserProfileContent({
     if (
       !blockConfirmationVisible ||
       isRelationshipActionInFlight ||
-      activeSocialActionRef.current !== null
+      activeRelationshipActionRef.current !== null
     ) {
       return;
     }
@@ -364,7 +364,7 @@ function OtherUserProfileContent({
   };
 
   const cancelBlockConfirmation = () => {
-    if (activeSocialActionRef.current === 'block') {
+    if (activeRelationshipActionRef.current === 'block') {
       return;
     }
 
@@ -374,8 +374,8 @@ function OtherUserProfileContent({
   function commitSocialControl(
     action: Exclude<RelationshipActionKind, 'follow'>,
   ) {
-    activeSocialActionRef.current = action;
-    setActiveSocialAction(action);
+    activeRelationshipActionRef.current = action;
+    setActiveRelationshipAction(action);
     setRelationshipError(null);
 
     switch (action) {
@@ -410,8 +410,8 @@ function OtherUserProfileContent({
         return;
 
       default:
-        activeSocialActionRef.current = null;
-        setActiveSocialAction(null);
+        activeRelationshipActionRef.current = null;
+        setActiveRelationshipAction(null);
     }
   }
 
@@ -419,8 +419,8 @@ function OtherUserProfileContent({
     action: Exclude<RelationshipActionKind, 'follow'>,
     result: SocialControlMutationResult | null | undefined,
   ) {
-    activeSocialActionRef.current = null;
-    setActiveSocialAction(null);
+    activeRelationshipActionRef.current = null;
+    setActiveRelationshipAction(null);
 
     if (!result || result.errors.length > 0) {
       setRelationshipError(formatRelationshipMutationErrors(result?.errors));
@@ -443,8 +443,8 @@ function OtherUserProfileContent({
   }
 
   function failSocialControl() {
-    activeSocialActionRef.current = null;
-    setActiveSocialAction(null);
+    activeRelationshipActionRef.current = null;
+    setActiveRelationshipAction(null);
     setRelationshipError(formatRelationshipMutationErrors(null));
   }
 
@@ -472,7 +472,9 @@ function OtherUserProfileContent({
       ) : null}
 
       <RelationshipCard
-        activeSocialAction={activeSocialAction}
+        activeSocialAction={
+          activeRelationshipAction === 'follow' ? null : activeRelationshipAction
+        }
         blockConfirmationVisible={blockConfirmationVisible}
         errorMessage={relationshipError}
         isSubmitting={isRelationshipActionInFlight}

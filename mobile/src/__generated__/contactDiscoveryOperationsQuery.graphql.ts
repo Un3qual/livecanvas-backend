@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d815d0350d6c3a886728120691435c93>>
+ * @generated SignedSource<<0f228db63ef50d6662c6e36c6a64feca>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,6 +20,7 @@ export type contactDiscoveryOperationsQuery$data = {
       readonly node: {
         readonly contactName: string | null | undefined;
         readonly id: string;
+        readonly inviteRecipient: string | null | undefined;
         readonly matchedUsers: ReadonlyArray<{
           readonly email: string | null | undefined;
           readonly id: string;
@@ -105,6 +106,13 @@ v2 = [
               {
                 "alias": null,
                 "args": null,
+                "kind": "ScalarField",
+                "name": "inviteRecipient",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
                 "concreteType": "User",
                 "kind": "LinkedField",
                 "name": "matchedUsers",
@@ -181,12 +189,12 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "f806b1773278459584fac2ea666a411e",
+    "cacheID": "fee626e2645c3a3df301a28cd6fef22d",
     "id": null,
     "metadata": {},
     "name": "contactDiscoveryOperationsQuery",
     "operationKind": "query",
-    "text": "query contactDiscoveryOperationsQuery(\n  $after: String\n  $first: Int!\n) {\n  viewerContactMatches(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        contactName\n        matchedUsers {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query contactDiscoveryOperationsQuery(\n  $after: String\n  $first: Int!\n) {\n  viewerContactMatches(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        contactName\n        inviteRecipient\n        matchedUsers {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

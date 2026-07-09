@@ -1,4 +1,11 @@
-import { act, render, screen, userEvent, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+} from '@testing-library/react-native';
 
 import { OtherUserProfileScreen } from '../../src/profile/other/OtherUserProfileScreen';
 
@@ -57,6 +64,24 @@ beforeEach(() => {
 });
 
 describe('OtherUserProfileScreen social controls', () => {
+  test('blocks a social control submitted in the same tick as follow', async () => {
+    mockQueryData = profileQueryData({
+      isMuted: false,
+      relationshipState: 'NONE',
+    });
+
+    await render(<OtherUserProfileScreen id="opaque-profile-id" />);
+
+    const followButton = screen.getByRole('button', { name: 'Request follow' });
+    const staleMuteButton = screen.getByRole('button', { name: 'Mute' });
+
+    await fireEvent.press(followButton);
+    await fireEvent.press(staleMuteButton);
+
+    expect(mockFollowCommit).toHaveBeenCalledTimes(1);
+    expect(mockMuteCommit).not.toHaveBeenCalled();
+  });
+
   test('mutes and unmutes a profile using its opaque Relay ID', async () => {
     const user = userEvent.setup();
 

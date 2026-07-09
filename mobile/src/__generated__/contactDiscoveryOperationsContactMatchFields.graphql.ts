@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<498d5a27a78ff11e94b6caa0eb7eaa28>>
+ * @generated SignedSource<<9a9fc9d8285149d16a609b776042e88f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ import { FragmentRefs } from "relay-runtime";
 export type contactDiscoveryOperationsContactMatchFields$data = {
   readonly contactName: string | null | undefined;
   readonly id: string;
+  readonly inviteRecipient: string | null | undefined;
   readonly matchedUsers: ReadonlyArray<{
     readonly email: string | null | undefined;
     readonly id: string;
@@ -51,6 +52,13 @@ return {
     {
       "alias": null,
       "args": null,
+      "kind": "ScalarField",
+      "name": "inviteRecipient",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
       "concreteType": "User",
       "kind": "LinkedField",
       "name": "matchedUsers",
@@ -80,6 +88,6 @@ return {
 };
 })();
 
-(node as any).hash = "07898c9c1658bec06307f47868ac4a3c";
+(node as any).hash = "df30ee2cae16500663df2676359d98e2";
 
 export default node;

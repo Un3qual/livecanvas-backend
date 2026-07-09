@@ -103,6 +103,7 @@ describe('ProfileConnectionListScreen with React Native Testing Library', () => 
 
     await render(<ProfileConnectionListScreen kind="viewerFollowers" />);
 
+    expect(screen.getByTestId('profile-connection-list')).toBeOnTheScreen();
     expect(screen.getByText('Followers')).toBeOnTheScreen();
     expect(screen.getByText('first@example.com')).toBeOnTheScreen();
     expect(mockQueryVariables).toEqual({ after: null, first: 20 });

@@ -25,6 +25,7 @@ type Connection<Node> = {
 type ContactMatchNode = {
   readonly contactName: string | null;
   readonly id: string;
+  readonly inviteRecipient: string | null;
   readonly matchedUsers: ReadonlyArray<{
     readonly email: string | null;
     readonly id: string;
@@ -202,6 +203,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
 
     await render(<ContactDiscoveryScreen />);
 
+    expect(screen.getByTestId('contact-discovery-list')).toBeOnTheScreen();
     await user.type(screen.getByLabelText('Contact email'), ' Friend@Example.COM ');
     await user.type(screen.getByLabelText('Display name'), ' Friend Name ');
     const searchButton = screen.getByRole('button', { name: 'Search contacts' });
@@ -257,6 +259,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
         contactMatch: contactMatch({
           contactName: null,
           id: 'contact-match-2',
+          inviteRecipient: 'nomatch@example.com',
           matchedUsers: [],
         }),
         errors: [],
@@ -310,6 +313,29 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     await user.press(screen.getByRole('button', { name: 'Search contacts' }));
 
     expect(screen.getByText('Enter a valid email address.')).toBeOnTheScreen();
+  });
+
+  test('invites a persisted no-match contact after remounting the screen', async () => {
+    const user = userEvent.setup();
+    mockQueryData = {
+      viewerContactMatches: connection([
+        contactMatch({
+          contactName: 'Persisted contact',
+          id: 'contact-match-persisted',
+          inviteRecipient: 'persisted@example.com',
+          matchedUsers: [],
+        }),
+      ]),
+    };
+
+    await render(<ContactDiscoveryScreen />);
+
+    await user.press(screen.getByRole('button', { name: 'Send invite' }));
+
+    expect(mockDeliverInviteCommit).toHaveBeenCalledTimes(1);
+    expect(mockDeliverInviteCommit.mock.calls[0]?.[0].variables).toEqual({
+      input: { recipient: 'persisted@example.com' },
+    });
   });
 
   test('loads additional contact matches from the next page', async () => {
@@ -384,6 +410,7 @@ function contactMatch(overrides: Partial<ContactMatchNode> = {}): ContactMatchNo
   return {
     contactName: 'Contact',
     id: 'contact-match-1',
+    inviteRecipient: null,
     matchedUsers: [],
     ...overrides,
   };

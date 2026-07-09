@@ -1,6 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ListRenderItemInfo,
+} from 'react-native';
 import {
   fetchQuery,
   useLazyLoadQuery,
@@ -174,35 +181,40 @@ export function ProfileConnectionListScreen({
     }
   }
 
+  const renderConnectionRow = useCallback(
+    ({ item: user }: ListRenderItemInfo<ProfileConnectionUser>) => (
+      <View style={styles.section}>
+        <ProfileConnectionRow
+          onOpen={() =>
+            router.push({
+              params: { id: user.id },
+              pathname: '/profiles/[id]',
+            })
+          }
+          user={user}
+        />
+      </View>
+    ),
+    [router],
+  );
+
   return (
-    <ScrollView
+    <FlatList
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
-    >
-      <AppHeader eyebrow="Profile" title={config.title} subtitle={config.subtitle} />
-
-      <View style={styles.section}>
-        {rows.length > 0 ? (
-          rows.map((user) => (
-            <ProfileConnectionRow
-              key={user.id}
-              onOpen={() =>
-                router.push({
-                  params: { id: user.id },
-                  pathname: '/profiles/[id]',
-                })
-              }
-              user={user}
-            />
-          ))
-        ) : (
+      data={rows}
+      keyExtractor={profileConnectionKeyExtractor}
+      ListEmptyComponent={
+        <View style={styles.section}>
           <ScreenState
             state="empty"
             message="No profiles are visible yet."
           />
-        )}
-        {pageInfo.hasNextPage && pageInfo.endCursor ? (
+        </View>
+      }
+      ListFooterComponent={
+        pageInfo.hasNextPage && pageInfo.endCursor ? (
           <View style={styles.loadMorePanel}>
             <AppButton
               disabled={isLoadingMore}
@@ -216,10 +228,26 @@ export function ProfileConnectionListScreen({
               </Text>
             ) : null}
           </View>
-        ) : null}
-      </View>
-    </ScrollView>
+        ) : null
+      }
+      ListFooterComponentStyle={styles.section}
+      ListHeaderComponent={
+        <View style={styles.section}>
+          <AppHeader
+            eyebrow="Profile"
+            title={config.title}
+            subtitle={config.subtitle}
+          />
+        </View>
+      }
+      renderItem={renderConnectionRow}
+      testID="profile-connection-list"
+    />
   );
+}
+
+function profileConnectionKeyExtractor(user: ProfileConnectionUser): string {
+  return user.id;
 }
 
 function ProfileConnectionRow({

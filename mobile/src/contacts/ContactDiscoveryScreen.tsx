@@ -1,6 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type ListRenderItemInfo,
+} from 'react-native';
 import {
   fetchQuery,
   useLazyLoadQuery,
@@ -34,7 +41,6 @@ import {
   contactDiscoveryInviteSentMessage,
   formatContactInviteMutationErrors,
   formatContactUpsertMutationErrors,
-  normalizeContactDiscoveryEmail,
   validateContactDiscoveryEmail,
 } from './contactDiscoveryState';
 
@@ -132,8 +138,6 @@ export function ContactDiscoveryScreen() {
   const [pageInfo, setPageInfo] = useState(() => queryPageInfo);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  const [inviteRecipientsByContactId, setInviteRecipientsByContactId] =
-    useState<Readonly<Record<string, string>>>({});
   const [activeInviteContactId, setActiveInviteContactId] =
     useState<string | null>(null);
   const [inviteErrorsByContactId, setInviteErrorsByContactId] = useState<
@@ -231,15 +235,6 @@ export function ContactDiscoveryScreen() {
         }
 
         setLocalMatches((current) => upsertLocalContactMatch(current, contactMatch));
-
-        if (contactMatch.matchedUsers.length === 0) {
-          const normalizedEmail = normalizeContactDiscoveryEmail(email);
-
-          setInviteRecipientsByContactId((current) => ({
-            ...current,
-            [contactMatch.id]: normalizedEmail,
-          }));
-        }
       },
       onError: () => {
         activeSearchRef.current = false;
@@ -249,148 +244,116 @@ export function ContactDiscoveryScreen() {
     });
   }
 
-  function inviteContact(contactMatch: ContactMatch) {
-    const recipient = inviteRecipientsByContactId[contactMatch.id];
+  const inviteContact = useCallback(
+    (contactMatch: ContactMatch) => {
+      const recipient = contactMatch.inviteRecipient;
 
-    if (
-      !recipient ||
-      activeInviteContactIdRef.current !== null ||
-      activeInviteContactId !== null
-    ) {
-      return;
-    }
+      if (
+        !recipient ||
+        activeInviteContactIdRef.current !== null ||
+        activeInviteContactId !== null
+      ) {
+        return;
+      }
 
-    const input = buildContactInviteInput(recipient);
+      const input = buildContactInviteInput(recipient);
 
-    if (!input) {
-      setInviteErrorsByContactId((current) => ({
-        ...current,
-        [contactMatch.id]: 'Enter a valid email address.',
-      }));
-      return;
-    }
-
-    activeInviteContactIdRef.current = contactMatch.id;
-    setActiveInviteContactId(contactMatch.id);
-    setInviteErrorsByContactId((current) =>
-      omitContactMessage(current, contactMatch.id),
-    );
-    setInviteMessagesByContactId((current) =>
-      omitContactMessage(current, contactMatch.id),
-    );
-
-    commitDeliverInvite({
-      variables: { input },
-      onCompleted: (payload) => {
-        activeInviteContactIdRef.current = null;
-        setActiveInviteContactId(null);
-        const result = payload.deliverViewerContactInvite;
-
-        if (!result || result.errors.length > 0) {
-          setInviteErrorsByContactId((current) => ({
-            ...current,
-            [contactMatch.id]: formatContactInviteMutationErrors(result?.errors),
-          }));
-          return;
-        }
-
-        setInviteMessagesByContactId((current) => ({
-          ...current,
-          [contactMatch.id]: contactDiscoveryInviteSentMessage(recipient),
-        }));
-      },
-      onError: () => {
-        activeInviteContactIdRef.current = null;
-        setActiveInviteContactId(null);
+      if (!input) {
         setInviteErrorsByContactId((current) => ({
           ...current,
-          [contactMatch.id]: formatContactInviteMutationErrors(null),
+          [contactMatch.id]: 'Enter a valid email address.',
         }));
-      },
-    });
-  }
+        return;
+      }
+
+      activeInviteContactIdRef.current = contactMatch.id;
+      setActiveInviteContactId(contactMatch.id);
+      setInviteErrorsByContactId((current) =>
+        omitContactMessage(current, contactMatch.id),
+      );
+      setInviteMessagesByContactId((current) =>
+        omitContactMessage(current, contactMatch.id),
+      );
+
+      commitDeliverInvite({
+        variables: { input },
+        onCompleted: (payload) => {
+          activeInviteContactIdRef.current = null;
+          setActiveInviteContactId(null);
+          const result = payload.deliverViewerContactInvite;
+
+          if (!result || result.errors.length > 0) {
+            setInviteErrorsByContactId((current) => ({
+              ...current,
+              [contactMatch.id]: formatContactInviteMutationErrors(result?.errors),
+            }));
+            return;
+          }
+
+          setInviteMessagesByContactId((current) => ({
+            ...current,
+            [contactMatch.id]: contactDiscoveryInviteSentMessage(recipient),
+          }));
+        },
+        onError: () => {
+          activeInviteContactIdRef.current = null;
+          setActiveInviteContactId(null);
+          setInviteErrorsByContactId((current) => ({
+            ...current,
+            [contactMatch.id]: formatContactInviteMutationErrors(null),
+          }));
+        },
+      });
+    },
+    [activeInviteContactId, commitDeliverInvite],
+  );
+
+  const renderContactMatch = useCallback(
+    ({ item: contactMatch }: ListRenderItemInfo<ContactMatch>) => (
+      <View style={styles.section}>
+        <ContactMatchCard
+          activeInviteContactId={activeInviteContactId}
+          contactMatch={contactMatch}
+          inviteError={inviteErrorsByContactId[contactMatch.id] ?? null}
+          inviteMessage={inviteMessagesByContactId[contactMatch.id] ?? null}
+          inviteRecipient={contactMatch.inviteRecipient ?? null}
+          onInvite={inviteContact}
+          onOpenProfile={(user) =>
+            router.push({
+              params: { id: user.id },
+              pathname: '/profiles/[id]',
+            })
+          }
+        />
+      </View>
+    ),
+    [
+      activeInviteContactId,
+      inviteContact,
+      inviteErrorsByContactId,
+      inviteMessagesByContactId,
+      router,
+    ],
+  );
 
   return (
-    <ScrollView
+    <FlatList
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.content}
-    >
-      <AppHeader
-        eyebrow="Contacts"
-        title="Find contacts"
-        subtitle="Search one email contact at a time."
-      />
-
-      <AppCard style={styles.form}>
-        <TextInput
-          accessibilityLabel="Contact email"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          onChangeText={(value) => {
-            setEmail(value);
-            setSearchError(null);
-          }}
-          placeholder="friend@example.com"
-          style={[
-            styles.input,
-            { borderColor: theme.colors.border, color: theme.colors.text },
-          ]}
-          value={email}
-        />
-        <TextInput
-          accessibilityLabel="Display name"
-          onChangeText={setDisplayName}
-          placeholder="Display name"
-          style={[
-            styles.input,
-            { borderColor: theme.colors.border, color: theme.colors.text },
-          ]}
-          value={displayName}
-        />
-        <AppButton
-          disabled={isSearching}
-          label={isSearching ? 'Searching...' : 'Search contacts'}
-          onPress={submitManualContact}
-        />
-        {searchError ? (
-          <Text style={[styles.metadataText, { color: theme.colors.error }]}>
-            {searchError}
-          </Text>
-        ) : null}
-      </AppCard>
-
-      <View style={styles.section}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Matches
-        </Text>
-        {contactMatches.length > 0 ? (
-          contactMatches.map((contactMatch) => (
-            <ContactMatchCard
-              activeInviteContactId={activeInviteContactId}
-              contactMatch={contactMatch}
-              inviteError={inviteErrorsByContactId[contactMatch.id] ?? null}
-              inviteMessage={inviteMessagesByContactId[contactMatch.id] ?? null}
-              inviteRecipient={
-                inviteRecipientsByContactId[contactMatch.id] ?? null
-              }
-              key={contactMatch.id}
-              onInvite={inviteContact}
-              onOpenProfile={(user) =>
-                router.push({
-                  params: { id: user.id },
-                  pathname: '/profiles/[id]',
-                })
-              }
-            />
-          ))
-        ) : (
+      data={contactMatches}
+      keyExtractor={contactMatchKeyExtractor}
+      keyboardShouldPersistTaps="handled"
+      ListEmptyComponent={
+        <View style={styles.section}>
           <ScreenState
             state="empty"
             message="No contacts have been searched yet."
           />
-        )}
-        {pageInfo.hasNextPage && pageInfo.endCursor ? (
+        </View>
+      }
+      ListFooterComponent={
+        pageInfo.hasNextPage && pageInfo.endCursor ? (
           <View style={styles.loadMorePanel}>
             <AppButton
               disabled={isLoadingMore}
@@ -404,10 +367,72 @@ export function ContactDiscoveryScreen() {
               </Text>
             ) : null}
           </View>
-        ) : null}
-      </View>
-    </ScrollView>
+        ) : null
+      }
+      ListFooterComponentStyle={styles.section}
+      ListHeaderComponent={
+        <>
+          <View style={styles.section}>
+            <AppHeader
+              eyebrow="Contacts"
+              title="Find contacts"
+              subtitle="Search one email contact at a time."
+            />
+          </View>
+          <View style={styles.section}>
+            <AppCard style={styles.form}>
+              <TextInput
+                accessibilityLabel="Contact email"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                onChangeText={(value) => {
+                  setEmail(value);
+                  setSearchError(null);
+                }}
+                placeholder="friend@example.com"
+                style={[
+                  styles.input,
+                  { borderColor: theme.colors.border, color: theme.colors.text },
+                ]}
+                value={email}
+              />
+              <TextInput
+                accessibilityLabel="Display name"
+                onChangeText={setDisplayName}
+                placeholder="Display name"
+                style={[
+                  styles.input,
+                  { borderColor: theme.colors.border, color: theme.colors.text },
+                ]}
+                value={displayName}
+              />
+              <AppButton
+                disabled={isSearching}
+                label={isSearching ? 'Searching...' : 'Search contacts'}
+                onPress={submitManualContact}
+              />
+              {searchError ? (
+                <Text style={[styles.metadataText, { color: theme.colors.error }]}>
+                  {searchError}
+                </Text>
+              ) : null}
+            </AppCard>
+          </View>
+          <View style={styles.section}>
+            <Text style={[styles.title, { color: theme.colors.text }]}>
+              Matches
+            </Text>
+          </View>
+        </>
+      }
+      renderItem={renderContactMatch}
+      testID="contact-discovery-list"
+    />
   );
+}
+
+function contactMatchKeyExtractor(contactMatch: ContactMatch): string {
+  return contactMatch.id;
 }
 
 function ContactMatchCard({
