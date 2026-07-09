@@ -24,6 +24,8 @@ defmodule LC.Content do
   @type post_report_result ::
           {:ok, PostReportSchema.t()} | {:error, changeset() | :not_found | :own_post}
   @type post_report_query_result :: {:ok, Ecto.Query.t()} | {:error, :not_authorized}
+  @type post_report_query_execution_result ::
+          {:ok, [PostReportSchema.t()]} | {:error, :not_authorized}
   @type post_report_moderation_fetch_result ::
           {:ok, PostReportSchema.t()} | {:error, :not_authorized | :not_found}
   @type post_report_decision_result ::
@@ -128,7 +130,7 @@ defmodule LC.Content do
 
     case Repo.insert(changeset) do
       {:ok, report} ->
-        {:ok, report}
+        {:ok, reporter_post_report(report)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         handle_post_report_insert_error(changeset, reporter_id, post_id)
@@ -143,7 +145,9 @@ defmodule LC.Content do
   @spec get_user_post_report(User.t(), integer()) :: PostReportSchema.t() | nil
   def get_user_post_report(%User{id: reporter_id}, report_id)
       when is_integer(report_id) do
-    Repo.get_by(PostReportSchema, id: report_id, reporter_id: reporter_id)
+    PostReportSchema
+    |> Repo.get_by(id: report_id, reporter_id: reporter_id)
+    |> reporter_post_report()
   end
 
   def get_user_post_report(%User{}, _report_id), do: nil
@@ -160,12 +164,15 @@ defmodule LC.Content do
   end
 
   @doc false
-  @spec run_post_reports_moderation_query(Ecto.Query.t()) :: [PostReportSchema.t()]
-  def run_post_reports_moderation_query(%Ecto.Query{} = query) do
-    if post_reports_moderation_query?(query) do
-      Repo.all(query)
-    else
-      raise ArgumentError, "expected an authorized post report moderation query"
+  @spec run_post_reports_moderation_query(Scope.t() | nil, Ecto.Query.t()) ::
+          post_report_query_execution_result()
+  def run_post_reports_moderation_query(scope, %Ecto.Query{} = query) do
+    with :ok <- authorize_post_report_moderation(scope) do
+      if post_reports_moderation_query?(query) do
+        {:ok, Repo.all(query)}
+      else
+        raise ArgumentError, "expected an authorized post report moderation query"
+      end
     end
   end
 
@@ -440,12 +447,25 @@ defmodule LC.Content do
     end
   end
 
+  @spec reporter_post_report(PostReportSchema.t() | nil) :: PostReportSchema.t() | nil
+  defp reporter_post_report(%PostReportSchema{} = report) do
+    %{
+      report
+      | decision_note: nil,
+        reviewed_at: nil,
+        reviewed_by_id: nil
+    }
+  end
+
+  defp reporter_post_report(nil), do: nil
+
   @spec handle_post_report_insert_error(Ecto.Changeset.t(), pos_integer(), pos_integer()) ::
           post_report_result()
   defp handle_post_report_insert_error(changeset, reporter_id, post_id)
        when is_integer(reporter_id) and is_integer(post_id) do
     if unique_post_report_conflict?(changeset) do
-      {:ok, Repo.get_by!(PostReportSchema, reporter_id: reporter_id, post_id: post_id)}
+      report = Repo.get_by!(PostReportSchema, reporter_id: reporter_id, post_id: post_id)
+      {:ok, reporter_post_report(report)}
     else
       {:error, changeset}
     end

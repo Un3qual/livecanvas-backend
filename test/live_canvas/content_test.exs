@@ -347,6 +347,39 @@ defmodule LC.ContentTest do
       assert report_id == report.id
       refute Content.get_user_post_report(other_user, report.id)
     end
+
+    test "redacts staff review metadata from reporter-facing results" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+      staff_scope = Accounts.scope_for_user(staff)
+
+      {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "reported"})
+      {:ok, report} = Content.report_post(reporter, post, %{reason: :other})
+
+      assert {:ok, moderated_report} =
+               Content.decide_post_report(staff_scope, report.id, %{
+                 status: :reviewed,
+                 decision_note: "internal moderation note"
+               })
+
+      assert moderated_report.reviewed_by_id == staff.id
+      assert %DateTime{} = moderated_report.reviewed_at
+      assert moderated_report.decision_note == "internal moderation note"
+
+      assert reporter_report = Content.get_user_post_report(reporter, report.id)
+      assert reporter_report.status == :reviewed
+      assert is_nil(reporter_report.reviewed_by_id)
+      assert is_nil(reporter_report.reviewed_at)
+      assert is_nil(reporter_report.decision_note)
+
+      assert {:ok, duplicate_report} = Content.report_post(reporter, post, %{reason: :spam})
+      assert duplicate_report.id == report.id
+      assert is_nil(duplicate_report.reviewed_by_id)
+      assert is_nil(duplicate_report.reviewed_at)
+      assert is_nil(duplicate_report.decision_note)
+    end
   end
 
   describe "post report moderation" do
@@ -372,10 +405,10 @@ defmodule LC.ContentTest do
       assert {:ok, query} =
                Content.list_post_reports_for_moderation(staff_scope, status: :open)
 
-      assert [first_report.id, second_report.id] ==
-               query
-               |> Content.run_post_reports_moderation_query()
-               |> Enum.map(& &1.id)
+      assert {:ok, open_reports} =
+               Content.run_post_reports_moderation_query(staff_scope, query)
+
+      assert [first_report.id, second_report.id] == Enum.map(open_reports, & &1.id)
 
       assert {:ok, dismissed_report} =
                Content.decide_post_report(staff_scope, second_report.id, %{
@@ -386,10 +419,10 @@ defmodule LC.ContentTest do
       assert {:ok, dismissed_query} =
                Content.list_post_reports_for_moderation(staff_scope, %{"status" => "dismissed"})
 
-      assert [dismissed_report.id] ==
-               dismissed_query
-               |> Content.run_post_reports_moderation_query()
-               |> Enum.map(& &1.id)
+      assert {:ok, dismissed_reports} =
+               Content.run_post_reports_moderation_query(staff_scope, dismissed_query)
+
+      assert [dismissed_report.id] == Enum.map(dismissed_reports, & &1.id)
 
       assert {:ok, fetched_report} =
                Content.get_moderation_post_report(staff_scope, first_report.id)
@@ -404,13 +437,21 @@ defmodule LC.ContentTest do
 
       assert {:error, :not_authorized} =
                Content.list_post_reports_for_moderation(nil, status: :open)
+
+      assert {:error, :not_authorized} =
+               Content.run_post_reports_moderation_query(nonstaff_scope, query)
     end
 
     test "does not expose a generic public query runner" do
+      staff = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+      staff_scope = Accounts.scope_for_user(staff)
+
       refute function_exported?(Content, :run_query, 1)
+      refute function_exported?(Content, :run_post_reports_moderation_query, 1)
 
       assert_raise ArgumentError, ~r/authorized post report moderation query/, fn ->
-        Content.run_post_reports_moderation_query(from(post in PostSchema))
+        Content.run_post_reports_moderation_query(staff_scope, from(post in PostSchema))
       end
     end
 

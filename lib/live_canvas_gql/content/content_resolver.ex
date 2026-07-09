@@ -289,7 +289,12 @@ defmodule LCGQL.Content.Resolver do
       {:ok, query} ->
         Absinthe.Relay.Connection.from_query(
           query,
-          &Content.run_post_reports_moderation_query/1,
+          fn paginated_query ->
+            case Content.run_post_reports_moderation_query(scope, paginated_query) do
+              {:ok, reports} -> reports
+              {:error, :not_authorized} -> []
+            end
+          end,
           args
         )
 
