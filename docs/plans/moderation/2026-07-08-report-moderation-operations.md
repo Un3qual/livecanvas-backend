@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: backend
-Status: implemented
+Status: complete; review hardening verified 2026-07-09
 
 ## Executor Brief
 
@@ -11,8 +11,9 @@ authorization, report queue visibility, report decisions, GraphQL coverage, and
 minimal operator-ready API. This is backend and GraphQL only; do not add a
 Phoenix or mobile moderation UI in this batch.
 
-This plan is not the active backend lane batch until
-`docs/plans/backend/NOW.md` selects it.
+The backend lane selected and completed this batch. Review hardening now keeps
+the latest terminal decision's actor, timestamp, and note together and includes
+`decidePostReport` in the GraphQL mutation limiter.
 
 ## Context
 

@@ -15,10 +15,9 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: issue-driven
-- Completed track: Live Media Runtime Foundation
-- Completed source plan:
-  `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
+- State: complete; next issue-driven batch not selected
+- Latest completed source plan:
+  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
   contract, resolver, runtime, or data issue
@@ -28,33 +27,33 @@ Use this file when:
 - Pointer: `docs/plans/mobile/NOW.md`
 - State: complete; next product-completeness task not selected
 - Track: `docs/plans/mobile/TRACK.md`
-- Latest completed product theme: mobile post composer
-- Latest completed detailed plan:
-  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+- Latest completed product theme: July 8 mobile product-gap batch
+- Latest completed detailed plans: account settings and recovery, existing
+  social controls, contact discovery, post owner controls, and profile
+  connection lists
 - Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
   payload normalization, and a completed backend media runtime foundation. The
   completed chat batch adds retained timeline history and live chat channel
   integration. Frontend structure, TypeScript readability, and XState live
-  workflow cleanup are complete. The queued feature follow-ups through feed,
-  content discovery, and mobile post composer are complete; release-candidate
-  manual device QA remains deferred while the next product task is selected.
+  workflow cleanup are complete. The queued feature follow-ups through the July
+  8 product-gap batch are complete for their selected scopes; reversible
+  unfollow/unblock and release-candidate manual QA remain deferred.
 
 ## Track Registry
 
 ### Cross-Lane Product Week
 
 - Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
-- State: active
-- Current theme: select the next product-completeness task after completing the
-  mobile post composer surface; promote backend fixes only for reproduced
-  product issues
+- State: complete for the July 8 product-gap batch
+- Current theme: select the next product-completeness task after account,
+  social, contact, post-owner, profile-connection, and moderation work
 - Notes: release-candidate manual QA, compliance hard-delete enablement, and
   backend starter-kit extraction remain outside this week unless explicitly
   resumed
 
 ### Product Gap Candidate Plans
 
-- State: draft backlog; none selected as a lane current batch
+- State: implemented for the selected scopes; none remains the active lane batch
 - Mobile account settings and recovery:
   `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
 - Mobile social controls:
@@ -67,9 +66,10 @@ Use this file when:
   `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 - Backend report moderation operations:
   `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
-- Notes: these plans document product-completeness gaps identified after the
-  mobile post composer batch. Promote one plan through the relevant lane
-  `NOW.md` before implementation.
+- Notes: account settings, contact discovery, post owner controls, profile
+  connection lists, moderation operations, and the existing-contract portion
+  of social controls are complete. Social-control Tasks 3-4 remain deferred
+  pending explicit backend/mobile promotion.
 
 ### Backend Live Media Signaling Contract
 
@@ -90,9 +90,9 @@ Use this file when:
 
 - Track: `docs/plans/mobile/TRACK.md`
 - State: complete; next product-completeness task not selected
-- Latest completed theme: mobile post composer
+- Latest completed theme: July 8 mobile product-gap batch
 - Latest completed detailed plan:
-  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+  `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
 ### Backend Code Quality Cleanup
 

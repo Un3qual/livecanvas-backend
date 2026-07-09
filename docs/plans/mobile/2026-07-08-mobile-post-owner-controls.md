@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile
-Status: implemented on `codex/execute-mobile-product-gaps`
+Status: complete; review hardening verified 2026-07-09
 
 ## Executor Brief
 
@@ -11,9 +11,9 @@ feed using the existing Relay `updatePost` and `deletePost` mutations. Determine
 ownership only by comparing opaque Relay IDs already present in the feed query:
 `viewer.id` and `post.author.id`.
 
-This plan is not the active mobile lane batch until `docs/plans/mobile/NOW.md`
-selects it. If implemented alongside PR 110, avoid overlapping changes to the
-post composer/media attachment files unless that PR has merged.
+The mobile lane selected and completed this batch. Review hardening serializes
+owner-control transitions across every visible post, including stale controls
+dispatched before a React rerender.
 
 ## Context
 

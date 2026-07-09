@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile first; backend only for reversible controls
-Status: mobile-only first batch implemented on `codex/execute-mobile-product-gaps`
+Status: Tasks 1-2 complete; reversible controls in Tasks 3-4 deferred
 
 ## Executor Brief
 
@@ -11,8 +11,9 @@ contracts that already exist. Keep unfollow and unblock behind a backend
 contract follow-up, because the current schema does not expose `unfollowUser`,
 `unblockUser`, or a direction-safe blocked-by-viewer field.
 
-This plan is not the active mobile lane batch until `docs/plans/mobile/NOW.md`
-selects it.
+The mobile lane selected and completed Tasks 1-2. Review hardening now uses one
+synchronous action guard across follow, mute, unmute, and block. Tasks 3-4
+remain an explicit backend/mobile follow-up rather than part of this batch.
 
 ## Context
 

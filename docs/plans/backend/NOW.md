@@ -1,53 +1,39 @@
 # Backend Lane NOW
 
-Last reviewed: 2026-06-30
-Status: issue-driven; completed backend plans archived
+Last reviewed: 2026-07-09
+Status: report moderation and cross-lane account/contact contracts complete
 
 ## Lane Scope
 
 - Own backend Elixir/GraphQL code and backend planning docs.
-- Do not edit `mobile/` or `docs/plans/mobile/**` from this lane.
+- Cross-lane mobile contract work must name its backend write scope explicitly.
 - Shared coordinator docs and shared contracts require explicit assignment.
 
 ## Current Batch
 
 - Source plan:
-  `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
-- Track: live media runtime foundation
-- Task: complete
-- Write scope: backend live runtime code, backend tests, migrations, backend
-  planning docs, and the media signaling contract
-- Done condition: final verification passed for durable media readiness,
-  provider-backed ICE/TURN setup, validated signaling-driven readiness, and
-  `goLiveSession` retry semantics.
-
-## Handoff Context
-
-Completed prerequisite:
-`docs/plans/archive/completed/backend/2026-06-03-live-media-signaling-contract.md`
-
-Mobile integration:
-`docs/plans/archive/completed/mobile/2026-06-04-host-broadcast-media-signaling-integration.md`
-
-Mobile-facing contracts:
-
-- `docs/contracts/mobile-live-media-signaling.md`
-- `docs/contracts/mobile-live-session-graphql.md`
+  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
+- Task: complete, including PR review hardening.
+- Write scope: staff report authorization, moderation queue and decision API,
+  mutation limiting, identity unlink safety, contact-match projection, GraphQL
+  schema, and focused backend tests.
+- Done condition: met. Staff-only moderation operations are Relay-first and
+  rate-limited; the latest terminal decision owns one atomic actor/time/note
+  tuple; passwordless users cannot unlink their last provider identity; and
+  persisted contact matches expose a viewer-owned invite recipient.
+- Verification:
+  - `mix test test/live_canvas/accounts_test.exs test/live_canvas/content_test.exs test/live_canvas_gql/accounts/contact_resolver_test.exs test/live_canvas_gql/accounts/contact_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas/accounts/auth_event_test.exs`
+  - `mix typecheck`
+  - `git diff --check`
 
 ## Next Action
 
-No standalone backend lane batch is currently selected. Work through backend
-issues as needed when active frontend/mobile product work exposes a verified
-GraphQL contract, resolver, runtime, data, or release-readiness problem. When
-that happens, promote the backend issue here with an explicit write scope and
-verification list before implementation.
+No standalone backend batch is selected. Promote the next verified product
+contract or runtime issue here before implementation. Do not reopen the broader
+release-readiness roadmap solely because this cross-lane batch completed.
 
 ## References
 
-- Cleanup inventory: `docs/plans/archive/completed/backend/2026-05-22-code-quality-cleanup.md`
-- GEN-001 design:
-  `docs/plans/archive/completed/backend/2026-05-31-gen-001-chat-timeline-event-redesign.md`
-- GEN-001 implementation:
-  `docs/plans/archive/completed/backend/2026-05-31-gen-001-chat-timeline-event-implementation-plan.md`
-- Live media signaling contract:
-  `docs/plans/archive/completed/backend/2026-06-03-live-media-signaling-contract.md`
+- Previous completed backend foundation:
+  `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
+- Mobile product-gap batch: `docs/plans/mobile/NOW.md`

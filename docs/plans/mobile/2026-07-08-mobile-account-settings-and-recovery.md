@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile, with one backend contract check
-Status: implemented on `codex/execute-mobile-product-gaps`
+Status: complete; review hardening verified 2026-07-09
 
 ## Executor Brief
 
@@ -12,9 +12,9 @@ export requests, and account deletion request/cancel. Keep the UX small and
 functional: signed-out recovery lives in the auth stack, signed-in account
 settings lives under `/settings`, and all IDs remain opaque Relay IDs.
 
-This plan is not the active mobile lane batch until `docs/plans/mobile/NOW.md`
-selects it. If implemented while PR 110 is still open, avoid the media composer
-write scope from that PR.
+The mobile lane selected and completed this batch. Review hardening adds a
+server-enforced last-sign-in-method invariant and a viewer-scoped `canUnlink`
+hint so the screen cannot strand passwordless accounts.
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile
-Status: implemented on `codex/execute-mobile-product-gaps`
+Status: complete; review hardening verified 2026-07-09
 
 ## Executor Brief
 
@@ -10,8 +10,9 @@ Add dedicated paginated followers, following, and pending follow-request screens
 from mobile profile previews. Reuse existing Relay profile/social contracts,
 keep routes thin, and keep pagination state in tested helpers.
 
-This plan is not the active mobile lane batch until `docs/plans/mobile/NOW.md`
-selects it.
+The mobile lane selected and completed this batch. Review hardening converts
+followers, following, pending requests, and contact discovery to virtualized
+lists while preserving Relay pagination and row-local actions.
 
 ## Context
 

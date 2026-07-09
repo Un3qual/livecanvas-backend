@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile
-Status: implemented on `codex/execute-mobile-product-gaps`
+Status: complete; review hardening verified 2026-07-09
 
 ## Executor Brief
 
@@ -11,8 +11,9 @@ email contact, see backend contact matches, open matched profiles, or deliver an
 invite when no match exists. Use the existing contact GraphQL APIs and avoid
 native address-book access in this first batch.
 
-This plan is not the active mobile lane batch until `docs/plans/mobile/NOW.md`
-selects it.
+The mobile lane selected and completed this batch. Review hardening persists a
+viewer-owned invite recipient in the contact-match projection and virtualizes
+the paginated result list.
 
 ## Context
 
