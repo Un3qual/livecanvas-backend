@@ -107,6 +107,42 @@ type ReportPostMutationConfig = {
   }) => void;
   readonly onError?: (error: Error) => void;
 };
+type UpdatePostMutationConfig = {
+  readonly variables: {
+    readonly input: {
+      readonly bodyText: string;
+      readonly postId: string;
+      readonly visibility: string;
+    };
+  };
+  readonly onCompleted?: (payload: {
+    readonly updatePost: {
+      readonly errors: ReadonlyArray<{
+        readonly field: string | null;
+        readonly message: string;
+      }>;
+      readonly post: PostNode | null;
+    } | null;
+  }) => void;
+  readonly onError?: (error: Error) => void;
+};
+type DeletePostMutationConfig = {
+  readonly variables: {
+    readonly input: {
+      readonly postId: string;
+    };
+  };
+  readonly onCompleted?: (payload: {
+    readonly deletePost: {
+      readonly deletedPostId: string | null;
+      readonly errors: ReadonlyArray<{
+        readonly field: string | null;
+        readonly message: string;
+      }>;
+    } | null;
+  }) => void;
+  readonly onError?: (error: Error) => void;
+};
 
 let mockQueryData: FeedHomeQueryData;
 let mockQueryVariables: QueryVariables | null;
@@ -116,6 +152,10 @@ let mockFetchQueryResult: FeedHomeQueryData;
 let mockPushedRoutes: unknown[];
 const mockReportPostCommit =
   jest.fn<undefined, [ReportPostMutationConfig]>();
+const mockUpdatePostCommit =
+  jest.fn<undefined, [UpdatePostMutationConfig]>();
+const mockDeletePostCommit =
+  jest.fn<undefined, [DeletePostMutationConfig]>();
 
 jest.mock('expo-router', () => ({
   Redirect: function RedirectMock(_props: { href: string }) {
@@ -148,7 +188,7 @@ jest.mock('react-relay', () => ({
           : Promise.resolve(mockFetchQueryResult),
     };
   },
-  graphql: jest.fn((query: TemplateStringsArray) => query),
+  graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
   useLazyLoadQuery: (
     _query: unknown,
     variables: QueryVariables,
@@ -156,9 +196,41 @@ jest.mock('react-relay', () => ({
     mockQueryVariables = variables;
     return mockQueryData;
   },
-  useMutation: () => [mockReportPostCommit, false],
+  useMutation: (mutation: unknown) => {
+    const operationName = mockRelayOperationName(mutation);
+
+    if (operationName.includes('UpdatePost')) {
+      return [mockUpdatePostCommit, false];
+    }
+
+    if (operationName.includes('DeletePost')) {
+      return [mockDeletePostCommit, false];
+    }
+
+    return [mockReportPostCommit, false];
+  },
   useRelayEnvironment: () => ({ environment: 'relay' }),
 }));
+
+function mockRelayOperationName(mutation: unknown): string {
+  if (typeof mutation === 'string') {
+    return mutation;
+  }
+
+  if (
+    mutation !== null &&
+    typeof mutation === 'object' &&
+    'params' in mutation
+  ) {
+    const params = mutation.params as { readonly name?: unknown };
+
+    if (typeof params.name === 'string') {
+      return params.name;
+    }
+  }
+
+  return '';
+}
 
 beforeEach(() => {
   mockQueryData = createFilledQueryData();
@@ -168,6 +240,8 @@ beforeEach(() => {
   mockFetchQueryResult = createFilledQueryData();
   mockPushedRoutes = [];
   mockReportPostCommit.mockClear();
+  mockUpdatePostCommit.mockClear();
+  mockDeletePostCommit.mockClear();
 });
 
 describe('FeedHomeScreen with React Native Testing Library', () => {
@@ -830,6 +904,18 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
         variant: 'secondary',
       },
       {
+        key: 'contacts',
+        label: 'Find contacts',
+        route: '/contacts',
+        variant: 'secondary',
+      },
+      {
+        key: 'settings',
+        label: 'Settings',
+        route: '/settings',
+        variant: 'secondary',
+      },
+      {
         key: 'diagnostics',
         label: 'Diagnostics',
         route: '/diagnostics',
@@ -848,6 +934,18 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
         key: 'profile',
         label: 'Open profile',
         route: '/profile',
+        variant: 'secondary',
+      },
+      {
+        key: 'contacts',
+        label: 'Find contacts',
+        route: '/contacts',
+        variant: 'secondary',
+      },
+      {
+        key: 'settings',
+        label: 'Settings',
+        route: '/settings',
         variant: 'secondary',
       },
       {
@@ -873,8 +971,10 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     await render(<FeedHomeContent />);
 
     await user.press(screen.getByRole('button', { name: 'Create post' }));
+    await user.press(screen.getByRole('button', { name: 'Find contacts' }));
+    await user.press(screen.getByRole('button', { name: 'Settings' }));
 
-    expect(mockPushedRoutes).toEqual(['/compose']);
+    expect(mockPushedRoutes).toEqual(['/compose', '/contacts', '/settings']);
   });
 
   test('renders section-specific empty states', async () => {
@@ -975,6 +1075,131 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     expect(screen.getByText('Own post')).toBeOnTheScreen();
     expect(screen.getByText('Report submitted.')).toBeOnTheScreen();
     expect(screen.queryByText('Report reason: SPAM')).toBeNull();
+  });
+
+  test('edits viewer-owned posts inline and leaves mutation errors retryable', async () => {
+    const user = userEvent.setup();
+    mockQueryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          author: {
+            email: 'viewer@example.com',
+            id: 'viewer-1',
+          },
+          bodyText: 'Own post',
+          id: 'own-post',
+          visibility: 'FOLLOWERS',
+        }),
+        post({ bodyText: 'Other post', id: 'post-1' }),
+      ]),
+      storyFeed: connection([]),
+    };
+
+    await render(<FeedHomeContent />);
+
+    expect(screen.getByRole('button', { name: 'Edit post' })).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Delete post' })).toBeOnTheScreen();
+    expect(
+      screen.queryAllByRole('button', { name: 'Report post' }),
+    ).toHaveLength(1);
+
+    await user.press(screen.getByRole('button', { name: 'Edit post' }));
+
+    const bodyInput = screen.getByDisplayValue('Own post');
+    await user.clear(bodyInput);
+    await user.type(bodyInput, '  Updated owner post  ');
+    await user.press(screen.getByRole('button', { name: 'Public' }));
+    await user.press(screen.getByRole('button', { name: 'Save post' }));
+
+    expect(mockUpdatePostCommit).toHaveBeenCalledTimes(1);
+    expect(mockUpdatePostCommit.mock.calls[0]?.[0].variables).toEqual({
+      input: {
+        bodyText: 'Updated owner post',
+        postId: 'own-post',
+        visibility: 'PUBLIC',
+      },
+    });
+
+    await completeUpdatePost({
+      updatePost: {
+        errors: [{ field: 'postId', message: 'not_found' }],
+        post: null,
+      },
+    });
+
+    expect(screen.getByText('This post is no longer available.')).toBeOnTheScreen();
+
+    await user.press(screen.getByRole('button', { name: 'Save post' }));
+
+    expect(mockUpdatePostCommit).toHaveBeenCalledTimes(2);
+
+    await completeUpdatePost(
+      {
+        updatePost: {
+          errors: [],
+          post: post({
+            author: {
+              email: 'viewer@example.com',
+              id: 'viewer-1',
+            },
+            bodyText: 'Updated owner post',
+            id: 'own-post',
+            visibility: 'PUBLIC',
+          }),
+        },
+      },
+      1,
+    );
+
+    expect(screen.getByText('Updated owner post')).toBeOnTheScreen();
+    expect(screen.queryByText('Own post')).toBeNull();
+  });
+
+  test('confirms delete before removing viewer-owned rows locally', async () => {
+    const user = userEvent.setup();
+    mockQueryData = {
+      ...createFilledQueryData(),
+      homeFeed: connection([
+        post({
+          author: {
+            email: 'viewer@example.com',
+            id: 'viewer-1',
+          },
+          bodyText: 'Own post',
+          id: 'own-post',
+        }),
+      ]),
+      storyFeed: connection([]),
+    };
+
+    await render(<FeedHomeContent />);
+
+    await user.press(screen.getByRole('button', { name: 'Delete post' }));
+
+    expect(
+      screen.getByText('Delete this post? This cannot be undone.'),
+    ).toBeOnTheScreen();
+    expect(mockDeletePostCommit).not.toHaveBeenCalled();
+
+    await user.press(screen.getByRole('button', { name: 'Confirm delete' }));
+
+    expect(mockDeletePostCommit).toHaveBeenCalledTimes(1);
+    expect(mockDeletePostCommit.mock.calls[0]?.[0].variables).toEqual({
+      input: {
+        postId: 'own-post',
+      },
+    });
+
+    await completeDeletePost({
+      deletePost: {
+        deletedPostId: 'own-post',
+        errors: [],
+      },
+    });
+
+    expect(screen.queryByText('Own post')).toBeNull();
+    expect(screen.getByText('No feed posts are available yet.')).toBeOnTheScreen();
   });
 
   test('refreshes the home query without clearing local report confirmation', async () => {
@@ -1159,6 +1384,31 @@ async function completeReportPost(
   payload: Parameters<NonNullable<ReportPostMutationConfig['onCompleted']>>[0],
 ) {
   const config = mockReportPostCommit.mock.calls[0]?.[0];
+
+  expect(config).toBeDefined();
+
+  await act(() => {
+    config?.onCompleted?.(payload);
+  });
+}
+
+async function completeUpdatePost(
+  payload: Parameters<NonNullable<UpdatePostMutationConfig['onCompleted']>>[0],
+  callIndex = 0,
+) {
+  const config = mockUpdatePostCommit.mock.calls[callIndex]?.[0];
+
+  expect(config).toBeDefined();
+
+  await act(() => {
+    config?.onCompleted?.(payload);
+  });
+}
+
+async function completeDeletePost(
+  payload: Parameters<NonNullable<DeletePostMutationConfig['onCompleted']>>[0],
+) {
+  const config = mockDeletePostCommit.mock.calls[0]?.[0];
 
   expect(config).toBeDefined();
 

@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile
-Status: draft ready for review
+Status: implemented on `codex/execute-mobile-product-gaps`
 
 ## Executor Brief
 
@@ -34,12 +34,12 @@ Files:
 - Read-only audit: relevant profile/social GraphQL resolver tests
 
 Acceptance criteria:
-- [ ] Confirm the schema exposes enough data for viewer followers, viewer
+- [x] Confirm the schema exposes enough data for viewer followers, viewer
       following, other-user followers, other-user following, and viewer pending
       follow requests.
-- [ ] Add helpers to read an optional opaque profile ID route param.
-- [ ] Add tests for missing, single, and array route param values.
-- [ ] Record any backend contract gap in this plan before implementation if the
+- [x] Add helpers to read an optional opaque profile ID route param.
+- [x] Add tests for missing, single, and array route param values.
+- [x] Record any backend contract gap in this plan before implementation if the
       audit finds one.
 
 Focused verification:
@@ -54,13 +54,13 @@ Files:
 - Test: `mobile/tests/profile/profileConnectionPagination.test.ts`
 
 Acceptance criteria:
-- [ ] Add helpers for reading `pageInfo`, appending nodes, and deduplicating by
+- [x] Add helpers for reading `pageInfo`, appending nodes, and deduplicating by
       opaque `id`.
-- [ ] Add operations for viewer followers and following.
-- [ ] Add operations for other-user followers and following.
-- [ ] Add operations for viewer pending follow requests with accept and decline
+- [x] Add operations for viewer followers and following.
+- [x] Add operations for other-user followers and following.
+- [x] Add operations for viewer pending follow requests with accept and decline
       mutations.
-- [ ] Keep operation naming specific enough for generated Relay artifacts to be
+- [x] Keep operation naming specific enough for generated Relay artifacts to be
       obvious in diffs.
 
 Focused verification:
@@ -78,12 +78,12 @@ Files:
 - Test: `mobile/tests/profile/ProfileConnectionListScreen.test.tsx`
 
 Acceptance criteria:
-- [ ] Viewer routes render the viewer followers and following connections.
-- [ ] Other-profile routes render the target profile connections when the
+- [x] Viewer routes render the viewer followers and following connections.
+- [x] Other-profile routes render the target profile connections when the
       backend allows them.
-- [ ] Rows navigate to profile detail using opaque IDs.
-- [ ] `Load more` uses cursor pagination and disables while in flight.
-- [ ] Empty and unavailable states do not leak private relationship detail.
+- [x] Rows navigate to profile detail using opaque IDs.
+- [x] `Load more` uses cursor pagination and disables while in flight.
+- [x] Empty and unavailable states do not leak private relationship detail.
 
 Focused verification:
 - From `mobile/`: `bun test tests/profile/ProfileConnectionListScreen.test.tsx`
@@ -96,12 +96,12 @@ Files:
 - Test: `mobile/tests/profile/PendingFollowRequestsScreen.test.tsx`
 
 Acceptance criteria:
-- [ ] The screen renders pending follow requests with requester summary rows.
-- [ ] Accept and decline actions reuse existing GraphQL mutations.
-- [ ] Only one row action is active per requester at a time.
-- [ ] Successful accept or decline removes or refreshes the row in a tested way.
-- [ ] Errors remain row-local and retryable.
-- [ ] Pagination continues to work after row actions.
+- [x] The screen renders pending follow requests with requester summary rows.
+- [x] Accept and decline actions reuse existing GraphQL mutations.
+- [x] Only one row action is active per requester at a time.
+- [x] Successful accept or decline removes or refreshes the row in a tested way.
+- [x] Errors remain row-local and retryable.
+- [x] Pagination continues to work after row actions.
 
 Focused verification:
 - From `mobile/`: `bun test tests/profile/PendingFollowRequestsScreen.test.tsx`
@@ -116,12 +116,28 @@ Files:
 - Test: relevant viewer and other-profile screen tests
 
 Acceptance criteria:
-- [ ] Viewer profile preview actions route to `/profile/followers`,
+- [x] Viewer profile preview actions route to `/profile/followers`,
       `/profile/following`, and `/profile/requests`.
-- [ ] Other-profile preview actions route to `/profiles/[id]/followers` and
+- [x] Other-profile preview actions route to `/profiles/[id]/followers` and
       `/profiles/[id]/following`.
-- [ ] Existing compact previews remain small and scannable.
-- [ ] Hidden counts or unavailable lists do not gain new visible disclosure.
+- [x] Existing compact previews remain small and scannable.
+- [x] Hidden counts or unavailable lists do not gain new visible disclosure.
+
+## Evidence
+
+- Schema audit confirmed existing mobile GraphQL coverage for viewer followers,
+  viewer following, other-user followers/following through `node(id:)`, viewer
+  pending follow requests, and accept/decline follow-request mutations. No
+  backend contract gap was found.
+- `bun test tests/profile/profileRouteParams.test.ts tests/profile/profileConnectionPagination.test.ts` -> 3 pass.
+- `pnpm exec jest --config ./jest.config.js tests/profile/ProfileConnectionListScreen.rntl.tsx --runInBand` -> 3 pass.
+- `pnpm exec jest --config ./jest.config.js tests/profile/PendingFollowRequestsScreen.rntl.tsx --runInBand` -> 3 pass.
+- `pnpm exec jest --config ./jest.config.js tests/profile/ProfilePreviewLinks.rntl.tsx --runInBand` -> 2 pass.
+- `bun run relay` -> completed.
+- `bun run typecheck` -> passed.
+- `bun run typecheck:tests` -> passed.
+
+Note: component coverage uses the existing Jest/RNTL `*.rntl.tsx` convention.
 
 Focused verification:
 - From `mobile/`: run the focused viewer and other-profile screen tests touched

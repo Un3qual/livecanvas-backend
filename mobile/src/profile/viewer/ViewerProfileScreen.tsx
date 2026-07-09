@@ -479,6 +479,11 @@ function ViewerProfileContent() {
           title="Followers"
           subtitle={`${followers.length} visible in preview`}
         />
+        <AppButton
+          label="View all followers"
+          onPress={() => router.push('/profile/followers')}
+          variant="secondary"
+        />
         <ProfilePreviewList
           users={followers}
           emptyMessage="No followers are visible yet."
@@ -491,6 +496,11 @@ function ViewerProfileContent() {
           title="Following"
           subtitle={`${following.length} visible in preview`}
         />
+        <AppButton
+          label="View all following"
+          onPress={() => router.push('/profile/following')}
+          variant="secondary"
+        />
         <ProfilePreviewList
           users={following}
           emptyMessage="No followed profiles are visible yet."
@@ -502,6 +512,11 @@ function ViewerProfileContent() {
         <SectionHeading
           title="Requests"
           subtitle={`${pendingRequests.length} pending in preview`}
+        />
+        <AppButton
+          label="View requests"
+          onPress={() => router.push('/profile/requests')}
+          variant="secondary"
         />
         <PendingRequestPreviewList
           activeAction={followRequestState.activeAction}

@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile
-Status: draft ready for review
+Status: implemented on `codex/execute-mobile-product-gaps`
 
 ## Executor Brief
 
@@ -34,13 +34,13 @@ Files:
 - Test: `mobile/tests/feed/postOwnerControlsState.test.ts`
 
 Acceptance criteria:
-- [ ] Add `isViewerOwnedPost(viewerId, postAuthorId)` using opaque string
+- [x] Add `isViewerOwnedPost(viewerId, postAuthorId)` using opaque string
       equality only.
-- [ ] Add edit-state helpers for body text and visibility.
-- [ ] Build `updatePost` input with trimmed body text and selected visibility.
-- [ ] Block empty updates and body text over the current post length limit.
-- [ ] Map known mutation errors to viewer-safe copy.
-- [ ] Keep delete confirmation copy in one helper so screen tests do not
+- [x] Add edit-state helpers for body text and visibility.
+- [x] Build `updatePost` input with trimmed body text and selected visibility.
+- [x] Block empty updates and body text over the current post length limit.
+- [x] Map known mutation errors to viewer-safe copy.
+- [x] Keep delete confirmation copy in one helper so screen tests do not
       duplicate strings.
 
 Focused verification:
@@ -55,11 +55,11 @@ Files:
 - Test if operation text is covered: relevant feed operation tests
 
 Acceptance criteria:
-- [ ] Add an `updatePost` mutation returning the same post fields consumed by
+- [x] Add an `updatePost` mutation returning the same post fields consumed by
       the feed row, including media assets if the feed query includes them.
-- [ ] Add a `deletePost` mutation returning `deletedPostId` and structured
+- [x] Add a `deletePost` mutation returning `deletedPostId` and structured
       errors.
-- [ ] Keep operation fragments compatible with Relay compiler output.
+- [x] Keep operation fragments compatible with Relay compiler output.
 
 Focused verification:
 - From `mobile/`: `bun run relay`
@@ -72,17 +72,28 @@ Files:
 - Test: `mobile/tests/feed/FeedHomeScreen.test.tsx`
 
 Acceptance criteria:
-- [ ] Viewer-owned posts show edit and delete controls where non-owned posts
+- [x] Viewer-owned posts show edit and delete controls where non-owned posts
       show report controls.
-- [ ] Edit mode is inline and supports cancel/save without losing the current
+- [x] Edit mode is inline and supports cancel/save without losing the current
       feed row.
-- [ ] Delete requires confirmation before committing.
-- [ ] In-flight update and delete actions disable duplicate submits.
-- [ ] Successful update updates local presentation or refetches in a tested
+- [x] Delete requires confirmation before committing.
+- [x] In-flight update and delete actions disable duplicate submits.
+- [x] Successful update updates local presentation or refetches in a tested
       way.
-- [ ] Successful delete removes the row through a local deleted-ID set or a
+- [x] Successful delete removes the row through a local deleted-ID set or a
       Relay updater without mutating retained pagination data unsafely.
-- [ ] Mutation errors leave the row retryable.
+- [x] Mutation errors leave the row retryable.
+
+## Evidence
+
+- `bun test tests/feed/postOwnerControlsState.test.ts` -> 5 pass.
+- `pnpm exec jest --config ./jest.config.js tests/feed/FeedHomeScreen.rntl.tsx --runInBand` -> 22 pass.
+- `bun run relay` -> completed.
+- `bun run typecheck` -> passed.
+- `bun run typecheck:tests` -> passed.
+
+Note: the component test in this repo is the existing Jest/RNTL
+`tests/feed/FeedHomeScreen.rntl.tsx`, not a Bun `FeedHomeScreen.test.tsx` file.
 
 Focused verification:
 - From `mobile/`: `bun test tests/feed/FeedHomeScreen.test.tsx`

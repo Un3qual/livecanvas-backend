@@ -138,6 +138,10 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
     });
   };
 
+  const handlePasswordRecoveryPress = () => {
+    router.push('/password-recovery');
+  };
+
   return (
     <AuthEntryScreenLayout backgroundColor={theme.colors.background}>
       <AuthEntryCard
@@ -149,6 +153,7 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
         onAppleSubmit={handleAppleSubmit}
         onEmailChange={handleEmailChange}
         onGoogleSubmit={handleGoogleSubmit}
+        onPasswordRecoveryPress={handlePasswordRecoveryPress}
         onPasswordChange={handlePasswordChange}
         onPasswordConfirmationChange={handlePasswordConfirmationChange}
         onPasswordSubmit={handlePasswordSubmit}
@@ -170,6 +175,7 @@ type AuthEntryCardProps = {
   onGoogleSubmit: () => void;
   onPasswordChange: (value: string) => void;
   onPasswordConfirmationChange: (value: string) => void;
+  onPasswordRecoveryPress: () => void;
   onPasswordSubmit: () => void;
   password: string;
   passwordConfirmation: string;
@@ -213,6 +219,7 @@ function AuthEntryCard({
   onGoogleSubmit,
   onPasswordChange,
   onPasswordConfirmationChange,
+  onPasswordRecoveryPress,
   onPasswordSubmit,
   password,
   passwordConfirmation,
@@ -234,6 +241,7 @@ function AuthEntryCard({
         onGoogleSubmit={onGoogleSubmit}
         onPasswordChange={onPasswordChange}
         onPasswordConfirmationChange={onPasswordConfirmationChange}
+        onPasswordRecoveryPress={onPasswordRecoveryPress}
         onPasswordSubmit={onPasswordSubmit}
         password={password}
         passwordConfirmation={passwordConfirmation}
@@ -262,6 +270,7 @@ function AuthEntryForm({
   onGoogleSubmit,
   onPasswordChange,
   onPasswordConfirmationChange,
+  onPasswordRecoveryPress,
   onPasswordSubmit,
   password,
   passwordConfirmation,
@@ -310,6 +319,14 @@ function AuthEntryForm({
         }
         onPress={onPasswordSubmit}
       />
+      {mode === 'signIn' ? (
+        <AppButton
+          disabled={controller.isBusy}
+          label="Forgot password?"
+          onPress={onPasswordRecoveryPress}
+          variant="secondary"
+        />
+      ) : null}
       <AuthEntryOauthActions
         controller={controller}
         onAppleSubmit={onAppleSubmit}

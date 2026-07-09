@@ -106,9 +106,13 @@ export function ProfileSummaryCard({
 export function SocialPreviewCard({
   followersPreviewCount,
   followingPreviewCount,
+  onOpenFollowers,
+  onOpenFollowing,
 }: {
   followersPreviewCount: string;
   followingPreviewCount: string;
+  onOpenFollowers?: () => void;
+  onOpenFollowing?: () => void;
 }) {
   const theme = useAppTheme();
 
@@ -129,6 +133,24 @@ export function SocialPreviewCard({
           variant="social"
         />
       </View>
+      {onOpenFollowers || onOpenFollowing ? (
+        <View style={styles.rowActions}>
+          {onOpenFollowers ? (
+            <AppButton
+              label="View followers"
+              onPress={onOpenFollowers}
+              variant="secondary"
+            />
+          ) : null}
+          {onOpenFollowing ? (
+            <AppButton
+              label="View following"
+              onPress={onOpenFollowing}
+              variant="secondary"
+            />
+          ) : null}
+        </View>
+      ) : null}
     </AppCard>
   );
 }

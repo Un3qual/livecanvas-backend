@@ -153,6 +153,20 @@ defmodule LCGQL.Accounts.DataGovernanceResolver do
     Absinthe.Relay.Connection.from_list([], args)
   end
 
+  @spec viewer_account_deletion_requests(term(), map(), Absinthe.Resolution.t()) ::
+          {:ok, map()} | {:error, term()}
+  def viewer_account_deletion_requests(_parent, args, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
+    user
+    |> Accounts.list_user_account_deletion_requests()
+    |> Absinthe.Relay.Connection.from_list(args)
+  end
+
+  def viewer_account_deletion_requests(_parent, args, _resolution) do
+    Absinthe.Relay.Connection.from_list([], args)
+  end
+
   @spec data_export_error(data_export_error_reason()) :: mutation_error()
   defp data_export_error(:enqueue_failed),
     do: MutationErrors.user_error(nil, "export_unavailable")

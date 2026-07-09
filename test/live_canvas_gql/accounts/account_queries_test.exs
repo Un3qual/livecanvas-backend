@@ -481,6 +481,101 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
     end
   end
 
+  describe "viewerAccountDeletionRequests" do
+    test "returns a relay connection scoped to the authenticated viewer" do
+      viewer = user_fixture()
+      outsider = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, request} = Accounts.request_user_account_deletion(viewer)
+      assert {:ok, _outsider_request} = Accounts.request_user_account_deletion(outsider)
+
+      request_id =
+        Absinthe.Relay.Node.to_global_id(:account_deletion_request, request.id, LCGQL.Schema)
+
+      query = """
+      query($first: Int!) {
+        viewerAccountDeletionRequests(first: $first) {
+          edges {
+            node {
+              id
+              status
+              requestedAt
+              scheduledPurgeAt
+              completedAt
+              failureReason
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "viewerAccountDeletionRequests" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^request_id,
+                          "status" => "SCHEDULED",
+                          "requestedAt" => requested_at,
+                          "scheduledPurgeAt" => scheduled_purge_at,
+                          "completedAt" => nil,
+                          "failureReason" => nil
+                        }
+                      }
+                    ],
+                    "pageInfo" => %{"hasNextPage" => false, "endCursor" => end_cursor}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"first" => 10},
+                 context: context
+               )
+
+      assert is_binary(requested_at)
+      assert is_binary(scheduled_purge_at)
+      assert is_binary(end_cursor)
+    end
+
+    test "returns an empty connection without a viewer scope" do
+      viewer = user_fixture()
+      assert {:ok, _request} = Accounts.request_user_account_deletion(viewer)
+
+      query = """
+      query($first: Int!) {
+        viewerAccountDeletionRequests(first: $first) {
+          edges {
+            node {
+              id
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "viewerAccountDeletionRequests" => %{
+                    "edges" => [],
+                    "pageInfo" => %{"hasNextPage" => false, "endCursor" => nil}
+                  }
+                }
+              }} = Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10})
+    end
+  end
+
   describe "schema cleanup" do
     test "does not expose the legacy authTokenValid stub" do
       schema_sdl = Absinthe.Schema.to_sdl(LCGQL.Schema)

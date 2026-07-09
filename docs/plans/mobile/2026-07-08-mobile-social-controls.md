@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile first; backend only for reversible controls
-Status: draft ready for review
+Status: mobile-only first batch implemented on `codex/execute-mobile-product-gaps`
 
 ## Executor Brief
 
@@ -34,12 +34,12 @@ Files:
 - Test: `mobile/tests/profile/relationshipPresentation.test.ts`
 
 Acceptance criteria:
-- [ ] Preserve current follow and request-follow presentation.
-- [ ] Add mute and unmute actions based on `isMuted`.
-- [ ] Add a destructive block action for profiles that are not already in a
+- [x] Preserve current follow and request-follow presentation.
+- [x] Add mute and unmute actions based on `isMuted`.
+- [x] Add a destructive block action for profiles that are not already in a
       blocked state.
-- [ ] Do not expose unfollow or unblock in this task.
-- [ ] Cover accepted, requested, none, muted, and blocked permutations.
+- [x] Do not expose unfollow or unblock in this task.
+- [x] Cover accepted, requested, none, muted, and blocked permutations.
 
 Focused verification:
 - From `mobile/`: `bun test tests/profile/relationshipPresentation.test.ts`
@@ -54,16 +54,16 @@ Files:
 - Test: `mobile/tests/profile/OtherUserProfileScreen.test.tsx`
 
 Acceptance criteria:
-- [ ] Mute commits `muteUser(input: {mutedId: user.id})`.
-- [ ] Unmute commits `unmuteUser(input: {mutedId: user.id})`.
-- [ ] Block commits `blockUser(input: {blockedId: user.id})`.
-- [ ] Only one social-control mutation can be in flight for the profile at a
+- [x] Mute commits `muteUser(input: {mutedId: user.id})`.
+- [x] Unmute commits `unmuteUser(input: {mutedId: user.id})`.
+- [x] Block commits `blockUser(input: {blockedId: user.id})`.
+- [x] Only one social-control mutation can be in flight for the profile at a
       time.
-- [ ] Block requires confirmation and explains that unblock is not available
+- [x] Block requires confirmation and explains that unblock is not available
       in-app until the reversible-controls contract lands.
-- [ ] Successful mute and unmute update local presentation or refetch the
+- [x] Successful mute and unmute update local presentation or refetch the
       profile in a tested way.
-- [ ] Payload errors use existing mutation error formatting.
+- [x] Payload errors use existing mutation error formatting.
 
 Focused verification:
 - From `mobile/`: `bun test tests/profile/OtherUserProfileScreen.test.tsx`
@@ -122,6 +122,19 @@ Focused verification:
 - From `mobile/`:
   `bun test tests/profile/relationshipPresentation.test.ts tests/profile/OtherUserProfileScreen.test.tsx`
 - From `mobile/`: `bun run relay`
+
+## Evidence
+
+- Implemented Tasks 1 and 2 against existing `muteUser`, `unmuteUser`, and
+  `blockUser` contracts. Tasks 3 and 4 remain deferred per this plan's
+  reversible-controls handoff.
+- `bun test tests/profile/relationshipPresentation.test.ts tests/profile/OtherUserProfileScreen.test.ts` -> 8 pass.
+- `pnpm exec jest --config ./jest.config.js tests/profile/OtherUserProfileScreen.rntl.tsx --runInBand` -> 3 pass.
+- `pnpm exec jest --config ./jest.config.js tests/profile/ProfilePreviewLinks.rntl.tsx --runInBand` -> 2 pass.
+- `bun run relay` -> completed.
+- `bun run typecheck` -> passed.
+- `bun run typecheck:tests` -> passed.
+- `git diff --check` -> passed.
 
 ## Final Verification
 

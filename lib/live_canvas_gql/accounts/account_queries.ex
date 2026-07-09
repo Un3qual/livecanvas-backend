@@ -15,6 +15,12 @@ defmodule LCGQL.Accounts.Queries do
       resolve(&DataGovernanceResolver.viewer_data_export_requests/3)
     end
 
+    connection field :viewer_account_deletion_requests,
+                 node_type: :account_deletion_request,
+                 paginate: :forward do
+      resolve(&DataGovernanceResolver.viewer_account_deletion_requests/3)
+    end
+
     connection field :viewer_contact_matches, node_type: :contact_match, paginate: :forward do
       resolve(&ContactResolver.viewer_contact_matches/3)
     end

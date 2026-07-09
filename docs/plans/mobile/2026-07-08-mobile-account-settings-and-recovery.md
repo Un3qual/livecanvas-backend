@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile, with one backend contract check
-Status: draft ready for review
+Status: implemented on `codex/execute-mobile-product-gaps`
 
 ## Executor Brief
 
@@ -38,13 +38,13 @@ Files:
 - Refresh after schema export: `mobile/schema.graphql`
 
 Acceptance criteria:
-- [ ] Add a Relay connection field named `viewerAccountDeletionRequests`.
-- [ ] Use `LC.Accounts.list_user_account_deletion_requests/1` or the existing
+- [x] Add a Relay connection field named `viewerAccountDeletionRequests`.
+- [x] Use `LC.Accounts.list_user_account_deletion_requests/1` or the existing
       data-governance query path rather than reading raw foreign keys in the
       resolver.
-- [ ] Return an empty connection for unauthenticated requests.
-- [ ] Scope every row to the authenticated viewer.
-- [ ] Preserve existing request and cancel mutation behavior.
+- [x] Return an empty connection for unauthenticated requests.
+- [x] Scope every row to the authenticated viewer.
+- [x] Preserve existing request and cancel mutation behavior.
 
 Focused verification:
 - From repo root:
@@ -69,14 +69,14 @@ Files:
 - Test if runtime links change: `mobile/tests/config/runtime.test.ts`
 
 Acceptance criteria:
-- [ ] The sign-in surface links to `/password-recovery`.
-- [ ] Recovery submits `requestPasswordReset` with uniform success copy that
+- [x] The sign-in surface links to `/password-recovery`.
+- [x] Recovery submits `requestPasswordReset` with uniform success copy that
       does not reveal whether an email exists.
-- [ ] Reset submits `resetPassword` using a token from query params when
+- [x] Reset submits `resetPassword` using a token from query params when
       present and a paste fallback when not present.
-- [ ] Runtime link parsing maps the backend reset path to
+- [x] Runtime link parsing maps the backend reset path to
       `/reset-password?token=<token>`.
-- [ ] Mutation errors remain retryable without clearing user-entered fields.
+- [x] Mutation errors remain retryable without clearing user-entered fields.
 
 Focused verification:
 - From `mobile/`: `bun test tests/auth/passwordRecoveryState.test.ts`
@@ -99,11 +99,11 @@ Files:
   `mobile/tests/profile/**`
 
 Acceptance criteria:
-- [ ] `/settings` queries the viewer, linked identities, data export requests,
+- [x] `/settings` queries the viewer, linked identities, data export requests,
       and account deletion requests.
-- [ ] The home or viewer profile surface exposes a settings navigation action.
-- [ ] Identity, export, and deletion rows use viewer-safe status labels.
-- [ ] Missing or empty sections render stable empty states.
+- [x] The home or viewer profile surface exposes a settings navigation action.
+- [x] Identity, export, and deletion rows use viewer-safe status labels.
+- [x] Missing or empty sections render stable empty states.
 
 Focused verification:
 - From `mobile/`: `bun test tests/account/accountSettingsState.test.ts`
@@ -119,14 +119,32 @@ Files:
 - Test: `mobile/tests/account/AccountSettingsScreen.test.tsx`
 
 Acceptance criteria:
-- [ ] `unlinkViewerIdentity` is available only for linked identities that the
+- [x] `unlinkViewerIdentity` is available only for linked identities that the
       backend allows to be removed.
-- [ ] `requestViewerDataExport` starts a new export request and refreshes the
+- [x] `requestViewerDataExport` starts a new export request and refreshes the
       request list.
-- [ ] `requestViewerAccountDeletion` and
+- [x] `requestViewerAccountDeletion` and
       `cancelViewerAccountDeletionRequest` refresh the deletion request list.
-- [ ] Duplicate taps are guarded per action.
-- [ ] Structured payload errors render without decoding GraphQL IDs.
+- [x] Duplicate taps are guarded per action.
+- [x] Structured payload errors render without decoding GraphQL IDs.
+
+## Evidence
+
+- `mix absinthe.schema.sdl --schema LCGQL.Schema mobile/schema.graphql` -> succeeded after sandboxed Mix PubSub `:eperm` retry outside sandbox.
+- `mix test test/live_canvas_gql/accounts/account_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs` -> 66 pass.
+- `mix typecheck` -> passed.
+- `mix format lib/live_canvas_gql/accounts/account_queries.ex lib/live_canvas_gql/accounts/data_governance_resolver.ex test/live_canvas_gql/accounts/account_queries_test.exs` -> completed.
+- `bun test --preload ./tests/setup/reactNative.ts tests/auth/passwordRecoveryState.test.ts tests/account/accountSettingsState.test.ts tests/config/runtime.test.ts` -> 43 pass.
+- `pnpm exec jest --config ./jest.config.js tests/auth/PasswordRecoveryScreen.rntl.tsx --runInBand` -> 3 pass.
+- `pnpm exec jest --config ./jest.config.js tests/auth/ResetPasswordScreen.rntl.tsx --runInBand` -> 3 pass.
+- `pnpm exec jest --config ./jest.config.js tests/auth/AuthEntryScreen.rntl.tsx --runInBand` -> 2 pass.
+- `pnpm exec jest --config ./jest.config.js tests/account/AccountSettingsScreen.rntl.tsx --runInBand` -> 3 pass.
+- `pnpm exec jest --config ./jest.config.js tests/feed/FeedHomeScreen.rntl.tsx --runInBand` -> 22 pass.
+- `bun run relay` -> completed.
+- `bun run typecheck` -> passed.
+- `bun run typecheck:tests` -> passed.
+- `bun run test:quality` -> passed.
+- `git diff --check` -> passed.
 
 Focused verification:
 - From `mobile/`: `bun test tests/account/AccountSettingsScreen.test.tsx`
