@@ -287,7 +287,11 @@ defmodule LCGQL.Content.Resolver do
   def staff_post_reports(_parent, args, %{context: %{current_scope: scope}}) do
     case Content.list_post_reports_for_moderation(scope, args) do
       {:ok, query} ->
-        Absinthe.Relay.Connection.from_query(query, &Content.run_query/1, args)
+        Absinthe.Relay.Connection.from_query(
+          query,
+          &Content.run_post_reports_moderation_query/1,
+          args
+        )
 
       {:error, :not_authorized} ->
         Absinthe.Relay.Connection.from_list([], args)

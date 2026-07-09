@@ -7,6 +7,7 @@ defmodule LC.ContentTest do
   alias LC.Content.MediaProcessingJob
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema
+  alias LCSchemas.Content.PostReport, as: PostReportSchema
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
   alias LCSchemas.Live.LiveSession
 
@@ -373,7 +374,7 @@ defmodule LC.ContentTest do
 
       assert [first_report.id, second_report.id] ==
                query
-               |> Content.run_query()
+               |> Content.run_post_reports_moderation_query()
                |> Enum.map(& &1.id)
 
       assert {:ok, dismissed_report} =
@@ -387,7 +388,7 @@ defmodule LC.ContentTest do
 
       assert [dismissed_report.id] ==
                dismissed_query
-               |> Content.run_query()
+               |> Content.run_post_reports_moderation_query()
                |> Enum.map(& &1.id)
 
       assert {:ok, fetched_report} =
@@ -403,6 +404,14 @@ defmodule LC.ContentTest do
 
       assert {:error, :not_authorized} =
                Content.list_post_reports_for_moderation(nil, status: :open)
+    end
+
+    test "does not expose a generic public query runner" do
+      refute function_exported?(Content, :run_query, 1)
+
+      assert_raise ArgumentError, ~r/authorized post report moderation query/, fn ->
+        Content.run_post_reports_moderation_query(from(post in PostSchema))
+      end
     end
 
     test "records allowed decisions and keeps terminal report states closed" do
@@ -470,6 +479,51 @@ defmodule LC.ContentTest do
 
       assert {:error, :invalid_transition} =
                Content.decide_post_report(staff_scope, dismissed_report.id, %{status: :actioned})
+    end
+
+    test "finalizes reviewed reports when reviewer metadata was nilified" do
+      author = user_fixture()
+      reporter = user_fixture()
+      reviewer = user_fixture()
+      finalizer = user_fixture()
+
+      assert {:ok, _permission} =
+               Accounts.grant_staff_permission(reviewer, :post_report_moderation)
+
+      assert {:ok, _permission} =
+               Accounts.grant_staff_permission(finalizer, :post_report_moderation)
+
+      reviewer_scope = Accounts.scope_for_user(reviewer)
+      finalizer_scope = Accounts.scope_for_user(finalizer)
+
+      {:ok, post} =
+        Content.create_post(author, %{kind: :standard, body_text: "reviewer deleted"})
+
+      {:ok, report} = Content.report_post(reporter, post, %{reason: :other})
+
+      assert {:ok, reviewed_report} =
+               Content.decide_post_report(reviewer_scope, report.id, %{
+                 status: :reviewed,
+                 decision_note: "needs final pass"
+               })
+
+      stale_reviewed_at = DateTime.add(DateTime.utc_now(), -3600, :second)
+
+      {1, nil} =
+        Repo.update_all(
+          from(post_report in PostReportSchema, where: post_report.id == ^reviewed_report.id),
+          set: [reviewed_by_id: nil, reviewed_at: stale_reviewed_at]
+        )
+
+      assert {:ok, dismissed_report} =
+               Content.decide_post_report(finalizer_scope, reviewed_report.id, %{
+                 status: :dismissed
+               })
+
+      assert dismissed_report.status == :dismissed
+      assert dismissed_report.reviewed_by_id == finalizer.id
+      assert DateTime.compare(dismissed_report.reviewed_at, stale_reviewed_at) == :gt
+      assert dismissed_report.decision_note == "needs final pass"
     end
 
     test "accepts params-style string decision statuses and separates invalid status input" do

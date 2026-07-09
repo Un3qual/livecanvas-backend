@@ -49,6 +49,7 @@ defmodule LC.Content do
           {:ok, [MediaAssetSchema.t()]} | {:error, Ecto.Changeset.t()}
   @media_processing_job_kind "media_asset_processing"
   @media_processing_job_max_attempts 2
+  @moderation_post_reports_query_alias :moderation_post_reports
   @post_report_statuses [:open, :reviewed, :dismissed, :actioned]
   @post_media_asset_error "must reference viewer-owned uploaded or processed assets"
 
@@ -158,6 +159,16 @@ defmodule LC.Content do
     end
   end
 
+  @doc false
+  @spec run_post_reports_moderation_query(Ecto.Query.t()) :: [PostReportSchema.t()]
+  def run_post_reports_moderation_query(%Ecto.Query{} = query) do
+    if post_reports_moderation_query?(query) do
+      Repo.all(query)
+    else
+      raise ArgumentError, "expected an authorized post report moderation query"
+    end
+  end
+
   @doc """
   Gets a post report by ID for staff moderation.
   """
@@ -195,10 +206,6 @@ defmodule LC.Content do
   end
 
   def decide_post_report(_scope, _report_id, _attrs), do: {:error, :not_authorized}
-
-  @doc false
-  @spec run_query(Ecto.Query.t()) :: [term()]
-  def run_query(query), do: Repo.all(query)
 
   @doc """
   Persists media metadata owned by the given user.
@@ -280,6 +287,7 @@ defmodule LC.Content do
   @spec post_reports_for_moderation_query(keyword() | map()) :: Ecto.Query.t()
   defp post_reports_for_moderation_query(opts) do
     from(post_report in PostReportSchema,
+      as: :moderation_post_reports,
       order_by: [
         asc:
           fragment(
@@ -306,6 +314,16 @@ defmodule LC.Content do
   end
 
   defp maybe_filter_post_report_status(query, _status), do: query
+
+  @spec post_reports_moderation_query?(Ecto.Query.t()) :: boolean()
+  defp post_reports_moderation_query?(%Ecto.Query{
+         aliases: aliases,
+         from: %{source: {_source, PostReportSchema}}
+       }) do
+    Map.has_key?(aliases, @moderation_post_reports_query_alias)
+  end
+
+  defp post_reports_moderation_query?(_query), do: false
 
   @spec locked_post_report_query(integer()) :: Ecto.Query.t()
   defp locked_post_report_query(report_id) when is_integer(report_id) do
@@ -370,9 +388,10 @@ defmodule LC.Content do
           pos_integer(),
           LCSchemas.Content.post_report_status()
         ) :: map()
-  defp decision_attrs(%PostReportSchema{status: :reviewed}, _attrs, _reviewer_id, status)
+  defp decision_attrs(%PostReportSchema{status: :reviewed} = report, _attrs, reviewer_id, status)
        when status in [:dismissed, :actioned] do
     %{status: status}
+    |> put_missing_review_metadata(report, reviewer_id)
   end
 
   defp decision_attrs(%PostReportSchema{}, attrs, reviewer_id, status) when is_map(attrs) do
@@ -382,6 +401,19 @@ defmodule LC.Content do
       reviewed_by_id: reviewer_id,
       reviewed_at: now_utc()
     }
+  end
+
+  @spec put_missing_review_metadata(map(), PostReportSchema.t(), pos_integer()) :: map()
+  defp put_missing_review_metadata(
+         attrs,
+         %PostReportSchema{reviewed_by_id: reviewed_by_id, reviewed_at: %DateTime{}},
+         _reviewer_id
+       )
+       when is_integer(reviewed_by_id),
+       do: attrs
+
+  defp put_missing_review_metadata(attrs, %PostReportSchema{}, reviewer_id) do
+    Map.merge(attrs, %{reviewed_by_id: reviewer_id, reviewed_at: now_utc()})
   end
 
   @spec validate_post_report_decision_transition(
