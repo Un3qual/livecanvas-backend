@@ -87,6 +87,8 @@ export function contactDiscoveryInviteSentMessage(email: string): string {
 export function formatContactUpsertMutationErrors(
   errors: ReadonlyArray<ContactDiscoveryMutationError> | null | undefined,
 ): string {
+  // GraphQL uses error.message as a machine-readable code here, so translate
+  // recognized values before any text reaches the viewer.
   const firstKnownMessage = errors?.find((error) =>
     Object.hasOwn(CONTACT_UPSERT_ERROR_MESSAGES, error.message),
   )?.message;
@@ -105,6 +107,8 @@ export function formatContactUpsertMutationErrors(
 export function formatContactInviteMutationErrors(
   errors: ReadonlyArray<ContactDiscoveryMutationError> | null | undefined,
 ): string {
+  // GraphQL uses error.message as a machine-readable code here, so translate
+  // recognized values before any text reaches the viewer.
   const firstKnownMessage = errors?.find((error) =>
     Object.hasOwn(CONTACT_INVITE_ERROR_MESSAGES, error.message),
   )?.message;

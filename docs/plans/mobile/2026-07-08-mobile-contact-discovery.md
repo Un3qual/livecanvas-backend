@@ -2,14 +2,14 @@
 
 Date: 2026-07-08
 Owner lane: mobile
-Status: complete; review hardening verified 2026-07-09
+Status: complete for discovery; invite delivery deferred pending a real landing route
 
 ## Executor Brief
 
 Add a manual contact discovery surface where a signed-in viewer can enter one
-email contact, see backend contact matches, open matched profiles, or deliver an
-invite when no match exists. Use the existing contact GraphQL APIs and avoid
-native address-book access in this first batch.
+email contact, see backend contact matches, and open matched profiles. Use the
+existing contact GraphQL APIs and avoid native address-book access in this first
+batch. Keep invite delivery hidden until its emailed URL has a real landing route.
 
 The mobile lane selected and completed this batch. Review hardening persists a
 viewer-owned invite recipient in the contact-match projection and virtualizes
@@ -60,8 +60,9 @@ Acceptance criteria:
 - [x] Manual email submission commits `upsertViewerContactEntry`.
 - [x] A returned match can navigate to `/profiles/[id]` using the opaque Relay
       ID returned by GraphQL.
-- [x] A no-match row can commit `deliverViewerContactInvite`.
-- [x] Duplicate submit and invite taps are guarded independently.
+- [ ] A no-match row can commit `deliverViewerContactInvite`. Deferred because
+      the current backend URL has no implemented invite landing route.
+- [x] Duplicate contact submissions are guarded synchronously.
 - [x] Empty, loading, and error states are covered by tests.
 
 Focused verification:
@@ -107,6 +108,6 @@ Focused verification:
 ## Handoff
 
 Native address-book import, contact permission prompts, bulk uploads, phone
-contact matching, and invite analytics should be separate follow-up plans. This
-batch should prove the backend contact-discovery contract with the lowest PII
-surface first.
+contact matching, the invite landing route, and invite analytics should be
+separate follow-up plans. This batch proves the backend contact-discovery
+contract with the lowest PII surface first.

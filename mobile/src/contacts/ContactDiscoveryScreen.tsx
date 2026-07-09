@@ -28,18 +28,13 @@ import {
 } from '../profile/profileConnectionPagination';
 import {
   CONTACT_DISCOVERY_QUERY_VARIABLES,
-  contactDiscoveryDeliverInviteMutation,
   contactDiscoveryQuery,
   contactDiscoveryUpsertMutation,
-  type ContactDiscoveryDeliverInviteMutation,
   type ContactDiscoveryQuery,
   type ContactDiscoveryUpsertMutation,
 } from './contactDiscoveryOperations';
 import {
-  buildContactInviteInput,
   buildManualEmailContactInput,
-  contactDiscoveryInviteSentMessage,
-  formatContactInviteMutationErrors,
   formatContactUpsertMutationErrors,
   validateContactDiscoveryEmail,
 } from './contactDiscoveryState';
@@ -114,6 +109,8 @@ export function ContactDiscoveryScreen() {
   );
   const queryConnection = data.viewerContactMatches;
   const queryPageInfo = readProfileConnectionPageInfo(queryConnection);
+  // Relay can replace the initial connection after a store-and-network refresh;
+  // this key resets locally accumulated pages to that fresh source connection.
   const paginationResetKey = [
     queryPageInfo.endCursor ?? '',
     queryPageInfo.hasNextPage ? 'next' : 'end',
@@ -123,12 +120,7 @@ export function ContactDiscoveryScreen() {
     useMutation<ContactDiscoveryUpsertMutation>(
       contactDiscoveryUpsertMutation,
     );
-  const [commitDeliverInvite] =
-    useMutation<ContactDiscoveryDeliverInviteMutation>(
-      contactDiscoveryDeliverInviteMutation,
-    );
   const activeSearchRef = useRef(false);
-  const activeInviteContactIdRef = useRef<string | null>(null);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -138,14 +130,6 @@ export function ContactDiscoveryScreen() {
   const [pageInfo, setPageInfo] = useState(() => queryPageInfo);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  const [activeInviteContactId, setActiveInviteContactId] =
-    useState<string | null>(null);
-  const [inviteErrorsByContactId, setInviteErrorsByContactId] = useState<
-    Readonly<Record<string, string>>
-  >({});
-  const [inviteMessagesByContactId, setInviteMessagesByContactId] = useState<
-    Readonly<Record<string, string>>
-  >({});
   const queryMatches = readConnectionNodes<ContactMatch>(
     queryConnection,
   );
@@ -244,80 +228,12 @@ export function ContactDiscoveryScreen() {
     });
   }
 
-  const inviteContact = useCallback(
-    (contactMatch: ContactMatch) => {
-      const recipient = contactMatch.inviteRecipient;
-
-      if (
-        !recipient ||
-        activeInviteContactIdRef.current !== null ||
-        activeInviteContactId !== null
-      ) {
-        return;
-      }
-
-      const input = buildContactInviteInput(recipient);
-
-      if (!input) {
-        setInviteErrorsByContactId((current) => ({
-          ...current,
-          [contactMatch.id]: 'Enter a valid email address.',
-        }));
-        return;
-      }
-
-      activeInviteContactIdRef.current = contactMatch.id;
-      setActiveInviteContactId(contactMatch.id);
-      setInviteErrorsByContactId((current) =>
-        omitContactMessage(current, contactMatch.id),
-      );
-      setInviteMessagesByContactId((current) =>
-        omitContactMessage(current, contactMatch.id),
-      );
-
-      commitDeliverInvite({
-        variables: { input },
-        onCompleted: (payload) => {
-          activeInviteContactIdRef.current = null;
-          setActiveInviteContactId(null);
-          const result = payload.deliverViewerContactInvite;
-
-          if (!result || result.errors.length > 0) {
-            setInviteErrorsByContactId((current) => ({
-              ...current,
-              [contactMatch.id]: formatContactInviteMutationErrors(result?.errors),
-            }));
-            return;
-          }
-
-          setInviteMessagesByContactId((current) => ({
-            ...current,
-            [contactMatch.id]: contactDiscoveryInviteSentMessage(recipient),
-          }));
-        },
-        onError: () => {
-          activeInviteContactIdRef.current = null;
-          setActiveInviteContactId(null);
-          setInviteErrorsByContactId((current) => ({
-            ...current,
-            [contactMatch.id]: formatContactInviteMutationErrors(null),
-          }));
-        },
-      });
-    },
-    [activeInviteContactId, commitDeliverInvite],
-  );
-
   const renderContactMatch = useCallback(
     ({ item: contactMatch }: ListRenderItemInfo<ContactMatch>) => (
       <View style={styles.section}>
         <ContactMatchCard
-          activeInviteContactId={activeInviteContactId}
           contactMatch={contactMatch}
-          inviteError={inviteErrorsByContactId[contactMatch.id] ?? null}
-          inviteMessage={inviteMessagesByContactId[contactMatch.id] ?? null}
           inviteRecipient={contactMatch.inviteRecipient ?? null}
-          onInvite={inviteContact}
           onOpenProfile={(user) =>
             router.push({
               params: { id: user.id },
@@ -327,13 +243,7 @@ export function ContactDiscoveryScreen() {
         />
       </View>
     ),
-    [
-      activeInviteContactId,
-      inviteContact,
-      inviteErrorsByContactId,
-      inviteMessagesByContactId,
-      router,
-    ],
+    [router],
   );
 
   return (
@@ -436,25 +346,16 @@ function contactMatchKeyExtractor(contactMatch: ContactMatch): string {
 }
 
 function ContactMatchCard({
-  activeInviteContactId,
   contactMatch,
-  inviteError,
-  inviteMessage,
   inviteRecipient,
-  onInvite,
   onOpenProfile,
 }: {
-  activeInviteContactId: string | null;
   contactMatch: ContactMatch;
-  inviteError: string | null;
-  inviteMessage: string | null;
   inviteRecipient: string | null;
-  onInvite: (contactMatch: ContactMatch) => void;
   onOpenProfile: (user: ContactMatchedUser) => void;
 }) {
   const theme = useAppTheme();
   const hasMatches = contactMatch.matchedUsers.length > 0;
-  const isInviting = activeInviteContactId === contactMatch.id;
 
   return (
     <AppCard style={styles.row}>
@@ -477,32 +378,10 @@ function ContactMatchCard({
           </View>
         ))
       ) : (
-        <>
-          <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-            No LiveCanvas match yet.
-          </Text>
-          {inviteRecipient ? (
-            <View style={styles.actions}>
-              <AppButton
-                disabled={isInviting}
-                label={isInviting ? 'Sending...' : 'Send invite'}
-                onPress={() => onInvite(contactMatch)}
-                variant="secondary"
-              />
-            </View>
-          ) : null}
-        </>
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          No LiveCanvas match yet.
+        </Text>
       )}
-      {inviteMessage ? (
-        <Text style={[styles.metadataText, { color: theme.colors.text }]}>
-          {inviteMessage}
-        </Text>
-      ) : null}
-      {inviteError ? (
-        <Text style={[styles.metadataText, { color: theme.colors.error }]}>
-          {inviteError}
-        </Text>
-      ) : null}
     </AppCard>
   );
 }
@@ -531,16 +410,4 @@ function upsertLocalContactMatch(
   incoming: ContactMatch,
 ): ContactMatch[] {
   return [incoming].concat(current.filter((match) => match.id !== incoming.id));
-}
-
-function omitContactMessage(
-  values: Readonly<Record<string, string>>,
-  contactId: string,
-): Readonly<Record<string, string>> {
-  if (!Object.hasOwn(values, contactId)) {
-    return values;
-  }
-
-  const { [contactId]: _removed, ...rest } = values;
-  return rest;
 }

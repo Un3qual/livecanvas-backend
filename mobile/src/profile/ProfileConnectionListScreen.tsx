@@ -121,6 +121,14 @@ export function ProfileConnectionListScreen({
     initialPageInfo.hasNextPage ? 'next' : 'end',
   ].join(':');
   const resetKeyRef = useRef(resetKey);
+  const requestSessionRef = useRef({ resetKey });
+
+  // Change the session during render so a request from the previous connection
+  // cannot commit in the gap before the reset effect runs.
+  if (requestSessionRef.current.resetKey !== resetKey) {
+    requestSessionRef.current = { resetKey };
+  }
+
   const [extraRows, setExtraRows] = useState<ProfileConnectionUser[]>([]);
   const [pageInfo, setPageInfo] = useState(() => initialPageInfo);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -138,6 +146,7 @@ export function ProfileConnectionListScreen({
     resetKeyRef.current = resetKey;
     setExtraRows([]);
     setPageInfo(initialPageInfo);
+    setIsLoadingMore(false);
     setLoadMoreError(null);
   }, [initialPageInfo, resetKey]);
 
@@ -148,6 +157,7 @@ export function ProfileConnectionListScreen({
 
     setIsLoadingMore(true);
     setLoadMoreError(null);
+    const requestSession = requestSessionRef.current;
 
     try {
       const pageData = (await fetchQuery(
@@ -165,6 +175,11 @@ export function ProfileConnectionListScreen({
             },
         { fetchPolicy: 'network-only' },
       ).toPromise()) as ProfileConnectionQueryData | null | undefined;
+
+      if (requestSessionRef.current !== requestSession) {
+        return;
+      }
+
       const pageConnection = selectProfileConnection(pageData, kind);
 
       setExtraRows((current) =>
@@ -175,9 +190,13 @@ export function ProfileConnectionListScreen({
       );
       setPageInfo(readProfileConnectionPageInfo(pageConnection));
     } catch {
-      setLoadMoreError('Could not load more profiles.');
+      if (requestSessionRef.current === requestSession) {
+        setLoadMoreError('Could not load more profiles.');
+      }
     } finally {
-      setIsLoadingMore(false);
+      if (requestSessionRef.current === requestSession) {
+        setIsLoadingMore(false);
+      }
     }
   }
 

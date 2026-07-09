@@ -337,7 +337,9 @@ defmodule LC.AccountsTest do
       email_match = user_fixture()
       phone_match = user_fixture()
 
-      attach_phone_number(phone_match, "(650) 253-0001")
+      attach_phone_number(phone_match, "(650) 253-0001",
+        verified_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+      )
 
       assert {:ok, _contact_entry} =
                Accounts.upsert_user_contact_entry(owner, %{
@@ -359,6 +361,33 @@ defmodule LC.AccountsTest do
       assert Enum.map(matched_users, & &1.id) == Enum.sort([email_match.id, phone_match.id])
       refute Enum.any?(matched_users, &(&1.id == owner.id))
       assert Enum.all?(matched_users, &(is_binary(&1.email) and String.contains?(&1.email, "@")))
+    end
+
+    test "matches only users with verified contact identifiers" do
+      owner = user_fixture()
+      verified_email_match = user_fixture()
+      unverified_email_match = unconfirmed_user_fixture()
+      verified_phone_match = user_fixture()
+      unverified_phone_match = user_fixture()
+      verified_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+      attach_phone_number(verified_phone_match, "+1 650-253-0002", verified_at: verified_at)
+      attach_phone_number(unverified_phone_match, "+1 650-253-0003")
+
+      assert {:ok, _contact_entry} =
+               Accounts.upsert_user_contact_entry(owner, %{
+                 contact_client_id: :crypto.strong_rand_bytes(16),
+                 emails: [verified_email_match.email, unverified_email_match.email],
+                 phone_numbers: ["+1 650-253-0002", "+1 650-253-0003"]
+               })
+
+      assert [%{matched_users: matched_users}] = Accounts.list_user_contact_matches(owner)
+
+      assert Enum.map(matched_users, & &1.id) ==
+               Enum.sort([verified_email_match.id, verified_phone_match.id])
+
+      refute Enum.any?(matched_users, &(&1.id == unverified_email_match.id))
+      refute Enum.any?(matched_users, &(&1.id == unverified_phone_match.id))
     end
 
     test "returns an empty list when no contacts are imported" do
@@ -868,6 +897,12 @@ defmodule LC.AccountsTest do
                Accounts.login_user_by_magic_link(encoded_token)
 
       assert user.confirmed_at
+
+      confirmed_user =
+        Accounts.get_user!(user.id)
+        |> Repo.preload(user_email_addresses: :email_address)
+
+      assert [%{verified_at: %DateTime{}}] = confirmed_user.user_email_addresses
     end
 
     test "returns user and (deleted) token for confirmed user" do

@@ -135,6 +135,13 @@ defmodule LCGQL.Accounts.UserResolver do
 
       {:error, :last_sign_in_method} ->
         {:ok, %{user_identity: nil, errors: [unlink_identity_error(:last_sign_in_method)]}}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok,
+         %{
+           user_identity: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
     end
   end
 

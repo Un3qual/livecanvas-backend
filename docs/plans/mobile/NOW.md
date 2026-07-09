@@ -23,7 +23,7 @@ Status: mobile product-gap batch complete; reversible social controls and releas
 - Write scope: `mobile/**`, `docs/plans/mobile/**`, and the explicitly promoted
   backend account/contact contracts recorded in `docs/plans/backend/NOW.md`.
 - Done condition: met for account lifecycle, mute/unmute/block, manual contact
-  discovery and invites, post owner controls, connection lists, and review
+  discovery, post owner controls, connection lists, and review
   hardening for cross-action races and virtualized pagination.
 - Verification:
   - From `mobile/`: `bun run relay`
@@ -35,6 +35,8 @@ Status: mobile product-gap batch complete; reversible social controls and releas
 - Social-control Tasks 3-4 remain deferred: backend `unfollowUser`,
   `unblockUser`, a direction-safe blocked-by-viewer read, and their mobile UI.
 - Native address-book import and bulk contact upload remain out of scope.
+- Contact-invite delivery remains hidden until the emailed token URL has a real
+  landing route.
 - Release-candidate manual device/account QA remains deferred until product
   explicitly resumes it.
 

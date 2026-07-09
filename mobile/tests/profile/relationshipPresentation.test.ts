@@ -98,4 +98,20 @@ describe('relationshipPresentation', () => {
       status: 'Refresh later to see the current relationship.',
     });
   });
+
+  test('suppresses relationship actions when the target is the viewer', () => {
+    expect(
+      describeRelationshipState({
+        isMuted: false,
+        isSelf: true,
+        state: 'ACCEPTED',
+      }),
+    ).toEqual({
+      actionLabel: null,
+      canFollow: false,
+      label: 'Your profile',
+      socialActions: [],
+      status: 'This is your profile.',
+    });
+  });
 });

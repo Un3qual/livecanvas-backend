@@ -23,6 +23,7 @@ Status: report moderation and cross-lane account/contact contracts complete
   persisted contact matches expose a viewer-owned invite recipient.
 - Verification:
   - `mix test test/live_canvas/accounts_test.exs test/live_canvas/content_test.exs test/live_canvas_gql/accounts/contact_resolver_test.exs test/live_canvas_gql/accounts/contact_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas/accounts/auth_event_test.exs`
+  - `mix test test/live_canvas_web/plugs/graphql_mutation_rate_limit_test.exs`
   - `mix typecheck`
   - `git diff --check`
 

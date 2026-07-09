@@ -14,7 +14,9 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       outsider_match = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
-      attach_phone_number(matched_phone_user, "(650) 253-2222")
+      attach_phone_number(matched_phone_user, "(650) 253-2222",
+        verified_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+      )
 
       {:ok, first_contact_entry} =
         Accounts.upsert_user_contact_entry(viewer, %{

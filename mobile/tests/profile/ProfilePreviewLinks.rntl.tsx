@@ -81,6 +81,7 @@ describe('profile preview full-list links', () => {
         privacyMode: 'PUBLIC',
       },
       relationshipState: 'NONE',
+      viewer: { id: 'viewer-id' },
     };
 
     await render(<OtherUserProfileScreen id="opaque-profile-id" />);
@@ -98,6 +99,27 @@ describe('profile preview full-list links', () => {
         pathname: '/profiles/[id]/following',
       },
     ]);
+  });
+
+  test('blocked profiles do not expose full connection-list links', async () => {
+    mockQueryData = {
+      isMuted: false,
+      node: {
+        __typename: 'User',
+        currentLiveSession: null,
+        followers: connection([{ id: 'opaque-follower' }]),
+        following: connection([{ id: 'opaque-following' }]),
+        id: 'opaque-profile-id',
+        privacyMode: 'PUBLIC',
+      },
+      relationshipState: 'BLOCKED',
+      viewer: { id: 'viewer-id' },
+    };
+
+    await render(<OtherUserProfileScreen id="opaque-profile-id" />);
+
+    expect(screen.queryByRole('button', { name: 'View followers' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'View following' })).toBeNull();
   });
 });
 

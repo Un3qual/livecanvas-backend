@@ -32,11 +32,23 @@ const unavailableRelationshipDescription: RelationshipDescription = {
 
 export function describeRelationshipState({
   isMuted,
+  isSelf = false,
   state,
 }: {
   isMuted: boolean;
+  isSelf?: boolean;
   state: RelationshipState;
 }): RelationshipDescription {
+  if (isSelf) {
+    return {
+      actionLabel: null,
+      canFollow: false,
+      label: 'Your profile',
+      socialActions: [],
+      status: 'This is your profile.',
+    };
+  }
+
   const socialActions = relationshipSocialActions({ isBlocked: state === 'BLOCKED', isMuted });
 
   switch (state) {

@@ -24,7 +24,7 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
   selected scopes and review-hardened.
 - Track: `docs/plans/mobile/TRACK.md`
 - Deferred: reversible unfollow/unblock contracts and release-candidate manual
-  QA.
+  QA, plus contact-invite delivery until a real landing route exists.
 
 ## Execution Rule
 

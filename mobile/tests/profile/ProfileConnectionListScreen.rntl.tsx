@@ -42,6 +42,7 @@ let mockQueryData: QueryData;
 let mockQueryVariables: QueryVariables | null;
 let mockFetchQueryVariables: QueryVariables | null;
 let mockFetchQueryResult: QueryData;
+let mockFetchQueryPromise: Promise<QueryData | null | undefined> | null;
 let mockPushedRoutes: unknown[];
 
 jest.mock('expo-router', () => ({
@@ -61,7 +62,8 @@ jest.mock('react-relay', () => ({
     mockFetchQueryVariables = variables;
 
     return {
-      toPromise: () => Promise.resolve(mockFetchQueryResult),
+      toPromise: () =>
+        mockFetchQueryPromise ?? Promise.resolve(mockFetchQueryResult),
     };
   },
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
@@ -94,6 +96,7 @@ beforeEach(() => {
   };
   mockQueryVariables = null;
   mockFetchQueryVariables = null;
+  mockFetchQueryPromise = null;
   mockPushedRoutes = [];
 });
 
@@ -182,6 +185,52 @@ describe('ProfileConnectionListScreen with React Native Testing Library', () => 
     await waitFor(() => {
       expect(screen.getByText('following@example.com')).toBeOnTheScreen();
     });
+    expect(screen.queryByText('first@example.com')).toBeNull();
+    expect(screen.queryByText('second@example.com')).toBeNull();
+  });
+
+  test('ignores an in-flight page after the connection route changes', async () => {
+    const user = userEvent.setup();
+    let resolveOldPage: ((value: QueryData) => void) | undefined;
+    mockFetchQueryPromise = new Promise((resolve) => {
+      resolveOldPage = resolve;
+    });
+    const view = await render(
+      <ProfileConnectionListScreen kind="viewerFollowers" />,
+    );
+
+    await user.press(screen.getByRole('button', { name: 'Load more' }));
+    expect(screen.getByRole('button', { name: 'Loading...' })).toBeDisabled();
+
+    mockQueryData = {
+      viewer: {
+        following: connection(
+          [
+            {
+              email: 'following@example.com',
+              id: 'opaque-user-4',
+              privacyMode: 'PUBLIC',
+            },
+          ],
+          { endCursor: 'cursor-new', hasNextPage: true },
+        ),
+        id: 'viewer-id',
+      },
+    };
+
+    await act(async () => {
+      view.rerender(<ProfileConnectionListScreen kind="viewerFollowing" />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Load more' })).toBeEnabled();
+    });
+
+    await act(async () => {
+      resolveOldPage?.(mockFetchQueryResult);
+    });
+
+    expect(screen.getByText('following@example.com')).toBeOnTheScreen();
     expect(screen.queryByText('first@example.com')).toBeNull();
     expect(screen.queryByText('second@example.com')).toBeNull();
   });

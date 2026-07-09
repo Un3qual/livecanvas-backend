@@ -1,6 +1,7 @@
 defmodule LCGQL.Social.Resolver do
   alias LC.{Accounts, Social}
   alias LCGQL.{FieldNames, MutationErrors, Relay, Resolution}
+  alias LCSchemas.Accounts.User
 
   @type fetch_user_error :: :invalid_id | :invalid_type | :not_found
   @type resolver_error ::
@@ -239,10 +240,15 @@ defmodule LCGQL.Social.Resolver do
   defp format_field(nil), do: nil
   defp format_field(field), do: FieldNames.lower_camel(field)
 
-  @spec can_view_relationship_graph?(map(), Absinthe.Resolution.t()) :: boolean()
-  defp can_view_relationship_graph?(%{privacy_mode: :public}, _resolution), do: true
+  @spec can_view_relationship_graph?(User.t(), Absinthe.Resolution.t()) :: boolean()
+  defp can_view_relationship_graph?(%User{privacy_mode: :public} = user, resolution) do
+    case Resolution.viewer(resolution) do
+      {:ok, viewer} -> Social.can_view_user?(viewer, user)
+      :error -> true
+    end
+  end
 
-  defp can_view_relationship_graph?(%{} = user, resolution) do
+  defp can_view_relationship_graph?(%User{} = user, resolution) do
     case Resolution.viewer(resolution) do
       {:ok, viewer} -> Social.can_view_user?(viewer, user)
       :error -> false

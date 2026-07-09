@@ -246,7 +246,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     ]);
   });
 
-  test('invites a no-match manual email row with an independent duplicate guard', async () => {
+  test('hides invite delivery until a real landing route exists', async () => {
     const user = userEvent.setup();
 
     await render(<ContactDiscoveryScreen />);
@@ -266,26 +266,9 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
       },
     });
 
-    const inviteButton = screen.getByRole('button', { name: 'Send invite' });
-    await fireEvent.press(inviteButton);
-    await fireEvent.press(inviteButton);
-
-    expect(mockDeliverInviteCommit).toHaveBeenCalledTimes(1);
-    expect(mockDeliverInviteCommit.mock.calls[0]?.[0].variables).toEqual({
-      input: {
-        recipient: 'nomatch@example.com',
-      },
-    });
-
-    await completeInvite({
-      deliverViewerContactInvite: {
-        errors: [],
-      },
-    });
-
-    expect(
-      screen.getByText('Invite sent to nomatch@example.com.'),
-    ).toBeOnTheScreen();
+    expect(screen.getByText('No LiveCanvas match yet.')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Send invite' })).toBeNull();
+    expect(mockDeliverInviteCommit).not.toHaveBeenCalled();
   });
 
   test('renders query rows, empty state, and retryable payload errors', async () => {
@@ -315,8 +298,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     expect(screen.getByText('Enter a valid email address.')).toBeOnTheScreen();
   });
 
-  test('invites a persisted no-match contact after remounting the screen', async () => {
-    const user = userEvent.setup();
+  test('keeps invite delivery hidden for persisted no-match contacts', async () => {
     mockQueryData = {
       viewerContactMatches: connection([
         contactMatch({
@@ -330,12 +312,8 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
 
     await render(<ContactDiscoveryScreen />);
 
-    await user.press(screen.getByRole('button', { name: 'Send invite' }));
-
-    expect(mockDeliverInviteCommit).toHaveBeenCalledTimes(1);
-    expect(mockDeliverInviteCommit.mock.calls[0]?.[0].variables).toEqual({
-      input: { recipient: 'persisted@example.com' },
-    });
+    expect(screen.queryByRole('button', { name: 'Send invite' })).toBeNull();
+    expect(mockDeliverInviteCommit).not.toHaveBeenCalled();
   });
 
   test('loads additional contact matches from the next page', async () => {
@@ -372,18 +350,6 @@ async function completeUpsertContact(
   payload: Parameters<NonNullable<UpsertContactMutationConfig['onCompleted']>>[0],
 ) {
   const config = mockUpsertContactCommit.mock.calls[0]?.[0];
-
-  expect(config).toBeDefined();
-
-  await act(() => {
-    config?.onCompleted?.(payload);
-  });
-}
-
-async function completeInvite(
-  payload: Parameters<NonNullable<DeliverInviteMutationConfig['onCompleted']>>[0],
-) {
-  const config = mockDeliverInviteCommit.mock.calls[0]?.[0];
 
   expect(config).toBeDefined();
 

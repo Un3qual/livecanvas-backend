@@ -95,6 +95,7 @@ export function PendingFollowRequestsScreen() {
   );
   const initialConnection = data.viewerPendingFollowRequests;
   const initialPageInfo = readProfileConnectionPageInfo(initialConnection);
+  // Reset local pages when Relay replaces the initial connection after a refresh.
   const paginationResetKey = [
     initialPageInfo.endCursor ?? '',
     initialPageInfo.hasNextPage ? 'next' : 'end',
@@ -172,6 +173,8 @@ export function PendingFollowRequestsScreen() {
 
   const submitRequestAction = useCallback(
     (request: PendingFollowRequest, action: 'accept' | 'decline') => {
+      // The ref blocks same-tick repeat taps; state keeps the pending UI disabled
+      // after React commits the render.
       if (activeActionRef.current !== null || activeAction !== null) {
         return;
       }

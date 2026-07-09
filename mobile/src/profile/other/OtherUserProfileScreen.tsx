@@ -105,6 +105,9 @@ const otherUserProfileScreenQuery = graphql`
     }
     relationshipState(creatorId: $id)
     isMuted(creatorId: $id)
+    viewer {
+      id
+    }
   }
 `;
 
@@ -268,6 +271,7 @@ function OtherUserProfileContent({
   const isMuted = isMutedOverride ?? data.isMuted;
   const relationship = describeRelationshipState({
     isMuted,
+    isSelf: data.viewer?.id === user.id,
     state: relationshipState,
   });
   const isRelationshipActionInFlight =
@@ -485,22 +489,24 @@ function OtherUserProfileContent({
         relationship={relationship}
       />
 
-      <SocialPreviewCard
-        followersPreviewCount={followersPreviewCount}
-        followingPreviewCount={followingPreviewCount}
-        onOpenFollowers={() =>
-          router.push({
-            params: { id: user.id },
-            pathname: '/profiles/[id]/followers',
-          })
-        }
-        onOpenFollowing={() =>
-          router.push({
-            params: { id: user.id },
-            pathname: '/profiles/[id]/following',
-          })
-        }
-      />
+      {relationshipState === 'BLOCKED' ? null : (
+        <SocialPreviewCard
+          followersPreviewCount={followersPreviewCount}
+          followingPreviewCount={followingPreviewCount}
+          onOpenFollowers={() =>
+            router.push({
+              params: { id: user.id },
+              pathname: '/profiles/[id]/followers',
+            })
+          }
+          onOpenFollowing={() =>
+            router.push({
+              params: { id: user.id },
+              pathname: '/profiles/[id]/following',
+            })
+          }
+        />
+      )}
     </ScrollView>
   );
 }

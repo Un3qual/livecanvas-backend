@@ -351,6 +351,8 @@ export function FeedHomeContent() {
   const [commitDeletePost] = useMutation<PostOwnerControlDeletePostMutation>(
     postOwnerControlDeletePostMutation,
   );
+  // The ref closes the same-tick transition gap before ownerPendingAction commits.
+  // Form edits only need the ref; owner-state transitions also check committed state.
   const activeOwnerActionRef = useRef<FeedHomeOwnerPendingAction>(null);
   const [ownerPendingAction, setOwnerPendingAction] =
     useState<FeedHomeOwnerPendingAction>(null);

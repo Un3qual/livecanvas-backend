@@ -169,6 +169,22 @@ describe('OtherUserProfileScreen social controls', () => {
 
     expect(mockBlockCommit).toHaveBeenCalledTimes(2);
   });
+
+  test('does not expose social controls when the route targets the viewer', async () => {
+    mockQueryData = {
+      ...profileQueryData({
+        isMuted: false,
+        relationshipState: 'ACCEPTED',
+      }),
+      viewer: { id: 'opaque-profile-id' },
+    };
+
+    await render(<OtherUserProfileScreen id="opaque-profile-id" />);
+
+    expect(screen.getByText('This is your profile.')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Mute' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Block' })).toBeNull();
+  });
 });
 
 async function completeMutation(
@@ -198,6 +214,7 @@ function profileQueryData({
       privacyMode: 'PUBLIC',
     },
     relationshipState,
+    viewer: { id: 'viewer-id' },
   };
 }
 

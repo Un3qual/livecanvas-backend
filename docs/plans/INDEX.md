@@ -69,7 +69,8 @@ Use this file when:
 - Notes: account settings, contact discovery, post owner controls, profile
   connection lists, moderation operations, and the existing-contract portion
   of social controls are complete. Social-control Tasks 3-4 remain deferred
-  pending explicit backend/mobile promotion.
+  pending explicit backend/mobile promotion. Contact-invite delivery is also
+  deferred until the emailed token URL has a real landing route.
 
 ### Backend Live Media Signaling Contract
 

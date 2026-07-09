@@ -114,7 +114,7 @@ and content discovery, live streaming, and chat.
 18. Mobile post composer over `createPost`.
 19. Mobile account settings and recovery.
 20. Existing-contract social controls: mute, unmute, and block.
-21. Manual contact discovery and invites.
+21. Manual contact discovery; invite delivery is deferred pending a real landing route.
 22. Mobile post owner controls.
 23. Profile connection lists and pending follow requests.
 24. Release-candidate manual device QA using the one-host/one-viewer checklist.

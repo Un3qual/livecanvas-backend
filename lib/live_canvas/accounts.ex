@@ -153,7 +153,8 @@ defmodule LC.Accounts do
           optional(:password | :password_confirmation | String.t()) => String.t()
         }
   @type suspension_result :: user_result()
-  @type unlink_user_identity_error :: :not_found | :already_revoked | :last_sign_in_method
+  @type unlink_user_identity_error ::
+          :not_found | :already_revoked | :last_sign_in_method | changeset()
   @type unlink_user_identity_result ::
           {:ok, UserIdentity.t()} | {:error, unlink_user_identity_error()}
   @type staff_permission :: LCSchemas.Accounts.staff_permission()
@@ -1109,6 +1110,8 @@ defmodule LC.Accounts do
       when is_integer(identity_id) and identity_id > 0 do
     result =
       Repo.transact(fn ->
+        # Serialize unlink checks per user so concurrent requests cannot both
+        # observe the same provider as removable and revoke the final sign-in method.
         persisted_user =
           from(candidate in User, where: candidate.id == ^user_id, lock: "FOR UPDATE")
           |> Repo.one()
@@ -1307,7 +1310,7 @@ defmodule LC.Accounts do
           %User{confirmed_at: nil} = confirmed_user ->
             confirmed_user
             |> UserChanges.confirm_changeset()
-            |> update_user_and_delete_all_tokens()
+            |> update_user_and_delete_all_tokens(verify_primary_email: true)
 
           confirmed_user ->
             Repo.delete!(user_token)
@@ -1557,9 +1560,10 @@ defmodule LC.Accounts do
 
   ## Token helper
 
-  defp update_user_and_delete_all_tokens(changeset) do
+  defp update_user_and_delete_all_tokens(changeset, opts \\ []) do
     Repo.transact(fn ->
-      with {:ok, user} <- Repo.update(changeset) do
+      with {:ok, user} <- Repo.update(changeset),
+           {:ok, _user_email_address} <- maybe_verify_primary_email(user, opts) do
         tokens_to_expire =
           Repo.all(from(token in UserToken, where: token.user_id == ^user.id))
 
@@ -1570,6 +1574,14 @@ defmodule LC.Accounts do
         {:ok, {put_primary_email(user), tokens_to_expire}}
       end
     end)
+  end
+
+  defp maybe_verify_primary_email(%User{} = user, opts) when is_list(opts) do
+    if Keyword.get(opts, :verify_primary_email, false) do
+      attach_email_address(user, user.email, verified_at: user.confirmed_at)
+    else
+      {:ok, nil}
+    end
   end
 
   defp attach_email_address(user, email, opts)
@@ -1597,10 +1609,28 @@ defmodule LC.Accounts do
         user_email_address =
           Repo.get_by!(UserEmailAddress, user_id: user.id, email_address_id: email_address.id)
 
-        {:ok, Repo.preload(user_email_address, :email_address)}
+        case maybe_mark_email_verified(user_email_address, opts) do
+          {:ok, verified_user_email_address} ->
+            {:ok, Repo.preload(verified_user_email_address, :email_address)}
+
+          {:error, changeset} ->
+            {:error, changeset}
+        end
 
       {:error, changeset} ->
         {:error, changeset}
+    end
+  end
+
+  defp maybe_mark_email_verified(%UserEmailAddress{} = user_email_address, opts) do
+    case Keyword.get(opts, :verified_at) do
+      %DateTime{} = verified_at ->
+        user_email_address
+        |> change(verified_at: verified_at)
+        |> Repo.update()
+
+      _other ->
+        {:ok, user_email_address}
     end
   end
 
@@ -2063,7 +2093,9 @@ defmodule LC.Accounts do
     from(user in User,
       join: user_email_address in UserEmailAddress,
       on: user_email_address.user_id == user.id,
-      where: user.id != ^owner_id and user_email_address.email_address_id in ^email_address_ids,
+      where:
+        user.id != ^owner_id and user_email_address.email_address_id in ^email_address_ids and
+          not is_nil(user_email_address.verified_at),
       distinct: user.id
     )
     |> Repo.all()
@@ -2075,7 +2107,9 @@ defmodule LC.Accounts do
     from(user in User,
       join: user_phone_number in UserPhoneNumber,
       on: user_phone_number.user_id == user.id,
-      where: user.id != ^owner_id and user_phone_number.phone_number_id in ^phone_number_ids,
+      where:
+        user.id != ^owner_id and user_phone_number.phone_number_id in ^phone_number_ids and
+          not is_nil(user_phone_number.verified_at),
       distinct: user.id
     )
     |> Repo.all()
@@ -2633,7 +2667,8 @@ defmodule LC.Accounts do
 
   defp changeset_user_id(_changeset), do: nil
 
-  @spec revoke_identity_if_active(UserIdentity.t()) :: unlink_user_identity_result()
+  @spec revoke_identity_if_active(UserIdentity.t()) ::
+          {:ok, UserIdentity.t()} | {:error, changeset()}
   defp revoke_identity_if_active(%UserIdentity{} = user_identity) do
     user_identity
     |> change(revoked_at: now_utc())
@@ -2650,6 +2685,8 @@ defmodule LC.Accounts do
   defp identity_unlinkable?(%User{hashed_password: hashed_password}, %UserIdentity{
          user_id: user_id
        }) do
+    # A password can replace the provider being removed; passwordless accounts
+    # must retain at least one other active provider identity.
     password_sign_in_available?(hashed_password) or active_user_identity_count(user_id) > 1
   end
 
