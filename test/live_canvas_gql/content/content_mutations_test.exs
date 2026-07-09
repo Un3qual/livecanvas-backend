@@ -682,4 +682,127 @@ defmodule LCGQL.Content.ContentMutationsTest do
               }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"postId" => hidden_post_id})
     end
   end
+
+  describe "decidePostReport" do
+    test "records a staff report decision with review metadata" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+
+      {:ok, post} =
+        Content.create_post(author, %{
+          kind: :standard,
+          body_text: "reported privately"
+        })
+
+      {:ok, report} = Content.report_post(reporter, post, %{reason: :spam})
+      report_id = Absinthe.Relay.Node.to_global_id(:post_report, report.id, LCGQL.Schema)
+      staff_id = Absinthe.Relay.Node.to_global_id(:user, staff.id, LCGQL.Schema)
+      post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($reportId: ID!) {
+        decidePostReport(input: {reportId: $reportId, status: DISMISSED, decisionNote: "not a violation"}) {
+          report {
+            id
+            status
+            decisionNote
+            reviewedAt
+            reviewedById
+            post {
+              id
+            }
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "decidePostReport" => %{
+                    "report" => %{
+                      "id" => ^report_id,
+                      "status" => "DISMISSED",
+                      "decisionNote" => "not a violation",
+                      "reviewedAt" => reviewed_at,
+                      "reviewedById" => ^staff_id,
+                      "post" => %{"id" => ^post_id}
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"reportId" => report_id},
+                 context: %{current_scope: Accounts.scope_for_user(staff)}
+               )
+
+      assert is_binary(reviewed_at)
+    end
+
+    test "returns structured errors for nonstaff and terminal transitions" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      nonstaff = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+
+      {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "reported"})
+      {:ok, report} = Content.report_post(reporter, post, %{reason: :other})
+      report_id = Absinthe.Relay.Node.to_global_id(:post_report, report.id, LCGQL.Schema)
+
+      mutation = """
+      mutation($reportId: ID!, $status: PostReportStatus!) {
+        decidePostReport(input: {reportId: $reportId, status: $status}) {
+          report {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "decidePostReport" => %{
+                    "report" => nil,
+                    "errors" => [%{"field" => nil, "message" => "not_authorized"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"reportId" => report_id, "status" => "DISMISSED"},
+                 context: %{current_scope: Accounts.scope_for_user(nonstaff)}
+               )
+
+      assert {:ok, _report} =
+               Content.decide_post_report(Accounts.scope_for_user(staff), report.id, %{
+                 status: :actioned
+               })
+
+      assert {:ok,
+              %{
+                data: %{
+                  "decidePostReport" => %{
+                    "report" => nil,
+                    "errors" => [%{"field" => "reportId", "message" => "invalid_transition"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"reportId" => report_id, "status" => "DISMISSED"},
+                 context: %{current_scope: Accounts.scope_for_user(staff)}
+               )
+    end
+  end
 end

@@ -6,7 +6,17 @@ defmodule LC.Content.PostReport do
   alias LCSchemas.Content.PostReport, as: PostReportSchema
 
   @type attrs :: %{
-          optional(:reporter_id | :post_id | :reason | :details | :status | String.t()) => term()
+          optional(
+            :reporter_id
+            | :post_id
+            | :reason
+            | :details
+            | :status
+            | :reviewed_by_id
+            | :reviewed_at
+            | :decision_note
+            | String.t()
+          ) => term()
         }
 
   @doc """
@@ -33,5 +43,17 @@ defmodule LC.Content.PostReport do
     |> foreign_key_constraint(:reporter_id)
     |> foreign_key_constraint(:post_id)
     |> unique_constraint([:reporter_id, :post_id])
+  end
+
+  @doc """
+  Builds a decision changeset for staff moderation actions.
+  """
+  @spec decision_changeset(PostReportSchema.t(), attrs()) :: Ecto.Changeset.t()
+  def decision_changeset(%PostReportSchema{} = report, attrs) when is_map(attrs) do
+    report
+    |> cast(attrs, [:status, :decision_note, :reviewed_by_id, :reviewed_at])
+    |> validate_required([:status, :reviewed_by_id, :reviewed_at])
+    |> validate_length(:decision_note, max: 2000)
+    |> foreign_key_constraint(:reviewed_by_id)
   end
 end

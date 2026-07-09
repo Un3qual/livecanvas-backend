@@ -602,16 +602,25 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                )
     end
 
-    test "refetches post report nodes only for the reporter" do
+    test "refetches post report nodes only for the reporter or staff moderators" do
       author = user_fixture()
       reporter = user_fixture()
+      staff = user_fixture()
       other_user = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
       {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "reported post"})
       {:ok, report} = Content.report_post(reporter, post, %{reason: :spam})
+
+      assert {:ok, _decided_report} =
+               Content.decide_post_report(Accounts.scope_for_user(staff), report.id, %{
+                 status: :dismissed,
+                 decision_note: "not enough context"
+               })
 
       report_id = Absinthe.Relay.Node.to_global_id(:post_report, report.id, LCGQL.Schema)
       post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
       reporter_id = Absinthe.Relay.Node.to_global_id(:user, reporter.id, LCGQL.Schema)
+      staff_id = Absinthe.Relay.Node.to_global_id(:user, staff.id, LCGQL.Schema)
 
       query = """
       query($id: ID!) {
@@ -622,6 +631,11 @@ defmodule LCGQL.Relay.NodeQueriesTest do
             reporterId
             reason
             status
+            decisionNote
+            reviewedById
+            post {
+              id
+            }
           }
         }
       }
@@ -635,13 +649,36 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                     "postId" => ^post_id,
                     "reporterId" => ^reporter_id,
                     "reason" => "SPAM",
-                    "status" => "OPEN"
+                    "status" => "DISMISSED",
+                    "decisionNote" => nil,
+                    "reviewedById" => nil,
+                    "post" => nil
                   }
                 }
               }} =
                Absinthe.run(query, LCGQL.Schema,
                  variables: %{"id" => report_id},
                  context: %{current_scope: Accounts.scope_for_user(reporter)}
+               )
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "id" => ^report_id,
+                    "postId" => ^post_id,
+                    "reporterId" => ^reporter_id,
+                    "reason" => "SPAM",
+                    "status" => "DISMISSED",
+                    "decisionNote" => "not enough context",
+                    "reviewedById" => ^staff_id,
+                    "post" => %{"id" => ^post_id}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => report_id},
+                 context: %{current_scope: Accounts.scope_for_user(staff)}
                )
 
       assert {:ok, %{data: %{"node" => nil}}} =

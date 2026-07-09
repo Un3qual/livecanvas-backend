@@ -9,7 +9,7 @@ defmodule LC.AccountsTest do
 
   import LC.AccountsFixtures
   alias LC.Accounts.Tokens
-  alias LCSchemas.Accounts.{User, UserContactEntry, UserToken}
+  alias LCSchemas.Accounts.{StaffPermission, User, UserContactEntry, UserToken}
 
   describe "schema shape" do
     test "user exposes join and through email relationships" do
@@ -464,8 +464,73 @@ defmodule LC.AccountsTest do
       assert %{user: ^user} = Accounts.scope_for_user(user)
     end
 
+    test "scope_for_user/1 includes active staff permissions" do
+      user = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(user, :post_report_moderation)
+
+      assert %{user: ^user, staff_permissions: staff_permissions} = Accounts.scope_for_user(user)
+      assert MapSet.equal?(staff_permissions, MapSet.new([:post_report_moderation]))
+    end
+
     test "empty_scope/0 returns nil" do
       assert is_nil(Accounts.empty_scope())
+    end
+  end
+
+  describe "staff permissions" do
+    test "grants one active staff permission per user and permission" do
+      user = user_fixture()
+
+      assert {:ok, %{__struct__: StaffPermission} = permission} =
+               Accounts.grant_staff_permission(user, :post_report_moderation)
+
+      assert permission.user_id == user.id
+      assert permission.permission == :post_report_moderation
+      assert is_binary(permission.entropy_id)
+      assert %DateTime{} = permission.granted_at
+      assert is_nil(permission.revoked_at)
+
+      assert [%{__struct__: StaffPermission, id: permission_id}] =
+               Accounts.list_active_staff_permissions(user)
+
+      assert permission_id == permission.id
+
+      assert {:ok, %{__struct__: StaffPermission, id: ^permission_id}} =
+               Accounts.grant_staff_permission(user, :post_report_moderation)
+    end
+
+    test "concurrent duplicate grants return the active permission" do
+      user = user_fixture()
+
+      grant_tasks =
+        for _index <- 1..2 do
+          Task.async(fn -> Accounts.grant_staff_permission(user, :post_report_moderation) end)
+        end
+
+      assert [
+               {:ok, %{__struct__: StaffPermission, id: first_permission_id}},
+               {:ok, %{__struct__: StaffPermission, id: second_permission_id}}
+             ] = Enum.map(grant_tasks, &Task.await(&1, 5_000))
+
+      assert first_permission_id == second_permission_id
+
+      assert [%{__struct__: StaffPermission, id: ^first_permission_id}] =
+               Accounts.list_active_staff_permissions(user)
+    end
+
+    test "revokes active staff permissions and excludes revoked grants from reads" do
+      user = user_fixture()
+      assert {:ok, permission} = Accounts.grant_staff_permission(user, :post_report_moderation)
+
+      assert {:ok, revoked_permission} =
+               Accounts.revoke_staff_permission(user, :post_report_moderation)
+
+      assert revoked_permission.id == permission.id
+      assert %DateTime{} = revoked_permission.revoked_at
+      assert [] = Accounts.list_active_staff_permissions(user)
+
+      assert {:error, :not_found} =
+               Accounts.revoke_staff_permission(user, :post_report_moderation)
     end
   end
 

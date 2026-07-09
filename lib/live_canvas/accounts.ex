@@ -18,6 +18,7 @@ defmodule LC.Accounts do
   alias LCSchemas.Accounts.{
     EmailAddress,
     PhoneNumber,
+    StaffPermission,
     User,
     UserContactEntry,
     UserContactEntryEmailAddress,
@@ -154,6 +155,9 @@ defmodule LC.Accounts do
   @type unlink_user_identity_error :: :not_found | :already_revoked
   @type unlink_user_identity_result ::
           {:ok, UserIdentity.t()} | {:error, unlink_user_identity_error()}
+  @type staff_permission :: LCSchemas.Accounts.staff_permission()
+  @type staff_permission_result ::
+          {:ok, StaffPermission.t()} | {:error, changeset() | :not_found}
 
   ## Database getters
 
@@ -851,13 +855,76 @@ defmodule LC.Accounts do
   Creates a scope for the given user.
   """
   @spec scope_for_user(User.t() | nil) :: Scope.t() | nil
-  def scope_for_user(user), do: Scope.for_user(user)
+  def scope_for_user(%User{} = user) do
+    staff_permissions =
+      user
+      |> list_active_staff_permissions()
+      |> Enum.map(& &1.permission)
+
+    Scope.for_user(user, staff_permissions)
+  end
+
+  def scope_for_user(nil), do: nil
 
   @doc """
   Returns the empty scope used by adapter layers.
   """
   @spec empty_scope() :: nil
   def empty_scope, do: nil
+
+  @doc """
+  Grants a staff permission to a user.
+
+  If the user already has an active grant for the permission, returns that row.
+  """
+  @spec grant_staff_permission(User.t(), staff_permission()) :: staff_permission_result()
+  def grant_staff_permission(%User{id: user_id}, permission)
+      when is_integer(user_id) and user_id > 0 do
+    case active_staff_permission(user_id, permission) do
+      %StaffPermission{} = staff_permission ->
+        {:ok, staff_permission}
+
+      nil ->
+        %StaffPermission{}
+        |> StaffPermission.changeset(%{
+          user_id: user_id,
+          permission: permission,
+          granted_at: now_utc()
+        })
+        |> Repo.insert()
+        |> handle_staff_permission_grant_insert(user_id, permission)
+    end
+  end
+
+  @doc """
+  Revokes an active staff permission for a user.
+  """
+  @spec revoke_staff_permission(User.t(), staff_permission()) :: staff_permission_result()
+  def revoke_staff_permission(%User{id: user_id}, permission)
+      when is_integer(user_id) and user_id > 0 do
+    case active_staff_permission(user_id, permission) do
+      %StaffPermission{} = staff_permission ->
+        staff_permission
+        |> change(revoked_at: now_utc())
+        |> Repo.update()
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Lists active staff permissions for a user.
+  """
+  @spec list_active_staff_permissions(User.t()) :: [StaffPermission.t()]
+  def list_active_staff_permissions(%User{id: user_id})
+      when is_integer(user_id) and user_id > 0 do
+    user_id
+    |> active_staff_permissions_query()
+    |> Repo.all()
+  end
+
+  def list_active_staff_permissions(%User{}), do: []
 
   @doc """
   Builds an email token payload for the given user.
@@ -2117,6 +2184,65 @@ defmodule LC.Accounts do
           user_identity.provider_uid == ^provider_uid and
           is_nil(user_identity.revoked_at),
       limit: 1
+    )
+  end
+
+  @spec active_staff_permission(pos_integer(), staff_permission()) :: StaffPermission.t() | nil
+  defp active_staff_permission(user_id, permission)
+       when is_integer(user_id) and user_id > 0 do
+    user_id
+    |> active_staff_permissions_query()
+    |> where([staff_permission], staff_permission.permission == ^permission)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @spec handle_staff_permission_grant_insert(
+          staff_permission_result(),
+          pos_integer(),
+          staff_permission()
+        ) :: staff_permission_result()
+  defp handle_staff_permission_grant_insert(
+         {:ok, %StaffPermission{} = staff_permission},
+         _user_id,
+         _permission
+       ),
+       do: {:ok, staff_permission}
+
+  defp handle_staff_permission_grant_insert(
+         {:error, %Ecto.Changeset{} = changeset},
+         user_id,
+         permission
+       ) do
+    if active_staff_permission_conflict?(changeset) do
+      case active_staff_permission(user_id, permission) do
+        %StaffPermission{} = staff_permission -> {:ok, staff_permission}
+        nil -> {:error, changeset}
+      end
+    else
+      {:error, changeset}
+    end
+  end
+
+  @spec active_staff_permission_conflict?(Ecto.Changeset.t()) :: boolean()
+  defp active_staff_permission_conflict?(%Ecto.Changeset{errors: errors}) do
+    Enum.any?(errors, fn
+      {:user_id,
+       {_message,
+        constraint: :unique, constraint_name: "staff_permissions_active_user_permission_index"}} ->
+        true
+
+      _error ->
+        false
+    end)
+  end
+
+  @spec active_staff_permissions_query(pos_integer()) :: Ecto.Query.t()
+  defp active_staff_permissions_query(user_id)
+       when is_integer(user_id) and user_id > 0 do
+    from(staff_permission in StaffPermission,
+      where: staff_permission.user_id == ^user_id and is_nil(staff_permission.revoked_at),
+      order_by: [asc: staff_permission.granted_at, asc: staff_permission.id]
     )
   end
 

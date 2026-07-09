@@ -52,6 +52,8 @@ defmodule LCGQL.Content.Types do
     value(:post)
   end
 
+  connection(node_type: :post_report)
+
   object :signed_upload_header do
     field :name, non_null(:string)
     field :value, non_null(:string)
@@ -109,6 +111,10 @@ defmodule LCGQL.Content.Types do
   end
 
   node object(:post_report) do
+    field :post, :post do
+      resolve(&Resolver.post_report_post/3)
+    end
+
     field :post_id, non_null(:id) do
       resolve(&Resolver.post_report_post_id/3)
     end
@@ -120,6 +126,19 @@ defmodule LCGQL.Content.Types do
     field :reason, non_null(:post_report_reason)
     field :details, :string
     field :status, non_null(:post_report_status)
+
+    field :decision_note, :string do
+      resolve(&Resolver.post_report_decision_note/3)
+    end
+
+    field :reviewed_at, :string do
+      resolve(&Resolver.post_report_reviewed_at/3)
+    end
+
+    field :reviewed_by_id, :id do
+      resolve(&Resolver.post_report_reviewed_by_id/3)
+    end
+
     field :inserted_at, non_null(:string)
   end
 end

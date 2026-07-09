@@ -10,5 +10,10 @@ defmodule LC.Authz.Policy do
       desc "Allow callers backed by an authenticated end-user scope."
       allow :authenticated
     end
+
+    action :post_report_moderation do
+      desc "Allow authenticated staff who can moderate post reports."
+      allow :post_report_moderator
+    end
   end
 end

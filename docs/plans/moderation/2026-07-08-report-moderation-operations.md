@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: backend
-Status: draft ready for review
+Status: implemented
 
 ## Executor Brief
 
@@ -44,23 +44,28 @@ Files:
 - Test: `test/live_canvas/authz/policy_test.exs`
 
 Acceptance criteria:
-- [ ] Add `staff_permissions` with bigint `id`, database-generated
+- [x] Add `staff_permissions` with bigint `id`, database-generated
       `entropy_id`, `user_id`, `permission`, `granted_at`, `revoked_at`, and
       `:utc_datetime_usec` timestamps.
-- [ ] Support at least `:post_report_moderation`.
-- [ ] Enforce one active permission per user and permission with a partial
+- [x] Support at least `:post_report_moderation`.
+- [x] Enforce one active permission per user and permission with a partial
       unique index.
-- [ ] Add Accounts APIs for granting, revoking, and reading active staff
+- [x] Add Accounts APIs for granting, revoking, and reading active staff
       permissions.
-- [ ] Add staff permission data to `LC.Accounts.Scope`.
-- [ ] Extend `LC.Authz.Policy` and `LC.Authz.Checks` with a transport-neutral
+- [x] Add staff permission data to `LC.Accounts.Scope`.
+- [x] Extend `LC.Authz.Policy` and `LC.Authz.Checks` with a transport-neutral
       moderation permission check.
-- [ ] Cover active, revoked, missing, and unauthenticated scope behavior.
+- [x] Cover active, revoked, missing, and unauthenticated scope behavior.
 
 Focused verification:
 - From repo root:
   `mix test test/live_canvas/accounts_test.exs test/live_canvas/authz/policy_test.exs`
 - From repo root: `mix typecheck`
+
+Evidence:
+- `mix test test/live_canvas/accounts_test.exs test/live_canvas/authz/policy_test.exs`
+  passed with 91 tests, 0 failures.
+- `mix typecheck` passed.
 
 ### Task 2: Add report queue and decision domain APIs
 
@@ -73,24 +78,28 @@ Files:
 - Test: `test/live_canvas/content_test.exs`
 
 Acceptance criteria:
-- [ ] Add `reviewed_by_id`, `reviewed_at`, and `decision_note` to
+- [x] Add `reviewed_by_id`, `reviewed_at`, and `decision_note` to
       `post_reports`.
-- [ ] Add indexes needed for a staff queue ordered by status and insertion
+- [x] Add indexes needed for a staff queue ordered by status and insertion
       time.
-- [ ] Add `Content.list_post_reports_for_moderation/2` or equivalent query API
+- [x] Add `Content.list_post_reports_for_moderation/2` or equivalent query API
       that receives a staff-authorized scope.
-- [ ] Add `Content.get_moderation_post_report/2` that authorizes through
+- [x] Add `Content.get_moderation_post_report/2` that authorizes through
       `LC.Authz`.
-- [ ] Add `Content.decide_post_report/3` with row locking for decision writes.
-- [ ] Allow `open -> reviewed`, `open -> dismissed`, `open -> actioned`, and
+- [x] Add `Content.decide_post_report/3` with row locking for decision writes.
+- [x] Allow `open -> reviewed`, `open -> dismissed`, `open -> actioned`, and
       `reviewed -> dismissed/actioned`.
-- [ ] Treat `dismissed` and `actioned` as terminal unless product explicitly
+- [x] Treat `dismissed` and `actioned` as terminal unless product explicitly
       chooses reopen semantics later.
-- [ ] Do not mutate posts automatically when a report is marked `actioned`.
+- [x] Do not mutate posts automatically when a report is marked `actioned`.
 
 Focused verification:
 - From repo root: `mix test test/live_canvas/content_test.exs`
 - From repo root: `mix typecheck`
+
+Evidence:
+- `mix test test/live_canvas/content_test.exs` passed with 31 tests, 0 failures.
+- `mix typecheck` passed.
 
 ### Task 3: Expose staff GraphQL queue and decision mutation
 
@@ -108,17 +117,17 @@ Files:
   `test/live_canvas_web/plugs/graphql_mutation_rate_limit_test.exs`
 
 Acceptance criteria:
-- [ ] Add a staff-only Relay connection such as `staffPostReports`.
-- [ ] Support filtering by report status and cursor pagination.
-- [ ] Return an empty connection or a structured authorization error for
+- [x] Add a staff-only Relay connection such as `staffPostReports`.
+- [x] Support filtering by report status and cursor pagination.
+- [x] Return an empty connection or a structured authorization error for
       nonstaff viewers, matching existing GraphQL authorization conventions.
-- [ ] Add `decidePostReport(input: {reportId, status, decisionNote})`.
-- [ ] Extend `PostReport` fields with staff-only review metadata and reported
+- [x] Add `decidePostReport(input: {reportId, status, decisionNote})`.
+- [x] Extend `PostReport` fields with staff-only review metadata and reported
       post access.
-- [ ] Keep reporter-visible fields reporter-scoped.
-- [ ] Update node fetchers so report IDs are accessible to either the reporter
+- [x] Keep reporter-visible fields reporter-scoped.
+- [x] Update node fetchers so report IDs are accessible to either the reporter
       or a staff moderator, but not to arbitrary authenticated viewers.
-- [ ] Add mutation rate-limit coverage if the rate-limit plug enumerates
+- [x] Add mutation rate-limit coverage if the rate-limit plug enumerates
       mutation names.
 
 Focused verification:
@@ -126,6 +135,11 @@ Focused verification:
   `mix test test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs`
 - From repo root: run the focused rate-limit plug test if that file changed.
 - From repo root: `mix typecheck`
+
+Evidence:
+- `mix test test/live_canvas_gql/content/content_queries_test.exs test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/relay/graphql_rate_limit_test.exs`
+  passed with 71 tests, 0 failures.
+- `mix typecheck` passed.
 
 ## Final Verification
 
