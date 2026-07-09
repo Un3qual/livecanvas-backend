@@ -499,9 +499,9 @@ defmodule LC.ContentTest do
                })
 
       assert dismissed_after_review.status == :dismissed
-      assert dismissed_after_review.reviewed_by_id == staff.id
-      assert dismissed_after_review.reviewed_at == reviewed_at
-      assert dismissed_after_review.decision_note == "needs another look"
+      assert dismissed_after_review.reviewed_by_id == finalizer.id
+      assert DateTime.compare(dismissed_after_review.reviewed_at, reviewed_at) == :gt
+      assert dismissed_after_review.decision_note == "not a violation"
 
       assert {:ok, actioned_report} =
                Content.decide_post_report(staff_scope, second_report.id, %{
@@ -564,7 +564,7 @@ defmodule LC.ContentTest do
       assert dismissed_report.status == :dismissed
       assert dismissed_report.reviewed_by_id == finalizer.id
       assert DateTime.compare(dismissed_report.reviewed_at, stale_reviewed_at) == :gt
-      assert dismissed_report.decision_note == "needs final pass"
+      assert is_nil(dismissed_report.decision_note)
     end
 
     test "accepts params-style string decision statuses and separates invalid status input" do

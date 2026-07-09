@@ -182,6 +182,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
               cursor
               node {
                 id
+                canUnlink
               }
             }
             pageInfo {
@@ -198,7 +199,12 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       assert {:ok, %{data: %{"viewer" => %{"userIdentities" => first_page}}}} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 1}, context: context)
 
-      assert [%{"cursor" => first_cursor, "node" => %{"id" => first_id}}] = first_page["edges"]
+      assert [
+               %{
+                 "cursor" => first_cursor,
+                 "node" => %{"id" => first_id, "canUnlink" => true}
+               }
+             ] = first_page["edges"]
       assert is_binary(first_cursor)
       assert is_binary(first_id)
       assert %{"hasNextPage" => true, "endCursor" => end_cursor} = first_page["pageInfo"]
@@ -212,7 +218,12 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
                  context: context
                )
 
-      assert [%{"cursor" => second_cursor, "node" => %{"id" => second_id}}] = second_page["edges"]
+      assert [
+               %{
+                 "cursor" => second_cursor,
+                 "node" => %{"id" => second_id, "canUnlink" => true}
+               }
+             ] = second_page["edges"]
       assert is_binary(second_cursor)
       assert is_binary(second_id)
       assert first_id != second_id
@@ -277,6 +288,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
             edges {
               node {
                 id
+                canUnlink
               }
             }
           }
@@ -289,7 +301,8 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       assert {:ok, %{data: %{"viewer" => %{"userIdentities" => identities}}}} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
 
-      assert [%{"node" => %{"id" => active_identity_id}}] = identities["edges"]
+      assert [%{"node" => %{"id" => active_identity_id, "canUnlink" => false}}] =
+               identities["edges"]
 
       revoked_identity_id =
         Absinthe.Relay.Node.to_global_id(:user_identity, revoked_identity.id, LCGQL.Schema)

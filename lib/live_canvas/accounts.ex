@@ -80,6 +80,7 @@ defmodule LC.Accounts do
   @type contact_match :: %{
           required(:id) => pos_integer(),
           required(:contact_entry) => UserContactEntry.t(),
+          required(:invite_recipient) => String.t() | nil,
           required(:matched_users) => [User.t()]
         }
   @type user_session_result :: {User.t(), DateTime.t()} | nil
@@ -152,7 +153,7 @@ defmodule LC.Accounts do
           optional(:password | :password_confirmation | String.t()) => String.t()
         }
   @type suspension_result :: user_result()
-  @type unlink_user_identity_error :: :not_found | :already_revoked
+  @type unlink_user_identity_error :: :not_found | :already_revoked | :last_sign_in_method
   @type unlink_user_identity_result ::
           {:ok, UserIdentity.t()} | {:error, unlink_user_identity_error()}
   @type staff_permission :: LCSchemas.Accounts.staff_permission()
@@ -1107,10 +1108,26 @@ defmodule LC.Accounts do
   def unlink_user_identity(%User{id: user_id} = user, identity_id)
       when is_integer(identity_id) and identity_id > 0 do
     result =
-      user_id
-      |> user_identity_by_id_query(identity_id)
-      |> Repo.one()
-      |> revoke_identity_if_active()
+      Repo.transact(fn ->
+        persisted_user =
+          from(candidate in User, where: candidate.id == ^user_id, lock: "FOR UPDATE")
+          |> Repo.one()
+
+        user_identity =
+          user_id
+          |> user_identity_by_id_query(identity_id)
+          |> Repo.one()
+
+        with %User{} <- persisted_user,
+             %UserIdentity{} = active_identity <- active_identity(user_identity),
+             true <- identity_unlinkable?(persisted_user, active_identity) do
+          revoke_identity_if_active(active_identity)
+        else
+          nil -> {:error, :not_found}
+          {:error, reason} -> {:error, reason}
+          false -> {:error, :last_sign_in_method}
+        end
+      end)
 
     emit_unlink_identity_auth_event(result, user)
     result
@@ -1121,6 +1138,29 @@ defmodule LC.Accounts do
     emit_unlink_identity_auth_event(result, user)
     result
   end
+
+  @doc """
+  Returns whether an active viewer-owned identity can be removed without deleting the
+  user's final password or provider sign-in method.
+
+  This value is a presentation hint only; `unlink_user_identity/2` rechecks the same
+  invariant while holding a lock on the user row.
+  """
+  @spec user_identity_unlinkable?(User.t(), pos_integer()) :: boolean()
+  def user_identity_unlinkable?(%User{id: user_id}, identity_id)
+      when is_integer(user_id) and is_integer(identity_id) and identity_id > 0 do
+    with %User{} = persisted_user <- Repo.get(User, user_id),
+         %UserIdentity{} = user_identity <-
+           user_id
+           |> active_user_identity_by_id_query(identity_id)
+           |> Repo.one() do
+      identity_unlinkable?(persisted_user, user_identity)
+    else
+      _other -> false
+    end
+  end
+
+  def user_identity_unlinkable?(%User{}, _identity_id), do: false
 
   @doc """
   Upserts a contact entry for a user and syncs its normalized identifier joins.
@@ -1992,8 +2032,16 @@ defmodule LC.Accounts do
     %{
       id: contact_entry.id,
       contact_entry: contact_entry,
+      invite_recipient: contact_invite_recipient(contact_entry),
       matched_users: matched_users_for_contact_entry(owner_id, contact_entry)
     }
+  end
+
+  defp contact_invite_recipient(contact_entry) do
+    contact_entry.email_addresses
+    |> Enum.map(& &1.normalized_email)
+    |> Enum.sort()
+    |> List.first()
   end
 
   defp matched_users_for_contact_entry(owner_id, contact_entry) do
@@ -2566,7 +2614,7 @@ defmodule LC.Accounts do
   end
 
   defp emit_unlink_identity_auth_event({:error, reason}, %User{} = user)
-       when reason in [:not_found, :already_revoked] do
+       when reason in [:not_found, :already_revoked, :last_sign_in_method] do
     emit_auth_event(:provider_identity_unlink_failed,
       user: user,
       metadata: %{"reason" => Atom.to_string(reason)}
@@ -2585,16 +2633,38 @@ defmodule LC.Accounts do
 
   defp changeset_user_id(_changeset), do: nil
 
-  @spec revoke_identity_if_active(UserIdentity.t() | nil) :: unlink_user_identity_result()
-  defp revoke_identity_if_active(nil), do: {:error, :not_found}
-
-  defp revoke_identity_if_active(%UserIdentity{revoked_at: %DateTime{}}),
-    do: {:error, :already_revoked}
-
+  @spec revoke_identity_if_active(UserIdentity.t()) :: unlink_user_identity_result()
   defp revoke_identity_if_active(%UserIdentity{} = user_identity) do
     user_identity
     |> change(revoked_at: now_utc())
     |> Repo.update()
+  end
+
+  @spec active_identity(UserIdentity.t() | nil) ::
+          UserIdentity.t() | {:error, :not_found | :already_revoked}
+  defp active_identity(nil), do: {:error, :not_found}
+  defp active_identity(%UserIdentity{revoked_at: %DateTime{}}), do: {:error, :already_revoked}
+  defp active_identity(%UserIdentity{} = user_identity), do: user_identity
+
+  @spec identity_unlinkable?(User.t(), UserIdentity.t()) :: boolean()
+  defp identity_unlinkable?(%User{hashed_password: hashed_password}, %UserIdentity{
+         user_id: user_id
+       }) do
+    password_sign_in_available?(hashed_password) or active_user_identity_count(user_id) > 1
+  end
+
+  @spec password_sign_in_available?(term()) :: boolean()
+  defp password_sign_in_available?(hashed_password) when is_binary(hashed_password),
+    do: String.trim(hashed_password) != ""
+
+  defp password_sign_in_available?(_hashed_password), do: false
+
+  @spec active_user_identity_count(pos_integer()) :: non_neg_integer()
+  defp active_user_identity_count(user_id) do
+    from(user_identity in UserIdentity,
+      where: user_identity.user_id == ^user_id and is_nil(user_identity.revoked_at)
+    )
+    |> Repo.aggregate(:count)
   end
 
   @spec normalize_query_limit(term()) :: pos_integer()

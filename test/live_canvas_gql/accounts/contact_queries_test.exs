@@ -50,6 +50,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
               id
               contactName
               birthday
+              inviteRecipient
               matchedUsers {
                 id
                 email
@@ -84,6 +85,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       assert first_node["id"] == first_contact_id
       assert first_node["contactName"] == "Email Match"
       assert first_node["birthday"] == "1990-02-15"
+      assert first_node["inviteRecipient"] == matched_email_user.email
       assert [%{"id" => ^matched_email_user_id, "email" => nil}] = first_node["matchedUsers"]
 
       assert {:ok, %{type: :contact_match}} =
@@ -108,6 +110,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       assert second_node["id"] == second_contact_id
       assert second_node["contactName"] == "Phone Match"
       assert is_nil(second_node["birthday"])
+      assert is_nil(second_node["inviteRecipient"])
       assert [%{"id" => ^matched_phone_user_id, "email" => nil}] = second_node["matchedUsers"]
 
       assert {:ok, %{type: :contact_match}} =

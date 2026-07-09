@@ -351,7 +351,7 @@ defmodule LC.Accounts.AuthEventTest do
     end
 
     test "emits provider identity unlink success and failure events" do
-      user = user_fixture()
+      user = user_fixture() |> set_password()
       identity = attach_user_identity(user, :google_provider, "google-auth-event-unlink")
 
       assert {:ok, _revoked_identity} = Accounts.unlink_user_identity(user, identity.id)

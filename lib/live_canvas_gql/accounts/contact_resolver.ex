@@ -8,6 +8,7 @@ defmodule LCGQL.Accounts.ContactResolver do
           id: pos_integer(),
           contact_name: String.t() | nil,
           birthday: Date.t() | nil,
+          invite_recipient: String.t() | nil,
           contact_entry: map(),
           matched_users: [User.t()]
         }

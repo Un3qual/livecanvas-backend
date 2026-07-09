@@ -109,6 +109,10 @@ defmodule LCGQL.Accounts.Types do
 
     field :uid, non_null(:string)
 
+    field :can_unlink, non_null(:boolean) do
+      resolve(&UserResolver.user_identity_can_unlink/3)
+    end
+
     field :user, non_null(:user) do
       resolve(&UserResolver.user_identity_user/3)
     end
@@ -119,6 +123,7 @@ defmodule LCGQL.Accounts.Types do
   node object(:contact_match) do
     field :contact_name, :string
     field :birthday, :string
+    field :invite_recipient, :string
 
     field :matched_users, non_null(list_of(non_null(:user)))
   end

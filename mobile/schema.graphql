@@ -8,6 +8,7 @@ type RootQueryType {
   viewerDataExportRequests(after: String, first: Int!): DataExportRequestConnection
   viewerAccountDeletionRequests(after: String, first: Int!): AccountDeletionRequestConnection
   viewerContactMatches(after: String, first: Int!): ContactMatchConnection
+  staffPostReports(after: String, first: Int!, status: PostReportStatus): PostReportConnection
   post(id: ID!): Post
   mediaAsset(id: ID!): MediaAsset
   homeFeed(after: String, first: Int!): PostConnection
@@ -53,6 +54,7 @@ type RootMutationType {
   updatePost(input: UpdatePostInput!): UpdatePostPayload
   deletePost(input: DeletePostInput!): DeletePostPayload
   reportPost(input: ReportPostInput!): ReportPostPayload
+  decidePostReport(input: DecidePostReportInput!): DecidePostReportPayload
   startLiveSession(input: StartLiveSessionInput!): StartLiveSessionPayload
   goLiveSession(input: GoLiveSessionInput!): GoLiveSessionPayload
   prepareLiveMediaSession(input: PrepareLiveMediaSessionInput!): PrepareLiveMediaSessionPayload
@@ -223,6 +225,17 @@ input ReportPostInput {
 }
 
 type ReportPostPayload {
+  report: PostReport
+  errors: [UserError!]!
+}
+
+input DecidePostReportInput {
+  reportId: ID!
+  status: PostReportStatus!
+  decisionNote: String
+}
+
+type DecidePostReportPayload {
   report: PostReport
   errors: [UserError!]!
 }
@@ -559,6 +572,11 @@ enum UploadHttpMethod {
   POST
 }
 
+type PostReportConnection {
+  pageInfo: PageInfo!
+  edges: [PostReportEdge]
+}
+
 type SignedUploadHeader {
   name: String!
   value: String!
@@ -619,6 +637,8 @@ type PostReport implements Node {
   "The ID of an object"
   id: ID!
 
+  post: Post
+
   postId: ID!
 
   reporterId: ID!
@@ -628,6 +648,12 @@ type PostReport implements Node {
   details: String
 
   status: PostReportStatus!
+
+  decisionNote: String
+
+  reviewedAt: String
+
+  reviewedById: ID
 
   insertedAt: String!
 }
@@ -810,6 +836,8 @@ type UserIdentity implements Node {
 
   uid: String!
 
+  canUnlink: Boolean!
+
   user: User!
 
   insertedAt: String!
@@ -822,6 +850,8 @@ type ContactMatch implements Node {
   contactName: String
 
   birthday: String
+
+  inviteRecipient: String
 
   matchedUsers: [User!]!
 }
@@ -974,6 +1004,11 @@ type UserEdge {
 
 type LiveSessionTimelineEventEdge {
   node: LiveSessionTimelineEvent
+  cursor: String
+}
+
+type PostReportEdge {
+  node: PostReport
   cursor: String
 }
 

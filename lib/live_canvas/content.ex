@@ -395,12 +395,6 @@ defmodule LC.Content do
           pos_integer(),
           LCSchemas.Content.post_report_status()
         ) :: map()
-  defp decision_attrs(%PostReportSchema{status: :reviewed} = report, _attrs, reviewer_id, status)
-       when status in [:dismissed, :actioned] do
-    %{status: status}
-    |> put_missing_review_metadata(report, reviewer_id)
-  end
-
   defp decision_attrs(%PostReportSchema{}, attrs, reviewer_id, status) when is_map(attrs) do
     %{
       status: status,
@@ -408,19 +402,6 @@ defmodule LC.Content do
       reviewed_by_id: reviewer_id,
       reviewed_at: now_utc()
     }
-  end
-
-  @spec put_missing_review_metadata(map(), PostReportSchema.t(), pos_integer()) :: map()
-  defp put_missing_review_metadata(
-         attrs,
-         %PostReportSchema{reviewed_by_id: reviewed_by_id, reviewed_at: %DateTime{}},
-         _reviewer_id
-       )
-       when is_integer(reviewed_by_id),
-       do: attrs
-
-  defp put_missing_review_metadata(attrs, %PostReportSchema{}, reviewer_id) do
-    Map.merge(attrs, %{reviewed_by_id: reviewer_id, reviewed_at: now_utc()})
   end
 
   @spec validate_post_report_decision_transition(

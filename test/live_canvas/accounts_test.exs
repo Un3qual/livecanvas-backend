@@ -199,7 +199,7 @@ defmodule LC.AccountsTest do
 
   describe "unlink_user_identity/2" do
     test "revokes an owned identity and makes it undiscoverable" do
-      user = user_fixture()
+      user = user_fixture() |> set_password()
 
       identity =
         attach_user_identity(user, :google_provider, "google-user-unlink-success",
@@ -224,11 +224,32 @@ defmodule LC.AccountsTest do
     end
 
     test "returns already_revoked when unlink is repeated" do
-      user = user_fixture()
+      user = user_fixture() |> set_password()
       identity = attach_user_identity(user, :google_provider, "google-user-unlink-repeat")
 
       assert {:ok, _revoked_identity} = Accounts.unlink_user_identity(user, identity.id)
       assert {:error, :already_revoked} = Accounts.unlink_user_identity(user, identity.id)
+    end
+
+    test "protects the last active identity for a passwordless user" do
+      user = user_fixture()
+      identity = attach_user_identity(user, :google_provider, "google-user-last-sign-in")
+
+      refute Accounts.user_identity_unlinkable?(user, identity.id)
+      assert {:error, :last_sign_in_method} = Accounts.unlink_user_identity(user, identity.id)
+      assert Accounts.get_active_user_identity(user, identity.id)
+    end
+
+    test "allows a passwordless user to unlink either of multiple active identities" do
+      user = user_fixture()
+      first_identity = attach_user_identity(user, :google_provider, "google-user-first-sign-in")
+      second_identity = attach_user_identity(user, :apple_provider, "apple-user-second-sign-in")
+
+      assert Accounts.user_identity_unlinkable?(user, first_identity.id)
+      assert Accounts.user_identity_unlinkable?(user, second_identity.id)
+      assert {:ok, _revoked_identity} = Accounts.unlink_user_identity(user, first_identity.id)
+
+      refute Accounts.user_identity_unlinkable?(user, second_identity.id)
     end
   end
 
@@ -329,10 +350,12 @@ defmodule LC.AccountsTest do
       assert [
                %{
                  contact_entry: %{contact_name: "Known Friend"},
+                 invite_recipient: invite_recipient,
                  matched_users: matched_users
                }
              ] = Accounts.list_user_contact_matches(owner)
 
+      assert invite_recipient == Enum.min([email_match.email, owner.email])
       assert Enum.map(matched_users, & &1.id) == Enum.sort([email_match.id, phone_match.id])
       refute Enum.any?(matched_users, &(&1.id == owner.id))
       assert Enum.all?(matched_users, &(is_binary(&1.email) and String.contains?(&1.email, "@")))
