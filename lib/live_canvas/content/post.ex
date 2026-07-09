@@ -45,6 +45,7 @@ defmodule LC.Content.Post do
   def update_changeset(%PostSchema{} = post, attrs) when is_map(attrs) do
     post
     |> cast(attrs, [:body_text, :visibility])
+    |> validate_required([:visibility])
     |> validate_length(:body_text, max: 5000)
   end
 

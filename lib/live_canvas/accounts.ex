@@ -116,6 +116,7 @@ defmodule LC.Accounts do
           access_token: token_payload(),
           refresh_token: token_payload()
         }
+  @sign_in_identity_providers [:apple_provider, :google_provider, :passkey_provider]
   @type auth_provider :: :google | :apple | :passkey
   @type auth_entry_error ::
           :email_taken
@@ -2090,12 +2091,23 @@ defmodule LC.Accounts do
   defp matched_users_by_email(_owner_id, []), do: []
 
   defp matched_users_by_email(owner_id, email_address_ids) do
+    # Confirmation used to update only users.confirmed_at. Treat that legacy state as
+    # verification only for the earliest (primary) email join, never for later aliases.
+    primary_email_join_ids =
+      from(user_email_address in UserEmailAddress,
+        group_by: user_email_address.user_id,
+        select: %{user_id: user_email_address.user_id, id: min(user_email_address.id)}
+      )
+
     from(user in User,
       join: user_email_address in UserEmailAddress,
       on: user_email_address.user_id == user.id,
+      join: primary_email_join in subquery(primary_email_join_ids),
+      on: primary_email_join.user_id == user.id,
       where:
         user.id != ^owner_id and user_email_address.email_address_id in ^email_address_ids and
-          not is_nil(user_email_address.verified_at),
+          (not is_nil(user_email_address.verified_at) or
+             (not is_nil(user.confirmed_at) and user_email_address.id == primary_email_join.id)),
       distinct: user.id
     )
     |> Repo.all()
@@ -2683,11 +2695,13 @@ defmodule LC.Accounts do
 
   @spec identity_unlinkable?(User.t(), UserIdentity.t()) :: boolean()
   defp identity_unlinkable?(%User{hashed_password: hashed_password}, %UserIdentity{
+         id: identity_id,
          user_id: user_id
        }) do
     # A password can replace the provider being removed; passwordless accounts
-    # must retain at least one other active provider identity.
-    password_sign_in_available?(hashed_password) or active_user_identity_count(user_id) > 1
+    # must retain another identity supported by an actual authentication entry point.
+    password_sign_in_available?(hashed_password) or
+      active_alternate_sign_in_identity?(user_id, identity_id)
   end
 
   @spec password_sign_in_available?(term()) :: boolean()
@@ -2696,12 +2710,16 @@ defmodule LC.Accounts do
 
   defp password_sign_in_available?(_hashed_password), do: false
 
-  @spec active_user_identity_count(pos_integer()) :: non_neg_integer()
-  defp active_user_identity_count(user_id) do
+  @spec active_alternate_sign_in_identity?(pos_integer(), pos_integer()) :: boolean()
+  defp active_alternate_sign_in_identity?(user_id, excluded_identity_id) do
     from(user_identity in UserIdentity,
-      where: user_identity.user_id == ^user_id and is_nil(user_identity.revoked_at)
+      where:
+        user_identity.user_id == ^user_id and
+          user_identity.id != ^excluded_identity_id and
+          user_identity.provider in ^@sign_in_identity_providers and
+          is_nil(user_identity.revoked_at)
     )
-    |> Repo.aggregate(:count)
+    |> Repo.exists?()
   end
 
   @spec normalize_query_limit(term()) :: pos_integer()

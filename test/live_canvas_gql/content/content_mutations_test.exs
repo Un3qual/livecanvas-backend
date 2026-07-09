@@ -289,6 +289,50 @@ defmodule LCGQL.Content.ContentMutationsTest do
     assert returned_post_id == post_id
   end
 
+  test "updatePost returns a structured error for null visibility" do
+    viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    {:ok, post} =
+      Content.create_post(viewer, %{
+        kind: :standard,
+        body_text: "before",
+        visibility: :public
+      })
+
+    post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
+
+    mutation = """
+    mutation($postId: ID!, $visibility: PostVisibility) {
+      updatePost(input: {postId: $postId, visibility: $visibility}) {
+        post {
+          id
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "updatePost" => %{
+                  "post" => nil,
+                  "errors" => [%{"field" => "visibility", "message" => "can't be blank"}]
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"postId" => post_id, "visibility" => nil},
+               context: context
+             )
+
+    assert Content.get_post!(post.id).visibility == :public
+  end
+
   test "updatePost returns ownership errors for posts outside viewer scope" do
     owner = user_fixture()
     other_viewer = user_fixture()

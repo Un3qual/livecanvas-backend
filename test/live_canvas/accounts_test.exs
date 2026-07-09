@@ -9,7 +9,14 @@ defmodule LC.AccountsTest do
 
   import LC.AccountsFixtures
   alias LC.Accounts.Tokens
-  alias LCSchemas.Accounts.{StaffPermission, User, UserContactEntry, UserToken}
+
+  alias LCSchemas.Accounts.{
+    StaffPermission,
+    User,
+    UserContactEntry,
+    UserEmailAddress,
+    UserToken
+  }
 
   describe "schema shape" do
     test "user exposes join and through email relationships" do
@@ -251,6 +258,24 @@ defmodule LC.AccountsTest do
 
       refute Accounts.user_identity_unlinkable?(user, second_identity.id)
     end
+
+    test "does not count legacy identities as alternate sign-in methods" do
+      user = user_fixture()
+
+      sign_in_identity =
+        attach_user_identity(user, :google_provider, "google-user-with-legacy-identity")
+
+      legacy_identity =
+        attach_user_identity(user, :instagram_provider, "instagram-user-legacy-identity")
+
+      refute Accounts.user_identity_unlinkable?(user, sign_in_identity.id)
+      assert Accounts.user_identity_unlinkable?(user, legacy_identity.id)
+
+      assert {:error, :last_sign_in_method} =
+               Accounts.unlink_user_identity(user, sign_in_identity.id)
+
+      assert Accounts.get_active_user_identity(user, sign_in_identity.id)
+    end
   end
 
   describe "upsert_user_contact_entry/2" do
@@ -388,6 +413,58 @@ defmodule LC.AccountsTest do
 
       refute Enum.any?(matched_users, &(&1.id == unverified_email_match.id))
       refute Enum.any?(matched_users, &(&1.id == unverified_phone_match.id))
+    end
+
+    test "matches a confirmed user's legacy primary email without a join verification timestamp" do
+      owner = user_fixture()
+      legacy_confirmed_match = user_fixture()
+
+      assert {1, nil} =
+               Repo.update_all(
+                 from(user_email_address in UserEmailAddress,
+                   where: user_email_address.user_id == ^legacy_confirmed_match.id
+                 ),
+                 set: [verified_at: nil]
+               )
+
+      assert {:ok, _contact_entry} =
+               Accounts.upsert_user_contact_entry(owner, %{
+                 contact_client_id: :crypto.strong_rand_bytes(16),
+                 emails: [legacy_confirmed_match.email]
+               })
+
+      assert [%{matched_users: [%{id: matched_user_id}]}] =
+               Accounts.list_user_contact_matches(owner)
+
+      assert matched_user_id == legacy_confirmed_match.id
+    end
+
+    test "does not treat an unverified secondary email as verified by account confirmation" do
+      owner = user_fixture()
+      confirmed_user = user_fixture()
+      secondary_email = unique_user_email()
+
+      assert {:ok, join} =
+               Accounts.attach_user_email_address(confirmed_user, secondary_email,
+                 verified_at: nil
+               )
+
+      assert is_nil(join.verified_at)
+
+      assert is_nil(
+               Repo.get_by!(UserEmailAddress,
+                 user_id: confirmed_user.id,
+                 email_address_id: join.email_address_id
+               ).verified_at
+             )
+
+      assert {:ok, _contact_entry} =
+               Accounts.upsert_user_contact_entry(owner, %{
+                 contact_client_id: :crypto.strong_rand_bytes(16),
+                 emails: [secondary_email]
+               })
+
+      assert [%{matched_users: []}] = Accounts.list_user_contact_matches(owner)
     end
 
     test "returns an empty list when no contacts are imported" do
