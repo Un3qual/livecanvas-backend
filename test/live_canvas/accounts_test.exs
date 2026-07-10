@@ -358,9 +358,12 @@ defmodule LC.AccountsTest do
 
   describe "list_user_contact_matches/1" do
     test "returns deterministic match records and excludes self matches" do
-      owner = user_fixture()
-      email_match = user_fixture()
+      owner = user_fixture(email: "a-owner@example.com")
+      email_match = user_fixture(email: "z-email-match@example.com")
       phone_match = user_fixture()
+
+      assert {:ok, _owner_alias} =
+               Accounts.attach_user_email_address(owner, "b-owner-alias@example.com")
 
       attach_phone_number(phone_match, "(650) 253-0001",
         verified_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
@@ -370,7 +373,7 @@ defmodule LC.AccountsTest do
                Accounts.upsert_user_contact_entry(owner, %{
                  contact_client_id: :crypto.strong_rand_bytes(16),
                  contact_name: "Known Friend",
-                 emails: [email_match.email, owner.email],
+                 emails: [email_match.email, owner.email, "b-owner-alias@example.com"],
                  phone_numbers: ["+1 650-253-0001"]
                })
 
@@ -382,7 +385,7 @@ defmodule LC.AccountsTest do
                }
              ] = Accounts.list_user_contact_matches(owner)
 
-      assert invite_recipient == Enum.min([email_match.email, owner.email])
+      assert invite_recipient == email_match.email
       assert Enum.map(matched_users, & &1.id) == Enum.sort([email_match.id, phone_match.id])
       refute Enum.any?(matched_users, &(&1.id == owner.id))
       assert Enum.all?(matched_users, &(is_binary(&1.email) and String.contains?(&1.email, "@")))

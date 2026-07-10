@@ -1195,11 +1195,18 @@ defmodule LC.Accounts do
   """
   @spec list_user_contact_matches(User.t()) :: [contact_match()]
   def list_user_contact_matches(%User{} = user) do
-    user.id
-    |> user_contact_entries_query()
-    |> Repo.all()
-    |> Repo.preload([:email_addresses, :phone_numbers])
-    |> Enum.map(&build_contact_match(user.id, &1))
+    contact_entries =
+      user.id
+      |> user_contact_entries_query()
+      |> Repo.all()
+      |> Repo.preload([:email_addresses, :phone_numbers])
+
+    owner_email_address_ids = owner_email_address_ids(user.id)
+
+    Enum.map(
+      contact_entries,
+      &build_contact_match(user.id, owner_email_address_ids, &1)
+    )
   end
 
   @doc """
@@ -1216,7 +1223,11 @@ defmodule LC.Accounts do
         nil
 
       contact_entry ->
-        build_contact_match(user.id, preload_contact_entry(contact_entry))
+        build_contact_match(
+          user.id,
+          owner_email_address_ids(user.id),
+          preload_contact_entry(contact_entry)
+        )
     end
   end
 
@@ -2059,20 +2070,30 @@ defmodule LC.Accounts do
     )
   end
 
-  defp build_contact_match(owner_id, contact_entry) do
+  defp build_contact_match(owner_id, owner_email_address_ids, contact_entry) do
     %{
       id: contact_entry.id,
       contact_entry: contact_entry,
-      invite_recipient: contact_invite_recipient(contact_entry),
+      invite_recipient: contact_invite_recipient(contact_entry, owner_email_address_ids),
       matched_users: matched_users_for_contact_entry(owner_id, contact_entry)
     }
   end
 
-  defp contact_invite_recipient(contact_entry) do
+  defp contact_invite_recipient(contact_entry, owner_email_address_ids) do
     contact_entry.email_addresses
+    |> Enum.reject(&MapSet.member?(owner_email_address_ids, &1.id))
     |> Enum.map(& &1.normalized_email)
     |> Enum.sort()
     |> List.first()
+  end
+
+  defp owner_email_address_ids(owner_id) do
+    from(user_email_address in UserEmailAddress,
+      where: user_email_address.user_id == ^owner_id,
+      select: user_email_address.email_address_id
+    )
+    |> Repo.all()
+    |> MapSet.new()
   end
 
   defp matched_users_for_contact_entry(owner_id, contact_entry) do
@@ -2091,10 +2112,20 @@ defmodule LC.Accounts do
   defp matched_users_by_email(_owner_id, []), do: []
 
   defp matched_users_by_email(owner_id, email_address_ids) do
+    candidate_user_ids =
+      from(user_email_address in UserEmailAddress,
+        where:
+          user_email_address.user_id != ^owner_id and
+            user_email_address.email_address_id in ^email_address_ids,
+        select: user_email_address.user_id,
+        distinct: true
+      )
+
     # Confirmation used to update only users.confirmed_at. Treat that legacy state as
     # verification only for the earliest (primary) email join, never for later aliases.
     primary_email_join_ids =
       from(user_email_address in UserEmailAddress,
+        where: user_email_address.user_id in subquery(candidate_user_ids),
         group_by: user_email_address.user_id,
         select: %{user_id: user_email_address.user_id, id: min(user_email_address.id)}
       )

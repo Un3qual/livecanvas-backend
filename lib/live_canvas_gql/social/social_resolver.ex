@@ -143,7 +143,7 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec followers(map(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
+  @spec followers(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def followers(%{id: _id} = user, args, resolution) do
     if can_view_relationship_graph?(user, resolution) do
       query = Social.follower_users_query(user)
@@ -153,7 +153,7 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec following(map(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
+  @spec following(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def following(%{id: _id} = user, args, resolution) do
     if can_view_relationship_graph?(user, resolution) do
       query = Social.following_users_query(user)
