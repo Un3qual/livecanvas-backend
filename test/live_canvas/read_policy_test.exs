@@ -1,9 +1,13 @@
 defmodule LC.ReadPolicyTest do
   use LC.DataCase, async: true
 
+  import Ecto.Query
   import LC.AccountsFixtures
 
   alias LC.{ReadPolicy, Social}
+  alias LC.Infra.Repo
+  alias LCSchemas.Accounts.User
+  alias LCSchemas.Social.Follow
 
   describe "relationship facts" do
     test "distinguishes directional user resolution from symmetric blocking" do
@@ -40,6 +44,48 @@ defmodule LC.ReadPolicyTest do
 
       assert ReadPolicy.viewer_can_view_relationship_graph?(viewer, public_owner, :public)
       refute ReadPolicy.viewer_can_read_owner?(viewer, public_owner, :public)
+    end
+  end
+
+  describe "directional block scopes" do
+    test "excludes only user owners who blocked the viewer" do
+      viewer = user_fixture()
+      blocking_owner = user_fixture()
+      visible_owner = user_fixture()
+
+      assert {:ok, _block} = Social.block_user(blocking_owner, viewer)
+
+      visible_owner_ids =
+        from(user in User,
+          where: user.id in ^[blocking_owner.id, visible_owner.id],
+          order_by: [asc: user.id]
+        )
+        |> ReadPolicy.exclude_owners_blocking_viewer(viewer, :id)
+        |> Repo.all()
+        |> Enum.map(& &1.id)
+
+      assert visible_owner_ids == [visible_owner.id]
+    end
+
+    test "supports owner foreign keys on relationship queries" do
+      viewer = user_fixture(privacy_mode: :private)
+      blocking_requester = user_fixture()
+      visible_requester = user_fixture()
+
+      assert {:ok, blocking_follow} = Social.follow_user(blocking_requester, viewer)
+      assert {:ok, visible_follow} = Social.follow_user(visible_requester, viewer)
+      assert {:ok, _block} = Social.block_user(blocking_requester, viewer)
+
+      visible_follow_ids =
+        from(follow in Follow,
+          where: follow.id in ^[blocking_follow.id, visible_follow.id],
+          order_by: [asc: follow.id]
+        )
+        |> ReadPolicy.exclude_owners_blocking_viewer(viewer, :follower_id)
+        |> Repo.all()
+        |> Enum.map(& &1.id)
+
+      assert visible_follow_ids == [visible_follow.id]
     end
   end
 

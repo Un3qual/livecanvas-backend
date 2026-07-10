@@ -47,7 +47,7 @@ defmodule LC.Dev.SeedDataTest do
 
     assert [creator.id, host.id] ==
              viewer
-             |> Social.following_users_query()
+             |> Social.public_following_users_query()
              |> Repo.all()
              |> Enum.map(& &1.id)
 

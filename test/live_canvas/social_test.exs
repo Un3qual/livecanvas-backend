@@ -79,10 +79,14 @@ defmodule LC.SocialTest do
       assert {:ok, _block} = Social.block_user(hidden_follower, viewer)
       assert {:ok, _block} = Social.block_user(hidden_followed, viewer)
 
-      followers = owner |> Social.follower_users_query(viewer) |> Social.run_query()
-      following = owner |> Social.following_users_query(viewer) |> Social.run_query()
+      public_followers = owner |> Social.public_follower_users_query() |> Social.run_query()
+      followers = owner |> Social.viewer_follower_users_query(viewer) |> Social.run_query()
+      public_following = owner |> Social.public_following_users_query() |> Social.run_query()
+      following = owner |> Social.viewer_following_users_query(viewer) |> Social.run_query()
 
+      assert Enum.map(public_followers, & &1.id) == [visible_follower.id, hidden_follower.id]
       assert Enum.map(followers, & &1.id) == [visible_follower.id]
+      assert Enum.map(public_following, & &1.id) == [visible_followed.id, hidden_followed.id]
       assert Enum.map(following, & &1.id) == [visible_followed.id]
     end
   end

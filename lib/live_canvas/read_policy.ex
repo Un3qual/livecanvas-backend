@@ -169,6 +169,21 @@ defmodule LC.ReadPolicy do
   end
 
   @doc """
+  Excludes resources whose owner blocked the viewer.
+
+  This directional scope is for identity-bearing surfaces where a viewer's own
+  block must not make the blocked user disappear from that viewer.
+  """
+  @spec exclude_owners_blocking_viewer(Ecto.Queryable.t(), User.t(), atom()) :: Ecto.Query.t()
+  def exclude_owners_blocking_viewer(queryable, %User{id: viewer_id}, owner_key)
+      when is_atom(owner_key) do
+    queryable
+    |> with_resource_binding()
+    |> maybe_join_directional_block(viewer_id, owner_key)
+    |> where([read_policy_directional_block: block], is_nil(block.id))
+  end
+
+  @doc """
   Excludes resources from owners muted by the viewer.
   """
   @spec exclude_viewer_muted_owner(Ecto.Queryable.t(), User.t(), atom()) :: Ecto.Query.t()
@@ -266,6 +281,21 @@ defmodule LC.ReadPolicy do
              block.blocked_id == field(resource, ^owner_key)) or
             (block.blocker_id == field(resource, ^owner_key) and
                block.blocked_id == ^viewer_id)
+      )
+    end
+  end
+
+  @spec maybe_join_directional_block(Ecto.Query.t(), pos_integer(), atom()) :: Ecto.Query.t()
+  defp maybe_join_directional_block(query, viewer_id, owner_key)
+       when is_integer(viewer_id) and is_atom(owner_key) do
+    if has_named_binding?(query, :read_policy_directional_block) do
+      query
+    else
+      join(query, :left, [read_policy_resource: resource], block in Block,
+        as: :read_policy_directional_block,
+        on:
+          block.blocker_id == field(resource, ^owner_key) and
+            block.blocked_id == ^viewer_id
       )
     end
   end
