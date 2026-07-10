@@ -87,7 +87,7 @@ authenticated viewer when present, and return `nil` when the fetched target
 blocked that viewer. Invalid, deleted, and directionally hidden user IDs will
 therefore produce the same `node: null` response.
 
-Unauthenticated public lookup, self lookup, and lookup of a user blocked by the
+Unauthenticated public lookup, self-lookup, and lookup of a user blocked by the
 viewer remain compatible with current behavior.
 
 ### Social read and write normalization

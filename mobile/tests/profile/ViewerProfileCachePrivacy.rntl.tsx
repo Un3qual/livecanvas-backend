@@ -135,6 +135,10 @@ function resolveNetwork(
   data: object,
 ) {
   const resolve = resolvers.get(operationName);
-  expect(resolve).toBeDefined();
-  resolve!({ data });
+
+  if (!resolve) {
+    throw new Error(`Missing network resolver for ${operationName}`);
+  }
+
+  resolve({ data });
 }

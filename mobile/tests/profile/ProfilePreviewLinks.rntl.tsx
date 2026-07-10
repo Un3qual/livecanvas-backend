@@ -19,6 +19,7 @@ jest.mock('expo-router', () => ({
 jest.mock('react-relay', () => ({
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
   useLazyLoadQuery: (query: { params?: { name?: string } }) =>
+    // Social previews use their network-fresh operation and dedicated mock data.
     query.params?.name === 'ViewerProfileSocialSectionsQuery'
       ? (mockSocialQueryData ?? mockQueryData)
       : mockQueryData,

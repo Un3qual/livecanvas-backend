@@ -117,6 +117,9 @@ defmodule LCGQL.Accounts.ContactResolver do
     Absinthe.Relay.Connection.from_list([], args)
   end
 
+  @doc """
+  Projects one contact match after applying viewer-specific block visibility.
+  """
   @spec visible_contact_match_node(LC.Accounts.contact_match(), User.t()) ::
           contact_match_node()
   def visible_contact_match_node(contact_match, %User{} = viewer) do
@@ -125,6 +128,9 @@ defmodule LCGQL.Accounts.ContactResolver do
     |> List.first()
   end
 
+  @doc """
+  Projects contact matches with one batched viewer-visibility lookup.
+  """
   @spec visible_contact_match_nodes([LC.Accounts.contact_match()], User.t()) ::
           [contact_match_node()]
   def visible_contact_match_nodes(contact_matches, %User{} = viewer) do
