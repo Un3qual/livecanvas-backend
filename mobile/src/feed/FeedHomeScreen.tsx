@@ -251,7 +251,7 @@ export function FeedHomeScreen() {
   return (
     <FeedHomeErrorBoundary key={queryRetryKey} onRetry={retryQuery}>
       <Suspense fallback={<FeedHomeLoadingState />}>
-        <FeedHomeContent key={queryRetryKey} />
+        <FeedHomeContent fetchKey={queryRetryKey} key={queryRetryKey} />
       </Suspense>
     </FeedHomeErrorBoundary>
   );
@@ -331,7 +331,7 @@ export function pushFeedHomeAction(
   router.push(action.route);
 }
 
-export function FeedHomeContent() {
+export function FeedHomeContent({ fetchKey = 0 }: { fetchKey?: number }) {
   const theme = useAppTheme();
   const router = useRouter();
   const relayEnvironment = useRelayEnvironment();
@@ -381,7 +381,7 @@ export function FeedHomeContent() {
   const data = useLazyLoadQuery<FeedHomeScreenQuery>(
     feedHomeScreenQuery,
     FEED_HOME_QUERY_VARIABLES,
-    { fetchPolicy: 'store-and-network' },
+    { fetchKey, fetchPolicy: 'store-and-network' },
   );
   const [refreshedHomeData, setRefreshedHomeData] =
     useState<FeedHomeManualRefreshSnapshot | null>(null);

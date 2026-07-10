@@ -116,7 +116,11 @@ export function LiveSessionWatchScreen({
           <ScreenState state="loading" message="Loading live session..." />
         }
       >
-        <LiveSessionWatchContent key={resetKey} sessionId={sessionId} />
+        <LiveSessionWatchContent
+          fetchKey={queryRetryKey}
+          key={resetKey}
+          sessionId={sessionId}
+        />
       </Suspense>
     </LiveSessionWatchErrorBoundary>
   );
@@ -156,8 +160,9 @@ class LiveSessionWatchErrorBoundary extends React.Component<
 }
 
 function LiveSessionWatchContent({
+  fetchKey,
   sessionId,
-}: LiveSessionWatchScreenProps) {
+}: LiveSessionWatchScreenProps & { fetchKey: number }) {
   const theme = useAppTheme();
   const router = useRouter();
   const auth = useAuth();
@@ -171,7 +176,7 @@ function LiveSessionWatchContent({
       timelineBefore: null,
       timelineLast: INITIAL_TIMELINE_HISTORY_COUNT,
     },
-    { fetchPolicy: 'store-and-network' },
+    { fetchKey, fetchPolicy: 'store-and-network' },
   );
   const [chatState, dispatchChatAction] = useReducer(
     liveSessionChatTimelineReducer,

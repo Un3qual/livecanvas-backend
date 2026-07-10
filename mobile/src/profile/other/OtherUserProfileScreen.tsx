@@ -160,6 +160,7 @@ export function OtherUserProfileScreen({ id }: { id: string }) {
       onRetry={retryQuery}
     >
       <OtherUserProfileContent
+        fetchKey={queryRetryKey}
         id={id}
         key={resetKey}
         onRelationshipMutationSuccess={handleRelationshipMutationSuccess}
@@ -206,10 +207,12 @@ class OtherUserProfileErrorBoundary extends React.Component<
 }
 
 function OtherUserProfileContent({
+  fetchKey,
   id,
   onRelationshipMutationSuccess,
   relationshipStateOverride,
 }: {
+  fetchKey: number;
   id: string;
   onRelationshipMutationSuccess: (
     profileId: string,
@@ -245,7 +248,7 @@ function OtherUserProfileContent({
   const data = useLazyLoadQuery<OtherUserProfileScreenQuery>(
     otherUserProfileScreenQuery,
     { id },
-    PRIVACY_SENSITIVE_FETCH_OPTIONS,
+    { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey },
   );
 
   useEffect(() => {

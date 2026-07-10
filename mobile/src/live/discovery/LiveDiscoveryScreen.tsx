@@ -62,7 +62,7 @@ export function LiveDiscoveryScreen() {
           <ScreenState state="loading" message="Loading live sessions..." />
         }
       >
-        <LiveDiscoveryContent key={queryRetryKey} />
+        <LiveDiscoveryContent fetchKey={queryRetryKey} key={queryRetryKey} />
       </Suspense>
     </LiveDiscoveryErrorBoundary>
   );
@@ -143,7 +143,7 @@ class LiveDiscoveryErrorBoundary extends React.Component<
   }
 }
 
-function LiveDiscoveryContent() {
+function LiveDiscoveryContent({ fetchKey }: { fetchKey: number }) {
   const theme = useAppTheme();
   const router = useRouter();
   const data = useLazyLoadQuery<LiveDiscoveryScreenQuery>(
@@ -185,7 +185,7 @@ function LiveDiscoveryContent() {
       }
     `,
     { first: 20 },
-    { fetchPolicy: 'store-and-network' },
+    { fetchKey, fetchPolicy: 'store-and-network' },
   );
 
   const currentSession = data.viewer?.currentLiveSession ?? null;

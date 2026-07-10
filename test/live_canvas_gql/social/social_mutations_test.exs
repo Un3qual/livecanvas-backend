@@ -364,6 +364,52 @@ defmodule LCGQL.Social.SocialMutationsTest do
                 }
               }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"blockedId" => blocked_id})
     end
+
+    test "rejects self-blocks without hiding the viewer node" do
+      viewer = user_fixture()
+      viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation($blockedId: ID!) {
+        blockUser(input: {blockedId: $blockedId}) {
+          errors { field message }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "blockUser" => %{
+                    "errors" => [%{"field" => nil, "message" => "not_allowed"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"blockedId" => viewer_id},
+                 context: context
+               )
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) { id }
+        viewer { id }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{"id" => ^viewer_id},
+                  "viewer" => %{"id" => ^viewer_id}
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => viewer_id},
+                 context: context
+               )
+    end
   end
 
   describe "muteUser" do

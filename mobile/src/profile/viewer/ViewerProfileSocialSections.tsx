@@ -8,8 +8,6 @@ import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
 
-import type { ViewerProfileSocialSectionsAcceptFollowRequestMutation } from '../../__generated__/ViewerProfileSocialSectionsAcceptFollowRequestMutation.graphql';
-import type { ViewerProfileSocialSectionsDeclineFollowRequestMutation } from '../../__generated__/ViewerProfileSocialSectionsDeclineFollowRequestMutation.graphql';
 import type { ViewerProfileSocialSectionsQuery } from '../../__generated__/ViewerProfileSocialSectionsQuery.graphql';
 import { AppButton } from '../../components/AppButton';
 import { AppCard } from '../../components/AppCard';
@@ -33,6 +31,12 @@ import {
   countConnectionEdges,
   formatConnectionPreviewCount,
 } from '../profilePresentation';
+import {
+  acceptFollowRequestMutation,
+  declineFollowRequestMutation,
+  type ProfileConnectionAcceptFollowRequestMutation,
+  type ProfileConnectionDeclineFollowRequestMutation,
+} from '../profileConnectionOperations';
 import { formatMutationErrors } from '../privacyModeReducer';
 
 type FollowRequestSubmissionInput = {
@@ -41,36 +45,6 @@ type FollowRequestSubmissionInput = {
   };
   readonly id: string;
 };
-
-const acceptFollowRequestMutation = graphql`
-  mutation ViewerProfileSocialSectionsAcceptFollowRequestMutation(
-    $input: AcceptFollowRequestInput!
-  ) {
-    acceptFollowRequest(input: $input) {
-      follow {
-        id
-        state
-      }
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
-
-const declineFollowRequestMutation = graphql`
-  mutation ViewerProfileSocialSectionsDeclineFollowRequestMutation(
-    $input: DeclineFollowRequestInput!
-  ) {
-    declineFollowRequest(input: $input) {
-      errors {
-        field
-        message
-      }
-    }
-  }
-`;
 
 const viewerProfileSocialSectionsQuery = graphql`
   query ViewerProfileSocialSectionsQuery {
@@ -133,7 +107,10 @@ export function ViewerProfileSocialSectionsBoundary() {
           </AppCard>
         }
       >
-        <ViewerProfileSocialSections key={queryRetryKey} />
+        <ViewerProfileSocialSections
+          fetchKey={queryRetryKey}
+          key={queryRetryKey}
+        />
       </Suspense>
     </ViewerProfileSocialErrorBoundary>
   );
@@ -172,12 +149,12 @@ class ViewerProfileSocialErrorBoundary extends React.Component<
   }
 }
 
-function ViewerProfileSocialSections() {
+function ViewerProfileSocialSections({ fetchKey }: { fetchKey: number }) {
   const router = useRouter();
   const data = useLazyLoadQuery<ViewerProfileSocialSectionsQuery>(
     viewerProfileSocialSectionsQuery,
     {},
-    PRIVACY_SENSITIVE_FETCH_OPTIONS,
+    { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey },
   );
   const viewer = data.viewer;
   const [followRequestState, dispatchFollowRequest] = useReducer(
@@ -188,11 +165,11 @@ function ViewerProfileSocialSections() {
   const activeFollowRequestActionRef =
     useRef<FollowRequestState['activeAction']>(null);
   const [commitAcceptFollowRequest] =
-    useMutation<ViewerProfileSocialSectionsAcceptFollowRequestMutation>(
+    useMutation<ProfileConnectionAcceptFollowRequestMutation>(
       acceptFollowRequestMutation,
     );
   const [commitDeclineFollowRequest] =
-    useMutation<ViewerProfileSocialSectionsDeclineFollowRequestMutation>(
+    useMutation<ProfileConnectionDeclineFollowRequestMutation>(
       declineFollowRequestMutation,
     );
 

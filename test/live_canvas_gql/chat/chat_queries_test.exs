@@ -364,6 +364,55 @@ defmodule LCGQL.Chat.ChatQueriesTest do
       assert is_binary(end_cursor)
     end
 
+    test "omits events authored by a user who blocked the viewer" do
+      host = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      blocking_actor = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+
+      assert {:ok, visible_event} =
+               Chat.create_timeline_chat_message(live_session, host, %{body: "visible"})
+
+      assert {:ok, hidden_event} =
+               Chat.create_timeline_chat_message(live_session, blocking_actor, %{body: "hidden"})
+
+      {:ok, ended_session} = Live.end_live_session(live_session)
+      _block = block_fixture(blocking_actor, viewer)
+
+      visible_id = global_id(:chat_message_event, visible_event.id)
+      hidden_id = global_id(:chat_message_event, hidden_event.id)
+      live_session_id = global_id(:live_session, ended_session.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "timelineEvents" => %{
+                      "edges" => [
+                        %{
+                          "node" => %{
+                            "id" => ^visible_id,
+                            "body" => "visible"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }} =
+               Absinthe.run(timeline_events_query(), LCGQL.Schema,
+                 variables: %{"id" => live_session_id, "first" => 10},
+                 context: context
+               )
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(timeline_event_node_query(), LCGQL.Schema,
+                 variables: %{"id" => hidden_id},
+                 context: context
+               )
+    end
+
     test "omits removed message projections from timeline events and node refetch" do
       host = user_fixture(privacy_mode: :public)
       viewer = user_fixture()

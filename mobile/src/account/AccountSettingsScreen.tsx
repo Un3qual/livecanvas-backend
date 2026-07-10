@@ -10,6 +10,7 @@ import type { accountSettingsOperationsUnlinkIdentityMutation } from '../__gener
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
+import { useRelayRouteFetchKey } from '../components/RelayRouteBoundary';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { profileScreenStyles as styles } from '../profile/components/profileScreenStyles';
@@ -68,10 +69,11 @@ type ErrorOnlyResult = {
 
 export function AccountSettingsScreen() {
   const theme = useAppTheme();
+  const routeFetchKey = useRelayRouteFetchKey();
   const data = useLazyLoadQuery<accountSettingsOperationsQuery>(
     accountSettingsQuery,
     {},
-    { fetchPolicy: 'store-and-network' },
+    { fetchKey: routeFetchKey, fetchPolicy: 'store-and-network' },
   );
   const [removedIdentityIds, setRemovedIdentityIds] = useState<
     Readonly<Record<string, true>>

@@ -1,5 +1,7 @@
 defmodule LCGQL.Accounts.ContactResolverTest do
-  use LC.DataCase, async: true
+  # Repo telemetry handlers are VM-global, so keep this query-count assertion
+  # isolated until the stacked read-policy PR scopes captures to their caller.
+  use LC.DataCase, async: false
 
   import LC.AccountsFixtures
 

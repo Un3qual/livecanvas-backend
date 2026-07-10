@@ -71,13 +71,22 @@ defmodule LC.Chat do
   end
 
   @doc """
+  Returns timeline projections after excluding actors who blocked the viewer.
+  """
+  @spec timeline_history_query(User.t(), LiveSession.t()) :: Ecto.Query.t()
+  def timeline_history_query(%User{id: viewer_id}, %LiveSession{id: live_session_id})
+      when is_integer(viewer_id) and is_integer(live_session_id) do
+    TimelineEvents.history_query(live_session_id, viewer_id)
+  end
+
+  @doc """
   Returns one visible timeline event when the viewer can read its session history.
   """
   @spec get_timeline_event(User.t(), integer()) :: TimelineProjection.t() | nil
   def get_timeline_event(%User{} = viewer, timeline_event_id)
       when is_integer(timeline_event_id) do
     with %{live_session_id: live_session_id} = timeline_event <-
-           timeline_event_id |> TimelineEvents.event_query() |> Repo.one(),
+           timeline_event_id |> TimelineEvents.event_query(viewer.id) |> Repo.one(),
          %LiveSession{} = live_session <- Repo.get(LiveSession, live_session_id),
          :ok <- authorize_history_access(viewer, live_session) do
       timeline_event

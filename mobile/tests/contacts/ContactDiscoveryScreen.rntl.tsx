@@ -34,6 +34,7 @@ type ContactMatchNode = {
 };
 
 type QueryVariables = Record<string, unknown>;
+type QueryOptions = { readonly fetchKey?: number };
 
 type UpsertContactMutationConfig = {
   readonly variables: {
@@ -74,6 +75,7 @@ type DeliverInviteMutationConfig = {
 
 let mockQueryData: ContactDiscoveryQueryData;
 let mockQueryVariables: QueryVariables | null;
+let mockQueryOptions: QueryOptions | null;
 let mockFetchQueryResult: ContactDiscoveryQueryData;
 let mockFetchQueryVariables: QueryVariables | null;
 let mockQueryError: Error | null;
@@ -114,12 +116,14 @@ jest.mock('react-relay', () => ({
   useLazyLoadQuery: (
     _query: unknown,
     variables: QueryVariables,
+    options: QueryOptions,
   ): ContactDiscoveryQueryData => {
     if (mockQueryError) {
       throw mockQueryError;
     }
 
     mockQueryVariables = variables;
+    mockQueryOptions = options;
     return mockQueryData;
   },
   useMutation: (mutation: unknown) => {
@@ -169,6 +173,7 @@ beforeEach(() => {
     ]),
   };
   mockQueryVariables = null;
+  mockQueryOptions = null;
   mockFetchQueryVariables = null;
   mockPushedRoutes = [];
   mockUpsertContactCommit.mockClear();
@@ -196,6 +201,23 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     expect(
       screen.getByText('We could not load contact discovery.'),
     ).toBeOnTheScreen();
+  });
+
+  test('contacts route retries Relay with a new fetch key', async () => {
+    mockQueryError = new Error('relay query failed');
+
+    await withSuppressedConsoleError(async () => {
+      await render(<ContactsRoute />);
+    });
+
+    mockQueryError = null;
+    await fireEvent.press(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Find contacts')).not.toHaveLength(0);
+    });
+
+    expect(mockQueryOptions?.fetchKey).toBe(1);
   });
 
   test('submits one normalized manual email contact and opens matched profiles', async () => {

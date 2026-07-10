@@ -79,6 +79,9 @@ defmodule LC.Social do
   Records a block relationship between two users.
   """
   @spec block_user(struct(), struct()) :: block_result()
+  def block_user(%User{id: user_id}, %User{id: user_id}) when is_integer(user_id),
+    do: {:error, :not_allowed}
+
   def block_user(%User{id: blocker_id}, %User{id: blocked_id}) do
     %Block{blocker_id: blocker_id, blocked_id: blocked_id}
     |> Repo.insert()

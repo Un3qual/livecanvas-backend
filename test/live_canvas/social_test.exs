@@ -4,6 +4,8 @@ defmodule LC.SocialTest do
   import LC.AccountsFixtures
 
   alias LC.{Accounts, ReadPolicy, Social}
+  alias LC.Infra.Repo
+  alias LCSchemas.Social.Block
 
   test "private accounts start as requested" do
     follower = user_fixture()
@@ -25,6 +27,21 @@ defmodule LC.SocialTest do
   end
 
   describe "directional block privacy" do
+    test "block_user/2 rejects self-blocks" do
+      viewer = user_fixture()
+
+      assert {:error, :not_allowed} = Social.block_user(viewer, viewer)
+      assert Repo.get_by(Block, blocker_id: viewer.id, blocked_id: viewer.id) == nil
+    end
+
+    test "the database rejects self-block rows" do
+      viewer = user_fixture()
+
+      assert_raise Ecto.ConstraintError, fn ->
+        Repo.insert!(%Block{blocker_id: viewer.id, blocked_id: viewer.id})
+      end
+    end
+
     test "blocked_by?/2 only reports the target-to-viewer direction" do
       viewer = user_fixture()
       target = user_fixture()

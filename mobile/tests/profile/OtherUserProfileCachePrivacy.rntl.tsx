@@ -1,5 +1,10 @@
 import React, { Suspense } from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { RelayEnvironmentProvider } from 'react-relay';
 import {
@@ -64,6 +69,61 @@ test('withholds cached profile data until current authorization is confirmed', a
   expect(screen.queryByText('Public profile')).toBeNull();
 });
 
+test('retries a failed privacy-sensitive profile request with a fresh fetch', async () => {
+  let networkAttempts = 0;
+  let resolveRetry: ((response: GraphQLResponse) => void) | undefined;
+  const environment = new Environment({
+    network: Network.create(() => {
+      networkAttempts += 1;
+
+      if (networkAttempts === 1) {
+        return Promise.reject(new Error('offline'));
+      }
+
+      return new Promise<GraphQLResponse>((resolve) => {
+        resolveRetry = resolve;
+      });
+    }),
+    store: new Store(new RecordSource()),
+  });
+
+  await withSuppressedConsoleError(async () => {
+    render(
+      <RelayEnvironmentProvider environment={environment}>
+        <Suspense fallback={<Text>Checking profile access...</Text>}>
+          <OtherUserProfileScreen id={profileId} />
+        </Suspense>
+      </RelayEnvironmentProvider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "We couldn't load this profile. Check your connection and try again.",
+        ),
+      ).toBeOnTheScreen();
+    });
+  });
+
+  await withSuppressedConsoleError(async () => {
+    fireEvent.press(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => {
+      expect(networkAttempts).toBe(2);
+    });
+  });
+
+  if (!resolveRetry) {
+    throw new Error('Missing retry network resolver');
+  }
+
+  resolveRetry(hiddenProfilePayload());
+
+  await waitFor(() => {
+    expect(screen.getByText('This profile is unavailable.')).toBeOnTheScreen();
+  });
+});
+
 function visibleProfileData() {
   return {
     isMuted: false,
@@ -99,4 +159,14 @@ function emptyConnection() {
       hasNextPage: false,
     },
   };
+}
+
+async function withSuppressedConsoleError(run: () => Promise<void>) {
+  const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+  try {
+    await run();
+  } finally {
+    consoleError.mockRestore();
+  }
 }

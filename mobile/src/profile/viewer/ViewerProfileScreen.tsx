@@ -58,7 +58,7 @@ export function ViewerProfileScreen() {
           <ScreenState state="loading" message="Loading your profile..." />
         }
       >
-        <ViewerProfileContent key={queryRetryKey} />
+        <ViewerProfileContent fetchKey={queryRetryKey} key={queryRetryKey} />
       </Suspense>
     </ViewerProfileErrorBoundary>
   );
@@ -97,7 +97,7 @@ class ViewerProfileErrorBoundary extends React.Component<
   }
 }
 
-function ViewerProfileContent() {
+function ViewerProfileContent({ fetchKey }: { fetchKey: number }) {
   const theme = useAppTheme();
   const router = useRouter();
   const data = useLazyLoadQuery<ViewerProfileScreenQuery>(
@@ -123,7 +123,7 @@ function ViewerProfileContent() {
       }
     `,
     {},
-    { fetchPolicy: 'store-and-network' },
+    { fetchKey, fetchPolicy: 'store-and-network' },
   );
 
   const viewer = data.viewer;
