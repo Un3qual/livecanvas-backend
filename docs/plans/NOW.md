@@ -1,35 +1,45 @@
 # Current Execution
 
 Last reviewed: 2026-07-09
-Status: cross-lane product-gap batch complete; next product batch not selected
+Status: next-five-product-batches sequence active; Batch 1 reversible social controls selected
 
 ## Purpose
 
 This is the coordinator dashboard. Lane `NOW.md` files own executable details.
+
+## Active Sequence
+
+- Approved design:
+  `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
+- Current implementation plan:
+  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
+- Batch order: reversible social controls, profile content surfaces, media post
+  publishing, live-chat message controls, then end-to-end contact invitations.
+- Release-candidate device QA remains deferred until the five product batches
+  close.
 
 ## Lane Pointers
 
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: complete; report moderation plus promoted account/contact contracts
-  are implemented and review-hardened.
-- Latest source plan:
-  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
+- State: active for Batch 1 domain and GraphQL contracts.
+- Current task: implementation-plan Task 1, directional domain operations.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: complete; the five July 8 product-gap plans are implemented for their
-  selected scopes and review-hardened.
+- State: active for Batch 1 presentation and profile controls after the backend
+  schema lands.
 - Track: `docs/plans/mobile/TRACK.md`
-- Deferred: reversible unfollow/unblock contracts and release-candidate manual
-  QA, plus contact-invite delivery until a real landing route exists.
+- Dependency: implementation-plan Tasks 1-2 must finish before mobile Tasks
+  3-4 consume the schema.
 
 ## Execution Rule
 
-Open the relevant lane pointer first. Use `docs/plans/INDEX.md` only when a lane
-is stale, blocked, empty, or needs a new plan promoted.
+Open the relevant lane pointer first. Execute Batch 1 in the implementation
+plan's task and commit order. Batches 2-5 remain queued design scope, not
+simultaneously executable work.
 
 ## Cross-Lane Policy
 
@@ -39,8 +49,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Decision
 
-Select the next product-completeness batch. Do not implicitly activate the
-deferred reversible social-control work or release-candidate device QA.
+Execute Batch 1 only. After its final gates pass, close both lane pointers and
+create the implementation plan for Batch 2, Profile Content Surfaces.
 
 ## Repair Conditions
 

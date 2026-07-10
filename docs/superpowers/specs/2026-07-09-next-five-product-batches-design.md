@@ -1,7 +1,7 @@
 # Next Five Product Batches Design
 
 Date: 2026-07-09
-Status: design approved; written-spec review pending
+Status: approved
 Owner: cross-lane coordinator
 
 ## Goal

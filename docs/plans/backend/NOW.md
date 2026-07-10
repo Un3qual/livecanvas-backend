@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-09
-Status: report moderation and cross-lane account/contact contracts complete
+Status: Batch 1 reversible social-control contract active
 
 ## Lane Scope
 
@@ -11,30 +11,35 @@ Status: report moderation and cross-lane account/contact contracts complete
 
 ## Current Batch
 
+- Approved design:
+  `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Source plan:
-  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
-- Task: complete, including PR review hardening.
-- Write scope: staff report authorization, moderation queue and decision API,
-  mutation limiting, identity unlink safety, contact-match projection, GraphQL
-  schema, and focused backend tests.
-- Done condition: met. Staff-only moderation operations are Relay-first and
-  rate-limited; the latest terminal decision owns one atomic actor/time/note
-  tuple; passwordless users cannot unlink their last provider identity; and
-  persisted contact matches expose a viewer-owned invite recipient.
+  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
+- Current task: Task 1, add directional and idempotent unfollow/unblock domain
+  operations; Task 2 then exposes the Relay GraphQL contract.
+- Write scope:
+  - `lib/live_canvas/social.ex`
+  - `lib/live_canvas_gql/social/**`
+  - focused social domain/GraphQL tests
+  - `mobile/schema.graphql` only for the exported contract
+- Done condition: viewer-scoped `unfollowUser` and `unblockUser` are
+  idempotent; `isBlockedByViewer` reports only an outbound block; invalid and
+  unauthenticated states remain payload-safe; the focused backend suite and
+  typecheck pass.
 - Verification:
-  - `mix test test/live_canvas/accounts_test.exs test/live_canvas/content_test.exs test/live_canvas_gql/accounts/contact_resolver_test.exs test/live_canvas_gql/accounts/contact_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas/accounts/auth_event_test.exs`
-  - `mix test test/live_canvas_web/plugs/graphql_mutation_rate_limit_test.exs`
+  - `mix test test/live_canvas/social_test.exs test/live_canvas_gql/social/social_mutations_test.exs test/live_canvas_gql/social/social_queries_test.exs`
   - `mix typecheck`
+  - `mix absinthe.schema.sdl --schema LCGQL.Schema mobile/schema.graphql`
   - `git diff --check`
 
 ## Next Action
 
-No standalone backend batch is selected. Promote the next verified product
-contract or runtime issue here before implementation. Do not reopen the broader
-release-readiness roadmap solely because this cross-lane batch completed.
+Execute implementation-plan Task 1 with a failing domain test before writing
+the domain operations. Do not start mobile Task 3 until backend Task 2 exports
+the updated schema.
 
 ## References
 
-- Previous completed backend foundation:
-  `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
-- Mobile product-gap batch: `docs/plans/mobile/NOW.md`
+- Previous completed backend batch:
+  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
+- Mobile lane dependency: `docs/plans/mobile/NOW.md`

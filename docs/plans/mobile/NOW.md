@@ -1,47 +1,50 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-09
-Status: mobile product-gap batch complete; reversible social controls and release QA deferred
+Status: Batch 1 reversible social controls active; backend contract first
 
 ## Lane Scope
 
 - Own `mobile/` and `docs/plans/mobile/**`.
-- Promote verified backend contract/data issues into the backend lane with an
-  explicit write scope before cross-lane implementation.
+- Consume the explicitly promoted backend contract recorded in
+  `docs/plans/backend/NOW.md`.
 - Keep Relay IDs opaque and durable reads/writes Relay-first.
 
 ## Current Batch
 
-- Source plans:
-  - `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
-  - `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 1-2)
-  - `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
-  - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
-  - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
+- Approved design:
+  `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
+- Source plan:
+  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
+- Existing product plan:
+  `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 3-4)
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: none; implementation and PR review hardening are complete.
-- Write scope: `mobile/**`, `docs/plans/mobile/**`, and the explicitly promoted
-  backend account/contact contracts recorded in `docs/plans/backend/NOW.md`.
-- Done condition: met for account lifecycle, mute/unmute/block, manual contact
-  discovery, post owner controls, connection lists, and review
-  hardening for cross-action races and virtualized pagination.
+- Current task: wait for source-plan Tasks 1-2 to export `unfollowUser`,
+  `unblockUser`, and `isBlockedByViewer`; then execute Tasks 3-4.
+- Write scope:
+  - `mobile/src/profile/relationshipPresentation.ts`
+  - `mobile/src/profile/socialControlOperations.ts`
+  - `mobile/src/profile/other/**`
+  - generated Relay artifacts under `mobile/src/__generated__/**`
+  - focused tests under `mobile/tests/profile/**`
+- Done condition: accepted outbound relationships expose Unfollow; only
+  viewer-originated blocks expose Unblock; duplicate/cross-action taps and stale
+  route completions are guarded; payload errors remain local and retryable.
 - Verification:
   - From `mobile/`: `bun run relay`
+  - From `mobile/`: `bun test tests/profile/relationshipPresentation.test.ts tests/profile/OtherUserProfileScreen.test.ts`
+  - From `mobile/`: `pnpm exec jest --config ./jest.config.js tests/profile/OtherUserProfileScreen.rntl.tsx --runInBand`
   - From `mobile/`: `bun run test:quality`
   - From repo root: `git diff --check`
 
 ## Deferred Scope
 
-- Social-control Tasks 3-4 remain deferred: backend `unfollowUser`,
-  `unblockUser`, a direction-safe blocked-by-viewer read, and their mobile UI.
+- Batches 2-5 in the approved design are queued but not executable yet.
 - Native address-book import and bulk contact upload remain out of scope.
-- Contact-invite delivery remains hidden until the emailed token URL has a real
-  landing route.
-- Release-candidate manual device/account QA remains deferred until product
-  explicitly resumes it.
+- Release-candidate manual device/account QA remains deferred until all five
+  product batches close.
 
 ## Do This Now
 
-No executable mobile batch is selected. Promote or write the next
-product-completeness plan before implementation; do not treat the deferred
-social or release-QA work as implicitly active.
+Do not edit mobile code before the backend schema is exported. Once backend
+Task 2 passes, begin source-plan Task 3 with failing pure presentation tests.
