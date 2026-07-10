@@ -13,7 +13,7 @@ export const postOwnerControlUpdatePostMutation = graphql`
   ) {
     updatePost(input: $input) {
       post {
-        ...feedHomeOperationsPostFields @relay(mask: false)
+        ...contentSurfaceOperationsPostFields @relay(mask: false)
       }
       errors {
         field

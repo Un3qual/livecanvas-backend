@@ -12,20 +12,23 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import {
-  fetchQuery,
-  useLazyLoadQuery,
-  useMutation,
-  useRelayEnvironment,
-} from 'react-relay';
+import { fetchQuery, useLazyLoadQuery, useRelayEnvironment } from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
+import {
+  ContentPostCard,
+  type ContentPost,
+} from '../content/ContentPostCard';
+import { applyContentPostChanges } from '../content/contentPostChanges';
+import {
+  usePostControls,
+  type PostControls,
+} from '../content/usePostControls';
 import {
   LiveSessionSummaryCard,
   type LiveSessionSummary,
@@ -33,38 +36,12 @@ import {
 import { liveSessionHref } from '../live/liveSessionNavigation';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
-import { radius, spacing, typography } from '../theme/tokens';
-import {
-  formatPostCardPresentation,
-  type FeedMediaAssetPresentation,
-  type FeedPostCardInput,
-} from './feedPresentation';
+import { spacing, typography } from '../theme/tokens';
 import {
   FEED_HOME_QUERY_VARIABLES,
   feedHomeScreenQuery,
-  feedHomeScreenReportPostMutation,
   type FeedHomeScreenQuery,
-  type FeedHomeScreenReportPostMutation,
 } from './feedHomeOperations';
-import {
-  postOwnerControlDeletePostMutation,
-  postOwnerControlUpdatePostMutation,
-  type PostOwnerControlDeletePostMutation,
-  type PostOwnerControlUpdatePostMutation,
-} from './postOwnerControlOperations';
-import {
-  POST_OWNER_DELETE_CONFIRMATION,
-  buildDeletePostInput,
-  buildPostOwnerEditState,
-  buildUpdatePostInput,
-  formatDeletePostMutationErrors,
-  formatUpdatePostMutationErrors,
-  getPostOwnerUpdateValidationMessage,
-  isViewerOwnedPost,
-  selectPostOwnerEditVisibility,
-  updatePostOwnerEditBody,
-  type PostOwnerEditState,
-} from './postOwnerControlsState';
 import {
   createFeedHomePaginationState,
   feedHomePaginationReducer,
@@ -73,15 +50,6 @@ import {
   type FeedHomePaginationSection,
   type FeedHomePaginationSectionInput,
 } from './feedHomePagination';
-import {
-  DEFAULT_REPORT_POST_REASON,
-  canSubmitPostReport,
-  createReportPostState,
-  formatReportPostMutationErrors,
-  isPostReportConfirmed,
-  reportPostReducer,
-  type ReportPostState,
-} from './reportPostReducer';
 
 type FeedHomeAction = {
   key: 'compose' | 'host' | 'profile' | 'contacts' | 'settings' | 'diagnostics';
@@ -99,7 +67,7 @@ type FeedHomeAction = {
 type FeedHomePost = NonNullable<
   ReturnType<typeof readConnectionNodes<FeedHomePostNode>>[number]
 >;
-type FeedHomePostNode = FeedPostCardInput;
+type FeedHomePostNode = ContentPost;
 type FeedHomeQueryResponse = FeedHomeScreenQuery['response'];
 
 type FeedHomeLoadMoreControl =
@@ -136,29 +104,6 @@ type FeedHomeManualRefreshSnapshot = {
   readonly queryDataAtStart: FeedHomeQueryResponse;
 };
 
-type FeedHomeOwnerPendingAction =
-  | {
-      readonly kind: 'delete' | 'update';
-      readonly postId: string;
-    }
-  | null;
-
-type FeedHomeOwnerControls = {
-  readonly deleteConfirmationPostId: string | null;
-  readonly editState: PostOwnerEditState | null;
-  readonly editingPostId: string | null;
-  readonly errorsByPostId: Readonly<Record<string, string>>;
-  readonly onCancelDelete: () => void;
-  readonly onCancelEdit: () => void;
-  readonly onConfirmDelete: (post: FeedHomePost) => void;
-  readonly onDeletePost: (post: FeedHomePost) => void;
-  readonly onEditBodyChange: (bodyText: string) => void;
-  readonly onSaveEdit: (post: FeedHomePost) => void;
-  readonly onSelectEditVisibility: (visibility: 'FOLLOWERS' | 'PUBLIC') => void;
-  readonly onStartEdit: (post: FeedHomePost) => void;
-  readonly pendingAction: FeedHomeOwnerPendingAction;
-};
-
 const FEED_HOME_PAGINATION_SECTIONS = [
   'homeFeed',
   'replays',
@@ -187,58 +132,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     justifyContent: 'center',
   },
-  cardHeader: {
-    gap: spacing.xs,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  badgeText: typography.label,
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
   bodyText: typography.body,
-  metadata: {
-    gap: spacing.xs,
-  },
   metadataText: {
     ...typography.body,
     fontSize: 14,
     lineHeight: 20,
-  },
-  mediaList: {
-    borderWidth: 1,
-    borderRadius: radius.md,
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  reportPanel: {
-    gap: spacing.xs,
-  },
-  ownerControls: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  editPanel: {
-    gap: spacing.sm,
-  },
-  editInput: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    minHeight: 88,
-    padding: spacing.md,
-    textAlignVertical: 'top',
-  },
-  visibilityControls: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
   },
   loadMorePanel: {
     gap: spacing.xs,
@@ -335,41 +233,6 @@ export function FeedHomeContent() {
   const theme = useAppTheme();
   const router = useRouter();
   const relayEnvironment = useRelayEnvironment();
-  const [reportPostState, dispatchReportPost] = useReducer(
-    reportPostReducer,
-    createReportPostState(),
-  );
-  // The ref closes the duplicate-tap gap before React commits reducer state.
-  // After a rerender, reportPostState is the committed source of truth.
-  const activeReportPostIdRef = useRef<string | null>(null);
-  const [commitReportPost] = useMutation<FeedHomeScreenReportPostMutation>(
-    feedHomeScreenReportPostMutation,
-  );
-  const [commitUpdatePost] = useMutation<PostOwnerControlUpdatePostMutation>(
-    postOwnerControlUpdatePostMutation,
-  );
-  const [commitDeletePost] = useMutation<PostOwnerControlDeletePostMutation>(
-    postOwnerControlDeletePostMutation,
-  );
-  // The ref closes the same-tick transition gap before ownerPendingAction commits.
-  // Form edits only need the ref; owner-state transitions also check committed state.
-  const activeOwnerActionRef = useRef<FeedHomeOwnerPendingAction>(null);
-  const [ownerPendingAction, setOwnerPendingAction] =
-    useState<FeedHomeOwnerPendingAction>(null);
-  const [ownerErrorsByPostId, setOwnerErrorsByPostId] = useState<
-    Readonly<Record<string, string>>
-  >({});
-  const [updatedPostsById, setUpdatedPostsById] = useState<
-    Readonly<Record<string, FeedHomePost>>
-  >({});
-  const [deletedPostIds, setDeletedPostIds] = useState<
-    Readonly<Record<string, true>>
-  >({});
-  const [editingPostId, setEditingPostId] = useState<string | null>(null);
-  const [ownerEditState, setOwnerEditState] =
-    useState<PostOwnerEditState | null>(null);
-  const [deleteConfirmationPostId, setDeleteConfirmationPostId] =
-    useState<string | null>(null);
   const activeLoadMoreRequestRef = useRef<FeedHomeLoadMoreRequestState>({
     homeFeed: null,
     replays: null,
@@ -392,6 +255,7 @@ export function FeedHomeContent() {
   const currentSession = effectiveData.viewer?.currentLiveSession ?? null;
   const currentSessionId = currentSession?.id;
   const viewerId = effectiveData.viewer?.id ?? null;
+  const postControls = usePostControls({ viewerId });
   const stories = readConnectionNodes<FeedHomePost>(effectiveData.storyFeed);
   const posts = readConnectionNodes<FeedHomePost>(effectiveData.homeFeed);
   const liveNowSessions = readConnectionNodes<LiveSessionSummary>(
@@ -505,22 +369,6 @@ export function FeedHomeContent() {
     onLoadMore: () => loadMoreSection('replays'),
     pageInfo: replayPageInfo,
   });
-  const ownerControls: FeedHomeOwnerControls = {
-    deleteConfirmationPostId,
-    editState: ownerEditState,
-    editingPostId,
-    errorsByPostId: ownerErrorsByPostId,
-    onCancelDelete: cancelDeletePost,
-    onCancelEdit: cancelOwnerEdit,
-    onConfirmDelete: deletePost,
-    onDeletePost: requestDeletePostConfirmation,
-    onEditBodyChange: updateOwnerEditBody,
-    onSaveEdit: updatePost,
-    onSelectEditVisibility: selectOwnerEditVisibility,
-    onStartEdit: startOwnerEdit,
-    pendingAction: ownerPendingAction,
-  };
-
   useEffect(() => {
     const syncedSections = {
       homeFeed: createSectionPageInfo(
@@ -813,236 +661,6 @@ export function FeedHomeContent() {
     }
   }
 
-  function reportPost(post: FeedHomePost) {
-    // Check the ref for same-render duplicate taps, then reducer state for
-    // committed report progress and confirmation.
-    if (
-      viewerId == null ||
-      post.author.id === viewerId ||
-      activeReportPostIdRef.current !== null ||
-      !canSubmitPostReport(reportPostState, post.id)
-    ) {
-      return;
-    }
-
-    activeReportPostIdRef.current = post.id;
-    dispatchReportPost({ postId: post.id, type: 'start' });
-    commitReportPost({
-      variables: {
-        input: {
-          details: null,
-          postId: post.id,
-          reason: DEFAULT_REPORT_POST_REASON,
-        },
-      },
-      onCompleted: (payload) => {
-        activeReportPostIdRef.current = null;
-        const result = payload.reportPost;
-
-        if (!result?.report || result.errors.length > 0) {
-          dispatchReportPost({
-            message: formatReportPostMutationErrors(result?.errors),
-            postId: post.id,
-            type: 'error',
-          });
-          return;
-        }
-
-        dispatchReportPost({ postId: post.id, type: 'success' });
-      },
-      onError: () => {
-        activeReportPostIdRef.current = null;
-        dispatchReportPost({
-          message: formatReportPostMutationErrors(null),
-          postId: post.id,
-          type: 'error',
-        });
-      },
-    });
-  }
-
-  function startOwnerEdit(post: FeedHomePost) {
-    if (activeOwnerActionRef.current !== null || ownerPendingAction !== null) {
-      return;
-    }
-
-    setDeleteConfirmationPostId(null);
-    setEditingPostId(post.id);
-    setOwnerEditState(
-      buildPostOwnerEditState({
-        bodyText: post.bodyText,
-        visibility: post.visibility,
-      }),
-    );
-    setOwnerErrorsByPostId((current) => omitOwnerError(current, post.id));
-  }
-
-  function cancelOwnerEdit() {
-    if (activeOwnerActionRef.current !== null || ownerPendingAction !== null) {
-      return;
-    }
-
-    setEditingPostId(null);
-    setOwnerEditState(null);
-  }
-
-  function updateOwnerEditBody(bodyText: string) {
-    if (activeOwnerActionRef.current !== null) {
-      return;
-    }
-
-    setOwnerEditState((current) =>
-      current ? updatePostOwnerEditBody(current, bodyText) : current,
-    );
-  }
-
-  function selectOwnerEditVisibility(visibility: 'FOLLOWERS' | 'PUBLIC') {
-    if (activeOwnerActionRef.current !== null) {
-      return;
-    }
-
-    setOwnerEditState((current) =>
-      current ? selectPostOwnerEditVisibility(current, visibility) : current,
-    );
-  }
-
-  function updatePost(post: FeedHomePost) {
-    if (
-      activeOwnerActionRef.current !== null ||
-      ownerPendingAction !== null ||
-      editingPostId !== post.id ||
-      ownerEditState === null
-    ) {
-      return;
-    }
-
-    const validationMessage =
-      getPostOwnerUpdateValidationMessage(ownerEditState);
-
-    if (validationMessage) {
-      setOwnerErrorsByPostId((current) => ({
-        ...current,
-        [post.id]: validationMessage,
-      }));
-      return;
-    }
-
-    const input = buildUpdatePostInput(post.id, ownerEditState);
-
-    if (!input) {
-      return;
-    }
-
-    const pendingAction = { kind: 'update', postId: post.id } as const;
-    activeOwnerActionRef.current = pendingAction;
-    setOwnerPendingAction(pendingAction);
-    setOwnerErrorsByPostId((current) => omitOwnerError(current, post.id));
-
-    commitUpdatePost({
-      variables: { input },
-      onCompleted: (payload) => {
-        activeOwnerActionRef.current = null;
-        setOwnerPendingAction(null);
-        const result = payload.updatePost;
-
-        const updatedPost = result?.post;
-
-        if (!updatedPost || result?.errors.length) {
-          setOwnerErrorsByPostId((current) => ({
-            ...current,
-            [post.id]: formatUpdatePostMutationErrors(result?.errors),
-          }));
-          return;
-        }
-
-        setUpdatedPostsById((current) => ({
-          ...current,
-          [updatedPost.id]: updatedPost,
-        }));
-        setEditingPostId(null);
-        setOwnerEditState(null);
-        setOwnerErrorsByPostId((current) => omitOwnerError(current, post.id));
-      },
-      onError: () => {
-        activeOwnerActionRef.current = null;
-        setOwnerPendingAction(null);
-        setOwnerErrorsByPostId((current) => ({
-          ...current,
-          [post.id]: formatUpdatePostMutationErrors(null),
-        }));
-      },
-    });
-  }
-
-  function requestDeletePostConfirmation(post: FeedHomePost) {
-    if (activeOwnerActionRef.current !== null || ownerPendingAction !== null) {
-      return;
-    }
-
-    setEditingPostId(null);
-    setOwnerEditState(null);
-    setDeleteConfirmationPostId(post.id);
-    setOwnerErrorsByPostId((current) => omitOwnerError(current, post.id));
-  }
-
-  function cancelDeletePost() {
-    if (activeOwnerActionRef.current !== null || ownerPendingAction !== null) {
-      return;
-    }
-
-    setDeleteConfirmationPostId(null);
-  }
-
-  function deletePost(post: FeedHomePost) {
-    if (
-      activeOwnerActionRef.current !== null ||
-      ownerPendingAction !== null ||
-      deleteConfirmationPostId !== post.id
-    ) {
-      return;
-    }
-
-    const pendingAction = { kind: 'delete', postId: post.id } as const;
-    activeOwnerActionRef.current = pendingAction;
-    setOwnerPendingAction(pendingAction);
-    setOwnerErrorsByPostId((current) => omitOwnerError(current, post.id));
-
-    commitDeletePost({
-      variables: { input: buildDeletePostInput(post.id) },
-      onCompleted: (payload) => {
-        activeOwnerActionRef.current = null;
-        setOwnerPendingAction(null);
-        const result = payload.deletePost;
-
-        const deletedPostId = result?.deletedPostId;
-
-        if (!deletedPostId || result?.errors.length) {
-          setOwnerErrorsByPostId((current) => ({
-            ...current,
-            [post.id]: formatDeletePostMutationErrors(result?.errors),
-          }));
-          return;
-        }
-
-        setDeletedPostIds((current) => ({
-          ...current,
-          [deletedPostId]: true,
-        }));
-        setUpdatedPostsById((current) => omitUpdatedPost(current, post.id));
-        setDeleteConfirmationPostId(null);
-        setOwnerErrorsByPostId((current) => omitOwnerError(current, post.id));
-      },
-      onError: () => {
-        activeOwnerActionRef.current = null;
-        setOwnerPendingAction(null);
-        setOwnerErrorsByPostId((current) => ({
-          ...current,
-          [post.id]: formatDeletePostMutationErrors(null),
-        }));
-      },
-    });
-  }
-
   return (
     <ScrollView
       style={[styles.screen, { backgroundColor: theme.colors.background }]}
@@ -1093,14 +711,11 @@ export function FeedHomeContent() {
       <PostSection
         emptyMessage="No stories are available yet."
         loadMoreControl={storiesLoadMoreControl}
-        onReportPost={reportPost}
-        ownerControls={ownerControls}
-        posts={applyLocalPostChanges(
+        postControls={postControls}
+        posts={applyContentPostChanges(
           stories.concat(retainedOlderStories),
-          updatedPostsById,
-          deletedPostIds,
+          postControls.changes,
         )}
-        reportPostState={reportPostState}
         title="Stories"
         viewerId={viewerId}
       />
@@ -1108,14 +723,11 @@ export function FeedHomeContent() {
       <PostSection
         emptyMessage="No feed posts are available yet."
         loadMoreControl={homeFeedLoadMoreControl}
-        onReportPost={reportPost}
-        ownerControls={ownerControls}
-        posts={applyLocalPostChanges(
+        postControls={postControls}
+        posts={applyContentPostChanges(
           posts.concat(retainedOlderPosts),
-          updatedPostsById,
-          deletedPostIds,
+          postControls.changes,
         )}
-        reportPostState={reportPostState}
         title="Home feed"
         viewerId={viewerId}
       />
@@ -1175,16 +787,6 @@ function appendRetainedRows<Node>(
       ? retainedRows.rows.concat(nextRows)
       : nextRows,
   );
-}
-
-function applyLocalPostChanges(
-  posts: ReadonlyArray<FeedHomePost>,
-  updatedPostsById: Readonly<Record<string, FeedHomePost>>,
-  deletedPostIds: Readonly<Record<string, true>>,
-): FeedHomePost[] {
-  return posts
-    .filter((post) => deletedPostIds[post.id] !== true)
-    .map((post) => updatedPostsById[post.id] ?? post);
 }
 
 function createBasePageIdentity(
@@ -1305,19 +907,15 @@ function EmptySectionMessage({ message }: { message: string }) {
 function PostSection({
   emptyMessage,
   loadMoreControl,
-  onReportPost,
-  ownerControls,
+  postControls,
   posts,
-  reportPostState,
   title,
   viewerId,
 }: {
   emptyMessage: string;
   loadMoreControl: FeedHomeLoadMoreControl;
-  onReportPost: (post: FeedHomePost) => void;
-  ownerControls: FeedHomeOwnerControls;
+  postControls: PostControls;
   posts: ReadonlyArray<FeedHomePost>;
-  reportPostState: ReportPostState;
   title: string;
   viewerId: string | null;
 }) {
@@ -1325,12 +923,10 @@ function PostSection({
     <FeedHomeSection title={title}>
       {posts.length > 0 ? (
         posts.map((post) => (
-          <FeedPostCard
+          <ContentPostCard
+            controls={postControls}
             key={post.id}
-            onReportPost={onReportPost}
-            ownerControls={ownerControls}
             post={post}
-            reportPostState={reportPostState}
             viewerId={viewerId}
           />
         ))
@@ -1339,259 +935,6 @@ function PostSection({
       )}
       <FeedHomeLoadMoreControlView control={loadMoreControl} />
     </FeedHomeSection>
-  );
-}
-
-function FeedPostCard({
-  onReportPost,
-  ownerControls,
-  post,
-  reportPostState,
-  viewerId,
-}: {
-  onReportPost: (post: FeedHomePost) => void;
-  ownerControls: FeedHomeOwnerControls;
-  post: FeedHomePost;
-  reportPostState: ReportPostState;
-  viewerId: string | null;
-}) {
-  const theme = useAppTheme();
-  const presentation = formatPostCardPresentation(post);
-  const isOwnPost = isViewerOwnedPost(viewerId, post.author.id);
-  const isReportActive = reportPostState.activePostId === post.id;
-  const isReportConfirmed = isPostReportConfirmed(reportPostState, post.id);
-  const reportError = reportPostState.errorsByPostId[post.id] ?? null;
-  const ownerError = ownerControls.errorsByPostId[post.id] ?? null;
-  const showReportAction = viewerId != null && !isOwnPost;
-  const showOwnerControls = viewerId != null && isOwnPost;
-  const isEditing = ownerControls.editingPostId === post.id;
-  const isConfirmingDelete =
-    ownerControls.deleteConfirmationPostId === post.id;
-  const isUpdating =
-    ownerControls.pendingAction?.kind === 'update' &&
-    ownerControls.pendingAction.postId === post.id;
-  const isDeleting =
-    ownerControls.pendingAction?.kind === 'delete' &&
-    ownerControls.pendingAction.postId === post.id;
-  const isOwnerActionPending = ownerControls.pendingAction !== null;
-
-  return (
-    <AppCard>
-      <View style={styles.cardHeader}>
-        <View
-          style={[
-            styles.badge,
-            { backgroundColor: theme.colors.surfaceMuted },
-          ]}
-        >
-          <Text style={[styles.badgeText, { color: theme.colors.text }]}>
-            {presentation.kindLabel}
-          </Text>
-        </View>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          {presentation.author.title}
-        </Text>
-        <Text style={[styles.metadataText, { color: theme.colors.textMuted }]}>
-          {presentation.author.subtitle}
-        </Text>
-      </View>
-
-      {isEditing && ownerControls.editState ? (
-        <View style={styles.editPanel}>
-          <TextInput
-            accessibilityLabel="Post body"
-            editable={!isOwnerActionPending}
-            multiline
-            onChangeText={ownerControls.onEditBodyChange}
-            style={[
-              styles.editInput,
-              {
-                borderColor: theme.colors.border,
-                color: theme.colors.text,
-              },
-            ]}
-            value={ownerControls.editState.bodyText}
-          />
-          <View style={styles.visibilityControls}>
-            <AppButton
-              disabled={isOwnerActionPending}
-              label="Followers"
-              onPress={() =>
-                ownerControls.onSelectEditVisibility('FOLLOWERS')
-              }
-              selected={ownerControls.editState.visibility === 'FOLLOWERS'}
-              variant="secondary"
-            />
-            <AppButton
-              disabled={isOwnerActionPending}
-              label="Public"
-              onPress={() => ownerControls.onSelectEditVisibility('PUBLIC')}
-              selected={ownerControls.editState.visibility === 'PUBLIC'}
-              variant="secondary"
-            />
-          </View>
-          <View style={styles.ownerControls}>
-            <AppButton
-              disabled={isOwnerActionPending}
-              label={isUpdating ? 'Saving...' : 'Save post'}
-              onPress={() => ownerControls.onSaveEdit(post)}
-            />
-            <AppButton
-              disabled={isOwnerActionPending}
-              label="Cancel"
-              onPress={ownerControls.onCancelEdit}
-              variant="secondary"
-            />
-          </View>
-        </View>
-      ) : (
-        <Text style={[styles.bodyText, { color: theme.colors.text }]}>
-          {presentation.body}
-        </Text>
-      )}
-
-      <View style={styles.metadata}>
-        <Text style={[styles.metadataText, { color: theme.colors.textMuted }]}>
-          {presentation.timestampLabel}
-        </Text>
-        <Text style={[styles.metadataText, { color: theme.colors.textMuted }]}>
-          {presentation.visibilityLabel}
-        </Text>
-        {presentation.storyExpiryLabel ? (
-          <Text style={[styles.metadataText, { color: theme.colors.textMuted }]}>
-            {presentation.storyExpiryLabel}
-          </Text>
-        ) : null}
-      </View>
-
-      {presentation.mediaAssets.length > 0 ? (
-        <View
-          style={[
-            styles.mediaList,
-            {
-              backgroundColor: theme.colors.surfaceMuted,
-              borderColor: theme.colors.border,
-            },
-          ]}
-        >
-          {presentation.mediaAssets.map((asset) => (
-            <MediaAssetRow asset={asset} key={asset.id} />
-          ))}
-        </View>
-      ) : null}
-
-      {showReportAction ? (
-        <View style={styles.reportPanel}>
-          {isReportConfirmed ? (
-            <Text style={[styles.metadataText, { color: theme.colors.text }]}>
-              Report submitted.
-            </Text>
-          ) : (
-            <AppButton
-              disabled={isReportActive}
-              label={isReportActive ? 'Reporting...' : 'Report post'}
-              onPress={() => onReportPost(post)}
-              variant="secondary"
-            />
-          )}
-
-          {reportError ? (
-            <Text style={[styles.metadataText, { color: theme.colors.error }]}>
-              {reportError}
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
-
-      {showOwnerControls ? (
-        <View style={styles.reportPanel}>
-          {isConfirmingDelete ? (
-            <>
-              <Text style={[styles.metadataText, { color: theme.colors.text }]}>
-                {POST_OWNER_DELETE_CONFIRMATION}
-              </Text>
-              <View style={styles.ownerControls}>
-                <AppButton
-                  disabled={isOwnerActionPending}
-                  label={isDeleting ? 'Deleting...' : 'Confirm delete'}
-                  onPress={() => ownerControls.onConfirmDelete(post)}
-                />
-                <AppButton
-                  disabled={isOwnerActionPending}
-                  label="Cancel"
-                  onPress={ownerControls.onCancelDelete}
-                  variant="secondary"
-                />
-              </View>
-            </>
-          ) : isEditing ? null : (
-            <View style={styles.ownerControls}>
-              <AppButton
-                disabled={isOwnerActionPending}
-                label="Edit post"
-                onPress={() => ownerControls.onStartEdit(post)}
-                variant="secondary"
-              />
-              <AppButton
-                disabled={isOwnerActionPending}
-                label="Delete post"
-                onPress={() => ownerControls.onDeletePost(post)}
-                variant="secondary"
-              />
-            </View>
-          )}
-
-          {ownerError ? (
-            <Text style={[styles.metadataText, { color: theme.colors.error }]}>
-              {ownerError}
-            </Text>
-          ) : null}
-        </View>
-      ) : null}
-    </AppCard>
-  );
-}
-
-function omitOwnerError(
-  values: Readonly<Record<string, string>>,
-  postId: string,
-): Readonly<Record<string, string>> {
-  if (!Object.hasOwn(values, postId)) {
-    return values;
-  }
-
-  const { [postId]: _removed, ...rest } = values;
-  return rest;
-}
-
-function omitUpdatedPost(
-  values: Readonly<Record<string, FeedHomePost>>,
-  postId: string,
-): Readonly<Record<string, FeedHomePost>> {
-  if (!Object.hasOwn(values, postId)) {
-    return values;
-  }
-
-  const { [postId]: _removed, ...rest } = values;
-  return rest;
-}
-
-function MediaAssetRow({
-  asset,
-}: {
-  asset: FeedMediaAssetPresentation;
-}) {
-  const theme = useAppTheme();
-
-  return (
-    <View>
-      <Text style={[styles.metadataText, { color: theme.colors.text }]}>
-        {asset.label}
-      </Text>
-      <Text style={[styles.metadataText, { color: theme.colors.textMuted }]}>
-        {asset.body}
-      </Text>
-    </View>
   );
 }
 

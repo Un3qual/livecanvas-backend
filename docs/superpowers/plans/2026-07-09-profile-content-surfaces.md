@@ -519,7 +519,7 @@ Execution evidence (2026-07-09):
 - Produces: `ContentPost`, `contentSurfacePostFields`, `contentSurfaceLiveSessionFields`, `ContentPostCard`, and `usePostControls`.
 - Preserves: existing Home owner/report behavior while removing its private card and mutation controller.
 
-- [ ] **Step 1: Write failing shared-card RNTL tests**
+- [x] **Step 1: Write failing shared-card RNTL tests**
 
 Render a harness using `usePostControls({viewerId})` and `ContentPostCard`.
 Assert an owned post exposes `Edit` and `Delete` but not `Report`; a non-owned
@@ -527,7 +527,7 @@ post exposes `Report` but not owner controls. Assert edit/update, delete
 confirmation, report confirmation, payload error, network error, and same-tick
 duplicate guards use the opaque post ID.
 
-- [ ] **Step 2: Run focused card and existing Home tests for RED**
+- [x] **Step 2: Run focused card and existing Home tests for RED**
 
 ```bash
 pnpm exec jest --config ./jest.config.js tests/content/ContentPostCard.rntl.tsx tests/feed/FeedHomeScreen.rntl.tsx --runInBand
@@ -536,7 +536,7 @@ pnpm exec jest --config ./jest.config.js tests/content/ContentPostCard.rntl.tsx 
 Expected: the new suite fails because shared exports do not exist; the existing
 Home suite remains the behavior baseline.
 
-- [ ] **Step 3: Add shared Relay fragments and operations**
+- [x] **Step 3: Add shared Relay fragments and operations**
 
 Move the post/live field selections to these exact fragment names:
 
@@ -568,7 +568,7 @@ Export `contentSurfaceReportPostMutation` with the current report payload.
 Update Home queries and `updatePost` results to spread the shared unmasked post
 fragment. Run Relay after all document references compile.
 
-- [ ] **Step 4: Extract `ContentPostCard`**
+- [x] **Step 4: Extract `ContentPostCard`**
 
 Export these props:
 
@@ -591,7 +591,7 @@ fields, visibility buttons, delete confirmation, report state, and per-post
 errors. Move its styles into the new file. It calls controller callbacks and
 contains no Relay hooks.
 
-- [ ] **Step 5: Extract `usePostControls`**
+- [x] **Step 5: Extract `usePostControls`**
 
 Export:
 
@@ -627,7 +627,7 @@ same-render refs for report and owner actions. Guard callbacks with a
 layout-cleaned controller-generation ref so an unmounted surface cannot publish
 errors or overlays.
 
-- [ ] **Step 6: Replace Home's private card/controller and verify**
+- [x] **Step 6: Replace Home's private card/controller and verify**
 
 Delete Home's private `FeedPostCard`, owner-control type, mutation hooks, and
 handler bodies. Create one `const postControls = usePostControls({viewerId})`,
@@ -643,12 +643,21 @@ bun run typecheck
 bun run typecheck:tests
 ```
 
-- [ ] **Step 7: Commit the shared control/card milestone**
+- [x] **Step 7: Commit the shared control/card milestone**
 
 ```bash
 git add mobile/src/content mobile/src/feed mobile/src/__generated__ mobile/tests/content mobile/tests/feed/FeedHomeScreen.rntl.tsx
 git commit -m "refactor(mobile): share content cards and controls"
 ```
+
+Execution evidence (2026-07-09):
+
+- RED: the shared-card suite failed first because `ContentPostCard` did not
+  exist, then because the new Relay report artifact had not been generated.
+- GREEN: Relay compiled 48 reader and 44 normalization documents; the shared
+  card plus existing Home suites passed 26 tests with 0 failures.
+- `bun run typecheck`, `bun run typecheck:tests`, `bun run lint`, and
+  `git diff --check` passed.
 
 ---
 

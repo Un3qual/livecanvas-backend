@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c0d64f0a15058d87dc8b36ec65ff0421>>
+ * @generated SignedSource<<7bdc5cdf7dca675cad29e4f3e674eff4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ReaderFragment } from 'relay-runtime';
 export type LiveSessionStatus = "ENDED" | "LIVE" | "STARTING" | "%future added value";
 export type LiveSessionVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
 import { FragmentRefs } from "relay-runtime";
-export type feedHomeOperationsLiveSessionFields$data = {
+export type contentSurfaceOperationsLiveSessionFields$data = {
   readonly channelTopic: string | null | undefined;
   readonly endedAt: string | null | undefined;
   readonly host: {
@@ -24,11 +24,11 @@ export type feedHomeOperationsLiveSessionFields$data = {
   readonly startedAt: string | null | undefined;
   readonly status: LiveSessionStatus;
   readonly visibility: LiveSessionVisibility;
-  readonly " $fragmentType": "feedHomeOperationsLiveSessionFields";
+  readonly " $fragmentType": "contentSurfaceOperationsLiveSessionFields";
 };
-export type feedHomeOperationsLiveSessionFields$key = {
-  readonly " $data"?: feedHomeOperationsLiveSessionFields$data;
-  readonly " $fragmentSpreads": FragmentRefs<"feedHomeOperationsLiveSessionFields">;
+export type contentSurfaceOperationsLiveSessionFields$key = {
+  readonly " $data"?: contentSurfaceOperationsLiveSessionFields$data;
+  readonly " $fragmentSpreads": FragmentRefs<"contentSurfaceOperationsLiveSessionFields">;
 };
 
 const node: ReaderFragment = (function(){
@@ -43,7 +43,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "feedHomeOperationsLiveSessionFields",
+  "name": "contentSurfaceOperationsLiveSessionFields",
   "selections": [
     (v0/*: any*/),
     {
@@ -113,6 +113,6 @@ return {
 };
 })();
 
-(node as any).hash = "776a9ec5f763b6989b79d44b8841a107";
+(node as any).hash = "0232b224d0811ec0aab9b5070ab905ea";
 
 export default node;
