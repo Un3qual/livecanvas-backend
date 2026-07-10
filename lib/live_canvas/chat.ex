@@ -98,6 +98,28 @@ defmodule LC.Chat do
   def get_timeline_event(%User{}, _timeline_event_id), do: nil
 
   @doc """
+  Returns one timeline event for a moderation attempt.
+
+  Active session hosts bypass actor-to-host block visibility so an event author
+  cannot prevent moderation. Other viewers retain the normal visibility policy.
+  """
+  @spec get_timeline_event_for_moderation(User.t(), integer()) :: TimelineProjection.t() | nil
+  def get_timeline_event_for_moderation(%User{} = viewer, timeline_event_id)
+      when is_integer(timeline_event_id) do
+    with %{live_session_id: live_session_id} = timeline_event <-
+           timeline_event_id |> TimelineEvents.event_query() |> Repo.one(),
+         %LiveSession{} = live_session <- Repo.get(LiveSession, live_session_id),
+         :ok <- authorize_timeline_host_actor(live_session, viewer) do
+      timeline_event
+    else
+      {:error, :not_authorized} -> get_timeline_event(viewer, timeline_event_id)
+      _other -> nil
+    end
+  end
+
+  def get_timeline_event_for_moderation(%User{}, _timeline_event_id), do: nil
+
+  @doc """
   Persists an append-only timeline chat message event and its current projection.
   """
   @spec create_timeline_chat_message(LiveSession.t(), User.t(), map()) ::

@@ -2,6 +2,7 @@ defmodule LCGQL.Chat.ChatMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import LC.SocialFixtures
 
   alias LC.{Accounts, Chat, Live}
 
@@ -97,6 +98,33 @@ defmodule LCGQL.Chat.ChatMutationsTest do
       context = %{current_scope: Accounts.scope_for_user(host)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
       {:ok, event} = Chat.create_timeline_chat_message(live_session, sender, %{body: "abusive"})
+
+      event_id = global_id(:chat_message_event, event.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => ^event_id,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => event_id},
+                 context: context
+               )
+
+      assert Chat.get_timeline_event(sender, event.id) == nil
+    end
+
+    test "allows the session host to remove an event after its actor blocks the host" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, event} = Chat.create_timeline_chat_message(live_session, sender, %{body: "abusive"})
+      _block = block_fixture(sender, host)
 
       event_id = global_id(:chat_message_event, event.id)
 
