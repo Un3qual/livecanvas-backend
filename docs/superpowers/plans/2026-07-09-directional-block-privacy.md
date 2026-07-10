@@ -388,6 +388,6 @@ git add mobile/tests/profile/OtherUserProfileScreen.rntl.tsx mobile/tests/profil
 git commit -m "test: prove blocked profile indistinguishability"
 ```
 
-- [ ] **Step 7: Perform final diff/security review and publish**
+- [x] **Step 7: Perform final diff/security review and publish**
 
 Confirm the final diff contains no unrelated changes, a target who blocks the viewer no longer reproduces the oracle, a viewer-owned block remains visible, and all relevant checks passed. Create a `codex/` branch if needed, push it, and open a non-draft PR unless repository state requires the Codex app handoff.
