@@ -19,7 +19,7 @@ defmodule LCGQL.Social.Resolver do
   def follow_user(_parent, %{followed_id: followed_id}, %{
         context: %{current_scope: %{user: %{id: _id} = follower}}
       }) do
-    with {:ok, followed} <- fetch_user(followed_id, :followed_id),
+    with {:ok, followed} <- fetch_visible_user(followed_id, :followed_id, follower),
          {:ok, follow} <- Social.follow_user(follower, followed) do
       {:ok, %{follow: follow_payload(follow), errors: []}}
     else
@@ -46,7 +46,7 @@ defmodule LCGQL.Social.Resolver do
         %{follower_id: follower_id},
         %{context: %{current_scope: %{user: %{id: _id} = acting_user}}}
       ) do
-    with {:ok, follower} <- fetch_user(follower_id, :follower_id),
+    with {:ok, follower} <- fetch_visible_user(follower_id, :follower_id, acting_user),
          # Accept-follow is viewer-owned: only an already-pending request for
          # the authenticated viewer can transition to accepted.
          %{} = follow <- Social.get_pending_follow_request_for_follower(acting_user, follower),
@@ -79,7 +79,7 @@ defmodule LCGQL.Social.Resolver do
         %{follower_id: follower_id},
         %{context: %{current_scope: %{user: %{id: _id} = acting_user}}}
       ) do
-    with {:ok, follower} <- fetch_user(follower_id, :follower_id),
+    with {:ok, follower} <- fetch_visible_user(follower_id, :follower_id, acting_user),
          %{} = follow <- Social.get_pending_follow_request_for_follower(acting_user, follower),
          :ok <- Social.decline_follow_request(follow, acting_user) do
       {:ok, %{errors: []}}
@@ -219,7 +219,7 @@ defmodule LCGQL.Social.Resolver do
   @spec run_error_only_user_action(map(), term(), atom(), (map(), map() -> term())) ::
           {:ok, error_only_result_payload()}
   defp run_error_only_user_action(actor, target_id, target_field, action_fun) do
-    with {:ok, target} <- fetch_user(target_id, target_field),
+    with {:ok, target} <- fetch_visible_user(target_id, target_field, actor),
          :ok <- normalize_error_only_action(action_fun.(actor, target)) do
       {:ok, %{errors: []}}
     else
