@@ -127,6 +127,10 @@ const otherUserProfileScreenFollowUserMutation = graphql`
 `;
 
 export function OtherUserProfileScreen({ id }: { id: string }) {
+  return <OtherUserProfileRouteGeneration id={id} key={id} />;
+}
+
+function OtherUserProfileRouteGeneration({ id }: { id: string }) {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
   const currentProfileIdRef = useRef(id);
   const resetKey = otherUserProfileScreenResetKey(id, queryRetryKey);

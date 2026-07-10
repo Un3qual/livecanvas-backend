@@ -212,6 +212,47 @@ describe('OtherUserProfileScreen social controls', () => {
     expect(screen.getByRole('button', { name: 'Unfollow' })).toBeOnTheScreen();
   });
 
+  test('restores the cache-first profile policy after navigating following a refetch', async () => {
+    const user = userEvent.setup();
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      profileId: 'profile-1',
+      relationshipState: 'ACCEPTED',
+    });
+
+    const view = await render(<OtherUserProfileScreen id="profile-1" />);
+    await user.press(screen.getByRole('button', { name: 'Unfollow' }));
+
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      profileId: 'profile-1',
+      relationshipState: 'NONE',
+    });
+    await completeMutation(mockUnfollowCommit, {
+      unfollowUser: { errors: [] },
+    });
+
+    expect(mockQueryOptions.at(-1)).toEqual({
+      fetchKey: 1,
+      fetchPolicy: 'network-only',
+    });
+
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      profileId: 'profile-2',
+      relationshipState: 'ACCEPTED',
+    });
+    await view.rerender(<OtherUserProfileScreen id="profile-2" />);
+
+    expect(mockQueryOptions.at(-1)).toEqual({
+      fetchKey: 0,
+      fetchPolicy: 'store-and-network',
+    });
+  });
+
   test('ignores an old completion after navigating away and back to the same profile', async () => {
     const user = userEvent.setup();
     mockQueryData = profileQueryData({
