@@ -136,18 +136,21 @@ defmodule LCGQL.Content.ContentQueriesTest do
 
     assert returned_post_id == post_id
 
-    assert Enum.sort_by(media_assets, & &1["id"]) == [
-             %{
-               "id" => uploaded_asset_id,
-               "mimeType" => "image/jpeg",
-               "processingState" => "UPLOADED"
-             },
-             %{
-               "id" => processed_asset_id,
-               "mimeType" => "image/jpeg",
-               "processingState" => "PROCESSED"
-             }
-           ]
+    expected_media_assets = [
+      %{
+        "id" => uploaded_asset_id,
+        "mimeType" => "image/jpeg",
+        "processingState" => "UPLOADED"
+      },
+      %{
+        "id" => processed_asset_id,
+        "mimeType" => "image/jpeg",
+        "processingState" => "PROCESSED"
+      }
+    ]
+
+    assert Enum.sort_by(media_assets, & &1["id"]) ==
+             Enum.sort_by(expected_media_assets, & &1["id"])
   end
 
   test "post query does not expose owner-scoped media fields through mediaAssets" do
