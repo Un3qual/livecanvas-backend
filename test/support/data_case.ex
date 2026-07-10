@@ -106,9 +106,12 @@ defmodule LC.DataCase do
   def handle_repo_query_event(_event, _measurements, %{query: query}, test_pid)
       when is_pid(test_pid) do
     # Telemetry handlers are global, but the query event executes in the caller
-    # process. Ignore concurrent async tests so query-count assertions only see
-    # work initiated by the capture block that installed this handler.
-    if self() == test_pid do
+    # process. Tasks propagate their caller ancestry through `$callers`, so
+    # include awaited task work without collecting unrelated async-test queries.
+    callers = Process.get(:"$callers", [])
+    captured_query? = self() == test_pid or (is_list(callers) and test_pid in callers)
+
+    if captured_query? do
       send(test_pid, {:repo_query_event, IO.iodata_to_binary(query)})
     end
 
