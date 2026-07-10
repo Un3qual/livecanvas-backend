@@ -48,7 +48,7 @@
 - Produces: `ContactResolver.visible_contact_match_node(match, viewer)` and `visible_contact_match_nodes(matches, viewer)`.
 - Keeps: `project_contact_match(match, blocking_ids)` private and database-free.
 
-- [ ] **Step 1: Write API and purity regressions**
+- [x] **Step 1: Write API and purity regressions**
 
 Replace the Social list-filter assertion with an ID-set assertion:
 
@@ -59,7 +59,7 @@ assert Social.user_ids_blocking_viewer(viewer, [visible_first, hidden, visible_l
 
 Rename the contact resolver test to `visible_contact_match_node/2`, call that function, and wrap it in `capture_repo_queries/1`; assert the projected map is unchanged and `count_table_queries(queries, "blocks") == 1`. Keep the existing GraphQL list test asserting one blocks query across three rows.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -69,7 +69,7 @@ mix test test/live_canvas/social_test.exs test/live_canvas_gql/accounts/contact_
 
 Expected: compilation failures for `user_ids_blocking_viewer/2` and `visible_contact_match_node/2`.
 
-- [ ] **Step 3: Implement one blocker-ID read and one projection path**
+- [x] **Step 3: Implement one blocker-ID read and one projection path**
 
 Replace `reject_users_blocking_viewer/2` with:
 
@@ -118,13 +118,13 @@ end
 
 Update list, payload, and schema callers to use the `visible_*` names. Keep `put_contact_scalars/1` private and pure.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run the Task 1 command again.
 
 Expected: PASS; singleton and list projections preserve shape, with one block query per operation.
 
-- [ ] **Step 5: Commit the backend cleanup**
+- [x] **Step 5: Commit the backend cleanup**
 
 ```bash
 git add lib/live_canvas/social.ex lib/live_canvas_gql/accounts/contact_resolver.ex lib/live_canvas_gql/schema.ex test/live_canvas/social_test.exs test/live_canvas_gql/accounts/contact_resolver_test.exs test/live_canvas_gql/accounts/contact_queries_test.exs

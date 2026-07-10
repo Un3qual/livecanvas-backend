@@ -99,26 +99,23 @@ defmodule LC.Social do
   end
 
   @doc """
-  Removes users who have blocked the viewer while preserving input order.
+  Returns the IDs of users who have blocked the viewer.
 
-  This batch helper keeps GraphQL user projections from issuing one block query
-  per candidate user.
+  This explicitly I/O-bearing batch helper keeps GraphQL projections from
+  issuing one block query per candidate user.
   """
-  @spec reject_users_blocking_viewer(User.t(), [User.t()]) :: [User.t()]
-  def reject_users_blocking_viewer(%User{}, []), do: []
+  @spec user_ids_blocking_viewer(User.t(), [User.t()]) :: MapSet.t(pos_integer())
+  def user_ids_blocking_viewer(%User{}, []), do: MapSet.new()
 
-  def reject_users_blocking_viewer(%User{id: viewer_id}, users) when is_list(users) do
+  def user_ids_blocking_viewer(%User{id: viewer_id}, users) when is_list(users) do
     user_ids = Enum.map(users, & &1.id)
 
-    blocking_ids =
-      from(block in Block,
-        where: block.blocked_id == ^viewer_id and block.blocker_id in ^user_ids,
-        select: block.blocker_id
-      )
-      |> Repo.all()
-      |> MapSet.new()
-
-    Enum.reject(users, &MapSet.member?(blocking_ids, &1.id))
+    from(block in Block,
+      where: block.blocked_id == ^viewer_id and block.blocker_id in ^user_ids,
+      select: block.blocker_id
+    )
+    |> Repo.all()
+    |> MapSet.new()
   end
 
   @doc """

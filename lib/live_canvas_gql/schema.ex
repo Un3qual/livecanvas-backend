@@ -333,7 +333,7 @@ defmodule LCGQL.Schema do
   defp maybe_contact_match_node(nil, %User{}), do: nil
 
   defp maybe_contact_match_node(contact_match, %User{} = viewer),
-    do: ContactResolver.contact_match_node(contact_match, viewer)
+    do: ContactResolver.visible_contact_match_node(contact_match, viewer)
 
   @spec cast_node_local_id(term()) :: {:ok, integer()} | :error
   defp cast_node_local_id(value) do

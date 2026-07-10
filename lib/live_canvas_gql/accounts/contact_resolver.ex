@@ -109,7 +109,7 @@ defmodule LCGQL.Accounts.ContactResolver do
       }) do
     user
     |> Accounts.list_user_contact_matches()
-    |> contact_match_nodes(user)
+    |> visible_contact_match_nodes(user)
     |> Absinthe.Relay.Connection.from_list(args)
   end
 
@@ -117,34 +117,37 @@ defmodule LCGQL.Accounts.ContactResolver do
     Absinthe.Relay.Connection.from_list([], args)
   end
 
-  @spec contact_match_node(LC.Accounts.contact_match(), User.t()) :: contact_match_node()
-  def contact_match_node(contact_match, %User{} = viewer) do
-    contact_match
-    |> project_contact_match()
-    |> Map.update!(:matched_users, &Social.reject_users_blocking_viewer(viewer, &1))
+  @spec visible_contact_match_node(LC.Accounts.contact_match(), User.t()) ::
+          contact_match_node()
+  def visible_contact_match_node(contact_match, %User{} = viewer) do
+    [contact_match]
+    |> visible_contact_match_nodes(viewer)
+    |> List.first()
   end
 
-  @spec contact_match_nodes([LC.Accounts.contact_match()], User.t()) :: [contact_match_node()]
-  defp contact_match_nodes(contact_matches, %User{} = viewer) do
-    candidate_users = Enum.flat_map(contact_matches, & &1.matched_users)
+  @spec visible_contact_match_nodes([LC.Accounts.contact_match()], User.t()) ::
+          [contact_match_node()]
+  def visible_contact_match_nodes(contact_matches, %User{} = viewer) do
+    blocking_ids =
+      contact_matches
+      |> Enum.flat_map(& &1.matched_users)
+      |> then(&Social.user_ids_blocking_viewer(viewer, &1))
 
-    visible_user_ids =
-      viewer
-      |> Social.reject_users_blocking_viewer(candidate_users)
-      |> Enum.map(& &1.id)
-      |> MapSet.new()
+    Enum.map(contact_matches, &project_contact_match(&1, blocking_ids))
+  end
 
-    Enum.map(contact_matches, fn contact_match ->
-      contact_match
-      |> project_contact_match()
-      |> Map.update!(:matched_users, fn matched_users ->
-        Enum.filter(matched_users, &MapSet.member?(visible_user_ids, &1.id))
-      end)
+  @spec project_contact_match(LC.Accounts.contact_match(), MapSet.t(pos_integer())) ::
+          contact_match_node()
+  defp project_contact_match(contact_match, blocking_ids) do
+    contact_match
+    |> put_contact_scalars()
+    |> Map.update!(:matched_users, fn users ->
+      Enum.reject(users, &MapSet.member?(blocking_ids, &1.id))
     end)
   end
 
-  @spec project_contact_match(LC.Accounts.contact_match()) :: contact_match_node()
-  defp project_contact_match(%{contact_entry: %{id: id} = contact_entry} = contact_match) do
+  @spec put_contact_scalars(LC.Accounts.contact_match()) :: contact_match_node()
+  defp put_contact_scalars(%{contact_entry: %{id: id} = contact_entry} = contact_match) do
     contact_match
     |> Map.put(:id, id)
     |> Map.put(:contact_name, Map.get(contact_entry, :contact_name))
@@ -199,5 +202,5 @@ defmodule LCGQL.Accounts.ContactResolver do
   defp contact_match_payload(nil, %User{}), do: nil
 
   defp contact_match_payload(contact_match, %User{} = viewer),
-    do: contact_match_node(contact_match, viewer)
+    do: visible_contact_match_node(contact_match, viewer)
 end
