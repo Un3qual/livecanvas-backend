@@ -775,6 +775,9 @@ Execution evidence (2026-07-09):
 - Home load-more rows now live in `contentConnectionReducer` state with opaque
   request identity and first-ID-wins de-duplication; the parallel retained-row
   state was removed.
+- Final review added a regression proving manual refresh retains loaded older
+  rows when the refreshed base identity is unchanged while the existing
+  changed-base reset remains green.
 - `bun run typecheck`, `bun run typecheck:tests`, `bun run lint`, and
   `git diff --check` passed.
 

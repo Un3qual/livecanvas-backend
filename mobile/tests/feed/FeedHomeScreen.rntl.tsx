@@ -409,6 +409,66 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     ).toHaveLength(0);
   });
 
+  test('retains loaded older stories when refresh keeps the same base window', async () => {
+    const user = userEvent.setup();
+    mockQueryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Current story',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    mockFetchQueryImplementation = (variables) =>
+      variables.storyAfter === 'story-cursor'
+        ? Promise.resolve({
+            ...createFilledQueryData(),
+            storyFeed: connection([
+              post({
+                bodyText: 'Older retained story',
+                expiresAt: '2026-07-01T15:15:30Z',
+                id: 'story-2',
+                kind: 'STORY',
+              }),
+            ]),
+          })
+        : Promise.resolve({
+            ...createFilledQueryData(),
+            storyFeed: connection(
+              [
+                post({
+                  bodyText: 'Refreshed current story',
+                  expiresAt: '2026-07-01T18:15:30Z',
+                  id: 'story-1',
+                  kind: 'STORY',
+                }),
+              ],
+              { endCursor: 'story-cursor', hasNextPage: true },
+            ),
+          });
+
+    const view = await render(<FeedHomeContent />);
+    await user.press(screen.getByRole('button', { name: 'Load more stories' }));
+    await waitFor(() => {
+      expect(screen.getByText('Older retained story')).toBeOnTheScreen();
+    });
+
+    await act(() => {
+      getRefreshControl(view).props.onRefresh?.();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Refreshed current story')).toBeOnTheScreen();
+    });
+
+    expect(screen.getByText('Older retained story')).toBeOnTheScreen();
+  });
+
   test('syncs load-more controls when Relay delivers newer query pageInfo', async () => {
     const user = userEvent.setup();
     mockQueryData = {
