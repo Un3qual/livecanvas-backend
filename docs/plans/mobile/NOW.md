@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-09
-Status: mobile product-gap batch complete; reversible social controls and release QA deferred
+Status: directional block-privacy regression active; reversible controls remain deferred
 
 ## Lane Scope
 
@@ -12,19 +12,16 @@ Status: mobile product-gap batch complete; reversible social controls and releas
 
 ## Current Batch
 
-- Source plans:
-  - `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
-  - `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 1-2)
-  - `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
-  - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
-  - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
+- Source plan:
+  `docs/superpowers/plans/2026-07-09-directional-block-privacy.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: none; implementation and PR review hardening are complete.
-- Write scope: `mobile/**`, `docs/plans/mobile/**`, and the explicitly promoted
-  backend account/contact contracts recorded in `docs/plans/backend/NOW.md`.
-- Done condition: met for account lifecycle, mute/unmute/block, manual contact
-  discovery, post owner controls, connection lists, and review
-  hardening for cross-action races and virtualized pagination.
+- Current task: prove a directionally hidden profile renders only the existing
+  generic unavailable screen once the backend returns `node: null`.
+- Write scope: focused `mobile/tests/profile/**`, generated Relay output only if
+  changed, and this lane pointer.
+- Done condition: hidden profiles expose no identity, privacy, relationship,
+  live-session, connection, or social-action UI; viewer-owned blocks retain the
+  existing `BLOCKED` presentation.
 - Verification:
   - From `mobile/`: `bun run relay`
   - From `mobile/`: `bun run test:quality`
@@ -42,6 +39,6 @@ Status: mobile product-gap batch complete; reversible social controls and releas
 
 ## Do This Now
 
-No executable mobile batch is selected. Promote or write the next
-product-completeness plan before implementation; do not treat the deferred
-social or release-QA work as implicitly active.
+After the backend contract is green, update the profile RNTL regression and run
+the mobile verification named in the source plan. Do not implement unblock or
+unfollow.

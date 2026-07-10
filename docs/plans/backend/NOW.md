@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-09
-Status: report moderation and cross-lane account/contact contracts complete
+Status: directional block-privacy fix active
 
 ## Lane Scope
 
@@ -12,26 +12,24 @@ Status: report moderation and cross-lane account/contact contracts complete
 ## Current Batch
 
 - Source plan:
-  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
-- Task: complete, including PR review hardening.
-- Write scope: staff report authorization, moderation queue and decision API,
-  mutation limiting, identity unlink safety, contact-match projection, GraphQL
-  schema, and focused backend tests.
-- Done condition: met. Staff-only moderation operations are Relay-first and
-  rate-limited; the latest terminal decision owns one atomic actor/time/note
-  tuple; passwordless users cannot unlink their last provider identity; and
-  persisted contact matches expose a viewer-owned invite recipient.
+  `docs/superpowers/plans/2026-07-09-directional-block-privacy.md`
+- Task: make a user who blocked the viewer indistinguishable from a missing
+  account across public GraphQL profile, social, request, and contact surfaces.
+- Write scope: `lib/live_canvas/social.ex`, relevant `lib/live_canvas_gql/**`,
+  focused backend tests, and this lane pointer.
+- Done condition: hidden and missing users have identical reads/errors;
+  viewer-owned blocks remain direction-safe; user-bearing projections omit
+  blockers; symmetric content/chat policy and staff moderation remain intact.
 - Verification:
-  - `mix test test/live_canvas/accounts_test.exs test/live_canvas/content_test.exs test/live_canvas_gql/accounts/contact_resolver_test.exs test/live_canvas_gql/accounts/contact_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas/accounts/auth_event_test.exs`
-  - `mix test test/live_canvas_web/plugs/graphql_mutation_rate_limit_test.exs`
+  - Focused Social, Relay node, contact, and GraphQL mutation/query tests named
+    in the source plan.
   - `mix typecheck`
   - `git diff --check`
 
 ## Next Action
 
-No standalone backend batch is selected. Promote the next verified product
-contract or runtime issue here before implementation. Do not reopen the broader
-release-readiness roadmap solely because this cross-lane batch completed.
+Execute Task 1 test-first: add the directional Social predicate and query
+filtering, prove RED, then implement the minimal domain policy.
 
 ## References
 

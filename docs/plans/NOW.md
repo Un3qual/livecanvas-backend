@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-09
-Status: cross-lane product-gap batch complete; next product batch not selected
+Status: directional block-privacy fix active across backend and mobile
 
 ## Purpose
 
@@ -12,16 +12,16 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: complete; report moderation plus promoted account/contact contracts
-  are implemented and review-hardened.
-- Latest source plan:
-  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
+- State: active; directional block visibility is being enforced at GraphQL
+  profile, social-control, relationship, and contact-discovery boundaries.
+- Source plan:
+  `docs/superpowers/plans/2026-07-09-directional-block-privacy.md`
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: complete; the five July 8 product-gap plans are implemented for their
-  selected scopes and review-hardened.
+- State: active for regression coverage proving hidden profiles use the same
+  generic unavailable state as missing profiles.
 - Track: `docs/plans/mobile/TRACK.md`
 - Deferred: reversible unfollow/unblock contracts and release-candidate manual
   QA, plus contact-invite delivery until a real landing route exists.
@@ -37,10 +37,10 @@ Do not defer a reproduced backend contract, resolver, runtime, or data issue
 solely because the visible surface is mobile. Promote it into the backend lane,
 state the write scope, and verify both affected sides.
 
-## Next Coordinator Decision
+## Active Cross-Lane Decision
 
-Select the next product-completeness batch. Do not implicitly activate the
-deferred reversible social-control work or release-candidate device QA.
+Complete the directional privacy fix without activating deferred unfollow,
+unblock, or release-candidate device QA work.
 
 ## Repair Conditions
 
