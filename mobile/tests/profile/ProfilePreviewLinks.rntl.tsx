@@ -4,6 +4,7 @@ import { OtherUserProfileScreen } from '../../src/profile/other/OtherUserProfile
 import { ViewerProfileScreen } from '../../src/profile/viewer/ViewerProfileScreen';
 
 let mockQueryData: Record<string, unknown>;
+let mockSocialQueryData: Record<string, unknown> | undefined;
 let mockPushedRoutes: unknown[];
 
 jest.mock('expo-router', () => ({
@@ -17,12 +18,16 @@ jest.mock('expo-router', () => ({
 
 jest.mock('react-relay', () => ({
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
-  useLazyLoadQuery: () => mockQueryData,
+  useLazyLoadQuery: (query: { params?: { name?: string } }) =>
+    query.params?.name === 'ViewerProfileSocialSectionsQuery'
+      ? (mockSocialQueryData ?? mockQueryData)
+      : mockQueryData,
   useMutation: () => [jest.fn(), false],
 }));
 
 beforeEach(() => {
   mockPushedRoutes = [];
+  mockSocialQueryData = undefined;
 });
 
 describe('profile preview full-list links', () => {
@@ -32,6 +37,12 @@ describe('profile preview full-list links', () => {
       viewer: {
         currentLiveSession: null,
         email: 'viewer@example.com',
+        id: 'viewer-id',
+        privacyMode: 'PUBLIC',
+      },
+    };
+    mockSocialQueryData = {
+      viewer: {
         followers: connection([
           { email: 'follower@example.com', id: 'opaque-follower', privacyMode: 'PUBLIC' },
         ]),
@@ -39,7 +50,6 @@ describe('profile preview full-list links', () => {
           { email: 'following@example.com', id: 'opaque-following', privacyMode: 'PUBLIC' },
         ]),
         id: 'viewer-id',
-        privacyMode: 'PUBLIC',
       },
       viewerPendingFollowRequests: connection([
         {

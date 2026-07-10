@@ -155,7 +155,7 @@ git commit -m "refactor: clarify contact visibility projection"
 - Produces: `ViewerProfileSocialSections`, which owns social preview query, follow-request reducer, and accept/decline mutations.
 - Keeps: `ViewerProfileScreen` responsible for viewer identity, privacy mode, and current live session.
 
-- [ ] **Step 1: Write the real Relay cache-transition regression**
+- [x] **Step 1: Write the real Relay cache-transition regression**
 
 Seed a real Relay `Environment` with both generated operations:
 
@@ -166,7 +166,7 @@ environment.commitPayload(socialOperation, cachedSocialProfiles());
 
 Render `ViewerProfileScreen` under `RelayEnvironmentProvider`. Assert the viewer-owned heading is visible immediately, `Refreshing social activity...` is visible, and cached follower/requester emails are absent. Resolve the social network operation with empty connections and assert the social sections render without either cached identity.
 
-- [ ] **Step 2: Run the new test and verify RED**
+- [x] **Step 2: Run the new test and verify RED**
 
 Run from `mobile/`:
 
@@ -176,7 +176,7 @@ bun run test:jest -- tests/profile/ViewerProfileCachePrivacy.rntl.tsx --runInBan
 
 Expected: FAIL because the current monolithic `network-only` query suspends the entire profile and no social child operation exists.
 
-- [ ] **Step 3: Add the shared fetch option and extract the social child**
+- [x] **Step 3: Add the shared fetch option and extract the social child**
 
 Create:
 
@@ -204,7 +204,7 @@ Move followers, following, `viewerPendingFollowRequests`, the follow-request red
 
 Keep all navigation labels, empty messages, and mutation error copy unchanged. Update the mocked profile-preview test so `useLazyLoadQuery` returns base or social data based on the operation text.
 
-- [ ] **Step 4: Generate Relay output and verify GREEN**
+- [x] **Step 4: Generate Relay output and verify GREEN**
 
 Run from `mobile/`:
 
@@ -215,7 +215,7 @@ bun run test:jest -- tests/profile/ViewerProfileCachePrivacy.rntl.tsx tests/prof
 
 Expected: Relay succeeds; both suites pass; cached third-party identities never render.
 
-- [ ] **Step 5: Commit the mobile cleanup**
+- [x] **Step 5: Commit the mobile cleanup**
 
 ```bash
 git add mobile/src mobile/tests/profile/ViewerProfileCachePrivacy.rntl.tsx mobile/tests/profile/ProfilePreviewLinks.rntl.tsx

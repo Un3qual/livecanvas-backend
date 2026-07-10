@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ff8169a6444367740cdb35a24ebf2697>>
+ * @generated SignedSource<<a79a3a8deab1bbd784ed3402f4b0d7d0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,10 +12,10 @@ import { ConcreteRequest } from 'relay-runtime';
 export type DeclineFollowRequestInput = {
   followerId: string;
 };
-export type ViewerProfileScreenDeclineFollowRequestMutation$variables = {
+export type ViewerProfileSocialSectionsDeclineFollowRequestMutation$variables = {
   input: DeclineFollowRequestInput;
 };
-export type ViewerProfileScreenDeclineFollowRequestMutation$data = {
+export type ViewerProfileSocialSectionsDeclineFollowRequestMutation$data = {
   readonly declineFollowRequest: {
     readonly errors: ReadonlyArray<{
       readonly field: string | null | undefined;
@@ -23,9 +23,9 @@ export type ViewerProfileScreenDeclineFollowRequestMutation$data = {
     }>;
   } | null | undefined;
 };
-export type ViewerProfileScreenDeclineFollowRequestMutation = {
-  response: ViewerProfileScreenDeclineFollowRequestMutation$data;
-  variables: ViewerProfileScreenDeclineFollowRequestMutation$variables;
+export type ViewerProfileSocialSectionsDeclineFollowRequestMutation = {
+  response: ViewerProfileSocialSectionsDeclineFollowRequestMutation$data;
+  variables: ViewerProfileSocialSectionsDeclineFollowRequestMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -85,7 +85,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ViewerProfileScreenDeclineFollowRequestMutation",
+    "name": "ViewerProfileSocialSectionsDeclineFollowRequestMutation",
     "selections": (v1/*: any*/),
     "type": "RootMutationType",
     "abstractKey": null
@@ -94,20 +94,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ViewerProfileScreenDeclineFollowRequestMutation",
+    "name": "ViewerProfileSocialSectionsDeclineFollowRequestMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "cdff090659f08134e7284fb1e31f7c26",
+    "cacheID": "f031c42fe57b1922828989a7eef1743e",
     "id": null,
     "metadata": {},
-    "name": "ViewerProfileScreenDeclineFollowRequestMutation",
+    "name": "ViewerProfileSocialSectionsDeclineFollowRequestMutation",
     "operationKind": "mutation",
-    "text": "mutation ViewerProfileScreenDeclineFollowRequestMutation(\n  $input: DeclineFollowRequestInput!\n) {\n  declineFollowRequest(input: $input) {\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation ViewerProfileSocialSectionsDeclineFollowRequestMutation(\n  $input: DeclineFollowRequestInput!\n) {\n  declineFollowRequest(input: $input) {\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "c79c1f5f0a62c854f1e1a5d8f7dd1c6e";
+(node as any).hash = "48e5001341d5ac77c0becb1e4c751e97";
 
 export default node;

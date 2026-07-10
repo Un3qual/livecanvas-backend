@@ -20,6 +20,7 @@ import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
 import { useAppTheme } from '../providers/ThemeProvider';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../relay/privacySensitiveFetch';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
@@ -105,9 +106,7 @@ export function ContactDiscoveryScreen() {
   const data = useLazyLoadQuery<ContactDiscoveryQuery>(
     contactDiscoveryQuery,
     CONTACT_DISCOVERY_QUERY_VARIABLES,
-    // Contact matches expose user identity, so wait for the current block
-    // policy before rendering records cached by an earlier visit.
-    { fetchPolicy: 'network-only' },
+    PRIVACY_SENSITIVE_FETCH_OPTIONS,
   );
   const queryConnection = data.viewerContactMatches;
   const queryPageInfo = readProfileConnectionPageInfo(queryConnection);
@@ -167,7 +166,7 @@ export function ContactDiscoveryScreen() {
           ...CONTACT_DISCOVERY_QUERY_VARIABLES,
           after: pageInfo.endCursor,
         },
-        { fetchPolicy: 'network-only' },
+        PRIVACY_SENSITIVE_FETCH_OPTIONS,
       ).toPromise()) as ContactDiscoveryData | null | undefined;
       const pageConnection = pageData?.viewerContactMatches;
 

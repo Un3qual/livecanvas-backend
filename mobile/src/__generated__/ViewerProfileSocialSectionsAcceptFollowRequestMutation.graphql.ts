@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f7af1575e7c6dc3f8a04a07a771d543d>>
+ * @generated SignedSource<<0165840fe2236ca6cbe54c919b91796e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,10 +13,10 @@ export type FollowState = "ACCEPTED" | "REQUESTED" | "%future added value";
 export type AcceptFollowRequestInput = {
   followerId: string;
 };
-export type ViewerProfileScreenAcceptFollowRequestMutation$variables = {
+export type ViewerProfileSocialSectionsAcceptFollowRequestMutation$variables = {
   input: AcceptFollowRequestInput;
 };
-export type ViewerProfileScreenAcceptFollowRequestMutation$data = {
+export type ViewerProfileSocialSectionsAcceptFollowRequestMutation$data = {
   readonly acceptFollowRequest: {
     readonly errors: ReadonlyArray<{
       readonly field: string | null | undefined;
@@ -28,9 +28,9 @@ export type ViewerProfileScreenAcceptFollowRequestMutation$data = {
     } | null | undefined;
   } | null | undefined;
 };
-export type ViewerProfileScreenAcceptFollowRequestMutation = {
-  response: ViewerProfileScreenAcceptFollowRequestMutation$data;
-  variables: ViewerProfileScreenAcceptFollowRequestMutation$variables;
+export type ViewerProfileSocialSectionsAcceptFollowRequestMutation = {
+  response: ViewerProfileSocialSectionsAcceptFollowRequestMutation$data;
+  variables: ViewerProfileSocialSectionsAcceptFollowRequestMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -115,7 +115,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ViewerProfileScreenAcceptFollowRequestMutation",
+    "name": "ViewerProfileSocialSectionsAcceptFollowRequestMutation",
     "selections": (v1/*: any*/),
     "type": "RootMutationType",
     "abstractKey": null
@@ -124,20 +124,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ViewerProfileScreenAcceptFollowRequestMutation",
+    "name": "ViewerProfileSocialSectionsAcceptFollowRequestMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "4fedc95cdeb1b43b4362a2b915d59e46",
+    "cacheID": "8b4a4e25e988add666b7852b85e96b4b",
     "id": null,
     "metadata": {},
-    "name": "ViewerProfileScreenAcceptFollowRequestMutation",
+    "name": "ViewerProfileSocialSectionsAcceptFollowRequestMutation",
     "operationKind": "mutation",
-    "text": "mutation ViewerProfileScreenAcceptFollowRequestMutation(\n  $input: AcceptFollowRequestInput!\n) {\n  acceptFollowRequest(input: $input) {\n    follow {\n      id\n      state\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation ViewerProfileSocialSectionsAcceptFollowRequestMutation(\n  $input: AcceptFollowRequestInput!\n) {\n  acceptFollowRequest(input: $input) {\n    follow {\n      id\n      state\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "79a241fa739a27b5b9b03ea0aba40461";
+(node as any).hash = "c799055e21f776dd759a0228aefa0f9e";
 
 export default node;

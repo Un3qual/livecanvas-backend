@@ -15,6 +15,7 @@ import { ScreenState } from '../../components/ScreenState';
 import { liveSessionHref } from '../../live/liveSessionNavigation';
 import { LiveSessionSummaryCard } from '../../live/components/LiveSessionSummaryCard';
 import { useAppTheme } from '../../providers/ThemeProvider';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../../relay/privacySensitiveFetch';
 import {
   ProfileSummaryCard,
   SocialPreviewCard,
@@ -244,9 +245,7 @@ function OtherUserProfileContent({
   const data = useLazyLoadQuery<OtherUserProfileScreenQuery>(
     otherUserProfileScreenQuery,
     { id },
-    // Block visibility can change without this viewer taking an action. Never
-    // render a cached profile until the current authorization response arrives.
-    { fetchPolicy: 'network-only' },
+    PRIVACY_SENSITIVE_FETCH_OPTIONS,
   );
 
   useEffect(() => {

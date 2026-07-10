@@ -19,6 +19,7 @@ import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
 import { useAppTheme } from '../providers/ThemeProvider';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../relay/privacySensitiveFetch';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { spacing, typography } from '../theme/tokens';
 import {
@@ -109,11 +110,11 @@ export function ProfileConnectionListScreen({
   const variables = profileId
     ? { ...PROFILE_CONNECTION_QUERY_VARIABLES, id: profileId }
     : PROFILE_CONNECTION_QUERY_VARIABLES;
-  const data = useLazyLoadQuery(config.query, variables, {
-    // Connection members can block the viewer between visits. Do not render
-    // cached identities before the server reapplies directional visibility.
-    fetchPolicy: 'network-only',
-  }) as ProfileConnectionQueryData;
+  const data = useLazyLoadQuery(
+    config.query,
+    variables,
+    PRIVACY_SENSITIVE_FETCH_OPTIONS,
+  ) as ProfileConnectionQueryData;
   const initialConnection = selectProfileConnection(data, kind);
   const initialPageInfo = readProfileConnectionPageInfo(initialConnection);
   const resetKey = [
@@ -175,7 +176,7 @@ export function ProfileConnectionListScreen({
               ...PROFILE_CONNECTION_QUERY_VARIABLES,
               after: pageInfo.endCursor,
             },
-        { fetchPolicy: 'network-only' },
+        PRIVACY_SENSITIVE_FETCH_OPTIONS,
       ).toPromise()) as ProfileConnectionQueryData | null | undefined;
 
       if (requestSessionRef.current !== requestSession) {
