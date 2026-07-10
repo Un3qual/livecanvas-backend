@@ -130,19 +130,21 @@ the focused privacy suite, related feed/chat/live authorization tests,
 
 - `LC.ReadPolicy.Relationships` now owns block, mute, follow-state, and batched
   blocker-ID reads; `LC.ReadPolicy` exposes the action-specific public facade.
-- Social retains relationship mutations and explicitly named public/viewer
-  graph queries. Its temporary read-policy facade and ambiguous query names
-  were removed after callers migrated.
+- Social retains relationship mutations and authorized relationship-graph
+  queries. Owner privacy is checked before a query is returned, so callers
+  cannot select a fail-open public path.
 - GraphQL user resolution, social reads, graph authorization, and contact
   projection now call `ReadPolicy` without encoding block direction locally.
-- The directional owner scope is shared by follower/following and pending
-  request queries, while content/chat/live policy remains symmetric.
-- Repo-query capture now ignores unrelated async-test telemetry, preserving
-  meaningful one-query assertions without cross-test contamination.
+- Generic Ecto scope composition lives in internal `LC.ReadPolicy.Scopes`; the
+  exported facade exposes action-specific post, live-session, user, and follow
+  request query policies.
+- Repo-query capture now uses unique references and caller-chain scoping, then
+  detaches before draining, preserving meaningful async query-count assertions
+  without cross-test contamination.
 
 Fresh verification: touched-file formatting, warning-free compilation,
-Dialyzer with 0 errors, Boundary, and changed-code analysis passed; the privacy
-and related authorization suite passed 192 tests with 0 failures; the relevant
-seed-data query test passed separately. The full seed-data file retains its
-unrelated pre-existing `Feed.live_now/1` assertion failure for a deliberately
-preserved ad-hoc `:starting` session.
+Dialyzer with 0 errors, Boundary, and changed-code analysis passed; the focused
+policy/privacy/authorization suite passed 248 tests with 0 failures. The full
+932-test backend suite retains two unrelated failures: the known seed-data
+starting-session assertion and an integration assertion for the obsolete
+timeline `actor_id` reply shape.

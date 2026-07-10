@@ -1,5 +1,5 @@
 defmodule LCGQL.Accounts.ContactResolverTest do
-  use LC.DataCase
+  use LC.DataCase, async: true
 
   import LC.AccountsFixtures
 

@@ -1,5 +1,5 @@
 defmodule LCGQL.Relay.NodeQueriesTest do
-  use LC.DataCase
+  use LC.DataCase, async: true
 
   import LC.AccountsFixtures
   import LC.SocialFixtures

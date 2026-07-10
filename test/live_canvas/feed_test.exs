@@ -392,7 +392,7 @@ defmodule LC.FeedTest do
     end
   end
 
-  describe "viewer_visible_query/3" do
+  describe "visible_posts_query/2" do
     test "applies the home feed visibility matrix to post queries" do
       viewer = user_fixture()
       followed_creator = user_fixture()
@@ -441,10 +441,7 @@ defmodule LC.FeedTest do
 
       helper_post_ids =
         Post
-        |> ReadPolicy.viewer_visible_query(viewer,
-          owner_key: :author_id,
-          visibility_key: :visibility
-        )
+        |> ReadPolicy.visible_posts_query(viewer)
         |> order_by([post], desc: post.inserted_at, desc: post.id)
         |> Repo.all()
         |> Enum.map(& &1.id)

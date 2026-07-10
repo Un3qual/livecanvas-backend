@@ -44,7 +44,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
                )
 
       assert is_binary(follow_id)
-      assert :requested == ReadPolicy.relationship_state(viewer, followed, followed.privacy_mode)
+      assert :requested == ReadPolicy.relationship_state(viewer, followed)
     end
 
     test "returns structured errors for non-global followedId values" do
@@ -153,7 +153,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
                )
 
       assert is_binary(follow_id)
-      assert :accepted == ReadPolicy.relationship_state(requester, viewer, viewer.privacy_mode)
+      assert :accepted == ReadPolicy.relationship_state(requester, viewer)
     end
 
     test "removes the request from the pending inbox once accepted" do
@@ -268,7 +268,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
                )
 
       assert Social.get_pending_follow_request(viewer, follow.id) == nil
-      assert :none == ReadPolicy.relationship_state(requester, viewer, viewer.privacy_mode)
+      assert :none == ReadPolicy.relationship_state(requester, viewer)
     end
 
     test "returns unauthenticated errors without a viewer scope" do

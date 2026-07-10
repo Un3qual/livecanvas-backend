@@ -168,7 +168,7 @@ defmodule LC.Feed do
         (live_session.status == :starting and
            live_session.inserted_at >= ^starting_discovery_cutoff)
     )
-    |> ReadPolicy.viewer_visible_query(viewer, owner_key: :host_id, visibility_key: :visibility)
+    |> ReadPolicy.visible_live_sessions_query(viewer)
     # STARTING rows are a short-lived media preflight window, not durable host
     # presence; advertise fresh preflights first so viewers can answer hosts.
     |> order_by(
@@ -232,7 +232,7 @@ defmodule LC.Feed do
     LiveSession
     |> where([live_session], live_session.status == :ended)
     |> where([live_session], not is_nil(live_session.recording_media_asset_id))
-    |> ReadPolicy.viewer_visible_query(viewer, owner_key: :host_id, visibility_key: :visibility)
+    |> ReadPolicy.visible_live_sessions_query(viewer)
     |> order_by(
       [live_session],
       desc: live_session.ended_at,
@@ -296,7 +296,7 @@ defmodule LC.Feed do
     now = DateTime.utc_now()
 
     queryable
-    |> ReadPolicy.viewer_visible_query(viewer, owner_key: :author_id, visibility_key: :visibility)
+    |> ReadPolicy.visible_posts_query(viewer)
     # Direct lookups still need active story visibility even though the home
     # feed itself excludes stories.
     |> where(

@@ -137,7 +137,7 @@ defmodule LCGQL.Social.Resolver do
     # trusting a caller-supplied viewer ID.
     with {:ok, viewer} <- Resolution.viewer(resolution),
          {:ok, creator} <- fetch_visible_user(creator_id, :creator_id, viewer) do
-      {:ok, ReadPolicy.relationship_state(viewer, creator, creator.privacy_mode)}
+      {:ok, ReadPolicy.relationship_state(viewer, creator)}
     else
       _ -> {:ok, :none}
     end
@@ -168,31 +168,21 @@ defmodule LCGQL.Social.Resolver do
 
   @spec followers(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def followers(%{id: _id} = user, args, resolution) do
-    if can_view_relationship_graph?(user, resolution) do
-      query =
-        case Resolution.viewer(resolution) do
-          {:ok, viewer} -> Social.viewer_follower_users_query(user, viewer)
-          :error -> Social.public_follower_users_query(user)
-        end
+    viewer = viewer_or_nil(resolution)
 
-      Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
-    else
-      Absinthe.Relay.Connection.from_list([], args)
+    case Social.visible_follower_users_query(user, viewer) do
+      {:ok, query} -> Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+      :hidden -> Absinthe.Relay.Connection.from_list([], args)
     end
   end
 
   @spec following(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def following(%{id: _id} = user, args, resolution) do
-    if can_view_relationship_graph?(user, resolution) do
-      query =
-        case Resolution.viewer(resolution) do
-          {:ok, viewer} -> Social.viewer_following_users_query(user, viewer)
-          :error -> Social.public_following_users_query(user)
-        end
+    viewer = viewer_or_nil(resolution)
 
-      Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
-    else
-      Absinthe.Relay.Connection.from_list([], args)
+    case Social.visible_following_users_query(user, viewer) do
+      {:ok, query} -> Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+      :hidden -> Absinthe.Relay.Connection.from_list([], args)
     end
   end
 
@@ -285,21 +275,11 @@ defmodule LCGQL.Social.Resolver do
   defp format_field(nil), do: nil
   defp format_field(field), do: FieldNames.lower_camel(field)
 
-  @spec can_view_relationship_graph?(User.t(), Absinthe.Resolution.t()) :: boolean()
-  defp can_view_relationship_graph?(%User{privacy_mode: :public} = user, resolution) do
+  @spec viewer_or_nil(Absinthe.Resolution.t()) :: User.t() | nil
+  defp viewer_or_nil(resolution) do
     case Resolution.viewer(resolution) do
-      {:ok, viewer} -> ReadPolicy.viewer_can_view_relationship_graph?(viewer, user, :public)
-      :error -> true
-    end
-  end
-
-  defp can_view_relationship_graph?(%User{} = user, resolution) do
-    case Resolution.viewer(resolution) do
-      {:ok, viewer} ->
-        ReadPolicy.viewer_can_view_relationship_graph?(viewer, user, user.privacy_mode)
-
-      :error ->
-        false
+      {:ok, viewer} -> viewer
+      :error -> nil
     end
   end
 end

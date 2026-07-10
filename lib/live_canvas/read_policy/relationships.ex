@@ -25,6 +25,19 @@ defmodule LC.ReadPolicy.Relationships do
     )
   end
 
+  @spec blocked_peer_ids(User.t()) :: [pos_integer()]
+  def blocked_peer_ids(%User{id: user_id}) when is_integer(user_id) do
+    from(block in Block,
+      where: block.blocker_id == ^user_id or block.blocked_id == ^user_id,
+      select: {block.blocker_id, block.blocked_id}
+    )
+    |> Repo.all()
+    |> Enum.map(fn
+      {^user_id, peer_id} -> peer_id
+      {peer_id, ^user_id} -> peer_id
+    end)
+  end
+
   @spec muted?(User.t(), User.t()) :: boolean()
   def muted?(%User{id: muter_id}, %User{id: muted_id}) do
     Repo.exists?(

@@ -21,6 +21,7 @@ defmodule LC.Social do
   @type unblock_result :: :ok
   @type unmute_result :: :ok
   @type decline_follow_result :: :ok | {:error, :not_allowed | Ecto.Changeset.t()}
+  @type relationship_graph_query_result :: {:ok, Ecto.Query.t()} | :hidden
 
   @doc """
   Creates or updates a follow relationship between two users.
@@ -147,52 +148,57 @@ defmodule LC.Social do
   end
 
   @doc """
-  Returns a deterministic query for users following the given creator.
+  Returns the followers graph when it is visible to the optional viewer.
   """
-  @spec public_follower_users_query(User.t()) :: Ecto.Query.t()
-  def public_follower_users_query(%User{id: user_id}) do
+  @spec visible_follower_users_query(User.t(), User.t() | nil) ::
+          relationship_graph_query_result()
+  def visible_follower_users_query(%User{} = owner, viewer) do
+    visible_relationship_graph_query(owner, viewer, follower_users_query(owner))
+  end
+
+  @doc """
+  Returns the following graph when it is visible to the optional viewer.
+  """
+  @spec visible_following_users_query(User.t(), User.t() | nil) ::
+          relationship_graph_query_result()
+  def visible_following_users_query(%User{} = owner, viewer) do
+    visible_relationship_graph_query(owner, viewer, following_users_query(owner))
+  end
+
+  @spec follower_users_query(User.t()) :: Ecto.Query.t()
+  defp follower_users_query(%User{id: user_id}) do
     from(follower in User,
       join: follow in Follow,
       on: follow.follower_id == follower.id,
       where: follow.followed_id == ^user_id and follow.state == :accepted,
-      # Keep a stable cursor order for Relay pagination.
       order_by: [asc: follow.inserted_at, asc: follow.id]
     )
   end
 
-  @doc """
-  Returns followers visible to the authenticated viewer.
-  """
-  @spec viewer_follower_users_query(User.t(), User.t()) :: Ecto.Query.t()
-  def viewer_follower_users_query(%User{} = user, %User{} = viewer) do
-    user
-    |> public_follower_users_query()
-    |> ReadPolicy.exclude_owners_blocking_viewer(viewer, :id)
-  end
-
-  @doc """
-  Returns a deterministic query for users that the given follower follows.
-  """
-  @spec public_following_users_query(User.t()) :: Ecto.Query.t()
-  def public_following_users_query(%User{id: user_id}) do
+  @spec following_users_query(User.t()) :: Ecto.Query.t()
+  defp following_users_query(%User{id: user_id}) do
     from(followed in User,
       join: follow in Follow,
       on: follow.followed_id == followed.id,
       where: follow.follower_id == ^user_id and follow.state == :accepted,
-      # Keep a stable cursor order for Relay pagination.
       order_by: [asc: follow.inserted_at, asc: follow.id]
     )
   end
 
-  @doc """
-  Returns followed users visible to the authenticated viewer.
-  """
-  @spec viewer_following_users_query(User.t(), User.t()) :: Ecto.Query.t()
-  def viewer_following_users_query(%User{} = user, %User{} = viewer) do
-    user
-    |> public_following_users_query()
-    |> ReadPolicy.exclude_owners_blocking_viewer(viewer, :id)
+  @spec visible_relationship_graph_query(User.t(), User.t() | nil, Ecto.Query.t()) ::
+          relationship_graph_query_result()
+  defp visible_relationship_graph_query(%User{privacy_mode: :public}, nil, query),
+    do: {:ok, query}
+
+  defp visible_relationship_graph_query(%User{} = owner, %User{} = viewer, query) do
+    if ReadPolicy.viewer_can_view_relationship_graph?(viewer, owner) do
+      {:ok, ReadPolicy.relationship_graph_users_query(query, viewer)}
+    else
+      :hidden
+    end
   end
+
+  defp visible_relationship_graph_query(%User{}, nil, _query), do: :hidden
 
   @doc """
   Returns a deterministic query for pending follow requests owned by the user.
@@ -204,7 +210,7 @@ defmodule LC.Social do
       preload: [:follower],
       order_by: [asc: follow.requested_at, asc: follow.id]
     )
-    |> ReadPolicy.exclude_owners_blocking_viewer(user, :follower_id)
+    |> ReadPolicy.visible_pending_follow_requests_query(user)
   end
 
   @doc """
@@ -219,7 +225,7 @@ defmodule LC.Social do
       preload: [:follower],
       limit: 1
     )
-    |> ReadPolicy.exclude_owners_blocking_viewer(user, :follower_id)
+    |> ReadPolicy.visible_pending_follow_requests_query(user)
     |> Repo.one()
   end
 

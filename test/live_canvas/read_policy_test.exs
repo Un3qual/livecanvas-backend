@@ -10,19 +10,6 @@ defmodule LC.ReadPolicyTest do
   alias LCSchemas.Social.Follow
 
   describe "relationship facts" do
-    test "owns visibility reads instead of exporting them from Social" do
-      assert Code.ensure_loaded?(Social)
-      refute function_exported?(Social, :blocked_by?, 2)
-      refute function_exported?(Social, :user_ids_blocking_viewer, 2)
-      refute function_exported?(Social, :muted?, 2)
-      refute function_exported?(Social, :relationship_state, 2)
-      refute function_exported?(Social, :can_view_user?, 2)
-      refute function_exported?(Social, :follower_users_query, 1)
-      refute function_exported?(Social, :follower_users_query, 2)
-      refute function_exported?(Social, :following_users_query, 1)
-      refute function_exported?(Social, :following_users_query, 2)
-    end
-
     test "distinguishes directional user resolution from symmetric blocking" do
       viewer = user_fixture()
       owner = user_fixture()
@@ -55,8 +42,16 @@ defmodule LC.ReadPolicyTest do
       assert ReadPolicy.viewer_muted_owner?(viewer, public_owner)
       refute ReadPolicy.viewer_muted_owner?(public_owner, viewer)
 
-      assert ReadPolicy.viewer_can_view_relationship_graph?(viewer, public_owner, :public)
+      assert ReadPolicy.viewer_can_view_relationship_graph?(viewer, public_owner)
       refute ReadPolicy.viewer_can_read_owner?(viewer, public_owner, :public)
+    end
+
+    test "derives relationship graph visibility from the persisted owner" do
+      viewer = user_fixture()
+      private_owner = user_fixture(privacy_mode: :private)
+
+      assert ReadPolicy.relationship_state(viewer, private_owner) == :none
+      refute ReadPolicy.viewer_can_view_relationship_graph?(viewer, private_owner)
     end
   end
 
@@ -73,7 +68,7 @@ defmodule LC.ReadPolicyTest do
           where: user.id in ^[blocking_owner.id, visible_owner.id],
           order_by: [asc: user.id]
         )
-        |> ReadPolicy.exclude_owners_blocking_viewer(viewer, :id)
+        |> ReadPolicy.relationship_graph_users_query(viewer)
         |> Repo.all()
         |> Enum.map(& &1.id)
 
@@ -94,7 +89,7 @@ defmodule LC.ReadPolicyTest do
           where: follow.id in ^[blocking_follow.id, visible_follow.id],
           order_by: [asc: follow.id]
         )
-        |> ReadPolicy.exclude_owners_blocking_viewer(viewer, :follower_id)
+        |> ReadPolicy.visible_pending_follow_requests_query(viewer)
         |> Repo.all()
         |> Enum.map(& &1.id)
 
@@ -115,10 +110,10 @@ defmodule LC.ReadPolicyTest do
       assert {:ok, _follow} = Social.accept_follow_request(follow, accepted_owner)
       assert {:ok, _block} = Social.block_user(viewer, blocked_owner)
 
-      assert ReadPolicy.relationship_state(viewer, public_owner, :public) == :public
-      assert ReadPolicy.relationship_state(viewer, requested_owner, :private) == :requested
-      assert ReadPolicy.relationship_state(viewer, accepted_owner, :private) == :accepted
-      assert ReadPolicy.relationship_state(viewer, blocked_owner, :public) == :blocked
+      assert ReadPolicy.relationship_state(viewer, public_owner) == :public
+      assert ReadPolicy.relationship_state(viewer, requested_owner) == :requested
+      assert ReadPolicy.relationship_state(viewer, accepted_owner) == :accepted
+      assert ReadPolicy.relationship_state(viewer, blocked_owner) == :blocked
     end
   end
 end

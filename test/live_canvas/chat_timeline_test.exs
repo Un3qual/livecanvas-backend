@@ -1,5 +1,5 @@
 defmodule LC.ChatTimelineTest do
-  use LC.DataCase
+  use LC.DataCase, async: true
 
   import Ecto.Query
   import LC.AccountsFixtures
