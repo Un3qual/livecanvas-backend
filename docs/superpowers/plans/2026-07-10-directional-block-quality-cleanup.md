@@ -263,7 +263,7 @@ git add docs/superpowers/plans/2026-07-09-directional-block-privacy.md docs/supe
 git commit -m "docs: close directional privacy cleanup"
 ```
 
-- [ ] **Step 4: Push and read back PR #116**
+- [x] **Step 4: Push and read back PR #116**
 
 ```bash
 git push
