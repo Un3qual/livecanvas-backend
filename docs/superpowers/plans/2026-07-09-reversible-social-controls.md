@@ -548,6 +548,8 @@ Execution evidence (2026-07-09):
 **Files:**
 - Modify: `mobile/src/profile/relationshipPresentation.ts`
 - Modify: `mobile/src/profile/socialControlOperations.ts`
+- Modify: `mobile/src/profile/other/OtherUserProfileScreen.tsx` only to pass a
+  temporary explicit `isBlockedByViewer: false` until Task 4 wires the query.
 - Modify: `mobile/tests/profile/relationshipPresentation.test.ts`
 - Modify generated files under: `mobile/src/__generated__/**`
 
@@ -555,7 +557,7 @@ Execution evidence (2026-07-09):
 - Consumes: Task 2's Relay schema fields.
 - Produces: `RelationshipActionKind` values `unfollow` and `unblock`, direction-aware `describeRelationshipState`, and Relay mutation documents.
 
-- [ ] **Step 1: Write the failing pure presentation tests**
+- [x] **Step 1: Write the failing pure presentation tests**
 
 Update every existing `describeRelationshipState` call to pass `isBlockedByViewer: false`, then replace the accepted and blocked tests with:
 
@@ -613,7 +615,7 @@ test('offers unblock only for the viewer outbound block direction', () => {
 });
 ```
 
-- [ ] **Step 2: Run the pure tests and verify they fail**
+- [x] **Step 2: Run the pure tests and verify they fail**
 
 Run from `mobile/`:
 
@@ -623,7 +625,7 @@ bun test tests/profile/relationshipPresentation.test.ts
 
 Expected: FAIL because the direction flag and new actions are not implemented.
 
-- [ ] **Step 3: Implement the direction-aware presentation model**
+- [x] **Step 3: Implement the direction-aware presentation model**
 
 Expand the action type:
 
@@ -767,7 +769,7 @@ function relationshipSocialActions({
 }
 ```
 
-- [ ] **Step 4: Add Relay mutation documents**
+- [x] **Step 4: Add Relay mutation documents**
 
 Append to `socialControlOperations.ts`:
 
@@ -799,7 +801,7 @@ export const socialControlUnblockUserMutation = graphql`
 `;
 ```
 
-- [ ] **Step 5: Generate Relay artifacts and rerun the pure tests**
+- [x] **Step 5: Generate Relay artifacts and rerun the pure tests**
 
 Run from `mobile/`:
 
@@ -811,12 +813,25 @@ bun run typecheck
 
 Expected: Relay generates both new mutation artifacts; the pure tests and typecheck pass.
 
-- [ ] **Step 6: Commit the presentation/operation milestone**
+- [x] **Step 6: Commit the presentation/operation milestone**
 
 ```bash
-git add mobile/src/profile/relationshipPresentation.ts mobile/src/profile/socialControlOperations.ts mobile/src/__generated__ mobile/tests/profile/relationshipPresentation.test.ts
+git add mobile/src/profile/relationshipPresentation.ts mobile/src/profile/socialControlOperations.ts mobile/src/profile/other/OtherUserProfileScreen.tsx mobile/src/__generated__ mobile/tests/profile/relationshipPresentation.test.ts
 git commit -m "feat(mobile): model reversible social actions"
 ```
+
+Execution evidence (2026-07-09):
+
+- RED: pure presentation suite -> 7 tests, 2 failures for missing Unfollow and
+  direction-safe Unblock actions.
+- Relay initially failed because sandboxed Watchman could not update its state
+  directory; the exact command succeeded outside the sandbox and generated the
+  two mutation artifacts.
+- The first typecheck correctly caught that the existing screen did not yet
+  supply the newly required direction flag. Task 3 keeps the type strict and
+  passes explicit `false`; Task 4 replaces it with the GraphQL value.
+- GREEN: pure presentation suite -> 7 tests, 0 failures; existing profile RNTL
+  suite -> 5 tests, 0 failures; `bun run typecheck` -> passed.
 
 ---
 

@@ -32,3 +32,29 @@ export const socialControlBlockUserMutation = graphql`
     }
   }
 `;
+
+export const socialControlUnfollowUserMutation = graphql`
+  mutation socialControlOperationsUnfollowUserMutation(
+    $input: UnfollowUserInput!
+  ) {
+    unfollowUser(input: $input) {
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export const socialControlUnblockUserMutation = graphql`
+  mutation socialControlOperationsUnblockUserMutation(
+    $input: UnblockUserInput!
+  ) {
+    unblockUser(input: $input) {
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;

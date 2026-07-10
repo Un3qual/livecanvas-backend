@@ -6,7 +6,13 @@ export type RelationshipState =
   | 'REQUESTED'
   | '%future added value';
 
-export type RelationshipActionKind = 'block' | 'follow' | 'mute' | 'unmute';
+export type RelationshipActionKind =
+  | 'block'
+  | 'follow'
+  | 'mute'
+  | 'unblock'
+  | 'unfollow'
+  | 'unmute';
 
 export type RelationshipAction = {
   destructive: boolean;
@@ -31,10 +37,12 @@ const unavailableRelationshipDescription: RelationshipDescription = {
 };
 
 export function describeRelationshipState({
+  isBlockedByViewer,
   isMuted,
   isSelf = false,
   state,
 }: {
+  isBlockedByViewer: boolean;
   isMuted: boolean;
   isSelf?: boolean;
   state: RelationshipState;
@@ -49,7 +57,12 @@ export function describeRelationshipState({
     };
   }
 
-  const socialActions = relationshipSocialActions({ isBlocked: state === 'BLOCKED', isMuted });
+  const socialActions = relationshipSocialActions({
+    isBlocked: state === 'BLOCKED',
+    isBlockedByViewer,
+    isFollowing: state === 'ACCEPTED',
+    isMuted,
+  });
 
   switch (state) {
     case 'PUBLIC':
@@ -79,7 +92,6 @@ export function describeRelationshipState({
         status: 'Your follow request is waiting for approval.',
       };
 
-    // The current backend contract exposes follow/request actions but no unfollow mutation.
     case 'ACCEPTED':
       return {
         actionLabel: null,
@@ -92,13 +104,21 @@ export function describeRelationshipState({
       };
 
     case 'BLOCKED':
-      return {
-        actionLabel: null,
-        canFollow: false,
-        label: 'Unavailable',
-        socialActions,
-        status: 'This profile is not available.',
-      };
+      return isBlockedByViewer
+        ? {
+            actionLabel: null,
+            canFollow: false,
+            label: 'Blocked',
+            socialActions,
+            status: 'You blocked this profile.',
+          }
+        : {
+            actionLabel: null,
+            canFollow: false,
+            label: 'Unavailable',
+            socialActions: [],
+            status: 'This profile is not available.',
+          };
 
     case '%future added value':
       return unavailableRelationshipDescription;
@@ -110,16 +130,25 @@ export function describeRelationshipState({
 
 function relationshipSocialActions({
   isBlocked,
+  isBlockedByViewer,
+  isFollowing,
   isMuted,
 }: {
   isBlocked: boolean;
+  isBlockedByViewer: boolean;
+  isFollowing: boolean;
   isMuted: boolean;
 }): ReadonlyArray<RelationshipAction> {
   if (isBlocked) {
-    return [];
+    return isBlockedByViewer
+      ? [{ destructive: false, kind: 'unblock', label: 'Unblock' }]
+      : [];
   }
 
   return [
+    ...(isFollowing
+      ? [{ destructive: false, kind: 'unfollow', label: 'Unfollow' } as const]
+      : []),
     {
       destructive: false,
       kind: isMuted ? 'unmute' : 'mute',

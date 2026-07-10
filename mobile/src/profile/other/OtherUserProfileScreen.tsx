@@ -270,6 +270,7 @@ function OtherUserProfileContent({
   const relationshipState = relationshipStateOverride ?? data.relationshipState;
   const isMuted = isMutedOverride ?? data.isMuted;
   const relationship = describeRelationshipState({
+    isBlockedByViewer: false,
     isMuted,
     isSelf: data.viewer?.id === user.id,
     state: relationshipState,
