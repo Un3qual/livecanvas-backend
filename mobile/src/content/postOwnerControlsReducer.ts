@@ -124,6 +124,9 @@ export function postOwnerControlsReducer(
     case 'delete_succeeded':
     case 'delete_failed':
       return reducePostOwnerDelete(state, action);
+
+    default:
+      return assertNever(action);
   }
 }
 
@@ -190,6 +193,9 @@ function reducePostOwnerEdit(
           [action.postId]: action.message,
         },
       };
+
+    default:
+      return assertNever(action);
   }
 }
 
@@ -241,6 +247,9 @@ function reducePostOwnerUpdate(
             pendingAction: null,
           }
         : state;
+
+    default:
+      return assertNever(action);
   }
 }
 
@@ -312,7 +321,14 @@ function reducePostOwnerDelete(
             pendingAction: null,
           }
         : state;
+
+    default:
+      return assertNever(action);
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled post owner control action: ${String(value)}`);
 }
 
 function isPendingAction(
