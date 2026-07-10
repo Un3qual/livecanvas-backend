@@ -1074,7 +1074,7 @@ Final gate evidence (2026-07-09):
   remaining Critical or Important issues.
 - `git diff --check` passed and the working tree was clean before closure.
 
-- [ ] **Step 5: Commit closure and publish the stacked draft PR**
+- [x] **Step 5: Commit closure and publish the stacked draft PR**
 
 ```bash
 git add docs/plans/NOW.md docs/plans/backend/NOW.md docs/plans/mobile/NOW.md docs/plans/mobile/TRACK.md docs/plans/INDEX.md docs/superpowers/plans/2026-07-09-profile-content-surfaces.md
@@ -1085,6 +1085,14 @@ git push -u origin codex/profile-content-surfaces
 Open a draft PR with base `codex/reversible-social-controls` and head
 `codex/profile-content-surfaces`. Include the full validation evidence and the
 known repository-wide formatter baseline. Do not activate Batch 3.
+
+Publication evidence (2026-07-09):
+
+- Closure commit: `ef9685e` (`docs: close profile content surfaces batch`).
+- Stacked draft PR: #117, `Add profile content surfaces`.
+- Base/head: `codex/reversible-social-controls` ->
+  `codex/profile-content-surfaces`.
+- Batch 3 remains planning-only and is not active.
 
 ---
 
