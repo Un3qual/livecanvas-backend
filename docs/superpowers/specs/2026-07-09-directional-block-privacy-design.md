@@ -1,7 +1,7 @@
 # Directional Block Privacy Design
 
 Date: 2026-07-09
-Status: design approved; written-spec review pending
+Status: implemented and verified
 Owner: backend and mobile lanes
 
 ## Goal

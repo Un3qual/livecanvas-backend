@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-09
-Status: directional block-privacy regression active; reversible controls remain deferred
+Status: no selected batch; directional privacy complete and reversible controls deferred
 
 ## Lane Scope
 
@@ -10,22 +10,20 @@ Status: directional block-privacy regression active; reversible controls remain 
   explicit write scope before cross-lane implementation.
 - Keep Relay IDs opaque and durable reads/writes Relay-first.
 
-## Current Batch
+## Recently Completed
 
 - Source plan:
   `docs/superpowers/plans/2026-07-09-directional-block-privacy.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: prove a directionally hidden profile renders only the existing
-  generic unavailable screen once the backend returns `node: null`.
-- Write scope: focused `mobile/tests/profile/**`, generated Relay output only if
-  changed, and this lane pointer.
-- Done condition: hidden profiles expose no identity, privacy, relationship,
-  live-session, connection, or social-action UI; viewer-owned blocks retain the
-  existing `BLOCKED` presentation.
-- Verification:
-  - From `mobile/`: `bun run relay`
-  - From `mobile/`: `bun run test:quality`
-  - From repo root: `git diff --check`
+- Result: directionally hidden profiles render only the generic unavailable
+  state. A real Relay Environment regression proves a cached identity remains
+  behind Suspense until the network returns `node: null`; hidden profiles expose
+  no identity, privacy, relationship, live-session, connection, or social UI.
+- Verification evidence:
+  - `bun run relay`: passed with no generated drift.
+  - `bun run test:quality`: passed; Bun 457 tests and Jest 83 tests, 0 failures.
+  - Focused real-cache privacy regression: passed.
+  - `git diff --check`: passed.
 
 ## Deferred Scope
 
@@ -37,8 +35,7 @@ Status: directional block-privacy regression active; reversible controls remain 
 - Release-candidate manual device/account QA remains deferred until product
   explicitly resumes it.
 
-## Do This Now
+## Next Action
 
-After the backend contract is green, update the profile RNTL regression and run
-the mobile verification named in the source plan. Do not implement unblock or
-unfollow.
+No mobile batch is selected. Keep unblock, unfollow, contact-invite delivery,
+and release-candidate device QA deferred until product explicitly resumes them.

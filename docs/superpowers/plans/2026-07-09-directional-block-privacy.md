@@ -49,7 +49,7 @@
 - Produces: viewer-aware `follower_users_query/2` and `following_users_query/2`.
 - Changes: pending-request list/refetch queries omit requesters who blocked their owner.
 
-- [ ] **Step 1: Write failing directional and query tests**
+- [x] **Step 1: Write failing directional and query tests**
 
 Add focused tests equivalent to:
 
@@ -81,13 +81,13 @@ end
 
 Extend pending-request tests so a requester who blocks the followed user is absent from both `pending_follow_requests_query/1` and `get_pending_follow_request/2`, while another request remains.
 
-- [ ] **Step 2: Run the tests and verify RED**
+- [x] **Step 2: Run the tests and verify RED**
 
 Run: `mix test test/live_canvas/social_test.exs`
 
 Expected: compilation failures for the new public functions or assertions showing blocking users remain in projections.
 
-- [ ] **Step 3: Implement the minimal directional policy**
+- [x] **Step 3: Implement the minimal directional policy**
 
 Add public typed helpers with this contract:
 
@@ -118,13 +118,13 @@ end
 
 Use directional left joins for `follower_users_query(user, viewer)`, `following_users_query(user, viewer)`, `pending_follow_requests_query/1`, and `get_pending_follow_request/2`. Only exclude rows where the candidate user is the blocker and the authenticated owner/viewer is blocked.
 
-- [ ] **Step 4: Run focused tests and verify GREEN**
+- [x] **Step 4: Run focused tests and verify GREEN**
 
 Run: `mix test test/live_canvas/social_test.exs`
 
 Expected: PASS with directionality, visible controls, and stable ordering preserved.
 
-- [ ] **Step 5: Commit the domain milestone**
+- [x] **Step 5: Commit the domain milestone**
 
 ```bash
 git add lib/live_canvas/social.ex test/live_canvas/social_test.exs
@@ -145,7 +145,7 @@ git commit -m "fix: add directional block visibility policy"
 - Consumes: `Social.blocked_by?/2` from Task 1.
 - Produces: hidden user Relay nodes return `nil`; hidden `relationshipState`/`isMuted` return `NONE`/`false`.
 
-- [ ] **Step 1: Write failing GraphQL profile tests**
+- [x] **Step 1: Write failing GraphQL profile tests**
 
 Add a Relay-node test in which `target` blocks `viewer`; query `node(id:)` as `viewer` and assert `node: nil`. Add the control where `viewer` blocks `target` and assert the target node is still returned.
 
@@ -161,17 +161,17 @@ assert {:ok, %{data: %{"relationshipState" => "NONE"}}} =
 
 Add an `isMuted` case where the viewer muted the target before the target blocks the viewer and assert `false`, matching a missing target.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run: `mix test test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/social/social_queries_test.exs`
 
 Expected: the user node remains non-null and `relationshipState` remains `BLOCKED` before implementation.
 
-- [ ] **Step 3: Pass resolution into user-node lookup**
+- [x] **Step 3: Pass resolution into user-node lookup**
 
 Change the user node branch to call `fetch_user_node(id, resolution)`. After loading the user, use `Resolution.viewer/1`; return `nil` only when an authenticated viewer is `Social.blocked_by?/2` the target. Preserve unauthenticated and viewer-owned-block lookups.
 
-- [ ] **Step 4: Normalize relationship and mute reads**
+- [x] **Step 4: Normalize relationship and mute reads**
 
 Add a private resolver helper with the exact behavior:
 
@@ -189,13 +189,13 @@ end
 
 Use it in `relationship_state/3` and `is_muted/3`. Their existing fallback values become indistinguishable from missing users.
 
-- [ ] **Step 5: Run focused tests and verify GREEN**
+- [x] **Step 5: Run focused tests and verify GREEN**
 
 Run: `mix test test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/social/social_queries_test.exs`
 
 Expected: PASS for target-blocked-viewer hiding and viewer-owned-block compatibility.
 
-- [ ] **Step 6: Commit the profile-read milestone**
+- [x] **Step 6: Commit the profile-read milestone**
 
 ```bash
 git add lib/live_canvas_gql/schema.ex lib/live_canvas_gql/social/social_resolver.ex test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/social/social_queries_test.exs
@@ -214,7 +214,7 @@ git commit -m "fix: hide blockers from profile reads"
 - Consumes: `fetch_visible_user/3` from Task 2.
 - Produces: all user-targeted social mutations return the existing target-field `not_found` payload when the target blocked the actor.
 
-- [ ] **Step 1: Write failing mutation regressions**
+- [x] **Step 1: Write failing mutation regressions**
 
 For follow, accept, decline, block, mute, and unmute, create a valid target, let that target block the authenticated actor, invoke the mutation, and assert the same payload shape used for a deleted/missing target:
 
@@ -224,25 +224,25 @@ For follow, accept, decline, block, mute, and unmute, create a valid target, let
 
 For write mutations, assert the attempted reciprocal block/mute/follow row was not created. Preserve positive tests for visible targets.
 
-- [ ] **Step 2: Run mutation tests and verify RED**
+- [x] **Step 2: Run mutation tests and verify RED**
 
 Run: `mix test test/live_canvas_gql/social/social_mutations_test.exs`
 
 Expected: follow exposes `blocked`; block/mute can succeed; accept/decline can act on the hidden requester.
 
-- [ ] **Step 3: Enforce visible-target lookup before every write**
+- [x] **Step 3: Enforce visible-target lookup before every write**
 
 Use `fetch_visible_user(target_id, target_field, actor)` in `follow_user/3`, `accept_follow_request/3`, `decline_follow_request/3`, and `run_error_only_user_action/4`. Keep unauthenticated and invalid-ID handling unchanged.
 
 The direction check must run before `Social.follow_user/2`, `block_user/2`, `mute_user/2`, `unmute_user/2`, or pending-request mutation lookup.
 
-- [ ] **Step 4: Run mutation tests and verify GREEN**
+- [x] **Step 4: Run mutation tests and verify GREEN**
 
 Run: `mix test test/live_canvas_gql/social/social_mutations_test.exs`
 
 Expected: PASS; hidden and missing targets share exact error fields/messages and no write occurs.
 
-- [ ] **Step 5: Commit the mutation milestone**
+- [x] **Step 5: Commit the mutation milestone**
 
 ```bash
 git add lib/live_canvas_gql/social/social_resolver.ex test/live_canvas_gql/social/social_mutations_test.exs
@@ -266,7 +266,7 @@ git commit -m "fix: close social mutation block oracles"
 - Consumes: viewer-aware Social queries and `reject_users_blocking_viewer/2` from Task 1.
 - Produces: no authenticated connection, request, or contact projection contains a user who blocked the viewer.
 
-- [ ] **Step 1: Write failing discovery tests**
+- [x] **Step 1: Write failing discovery tests**
 
 Add tests proving:
 
@@ -274,7 +274,7 @@ Add tests proving:
 - `viewerPendingFollowRequests` and follow-request Relay node refetch omit a requester who blocked the request owner;
 - contact-match list, upsert payload, and Relay node refetch return `matchedUsers: []` for a matched user who blocked the viewer while retaining visible matches.
 
-- [ ] **Step 2: Run discovery tests and verify RED**
+- [x] **Step 2: Run discovery tests and verify RED**
 
 Run:
 
@@ -284,11 +284,11 @@ mix test test/live_canvas_gql/social/social_queries_test.exs test/live_canvas_gq
 
 Expected: hidden users remain present in at least the connection/contact projections.
 
-- [ ] **Step 3: Pass authenticated viewers into social connection queries**
+- [x] **Step 3: Pass authenticated viewers into social connection queries**
 
 In `followers/3` and `following/3`, resolve the viewer once. For authenticated allowed reads, call the Task 1 two-argument query. Preserve public unauthenticated connection behavior with the one-argument query. `viewer_pending_follow_requests/3` and follow-request node refetch rely on Task 1's filtered queries.
 
-- [ ] **Step 4: Filter every contact-match projection**
+- [x] **Step 4: Filter every contact-match projection**
 
 Change `ContactResolver.contact_match_node/2` to accept the viewer and project:
 
@@ -299,13 +299,13 @@ matched_users:
 
 Use the viewer-aware function in contact list queries, contact upsert payloads, and schema contact-match node refetch. Keep the existing scalar projection helper private or explicitly test its new arity.
 
-- [ ] **Step 5: Run discovery tests and verify GREEN**
+- [x] **Step 5: Run discovery tests and verify GREEN**
 
 Run the Task 4 command again.
 
 Expected: PASS with visible controls and pagination shapes unchanged.
 
-- [ ] **Step 6: Commit the discovery milestone**
+- [x] **Step 6: Commit the discovery milestone**
 
 ```bash
 git add lib/live_canvas_gql/social/social_resolver.ex lib/live_canvas_gql/accounts/contact_resolver.ex lib/live_canvas_gql/schema.ex test/live_canvas_gql/social/social_queries_test.exs test/live_canvas_gql/relay/node_queries_test.exs test/live_canvas_gql/accounts/contact_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs
@@ -328,7 +328,7 @@ git commit -m "fix: filter blockers from user discovery"
 - Consumes: hidden user nodes are `null` from Task 2.
 - Produces: mobile shows exactly the generic missing-profile state for hidden profiles.
 
-- [ ] **Step 1: Write/update the mobile regression**
+- [x] **Step 1: Write/update the mobile regression**
 
 Set profile query data to:
 
@@ -343,7 +343,7 @@ mockQueryData = {
 
 Assert `This profile is unavailable.` is on screen and that `LiveCanvas user`, privacy labels, relationship text, mute/block controls, live-session actions, and connection links are absent. Replace the old mocked `BLOCKED` user-node test because that response is no longer a valid backend contract for target-blocked-viewer.
 
-- [ ] **Step 2: Run mobile tests and verify GREEN**
+- [x] **Step 2: Run mobile tests and verify GREEN**
 
 From `mobile/`, run:
 
@@ -353,7 +353,7 @@ bun run test:jest -- tests/profile/OtherUserProfileScreen.rntl.tsx tests/profile
 
 Expected: PASS without production UI changes; the existing null-node branch already renders the correct generic state.
 
-- [ ] **Step 3: Run formatters and generated-contract checks**
+- [x] **Step 3: Run formatters and generated-contract checks**
 
 Run:
 
@@ -364,7 +364,7 @@ cd mobile && bun run relay
 
 Expected: formatter succeeds and Relay output is unchanged unless the query text intentionally changed.
 
-- [ ] **Step 4: Run ordered security and repository verification**
+- [x] **Step 4: Run ordered security and repository verification**
 
 Run, in order:
 
@@ -377,11 +377,11 @@ git diff --check
 
 Expected: all commands pass with no warnings or generated drift.
 
-- [ ] **Step 5: Update lane pointers with closure evidence**
+- [x] **Step 5: Update lane pointers with closure evidence**
 
 Mark the backend and mobile privacy batch complete, cite this plan, record the commands actually run, and return the top-level dashboard to no selected batch. Do not mark deferred unblock/unfollow work complete.
 
-- [ ] **Step 6: Commit the final verified milestone**
+- [x] **Step 6: Commit the final verified milestone**
 
 ```bash
 git add mobile/tests/profile/OtherUserProfileScreen.rntl.tsx mobile/tests/profile/ProfilePreviewLinks.rntl.tsx mobile/src/__generated__/OtherUserProfileScreenQuery.graphql.ts docs/plans/backend/NOW.md docs/plans/mobile/NOW.md docs/plans/NOW.md
