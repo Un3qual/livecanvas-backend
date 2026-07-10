@@ -68,6 +68,10 @@ defmodule LC.DataCase do
 
   @doc """
   Captures repo query SQL strings executed while `fun` runs.
+
+  Repo telemetry handlers are VM-global, so callers must use synchronous
+  ExUnit cases. This lets the capture include queries from any worker process
+  started and awaited by `fun` without collecting unrelated test traffic.
   """
   @spec capture_repo_queries((-> result)) :: {result, [String.t()]} when result: var
   def capture_repo_queries(fun) when is_function(fun, 0) do
@@ -105,16 +109,7 @@ defmodule LC.DataCase do
   @spec handle_repo_query_event([atom()], map(), map(), pid()) :: :ok
   def handle_repo_query_event(_event, _measurements, %{query: query}, test_pid)
       when is_pid(test_pid) do
-    # Telemetry handlers are global, but the query event executes in the caller
-    # process. Tasks propagate their caller ancestry through `$callers`, so
-    # include awaited task work without collecting unrelated async-test queries.
-    callers = Process.get(:"$callers", [])
-    captured_query? = self() == test_pid or (is_list(callers) and test_pid in callers)
-
-    if captured_query? do
-      send(test_pid, {:repo_query_event, IO.iodata_to_binary(query)})
-    end
-
+    send(test_pid, {:repo_query_event, IO.iodata_to_binary(query)})
     :ok
   end
 
