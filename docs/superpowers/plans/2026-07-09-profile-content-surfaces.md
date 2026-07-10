@@ -796,7 +796,7 @@ Execution evidence (2026-07-09):
 - Consumes: existing authorized `User` connections and Tasks 2-4 shared content layer.
 - Produces: three independent, controlled previews on viewer and visible other-user profiles.
 
-- [ ] **Step 1: Write failing preview query/UI tests**
+- [x] **Step 1: Write failing preview query/UI tests**
 
 Mock the conditional operation by variables. For each kind assert `first: 3`,
 `after: null`, the same opaque profile ID, and mutually exclusive booleans:
@@ -818,13 +818,13 @@ other previews expose report, replays navigate to `liveSessionHref`, and each
 `View all` action uses `profileContentHref`. Assert blocked other profiles show
 no content-section test IDs.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 pnpm exec jest --config ./jest.config.js tests/profile/ProfileContentPreviewSection.rntl.tsx tests/profile/ProfilePreviewLinks.rntl.tsx tests/profile/OtherUserProfileScreen.rntl.tsx --runInBand
 ```
 
-- [ ] **Step 3: Add the conditional profile operation**
+- [x] **Step 3: Add the conditional profile operation**
 
 ```graphql
 query profileContentOperationsQuery(
@@ -861,7 +861,7 @@ Export `profileContentVariables(profileId, kind, first, after)` and
 `selectProfileContentConnection(data, kind)` so preview and list use identical
 selection rules.
 
-- [ ] **Step 4: Implement the independent preview boundary**
+- [x] **Step 4: Implement the independent preview boundary**
 
 `ProfileContentPreviewSection` accepts:
 
@@ -878,14 +878,14 @@ runs the query with `first: 3`, creates its own `usePostControls`, and renders
 `ContentSection`. Use neutral messages `No visible posts yet.`, `No active
 stories yet.`, and `No visible replays yet.`
 
-- [ ] **Step 5: Add previews to both profile screens**
+- [x] **Step 5: Add previews to both profile screens**
 
 Viewer renders posts, stories, and replays after current-live-session and
 before social lists. Other-user renders them after Relationship/Social content
 only when `relationshipState !== 'BLOCKED'`. Pass the base query's opaque user
 ID; never decode it.
 
-- [ ] **Step 6: Generate Relay, verify, and commit**
+- [x] **Step 6: Generate Relay, verify, and commit**
 
 ```bash
 bun run relay
@@ -895,6 +895,17 @@ bun run typecheck:tests
 git add mobile/src/profile mobile/src/__generated__ mobile/tests/profile
 git commit -m "feat(mobile): add profile content previews"
 ```
+
+Execution evidence (2026-07-09):
+
+- RED: the preview suite failed on the missing preview module and both profile
+  integration cases failed on missing content-section IDs.
+- GREEN: 17 focused profile preview, link, and social-control tests passed.
+  The previews query independently with `first: 3`, preserve successful
+  siblings during a failed-section retry, and disappear for blocked profiles.
+- Relay compiled 49 reader and 45 normalization documents.
+- `bun run typecheck`, `bun run typecheck:tests`, `bun run lint`, and
+  `git diff --check` passed.
 
 ---
 

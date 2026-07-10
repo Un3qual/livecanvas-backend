@@ -15,6 +15,7 @@ import { ScreenState } from '../../components/ScreenState';
 import { liveSessionHref } from '../../live/liveSessionNavigation';
 import { LiveSessionSummaryCard } from '../../live/components/LiveSessionSummaryCard';
 import { useAppTheme } from '../../providers/ThemeProvider';
+import { ProfileContentPreviewSection } from '../ProfileContentPreviewSection';
 import {
   ProfileSummaryCard,
   SocialPreviewCard,
@@ -513,22 +514,39 @@ function OtherUserProfileContent({
       />
 
       {relationshipState === 'BLOCKED' ? null : (
-        <SocialPreviewCard
-          followersPreviewCount={followersPreviewCount}
-          followingPreviewCount={followingPreviewCount}
-          onOpenFollowers={() =>
-            router.push({
-              params: { id: user.id },
-              pathname: '/profiles/[id]/followers',
-            })
-          }
-          onOpenFollowing={() =>
-            router.push({
-              params: { id: user.id },
-              pathname: '/profiles/[id]/following',
-            })
-          }
-        />
+        <>
+          <SocialPreviewCard
+            followersPreviewCount={followersPreviewCount}
+            followingPreviewCount={followingPreviewCount}
+            onOpenFollowers={() =>
+              router.push({
+                params: { id: user.id },
+                pathname: '/profiles/[id]/followers',
+              })
+            }
+            onOpenFollowing={() =>
+              router.push({
+                params: { id: user.id },
+                pathname: '/profiles/[id]/following',
+              })
+            }
+          />
+          <ProfileContentPreviewSection
+            kind="posts"
+            profileId={user.id}
+            scope="other"
+          />
+          <ProfileContentPreviewSection
+            kind="stories"
+            profileId={user.id}
+            scope="other"
+          />
+          <ProfileContentPreviewSection
+            kind="replays"
+            profileId={user.id}
+            scope="other"
+          />
+        </>
       )}
     </ScrollView>
   );
