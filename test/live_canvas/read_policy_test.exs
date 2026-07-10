@@ -1,0 +1,65 @@
+defmodule LC.ReadPolicyTest do
+  use LC.DataCase, async: true
+
+  import LC.AccountsFixtures
+
+  alias LC.{ReadPolicy, Social}
+
+  describe "relationship facts" do
+    test "distinguishes directional user resolution from symmetric blocking" do
+      viewer = user_fixture()
+      owner = user_fixture()
+
+      assert {:ok, _block} = Social.block_user(owner, viewer)
+
+      assert ReadPolicy.viewer_blocked_by_owner?(viewer, owner)
+      refute ReadPolicy.viewer_blocked_by_owner?(owner, viewer)
+      assert ReadPolicy.blocked_between?(viewer, owner)
+      assert ReadPolicy.blocked_between?(owner, viewer)
+    end
+
+    test "returns blocking owner IDs in one batch" do
+      viewer = user_fixture()
+      blocking_owner = user_fixture()
+      visible_owner = user_fixture()
+
+      assert {:ok, _block} = Social.block_user(blocking_owner, viewer)
+
+      assert ReadPolicy.blocking_owner_ids(viewer, [blocking_owner.id, visible_owner.id]) ==
+               [blocking_owner.id]
+    end
+
+    test "keeps mute directional and separate from relationship-graph visibility" do
+      viewer = user_fixture()
+      public_owner = user_fixture(privacy_mode: :public)
+
+      assert {:ok, _mute} = Social.mute_user(viewer, public_owner)
+
+      assert ReadPolicy.viewer_muted_owner?(viewer, public_owner)
+      refute ReadPolicy.viewer_muted_owner?(public_owner, viewer)
+
+      assert ReadPolicy.viewer_can_view_relationship_graph?(viewer, public_owner, :public)
+      refute ReadPolicy.viewer_can_read_owner?(viewer, public_owner, :public)
+    end
+  end
+
+  describe "relationship state compatibility" do
+    test "preserves public, requested, accepted, and blocked states" do
+      viewer = user_fixture()
+      public_owner = user_fixture(privacy_mode: :public)
+      requested_owner = user_fixture(privacy_mode: :private)
+      accepted_owner = user_fixture(privacy_mode: :private)
+      blocked_owner = user_fixture(privacy_mode: :public)
+
+      assert {:ok, _follow} = Social.follow_user(viewer, requested_owner)
+      assert {:ok, follow} = Social.follow_user(viewer, accepted_owner)
+      assert {:ok, _follow} = Social.accept_follow_request(follow, accepted_owner)
+      assert {:ok, _block} = Social.block_user(viewer, blocked_owner)
+
+      assert ReadPolicy.relationship_state(viewer, public_owner, :public) == :public
+      assert ReadPolicy.relationship_state(viewer, requested_owner, :private) == :requested
+      assert ReadPolicy.relationship_state(viewer, accepted_owner, :private) == :accepted
+      assert ReadPolicy.relationship_state(viewer, blocked_owner, :public) == :blocked
+    end
+  end
+end
