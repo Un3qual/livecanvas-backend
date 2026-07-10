@@ -1,19 +1,23 @@
+import { memo } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
+import { useAppTheme } from '../providers/ThemeProvider';
+import { radius, spacing, typography } from '../theme/tokens';
 import {
   formatPostCardPresentation,
   type ContentMediaAssetPresentation,
   type ContentPost,
 } from './contentPostPresentation';
 import {
+  arePostControlViewStatesEqual,
+  selectPostControlViewState,
+} from './postControlViewState';
+import {
   POST_OWNER_DELETE_CONFIRMATION,
   isViewerOwnedPost,
 } from './postOwnerControlsState';
-import { isPostReportConfirmed } from './reportPostReducer';
-import { useAppTheme } from '../providers/ThemeProvider';
-import { radius, spacing, typography } from '../theme/tokens';
 import type { PostControls } from './usePostControls';
 
 export type { ContentPost } from './contentPostPresentation';
@@ -80,32 +84,18 @@ const styles = StyleSheet.create({
   },
 });
 
-export function ContentPostCard({
+export const ContentPostCard = memo(function ContentPostCard({
   controls,
   post,
   viewerId,
 }: ContentPostCardProps) {
   const theme = useAppTheme();
   const presentation = formatPostCardPresentation(post);
+  const controlState = selectPostControlViewState(controls.state, post.id);
+  const actions = controls.actions;
   const isOwnPost = isViewerOwnedPost(viewerId, post.author.id);
-  const isReportActive = controls.reportState.activePostId === post.id;
-  const isReportConfirmed = isPostReportConfirmed(
-    controls.reportState,
-    post.id,
-  );
-  const reportError = controls.reportState.errorsByPostId[post.id] ?? null;
-  const ownerError = controls.errorsByPostId[post.id] ?? null;
   const showReportAction = viewerId != null && !isOwnPost;
   const showOwnerControls = viewerId != null && isOwnPost;
-  const isEditing = controls.editingPostId === post.id;
-  const isConfirmingDelete = controls.deleteConfirmationPostId === post.id;
-  const isUpdating =
-    controls.pendingAction?.kind === 'update' &&
-    controls.pendingAction.postId === post.id;
-  const isDeleting =
-    controls.pendingAction?.kind === 'delete' &&
-    controls.pendingAction.postId === post.id;
-  const isOwnerActionPending = controls.pendingAction !== null;
 
   return (
     <AppCard>
@@ -128,13 +118,13 @@ export function ContentPostCard({
         </Text>
       </View>
 
-      {isEditing && controls.editState ? (
+      {controlState.isEditing && controlState.editState ? (
         <View style={styles.editPanel}>
           <TextInput
             accessibilityLabel="Post body"
-            editable={!isOwnerActionPending}
+            editable={!controlState.isOwnerActionPending}
             multiline
-            onChangeText={controls.updateEditBody}
+            onChangeText={actions.updateEditBody}
             style={[
               styles.editInput,
               {
@@ -142,34 +132,34 @@ export function ContentPostCard({
                 color: theme.colors.text,
               },
             ]}
-            value={controls.editState.bodyText}
+            value={controlState.editState.bodyText}
           />
           <View style={styles.visibilityControls}>
             <AppButton
-              disabled={isOwnerActionPending}
+              disabled={controlState.isOwnerActionPending}
               label="Followers"
-              onPress={() => controls.selectEditVisibility('FOLLOWERS')}
-              selected={controls.editState.visibility === 'FOLLOWERS'}
+              onPress={() => actions.selectEditVisibility('FOLLOWERS')}
+              selected={controlState.editState.visibility === 'FOLLOWERS'}
               variant="secondary"
             />
             <AppButton
-              disabled={isOwnerActionPending}
+              disabled={controlState.isOwnerActionPending}
               label="Public"
-              onPress={() => controls.selectEditVisibility('PUBLIC')}
-              selected={controls.editState.visibility === 'PUBLIC'}
+              onPress={() => actions.selectEditVisibility('PUBLIC')}
+              selected={controlState.editState.visibility === 'PUBLIC'}
               variant="secondary"
             />
           </View>
           <View style={styles.ownerControls}>
             <AppButton
-              disabled={isOwnerActionPending}
-              label={isUpdating ? 'Saving...' : 'Save post'}
-              onPress={() => controls.saveEdit(post)}
+              disabled={controlState.isOwnerActionPending}
+              label={controlState.isUpdating ? 'Saving...' : 'Save post'}
+              onPress={() => actions.saveEdit(post)}
             />
             <AppButton
-              disabled={isOwnerActionPending}
+              disabled={controlState.isOwnerActionPending}
               label="Cancel"
-              onPress={controls.cancelEdit}
+              onPress={actions.cancelEdit}
               variant="secondary"
             />
           </View>
@@ -212,22 +202,24 @@ export function ContentPostCard({
 
       {showReportAction ? (
         <View style={styles.reportPanel}>
-          {isReportConfirmed ? (
+          {controlState.isReportConfirmed ? (
             <Text style={[styles.metadataText, { color: theme.colors.text }]}>
               Report submitted.
             </Text>
           ) : (
             <AppButton
-              disabled={isReportActive}
-              label={isReportActive ? 'Reporting...' : 'Report post'}
-              onPress={() => controls.reportPost(post)}
+              disabled={controlState.isReportActive}
+              label={
+                controlState.isReportActive ? 'Reporting...' : 'Report post'
+              }
+              onPress={() => actions.reportPost(post)}
               variant="secondary"
             />
           )}
 
-          {reportError ? (
+          {controlState.reportError ? (
             <Text style={[styles.metadataText, { color: theme.colors.error }]}>
-              {reportError}
+              {controlState.reportError}
             </Text>
           ) : null}
         </View>
@@ -235,50 +227,72 @@ export function ContentPostCard({
 
       {showOwnerControls ? (
         <View style={styles.reportPanel}>
-          {isConfirmingDelete ? (
+          {controlState.isConfirmingDelete ? (
             <>
               <Text style={[styles.metadataText, { color: theme.colors.text }]}>
                 {POST_OWNER_DELETE_CONFIRMATION}
               </Text>
               <View style={styles.ownerControls}>
                 <AppButton
-                  disabled={isOwnerActionPending}
-                  label={isDeleting ? 'Deleting...' : 'Confirm delete'}
-                  onPress={() => controls.confirmDelete(post)}
+                  disabled={controlState.isOwnerActionPending}
+                  label={
+                    controlState.isDeleting
+                      ? 'Deleting...'
+                      : 'Confirm delete'
+                  }
+                  onPress={() => actions.confirmDelete(post)}
                 />
                 <AppButton
-                  disabled={isOwnerActionPending}
+                  disabled={controlState.isOwnerActionPending}
                   label="Cancel"
-                  onPress={controls.cancelDelete}
+                  onPress={actions.cancelDelete}
                   variant="secondary"
                 />
               </View>
             </>
-          ) : isEditing ? null : (
+          ) : controlState.isEditing ? null : (
             <View style={styles.ownerControls}>
               <AppButton
-                disabled={isOwnerActionPending}
+                disabled={controlState.isOwnerActionPending}
                 label="Edit post"
-                onPress={() => controls.startEdit(post)}
+                onPress={() => actions.startEdit(post)}
                 variant="secondary"
               />
               <AppButton
-                disabled={isOwnerActionPending}
+                disabled={controlState.isOwnerActionPending}
                 label="Delete post"
-                onPress={() => controls.deletePost(post)}
+                onPress={() => actions.deletePost(post)}
                 variant="secondary"
               />
             </View>
           )}
 
-          {ownerError ? (
+          {controlState.ownerError ? (
             <Text style={[styles.metadataText, { color: theme.colors.error }]}>
-              {ownerError}
+              {controlState.ownerError}
             </Text>
           ) : null}
         </View>
       ) : null}
     </AppCard>
+  );
+}, areContentPostCardPropsEqual);
+
+function areContentPostCardPropsEqual(
+  previous: ContentPostCardProps,
+  next: ContentPostCardProps,
+): boolean {
+  if (
+    previous.post !== next.post ||
+    previous.viewerId !== next.viewerId ||
+    previous.controls.actions !== next.controls.actions
+  ) {
+    return false;
+  }
+
+  return arePostControlViewStatesEqual(
+    selectPostControlViewState(previous.controls.state, previous.post.id),
+    selectPostControlViewState(next.controls.state, next.post.id),
   );
 }
 

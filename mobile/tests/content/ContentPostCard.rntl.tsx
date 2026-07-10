@@ -5,6 +5,7 @@ import {
   screen,
   userEvent,
 } from '@testing-library/react-native';
+import { useEffect } from 'react';
 import { Text } from 'react-native';
 
 import {
@@ -12,7 +13,10 @@ import {
   type ContentPost,
 } from '../../src/content/ContentPostCard';
 import { applyContentPostChanges } from '../../src/content/contentPostChanges';
-import { usePostControls } from '../../src/content/usePostControls';
+import {
+  usePostControls,
+  type PostControls,
+} from '../../src/content/usePostControls';
 
 type MutationConfig = {
   readonly onCompleted?: (payload: Record<string, unknown>) => void;
@@ -70,6 +74,23 @@ beforeEach(() => {
 });
 
 describe('ContentPostCard with shared controls', () => {
+  test('keeps controller action identity stable while edit state changes', async () => {
+    const user = userEvent.setup();
+    const onActions = jest.fn();
+    const post = contentPost({ authorId: 'viewer-id', id: 'opaque-post-id' });
+
+    await render(
+      <Harness post={post} viewerId="viewer-id" onActions={onActions} />,
+    );
+    await user.press(screen.getByRole('button', { name: 'Edit post' }));
+    await user.type(screen.getByLabelText('Post body'), ' updated');
+
+    const observedActions = onActions.mock.calls.map(([actions]) => actions);
+
+    expect(observedActions[0]).toBeDefined();
+    expect(new Set(observedActions).size).toBe(1);
+  });
+
   test('updates an owned post with its opaque Relay ID', async () => {
     const user = userEvent.setup();
     const post = contentPost({ authorId: 'viewer-id', id: 'opaque-post-id' });
@@ -151,14 +172,20 @@ describe('ContentPostCard with shared controls', () => {
 });
 
 function Harness({
+  onActions,
   post,
   viewerId,
 }: {
+  onActions?: (actions: PostControls['actions']) => void;
   post: ContentPost;
   viewerId: string;
 }) {
   const controls = usePostControls({ viewerId });
   const [visiblePost] = applyContentPostChanges([post], controls.changes);
+
+  useEffect(() => {
+    onActions?.(controls.actions);
+  }, [controls.actions, onActions]);
 
   return visiblePost ? (
     <ContentPostCard

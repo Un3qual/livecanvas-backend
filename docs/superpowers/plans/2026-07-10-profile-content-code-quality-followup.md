@@ -72,13 +72,13 @@
 **Interfaces:**
 - Produces: `PostControls` with stable `actions`, explicit `state`, local `changes`, and a per-post view-state selector used by a memoized card.
 
-- [ ] **Step 1: Write failing reducer and stable-action tests**
+- [x] **Step 1: Write failing reducer and stable-action tests**
   Specify owner edit/delete transitions in a pure reducer and assert that controller action identity survives edit-state updates.
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
   Run the focused Bun/Jest tests; expect the missing reducer API and current flat controller API to fail.
-- [ ] **Step 3: Implement focused controllers and memoized per-post selection**
+- [x] **Step 3: Implement focused controllers and memoized per-post selection**
   Preserve same-tick guards by synchronously mirroring reducer state in refs; keep mutation callbacks unmounted-safe.
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
   Run the reducer, card, section, profile-list, and Home suites plus TypeScript checks.
-- [ ] **Step 5: Run final gates and commit**
+- [x] **Step 5: Run final gates and commit**
   Run `bun run test:quality`, `git diff --check`, inspect the final diff, commit, and push the existing branch.

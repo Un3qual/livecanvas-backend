@@ -2,6 +2,7 @@ import { render, screen, userEvent } from '@testing-library/react-native';
 
 import { ContentSection } from '../../src/content/ContentSection';
 import type { ContentPost } from '../../src/content/ContentPostCard';
+import { createPostOwnerControlsState } from '../../src/content/postOwnerControlsReducer';
 import type { PostControls } from '../../src/content/usePostControls';
 import { createReportPostState } from '../../src/content/reportPostReducer';
 
@@ -176,21 +177,21 @@ function session({ id, status }: { id: string; status: string }) {
 
 function postControls(): PostControls {
   return {
-    cancelDelete: jest.fn(),
-    cancelEdit: jest.fn(),
+    actions: {
+      cancelDelete: jest.fn(),
+      cancelEdit: jest.fn(),
+      confirmDelete: jest.fn(),
+      deletePost: jest.fn(),
+      reportPost: jest.fn(),
+      saveEdit: jest.fn(),
+      selectEditVisibility: jest.fn(),
+      startEdit: jest.fn(),
+      updateEditBody: jest.fn(),
+    },
     changes: { deletedPostIds: {}, updatedPostsById: {} },
-    confirmDelete: jest.fn(),
-    deleteConfirmationPostId: null,
-    deletePost: jest.fn(),
-    editingPostId: null,
-    editState: null,
-    errorsByPostId: {},
-    pendingAction: null,
-    reportPost: jest.fn(),
-    reportState: createReportPostState(),
-    saveEdit: jest.fn(),
-    selectEditVisibility: jest.fn(),
-    startEdit: jest.fn(),
-    updateEditBody: jest.fn(),
+    state: {
+      owner: createPostOwnerControlsState(),
+      report: createReportPostState(),
+    },
   };
 }
