@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-10
-Status: viewer-profile privacy query cleanup active; reversible controls deferred
+Status: viewer-profile privacy query cleanup complete; reversible controls deferred
 
 ## Lane Scope
 
@@ -10,17 +10,17 @@ Status: viewer-profile privacy query cleanup active; reversible controls deferre
   explicit write scope before cross-lane implementation.
 - Keep Relay IDs opaque and durable reads/writes Relay-first.
 
-## Current Batch
+## Recently Completed
 
 - Source plan:
   `docs/superpowers/plans/2026-07-10-directional-block-quality-cleanup.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Task: keep viewer-owned profile data cache-friendly while moving follower,
-  following, and request previews into a network-fresh child boundary.
+- Result: viewer-owned profile data stays cache-friendly while follower,
+  following, and request previews refresh in a network-fresh child boundary.
 - Write scope: viewer profile components, shared Relay fetch options, generated
   Relay output, focused profile tests, and this lane pointer.
-- Done condition: cached viewer data can render immediately, cached third-party
-  identities remain withheld, and the full mobile quality suite passes.
+- Verification: Relay generation, TypeScript, ESLint, 457 Bun tests, and 84
+  Jest tests passed; real cache coverage withholds stale third-party identities.
 
 ## Deferred Scope
 
@@ -34,5 +34,5 @@ Status: viewer-profile privacy query cleanup active; reversible controls deferre
 
 ## Next Action
 
-After backend Task 1, execute Task 2 of the current cleanup plan test-first.
-Keep unblock, unfollow, contact-invite delivery, and device QA deferred.
+No mobile batch is selected. Keep unblock, unfollow, contact-invite delivery,
+and device QA deferred.

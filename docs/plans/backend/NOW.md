@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-10
-Status: directional privacy quality cleanup active; stacked redesign queued
+Status: directional privacy quality cleanup complete; stacked redesign next
 
 ## Lane Scope
 
@@ -9,23 +9,23 @@ Status: directional privacy quality cleanup active; stacked redesign queued
 - Cross-lane mobile contract work must name its backend write scope explicitly.
 - Shared coordinator docs and shared contracts require explicit assignment.
 
-## Current Batch
+## Recently Completed
 
 - Source plan:
   `docs/superpowers/plans/2026-07-10-directional-block-quality-cleanup.md`
-- Task: make contact visibility I/O explicit, share one pure projection path,
-  preserve query counts, and push the updated PR #116.
+- Result: contact visibility I/O is explicit, singleton/list responses share
+  one pure projection path, and the one-query contract is preserved.
 - Write scope: `lib/live_canvas/social.ex`, contact GraphQL boundary code,
   focused tests, the completed privacy plan, and backend lane documentation.
-- Done condition: singleton/list contact paths share one projection, privacy
-  behavior is unchanged, affected quality gates pass, and PR #116 is pushed.
+- Verification: affected backend suite 144 tests, 0 failures; warning-free
+  compile; Dialyzer 0 errors; boundary and changed-code smell gates passed.
 - Queued stacked plan:
   `docs/superpowers/plans/2026-07-10-read-policy-redesign.md`
 
 ## Next Action
 
-Execute Task 1 of the current plan test-first. Do not create the stacked branch
-until PR #116 cleanup is verified and pushed.
+Push PR #116, then create `codex/read-policy-redesign` from its remote head and
+execute the queued stacked plan test-first.
 
 ## References
 

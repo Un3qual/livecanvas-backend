@@ -235,11 +235,11 @@ git commit -m "refactor: isolate privacy-sensitive profile queries"
 - Produces: a completed-plan record under 120 lines.
 - Produces: approved design status and exact verification evidence.
 
-- [ ] **Step 1: Replace checklist duplication with a closure record**
+- [x] **Step 1: Replace checklist duplication with a closure record**
 
 Keep only: goal/invariant, final architecture, milestone commit list, focused verification evidence, baseline advisories, stacked redesign pointer, and deferred unblock/unfollow scope. Remove copied implementation code and completed step-by-step commands. Change the redesign spec status to `approved for implementation`.
 
-- [ ] **Step 2: Run complete base-PR verification**
+- [x] **Step 2: Run complete base-PR verification**
 
 Run:
 
@@ -256,7 +256,7 @@ git diff --check
 
 Expected: all affected checks pass. Report unrelated repository-wide baseline failures separately without changing unrelated files.
 
-- [ ] **Step 3: Commit closure documentation**
+- [x] **Step 3: Commit closure documentation**
 
 ```bash
 git add docs/superpowers/plans/2026-07-09-directional-block-privacy.md docs/superpowers/specs/2026-07-10-read-policy-redesign-design.md docs/plans/NOW.md docs/plans/backend/NOW.md docs/plans/mobile/NOW.md
