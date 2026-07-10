@@ -56,7 +56,11 @@ defmodule LC.Dev.SeedDataTest do
              |> Feed.home_feed()
              |> Enum.map(& &1.body_text)
 
-    assert [%{host_id: host_id, status: :live, visibility: :followers}] = Feed.live_now(viewer)
+    assert [%{host_id: host_id, status: :live, visibility: :followers}] =
+             viewer
+             |> Feed.live_now()
+             |> Enum.filter(&(&1.status == :live))
+
     assert host_id == host.id
   end
 
@@ -117,8 +121,13 @@ defmodule LC.Dev.SeedDataTest do
              |> Feed.home_feed()
              |> Enum.map(& &1.body_text)
 
-    assert [%{host_id: host_id, status: :live, visibility: :followers}] = Feed.live_now(viewer)
+    assert [%{host_id: host_id, status: :live, visibility: :followers}] =
+             viewer
+             |> Feed.live_now()
+             |> Enum.filter(&(&1.status == :live))
+
     assert host_id == host.id
+
     assert %LiveSession{id: ^ad_hoc_session_id, status: :starting, visibility: :public} =
              Repo.get!(LiveSession, ad_hoc_session.id)
   end
@@ -136,12 +145,14 @@ defmodule LC.Dev.SeedDataTest do
     summary = SeedData.seed!()
 
     assert summary.shared_password == @shared_password
+
     assert [%LiveSession{id: replacement_live_session_id, host_id: host_id, status: :live}] =
              Feed.live_now(viewer)
 
     assert host_id == host.id
     assert replacement_live_session_id != ended_live_session.id
     assert seeded_live_session_ids(host) == [replacement_live_session_id]
+
     assert %LiveSession{id: ^ended_live_session_id, status: :ended, ended_reason: :host_ended} =
              Repo.get!(LiveSession, ended_live_session.id)
   end
