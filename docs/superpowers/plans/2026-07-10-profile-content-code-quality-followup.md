@@ -48,15 +48,15 @@
 **Interfaces:**
 - Produces: `FeedHomePaginationState` with `connections`, `isRefreshing`, and `refreshError`; selectors derive page info, load-more status, base identity, and rows from each connection.
 
-- [ ] **Step 1: Write the failing single-source test**
+- [x] **Step 1: Write the failing single-source test**
   Assert that initialized state has no `sections` or `sectionBasePageIdentities`, and update tests to use explicit opaque requests.
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
   Run `bun test tests/feed/feedHomePagination.test.ts`; expect the redundant-state assertion to fail.
-- [ ] **Step 3: Remove the legacy state and action paths**
+- [x] **Step 3: Remove the legacy state and action paths**
   Delegate section start/success/error and base replacement exclusively to `contentConnectionReducer`.
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
   Run the pagination and Home RNTL suites.
-- [ ] **Step 5: Commit the pagination-state milestone**
+- [x] **Step 5: Commit the pagination-state milestone**
 
 ### Task 3: Split and stabilize post controls
 

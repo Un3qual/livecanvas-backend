@@ -44,6 +44,8 @@ import {
 import {
   createFeedHomePaginationState,
   feedHomePaginationReducer,
+  selectFeedHomeBasePageIdentity,
+  selectFeedHomeLoadMoreState,
   selectFeedHomePageInfo,
   selectFeedHomeRows,
   type FeedHomePaginationPageInfo,
@@ -326,19 +328,27 @@ export function FeedHomeContent() {
     'homeFeed',
   );
   const replayPageInfo = selectFeedHomePageInfo(paginationState, 'replays');
+  const storiesLoadMoreState = selectFeedHomeLoadMoreState(
+    paginationState,
+    'stories',
+  );
+  const homeFeedLoadMoreState = selectFeedHomeLoadMoreState(
+    paginationState,
+    'homeFeed',
+  );
+  const replayLoadMoreState = selectFeedHomeLoadMoreState(
+    paginationState,
+    'replays',
+  );
   const storiesLoadMoreControl = createLoadMoreControl({
-    error: paginationState.sections.stories.error,
-    isLoading:
-      paginationState.isRefreshing ||
-      paginationState.sections.stories.isLoadingMore,
+    error: storiesLoadMoreState.error,
+    isLoading: paginationState.isRefreshing || storiesLoadMoreState.isLoading,
     onLoadMore: () => loadMoreSection('stories'),
     pageInfo: storiesPageInfo,
   });
   const homeFeedLoadMoreControl = createLoadMoreControl({
-    error: paginationState.sections.homeFeed.error,
-    isLoading:
-      paginationState.isRefreshing ||
-      paginationState.sections.homeFeed.isLoadingMore,
+    error: homeFeedLoadMoreState.error,
+    isLoading: paginationState.isRefreshing || homeFeedLoadMoreState.isLoading,
     onLoadMore: () => loadMoreSection('homeFeed'),
     pageInfo: homeFeedPageInfo,
   });
@@ -349,10 +359,8 @@ export function FeedHomeContent() {
     visible: false,
   };
   const replayLoadMoreControl = createLoadMoreControl({
-    error: paginationState.sections.replays.error,
-    isLoading:
-      paginationState.isRefreshing ||
-      paginationState.sections.replays.isLoadingMore,
+    error: replayLoadMoreState.error,
+    isLoading: paginationState.isRefreshing || replayLoadMoreState.isLoading,
     onLoadMore: () => loadMoreSection('replays'),
     pageInfo: replayPageInfo,
   });
@@ -540,7 +548,10 @@ export function FeedHomeContent() {
     }
 
     const request = {
-      basePageIdentity: selectSectionBasePageIdentity(section),
+      basePageIdentity: selectFeedHomeBasePageIdentity(
+        paginationState,
+        section,
+      ),
       cursor: pageInfo.endCursor,
       id: loadMoreRequestIdRef.current + 1,
       key: `home:${section}:${loadMoreRequestIdRef.current + 1}`,
@@ -573,7 +584,6 @@ export function FeedHomeContent() {
       }
 
       dispatchPagination({
-        basePageIdentity: request.basePageIdentity,
         pageInfo: selectLoadedSectionPageInfo(pageData, section),
         request,
         rows: selectLoadedSectionRows(pageData, section),
@@ -598,24 +608,6 @@ export function FeedHomeContent() {
           [section]: null,
         };
       }
-    }
-  }
-
-  function selectSectionBasePageIdentity(
-    section: FeedHomePaginationSection,
-  ): string {
-    switch (section) {
-      case 'homeFeed':
-        return homeFeedBasePageIdentity;
-
-      case 'replays':
-        return replaysBasePageIdentity;
-
-      case 'stories':
-        return storiesBasePageIdentity;
-
-      default:
-        return assertNever(section);
     }
   }
 
