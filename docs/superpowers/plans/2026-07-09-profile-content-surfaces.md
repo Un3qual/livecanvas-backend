@@ -675,7 +675,7 @@ Execution evidence (2026-07-09):
 - Consumes: Tasks 2-3 universal state/cards/controls.
 - Produces: Home rendered entirely through universal section/card primitives while retaining Home-only refresh and discovery behavior.
 
-- [ ] **Step 1: Add failing universal-section and Home regression tests**
+- [x] **Step 1: Add failing universal-section and Home regression tests**
 
 Test `ContentSection` for post rows, live/replay rows, neutral empty copy, view
 all, load more, retry error, and disabled loading state. Add Home assertions for
@@ -683,14 +683,14 @@ all, load more, retry error, and disabled loading state. Add Home assertions for
 `content-section-live`, and `content-section-replays`, while retaining existing
 pagination, refresh, owner/report, and navigation assertions.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 pnpm exec jest --config ./jest.config.js tests/content/ContentSection.rntl.tsx tests/feed/FeedHomeScreen.rntl.tsx --runInBand
 bun test tests/feed/feedHomePagination.test.ts tests/content/contentConnectionState.test.ts
 ```
 
-- [ ] **Step 3: Implement the shared section API**
+- [x] **Step 3: Implement the shared section API**
 
 ```typescript
 type ContentSectionBaseProps = {
@@ -737,7 +737,7 @@ The component branches only on the discriminated kind: posts/stories render
 `ContentPostCard`; live/replays render `LiveSessionSummaryCard` with `Watch
 live`/`Watch replay`. Empty and load-more UI is common.
 
-- [ ] **Step 4: Adapt Home pagination to the generic connection reducer**
+- [x] **Step 4: Adapt Home pagination to the generic connection reducer**
 
 Keep `feedHomePaginationReducer` responsible only for manual refresh state and
 the map of section connection states. Delegate section start/success/error and
@@ -745,7 +745,7 @@ row deduplication to `contentConnectionReducer`. Preserve the exported
 `createFeedHomePaginationState` and `selectFeedHomePageInfo` adapters until all
 existing Home callers/tests are migrated in this task.
 
-- [ ] **Step 5: Replace Home sections and verify no regression**
+- [x] **Step 5: Replace Home sections and verify no regression**
 
 Render all four Home content collections through `ContentSection`. Current
 session can remain its own heading but its card must use the shared live card
@@ -758,12 +758,25 @@ bun run typecheck
 bun run typecheck:tests
 ```
 
-- [ ] **Step 6: Commit the Home universal-surface migration**
+- [x] **Step 6: Commit the Home universal-surface migration**
 
 ```bash
 git add mobile/src/content/ContentSection.tsx mobile/src/feed mobile/tests/content/ContentSection.rntl.tsx mobile/tests/feed
 git commit -m "refactor(mobile): migrate home to content surfaces"
 ```
+
+Execution evidence (2026-07-09):
+
+- RED: the new section suite failed on the missing `ContentSection` module and
+  Home failed on all four missing content-section test IDs; the pagination
+  suite then failed on the missing generic-row adapter.
+- GREEN: the shared section plus Home suites passed 27 tests, and the Home plus
+  universal connection reducer suites passed 10 tests.
+- Home load-more rows now live in `contentConnectionReducer` state with opaque
+  request identity and first-ID-wins de-duplication; the parallel retained-row
+  state was removed.
+- `bun run typecheck`, `bun run typecheck:tests`, `bun run lint`, and
+  `git diff --check` passed.
 
 ---
 

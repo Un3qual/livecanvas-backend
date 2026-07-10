@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-09
-Status: Batch 2 Profile Content Surfaces active; Task 4 Home sections next
+Status: Batch 2 Profile Content Surfaces active; Task 5 profile previews next
 
 ## Lane Scope
 
@@ -16,7 +16,7 @@ Status: Batch 2 Profile Content Surfaces active; Task 4 Home sections next
 - Source plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: Task 4; Tasks 1-3 are complete.
+- Current task: Task 5; Tasks 1-4 are complete.
 - Deliver universal content state, cards, controls, and sections; migrate Home;
   then add independent profile previews and shared paginated lists.
 - Controls appear in previews and lists: edit/delete for owned posts/stories,
@@ -39,5 +39,5 @@ Status: Batch 2 Profile Content Surfaces active; Task 4 Home sections next
 
 ## Next Action
 
-Execute Task 4 with failing universal-section and Home regression tests.
+Execute Task 5 with failing independent profile-preview query and UI tests.
 Preserve each implementation-plan milestone commit.

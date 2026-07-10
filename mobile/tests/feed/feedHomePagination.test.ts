@@ -5,6 +5,7 @@ import {
   createFeedHomePaginationState,
   feedHomePaginationReducer,
   selectFeedHomePageInfo,
+  selectFeedHomeRows,
 } from '../../src/feed/feedHomePagination';
 
 const nextPage: FeedHomePaginationPageInfo = {
@@ -17,6 +18,43 @@ type PageInfoWithBase = FeedHomePaginationPageInfo & {
 };
 
 describe('feedHomePaginationReducer', () => {
+  test('delegates section rows and opaque request identity to universal connection state', () => {
+    const request = {
+      cursor: 'story-cursor-1',
+      key: 'home:stories:1',
+      routeGeneration: 0,
+    } as const;
+    const initialState = createFeedHomePaginationState({
+      stories: {
+        basePageIdentity: 'story-1',
+        endCursor: 'story-cursor-1',
+        hasNextPage: true,
+        rows: [{ id: 'story-1' }],
+      },
+    });
+    const loadingState = feedHomePaginationReducer(initialState, {
+      request,
+      section: 'stories',
+      type: 'load_more_start',
+    });
+    const loadedState = feedHomePaginationReducer(loadingState, {
+      pageInfo: { endCursor: null, hasNextPage: false },
+      request,
+      rows: [
+        { id: 'story-1' },
+        { id: 'story-2' },
+      ],
+      section: 'stories',
+      type: 'load_more_success',
+    });
+
+    expect(selectFeedHomeRows(loadedState, 'stories')).toEqual([
+      { id: 'story-1' },
+      { id: 'story-2' },
+    ]);
+    expect(loadedState.connections.stories.activeRequest).toBeNull();
+  });
+
   test('loads more stories without affecting home feed or replays', () => {
     const initialState = createFeedHomePaginationState({});
     const loadingState = feedHomePaginationReducer(initialState, {

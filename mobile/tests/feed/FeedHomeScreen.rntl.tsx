@@ -266,12 +266,16 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     await render(<FeedHomeContent />);
 
     expect(screen.getByText('Stories')).toBeOnTheScreen();
+    expect(screen.getByTestId('content-section-stories')).toBeOnTheScreen();
     expect(screen.getByText('Story update')).toBeOnTheScreen();
     expect(screen.getByText('Home feed')).toBeOnTheScreen();
+    expect(screen.getByTestId('content-section-posts')).toBeOnTheScreen();
     expect(screen.getByText('First public post')).toBeOnTheScreen();
     expect(screen.getAllByText('Live now')).not.toHaveLength(0);
+    expect(screen.getByTestId('content-section-live')).toBeOnTheScreen();
     expect(screen.getByText('live-host@example.com')).toBeOnTheScreen();
     expect(screen.getByText('Replays')).toBeOnTheScreen();
+    expect(screen.getByTestId('content-section-replays')).toBeOnTheScreen();
     expect(screen.getByText('replay-host@example.com')).toBeOnTheScreen();
     expect(screen.getByText('Your live session')).toBeOnTheScreen();
     expect(screen.getByText('viewer-host@example.com')).toBeOnTheScreen();

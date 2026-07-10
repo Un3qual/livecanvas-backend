@@ -1,6 +1,7 @@
 import React, {
   Suspense,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -17,18 +18,16 @@ import {
 import { fetchQuery, useLazyLoadQuery, useRelayEnvironment } from 'react-relay';
 
 import { AppButton } from '../components/AppButton';
-import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import { ScreenState } from '../components/ScreenState';
+import type { ContentPost } from '../content/ContentPostCard';
 import {
-  ContentPostCard,
-  type ContentPost,
-} from '../content/ContentPostCard';
+  ContentSection,
+  type ContentSectionLoadMore,
+} from '../content/ContentSection';
 import { applyContentPostChanges } from '../content/contentPostChanges';
-import {
-  usePostControls,
-  type PostControls,
-} from '../content/usePostControls';
+import type { ContentRequestIdentity } from '../content/contentSurfaceTypes';
+import { usePostControls } from '../content/usePostControls';
 import {
   LiveSessionSummaryCard,
   type LiveSessionSummary,
@@ -46,6 +45,7 @@ import {
   createFeedHomePaginationState,
   feedHomePaginationReducer,
   selectFeedHomePageInfo,
+  selectFeedHomeRows,
   type FeedHomePaginationPageInfo,
   type FeedHomePaginationSection,
   type FeedHomePaginationSectionInput,
@@ -70,21 +70,10 @@ type FeedHomePost = NonNullable<
 type FeedHomePostNode = ContentPost;
 type FeedHomeQueryResponse = FeedHomeScreenQuery['response'];
 
-type FeedHomeLoadMoreControl =
-  | {
-      readonly visible: false;
-    }
-  | {
-      readonly error: string | null;
-      readonly isLoading: boolean;
-      readonly label: string;
-      readonly onLoadMore: () => void;
-      readonly visible: true;
-    };
+type FeedHomeLoadMoreControl = ContentSectionLoadMore;
 
-type FeedHomeLoadMoreRequest = {
+type FeedHomeLoadMoreRequest = ContentRequestIdentity & {
   readonly basePageIdentity: string;
-  readonly cursor: string;
   readonly id: number;
   readonly section: FeedHomePaginationSection;
 };
@@ -93,11 +82,6 @@ type FeedHomeLoadMoreRequestState = Record<
   FeedHomePaginationSection,
   FeedHomeLoadMoreRequest | null
 >;
-
-type FeedHomeRetainedRows<Node> = {
-  readonly basePageIdentity: string;
-  readonly rows: Node[];
-};
 
 type FeedHomeManualRefreshSnapshot = {
   readonly data: FeedHomeQueryResponse;
@@ -132,14 +116,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     justifyContent: 'center',
   },
-  bodyText: typography.body,
   metadataText: {
     ...typography.body,
     fontSize: 14,
     lineHeight: 20,
-  },
-  loadMorePanel: {
-    gap: spacing.xs,
   },
 });
 
@@ -256,13 +236,21 @@ export function FeedHomeContent() {
   const currentSessionId = currentSession?.id;
   const viewerId = effectiveData.viewer?.id ?? null;
   const postControls = usePostControls({ viewerId });
-  const stories = readConnectionNodes<FeedHomePost>(effectiveData.storyFeed);
-  const posts = readConnectionNodes<FeedHomePost>(effectiveData.homeFeed);
+  const stories = useMemo(
+    () => readConnectionNodes<FeedHomePost>(effectiveData.storyFeed),
+    [effectiveData.storyFeed],
+  );
+  const posts = useMemo(
+    () => readConnectionNodes<FeedHomePost>(effectiveData.homeFeed),
+    [effectiveData.homeFeed],
+  );
   const liveNowSessions = readConnectionNodes<LiveSessionSummary>(
     effectiveData.liveNow,
   ).filter((session) => session.id !== currentSessionId);
-  const replaySessions = readConnectionNodes<LiveSessionSummary>(
-    effectiveData.replayFeed,
+  const replaySessions = useMemo(
+    () =>
+      readConnectionNodes<LiveSessionSummary>(effectiveData.replayFeed),
+    [effectiveData.replayFeed],
   );
   const storiesBasePageIdentity = createBasePageIdentity(stories);
   const homeFeedBasePageIdentity = createBasePageIdentity(posts);
@@ -273,14 +261,17 @@ export function FeedHomeContent() {
       homeFeed: createSectionPageInfo(
         normalizePageInfo(effectiveData.homeFeed?.pageInfo),
         homeFeedBasePageIdentity,
+        posts,
       ),
       replays: createSectionPageInfo(
         normalizePageInfo(effectiveData.replayFeed?.pageInfo),
         replaysBasePageIdentity,
+        replaySessions,
       ),
       stories: createSectionPageInfo(
         normalizePageInfo(effectiveData.storyFeed?.pageInfo),
         storiesBasePageIdentity,
+        stories,
       ),
     }),
   );
@@ -288,14 +279,17 @@ export function FeedHomeContent() {
     homeFeed: createSectionPageInfo(
       normalizePageInfo(effectiveData.homeFeed?.pageInfo),
       homeFeedBasePageIdentity,
+      posts,
     ),
     replays: createSectionPageInfo(
       normalizePageInfo(effectiveData.replayFeed?.pageInfo),
       replaysBasePageIdentity,
+      replaySessions,
     ),
     stories: createSectionPageInfo(
       normalizePageInfo(effectiveData.storyFeed?.pageInfo),
       storiesBasePageIdentity,
+      stories,
     ),
   };
   const queryHomeFeedEndCursor = queryPageInfo.homeFeed.endCursor;
@@ -314,26 +308,17 @@ export function FeedHomeContent() {
   const homeActions = createFeedHomeActions(
     shouldShowFeedHomeHostAction(currentSession),
   );
-  const [olderStories, setOlderStories] = useState<
-    FeedHomeRetainedRows<FeedHomePost>
-  >(() => createRetainedRows(''));
-  const [olderPosts, setOlderPosts] = useState<
-    FeedHomeRetainedRows<FeedHomePost>
-  >(() => createRetainedRows(''));
-  const [olderReplays, setOlderReplays] = useState<
-    FeedHomeRetainedRows<LiveSessionSummary>
-  >(() => createRetainedRows(''));
-  const retainedOlderStories = selectRetainedRows(
-    olderStories,
-    storiesBasePageIdentity,
+  const contentStories = selectFeedHomeRows<FeedHomePost>(
+    paginationState,
+    'stories',
   );
-  const retainedOlderPosts = selectRetainedRows(
-    olderPosts,
-    homeFeedBasePageIdentity,
+  const contentPosts = selectFeedHomeRows<FeedHomePost>(
+    paginationState,
+    'homeFeed',
   );
-  const retainedOlderReplays = selectRetainedRows(
-    olderReplays,
-    replaysBasePageIdentity,
+  const contentReplays = selectFeedHomeRows<LiveSessionSummary>(
+    paginationState,
+    'replays',
   );
   const storiesPageInfo = selectFeedHomePageInfo(paginationState, 'stories');
   const homeFeedPageInfo = selectFeedHomePageInfo(
@@ -346,7 +331,6 @@ export function FeedHomeContent() {
     isLoading:
       paginationState.isRefreshing ||
       paginationState.sections.stories.isLoadingMore,
-    label: 'Load more stories',
     onLoadMore: () => loadMoreSection('stories'),
     pageInfo: storiesPageInfo,
   });
@@ -355,17 +339,20 @@ export function FeedHomeContent() {
     isLoading:
       paginationState.isRefreshing ||
       paginationState.sections.homeFeed.isLoadingMore,
-    label: 'Load more feed posts',
     onLoadMore: () => loadMoreSection('homeFeed'),
     pageInfo: homeFeedPageInfo,
   });
-  const liveNowLoadMoreControl: FeedHomeLoadMoreControl = { visible: false };
+  const liveNowLoadMoreControl: FeedHomeLoadMoreControl = {
+    error: null,
+    isLoading: false,
+    onLoadMore: () => undefined,
+    visible: false,
+  };
   const replayLoadMoreControl = createLoadMoreControl({
     error: paginationState.sections.replays.error,
     isLoading:
       paginationState.isRefreshing ||
       paginationState.sections.replays.isLoadingMore,
-    label: 'Load more replays',
     onLoadMore: () => loadMoreSection('replays'),
     pageInfo: replayPageInfo,
   });
@@ -377,6 +364,7 @@ export function FeedHomeContent() {
           hasNextPage: queryHomeFeedHasNextPage,
         },
         queryHomeFeedBasePageIdentity,
+        posts,
       ),
       replays: createSectionPageInfo(
         {
@@ -384,6 +372,7 @@ export function FeedHomeContent() {
           hasNextPage: queryReplaysHasNextPage,
         },
         queryReplaysBasePageIdentity,
+        replaySessions,
       ),
       stories: createSectionPageInfo(
         {
@@ -391,6 +380,7 @@ export function FeedHomeContent() {
           hasNextPage: queryStoriesHasNextPage,
         },
         queryStoriesBasePageIdentity,
+        stories,
       ),
     };
 
@@ -409,6 +399,9 @@ export function FeedHomeContent() {
     queryStoriesEndCursor,
     queryStoriesHasNextPage,
     queryStoriesBasePageIdentity,
+    posts,
+    replaySessions,
+    stories,
   ]);
 
   useEffect(() => {
@@ -420,8 +413,8 @@ export function FeedHomeContent() {
     }
   }, [data, refreshedHomeData]);
 
-  function openLiveSession(session: LiveSessionSummary) {
-    router.push(liveSessionHref(session.id));
+  function openLiveSession(sessionId: string) {
+    router.push(liveSessionHref(sessionId));
   }
 
   function clearActiveLoadMoreRequests() {
@@ -488,30 +481,31 @@ export function FeedHomeContent() {
               queryDataAtStart: data,
             },
       );
-      setOlderStories(createRetainedRows(''));
-      setOlderPosts(createRetainedRows(''));
-      setOlderReplays(createRetainedRows(''));
+      const refreshedPosts = readConnectionNodes<FeedHomePost>(
+        refreshedData?.homeFeed,
+      );
+      const refreshedReplays = readConnectionNodes<LiveSessionSummary>(
+        refreshedData?.replayFeed,
+      );
+      const refreshedStories = readConnectionNodes<FeedHomePost>(
+        refreshedData?.storyFeed,
+      );
       dispatchPagination({
         sections: {
           homeFeed: createSectionPageInfo(
             normalizePageInfo(refreshedData?.homeFeed?.pageInfo),
-            createBasePageIdentity(
-              readConnectionNodes<FeedHomePost>(refreshedData?.homeFeed),
-            ),
+            createBasePageIdentity(refreshedPosts),
+            refreshedPosts,
           ),
           replays: createSectionPageInfo(
             normalizePageInfo(refreshedData?.replayFeed?.pageInfo),
-            createBasePageIdentity(
-              readConnectionNodes<LiveSessionSummary>(
-                refreshedData?.replayFeed,
-              ),
-            ),
+            createBasePageIdentity(refreshedReplays),
+            refreshedReplays,
           ),
           stories: createSectionPageInfo(
             normalizePageInfo(refreshedData?.storyFeed?.pageInfo),
-            createBasePageIdentity(
-              readConnectionNodes<FeedHomePost>(refreshedData?.storyFeed),
-            ),
+            createBasePageIdentity(refreshedStories),
+            refreshedStories,
           ),
         },
         type: 'refresh_success',
@@ -549,6 +543,8 @@ export function FeedHomeContent() {
       basePageIdentity: selectSectionBasePageIdentity(section),
       cursor: pageInfo.endCursor,
       id: loadMoreRequestIdRef.current + 1,
+      key: `home:${section}:${loadMoreRequestIdRef.current + 1}`,
+      routeGeneration: 0,
       section,
     };
     loadMoreRequestIdRef.current = request.id;
@@ -557,7 +553,7 @@ export function FeedHomeContent() {
       [section]: request,
     };
 
-    dispatchPagination({ section, type: 'load_more_start' });
+    dispatchPagination({ request, section, type: 'load_more_start' });
 
     try {
       const pageData = await fetchQuery<FeedHomeScreenQuery>(
@@ -576,10 +572,11 @@ export function FeedHomeContent() {
         return;
       }
 
-      appendOlderSectionRows(section, pageData);
       dispatchPagination({
         basePageIdentity: request.basePageIdentity,
         pageInfo: selectLoadedSectionPageInfo(pageData, section),
+        request,
+        rows: selectLoadedSectionRows(pageData, section),
         section,
         type: 'load_more_success',
       });
@@ -590,6 +587,7 @@ export function FeedHomeContent() {
 
       dispatchPagination({
         message: loadMoreErrorMessage(section),
+        request,
         section,
         type: 'load_more_error',
       });
@@ -600,46 +598,6 @@ export function FeedHomeContent() {
           [section]: null,
         };
       }
-    }
-  }
-
-  function appendOlderSectionRows(
-    section: FeedHomePaginationSection,
-    pageData: FeedHomeQueryResponse | null | undefined,
-  ) {
-    switch (section) {
-      case 'homeFeed':
-        setOlderPosts((current) =>
-          appendRetainedRows(
-            current,
-            homeFeedBasePageIdentity,
-            readConnectionNodes(pageData?.homeFeed),
-          ),
-        );
-        return;
-
-      case 'replays':
-        setOlderReplays((current) =>
-          appendRetainedRows(
-            current,
-            replaysBasePageIdentity,
-            readConnectionNodes(pageData?.replayFeed),
-          ),
-        );
-        return;
-
-      case 'stories':
-        setOlderStories((current) =>
-          appendRetainedRows(
-            current,
-            storiesBasePageIdentity,
-            readConnectionNodes(pageData?.storyFeed),
-          ),
-        );
-        return;
-
-      default:
-        assertNever(section);
     }
   }
 
@@ -702,91 +660,65 @@ export function FeedHomeContent() {
         <FeedHomeSection title="Your live session">
           <LiveSessionSummaryCard
             buttonLabel="Open session"
-            onPress={() => openLiveSession(currentSession)}
+            onPress={() => openLiveSession(currentSession.id)}
             session={currentSession}
           />
         </FeedHomeSection>
       ) : null}
 
-      <PostSection
+      <ContentSection
         emptyMessage="No stories are available yet."
-        loadMoreControl={storiesLoadMoreControl}
+        kind="stories"
+        loadMore={storiesLoadMoreControl}
         postControls={postControls}
         posts={applyContentPostChanges(
-          stories.concat(retainedOlderStories),
+          contentStories,
           postControls.changes,
         )}
         title="Stories"
         viewerId={viewerId}
       />
 
-      <PostSection
+      <ContentSection
         emptyMessage="No feed posts are available yet."
-        loadMoreControl={homeFeedLoadMoreControl}
+        kind="posts"
+        loadMore={homeFeedLoadMoreControl}
         postControls={postControls}
         posts={applyContentPostChanges(
-          posts.concat(retainedOlderPosts),
+          contentPosts,
           postControls.changes,
         )}
         title="Home feed"
         viewerId={viewerId}
       />
 
-      <LiveSessionSection
-        buttonLabel="Watch live"
+      <ContentSection
         emptyMessage="No live sessions are available right now."
-        loadMoreControl={liveNowLoadMoreControl}
-        onOpen={openLiveSession}
+        kind="live"
+        loadMore={liveNowLoadMoreControl}
+        onOpenLiveSession={openLiveSession}
         sessions={liveNowSessions}
         title="Live now"
       />
 
-      <LiveSessionSection
-        buttonLabel="Watch replay"
+      <ContentSection
         emptyMessage="No replays are available yet."
-        loadMoreControl={replayLoadMoreControl}
-        onOpen={openLiveSession}
-        sessions={replaySessions.concat(retainedOlderReplays)}
+        kind="replays"
+        loadMore={replayLoadMoreControl}
+        onOpenLiveSession={openLiveSession}
+        sessions={contentReplays}
         title="Replays"
       />
     </ScrollView>
   );
 }
 
-function createRetainedRows<Node>(
-  basePageIdentity: string,
-  rows: Node[] = [],
-): FeedHomeRetainedRows<Node> {
-  return { basePageIdentity, rows };
-}
-
 function createSectionPageInfo(
   pageInfo: FeedHomePaginationPageInfo,
   basePageIdentity: string,
+  rows: ReadonlyArray<{ readonly id: string }>,
 ): FeedHomePaginationSectionInput {
-  return { ...pageInfo, basePageIdentity };
-}
-
-function selectRetainedRows<Node>(
-  retainedRows: FeedHomeRetainedRows<Node>,
-  currentBasePageIdentity: string,
-): Node[] {
-  return retainedRows.basePageIdentity === currentBasePageIdentity
-    ? retainedRows.rows
-    : [];
-}
-
-function appendRetainedRows<Node>(
-  retainedRows: FeedHomeRetainedRows<Node>,
-  currentBasePageIdentity: string,
-  nextRows: Node[],
-): FeedHomeRetainedRows<Node> {
-  return createRetainedRows(
-    currentBasePageIdentity,
-    retainedRows.basePageIdentity === currentBasePageIdentity
-      ? retainedRows.rows.concat(nextRows)
-      : nextRows,
-  );
+  return { ...pageInfo, basePageIdentity, rows };
 }
 
 function createBasePageIdentity(
@@ -808,6 +740,25 @@ function selectLoadedSectionPageInfo(
 
     case 'stories':
       return normalizePageInfo(pageData?.storyFeed?.pageInfo);
+
+    default:
+      return assertNever(section);
+  }
+}
+
+function selectLoadedSectionRows(
+  pageData: FeedHomeQueryResponse | null | undefined,
+  section: FeedHomePaginationSection,
+): ReadonlyArray<{ readonly id: string }> {
+  switch (section) {
+    case 'homeFeed':
+      return readConnectionNodes<FeedHomePost>(pageData?.homeFeed);
+
+    case 'replays':
+      return readConnectionNodes<LiveSessionSummary>(pageData?.replayFeed);
+
+    case 'stories':
+      return readConnectionNodes<FeedHomePost>(pageData?.storyFeed);
 
     default:
       return assertNever(section);
@@ -892,132 +843,21 @@ function FeedHomeSection({
   );
 }
 
-function EmptySectionMessage({ message }: { message: string }) {
-  const theme = useAppTheme();
-
-  return (
-    <AppCard>
-      <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-        {message}
-      </Text>
-    </AppCard>
-  );
-}
-
-function PostSection({
-  emptyMessage,
-  loadMoreControl,
-  postControls,
-  posts,
-  title,
-  viewerId,
-}: {
-  emptyMessage: string;
-  loadMoreControl: FeedHomeLoadMoreControl;
-  postControls: PostControls;
-  posts: ReadonlyArray<FeedHomePost>;
-  title: string;
-  viewerId: string | null;
-}) {
-  return (
-    <FeedHomeSection title={title}>
-      {posts.length > 0 ? (
-        posts.map((post) => (
-          <ContentPostCard
-            controls={postControls}
-            key={post.id}
-            post={post}
-            viewerId={viewerId}
-          />
-        ))
-      ) : (
-        <EmptySectionMessage message={emptyMessage} />
-      )}
-      <FeedHomeLoadMoreControlView control={loadMoreControl} />
-    </FeedHomeSection>
-  );
-}
-
-function LiveSessionSection({
-  buttonLabel,
-  emptyMessage,
-  loadMoreControl,
-  onOpen,
-  sessions,
-  title,
-}: {
-  buttonLabel: string;
-  emptyMessage: string;
-  loadMoreControl: FeedHomeLoadMoreControl;
-  onOpen: (session: LiveSessionSummary) => void;
-  sessions: ReadonlyArray<LiveSessionSummary>;
-  title: string;
-}) {
-  return (
-    <FeedHomeSection title={title}>
-      {sessions.length > 0 ? (
-        sessions.map((session) => (
-          <LiveSessionSummaryCard
-            buttonLabel={buttonLabel}
-            key={session.id}
-            onPress={() => onOpen(session)}
-            session={session}
-          />
-        ))
-      ) : (
-        <EmptySectionMessage message={emptyMessage} />
-      )}
-      <FeedHomeLoadMoreControlView control={loadMoreControl} />
-    </FeedHomeSection>
-  );
-}
-
 function createLoadMoreControl({
   error,
   isLoading,
-  label,
   onLoadMore,
   pageInfo,
 }: {
   error: string | null;
   isLoading: boolean;
-  label: string;
   onLoadMore: () => void;
   pageInfo: FeedHomePaginationPageInfo;
 }): FeedHomeLoadMoreControl {
   return {
     error,
     isLoading,
-    label,
     onLoadMore,
     visible: pageInfo.hasNextPage && pageInfo.endCursor !== null,
   };
-}
-
-function FeedHomeLoadMoreControlView({
-  control,
-}: {
-  control: FeedHomeLoadMoreControl;
-}) {
-  const theme = useAppTheme();
-
-  if (!control.visible) {
-    return null;
-  }
-
-  return (
-    <View style={styles.loadMorePanel}>
-      <AppButton
-        disabled={control.isLoading}
-        label={control.isLoading ? 'Loading...' : control.label}
-        onPress={control.onLoadMore}
-        variant="secondary"
-      />
-      {control.error ? (
-        <Text style={[styles.metadataText, { color: theme.colors.error }]}>
-          {control.error}
-        </Text>
-      ) : null}
-    </View>
-  );
 }

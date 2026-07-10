@@ -31,9 +31,9 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active for implementation-plan Task 4.
+- State: active for implementation-plan Task 5.
 - Track: `docs/plans/mobile/TRACK.md`
-- Current tasks: implementation-plan Tasks 4-6.
+- Current tasks: implementation-plan Tasks 5-6.
 
 ## Execution Rule
 
@@ -49,7 +49,7 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Execute mobile Task 4. After final gates pass, close both lanes and make Batch 3,
+Execute mobile Task 5. After final gates pass, close both lanes and make Batch 3,
 Media Post Publishing, the next planning action.
 
 ## Repair Conditions
