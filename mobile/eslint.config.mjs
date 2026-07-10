@@ -61,7 +61,7 @@ export default [
         {
           patterns: [
             {
-              group: ['../feed/*'],
+              group: ['**/feed/**'],
               message:
                 'Shared content modules must not depend on feed-owned modules.',
             },

@@ -82,3 +82,8 @@
   Run the reducer, card, section, profile-list, and Home suites plus TypeScript checks.
 - [x] **Step 5: Run final gates and commit**
   Run `bun run test:quality`, `git diff --check`, inspect the final diff, commit, and push the existing branch.
+
+Final re-review verified the three refactors and identified one nested-import
+bypass in the first lint pattern. A temporary `src/content/**` fixture proved
+the bypass, then proved that `**/feed/**` rejects feed imports at any relative
+depth before the fixture was removed.
