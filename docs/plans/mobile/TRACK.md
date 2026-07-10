@@ -11,16 +11,16 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: active; Batch 1 reversible social controls selected in the
-  approved next-five-product-batches sequence
+- Track state: active; Batch 1 reversible social controls complete and Batch 2
+  Profile Content Surfaces is the next planning target
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Active implementation plan:
+- Last completed implementation plan:
   `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
 - Last completed detailed plan:
-  `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
+  `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
 - Recent theme: account lifecycle, existing social controls, manual contact
   discovery, post owner controls, and profile connection lists are complete and
-  review-hardened; reversible social controls are now active across backend and
+  review-hardened; reversible social controls are complete across backend and
   mobile, while release-candidate QA remains deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
@@ -90,7 +90,7 @@ and content discovery, live streaming, and chat.
 - `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
-- `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 1-2)
+- `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
 
 ## Recommended Plan Order
 
@@ -128,20 +128,21 @@ and content discovery, live streaming, and chat.
 
 ## Active And Queued Follow-Up Plans
 
-Current product batch:
+No implementation batch is active. Next planning target:
 
-- `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- Backend Tasks 1-2 export the contract before mobile Tasks 3-4 consume it.
+- Profile Content Surfaces.
+- Create, approve, and promote its own implementation plan before editing code.
 
 Recently completed product batch:
 
+- `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
-- `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 1-2)
+- `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-Queued product batches after reversible social controls:
+Queued product batches after completed reversible social controls:
 
 - Profile content surfaces.
 - Media post publishing.

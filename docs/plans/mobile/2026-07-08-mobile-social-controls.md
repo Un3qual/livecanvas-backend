@@ -2,7 +2,7 @@
 
 Date: 2026-07-08
 Owner lane: mobile first; backend only for reversible controls
-Status: Tasks 1-2 complete; Tasks 3-4 promoted as active Batch 1
+Status: complete; Tasks 1-4 delivered
 
 ## Executor Brief
 
@@ -11,9 +11,10 @@ contracts that already exist. The approved next-five-product-batches sequence
 now promotes unfollow and unblock through the detailed plan at
 `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`.
 
-The mobile lane selected and completed Tasks 1-2. Review hardening now uses one
-synchronous action guard across follow, mute, unmute, and block. Tasks 3-4 are
-the active cross-lane Batch 1: backend contract first, then mobile consumption.
+The mobile lane completed Tasks 1-2, then the approved cross-lane Batch 1
+delivered Tasks 3-4 with the backend contract first and mobile consumption
+second. Review hardening uses one synchronous action guard across all profile
+relationship mutations.
 
 ## Context
 
@@ -89,11 +90,11 @@ Files:
 - Refresh after schema export: `mobile/schema.graphql`
 
 Acceptance criteria:
-- [ ] Add `unfollow_user/2` and GraphQL `unfollowUser`.
-- [ ] Add `unblock_user/2` and GraphQL `unblockUser`.
-- [ ] Add a direction-safe read such as `isBlockedByViewer`.
-- [ ] Keep unfollow and unblock idempotent from the viewer's perspective.
-- [ ] Do not leak whether another user blocked the viewer through reversible
+- [x] Add `unfollow_user/2` and GraphQL `unfollowUser`.
+- [x] Add `unblock_user/2` and GraphQL `unblockUser`.
+- [x] Add a direction-safe read such as `isBlockedByViewer`.
+- [x] Keep unfollow and unblock idempotent from the viewer's perspective.
+- [x] Do not leak whether another user blocked the viewer through reversible
       controls.
 
 Focused verification:
@@ -116,10 +117,10 @@ Files:
 - Test: `mobile/tests/profile/OtherUserProfileScreen.rntl.tsx`
 
 Acceptance criteria:
-- [ ] Accepted relationships show `Unfollow`.
-- [ ] Blocked profiles show `Unblock` only when `isBlockedByViewer` is true.
-- [ ] Profiles where the viewer is blocked do not expose an unblock action.
-- [ ] Successful unfollow and unblock refetch or update local relationship
+- [x] Accepted relationships show `Unfollow`.
+- [x] Blocked profiles show `Unblock` only when `isBlockedByViewer` is true.
+- [x] Profiles where the viewer is blocked do not expose an unblock action.
+- [x] Successful unfollow and unblock refetch or update local relationship
       presentation in a tested way.
 
 Focused verification:
@@ -141,6 +142,15 @@ Focused verification:
 - `bun run typecheck` -> passed.
 - `bun run typecheck:tests` -> passed.
 - `git diff --check` -> passed.
+- Reversible backend suite -> 49 tests, 0 failures.
+- Reversible backend `mix typecheck` -> 0 errors.
+- Batch Elixir files pass the scoped formatter check. The repository-wide
+  formatter check still reports seven pre-existing, untouched files outside
+  this batch.
+- Reversible focused mobile pure suites -> 9 tests, 0 failures.
+- Reversible focused profile RNTL suite -> 10 tests, 0 failures.
+- Full `bun run test:quality` -> typechecks and lint passed; 457 Bun tests and
+  86 Jest tests passed.
 
 ## Final Verification
 
@@ -161,6 +171,5 @@ For the full reversible-controls batch, also run:
 
 ## Handoff
 
-Execute Tasks 3 and 4 from
-`docs/superpowers/plans/2026-07-09-reversible-social-controls.md`. Backend Tasks
-1-2 must export the Relay contract before mobile Tasks 3-4 consume it.
+Tasks 1-4 are complete. Do not reopen this plan for Batch 2; create and approve
+the Profile Content Surfaces implementation plan before promoting new work.

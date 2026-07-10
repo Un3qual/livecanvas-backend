@@ -1,20 +1,20 @@
 # Current Execution
 
 Last reviewed: 2026-07-09
-Status: next-five-product-batches sequence active; Batch 1 reversible social controls selected
+Status: Batch 1 complete; Batch 2 planning next
 
 ## Purpose
 
 This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
-## Active Sequence
+## Approved Sequence
 
-- Approved design:
+- Design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
-- Current implementation plan:
+- Completed Batch 1 implementation:
   `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- Batch order: reversible social controls, profile content surfaces, media post
-  publishing, live-chat message controls, then end-to-end contact invitations.
+- Remaining order: profile content surfaces, media post publishing, live-chat
+  message controls, then end-to-end contact invitations.
 - Release-candidate device QA remains deferred until the five product batches
   close.
 
@@ -23,23 +23,21 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: active for Batch 1 domain and GraphQL contracts.
-- Current task: implementation-plan Task 1, directional domain operations.
+- State: Batch 1 reversible social-control contract complete.
+- No backend implementation batch is active.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active for Batch 1 presentation and profile controls after the backend
-  schema lands.
+- State: Batch 1 reversible social controls complete.
 - Track: `docs/plans/mobile/TRACK.md`
-- Dependency: implementation-plan Tasks 1-2 must finish before mobile Tasks
-  3-4 consume the schema.
+- No mobile implementation batch is active.
 
 ## Execution Rule
 
-Open the relevant lane pointer first. Execute Batch 1 in the implementation
-plan's task and commit order. Batches 2-5 remain queued design scope, not
-simultaneously executable work.
+Do not begin Batch 2 implementation from the approved design alone. Create,
+approve, and promote its own implementation plan before reopening either lane.
+Batches 3-5 remain queued design scope.
 
 ## Cross-Lane Policy
 
@@ -47,10 +45,10 @@ Do not defer a reproduced backend contract, resolver, runtime, or data issue
 solely because the visible surface is mobile. Promote it into the backend lane,
 state the write scope, and verify both affected sides.
 
-## Next Coordinator Decision
+## Next Coordinator Action
 
-Execute Batch 1 only. After its final gates pass, close both lane pointers and
-create the implementation plan for Batch 2, Profile Content Surfaces.
+Create the implementation plan for Batch 2, Profile Content Surfaces. This is a
+planning action, not an executable implementation batch.
 
 ## Repair Conditions
 

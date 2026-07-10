@@ -4,6 +4,8 @@
 
 **Goal:** Add direction-safe, idempotent unfollow and unblock contracts and expose tested Unfollow/Unblock actions on other-user mobile profiles.
 
+**Status:** Complete on 2026-07-09. Batch 2 remains planning-only.
+
 **Architecture:** `LC.Social` owns directional follow/block deletion and the outbound-block predicate. GraphQL exposes error-only Relay mutations plus a viewer-derived `isBlockedByViewer` query; mobile combines that direction-safe boolean with the existing effective `relationshipState`, then reuses the current guarded mutation pipeline and route-keyed refresh behavior.
 
 **Tech Stack:** Elixir, Ecto, Absinthe Relay, ExUnit, Expo React Native, TypeScript, React Relay, Bun, Jest/RNTL.
@@ -1244,7 +1246,7 @@ Execution evidence (2026-07-09):
 - Consumes: verified Task 1-4 implementation and commits.
 - Produces: closed backend/mobile Batch 1 pointers and a coordinator next action to plan Batch 2, Profile Content Surfaces.
 
-- [ ] **Step 1: Run the final backend gates**
+- [x] **Step 1: Run the final backend gates**
 
 Run from repository root:
 
@@ -1257,7 +1259,11 @@ mix absinthe.schema.sdl --schema LCGQL.Schema mobile/schema.graphql
 
 Expected: formatting, tests, typecheck, and schema export all exit zero.
 
-- [ ] **Step 2: Run the final mobile gates**
+Execution note: the repository-wide formatter check reports seven
+pre-existing, untouched files outside this batch. The same check scoped to all
+Batch 1 Elixir files passes; the remaining backend commands pass unchanged.
+
+- [x] **Step 2: Run the final mobile gates**
 
 Run from `mobile/`:
 
@@ -1270,7 +1276,7 @@ bun run test:quality
 
 Expected: Relay completes without an unexpected diff and every focused/full quality command exits zero.
 
-- [ ] **Step 3: Record closure in the source and lane documents**
+- [x] **Step 3: Record closure in the source and lane documents**
 
 Make these exact state changes after Step 1-2 pass:
 
@@ -1281,7 +1287,7 @@ Make these exact state changes after Step 1-2 pass:
 - Update `TRACK.md` and `INDEX.md` so Batch 1 is complete and Batches 2-5 remain queued in the approved design.
 - Check every completed checkbox in this implementation plan and record only commands that actually passed.
 
-- [ ] **Step 4: Verify documentation and patch hygiene**
+- [x] **Step 4: Verify documentation and patch hygiene**
 
 Run from repository root:
 
@@ -1292,7 +1298,7 @@ git status --short
 
 Expected: no whitespace errors; status lists only the intended implementation, generated, test, and planning files.
 
-- [ ] **Step 5: Commit the lane-closure milestone**
+- [x] **Step 5: Commit the lane-closure milestone**
 
 ```bash
 git add docs/plans/NOW.md docs/plans/backend/NOW.md docs/plans/mobile/NOW.md docs/plans/mobile/TRACK.md docs/plans/INDEX.md docs/plans/mobile/2026-07-08-mobile-social-controls.md docs/superpowers/plans/2026-07-09-reversible-social-controls.md
@@ -1301,8 +1307,23 @@ git commit -m "docs: close reversible social controls batch"
 
 Do not activate Batch 2 implementation until its own written design/plan is approved and promoted.
 
+Execution evidence (2026-07-09):
+
+- Batch-scoped Elixir formatting passed. Repository-wide formatting remains
+  blocked only by seven pre-existing, untouched files outside this batch.
+- Backend focused suite: 49 tests, 0 failures; `mix typecheck`: 0 errors;
+  schema export passed with no resulting diff.
+- Relay regenerated 48 reader, 44 normalization, and 44 operation documents
+  with no resulting diff.
+- Mobile focused suites: 9 pure tests and 10 RNTL tests, all passing.
+- Full mobile quality: both typechecks and zero-warning lint passed; 457 Bun
+  tests and 86 Jest tests passed.
+
 ---
 
 ## Execution Handoff
 
-Start with Task 1 and preserve the task/commit boundaries above. Backend Task 1-2 must land before mobile Task 3-4 consumes the schema. Do not broaden the batch into profile content, media upload, chat controls, contact invitations, native address-book access, or release QA.
+Batch 1 is complete. Do not reopen this implementation plan or broaden it into
+profile content, media upload, chat controls, contact invitations, native
+address-book access, or release QA. The next coordinator action is to create
+and approve the Batch 2 Profile Content Surfaces implementation plan.

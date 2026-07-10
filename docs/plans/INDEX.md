@@ -15,22 +15,23 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: active for reversible social-control domain and GraphQL contracts
-- Current source plan:
+- State: Batch 1 reversible social-control contract complete; no executable
+  backend batch
+- Last completed source plan:
   `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
-  contract, resolver, runtime, or data issue. Batch 1 is an explicitly promoted
-  cross-lane contract.
+  contract, resolver, runtime, or data issue.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active for reversible social controls after the backend schema lands
+- State: Batch 1 reversible social controls complete; no executable mobile
+  batch
 - Track: `docs/plans/mobile/TRACK.md`
-- Current source plan:
+- Last completed source plan:
   `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- Latest completed product theme: July 8 mobile product-gap batch
+- Latest completed product theme: Batch 1 reversible social controls
 - Latest completed detailed plans: account settings and recovery, existing
   social controls, contact discovery, post owner controls, and profile
   connection lists
@@ -39,8 +40,8 @@ Use this file when:
   completed chat batch adds retained timeline history and live chat channel
   integration. Frontend structure, TypeScript readability, and XState live
   workflow cleanup are complete. The queued feature follow-ups through the July
-  8 product-gap batch are complete for their selected scopes. Reversible
-  unfollow/unblock is now active; release-candidate manual QA remains deferred.
+  8 product-gap batch and reversible unfollow/unblock are complete for their
+  selected scopes; release-candidate manual QA remains deferred.
 
 ## Track Registry
 
@@ -57,9 +58,10 @@ Use this file when:
 
 - Design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
-- Current implementation:
+- Last completed implementation:
   `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- State: active; Batch 1 reversible social controls selected
+- State: Batch 1 reversible social controls complete; Batch 2 Profile Content
+  Surfaces is the next planning target
 - Queue: profile content surfaces, media post publishing, live-chat message
   controls, and end-to-end contact invitations
 - Notes: batches execute sequentially. Release-candidate device QA follows the
@@ -67,8 +69,7 @@ Use this file when:
 
 ### Product Gap Candidate Plans
 
-- State: July 8 scopes complete; social-control Tasks 3-4 promoted as active
-  Batch 1
+- State: July 8 scopes and reversible social-control Tasks 3-4 complete
 - Mobile account settings and recovery:
   `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
 - Mobile social controls:
@@ -83,8 +84,8 @@ Use this file when:
   `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
 - Notes: account settings, contact discovery, post owner controls, profile
   connection lists, moderation operations, and the existing-contract portion
-  of social controls are complete. Social-control Tasks 3-4 are now explicitly
-  promoted. Contact-invite delivery remains queued as Batch 5 because its
+  of social controls are complete. Contact-invite delivery remains queued as
+  Batch 5 because its
   emailed token URL still needs a real landing route.
 
 ### Backend Live Media Signaling Contract
@@ -105,8 +106,8 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: active; Batch 1 reversible social controls selected
-- Current implementation plan:
+- State: Batch 1 reversible social controls complete; Batch 2 planning next
+- Last completed implementation plan:
   `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
 - Latest completed theme: July 8 mobile product-gap batch
 
