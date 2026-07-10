@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-09
-Status: Batch 2 Profile Content Surfaces implemented; Task 7 final gates next
+Status: Batch 2 Profile Content Surfaces complete; no mobile batch active
 
 ## Lane Scope
 
@@ -9,14 +9,14 @@ Status: Batch 2 Profile Content Surfaces implemented; Task 7 final gates next
 - Consume explicitly promoted backend contracts recorded in the backend lane.
 - Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Current Batch
+## Last Completed Batch
 
 - Design:
   `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
 - Source plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: Task 7; Tasks 1-6 are complete.
+- Completed tasks: Tasks 1-7.
 - Deliver universal content state, cards, controls, and sections; migrate Home;
   then add independent profile previews and shared paginated lists.
 - Controls appear in previews and lists: edit/delete for owned posts/stories,
@@ -26,18 +26,22 @@ Status: Batch 2 Profile Content Surfaces implemented; Task 7 final gates next
 
 ## Verification
 
-- From `mobile/`: `bun run relay`
-- From `mobile/`: focused Bun and RNTL commands in Tasks 2-6
-- From `mobile/`: `bun run test:quality`
-- From repo root: `git diff --check`
+- Relay: 49 reader and 45 normalization documents compiled.
+- Focused final gates: 13 Bun tests and 54 RNTL/Jest tests passed.
+- Full `bun run test:quality`: typechecks and lint passed; 464 Bun tests and
+  104 Jest tests passed.
+- `git diff --check` passed and the working tree was clean before closure.
+- Independent stacked-diff review found one Important Home refresh-retention
+  gap; commit `b8da57d` fixed it and re-review reported no remaining Critical
+  or Important findings.
 
 ## Deferred Scope
 
-- Batches 3-5 remain queued and are not executable.
+- Batch 3 is planning-only; Batches 4-5 remain queued and are not executable.
 - Media publishing, content details, comments, reactions, replay management,
   native address-book import, and release-candidate QA remain out of scope.
 
 ## Next Action
 
-Execute Task 7 final backend/mobile gates, stacked-diff review, lane closure,
-and stacked draft PR publication.
+No mobile implementation batch is active. Batch 3, Media Post Publishing, is
+the next coordinator planning action only; do not execute it until promoted.

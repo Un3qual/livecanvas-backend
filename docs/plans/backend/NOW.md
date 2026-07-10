@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-09
-Status: Batch 2 profile-content Relay contract proof complete
+Status: Batch 2 Profile Content Surfaces complete; no backend batch active
 
 ## Lane Scope
 
@@ -9,7 +9,7 @@ Status: Batch 2 profile-content Relay contract proof complete
 - Cross-lane mobile contract work must name its backend write scope explicitly.
 - Shared coordinator docs and contracts require explicit assignment.
 
-## Completed Batch
+## Last Completed Batch
 
 - Design:
   `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
@@ -29,10 +29,18 @@ Status: Batch 2 profile-content Relay contract proof complete
 - `mix format --check-formatted test/live_canvas_gql/relay/node_queries_test.exs`
 - `mix test test/live_canvas_gql/relay/node_queries_test.exs`
 - Result: 30 tests, 0 failures.
+- Repository-wide formatting remains red only in seven unrelated baseline
+  files: `config/runtime.exs`, `lib/live_canvas/dev/seed_data.ex`,
+  `test/integration/live/end_session_recording_atomicity_test.exs`,
+  `test/live_canvas/chat_test.exs`,
+  `test/live_canvas/dev/seed_data_test.exs`,
+  `test/live_canvas_gql/accounts/account_queries_test.exs`, and
+  `test/live_canvas_web/telemetry_test.exs`.
 
 ## Next Action
 
-Backend work is complete for Batch 2. The mobile lane now executes Task 2.
+No backend implementation batch is active. Batch 3, Media Post Publishing, is
+the next coordinator planning action only; do not execute it until promoted.
 
 ## References
 

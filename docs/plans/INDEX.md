@@ -15,8 +15,8 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: active for Batch 2 profile-content Relay contract proof
-- Current source plan:
+- State: idle after Batch 2; no backend implementation batch active
+- Latest completed source plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
@@ -25,11 +25,11 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active for Batch 2 Profile Content Surfaces after backend Task 1
+- State: idle after Batch 2; no mobile implementation batch active
 - Track: `docs/plans/mobile/TRACK.md`
-- Current source plan:
+- Latest completed source plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
-- Latest completed product theme: Batch 1 reversible social controls
+- Latest completed product theme: Batch 2 Profile Content Surfaces
 - Latest completed detailed plans: account settings and recovery, existing
   social controls, contact discovery, post owner controls, and profile
   connection lists
@@ -56,11 +56,12 @@ Use this file when:
 
 - Design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
-- Current implementation:
+- Latest completed implementation:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
-- State: active; Batch 1 complete and Batch 2 Profile Content Surfaces selected
-- Queue: media post publishing, live-chat message controls, and end-to-end
-  contact invitations
+- State: Batches 1-2 complete; no implementation batch active
+- Next planning target: Batch 3, Media Post Publishing
+- Queue after Batch 3: live-chat message controls and end-to-end contact
+  invitations
 - Notes: batches execute sequentially. Release-candidate device QA follows the
   five product batches and remains deferred.
 
@@ -103,10 +104,10 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: Batch 2 Profile Content Surfaces active
-- Current implementation plan:
+- State: Batch 2 complete; no mobile implementation plan active
+- Latest completed implementation plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
-- Latest completed theme: July 8 mobile product-gap batch
+- Latest completed theme: Profile Content Surfaces
 
 ### Backend Code Quality Cleanup
 

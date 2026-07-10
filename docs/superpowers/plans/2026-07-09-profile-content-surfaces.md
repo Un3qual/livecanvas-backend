@@ -1020,7 +1020,7 @@ Execution evidence (2026-07-09):
 - Consumes: verified Tasks 1-6.
 - Produces: Batch 2 closure, Batch 3 planning-only coordinator state, and a stacked draft PR.
 
-- [ ] **Step 1: Run final backend verification**
+- [x] **Step 1: Run final backend verification**
 
 ```bash
 mix format --check-formatted test/live_canvas_gql/relay/node_queries_test.exs
@@ -1031,7 +1031,7 @@ If backend typed production code changed, also run `mix typecheck`. Record the
 known repository-wide formatter baseline separately; do not include unrelated
 formatting churn.
 
-- [ ] **Step 2: Run final mobile verification**
+- [x] **Step 2: Run final mobile verification**
 
 From `mobile/`:
 
@@ -1042,14 +1042,14 @@ pnpm exec jest --config ./jest.config.js tests/content tests/feed/FeedHomeScreen
 bun run test:quality
 ```
 
-- [ ] **Step 3: Close lane documents**
+- [x] **Step 3: Close lane documents**
 
 Record Batch 2 complete in backend/mobile lane pointers, Track, Index, and the
 coordinator dashboard. Name Batch 3, Media Post Publishing, as the next
 planning action only. Record exact passed counts and the backend production
 change decision.
 
-- [ ] **Step 4: Verify patch hygiene and review**
+- [x] **Step 4: Verify patch hygiene and review**
 
 ```bash
 git diff --check
@@ -1058,6 +1058,21 @@ git status --short
 
 Review the complete stacked diff against the approved spec. Fix all Critical
 and Important findings before publication.
+
+Final gate evidence (2026-07-09):
+
+- Backend focused formatter and node-query suite passed: 30 tests, 0 failures;
+  no backend production code changed.
+- Relay compiled 49 reader and 45 normalization documents. Focused mobile gates
+  passed 13 Bun tests and 54 Jest tests.
+- Full `bun run test:quality` passed both TypeScript projects, lint, 464 Bun
+  tests, and 104 Jest tests.
+- Repository-wide formatting remains red in seven unrelated baseline files
+  listed in `docs/plans/backend/NOW.md`; no unrelated formatter churn was made.
+- Independent review found one Important same-window Home refresh-retention
+  gap. Commit `b8da57d` added the regression and fix; re-review found no
+  remaining Critical or Important issues.
+- `git diff --check` passed and the working tree was clean before closure.
 
 - [ ] **Step 5: Commit closure and publish the stacked draft PR**
 

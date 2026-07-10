@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-09
-Status: Batch 2 Profile Content Surfaces active
+Status: Batch 2 Profile Content Surfaces complete; Batch 3 planning next
 
 ## Purpose
 
@@ -13,7 +13,7 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Batch 2 design:
   `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
-- Current implementation:
+- Latest completed implementation:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Batch 1 reversible social controls is complete in stacked base PR #115.
 - Remaining order after Batch 2: media post publishing, live-chat message
@@ -25,21 +25,21 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 2 existing-contract proof complete with no production change.
+- State: closed for Batch 2; no backend production change was required.
 - Verification: 30 node-query tests, 0 failures.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 2 implementation complete; Task 7 final gates active.
+- State: closed for Batch 2; no mobile implementation batch is active.
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: implementation-plan Task 7.
+- Verification: 13 focused Bun, 54 focused Jest, 464 full Bun, and 104 full
+  Jest tests passed; Relay generation, typechecks, lint, and patch hygiene pass.
 
 ## Execution Rule
 
-Execute Batch 2 in the implementation plan's task and commit order. Do not
-change backend production code unless Task 1 reproduces a contract defect. Do
-not activate Batches 3-5.
+No implementation batch is active. Prepare Batch 3 design and execution plan
+without starting code or promoting a lane until the user approves it.
 
 ## Cross-Lane Policy
 
@@ -49,8 +49,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Run Task 7 final gates and stacked-diff review. Then close both lanes and make
-Batch 3, Media Post Publishing, the next planning action.
+Design and plan Batch 3, Media Post Publishing. Do not execute or activate the
+batch until that plan is approved.
 
 ## Repair Conditions
 

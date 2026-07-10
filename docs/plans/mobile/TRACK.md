@@ -11,16 +11,18 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: active; Batch 2 Profile Content Surfaces selected
+- Track state: Batch 2 Profile Content Surfaces complete; no batch active
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Active implementation plan:
+- Latest completed implementation plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Next planning target: Batch 3, Media Post Publishing. Planning only; do not
+  execute until approved and promoted through `docs/plans/mobile/NOW.md`.
 - Last completed detailed plan:
-  `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
-- Recent theme: account lifecycle, existing social controls, manual contact
-  discovery, post owner controls, and profile connection lists are complete and
-  review-hardened; reversible social controls are complete across backend and
-  mobile, while release-candidate QA remains deferred.
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Recent theme: universal content cards, controls, sections, Home pagination,
+  independently retryable profile previews, and stale-safe paginated profile
+  content lists are complete and review-hardened; release-candidate QA remains
+  deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in
