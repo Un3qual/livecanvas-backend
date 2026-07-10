@@ -17,6 +17,7 @@ type RootQueryType {
   replayFeed(after: String, first: Int!): LiveSessionConnection
   relationshipState(creatorId: ID!): RelationshipState!
   isMuted(creatorId: ID!): Boolean!
+  isBlockedByViewer(creatorId: ID!): Boolean!
   viewerPendingFollowRequests(after: String, first: Int!): FollowRequestConnection
   node(
     "The ID of an object."
@@ -65,6 +66,8 @@ type RootMutationType {
   acceptFollowRequest(input: AcceptFollowRequestInput!): AcceptFollowRequestPayload
   declineFollowRequest(input: DeclineFollowRequestInput!): DeclineFollowRequestPayload
   blockUser(input: BlockUserInput!): BlockUserPayload
+  unfollowUser(input: UnfollowUserInput!): UnfollowUserPayload
+  unblockUser(input: UnblockUserInput!): UnblockUserPayload
   muteUser(input: MuteUserInput!): MuteUserPayload
   unmuteUser(input: UnmuteUserInput!): UnmuteUserPayload
 }
@@ -100,6 +103,22 @@ input BlockUserInput {
 }
 
 type BlockUserPayload {
+  errors: [UserError!]!
+}
+
+input UnfollowUserInput {
+  followedId: ID!
+}
+
+type UnfollowUserPayload {
+  errors: [UserError!]!
+}
+
+input UnblockUserInput {
+  blockedId: ID!
+}
+
+type UnblockUserPayload {
   errors: [UserError!]!
 }
 

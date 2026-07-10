@@ -55,6 +55,30 @@ defmodule LCGQL.Social.Mutations do
       resolve(&Resolver.block_user/3)
     end
 
+    payload field :unfollow_user do
+      input do
+        field :followed_id, non_null(:id)
+      end
+
+      output do
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.unfollow_user/3)
+    end
+
+    payload field :unblock_user do
+      input do
+        field :blocked_id, non_null(:id)
+      end
+
+      output do
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.unblock_user/3)
+    end
+
     payload field :mute_user do
       input do
         field :muted_id, non_null(:id)

@@ -114,6 +114,55 @@ defmodule LCGQL.Social.SocialQueriesTest do
     end
   end
 
+  describe "isBlockedByViewer" do
+    test "reports only the authenticated viewer's outbound block" do
+      viewer = user_fixture()
+      outbound_target = user_fixture()
+      inbound_blocker = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _block} = Social.block_user(viewer, outbound_target)
+      assert {:ok, _reverse_block} = Social.block_user(inbound_blocker, viewer)
+
+      query = """
+      query($outboundId: ID!, $inboundId: ID!) {
+        outbound: isBlockedByViewer(creatorId: $outboundId)
+        inbound: isBlockedByViewer(creatorId: $inboundId)
+      }
+      """
+
+      variables = %{
+        "outboundId" => Absinthe.Relay.Node.to_global_id(:user, outbound_target.id, LCGQL.Schema),
+        "inboundId" => Absinthe.Relay.Node.to_global_id(:user, inbound_blocker.id, LCGQL.Schema)
+      }
+
+      assert {:ok, %{data: %{"outbound" => true, "inbound" => false}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: variables, context: context)
+    end
+
+    test "returns false without authentication and for invalid IDs" do
+      creator = user_fixture()
+      creator_id = Absinthe.Relay.Node.to_global_id(:user, creator.id, LCGQL.Schema)
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      query = """
+      query($creatorId: ID!) {
+        isBlockedByViewer(creatorId: $creatorId)
+      }
+      """
+
+      assert {:ok, %{data: %{"isBlockedByViewer" => false}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"creatorId" => creator_id})
+
+      assert {:ok, %{data: %{"isBlockedByViewer" => false}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"creatorId" => "123"},
+                 context: context
+               )
+    end
+  end
+
   describe "viewer visibility matrix" do
     test "reports blocked, muted, reverse-mute, and follower/public states consistently" do
       viewer = user_fixture()

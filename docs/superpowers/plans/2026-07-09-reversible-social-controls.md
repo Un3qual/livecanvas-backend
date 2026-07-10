@@ -224,7 +224,7 @@ Execution evidence (2026-07-09):
 - Consumes: Task 1's `Social.unfollow_user/2`, `Social.unblock_user/2`, and `Social.blocked_by_viewer?/2`.
 - Produces: Relay mutations `unfollowUser(input: {followedId})`, `unblockUser(input: {blockedId})`, and query `isBlockedByViewer(creatorId:) -> Boolean!`.
 
-- [ ] **Step 1: Write failing mutation tests**
+- [x] **Step 1: Write failing mutation tests**
 
 Add these describe blocks to `social_mutations_test.exs`:
 
@@ -364,7 +364,7 @@ refute schema_sdl =~ "UnfollowUserPayload {\n  successful: Boolean!"
 refute schema_sdl =~ "UnblockUserPayload {\n  successful: Boolean!"
 ```
 
-- [ ] **Step 2: Write the failing direction-safe query tests**
+- [x] **Step 2: Write the failing direction-safe query tests**
 
 Add this block to `social_queries_test.exs`:
 
@@ -419,7 +419,7 @@ describe "isBlockedByViewer" do
 end
 ```
 
-- [ ] **Step 3: Run the focused GraphQL tests and verify they fail**
+- [x] **Step 3: Run the focused GraphQL tests and verify they fail**
 
 Run:
 
@@ -429,7 +429,7 @@ mix test test/live_canvas_gql/social/social_mutations_test.exs test/live_canvas_
 
 Expected: FAIL because the fields do not exist in the schema.
 
-- [ ] **Step 4: Add the resolver functions**
+- [x] **Step 4: Add the resolver functions**
 
 Add mutation resolvers beside the current block/mute resolvers:
 
@@ -462,7 +462,7 @@ def is_blocked_by_viewer(_parent, %{creator_id: creator_id}, resolution) do
 end
 ```
 
-- [ ] **Step 5: Add the schema fields**
+- [x] **Step 5: Add the schema fields**
 
 Add to `social_mutations.ex`:
 
@@ -502,7 +502,7 @@ field :is_blocked_by_viewer, non_null(:boolean) do
 end
 ```
 
-- [ ] **Step 6: Format and run the complete focused backend suite**
+- [x] **Step 6: Format and run the complete focused backend suite**
 
 Run:
 
@@ -514,7 +514,7 @@ mix typecheck
 
 Expected: all tests pass with zero failures and typecheck exits zero.
 
-- [ ] **Step 7: Export the schema and verify the exact public contract**
+- [x] **Step 7: Export the schema and verify the exact public contract**
 
 Run from the repository root:
 
@@ -525,12 +525,21 @@ rg -n "isBlockedByViewer|unfollowUser|unblockUser|input UnfollowUserInput|input 
 
 Expected: the query, both mutations, and both Relay input types appear. Confirm there is no inbound-block query and no `successful` payload field.
 
-- [ ] **Step 8: Commit the GraphQL contract milestone**
+- [x] **Step 8: Commit the GraphQL contract milestone**
 
 ```bash
 git add lib/live_canvas_gql/social/social_resolver.ex lib/live_canvas_gql/social/social_mutations.ex lib/live_canvas_gql/social/social_queries.ex test/live_canvas_gql/social/social_mutations_test.exs test/live_canvas_gql/social/social_queries_test.exs mobile/schema.graphql
 git commit -m "feat: expose reversible social GraphQL contracts"
 ```
+
+Execution evidence (2026-07-09):
+
+- RED: focused GraphQL suite -> 36 tests, 6 failures for absent
+  `unfollowUser`, `unblockUser`, and `isBlockedByViewer` fields.
+- GREEN: backend domain/GraphQL suite -> 49 tests, 0 failures.
+- `mix typecheck` -> 0 errors.
+- Schema export succeeded; `mobile/schema.graphql` contains the query, both
+  mutations, and both Relay input types.
 
 ---
 
