@@ -6,7 +6,7 @@ import {
 export type ProfileContentScope = 'other' | 'viewer';
 
 export function readProfileContentKindParam(
-  value: string | string[] | undefined,
+  value?: string | string[],
 ): ProfileContentKind | null {
   if (Array.isArray(value)) {
     return value.length === 1

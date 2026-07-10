@@ -76,7 +76,7 @@ beforeEach(() => {
     rows: [post('post-1', 'viewer-id', 'Initial post')],
     viewerId: 'viewer-id',
   });
-  mockFetchQueryImplementation = () =>
+  mockFetchQueryImplementation = (_variables) =>
     Promise.resolve(
       profileContentData({
         kind: 'posts',
@@ -150,7 +150,7 @@ describe('ProfileContentListScreen pagination and controls', () => {
       rows: [post('post-1', 'viewer-id', 'Initial post')],
       viewerId: 'viewer-id',
     });
-    mockFetchQueryImplementation = () => {
+    mockFetchQueryImplementation = (_variables) => {
       requestCount += 1;
 
       return requestCount === 1
@@ -217,7 +217,7 @@ describe('ProfileContentListScreen pagination and controls', () => {
       rows: [post('story-1', 'viewer-id', 'Current story', 'STORY')],
       viewerId: 'viewer-id',
     });
-    mockFetchQueryImplementation = () =>
+    mockFetchQueryImplementation = (_variables) =>
       new Promise((resolve) => {
         resolvePage = resolve;
       });
@@ -234,7 +234,7 @@ describe('ProfileContentListScreen pagination and controls', () => {
       expect(screen.getByRole('button', { name: 'Loading...' })).toBeDisabled();
     });
 
-    await act(async () => {
+    await act(() => {
       resolvePage?.(
         profileContentData({
           kind: 'stories',
@@ -256,7 +256,7 @@ describe('ProfileContentListScreen pagination and controls', () => {
       rows: [post('post-a-old', 'profile-a', 'Old A base')],
       viewerId: 'viewer-id',
     });
-    mockFetchQueryImplementation = () =>
+    mockFetchQueryImplementation = (_variables) =>
       new Promise((resolve) => {
         resolveOldPage = resolve;
       });
@@ -291,7 +291,7 @@ describe('ProfileContentListScreen pagination and controls', () => {
     );
     expect(screen.getByText('New A base')).toBeOnTheScreen();
 
-    await act(async () => {
+    await act(() => {
       resolveOldPage?.(
         profileContentData({
           kind: 'posts',

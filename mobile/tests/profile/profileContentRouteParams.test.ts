@@ -13,7 +13,7 @@ describe('profileContentRouteParams', () => {
     expect(readProfileContentKindParam(['posts', 'stories'])).toBeNull();
     expect(readProfileContentKindParam('live')).toBeNull();
     expect(readProfileContentKindParam('unknown')).toBeNull();
-    expect(readProfileContentKindParam(undefined)).toBeNull();
+    expect(readProfileContentKindParam()).toBeNull();
   });
 
   test('builds viewer and other routes with opaque IDs intact', () => {

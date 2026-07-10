@@ -202,7 +202,7 @@ describe('ProfileContentPreviewSection', () => {
       input: { postId: 'opaque-post-id' },
     });
 
-    await act(async () => {
+    await act(() => {
       mockDeletePostCommit.mock.calls[0]?.[0].onCompleted?.({
         deletePost: { deletedPostId: 'opaque-post-id', errors: [] },
       });

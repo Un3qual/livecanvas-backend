@@ -417,7 +417,7 @@ async function completeMutation(
   commit: MutationCommit,
   payload: Record<string, unknown>,
 ) {
-  await act(async () => {
+  await act(() => {
     commit.mock.calls.at(-1)?.[0].onCompleted?.(payload);
   });
 }
