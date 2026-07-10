@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 
-import type { ContentPost } from './contentPostPresentation';
 import type { ContentPostChanges } from './contentPostChanges';
 import type { PostControlsState } from './postControlViewState';
 import {

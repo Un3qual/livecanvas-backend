@@ -25,6 +25,13 @@ describe('postOwnerControlsReducer', () => {
     const completedState = postOwnerControlsReducer(pendingState, {
       postId: updatedPost.id,
       type: 'update_succeeded',
+      update: {
+        from: { bodyText: post.bodyText, visibility: post.visibility },
+        to: {
+          bodyText: updatedPost.bodyText,
+          visibility: updatedPost.visibility,
+        },
+      },
     });
 
     expect(changedState.editState?.bodyText).toBe('Updated body');
@@ -36,7 +43,10 @@ describe('postOwnerControlsReducer', () => {
     expect(completedState.editState).toBeNull();
     expect(completedState.pendingAction).toBeNull();
     expect(completedState.deletedPostIds).toEqual({});
-    expect(Object.hasOwn(completedState, 'updatedPostsById')).toBe(false);
+    expect(completedState.updatedPostsById['post-1']).toEqual({
+      from: { bodyText: 'Original body', visibility: 'PUBLIC' },
+      to: { bodyText: 'Updated body', visibility: 'PUBLIC' },
+    });
   });
 
   test('owns delete confirmation, failure, and local removal transitions', () => {

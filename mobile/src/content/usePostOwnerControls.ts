@@ -174,7 +174,20 @@ export function usePostOwnerControls(): PostOwnerControls {
             return;
           }
 
-          dispatchOwner({ postId: updatedPost.id, type: 'update_succeeded' });
+          dispatchOwner({
+            postId: updatedPost.id,
+            type: 'update_succeeded',
+            update: {
+              from: {
+                bodyText: post.bodyText,
+                visibility: post.visibility,
+              },
+              to: {
+                bodyText: updatedPost.bodyText,
+                visibility: updatedPost.visibility,
+              },
+            },
+          });
         },
         onError: () => {
           if (!isActiveControllerRef.current) {
@@ -297,8 +310,9 @@ export function usePostOwnerControls(): PostOwnerControls {
   const changes = useMemo<ContentPostChanges>(
     () => ({
       deletedPostIds: state.deletedPostIds,
+      updatedPostsById: state.updatedPostsById,
     }),
-    [state.deletedPostIds],
+    [state.deletedPostIds, state.updatedPostsById],
   );
 
   return useMemo(

@@ -1,4 +1,5 @@
 import type { ContentPost } from './contentPostPresentation';
+import type { ContentPostUpdate } from './contentPostChanges';
 import {
   buildPostOwnerEditState,
   selectPostOwnerEditVisibility,
@@ -20,6 +21,7 @@ export type PostOwnerControlsState = {
   readonly editingPostId: string | null;
   readonly errorsByPostId: Readonly<Record<string, string>>;
   readonly pendingAction: PostOwnerPendingAction;
+  readonly updatedPostsById: Readonly<Record<string, ContentPostUpdate>>;
 };
 
 export type PostOwnerControlsAction =
@@ -36,7 +38,11 @@ export type PostOwnerControlsAction =
       readonly type: 'validation_failed';
     }
   | { readonly postId: string; readonly type: 'update_started' }
-  | { readonly postId: string; readonly type: 'update_succeeded' }
+  | {
+      readonly postId: string;
+      readonly type: 'update_succeeded';
+      readonly update: ContentPostUpdate;
+    }
   | {
       readonly message: string;
       readonly postId: string;
@@ -60,12 +66,70 @@ export function createPostOwnerControlsState(): PostOwnerControlsState {
     editState: null,
     errorsByPostId: {},
     pendingAction: null,
+    updatedPostsById: {},
   };
 }
+
+type PostOwnerEditAction = Extract<
+  PostOwnerControlsAction,
+  {
+    readonly type:
+      | 'edit_body_changed'
+      | 'edit_cancelled'
+      | 'edit_visibility_selected'
+      | 'start_edit'
+      | 'validation_failed';
+  }
+>;
+
+type PostOwnerUpdateAction = Extract<
+  PostOwnerControlsAction,
+  {
+    readonly type: 'update_failed' | 'update_started' | 'update_succeeded';
+  }
+>;
+
+type PostOwnerDeleteAction = Extract<
+  PostOwnerControlsAction,
+  {
+    readonly type:
+      | 'delete_cancelled'
+      | 'delete_failed'
+      | 'delete_requested'
+      | 'delete_started'
+      | 'delete_succeeded';
+  }
+>;
 
 export function postOwnerControlsReducer(
   state: PostOwnerControlsState,
   action: PostOwnerControlsAction,
+): PostOwnerControlsState {
+  switch (action.type) {
+    case 'start_edit':
+    case 'edit_cancelled':
+    case 'edit_body_changed':
+    case 'edit_visibility_selected':
+    case 'validation_failed':
+      return reducePostOwnerEdit(state, action);
+
+    case 'update_started':
+    case 'update_succeeded':
+    case 'update_failed':
+      return reducePostOwnerUpdate(state, action);
+
+    case 'delete_requested':
+    case 'delete_cancelled':
+    case 'delete_started':
+    case 'delete_succeeded':
+    case 'delete_failed':
+      return reducePostOwnerDelete(state, action);
+  }
+}
+
+function reducePostOwnerEdit(
+  state: PostOwnerControlsState,
+  action: PostOwnerEditAction,
 ): PostOwnerControlsState {
   switch (action.type) {
     case 'start_edit':
@@ -126,7 +190,14 @@ export function postOwnerControlsReducer(
           [action.postId]: action.message,
         },
       };
+  }
+}
 
+function reducePostOwnerUpdate(
+  state: PostOwnerControlsState,
+  action: PostOwnerUpdateAction,
+): PostOwnerControlsState {
+  switch (action.type) {
     case 'update_started':
       if (
         state.pendingAction !== null ||
@@ -153,6 +224,10 @@ export function postOwnerControlsReducer(
         editState: null,
         errorsByPostId: omitPostId(state.errorsByPostId, action.postId),
         pendingAction: null,
+        updatedPostsById: {
+          ...state.updatedPostsById,
+          [action.postId]: action.update,
+        },
       };
 
     case 'update_failed':
@@ -166,7 +241,14 @@ export function postOwnerControlsReducer(
             pendingAction: null,
           }
         : state;
+  }
+}
 
+function reducePostOwnerDelete(
+  state: PostOwnerControlsState,
+  action: PostOwnerDeleteAction,
+): PostOwnerControlsState {
+  switch (action.type) {
     case 'delete_requested':
       if (state.pendingAction !== null) {
         return state;
@@ -213,6 +295,10 @@ export function postOwnerControlsReducer(
         },
         errorsByPostId: omitPostId(state.errorsByPostId, action.postId),
         pendingAction: null,
+        updatedPostsById: omitPostId(
+          state.updatedPostsById,
+          action.postId,
+        ),
       };
 
     case 'delete_failed':
@@ -226,9 +312,6 @@ export function postOwnerControlsReducer(
             pendingAction: null,
           }
         : state;
-
-    default:
-      return state;
   }
 }
 

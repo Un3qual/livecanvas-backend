@@ -119,6 +119,9 @@ describe('ContentPostCard with shared controls', () => {
       },
     });
 
+    expect(screen.getByText('Updated body')).toBeOnTheScreen();
+    expect(screen.queryByText('Original body')).toBeNull();
+
     await view.rerender(
       <Harness
         post={{ ...post, bodyText: 'Server newer body' }}
