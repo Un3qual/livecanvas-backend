@@ -1,7 +1,7 @@
 # Read-Policy Redesign and Quality Stack
 
 Date: 2026-07-10
-Status: approved for implementation
+Status: implemented and verified
 Owner: backend and mobile lanes
 
 ## Goal
@@ -125,3 +125,24 @@ the focused privacy suite, related feed/chat/live authorization tests,
 - changing database schemas or indexes;
 - redesigning staff moderation;
 - broad cleanup outside relationship and viewer-visibility policy.
+
+## Implementation Result
+
+- `LC.ReadPolicy.Relationships` now owns block, mute, follow-state, and batched
+  blocker-ID reads; `LC.ReadPolicy` exposes the action-specific public facade.
+- Social retains relationship mutations and explicitly named public/viewer
+  graph queries. Its temporary read-policy facade and ambiguous query names
+  were removed after callers migrated.
+- GraphQL user resolution, social reads, graph authorization, and contact
+  projection now call `ReadPolicy` without encoding block direction locally.
+- The directional owner scope is shared by follower/following and pending
+  request queries, while content/chat/live policy remains symmetric.
+- Repo-query capture now ignores unrelated async-test telemetry, preserving
+  meaningful one-query assertions without cross-test contamination.
+
+Fresh verification: touched-file formatting, warning-free compilation,
+Dialyzer with 0 errors, Boundary, and changed-code analysis passed; the privacy
+and related authorization suite passed 192 tests with 0 failures; the relevant
+seed-data query test passed separately. The full seed-data file retains its
+unrelated pre-existing `Feed.live_now/1` assertion failure for a deliberately
+preserved ad-hoc `:starting` session.
