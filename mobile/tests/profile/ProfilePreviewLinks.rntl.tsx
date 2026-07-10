@@ -101,7 +101,7 @@ describe('profile preview full-list links', () => {
     ]);
   });
 
-  test('blocked profiles do not expose full connection-list links', async () => {
+  test('profiles blocked by the viewer do not expose full connection-list links', async () => {
     mockQueryData = {
       isMuted: false,
       node: {

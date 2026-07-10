@@ -64,6 +64,26 @@ beforeEach(() => {
 });
 
 describe('OtherUserProfileScreen social controls', () => {
+  test('renders the generic unavailable state when the profile node is hidden', async () => {
+    mockQueryData = {
+      isMuted: false,
+      node: null,
+      relationshipState: 'NONE',
+      viewer: { id: 'viewer-id' },
+    };
+
+    await render(<OtherUserProfileScreen id="opaque-profile-id" />);
+
+    expect(screen.getByText('This profile is unavailable.')).toBeOnTheScreen();
+    expect(screen.queryByText('LiveCanvas user')).toBeNull();
+    expect(screen.queryByText('Public profile')).toBeNull();
+    expect(screen.queryByText('This profile is not available.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mute' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Block' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'View followers' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'View following' })).toBeNull();
+  });
+
   test('blocks a social control submitted in the same tick as follow', async () => {
     mockQueryData = profileQueryData({
       isMuted: false,
