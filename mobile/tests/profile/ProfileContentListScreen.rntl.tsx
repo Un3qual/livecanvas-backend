@@ -23,9 +23,16 @@ type QueryVariables = {
 
 type QueryData = ReturnType<typeof profileContentData>;
 
+type QueryOptions = {
+  readonly fetchKey?: number;
+  readonly fetchPolicy?: string;
+};
+
 let mockSearchParams: Record<string, string | string[] | undefined>;
 let mockQueryData: QueryData;
 let mockQueryVariables: QueryVariables[];
+let mockQueryOptions: QueryOptions[];
+let mockQueryShouldFail: boolean;
 let mockFetchQueryVariables: QueryVariables[];
 let mockFetchQueryImplementation: (
   variables: QueryVariables,
@@ -57,8 +64,15 @@ jest.mock('react-relay', () => ({
   useLazyLoadQuery: (
     _query: unknown,
     variables: QueryVariables,
+    options: QueryOptions,
   ): QueryData => {
     mockQueryVariables.push(variables);
+    mockQueryOptions.push(options);
+
+    if (mockQueryShouldFail) {
+      throw new Error('query failed');
+    }
+
     return mockQueryData;
   },
   useMutation: () => [jest.fn(), false],
@@ -68,6 +82,8 @@ jest.mock('react-relay', () => ({
 beforeEach(() => {
   mockSearchParams = {};
   mockQueryVariables = [];
+  mockQueryOptions = [];
+  mockQueryShouldFail = false;
   mockFetchQueryVariables = [];
   mockPushedRoutes = [];
   mockQueryData = profileContentData({
@@ -88,6 +104,28 @@ beforeEach(() => {
 });
 
 describe('ProfileContentListScreen routes', () => {
+  test('retries a failed route with a fresh network-only Relay request', async () => {
+    const user = userEvent.setup();
+    const consoleError = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    mockSearchParams = { id: 'viewer-id', kind: 'posts' };
+    mockQueryShouldFail = true;
+
+    await render(<ViewerProfileContentRoute />);
+
+    expect(screen.getByText('We could not load posts.')).toBeOnTheScreen();
+    mockQueryShouldFail = false;
+    await user.press(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(screen.getByTestId('profile-content-list')).toBeOnTheScreen();
+    expect(mockQueryOptions.at(-1)).toEqual({
+      fetchKey: 1,
+      fetchPolicy: 'network-only',
+    });
+    consoleError.mockRestore();
+  });
+
   test('rejects missing, invalid, or repeated viewer route params', async () => {
     mockSearchParams = { kind: 'posts' };
     const view = await render(<ViewerProfileContentRoute />);

@@ -78,14 +78,19 @@ const styles = StyleSheet.create({
 export function ProfileContentListScreen({
   kind,
   profileId,
+  queryFetchKey = 0,
 }: {
   readonly kind: ProfileContentKind;
   readonly profileId: string;
+  readonly queryFetchKey?: number;
 }) {
   const data = useLazyLoadQuery<ProfileContentQuery>(
     profileContentQuery,
     profileContentVariables(profileId, kind, PROFILE_CONTENT_PAGE_SIZE, null),
-    { fetchPolicy: 'store-and-network' },
+    {
+      fetchKey: queryFetchKey,
+      fetchPolicy: queryFetchKey === 0 ? 'store-and-network' : 'network-only',
+    },
   );
   const baseRows = selectProfileContentRows(data, kind);
   const pageInfo = selectProfileContentPageInfo(data, kind);

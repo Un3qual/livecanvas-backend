@@ -252,7 +252,7 @@ describe('feedHomePaginationReducer', () => {
     });
   });
 
-  test('retains compatible loaded rows and cursor across refresh', () => {
+  test('replaces locally paged rows and cursor with the refreshed first page', () => {
     const request = loadRequest('homeFeed', 'home-base-cursor');
     const initialState = createFeedHomePaginationState({
       homeFeed: {
@@ -293,10 +293,9 @@ describe('feedHomePaginationReducer', () => {
     expect(selectFeedHomeRows(refreshedState, 'homeFeed')).toEqual([
       { id: 'post-0' },
       { id: 'post-1' },
-      { id: 'post-2' },
     ]);
     expect(selectFeedHomePageInfo(refreshedState, 'homeFeed')).toEqual({
-      endCursor: 'home-older-cursor',
+      endCursor: 'home-refreshed-base-cursor',
       hasNextPage: true,
     });
   });

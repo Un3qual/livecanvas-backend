@@ -45,7 +45,7 @@ export function useReportPostControls({
     createReportPostState,
   );
   const stateRef = useRef(state);
-  stateRef.current = state;
+  const activeReportPostIdRef = useRef<string | null>(null);
   const [commitReportPost] = useMutation<ContentSurfaceReportPostMutation>(
     contentSurfaceReportPostMutation,
   );
@@ -53,15 +53,19 @@ export function useReportPostControls({
   commitReportPostRef.current = commitReportPost;
 
   useLayoutEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  useLayoutEffect(() => {
     isActiveControllerRef.current = true;
 
     return () => {
       isActiveControllerRef.current = false;
+      activeReportPostIdRef.current = null;
     };
   }, []);
 
   const dispatchReport = useCallback((action: ReportPostAction) => {
-    stateRef.current = reportPostReducer(stateRef.current, action);
     dispatch(action);
   }, []);
 
@@ -74,16 +78,14 @@ export function useReportPostControls({
         currentViewerId == null ||
         post.author.id === currentViewerId ||
         current.activePostId !== null ||
+        activeReportPostIdRef.current !== null ||
         !canSubmitPostReport(current, post.id)
       ) {
         return;
       }
 
       dispatchReport({ postId: post.id, type: 'start' });
-
-      if (stateRef.current.activePostId !== post.id) {
-        return;
-      }
+      activeReportPostIdRef.current = post.id;
 
       commitReportPostRef.current({
         variables: {
@@ -97,6 +99,12 @@ export function useReportPostControls({
           if (!isActiveControllerRef.current) {
             return;
           }
+
+          if (activeReportPostIdRef.current !== post.id) {
+            return;
+          }
+
+          activeReportPostIdRef.current = null;
 
           const result = payload.reportPost;
 
@@ -115,6 +123,8 @@ export function useReportPostControls({
           if (!isActiveControllerRef.current) {
             return;
           }
+
+          activeReportPostIdRef.current = null;
 
           dispatchReport({
             message: formatReportPostMutationErrors(null),

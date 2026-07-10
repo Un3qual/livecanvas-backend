@@ -409,7 +409,7 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     ).toHaveLength(0);
   });
 
-  test('retains loaded older stories when refresh keeps the same base window', async () => {
+  test('drops unrefreshed older stories when refresh replaces the base window', async () => {
     const user = userEvent.setup();
     mockQueryData = {
       ...createFilledQueryData(),
@@ -466,7 +466,7 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
       expect(screen.getByText('Refreshed current story')).toBeOnTheScreen();
     });
 
-    expect(screen.getByText('Older retained story')).toBeOnTheScreen();
+    expect(screen.queryByText('Older retained story')).toBeNull();
   });
 
   test('syncs load-more controls when Relay delivers newer query pageInfo', async () => {
@@ -1197,6 +1197,22 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     await user.press(screen.getByRole('button', { name: 'Save post' }));
 
     expect(mockUpdatePostCommit).toHaveBeenCalledTimes(2);
+
+    mockQueryData = {
+      ...mockQueryData,
+      homeFeed: connection([
+        post({
+          author: {
+            email: 'viewer@example.com',
+            id: 'viewer-1',
+          },
+          bodyText: 'Updated owner post',
+          id: 'own-post',
+          visibility: 'PUBLIC',
+        }),
+        post({ bodyText: 'Other post', id: 'post-1' }),
+      ]),
+    };
 
     await completeUpdatePost(
       {

@@ -95,7 +95,7 @@ describe('ContentPostCard with shared controls', () => {
     const user = userEvent.setup();
     const post = contentPost({ authorId: 'viewer-id', id: 'opaque-post-id' });
 
-    await render(<Harness post={post} viewerId="viewer-id" />);
+    const view = await render(<Harness post={post} viewerId="viewer-id" />);
 
     expect(screen.queryByRole('button', { name: 'Report post' })).toBeNull();
     await user.press(screen.getByRole('button', { name: 'Edit post' }));
@@ -119,7 +119,15 @@ describe('ContentPostCard with shared controls', () => {
       },
     });
 
-    expect(screen.getByText('Updated body')).toBeOnTheScreen();
+    await view.rerender(
+      <Harness
+        post={{ ...post, bodyText: 'Server newer body' }}
+        viewerId="viewer-id"
+      />,
+    );
+
+    expect(screen.getByText('Server newer body')).toBeOnTheScreen();
+    expect(screen.queryByText('Updated body')).toBeNull();
   });
 
   test('deletes an owned post after confirmation', async () => {
@@ -169,7 +177,36 @@ describe('ContentPostCard with shared controls', () => {
 
     expect(screen.getByText('Report submitted.')).toBeOnTheScreen();
   });
+
+  test('disables sibling report actions while one report is pending', async () => {
+    await render(<ReportCollection />);
+
+    const reportButtons = screen.getAllByRole('button', { name: 'Report post' });
+    await fireEvent.press(reportButtons[0]);
+
+    expect(screen.getByRole('button', { name: 'Reporting...' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Report post' })).toBeDisabled();
+  });
 });
+
+function ReportCollection() {
+  const controls = usePostControls({ viewerId: 'viewer-id' });
+
+  return (
+    <>
+      <ContentPostCard
+        controls={controls}
+        post={contentPost({ authorId: 'other-1', id: 'post-1' })}
+        viewerId="viewer-id"
+      />
+      <ContentPostCard
+        controls={controls}
+        post={contentPost({ authorId: 'other-2', id: 'post-2' })}
+        viewerId="viewer-id"
+      />
+    </>
+  );
+}
 
 function Harness({
   onActions,

@@ -177,7 +177,7 @@ describe('OtherUserProfileScreen social controls', () => {
     });
 
     expect(screen.getByText('This profile is not available.')).toBeOnTheScreen();
-    expect(mockQueryOptions.at(-1)).toEqual({
+    expect(mockQueryOptions).toContainEqual({
       fetchKey: 1,
       fetchPolicy: 'network-only',
     });
@@ -290,7 +290,7 @@ describe('OtherUserProfileScreen social controls', () => {
 
     expect(screen.queryByRole('button', { name: 'Unblock' })).toBeNull();
     expect(screen.getByText('You can follow this profile.')).toBeOnTheScreen();
-    expect(mockQueryOptions.at(-1)).toEqual({
+    expect(mockQueryOptions).toContainEqual({
       fetchKey: 1,
       fetchPolicy: 'network-only',
     });

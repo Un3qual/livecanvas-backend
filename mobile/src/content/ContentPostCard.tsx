@@ -208,7 +208,7 @@ export const ContentPostCard = memo(function ContentPostCard({
             </Text>
           ) : (
             <AppButton
-              disabled={controlState.isReportActive}
+              disabled={controlState.isReportPending}
               label={
                 controlState.isReportActive ? 'Reporting...' : 'Report post'
               }

@@ -4,7 +4,6 @@ import type { ContentPost } from '../../src/content/contentPostPresentation';
 import {
   createPostOwnerControlsState,
   postOwnerControlsReducer,
-  selectPostOwnerChanges,
 } from '../../src/content/postOwnerControlsReducer';
 
 describe('postOwnerControlsReducer', () => {
@@ -24,7 +23,7 @@ describe('postOwnerControlsReducer', () => {
     });
     const updatedPost = { ...post, bodyText: 'Updated body' };
     const completedState = postOwnerControlsReducer(pendingState, {
-      post: updatedPost,
+      postId: updatedPost.id,
       type: 'update_succeeded',
     });
 
@@ -36,10 +35,8 @@ describe('postOwnerControlsReducer', () => {
     expect(completedState.editingPostId).toBeNull();
     expect(completedState.editState).toBeNull();
     expect(completedState.pendingAction).toBeNull();
-    expect(selectPostOwnerChanges(completedState)).toEqual({
-      deletedPostIds: {},
-      updatedPostsById: { 'post-1': updatedPost },
-    });
+    expect(completedState.deletedPostIds).toEqual({});
+    expect(Object.hasOwn(completedState, 'updatedPostsById')).toBe(false);
   });
 
   test('owns delete confirmation, failure, and local removal transitions', () => {
@@ -70,10 +67,7 @@ describe('postOwnerControlsReducer', () => {
     expect(failedState.errorsByPostId['post-1']).toBe('Delete failed.');
     expect(completedState.deleteConfirmationPostId).toBeNull();
     expect(completedState.errorsByPostId['post-1']).toBeUndefined();
-    expect(selectPostOwnerChanges(completedState)).toEqual({
-      deletedPostIds: { 'post-1': true },
-      updatedPostsById: {},
-    });
+    expect(completedState.deletedPostIds).toEqual({ 'post-1': true });
   });
 });
 

@@ -89,6 +89,19 @@ export function profileContentVariables(
   };
 }
 
+export function profileContentPreviewVariables(
+  profileId: string,
+): ProfileContentQuery['variables'] {
+  return {
+    after: null,
+    first: 3,
+    id: profileId,
+    includePosts: true,
+    includeReplays: true,
+    includeStories: true,
+  };
+}
+
 export function selectProfileContentConnection(
   data: ProfileContentData,
   kind: 'posts' | 'stories',

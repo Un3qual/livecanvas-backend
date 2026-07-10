@@ -23,7 +23,13 @@ export default function OtherProfileContentRoute() {
       errorMessage={`We could not load ${kind}.`}
       loadingMessage={`Loading ${kind}...`}
     >
-      <ProfileContentListScreen kind={kind} profileId={profileId} />
+      {(queryFetchKey) => (
+        <ProfileContentListScreen
+          kind={kind}
+          profileId={profileId}
+          queryFetchKey={queryFetchKey}
+        />
+      )}
     </RelayRouteBoundary>
   );
 }

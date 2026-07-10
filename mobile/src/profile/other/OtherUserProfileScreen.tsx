@@ -15,7 +15,7 @@ import { ScreenState } from '../../components/ScreenState';
 import { liveSessionHref } from '../../live/liveSessionNavigation';
 import { LiveSessionSummaryCard } from '../../live/components/LiveSessionSummaryCard';
 import { useAppTheme } from '../../providers/ThemeProvider';
-import { ProfileContentPreviewSection } from '../ProfileContentPreviewSection';
+import { ProfileContentPreviewSections } from '../ProfileContentPreviewSection';
 import {
   ProfileSummaryCard,
   SocialPreviewCard,
@@ -531,18 +531,7 @@ function OtherUserProfileContent({
               })
             }
           />
-          <ProfileContentPreviewSection
-            kind="posts"
-            profileId={user.id}
-            scope="other"
-          />
-          <ProfileContentPreviewSection
-            kind="stories"
-            profileId={user.id}
-            scope="other"
-          />
-          <ProfileContentPreviewSection
-            kind="replays"
+          <ProfileContentPreviewSections
             profileId={user.id}
             scope="other"
           />

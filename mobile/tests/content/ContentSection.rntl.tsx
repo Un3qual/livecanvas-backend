@@ -188,7 +188,7 @@ function postControls(): PostControls {
       startEdit: jest.fn(),
       updateEditBody: jest.fn(),
     },
-    changes: { deletedPostIds: {}, updatedPostsById: {} },
+    changes: { deletedPostIds: {} },
     state: {
       owner: createPostOwnerControlsState(),
       report: createReportPostState(),

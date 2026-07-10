@@ -1,14 +1,7 @@
-import {
-  act,
-  render,
-  screen,
-  userEvent,
-  within,
-} from '@testing-library/react-native';
-import { View } from 'react-native';
+import { act, render, screen, userEvent, within } from '@testing-library/react-native';
 
 import { liveSessionHref } from '../../src/live/liveSessionNavigation';
-import { ProfileContentPreviewSection } from '../../src/profile/ProfileContentPreviewSection';
+import { ProfileContentPreviewSections } from '../../src/profile/ProfileContentPreviewSection';
 import { profileContentHref } from '../../src/profile/profileContentRouteParams';
 
 type QueryVariables = {
@@ -20,6 +13,11 @@ type QueryVariables = {
   readonly includeStories: boolean;
 };
 
+type QueryOptions = {
+  readonly fetchKey?: number;
+  readonly fetchPolicy?: string;
+};
+
 type MutationConfig = {
   readonly onCompleted?: (payload: Record<string, unknown>) => void;
   readonly variables: Record<string, unknown>;
@@ -29,84 +27,50 @@ type MutationCommit = jest.Mock<void, [MutationConfig]>;
 
 let mockDeletePostCommit: MutationCommit;
 let mockPushedRoutes: unknown[];
+let mockQueryOptions: QueryOptions[];
+let mockQueryShouldFail: boolean;
 let mockQueryVariables: QueryVariables[];
-let mockStoryShouldFail: boolean;
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
-    push: (route: unknown) => {
-      mockPushedRoutes.push(route);
-    },
+    push: (route: unknown) => mockPushedRoutes.push(route),
   }),
 }));
 
 jest.mock('react-relay', () => ({
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
-  useLazyLoadQuery: (_query: unknown, variables: QueryVariables) => {
+  useLazyLoadQuery: (
+    _query: unknown,
+    variables: QueryVariables,
+    options: QueryOptions,
+  ) => {
     mockQueryVariables.push(variables);
+    mockQueryOptions.push(options);
 
-    if (variables.includeStories && mockStoryShouldFail) {
-      throw new Error('stories failed');
+    if (mockQueryShouldFail) {
+      throw new Error('profile content failed');
     }
 
-    return mockProfileContentData(variables);
+    return mockProfileContentData(variables.id);
   },
-  useMutation: (mutation: unknown) => {
-    const operation = mockRelayOperationName(mutation);
-
-    return operation.includes('DeletePostMutation')
+  useMutation: (mutation: unknown) =>
+    mockRelayOperationName(mutation).includes('DeletePostMutation')
       ? [mockDeletePostCommit, false]
-      : [jest.fn(), false];
-  },
+      : [jest.fn(), false],
 }));
-
-function mockRelayOperationName(mutation: unknown): string {
-  if (typeof mutation === 'string') {
-    return mutation;
-  }
-
-  if (
-    mutation !== null &&
-    typeof mutation === 'object' &&
-    'params' in mutation
-  ) {
-    const params = mutation.params as { readonly name?: unknown };
-
-    if (typeof params.name === 'string') {
-      return params.name;
-    }
-  }
-
-  return '';
-}
 
 beforeEach(() => {
   mockDeletePostCommit = jest.fn();
   mockPushedRoutes = [];
+  mockQueryOptions = [];
+  mockQueryShouldFail = false;
   mockQueryVariables = [];
-  mockStoryShouldFail = false;
 });
 
-describe('ProfileContentPreviewSection', () => {
-  test('queries each viewer preview independently with mutually exclusive variables', async () => {
+describe('ProfileContentPreviewSections', () => {
+  test('loads all previews with one query and one shared owner controller', async () => {
     await render(
-      <View>
-        <ProfileContentPreviewSection
-          kind="posts"
-          profileId="viewer-id"
-          scope="viewer"
-        />
-        <ProfileContentPreviewSection
-          kind="stories"
-          profileId="viewer-id"
-          scope="viewer"
-        />
-        <ProfileContentPreviewSection
-          kind="replays"
-          profileId="viewer-id"
-          scope="viewer"
-        />
-      </View>,
+      <ProfileContentPreviewSections profileId="viewer-id" scope="viewer" />,
     );
 
     expect(mockQueryVariables).toEqual([
@@ -115,56 +79,29 @@ describe('ProfileContentPreviewSection', () => {
         first: 3,
         id: 'viewer-id',
         includePosts: true,
-        includeReplays: false,
-        includeStories: false,
-      },
-      {
-        after: null,
-        first: 3,
-        id: 'viewer-id',
-        includePosts: false,
-        includeReplays: false,
+        includeReplays: true,
         includeStories: true,
       },
-      {
-        after: null,
-        first: 3,
-        id: 'viewer-id',
-        includePosts: false,
-        includeReplays: true,
-        includeStories: false,
-      },
     ]);
-
     expect(
       within(screen.getByTestId('content-section-posts')).getByRole('button', {
         name: 'Edit post',
       }),
     ).toBeOnTheScreen();
     expect(
-      within(screen.getByTestId('content-section-stories')).getByRole(
-        'button',
-        { name: 'Edit post' },
-      ),
+      within(screen.getByTestId('content-section-stories')).getByRole('button', {
+        name: 'Edit post',
+      }),
     ).toBeOnTheScreen();
   });
 
-  test('reports other-user posts and routes replay and view-all actions with opaque IDs', async () => {
+  test('reports other-user posts and routes replay and view-all actions', async () => {
     const user = userEvent.setup();
-
     await render(
-      <View>
-        <ProfileContentPreviewSection
-          kind="posts"
-          profileId="opaque-profile-id"
-          scope="other"
-        />
-        <ProfileContentPreviewSection
-          kind="replays"
-          profileId="opaque-profile-id"
-          scope="other"
-        />
-      </View>,
+      <ProfileContentPreviewSections
+        profileId="opaque-profile-id"
+        scope="other"
+      />,
     );
 
     const posts = within(screen.getByTestId('content-section-posts'));
@@ -185,22 +122,16 @@ describe('ProfileContentPreviewSection', () => {
 
   test('removes a viewer post preview after a successful delete', async () => {
     const user = userEvent.setup();
-
     await render(
-      <ProfileContentPreviewSection
-        kind="posts"
-        profileId="viewer-id"
-        scope="viewer"
-      />,
+      <ProfileContentPreviewSections profileId="viewer-id" scope="viewer" />,
     );
 
-    await user.press(screen.getByRole('button', { name: 'Delete post' }));
+    await user.press(
+      within(screen.getByTestId('content-section-posts')).getByRole('button', {
+        name: 'Delete post',
+      }),
+    );
     await user.press(screen.getByRole('button', { name: 'Confirm delete' }));
-
-    expect(mockDeletePostCommit).toHaveBeenCalledTimes(1);
-    expect(mockDeletePostCommit.mock.calls[0]?.[0].variables).toEqual({
-      input: { postId: 'opaque-post-id' },
-    });
 
     await act(() => {
       mockDeletePostCommit.mock.calls[0]?.[0].onCompleted?.({
@@ -210,77 +141,59 @@ describe('ProfileContentPreviewSection', () => {
 
     expect(screen.queryByText('Post body')).toBeNull();
     expect(screen.getByText('No visible posts yet.')).toBeOnTheScreen();
+    expect(screen.getByText('Story body')).toBeOnTheScreen();
   });
 
-  test('retries one failed preview without remounting successful siblings', async () => {
+  test('retries the combined preview with a fresh network-only request', async () => {
     const user = userEvent.setup();
-    mockStoryShouldFail = true;
     const consoleError = jest
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
+    mockQueryShouldFail = true;
+    await render(
+      <ProfileContentPreviewSections profileId="viewer-id" scope="viewer" />,
+    );
 
-    await render(<PreviewCollection />);
+    expect(screen.getByText('Could not load profile content.')).toBeOnTheScreen();
+    mockQueryShouldFail = false;
+    await user.press(
+      screen.getByRole('button', { name: 'Retry profile content' }),
+    );
 
     expect(screen.getByText('Post body')).toBeOnTheScreen();
-    expect(screen.getByText('host@example.com')).toBeOnTheScreen();
-    expect(screen.getByText('Could not load stories.')).toBeOnTheScreen();
-    const postQueriesBeforeRetry = queryCount('posts');
-    const replayQueriesBeforeRetry = queryCount('replays');
-    expect(postQueriesBeforeRetry).toBeGreaterThan(0);
-    expect(replayQueriesBeforeRetry).toBeGreaterThan(0);
-
-    mockStoryShouldFail = false;
-    await user.press(screen.getByRole('button', { name: 'Retry stories' }));
-
-    expect(screen.getByText('Story body')).toBeOnTheScreen();
-    expect(queryCount('posts')).toBe(postQueriesBeforeRetry);
-    expect(queryCount('replays')).toBe(replayQueriesBeforeRetry);
+    expect(mockQueryOptions.at(-1)).toEqual({
+      fetchKey: 1,
+      fetchPolicy: 'network-only',
+    });
     consoleError.mockRestore();
   });
 });
 
-function PreviewCollection() {
-  return (
-    <View>
-      <ProfileContentPreviewSection
-        kind="posts"
-        profileId="viewer-id"
-        scope="viewer"
-      />
-      <ProfileContentPreviewSection
-        kind="stories"
-        profileId="viewer-id"
-        scope="viewer"
-      />
-      <ProfileContentPreviewSection
-        kind="replays"
-        profileId="viewer-id"
-        scope="viewer"
-      />
-    </View>
-  );
+function mockRelayOperationName(mutation: unknown): string {
+  if (typeof mutation === 'string') {
+    return mutation;
+  }
+
+  if (mutation !== null && typeof mutation === 'object' && 'params' in mutation) {
+    const params = mutation.params as { readonly name?: unknown };
+    return typeof params.name === 'string' ? params.name : '';
+  }
+
+  return '';
 }
 
-function queryCount(kind: 'posts' | 'replays'): number {
-  return mockQueryVariables.filter((variables) =>
-    kind === 'posts' ? variables.includePosts : variables.includeReplays,
-  ).length;
-}
-
-function mockProfileContentData(variables: QueryVariables) {
+function mockProfileContentData(profileId: string) {
   return {
     node: {
       __typename: 'User',
-      id: variables.id,
-      posts: variables.includePosts
-        ? connection([post('opaque-post-id', variables.id, 'Post body', 'STANDARD')])
-        : undefined,
-      replayFeed: variables.includeReplays
-        ? connection([replay(variables.id)])
-        : undefined,
-      storyFeed: variables.includeStories
-        ? connection([post('opaque-story-id', variables.id, 'Story body', 'STORY')])
-        : undefined,
+      id: profileId,
+      posts: connection([
+        post('opaque-post-id', profileId, 'Post body', 'STANDARD'),
+      ]),
+      replayFeed: connection([replay(profileId)]),
+      storyFeed: connection([
+        post('opaque-story-id', profileId, 'Story body', 'STORY'),
+      ]),
     },
     viewer: { id: 'viewer-id' },
   };

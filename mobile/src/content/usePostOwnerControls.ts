@@ -19,6 +19,7 @@ import {
   postOwnerControlsReducer,
   createPostOwnerControlsState,
   type PostOwnerControlsAction,
+  type PostOwnerPendingAction,
   type PostOwnerControlsState,
 } from './postOwnerControlsReducer';
 import {
@@ -44,7 +45,7 @@ export type PostOwnerControlActions = {
 
 export type PostOwnerControls = {
   readonly actions: PostOwnerControlActions;
-  readonly changes: ContentPostChanges<ContentPost>;
+  readonly changes: ContentPostChanges;
   readonly state: PostOwnerControlsState;
 };
 
@@ -56,7 +57,7 @@ export function usePostOwnerControls(): PostOwnerControls {
     createPostOwnerControlsState,
   );
   const stateRef = useRef(state);
-  stateRef.current = state;
+  const activeOwnerActionRef = useRef<PostOwnerPendingAction>(null);
   const [commitUpdatePost] = useMutation<PostOwnerControlUpdatePostMutation>(
     postOwnerControlUpdatePostMutation,
   );
@@ -69,17 +70,19 @@ export function usePostOwnerControls(): PostOwnerControls {
   commitDeletePostRef.current = commitDeletePost;
 
   useLayoutEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  useLayoutEffect(() => {
     isActiveControllerRef.current = true;
 
     return () => {
       isActiveControllerRef.current = false;
+      activeOwnerActionRef.current = null;
     };
   }, []);
 
   const dispatchOwner = useCallback((action: PostOwnerControlsAction) => {
-    // Mirror the reducer synchronously so same-tick commands see the pending
-    // transition before React commits the next render.
-    stateRef.current = postOwnerControlsReducer(stateRef.current, action);
     dispatch(action);
   }, []);
 
@@ -114,6 +117,7 @@ export function usePostOwnerControls(): PostOwnerControls {
 
       if (
         current.pendingAction !== null ||
+        activeOwnerActionRef.current !== null ||
         current.editingPostId !== post.id ||
         current.editState === null
       ) {
@@ -140,13 +144,7 @@ export function usePostOwnerControls(): PostOwnerControls {
       }
 
       dispatchOwner({ postId: post.id, type: 'update_started' });
-
-      if (
-        stateRef.current.pendingAction?.kind !== 'update' ||
-        stateRef.current.pendingAction.postId !== post.id
-      ) {
-        return;
-      }
+      activeOwnerActionRef.current = { kind: 'update', postId: post.id };
 
       commitUpdatePostRef.current({
         variables: { input },
@@ -154,6 +152,15 @@ export function usePostOwnerControls(): PostOwnerControls {
           if (!isActiveControllerRef.current) {
             return;
           }
+
+          if (
+            activeOwnerActionRef.current?.kind !== 'update' ||
+            activeOwnerActionRef.current.postId !== post.id
+          ) {
+            return;
+          }
+
+          activeOwnerActionRef.current = null;
 
           const result = payload.updatePost;
           const updatedPost = result?.post;
@@ -167,12 +174,15 @@ export function usePostOwnerControls(): PostOwnerControls {
             return;
           }
 
-          dispatchOwner({ post: updatedPost, type: 'update_succeeded' });
+          dispatchOwner({ postId: updatedPost.id, type: 'update_succeeded' });
         },
         onError: () => {
           if (!isActiveControllerRef.current) {
             return;
           }
+
+
+          activeOwnerActionRef.current = null;
 
           dispatchOwner({
             message: formatUpdatePostMutationErrors(null),
@@ -202,19 +212,14 @@ export function usePostOwnerControls(): PostOwnerControls {
 
       if (
         current.pendingAction !== null ||
+        activeOwnerActionRef.current !== null ||
         current.deleteConfirmationPostId !== post.id
       ) {
         return;
       }
 
       dispatchOwner({ postId: post.id, type: 'delete_started' });
-
-      if (
-        stateRef.current.pendingAction?.kind !== 'delete' ||
-        stateRef.current.pendingAction.postId !== post.id
-      ) {
-        return;
-      }
+      activeOwnerActionRef.current = { kind: 'delete', postId: post.id };
 
       commitDeletePostRef.current({
         variables: { input: buildDeletePostInput(post.id) },
@@ -222,6 +227,15 @@ export function usePostOwnerControls(): PostOwnerControls {
           if (!isActiveControllerRef.current) {
             return;
           }
+
+          if (
+            activeOwnerActionRef.current?.kind !== 'delete' ||
+            activeOwnerActionRef.current.postId !== post.id
+          ) {
+            return;
+          }
+
+          activeOwnerActionRef.current = null;
 
           const result = payload.deletePost;
           const deletedPostId = result?.deletedPostId;
@@ -244,6 +258,8 @@ export function usePostOwnerControls(): PostOwnerControls {
           if (!isActiveControllerRef.current) {
             return;
           }
+
+          activeOwnerActionRef.current = null;
 
           dispatchOwner({
             message: formatDeletePostMutationErrors(null),
@@ -278,12 +294,11 @@ export function usePostOwnerControls(): PostOwnerControls {
       updateEditBody,
     ],
   );
-  const changes = useMemo<ContentPostChanges<ContentPost>>(
+  const changes = useMemo<ContentPostChanges>(
     () => ({
       deletedPostIds: state.deletedPostIds,
-      updatedPostsById: state.updatedPostsById,
     }),
-    [state.deletedPostIds, state.updatedPostsById],
+    [state.deletedPostIds],
   );
 
   return useMemo(

@@ -1,13 +1,10 @@
-export type ContentPostChanges<Post extends { readonly id: string }> = {
+export type ContentPostChanges = {
   readonly deletedPostIds: Readonly<Record<string, true>>;
-  readonly updatedPostsById: Readonly<Record<string, Post>>;
 };
 
 export function applyContentPostChanges<Post extends { readonly id: string }>(
   posts: ReadonlyArray<Post>,
-  changes: ContentPostChanges<Post>,
+  changes: ContentPostChanges,
 ): Post[] {
-  return posts
-    .filter((post) => changes.deletedPostIds[post.id] !== true)
-    .map((post) => changes.updatedPostsById[post.id] ?? post);
+  return posts.filter((post) => changes.deletedPostIds[post.id] !== true);
 }

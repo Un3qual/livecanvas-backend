@@ -29,7 +29,7 @@ export const postOwnerControlDeletePostMutation = graphql`
     $input: DeletePostInput!
   ) {
     deletePost(input: $input) {
-      deletedPostId
+      deletedPostId @deleteRecord
       errors {
         field
         message

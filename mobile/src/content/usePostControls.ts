@@ -17,7 +17,7 @@ export type PostControlsActions = PostOwnerControlActions &
 
 export type PostControls = {
   readonly actions: PostControlsActions;
-  readonly changes: ContentPostChanges<ContentPost>;
+  readonly changes: ContentPostChanges;
   readonly state: PostControlsState;
 };
 

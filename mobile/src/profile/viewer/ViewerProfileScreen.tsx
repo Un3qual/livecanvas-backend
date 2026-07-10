@@ -17,7 +17,7 @@ import { liveSessionHref } from '../../live/liveSessionNavigation';
 import { LiveSessionSummaryCard } from '../../live/components/LiveSessionSummaryCard';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import { readConnectionNodes } from '../../relay/readConnectionNodes';
-import { ProfileContentPreviewSection } from '../ProfileContentPreviewSection';
+import { ProfileContentPreviewSections } from '../ProfileContentPreviewSection';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { SectionHeading, SummaryStat } from '../components/ProfileCards';
 import {
@@ -475,18 +475,7 @@ function ViewerProfileContent() {
         />
       ) : null}
 
-      <ProfileContentPreviewSection
-        kind="posts"
-        profileId={viewer.id}
-        scope="viewer"
-      />
-      <ProfileContentPreviewSection
-        kind="stories"
-        profileId={viewer.id}
-        scope="viewer"
-      />
-      <ProfileContentPreviewSection
-        kind="replays"
+      <ProfileContentPreviewSections
         profileId={viewer.id}
         scope="viewer"
       />

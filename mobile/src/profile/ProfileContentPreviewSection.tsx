@@ -12,18 +12,15 @@ import { AppCard } from '../components/AppCard';
 import type { ContentPost } from '../content/ContentPostCard';
 import { ContentSection } from '../content/ContentSection';
 import { applyContentPostChanges } from '../content/contentPostChanges';
-import type { ProfileContentKind } from '../content/contentSurfaceTypes';
 import { usePostControls } from '../content/usePostControls';
-import {
-  type LiveSessionSummary,
-} from '../live/components/LiveSessionSummaryCard';
+import type { LiveSessionSummary } from '../live/components/LiveSessionSummaryCard';
 import { liveSessionHref } from '../live/liveSessionNavigation';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { spacing, typography } from '../theme/tokens';
 import {
+  profileContentPreviewVariables,
   profileContentQuery,
-  profileContentVariables,
   selectProfileContentConnection,
   type ProfileContentQuery,
 } from './profileContentOperations';
@@ -32,8 +29,7 @@ import {
   type ProfileContentScope,
 } from './profileContentRouteParams';
 
-type ProfileContentPreviewSectionProps = {
-  readonly kind: ProfileContentKind;
+type ProfileContentPreviewSectionsProps = {
   readonly profileId: string;
   readonly scope: ProfileContentScope;
 };
@@ -47,89 +43,95 @@ const styles = StyleSheet.create({
   stateText: typography.body,
 });
 
-export function ProfileContentPreviewSection(
-  props: ProfileContentPreviewSectionProps,
+/** Loads all three profile previews through one Relay request and one controls owner. */
+export function ProfileContentPreviewSections(
+  props: ProfileContentPreviewSectionsProps,
 ) {
   const [retryKey, retry] = useReducer((key: number) => key + 1, 0);
-  const resetKey = `${props.profileId}:${props.kind}:${retryKey}`;
+  const resetKey = `${props.profileId}:${retryKey}`;
 
   return (
-    <ProfileContentPreviewErrorBoundary
-      key={resetKey}
-      kind={props.kind}
-      onRetry={retry}
-    >
-      <Suspense fallback={<ProfileContentPreviewLoading kind={props.kind} />}>
-        <ProfileContentPreviewContent {...props} key={resetKey} />
+    <ProfileContentPreviewErrorBoundary key={resetKey} onRetry={retry}>
+      <Suspense fallback={<ProfileContentPreviewState message="Loading profile content..." />}>
+        <ProfileContentPreviewContent
+          {...props}
+          key={resetKey}
+          queryFetchKey={retryKey}
+        />
       </Suspense>
     </ProfileContentPreviewErrorBoundary>
   );
 }
 
 function ProfileContentPreviewContent({
-  kind,
   profileId,
+  queryFetchKey,
   scope,
-}: ProfileContentPreviewSectionProps) {
+}: ProfileContentPreviewSectionsProps & { readonly queryFetchKey: number }) {
   const router = useRouter();
   const data = useLazyLoadQuery<ProfileContentQuery>(
     profileContentQuery,
-    profileContentVariables(profileId, kind, 3, null),
-    { fetchPolicy: 'store-and-network' },
+    profileContentPreviewVariables(profileId),
+    {
+      fetchKey: queryFetchKey,
+      fetchPolicy: queryFetchKey === 0 ? 'store-and-network' : 'network-only',
+    },
   );
   const viewerId = data.viewer?.id ?? null;
   const postControls = usePostControls({ viewerId });
-  const copy = previewCopy(kind);
-  const onViewAll = () => {
-    router.push(profileContentHref(profileId, kind, scope));
-  };
+  const posts = applyContentPostChanges(
+    readConnectionNodes<ContentPost>(
+      selectProfileContentConnection(data, 'posts'),
+    ),
+    postControls.changes,
+  );
+  const stories = applyContentPostChanges(
+    readConnectionNodes<ContentPost>(
+      selectProfileContentConnection(data, 'stories'),
+    ),
+    postControls.changes,
+  );
+  const replays = readConnectionNodes<LiveSessionSummary>(
+    selectProfileContentConnection(data, 'replays'),
+  );
 
-  switch (kind) {
-    case 'posts':
-    case 'stories': {
-      const posts = applyContentPostChanges(
-        readConnectionNodes<ContentPost>(
-          selectProfileContentConnection(data, kind),
-        ),
-        postControls.changes,
-      );
-
-      return (
-        <ContentSection
-          emptyMessage={copy.emptyMessage}
-          kind={kind}
-          onViewAll={onViewAll}
-          postControls={postControls}
-          posts={posts}
-          title={copy.title}
-          viewerId={viewerId}
-        />
-      );
-    }
-
-    case 'replays':
-      return (
-        <ContentSection
-          emptyMessage={copy.emptyMessage}
-          kind="replays"
-          onOpenLiveSession={(sessionId) => {
-            router.push(liveSessionHref(sessionId));
-          }}
-          onViewAll={onViewAll}
-          sessions={readConnectionNodes<LiveSessionSummary>(
-            selectProfileContentConnection(data, kind),
-          )}
-          title={copy.title}
-        />
-      );
-
-    default:
-      return assertNever(kind);
-  }
+  return (
+    <>
+      <ContentSection
+        emptyMessage="No visible posts yet."
+        kind="posts"
+        onViewAll={() => router.push(profileContentHref(profileId, 'posts', scope))}
+        postControls={postControls}
+        posts={posts}
+        title="Posts"
+        viewerId={viewerId}
+      />
+      <ContentSection
+        emptyMessage="No active stories yet."
+        kind="stories"
+        onViewAll={() =>
+          router.push(profileContentHref(profileId, 'stories', scope))
+        }
+        postControls={postControls}
+        posts={stories}
+        title="Stories"
+        viewerId={viewerId}
+      />
+      <ContentSection
+        emptyMessage="No visible replays yet."
+        kind="replays"
+        onOpenLiveSession={(sessionId) => router.push(liveSessionHref(sessionId))}
+        onViewAll={() =>
+          router.push(profileContentHref(profileId, 'replays', scope))
+        }
+        sessions={replays}
+        title="Replays"
+      />
+    </>
+  );
 }
 
 type ProfileContentPreviewErrorBoundaryProps = PropsWithChildren<{
-  readonly kind: ProfileContentKind;
   readonly onRetry: () => void;
 }>;
 
@@ -154,20 +156,12 @@ class ProfileContentPreviewErrorBoundary extends React.Component<
 
     return (
       <ProfileContentPreviewState
-        actionLabel={`Retry ${contentLabel(this.props.kind)}`}
-        message={`Could not load ${contentLabel(this.props.kind)}.`}
+        actionLabel="Retry profile content"
+        message="Could not load profile content."
         onAction={this.props.onRetry}
       />
     );
   }
-}
-
-function ProfileContentPreviewLoading({ kind }: { kind: ProfileContentKind }) {
-  return (
-    <ProfileContentPreviewState
-      message={`Loading ${contentLabel(kind)}...`}
-    />
-  );
 }
 
 function ProfileContentPreviewState({
@@ -197,31 +191,4 @@ function ProfileContentPreviewState({
       </AppCard>
     </View>
   );
-}
-
-function previewCopy(kind: ProfileContentKind): {
-  readonly emptyMessage: string;
-  readonly title: string;
-} {
-  switch (kind) {
-    case 'posts':
-      return { emptyMessage: 'No visible posts yet.', title: 'Posts' };
-
-    case 'stories':
-      return { emptyMessage: 'No active stories yet.', title: 'Stories' };
-
-    case 'replays':
-      return { emptyMessage: 'No visible replays yet.', title: 'Replays' };
-
-    default:
-      return assertNever(kind);
-  }
-}
-
-function contentLabel(kind: ProfileContentKind): string {
-  return kind;
-}
-
-function assertNever(value: never): never {
-  throw new Error(`Unhandled profile content preview kind: ${String(value)}`);
 }

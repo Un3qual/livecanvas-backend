@@ -158,7 +158,7 @@ export function feedHomePaginationReducer(
     case 'refresh_success':
       return {
         ...state,
-        connections: replaceBaseConnections(state.connections, action.sections),
+        connections: createConnections(action.sections),
         isRefreshing: false,
         refreshError: null,
       };
@@ -216,6 +216,19 @@ function createConnectionState(
     pageInfo: pageInfoFromInput(input),
     routeGeneration: HOME_ROUTE_GENERATION,
   });
+}
+
+function createConnections(
+  sections: Record<
+    FeedHomePaginationSection,
+    FeedHomePaginationSectionInput
+  >,
+): FeedHomePaginationState['connections'] {
+  return {
+    homeFeed: createConnectionState(sections.homeFeed),
+    replays: createConnectionState(sections.replays),
+    stories: createConnectionState(sections.stories),
+  };
 }
 
 function replaceBaseConnections(

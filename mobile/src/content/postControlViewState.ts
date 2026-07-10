@@ -18,6 +18,7 @@ export type PostControlViewState = {
   readonly isOwnerActionPending: boolean;
   readonly isReportActive: boolean;
   readonly isReportConfirmed: boolean;
+  readonly isReportPending: boolean;
   readonly isUpdating: boolean;
   readonly ownerError: string | null;
   readonly reportError: string | null;
@@ -39,6 +40,7 @@ export function selectPostControlViewState(
     isOwnerActionPending: ownerAction !== null,
     isReportActive: state.report.activePostId === postId,
     isReportConfirmed: isPostReportConfirmed(state.report, postId),
+    isReportPending: state.report.activePostId !== null,
     isUpdating:
       ownerAction?.kind === 'update' && ownerAction.postId === postId,
     ownerError: state.owner.errorsByPostId[postId] ?? null,
@@ -58,6 +60,7 @@ export function arePostControlViewStatesEqual(
     previous.isOwnerActionPending === next.isOwnerActionPending &&
     previous.isReportActive === next.isReportActive &&
     previous.isReportConfirmed === next.isReportConfirmed &&
+    previous.isReportPending === next.isReportPending &&
     previous.isUpdating === next.isUpdating &&
     previous.ownerError === next.ownerError &&
     previous.reportError === next.reportError
