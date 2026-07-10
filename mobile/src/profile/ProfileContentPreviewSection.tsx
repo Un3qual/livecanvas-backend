@@ -11,6 +11,7 @@ import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import type { ContentPost } from '../content/ContentPostCard';
 import { ContentSection } from '../content/ContentSection';
+import { applyContentPostChanges } from '../content/contentPostChanges';
 import type { ProfileContentKind } from '../content/contentSurfaceTypes';
 import { usePostControls } from '../content/usePostControls';
 import {
@@ -85,20 +86,26 @@ function ProfileContentPreviewContent({
 
   switch (kind) {
     case 'posts':
-    case 'stories':
+    case 'stories': {
+      const posts = applyContentPostChanges(
+        readConnectionNodes<ContentPost>(
+          selectProfileContentConnection(data, kind),
+        ),
+        postControls.changes,
+      );
+
       return (
         <ContentSection
           emptyMessage={copy.emptyMessage}
           kind={kind}
           onViewAll={onViewAll}
           postControls={postControls}
-          posts={readConnectionNodes<ContentPost>(
-            selectProfileContentConnection(data, kind),
-          )}
+          posts={posts}
           title={copy.title}
           viewerId={viewerId}
         />
       );
+    }
 
     case 'replays':
       return (

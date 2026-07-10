@@ -301,7 +301,7 @@ function ProfileContentListConnection({
             error: connectionState.error,
             isLoading: connectionState.activeRequest !== null,
             onLoadMore: () => {
-              void loadMore();
+              loadMore().catch(() => undefined);
             },
             visible:
               connectionState.pageInfo.hasNextPage &&

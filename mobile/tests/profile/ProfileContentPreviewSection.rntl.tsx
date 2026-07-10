@@ -1,4 +1,5 @@
 import {
+  act,
   render,
   screen,
   userEvent,
@@ -19,6 +20,14 @@ type QueryVariables = {
   readonly includeStories: boolean;
 };
 
+type MutationConfig = {
+  readonly onCompleted?: (payload: Record<string, unknown>) => void;
+  readonly variables: Record<string, unknown>;
+};
+
+type MutationCommit = jest.Mock<void, [MutationConfig]>;
+
+let mockDeletePostCommit: MutationCommit;
 let mockPushedRoutes: unknown[];
 let mockQueryVariables: QueryVariables[];
 let mockStoryShouldFail: boolean;
@@ -42,10 +51,37 @@ jest.mock('react-relay', () => ({
 
     return mockProfileContentData(variables);
   },
-  useMutation: () => [jest.fn(), false],
+  useMutation: (mutation: unknown) => {
+    const operation = mockRelayOperationName(mutation);
+
+    return operation.includes('DeletePostMutation')
+      ? [mockDeletePostCommit, false]
+      : [jest.fn(), false];
+  },
 }));
 
+function mockRelayOperationName(mutation: unknown): string {
+  if (typeof mutation === 'string') {
+    return mutation;
+  }
+
+  if (
+    mutation !== null &&
+    typeof mutation === 'object' &&
+    'params' in mutation
+  ) {
+    const params = mutation.params as { readonly name?: unknown };
+
+    if (typeof params.name === 'string') {
+      return params.name;
+    }
+  }
+
+  return '';
+}
+
 beforeEach(() => {
+  mockDeletePostCommit = jest.fn();
   mockPushedRoutes = [];
   mockQueryVariables = [];
   mockStoryShouldFail = false;
@@ -145,6 +181,35 @@ describe('ProfileContentPreviewSection', () => {
       profileContentHref('opaque-profile-id', 'posts', 'other'),
       profileContentHref('opaque-profile-id', 'replays', 'other'),
     ]);
+  });
+
+  test('removes a viewer post preview after a successful delete', async () => {
+    const user = userEvent.setup();
+
+    await render(
+      <ProfileContentPreviewSection
+        kind="posts"
+        profileId="viewer-id"
+        scope="viewer"
+      />,
+    );
+
+    await user.press(screen.getByRole('button', { name: 'Delete post' }));
+    await user.press(screen.getByRole('button', { name: 'Confirm delete' }));
+
+    expect(mockDeletePostCommit).toHaveBeenCalledTimes(1);
+    expect(mockDeletePostCommit.mock.calls[0]?.[0].variables).toEqual({
+      input: { postId: 'opaque-post-id' },
+    });
+
+    await act(async () => {
+      mockDeletePostCommit.mock.calls[0]?.[0].onCompleted?.({
+        deletePost: { deletedPostId: 'opaque-post-id', errors: [] },
+      });
+    });
+
+    expect(screen.queryByText('Post body')).toBeNull();
+    expect(screen.getByText('No visible posts yet.')).toBeOnTheScreen();
   });
 
   test('retries one failed preview without remounting successful siblings', async () => {
