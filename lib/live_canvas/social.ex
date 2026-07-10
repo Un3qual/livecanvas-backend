@@ -104,8 +104,8 @@ defmodule LC.Social do
   This explicitly I/O-bearing batch helper keeps GraphQL projections from
   issuing one block query per candidate user.
   """
-  @spec user_ids_blocking_viewer(User.t(), [User.t()]) :: MapSet.t(pos_integer())
-  def user_ids_blocking_viewer(%User{}, []), do: MapSet.new()
+  @spec user_ids_blocking_viewer(User.t(), [User.t()]) :: [pos_integer()]
+  def user_ids_blocking_viewer(%User{}, []), do: []
 
   def user_ids_blocking_viewer(%User{id: viewer_id}, users) when is_list(users) do
     user_ids = Enum.map(users, & &1.id)
@@ -115,7 +115,6 @@ defmodule LC.Social do
       select: block.blocker_id
     )
     |> Repo.all()
-    |> MapSet.new()
   end
 
   @doc """

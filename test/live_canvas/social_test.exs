@@ -35,7 +35,7 @@ defmodule LC.SocialTest do
       refute Social.blocked_by?(target, viewer)
     end
 
-    test "user_ids_blocking_viewer/2 returns blocker IDs in one set" do
+    test "user_ids_blocking_viewer/2 returns blocker IDs from one read" do
       viewer = user_fixture()
       visible_first = user_fixture()
       hidden = user_fixture()
@@ -44,7 +44,7 @@ defmodule LC.SocialTest do
       assert {:ok, _block} = Social.block_user(hidden, viewer)
 
       assert Social.user_ids_blocking_viewer(viewer, [visible_first, hidden, visible_last]) ==
-               MapSet.new([hidden.id])
+               [hidden.id]
     end
 
     test "viewer-aware relationship queries omit users who blocked the viewer" do

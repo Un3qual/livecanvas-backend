@@ -132,6 +132,7 @@ defmodule LCGQL.Accounts.ContactResolver do
       contact_matches
       |> Enum.flat_map(& &1.matched_users)
       |> then(&Social.user_ids_blocking_viewer(viewer, &1))
+      |> MapSet.new()
 
     Enum.map(contact_matches, &project_contact_match(&1, blocking_ids))
   end

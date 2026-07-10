@@ -44,7 +44,7 @@
 - Modify: `lib/live_canvas_gql/schema.ex`
 
 **Interfaces:**
-- Produces: `Social.user_ids_blocking_viewer(viewer, users) :: MapSet.t(pos_integer())`.
+- Produces: `Social.user_ids_blocking_viewer(viewer, users) :: [pos_integer()]`.
 - Produces: `ContactResolver.visible_contact_match_node(match, viewer)` and `visible_contact_match_nodes(matches, viewer)`.
 - Keeps: `project_contact_match(match, blocking_ids)` private and database-free.
 
@@ -54,7 +54,7 @@ Replace the Social list-filter assertion with an ID-set assertion:
 
 ```elixir
 assert Social.user_ids_blocking_viewer(viewer, [visible_first, hidden, visible_last]) ==
-         MapSet.new([hidden.id])
+         [hidden.id]
 ```
 
 Rename the contact resolver test to `visible_contact_match_node/2`, call that function, and wrap it in `capture_repo_queries/1`; assert the projected map is unchanged and `count_table_queries(queries, "blocks") == 1`. Keep the existing GraphQL list test asserting one blocks query across three rows.
@@ -74,8 +74,8 @@ Expected: compilation failures for `user_ids_blocking_viewer/2` and `visible_con
 Replace `reject_users_blocking_viewer/2` with:
 
 ```elixir
-@spec user_ids_blocking_viewer(User.t(), [User.t()]) :: MapSet.t(pos_integer())
-def user_ids_blocking_viewer(%User{}, []), do: MapSet.new()
+@spec user_ids_blocking_viewer(User.t(), [User.t()]) :: [pos_integer()]
+def user_ids_blocking_viewer(%User{}, []), do: []
 
 def user_ids_blocking_viewer(%User{id: viewer_id}, users) when is_list(users) do
   user_ids = Enum.map(users, & &1.id)
@@ -85,7 +85,6 @@ def user_ids_blocking_viewer(%User{id: viewer_id}, users) when is_list(users) do
     select: block.blocker_id
   )
   |> Repo.all()
-  |> MapSet.new()
 end
 ```
 
@@ -103,6 +102,7 @@ def visible_contact_match_nodes(contact_matches, %User{} = viewer) do
     contact_matches
     |> Enum.flat_map(& &1.matched_users)
     |> then(&Social.user_ids_blocking_viewer(viewer, &1))
+    |> MapSet.new()
 
   Enum.map(contact_matches, &project_contact_match(&1, blocking_ids))
 end
