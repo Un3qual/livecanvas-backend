@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-07-09
-Status: no selected batch; directional privacy complete and reversible controls deferred
+Last reviewed: 2026-07-10
+Status: viewer-profile privacy query cleanup active; reversible controls deferred
 
 ## Lane Scope
 
@@ -10,20 +10,17 @@ Status: no selected batch; directional privacy complete and reversible controls 
   explicit write scope before cross-lane implementation.
 - Keep Relay IDs opaque and durable reads/writes Relay-first.
 
-## Recently Completed
+## Current Batch
 
 - Source plan:
-  `docs/superpowers/plans/2026-07-09-directional-block-privacy.md`
+  `docs/superpowers/plans/2026-07-10-directional-block-quality-cleanup.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Result: directionally hidden profiles render only the generic unavailable
-  state. A real Relay Environment regression proves a cached identity remains
-  behind Suspense until the network returns `node: null`; hidden profiles expose
-  no identity, privacy, relationship, live-session, connection, or social UI.
-- Verification evidence:
-  - `bun run relay`: passed with no generated drift.
-  - `bun run test:quality`: passed; Bun 457 tests and Jest 83 tests, 0 failures.
-  - Focused real-cache privacy regression: passed.
-  - `git diff --check`: passed.
+- Task: keep viewer-owned profile data cache-friendly while moving follower,
+  following, and request previews into a network-fresh child boundary.
+- Write scope: viewer profile components, shared Relay fetch options, generated
+  Relay output, focused profile tests, and this lane pointer.
+- Done condition: cached viewer data can render immediately, cached third-party
+  identities remain withheld, and the full mobile quality suite passes.
 
 ## Deferred Scope
 
@@ -37,5 +34,5 @@ Status: no selected batch; directional privacy complete and reversible controls 
 
 ## Next Action
 
-No mobile batch is selected. Keep unblock, unfollow, contact-invite delivery,
-and release-candidate device QA deferred until product explicitly resumes them.
+After backend Task 1, execute Task 2 of the current cleanup plan test-first.
+Keep unblock, unfollow, contact-invite delivery, and device QA deferred.

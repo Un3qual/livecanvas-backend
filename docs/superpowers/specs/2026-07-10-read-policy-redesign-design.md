@@ -1,7 +1,7 @@
 # Read-Policy Redesign and Quality Stack
 
 Date: 2026-07-10
-Status: design approved; written-spec review pending
+Status: approved for implementation
 Owner: backend and mobile lanes
 
 ## Goal

@@ -1,7 +1,7 @@
 # Current Execution
 
-Last reviewed: 2026-07-09
-Status: no selected batch; directional block-privacy fix complete
+Last reviewed: 2026-07-10
+Status: directional privacy quality cleanup active; ReadPolicy redesign queued as stacked PR
 
 ## Purpose
 
@@ -12,17 +12,17 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: complete; directional block visibility is enforced at GraphQL profile,
-  social-control, relationship, contact-discovery, and Relay cache boundaries.
-- Completed plan:
-  `docs/superpowers/plans/2026-07-09-directional-block-privacy.md`
+- State: active for contact-projection cleanup on PR #116; the ReadPolicy
+  redesign follows on a branch stacked from the pushed cleanup head.
+- Current plan:
+  `docs/superpowers/plans/2026-07-10-directional-block-quality-cleanup.md`
+- Queued stacked plan:
+  `docs/superpowers/plans/2026-07-10-read-policy-redesign.md`
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: complete; regression coverage proves hidden profiles use the same
-  generic unavailable state as missing profiles, including a pre-populated
-  Relay cache.
+- State: active for the viewer-profile query-boundary cleanup on PR #116.
 - Track: `docs/plans/mobile/TRACK.md`
 - Deferred: reversible unfollow/unblock contracts and release-candidate manual
   QA, plus contact-invite delivery until a real landing route exists.
@@ -38,11 +38,12 @@ Do not defer a reproduced backend contract, resolver, runtime, or data issue
 solely because the visible surface is mobile. Promote it into the backend lane,
 state the write scope, and verify both affected sides.
 
-## Completed Cross-Lane Decision
+## Active Cross-Lane Decision
 
-The directional privacy fix completed without activating deferred unfollow,
-unblock, or release-candidate device QA work. No lane currently has a selected
-batch.
+Finish the scoped backend/mobile cleanup on PR #116 and push it first. Then
+branch `codex/read-policy-redesign` from that exact remote head and publish its
+PR against `codex/directional-block-privacy`. Deferred product work stays
+inactive.
 
 ## Repair Conditions
 

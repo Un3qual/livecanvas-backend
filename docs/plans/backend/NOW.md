@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
-Last reviewed: 2026-07-09
-Status: no selected batch; directional block-privacy fix complete
+Last reviewed: 2026-07-10
+Status: directional privacy quality cleanup active; stacked redesign queued
 
 ## Lane Scope
 
@@ -9,33 +9,23 @@ Status: no selected batch; directional block-privacy fix complete
 - Cross-lane mobile contract work must name its backend write scope explicitly.
 - Shared coordinator docs and shared contracts require explicit assignment.
 
-## Recently Completed
+## Current Batch
 
 - Source plan:
-  `docs/superpowers/plans/2026-07-09-directional-block-privacy.md`
-- Result: a user who blocked the viewer is indistinguishable from a missing
-  account across public GraphQL profile, social, request, and contact surfaces.
-  Hidden and missing users share reads/errors, viewer-owned blocks remain
-  direction-safe, projections omit blockers, and contact filtering is batched.
-- Verification evidence:
-  - Focused privacy suite: 144 tests, 0 failures.
-  - Related feed/chat authorization suite: 69 tests, 0 failures.
-  - `mix compile --warnings-as-errors`: passed.
-  - `mix typecheck`: passed with 0 errors.
-  - `mix boundary.spec`: passed.
-  - Independent review: no remaining code or security findings.
-- Repository advisories unrelated to this batch:
-  - Full `mix test` retained two pre-existing failures in unchanged seed-data
-    and legacy live-session-flow tests; one unrelated feed test passed when
-    rerun alone.
-  - Repository-wide `mix format --check-formatted` still reports seven
-    pre-existing unformatted files outside this change; all touched Elixir files
-    pass the formatter check.
+  `docs/superpowers/plans/2026-07-10-directional-block-quality-cleanup.md`
+- Task: make contact visibility I/O explicit, share one pure projection path,
+  preserve query counts, and push the updated PR #116.
+- Write scope: `lib/live_canvas/social.ex`, contact GraphQL boundary code,
+  focused tests, the completed privacy plan, and backend lane documentation.
+- Done condition: singleton/list contact paths share one projection, privacy
+  behavior is unchanged, affected quality gates pass, and PR #116 is pushed.
+- Queued stacked plan:
+  `docs/superpowers/plans/2026-07-10-read-policy-redesign.md`
 
 ## Next Action
 
-No backend batch is selected. Coordinate the next product-completeness batch
-before implementation.
+Execute Task 1 of the current plan test-first. Do not create the stacked branch
+until PR #116 cleanup is verified and pushed.
 
 ## References
 
