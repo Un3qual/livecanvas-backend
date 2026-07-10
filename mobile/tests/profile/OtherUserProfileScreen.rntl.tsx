@@ -17,6 +17,11 @@ type MutationConfig = {
   readonly variables: Record<string, unknown>;
 };
 
+type QueryOptions = {
+  readonly fetchKey?: number;
+  readonly fetchPolicy?: string;
+};
+
 let mockQueryData: Record<string, unknown>;
 let mockFollowCommit: MutationCommit;
 let mockMuteCommit: MutationCommit;
@@ -24,6 +29,7 @@ let mockUnmuteCommit: MutationCommit;
 let mockBlockCommit: MutationCommit;
 let mockUnfollowCommit: MutationCommit;
 let mockUnblockCommit: MutationCommit;
+let mockQueryOptions: QueryOptions[];
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -34,7 +40,14 @@ jest.mock('expo-router', () => ({
 
 jest.mock('react-relay', () => ({
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
-  useLazyLoadQuery: () => mockQueryData,
+  useLazyLoadQuery: (
+    _query: unknown,
+    _variables: Record<string, unknown>,
+    options: QueryOptions,
+  ) => {
+    mockQueryOptions.push(options);
+    return mockQueryData;
+  },
   useMutation: (mutation: unknown) => {
     const operationName = mockOperationName(mutation);
 
@@ -69,6 +82,7 @@ beforeEach(() => {
   mockBlockCommit = jest.fn();
   mockUnfollowCommit = jest.fn();
   mockUnblockCommit = jest.fn();
+  mockQueryOptions = [];
   mockQueryData = profileQueryData({
     isBlockedByViewer: false,
     isMuted: false,
@@ -106,6 +120,12 @@ describe('OtherUserProfileScreen social controls', () => {
     expect(mockMuteCommit).toHaveBeenCalledTimes(1);
     expect(mockMuteCommit.mock.calls[0]?.[0].variables).toEqual({
       input: { mutedId: 'opaque-profile-id' },
+    });
+
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: true,
+      relationshipState: 'ACCEPTED',
     });
 
     await completeMutation(mockMuteCommit, {
@@ -146,11 +166,21 @@ describe('OtherUserProfileScreen social controls', () => {
     });
     expect(mockMuteCommit).not.toHaveBeenCalled();
 
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      relationshipState: 'BLOCKED',
+    });
+
     await completeMutation(mockUnfollowCommit, {
       unfollowUser: { errors: [] },
     });
 
-    expect(screen.getByText('You can follow this profile.')).toBeOnTheScreen();
+    expect(screen.getByText('This profile is not available.')).toBeOnTheScreen();
+    expect(mockQueryOptions.at(-1)).toEqual({
+      fetchKey: 1,
+      fetchPolicy: 'network-only',
+    });
   });
 
   test('ignores an unfollow completion after navigation changes the profile id', async () => {
@@ -212,6 +242,13 @@ describe('OtherUserProfileScreen social controls', () => {
 
     await user.press(screen.getByRole('button', { name: 'Block' }));
     await user.press(screen.getByRole('button', { name: 'Confirm block' }));
+
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: true,
+      isMuted: false,
+      profileId: 'profile-1',
+      relationshipState: 'BLOCKED',
+    });
     await completeMutation(mockBlockCommit, {
       blockUser: { errors: [] },
     });
@@ -241,12 +278,22 @@ describe('OtherUserProfileScreen social controls', () => {
       input: { blockedId: 'opaque-profile-id' },
     });
 
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      relationshipState: 'PUBLIC',
+    });
+
     await completeMutation(mockUnblockCommit, {
       unblockUser: { errors: [] },
     });
 
     expect(screen.queryByRole('button', { name: 'Unblock' })).toBeNull();
-    expect(screen.getByText('This profile is not available.')).toBeOnTheScreen();
+    expect(screen.getByText('You can follow this profile.')).toBeOnTheScreen();
+    expect(mockQueryOptions.at(-1)).toEqual({
+      fetchKey: 1,
+      fetchPolicy: 'network-only',
+    });
   });
 
   test('does not expose unblock for an inbound-only block', async () => {
@@ -307,6 +354,12 @@ describe('OtherUserProfileScreen social controls', () => {
     expect(mockBlockCommit).toHaveBeenCalledTimes(1);
     expect(mockBlockCommit.mock.calls[0]?.[0].variables).toEqual({
       input: { blockedId: 'opaque-profile-id' },
+    });
+
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: true,
+      isMuted: false,
+      relationshipState: 'BLOCKED',
     });
 
     await completeMutation(mockBlockCommit, {

@@ -1,5 +1,4 @@
 import React, {
-  useEffect,
   useLayoutEffect,
   useReducer,
   useRef,
@@ -40,11 +39,7 @@ import {
   socialControlUnfollowUserMutation,
   socialControlUnmuteUserMutation,
 } from '../socialControlOperations';
-import {
-  otherUserProfileScreenResetKey,
-  selectActiveRelationshipViewOverride,
-  type RelationshipViewOverride,
-} from './otherUserProfileRouteState';
+import { otherUserProfileScreenResetKey } from './otherUserProfileRouteState';
 import type { OtherUserProfileScreenFollowUserMutation } from '../../__generated__/OtherUserProfileScreenFollowUserMutation.graphql';
 import type { OtherUserProfileScreenQuery } from '../../__generated__/OtherUserProfileScreenQuery.graphql';
 import type { socialControlOperationsBlockUserMutation } from '../../__generated__/socialControlOperationsBlockUserMutation.graphql';
@@ -133,28 +128,16 @@ const otherUserProfileScreenFollowUserMutation = graphql`
 
 export function OtherUserProfileScreen({ id }: { id: string }) {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
-  const [relationshipViewOverride, setRelationshipViewOverride] =
-    useState<RelationshipViewOverride | null>(null);
   const currentProfileIdRef = useRef(id);
   const resetKey = otherUserProfileScreenResetKey(id, queryRetryKey);
 
   currentProfileIdRef.current = id;
 
-  useEffect(() => {
-    setRelationshipViewOverride(null);
-  }, [id]);
-
-  const handleRelationshipMutationSuccess = (
-    profileId: string,
-    override: Omit<RelationshipViewOverride, 'profileId'>,
-  ) => {
+  const handleRelationshipMutationSuccess = (profileId: string) => {
     if (currentProfileIdRef.current !== profileId) {
       return;
     }
 
-    // Keep confirmed relationship state in the parent while the keyed remount
-    // forces a fresh query, preventing a stale cached relationship flash.
-    setRelationshipViewOverride({ profileId, ...override });
     retryQuery();
   };
 
@@ -167,10 +150,7 @@ export function OtherUserProfileScreen({ id }: { id: string }) {
         id={id}
         key={resetKey}
         onRelationshipMutationSuccess={handleRelationshipMutationSuccess}
-        relationshipViewOverride={selectActiveRelationshipViewOverride(
-          relationshipViewOverride,
-          id,
-        )}
+        queryFetchKey={queryRetryKey}
       />
     </OtherUserProfileErrorBoundary>
   );
@@ -212,14 +192,11 @@ class OtherUserProfileErrorBoundary extends React.Component<
 function OtherUserProfileContent({
   id,
   onRelationshipMutationSuccess,
-  relationshipViewOverride,
+  queryFetchKey,
 }: {
   id: string;
-  onRelationshipMutationSuccess: (
-    profileId: string,
-    override: Omit<RelationshipViewOverride, 'profileId'>,
-  ) => void;
-  relationshipViewOverride: RelationshipViewOverride | null;
+  onRelationshipMutationSuccess: (profileId: string) => void;
+  queryFetchKey: number;
 }) {
   const theme = useAppTheme();
   const router = useRouter();
@@ -228,7 +205,6 @@ function OtherUserProfileContent({
     useState<RelationshipActionKind | null>(null);
   const [blockConfirmationVisible, setBlockConfirmationVisible] =
     useState(false);
-  const [isMutedOverride, setIsMutedOverride] = useState<boolean | null>(null);
   const isActiveRouteGenerationRef = useRef(true);
   const activeRelationshipActionRef = useRef<RelationshipActionKind | null>(null);
   const [commitFollowUser, isFollowUserMutationInFlight] =
@@ -258,7 +234,10 @@ function OtherUserProfileContent({
   const data = useLazyLoadQuery<OtherUserProfileScreenQuery>(
     otherUserProfileScreenQuery,
     { id },
-    { fetchPolicy: 'store-and-network' },
+    {
+      fetchKey: queryFetchKey,
+      fetchPolicy: queryFetchKey === 0 ? 'store-and-network' : 'network-only',
+    },
   );
 
   useLayoutEffect(() => {
@@ -272,14 +251,6 @@ function OtherUserProfileContent({
     };
   }, []);
 
-  useEffect(() => {
-    activeRelationshipActionRef.current = null;
-    setActiveRelationshipAction(null);
-    setBlockConfirmationVisible(false);
-    setIsMutedOverride(null);
-    setRelationshipError(null);
-  }, [id]);
-
   if (!isUserNode(data.node)) {
     return (
       <UnavailableProfileScreen
@@ -292,11 +263,9 @@ function OtherUserProfileContent({
   const user = data.node;
   const identity = formatProfileIdentity(user);
   const privacy = formatPrivacyModeLabel(user.privacyMode);
-  const relationshipState =
-    relationshipViewOverride?.state ?? data.relationshipState;
-  const isBlockedByViewer =
-    relationshipViewOverride?.isBlockedByViewer ?? data.isBlockedByViewer;
-  const isMuted = isMutedOverride ?? data.isMuted;
+  const relationshipState = data.relationshipState;
+  const isBlockedByViewer = data.isBlockedByViewer;
+  const isMuted = data.isMuted;
   const relationship = describeRelationshipState({
     isBlockedByViewer,
     isMuted,
@@ -354,10 +323,7 @@ function OtherUserProfileContent({
           return;
         }
 
-        onRelationshipMutationSuccess(id, {
-          isBlockedByViewer: false,
-          state: result.follow.state,
-        });
+        onRelationshipMutationSuccess(id);
       },
       onError: () => {
         if (!isActiveRouteGenerationRef.current) {
@@ -429,7 +395,7 @@ function OtherUserProfileContent({
         commitMuteUser({
           variables: { input: { mutedId: user.id } },
           onCompleted: (payload) => {
-            completeSocialControl('mute', payload.muteUser);
+            completeSocialControl(payload.muteUser);
           },
           onError: failSocialControl,
         });
@@ -439,7 +405,7 @@ function OtherUserProfileContent({
         commitUnmuteUser({
           variables: { input: { mutedId: user.id } },
           onCompleted: (payload) => {
-            completeSocialControl('unmute', payload.unmuteUser);
+            completeSocialControl(payload.unmuteUser);
           },
           onError: failSocialControl,
         });
@@ -449,7 +415,7 @@ function OtherUserProfileContent({
         commitBlockUser({
           variables: { input: { blockedId: user.id } },
           onCompleted: (payload) => {
-            completeSocialControl('block', payload.blockUser);
+            completeSocialControl(payload.blockUser);
           },
           onError: failSocialControl,
         });
@@ -459,7 +425,7 @@ function OtherUserProfileContent({
         commitUnfollowUser({
           variables: { input: { followedId: user.id } },
           onCompleted: (payload) => {
-            completeSocialControl('unfollow', payload.unfollowUser);
+            completeSocialControl(payload.unfollowUser);
           },
           onError: failSocialControl,
         });
@@ -469,20 +435,18 @@ function OtherUserProfileContent({
         commitUnblockUser({
           variables: { input: { blockedId: user.id } },
           onCompleted: (payload) => {
-            completeSocialControl('unblock', payload.unblockUser);
+            completeSocialControl(payload.unblockUser);
           },
           onError: failSocialControl,
         });
         return;
 
       default:
-        activeRelationshipActionRef.current = null;
-        setActiveRelationshipAction(null);
+        assertNever(action);
     }
   }
 
   function completeSocialControl(
-    action: Exclude<RelationshipActionKind, 'follow'>,
     result: SocialControlMutationResult | null | undefined,
   ) {
     if (!isActiveRouteGenerationRef.current) {
@@ -498,37 +462,7 @@ function OtherUserProfileContent({
     }
 
     setBlockConfirmationVisible(false);
-
-    if (action === 'mute') {
-      setIsMutedOverride(true);
-      return;
-    }
-
-    if (action === 'unmute') {
-      setIsMutedOverride(false);
-      return;
-    }
-
-    if (action === 'unfollow') {
-      onRelationshipMutationSuccess(id, {
-        isBlockedByViewer: false,
-        state: user.privacyMode === 'PUBLIC' ? 'PUBLIC' : 'NONE',
-      });
-      return;
-    }
-
-    if (action === 'unblock') {
-      onRelationshipMutationSuccess(id, {
-        isBlockedByViewer: false,
-        state: null,
-      });
-      return;
-    }
-
-    onRelationshipMutationSuccess(id, {
-      isBlockedByViewer: true,
-      state: 'BLOCKED',
-    });
+    onRelationshipMutationSuccess(id);
   }
 
   function failSocialControl() {
@@ -695,4 +629,8 @@ function formatRelationshipMutationErrors(
   errors: Parameters<typeof formatMutationErrors>[0],
 ): string {
   return formatMutationErrors(errors, 'We could not update this relationship.');
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled relationship action: ${String(value)}`);
 }
