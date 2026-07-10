@@ -82,7 +82,7 @@ checkboxes/evidence in the same commit as the relevant code.
 - Consumes: `User.posts`, `User.storyFeed`, and `User.replayFeed` Relay connections.
 - Produces: verified forward pagination, newest-first ordering, active-story filtering, and viewer authorization for the mobile operation.
 
-- [ ] **Step 1: Add a deterministic profile-content pagination test**
+- [x] **Step 1: Add a deterministic profile-content pagination test**
 
 Add `alias LCSchemas.Live.LiveSession` beside the existing `Post` alias. Add a
 test after `refetches visible profile posts...` that creates two standard posts,
@@ -244,7 +244,7 @@ test "paginates visible profile content connections newest-first" do
 end
 ```
 
-- [ ] **Step 2: Extend the unauthorized case to anonymous access**
+- [x] **Step 2: Extend the unauthorized case to anonymous access**
 
 After the existing outsider assertion, run the query without context:
 
@@ -268,7 +268,7 @@ assert {:ok,
 
 This proves the mobile route cannot widen access by omitting viewer state.
 
-- [ ] **Step 3: Run the focused backend test**
+- [x] **Step 3: Run the focused backend test**
 
 Run:
 
@@ -280,7 +280,7 @@ Expected: PASS without backend production changes. If it fails, diagnose the
 specific connection before editing `Feed` or `UserResolver`; do not weaken the
 assertions.
 
-- [ ] **Step 4: Format and commit the contract proof**
+- [x] **Step 4: Format and commit the contract proof**
 
 Run:
 
@@ -290,6 +290,13 @@ mix test test/live_canvas_gql/relay/node_queries_test.exs
 git add test/live_canvas_gql/relay/node_queries_test.exs
 git commit -m "test: prove profile content relay pagination"
 ```
+
+Execution evidence (2026-07-09):
+
+- Existing production code passed the new deterministic contract proof; no
+  backend resolver or domain change was required.
+- `mix test test/live_canvas_gql/relay/node_queries_test.exs` -> 30 tests,
+  0 failures after formatting.
 
 ---
 

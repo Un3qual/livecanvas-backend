@@ -25,13 +25,13 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: active for Batch 2 existing-contract proof only.
-- Current task: implementation-plan Task 1.
+- State: Batch 2 existing-contract proof complete with no production change.
+- Verification: 30 node-query tests, 0 failures.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: active after backend Task 1 passes.
+- State: active for implementation-plan Task 2.
 - Track: `docs/plans/mobile/TRACK.md`
 - Current tasks: implementation-plan Tasks 2-6.
 
@@ -49,7 +49,7 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Execute Batch 2 only. After final gates pass, close both lanes and make Batch 3,
+Execute mobile Task 2. After final gates pass, close both lanes and make Batch 3,
 Media Post Publishing, the next planning action.
 
 ## Repair Conditions
