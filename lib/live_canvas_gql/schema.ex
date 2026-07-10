@@ -4,7 +4,7 @@ defmodule LCGQL.Schema do
   use Absinthe.Relay.Schema,
     flavor: :modern
 
-  alias LC.{Accounts, Chat, Content, Feed, Live, Social}
+  alias LC.{Accounts, Chat, Content, Feed, Live, ReadPolicy, Social}
   alias LCGQL.Dataloader
   alias LCGQL.Resolution
   alias LCGQL.Accounts.ContactResolver
@@ -178,7 +178,9 @@ defmodule LCGQL.Schema do
 
       case Resolution.viewer(resolution) do
         {:ok, viewer} ->
-          if Social.blocked_by?(viewer, user), do: {:ok, nil}, else: {:ok, user}
+          if ReadPolicy.viewer_blocked_by_owner?(viewer, user),
+            do: {:ok, nil},
+            else: {:ok, user}
 
         :error ->
           {:ok, user}

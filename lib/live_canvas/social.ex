@@ -14,7 +14,6 @@ defmodule LC.Social do
   alias LCSchemas.Accounts.User
   alias LCSchemas.Social.{Block, Follow, Mute}
 
-  @type relationship_state :: :accepted | :blocked | :none | :public | :requested
   @type follow_result :: {:ok, Follow.t()} | {:error, term()}
   @type block_result :: {:ok, Block.t()} | {:error, term()}
   @type mute_result :: {:ok, Mute.t()} | {:error, term()}
@@ -27,13 +26,16 @@ defmodule LC.Social do
   Creates or updates a follow relationship between two users.
   """
   @spec follow_user(struct(), struct()) :: follow_result()
-  def follow_user(%User{id: follower_id}, %User{id: followed_id, privacy_mode: privacy_mode}) do
+  def follow_user(
+        %User{id: follower_id} = follower,
+        %User{id: followed_id, privacy_mode: privacy_mode} = followed
+      ) do
     with decision <-
            RelationshipPolicy.follow_decision(%{
              follower_id: follower_id,
              followed_id: followed_id,
              followed_privacy_mode: privacy_mode,
-             blocked?: blocked_between?(follower_id, followed_id),
+             blocked?: ReadPolicy.blocked_between?(follower, followed),
              now: DateTime.utc_now() |> DateTime.truncate(:microsecond)
            }),
          {:ok, follow} <- persist_follow(follower_id, followed_id, decision) do
@@ -90,20 +92,6 @@ defmodule LC.Social do
   end
 
   @doc """
-  Returns whether the target user has blocked the viewer.
-
-  The argument order is intentionally directional: `blocked_by?(viewer, target)`
-  answers only whether `target` created the block.
-  """
-  @spec blocked_by?(User.t(), User.t()) :: boolean()
-  def blocked_by?(%User{id: blocked_id}, %User{id: blocker_id}) do
-    Repo.exists?(
-      from block in Block,
-        where: block.blocker_id == ^blocker_id and block.blocked_id == ^blocked_id
-    )
-  end
-
-  @doc """
   Removes the authenticated follower's directional relationship to a user.
   """
   @spec unfollow_user(User.t(), User.t()) :: unfollow_result()
@@ -127,36 +115,6 @@ defmodule LC.Social do
     |> Repo.delete_all()
 
     :ok
-  end
-
-  @doc """
-  Returns whether the viewer has an outbound block against the target user.
-  """
-  @spec blocked_by_viewer?(User.t(), User.t()) :: boolean()
-  def blocked_by_viewer?(%User{id: blocker_id}, %User{id: blocked_id}) do
-    Repo.exists?(
-      from block in Block,
-        where: block.blocker_id == ^blocker_id and block.blocked_id == ^blocked_id
-    )
-  end
-
-  @doc """
-  Returns the IDs of users who have blocked the viewer.
-
-  This explicitly I/O-bearing batch helper keeps GraphQL projections from
-  issuing one block query per candidate user.
-  """
-  @spec user_ids_blocking_viewer(User.t(), [User.t()]) :: [pos_integer()]
-  def user_ids_blocking_viewer(%User{}, []), do: []
-
-  def user_ids_blocking_viewer(%User{id: viewer_id}, users) when is_list(users) do
-    user_ids = Enum.map(users, & &1.id)
-
-    from(block in Block,
-      where: block.blocked_id == ^viewer_id and block.blocker_id in ^user_ids,
-      select: block.blocker_id
-    )
-    |> Repo.all()
   end
 
   @doc """
@@ -189,28 +147,6 @@ defmodule LC.Social do
   end
 
   @doc """
-  Returns whether a directional mute relationship exists.
-  """
-  @spec muted?(struct(), struct()) :: boolean()
-  def muted?(%User{} = muter, %User{} = muted), do: ReadPolicy.viewer_muted_owner?(muter, muted)
-
-  @doc """
-  Returns the effective relationship state from a viewer to a creator.
-  """
-  @spec relationship_state(struct(), struct()) :: relationship_state()
-  def relationship_state(%User{} = viewer, %User{} = creator) do
-    ReadPolicy.relationship_state(viewer, creator, creator.privacy_mode)
-  end
-
-  @doc """
-  Returns whether the viewer can see the creator's content.
-  """
-  @spec can_view_user?(struct(), struct()) :: boolean()
-  def can_view_user?(%User{} = viewer, %User{} = creator) do
-    ReadPolicy.relationship_state(viewer, creator, creator.privacy_mode) in [:accepted, :public]
-  end
-
-  @doc """
   Returns a deterministic query for users following the given creator.
   """
   @spec public_follower_users_query(User.t()) :: Ecto.Query.t()
@@ -233,15 +169,6 @@ defmodule LC.Social do
     |> public_follower_users_query()
     |> ReadPolicy.exclude_owners_blocking_viewer(viewer, :id)
   end
-
-  @doc false
-  @spec follower_users_query(User.t()) :: Ecto.Query.t()
-  def follower_users_query(%User{} = user), do: public_follower_users_query(user)
-
-  @doc false
-  @spec follower_users_query(User.t(), User.t()) :: Ecto.Query.t()
-  def follower_users_query(%User{} = user, %User{} = viewer),
-    do: viewer_follower_users_query(user, viewer)
 
   @doc """
   Returns a deterministic query for users that the given follower follows.
@@ -266,15 +193,6 @@ defmodule LC.Social do
     |> public_following_users_query()
     |> ReadPolicy.exclude_owners_blocking_viewer(viewer, :id)
   end
-
-  @doc false
-  @spec following_users_query(User.t()) :: Ecto.Query.t()
-  def following_users_query(%User{} = user), do: public_following_users_query(user)
-
-  @doc false
-  @spec following_users_query(User.t(), User.t()) :: Ecto.Query.t()
-  def following_users_query(%User{} = user, %User{} = viewer),
-    do: viewer_following_users_query(user, viewer)
 
   @doc """
   Returns a deterministic query for pending follow requests owned by the user.
@@ -346,15 +264,6 @@ defmodule LC.Social do
       ],
       conflict_target: [:follower_id, :followed_id],
       returning: true
-    )
-  end
-
-  defp blocked_between?(left_user_id, right_user_id) do
-    Repo.exists?(
-      from block in Block,
-        where:
-          (block.blocker_id == ^left_user_id and block.blocked_id == ^right_user_id) or
-            (block.blocker_id == ^right_user_id and block.blocked_id == ^left_user_id)
     )
   end
 

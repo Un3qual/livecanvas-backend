@@ -105,7 +105,13 @@ defmodule LC.DataCase do
   @spec handle_repo_query_event([atom()], map(), map(), pid()) :: :ok
   def handle_repo_query_event(_event, _measurements, %{query: query}, test_pid)
       when is_pid(test_pid) do
-    send(test_pid, {:repo_query_event, IO.iodata_to_binary(query)})
+    # Telemetry handlers are global, but the query event executes in the caller
+    # process. Ignore concurrent async tests so query-count assertions only see
+    # work initiated by the capture block that installed this handler.
+    if self() == test_pid do
+      send(test_pid, {:repo_query_event, IO.iodata_to_binary(query)})
+    end
+
     :ok
   end
 

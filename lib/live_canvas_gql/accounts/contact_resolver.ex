@@ -1,5 +1,5 @@
 defmodule LCGQL.Accounts.ContactResolver do
-  alias LC.{Accounts, Social}
+  alias LC.{Accounts, ReadPolicy}
   alias LCGQL.MutationErrors
   alias LCSchemas.Accounts.User
 
@@ -137,7 +137,8 @@ defmodule LCGQL.Accounts.ContactResolver do
     blocking_ids =
       contact_matches
       |> Enum.flat_map(& &1.matched_users)
-      |> then(&Social.user_ids_blocking_viewer(viewer, &1))
+      |> Enum.map(& &1.id)
+      |> then(&ReadPolicy.blocking_owner_ids(viewer, &1))
       |> MapSet.new()
 
     Enum.map(contact_matches, &project_contact_match(&1, blocking_ids))

@@ -10,6 +10,19 @@ defmodule LC.ReadPolicyTest do
   alias LCSchemas.Social.Follow
 
   describe "relationship facts" do
+    test "owns visibility reads instead of exporting them from Social" do
+      assert Code.ensure_loaded?(Social)
+      refute function_exported?(Social, :blocked_by?, 2)
+      refute function_exported?(Social, :user_ids_blocking_viewer, 2)
+      refute function_exported?(Social, :muted?, 2)
+      refute function_exported?(Social, :relationship_state, 2)
+      refute function_exported?(Social, :can_view_user?, 2)
+      refute function_exported?(Social, :follower_users_query, 1)
+      refute function_exported?(Social, :follower_users_query, 2)
+      refute function_exported?(Social, :following_users_query, 1)
+      refute function_exported?(Social, :following_users_query, 2)
+    end
+
     test "distinguishes directional user resolution from symmetric blocking" do
       viewer = user_fixture()
       owner = user_fixture()
