@@ -315,7 +315,7 @@ Execution evidence (2026-07-09):
 - Produces: `ContentSurfaceKind`, `ProfileContentKind`, `ContentConnectionState<Node>`, `contentConnectionReducer`, `selectContentRows`, `applyContentPostChanges`, and strict route readers/builders.
 - Consumed by: Tasks 3-6.
 
-- [ ] **Step 1: Write failing route and connection-state tests**
+- [x] **Step 1: Write failing route and connection-state tests**
 
 Create tests that import the names above and assert:
 
@@ -355,7 +355,7 @@ expect(selectContentRows(loaded)).toEqual([
 Also assert a completion with an old request object or old route generation
 returns the identical state, and an error preserves base/extra rows.
 
-- [ ] **Step 2: Run the tests and verify RED**
+- [x] **Step 2: Run the tests and verify RED**
 
 Run from `mobile/`:
 
@@ -365,7 +365,7 @@ bun test tests/content/contentConnectionState.test.ts tests/content/contentPostC
 
 Expected: FAIL because the new modules do not exist.
 
-- [ ] **Step 3: Implement exact shared types and reducer**
+- [x] **Step 3: Implement exact shared types and reducer**
 
 Use these public contracts:
 
@@ -438,7 +438,7 @@ export type ContentConnectionAction<Node extends ContentNode> =
 for each opaque ID. `replace_base` clears extras/error/request whenever base
 identity or route generation changes; otherwise it retains extras.
 
-- [ ] **Step 4: Implement post overlays and strict route helpers**
+- [x] **Step 4: Implement post overlays and strict route helpers**
 
 Use:
 
@@ -477,7 +477,7 @@ and other-user returns:
 }
 ```
 
-- [ ] **Step 5: Run pure tests and commit**
+- [x] **Step 5: Run pure tests and commit**
 
 Run:
 
@@ -493,6 +493,13 @@ Commit:
 git add mobile/src/content mobile/src/profile/profileContentRouteParams.ts mobile/tests/content mobile/tests/profile/profileContentRouteParams.test.ts
 git commit -m "feat(mobile): add universal content state"
 ```
+
+Execution evidence (2026-07-09):
+
+- RED: three suites errored because the new universal content and route modules
+  did not exist.
+- GREEN: 6 tests, 0 failures; `bun run typecheck` and
+  `bun run typecheck:tests` passed.
 
 ---
 
