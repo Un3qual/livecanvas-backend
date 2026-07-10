@@ -1,44 +1,43 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-09
-Status: Batch 1 reversible social-control contract complete
+Status: Batch 2 profile-content Relay contract proof active
 
 ## Lane Scope
 
 - Own backend Elixir/GraphQL code and backend planning docs.
 - Cross-lane mobile contract work must name its backend write scope explicitly.
-- Shared coordinator docs and shared contracts require explicit assignment.
+- Shared coordinator docs and contracts require explicit assignment.
 
-## Completed Batch
+## Current Batch
 
 - Design:
-  `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
-- Implementation:
-  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- Delivered directional, idempotent `unfollowUser` and `unblockUser` mutations
-  plus outbound-only `isBlockedByViewer`.
-- Preserved Relay IDs, viewer-derived authorization, reverse relationship rows,
-  and payload-safe invalid/authentication failures.
+  `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
+- Source plan:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Current task: Task 1, prove `User.posts`, `User.storyFeed`, and
+  `User.replayFeed` cursor ordering, filtering, and authorization.
+- Write scope: `test/live_canvas_gql/relay/node_queries_test.exs`.
+- Conditional production scope: `lib/live_canvas/feed.ex` and
+  `lib/live_canvas_gql/accounts/user_resolver.ex` only if the focused test
+  reproduces a real defect.
+- Done condition: deterministic profile connection tests pass without widening
+  viewer visibility or accepting raw IDs.
 
 ## Verification
 
-- Batch files pass `mix format --check-formatted` when checked explicitly.
-- Focused social domain/GraphQL suite: 49 tests, 0 failures.
-- `mix typecheck`: 0 errors.
-- `mix absinthe.schema.sdl --schema LCGQL.Schema mobile/schema.graphql`: passed
-  with no resulting schema diff.
-- Repository-wide `mix format --check-formatted` remains blocked by seven
-  pre-existing, untouched files outside this batch; no unrelated formatting
-  churn was included.
+- `mix format --check-formatted test/live_canvas_gql/relay/node_queries_test.exs`
+- `mix test test/live_canvas_gql/relay/node_queries_test.exs`
+- `mix typecheck` only if typed backend production code changes.
 
 ## Next Action
 
-No backend batch is executable. Await an approved Batch 2 Profile Content
-Surfaces implementation plan and promote backend work only if that plan names a
-backend contract or data dependency.
+Execute implementation-plan Task 1 before mobile refactoring. If the tests pass
+against existing production code, record that no backend change was needed and
+hand off to the mobile lane.
 
 ## References
 
 - Mobile lane: `docs/plans/mobile/NOW.md`
-- Previous backend batch:
-  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
+- Completed Batch 1 plan:
+  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`

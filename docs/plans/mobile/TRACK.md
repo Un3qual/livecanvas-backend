@@ -11,11 +11,10 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: active; Batch 1 reversible social controls complete and Batch 2
-  Profile Content Surfaces is the next planning target
+- Track state: active; Batch 2 Profile Content Surfaces selected
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Last completed implementation plan:
-  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
+- Active implementation plan:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Last completed detailed plan:
   `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
 - Recent theme: account lifecycle, existing social controls, manual contact
@@ -128,10 +127,11 @@ and content discovery, live streaming, and chat.
 
 ## Active And Queued Follow-Up Plans
 
-No implementation batch is active. Next planning target:
+Current product batch:
 
-- Profile Content Surfaces.
-- Create, approve, and promote its own implementation plan before editing code.
+- `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Backend Task 1 proves the existing profile connections before mobile Tasks
+  2-6 build universal content surfaces.
 
 Recently completed product batch:
 
@@ -142,9 +142,8 @@ Recently completed product batch:
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-Queued product batches after completed reversible social controls:
+Queued product batches after Profile Content Surfaces:
 
-- Profile content surfaces.
 - Media post publishing.
 - Live-chat message controls.
 - End-to-end contact invitations.

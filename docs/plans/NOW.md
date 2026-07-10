@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-09
-Status: Batch 1 complete; Batch 2 planning next
+Status: Batch 2 Profile Content Surfaces active
 
 ## Purpose
 
@@ -9,35 +9,37 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Approved Sequence
 
-- Design:
+- Sequence design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
-- Completed Batch 1 implementation:
-  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- Remaining order: profile content surfaces, media post publishing, live-chat
-  message controls, then end-to-end contact invitations.
-- Release-candidate device QA remains deferred until the five product batches
-  close.
+- Batch 2 design:
+  `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
+- Current implementation:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Batch 1 reversible social controls is complete in stacked base PR #115.
+- Remaining order after Batch 2: media post publishing, live-chat message
+  controls, then end-to-end contact invitations.
+- Release-candidate device QA remains deferred until all five batches close.
 
 ## Lane Pointers
 
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 1 reversible social-control contract complete.
-- No backend implementation batch is active.
+- State: active for Batch 2 existing-contract proof only.
+- Current task: implementation-plan Task 1.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 1 reversible social controls complete.
+- State: active after backend Task 1 passes.
 - Track: `docs/plans/mobile/TRACK.md`
-- No mobile implementation batch is active.
+- Current tasks: implementation-plan Tasks 2-6.
 
 ## Execution Rule
 
-Do not begin Batch 2 implementation from the approved design alone. Create,
-approve, and promote its own implementation plan before reopening either lane.
-Batches 3-5 remain queued design scope.
+Execute Batch 2 in the implementation plan's task and commit order. Do not
+change backend production code unless Task 1 reproduces a contract defect. Do
+not activate Batches 3-5.
 
 ## Cross-Lane Policy
 
@@ -47,8 +49,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Create the implementation plan for Batch 2, Profile Content Surfaces. This is a
-planning action, not an executable implementation batch.
+Execute Batch 2 only. After final gates pass, close both lanes and make Batch 3,
+Media Post Publishing, the next planning action.
 
 ## Repair Conditions
 

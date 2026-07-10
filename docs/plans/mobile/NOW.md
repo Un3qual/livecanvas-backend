@@ -1,47 +1,43 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-09
-Status: Batch 1 reversible social controls complete
+Status: Batch 2 Profile Content Surfaces active after backend contract proof
 
 ## Lane Scope
 
 - Own `mobile/` and `docs/plans/mobile/**`.
 - Consume explicitly promoted backend contracts recorded in the backend lane.
-- Keep Relay IDs opaque and durable reads/writes Relay-first.
+- Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Completed Batch
+## Current Batch
 
 - Design:
-  `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
-- Implementation:
-  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- Source product plan:
-  `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
+  `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
+- Source plan:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Delivered Unfollow for accepted outbound relationships and Unblock only for
-  viewer-originated blocks.
-- Guarded duplicate/cross-action taps and stale route completions; payload
-  errors remain local and retryable.
+- Current tasks: Tasks 2-6 after backend Task 1 passes.
+- Deliver universal content state, cards, controls, and sections; migrate Home;
+  then add independent profile previews and shared paginated lists.
+- Controls appear in previews and lists: edit/delete for owned posts/stories,
+  report for non-owned posts/stories, and watch navigation for replays.
+- Done condition: Home remains regression-green; viewer and visible other-user
+  profiles show independently retryable previews plus stale-safe full lists.
 
 ## Verification
 
-- `bun run relay`: 48 reader, 44 normalization, and 44 operation documents;
-  no resulting artifact diff.
-- Focused pure route/presentation suites: 9 tests, 0 failures.
-- Focused profile RNTL suite: 11 tests, 0 failures, including A -> B -> A stale
-  mutation completion coverage.
-- `bun run test:quality`: both typechecks and lint passed; 457 Bun tests and 87
-  Jest tests passed.
+- From `mobile/`: `bun run relay`
+- From `mobile/`: focused Bun and RNTL commands in Tasks 2-6
+- From `mobile/`: `bun run test:quality`
+- From repo root: `git diff --check`
 
 ## Deferred Scope
 
-- Batches 2-5 remain queued and are not executable without their own approved
-  implementation plans.
-- Native address-book import and bulk contact upload remain out of scope.
-- Release-candidate manual device/account QA remains deferred until all five
-  product batches close.
+- Batches 3-5 remain queued and are not executable.
+- Media publishing, content details, comments, reactions, replay management,
+  native address-book import, and release-candidate QA remain out of scope.
 
 ## Next Action
 
-No mobile batch is executable. The coordinator should plan Batch 2, Profile
-Content Surfaces, before promoting new mobile work.
+Wait for backend Task 1, then execute Task 2 with failing pure state and route
+tests. Preserve each implementation-plan milestone commit.
