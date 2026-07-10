@@ -28,8 +28,9 @@ Status: Batch 1 reversible social controls complete
 - `bun run relay`: 48 reader, 44 normalization, and 44 operation documents;
   no resulting artifact diff.
 - Focused pure route/presentation suites: 9 tests, 0 failures.
-- Focused profile RNTL suite: 10 tests, 0 failures.
-- `bun run test:quality`: both typechecks and lint passed; 457 Bun tests and 86
+- Focused profile RNTL suite: 11 tests, 0 failures, including A -> B -> A stale
+  mutation completion coverage.
+- `bun run test:quality`: both typechecks and lint passed; 457 Bun tests and 87
   Jest tests passed.
 
 ## Deferred Scope

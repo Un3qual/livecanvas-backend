@@ -1226,8 +1226,8 @@ Execution evidence (2026-07-09):
   `rerender`; awaiting it removed overlapping `act()` scopes without changing
   production behavior.
 - GREEN: the pure route/presentation suites passed 9 tests; the profile RNTL
-  suite passed 10 tests; `bun run typecheck` and `bun run typecheck:tests`
-  both passed.
+  suite passed 11 tests, including a review-added A -> B -> A stale-completion
+  regression; `bun run typecheck` and `bun run typecheck:tests` both passed.
 
 ---
 
@@ -1315,9 +1315,9 @@ Execution evidence (2026-07-09):
   schema export passed with no resulting diff.
 - Relay regenerated 48 reader, 44 normalization, and 44 operation documents
   with no resulting diff.
-- Mobile focused suites: 9 pure tests and 10 RNTL tests, all passing.
+- Mobile focused suites: 9 pure tests and 11 RNTL tests, all passing.
 - Full mobile quality: both typechecks and zero-warning lint passed; 457 Bun
-  tests and 86 Jest tests passed.
+  tests and 87 Jest tests passed.
 
 ---
 

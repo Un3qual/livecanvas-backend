@@ -182,6 +182,49 @@ describe('OtherUserProfileScreen social controls', () => {
     expect(screen.getByRole('button', { name: 'Unfollow' })).toBeOnTheScreen();
   });
 
+  test('ignores an old completion after navigating away and back to the same profile', async () => {
+    const user = userEvent.setup();
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      profileId: 'profile-1',
+      relationshipState: 'ACCEPTED',
+    });
+
+    const view = await render(<OtherUserProfileScreen id="profile-1" />);
+    await user.press(screen.getByRole('button', { name: 'Unfollow' }));
+
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      profileId: 'profile-2',
+      relationshipState: 'ACCEPTED',
+    });
+    await view.rerender(<OtherUserProfileScreen id="profile-2" />);
+
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      profileId: 'profile-1',
+      relationshipState: 'NONE',
+    });
+    await view.rerender(<OtherUserProfileScreen id="profile-1" />);
+
+    await user.press(screen.getByRole('button', { name: 'Block' }));
+    await user.press(screen.getByRole('button', { name: 'Confirm block' }));
+    await completeMutation(mockBlockCommit, {
+      blockUser: { errors: [] },
+    });
+
+    expect(screen.getByText('You blocked this profile.')).toBeOnTheScreen();
+    await completeMutation(mockUnfollowCommit, {
+      unfollowUser: { errors: [] },
+    });
+
+    expect(screen.getByText('You blocked this profile.')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Unblock' })).toBeOnTheScreen();
+  });
+
   test('shows unblock only for an outbound block and submits the opaque Relay ID', async () => {
     const user = userEvent.setup();
     mockQueryData = profileQueryData({

@@ -148,9 +148,10 @@ Focused verification:
   formatter check still reports seven pre-existing, untouched files outside
   this batch.
 - Reversible focused mobile pure suites -> 9 tests, 0 failures.
-- Reversible focused profile RNTL suite -> 10 tests, 0 failures.
+- Reversible focused profile RNTL suite -> 11 tests, 0 failures, including the
+  A -> B -> A stale-completion regression.
 - Full `bun run test:quality` -> typechecks and lint passed; 457 Bun tests and
-  86 Jest tests passed.
+  87 Jest tests passed.
 
 ## Final Verification
 

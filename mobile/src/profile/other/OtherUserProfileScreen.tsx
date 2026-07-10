@@ -1,5 +1,6 @@
 import React, {
   useEffect,
+  useLayoutEffect,
   useReducer,
   useRef,
   useState,
@@ -228,6 +229,7 @@ function OtherUserProfileContent({
   const [blockConfirmationVisible, setBlockConfirmationVisible] =
     useState(false);
   const [isMutedOverride, setIsMutedOverride] = useState<boolean | null>(null);
+  const isActiveRouteGenerationRef = useRef(true);
   const activeRelationshipActionRef = useRef<RelationshipActionKind | null>(null);
   const [commitFollowUser, isFollowUserMutationInFlight] =
     useMutation<OtherUserProfileScreenFollowUserMutation>(
@@ -258,6 +260,17 @@ function OtherUserProfileContent({
     { id },
     { fetchPolicy: 'store-and-network' },
   );
+
+  useLayoutEffect(() => {
+    isActiveRouteGenerationRef.current = true;
+
+    // The keyed content mount is one route generation. Close it during the
+    // commit that unmounts the profile so A -> B -> A cannot revive callbacks
+    // retained by the first A instance.
+    return () => {
+      isActiveRouteGenerationRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     activeRelationshipActionRef.current = null;
@@ -328,6 +341,10 @@ function OtherUserProfileContent({
         },
       },
       onCompleted: (payload) => {
+        if (!isActiveRouteGenerationRef.current) {
+          return;
+        }
+
         activeRelationshipActionRef.current = null;
         setActiveRelationshipAction(null);
         const result = payload.followUser;
@@ -343,6 +360,10 @@ function OtherUserProfileContent({
         });
       },
       onError: () => {
+        if (!isActiveRouteGenerationRef.current) {
+          return;
+        }
+
         activeRelationshipActionRef.current = null;
         setActiveRelationshipAction(null);
         setRelationshipError(
@@ -464,6 +485,10 @@ function OtherUserProfileContent({
     action: Exclude<RelationshipActionKind, 'follow'>,
     result: SocialControlMutationResult | null | undefined,
   ) {
+    if (!isActiveRouteGenerationRef.current) {
+      return;
+    }
+
     activeRelationshipActionRef.current = null;
     setActiveRelationshipAction(null);
 
@@ -507,6 +532,10 @@ function OtherUserProfileContent({
   }
 
   function failSocialControl() {
+    if (!isActiveRouteGenerationRef.current) {
+      return;
+    }
+
     activeRelationshipActionRef.current = null;
     setActiveRelationshipAction(null);
     setRelationshipError(formatRelationshipMutationErrors(null));
