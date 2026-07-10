@@ -109,7 +109,7 @@ defmodule LCGQL.Accounts.ContactResolver do
       }) do
     user
     |> Accounts.list_user_contact_matches()
-    |> Enum.map(&contact_match_node(&1, user))
+    |> contact_match_nodes(user)
     |> Absinthe.Relay.Connection.from_list(args)
   end
 
@@ -117,19 +117,38 @@ defmodule LCGQL.Accounts.ContactResolver do
     Absinthe.Relay.Connection.from_list([], args)
   end
 
-  @spec contact_match_node(LC.Accounts.contact_match()) :: contact_match_node()
-  def contact_match_node(%{contact_entry: %{id: id} = contact_entry} = contact_match) do
+  @spec contact_match_node(LC.Accounts.contact_match(), User.t()) :: contact_match_node()
+  def contact_match_node(contact_match, %User{} = viewer) do
+    contact_match
+    |> project_contact_match()
+    |> Map.update!(:matched_users, &Social.reject_users_blocking_viewer(viewer, &1))
+  end
+
+  @spec contact_match_nodes([LC.Accounts.contact_match()], User.t()) :: [contact_match_node()]
+  defp contact_match_nodes(contact_matches, %User{} = viewer) do
+    candidate_users = Enum.flat_map(contact_matches, & &1.matched_users)
+
+    visible_user_ids =
+      viewer
+      |> Social.reject_users_blocking_viewer(candidate_users)
+      |> Enum.map(& &1.id)
+      |> MapSet.new()
+
+    Enum.map(contact_matches, fn contact_match ->
+      contact_match
+      |> project_contact_match()
+      |> Map.update!(:matched_users, fn matched_users ->
+        Enum.filter(matched_users, &MapSet.member?(visible_user_ids, &1.id))
+      end)
+    end)
+  end
+
+  @spec project_contact_match(LC.Accounts.contact_match()) :: contact_match_node()
+  defp project_contact_match(%{contact_entry: %{id: id} = contact_entry} = contact_match) do
     contact_match
     |> Map.put(:id, id)
     |> Map.put(:contact_name, Map.get(contact_entry, :contact_name))
     |> Map.put(:birthday, Map.get(contact_entry, :birthday))
-  end
-
-  @spec contact_match_node(LC.Accounts.contact_match(), User.t()) :: contact_match_node()
-  def contact_match_node(contact_match, %User{} = viewer) do
-    contact_match
-    |> contact_match_node()
-    |> Map.update!(:matched_users, &Social.reject_users_blocking_viewer(viewer, &1))
   end
 
   @spec contact_upsert_error(contact_upsert_error_reason()) :: mutation_error()

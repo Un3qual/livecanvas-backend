@@ -105,12 +105,14 @@ export function ContactDiscoveryScreen() {
   const data = useLazyLoadQuery<ContactDiscoveryQuery>(
     contactDiscoveryQuery,
     CONTACT_DISCOVERY_QUERY_VARIABLES,
-    { fetchPolicy: 'store-and-network' },
+    // Contact matches expose user identity, so wait for the current block
+    // policy before rendering records cached by an earlier visit.
+    { fetchPolicy: 'network-only' },
   );
   const queryConnection = data.viewerContactMatches;
   const queryPageInfo = readProfileConnectionPageInfo(queryConnection);
-  // Relay can replace the initial connection after a store-and-network refresh;
-  // this key resets locally accumulated pages to that fresh source connection.
+  // Relay replaces the initial connection after the network refresh; this key
+  // resets locally accumulated pages to that fresh source connection.
   const paginationResetKey = [
     queryPageInfo.endCursor ?? '',
     queryPageInfo.hasNextPage ? 'next' : 'end',

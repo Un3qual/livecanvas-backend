@@ -193,5 +193,42 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
                 }
               }} = Absinthe.run(query, LCGQL.Schema, context: context)
     end
+
+    test "batches block visibility across contact match rows" do
+      viewer = user_fixture()
+      matched_users = Enum.map(1..3, fn _index -> user_fixture() end)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      Enum.with_index(matched_users, 1)
+      |> Enum.each(fn {matched_user, index} ->
+        assert {:ok, _contact_entry} =
+                 Accounts.upsert_user_contact_entry(viewer, %{
+                   contact_client_id: "batch-contact-#{index}",
+                   contact_name: "Batch Match #{index}",
+                   emails: [matched_user.email],
+                   phone_numbers: []
+                 })
+      end)
+
+      query = """
+      query {
+        viewerContactMatches(first: 5) {
+          edges {
+            node {
+              matchedUsers {
+                id
+              }
+            }
+          }
+        }
+      }
+      """
+
+      {result, queries} =
+        capture_repo_queries(fn -> Absinthe.run(query, LCGQL.Schema, context: context) end)
+
+      assert {:ok, %{data: %{"viewerContactMatches" => %{"edges" => [_, _, _]}}}} = result
+      assert count_table_queries(queries, "blocks") == 1
+    end
   end
 end

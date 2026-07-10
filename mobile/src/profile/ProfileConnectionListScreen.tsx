@@ -110,7 +110,9 @@ export function ProfileConnectionListScreen({
     ? { ...PROFILE_CONNECTION_QUERY_VARIABLES, id: profileId }
     : PROFILE_CONNECTION_QUERY_VARIABLES;
   const data = useLazyLoadQuery(config.query, variables, {
-    fetchPolicy: 'store-and-network',
+    // Connection members can block the viewer between visits. Do not render
+    // cached identities before the server reapplies directional visibility.
+    fetchPolicy: 'network-only',
   }) as ProfileConnectionQueryData;
   const initialConnection = selectProfileConnection(data, kind);
   const initialPageInfo = readProfileConnectionPageInfo(initialConnection);

@@ -218,7 +218,9 @@ function ViewerProfileContent() {
       }
     `,
     {},
-    { fetchPolicy: 'store-and-network' },
+    // Followers, following, and pending requesters can become hidden without
+    // a local action, so cached user-bearing rows must wait for reauthorization.
+    { fetchPolicy: 'network-only' },
   );
 
   const viewer = data.viewer;

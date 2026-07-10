@@ -244,7 +244,9 @@ function OtherUserProfileContent({
   const data = useLazyLoadQuery<OtherUserProfileScreenQuery>(
     otherUserProfileScreenQuery,
     { id },
-    { fetchPolicy: 'store-and-network' },
+    // Block visibility can change without this viewer taking an action. Never
+    // render a cached profile until the current authorization response arrives.
+    { fetchPolicy: 'network-only' },
   );
 
   useEffect(() => {

@@ -91,7 +91,9 @@ export function PendingFollowRequestsScreen() {
   const data = useLazyLoadQuery<PendingRequestsQuery>(
     pendingRequestsQuery,
     PROFILE_CONNECTION_QUERY_VARIABLES,
-    { fetchPolicy: 'store-and-network' },
+    // A requester can block the viewer after a prior fetch, so the cached inbox
+    // is withheld until current directional visibility is confirmed.
+    { fetchPolicy: 'network-only' },
   );
   const initialConnection = data.viewerPendingFollowRequests;
   const initialPageInfo = readProfileConnectionPageInfo(initialConnection);
