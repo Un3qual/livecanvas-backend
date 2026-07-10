@@ -31,8 +31,8 @@ defmodule LCGQL.Schema do
   query do
     node field do
       resolve(fn
-        %{type: :user, id: id}, _resolution ->
-          fetch_user_node(id)
+        %{type: :user, id: id}, resolution ->
+          fetch_user_node(id, resolution)
 
         %{type: :user_identity, id: id}, resolution ->
           fetch_user_identity_node(id, resolution)
@@ -172,9 +172,17 @@ defmodule LCGQL.Schema do
 
   # Node resolution crosses from GraphQL IDs into boundary APIs, so keep the
   # lookup logic centralized and failure-tolerant at the schema edge.
-  defp fetch_user_node(id) do
+  defp fetch_user_node(id, resolution) do
     with {:ok, local_id} <- cast_node_local_id(id) do
-      {:ok, Accounts.get_user!(local_id)}
+      user = Accounts.get_user!(local_id)
+
+      case Resolution.viewer(resolution) do
+        {:ok, viewer} ->
+          if Social.blocked_by?(viewer, user), do: {:ok, nil}, else: {:ok, user}
+
+        :error ->
+          {:ok, user}
+      end
     else
       :error -> {:ok, nil}
     end

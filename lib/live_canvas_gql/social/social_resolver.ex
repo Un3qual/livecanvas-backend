@@ -124,7 +124,7 @@ defmodule LCGQL.Social.Resolver do
     # contract, so GraphQL derives the viewer from auth scope instead of
     # trusting a caller-supplied viewer ID.
     with {:ok, viewer} <- Resolution.viewer(resolution),
-         {:ok, creator} <- fetch_user(creator_id, :creator_id) do
+         {:ok, creator} <- fetch_visible_user(creator_id, :creator_id, viewer) do
       {:ok, Social.relationship_state(viewer, creator)}
     else
       _ -> {:ok, :none}
@@ -134,7 +134,7 @@ defmodule LCGQL.Social.Resolver do
   @spec is_muted(any(), %{creator_id: term()}, Absinthe.Resolution.t()) :: {:ok, boolean()}
   def is_muted(_parent, %{creator_id: creator_id}, resolution) do
     with {:ok, viewer} <- Resolution.viewer(resolution),
-         {:ok, creator} <- fetch_user(creator_id, :creator_id) do
+         {:ok, creator} <- fetch_visible_user(creator_id, :creator_id, viewer) do
       {:ok, Social.muted?(viewer, creator)}
     else
       # Keep read queries stable by treating invalid or missing users as
@@ -185,6 +185,18 @@ defmodule LCGQL.Social.Resolver do
       end
     else
       {:error, reason} -> {:error, {field, reason}}
+    end
+  end
+
+  @spec fetch_visible_user(term(), atom(), User.t()) ::
+          {:ok, User.t()} | {:error, {atom(), fetch_user_error()}}
+  defp fetch_visible_user(user_id, field, %User{} = viewer) do
+    with {:ok, user} <- fetch_user(user_id, field),
+         false <- Social.blocked_by?(viewer, user) do
+      {:ok, user}
+    else
+      true -> {:error, {field, :not_found}}
+      {:error, _reason} = error -> error
     end
   end
 

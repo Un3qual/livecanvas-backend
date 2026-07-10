@@ -6,7 +6,7 @@ defmodule LCGQL.Social.SocialQueriesTest do
   alias LC.{Accounts, Social}
 
   describe "relationshipState" do
-    test "reports blocked for the authenticated viewer" do
+    test "returns NONE when the creator blocked the authenticated viewer" do
       viewer = user_fixture()
       creator = user_fixture()
       creator_id = Absinthe.Relay.Node.to_global_id(:user, creator.id, LCGQL.Schema)
@@ -14,6 +14,27 @@ defmodule LCGQL.Social.SocialQueriesTest do
 
       {:ok, _follow} = Social.follow_user(viewer, creator)
       {:ok, _block} = Social.block_user(creator, viewer)
+
+      query = """
+      query($creatorId: ID!) {
+        relationshipState(creatorId: $creatorId)
+      }
+      """
+
+      assert {:ok, %{data: %{"relationshipState" => "NONE"}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"creatorId" => creator_id},
+                 context: context
+               )
+    end
+
+    test "reports BLOCKED when the authenticated viewer blocked the creator" do
+      viewer = user_fixture()
+      creator = user_fixture()
+      creator_id = Absinthe.Relay.Node.to_global_id(:user, creator.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      {:ok, _block} = Social.block_user(viewer, creator)
 
       query = """
       query($creatorId: ID!) {
@@ -112,6 +133,28 @@ defmodule LCGQL.Social.SocialQueriesTest do
                  context: context
                )
     end
+
+    test "returns false when the muted creator blocked the authenticated viewer" do
+      viewer = user_fixture()
+      creator = user_fixture()
+      creator_id = Absinthe.Relay.Node.to_global_id(:user, creator.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _mute} = Social.mute_user(viewer, creator)
+      assert {:ok, _block} = Social.block_user(creator, viewer)
+
+      query = """
+      query($creatorId: ID!) {
+        isMuted(creatorId: $creatorId)
+      }
+      """
+
+      assert {:ok, %{data: %{"isMuted" => false}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"creatorId" => creator_id},
+                 context: context
+               )
+    end
   end
 
   describe "viewer visibility matrix" do
@@ -166,7 +209,7 @@ defmodule LCGQL.Social.SocialQueriesTest do
                 data: %{
                   "publicRelationship" => "PUBLIC",
                   "followedRelationship" => "ACCEPTED",
-                  "blockedRelationship" => "BLOCKED",
+                  "blockedRelationship" => "NONE",
                   "mutedRelationship" => "PUBLIC",
                   "reverseMutedRelationship" => "PUBLIC",
                   "mutedCreatorMuted" => true,
@@ -365,7 +408,7 @@ defmodule LCGQL.Social.SocialQueriesTest do
   end
 
   describe "privacy-aware relationship connections" do
-    test "hides public-account relationship connections from blocked viewers" do
+    test "hides the public-account node from viewers blocked by its owner" do
       public_user = user_fixture(privacy_mode: :public)
       viewer = user_fixture()
       follower = user_fixture()
@@ -388,15 +431,7 @@ defmodule LCGQL.Social.SocialQueriesTest do
       }
       """
 
-      assert {:ok,
-              %{
-                data: %{
-                  "node" => %{
-                    "followers" => %{"edges" => []},
-                    "following" => %{"edges" => []}
-                  }
-                }
-              }} =
+      assert {:ok, %{data: %{"node" => nil}}} =
                Absinthe.run(query, LCGQL.Schema,
                  variables: %{"id" => public_user_id, "first" => 10},
                  context: viewer_context
