@@ -18,7 +18,8 @@ block and directional mute behavior.
 - `LC.ReadPolicy.Scopes` is internal and owns the generic Ecto binding/join
   mechanics.
 - The exported `LC.ReadPolicy` facade exposes owner-derived decisions and
-  action-specific scopes for posts, live sessions, users, and follow requests.
+  action-specific scopes for posts, live sessions, relationship-graph users,
+  and pending follow requests.
 - `LC.Social.visible_follower_users_query/2` and
   `visible_following_users_query/2` authorize the relationship graph before
   returning a query; no public raw-query escape hatch remains.
@@ -43,11 +44,10 @@ block and directional mute behavior.
 
 ## Verification
 
-- 248 focused policy, social, feed, chat, contact, Relay-node, GraphQL, and
+- 216 focused policy, social, feed, chat, contact, Relay-node, GraphQL, and
   integration tests: 0 failures.
-- Full backend suite: 932 tests, 2 known failures outside the PR diff
-  (`SeedDataTest` sees a preserved ad-hoc starting session;
-  `LiveSessionFlowTest` still asserts the obsolete `actor_id` reply shape).
+- Timeline channel integration test: 1 test, 0 failures.
+- Full backend suite: 931 tests, 0 failures, 1 excluded.
 - `mix compile --warnings-as-errors`: passed.
 - `mix typecheck`: passed with 0 Dialyzer errors.
 - `mix boundary.spec`: passed; internal scope modules remain unexported.

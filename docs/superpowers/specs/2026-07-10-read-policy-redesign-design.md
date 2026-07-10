@@ -136,15 +136,13 @@ the focused privacy suite, related feed/chat/live authorization tests,
 - GraphQL user resolution, social reads, graph authorization, and contact
   projection now call `ReadPolicy` without encoding block direction locally.
 - Generic Ecto scope composition lives in internal `LC.ReadPolicy.Scopes`; the
-  exported facade exposes action-specific post, live-session, user, and follow
-  request query policies.
+  exported facade exposes action-specific post, live-session,
+  relationship-graph user, and pending-follow-request query policies.
 - Repo-query capture now uses unique references and caller-chain scoping, then
   detaches before draining, preserving meaningful async query-count assertions
   without cross-test contamination.
 
 Fresh verification: touched-file formatting, warning-free compilation,
 Dialyzer with 0 errors, Boundary, and changed-code analysis passed; the focused
-policy/privacy/authorization suite passed 248 tests with 0 failures. The full
-932-test backend suite retains two unrelated failures: the known seed-data
-starting-session assertion and an integration assertion for the obsolete
-timeline `actor_id` reply shape.
+policy/privacy/authorization suite passed 216 tests with 0 failures. The full
+backend suite passed 931 tests with 0 failures and 1 excluded test.
