@@ -12,8 +12,8 @@ import {
   isViewerOwnedPost,
   selectPostOwnerEditVisibility,
   updatePostOwnerEditBody,
-} from '../../src/feed/postOwnerControlsState';
-import { POST_COMPOSER_BODY_TEXT_MAX_LENGTH } from '../../src/feed/postComposerState';
+} from '../../src/content/postOwnerControlsState';
+import { POST_COMPOSER_BODY_TEXT_MAX_LENGTH } from '../../src/content/postComposerState';
 
 describe('postOwnerControlsState', () => {
   test('checks ownership using opaque Relay ID equality only', () => {

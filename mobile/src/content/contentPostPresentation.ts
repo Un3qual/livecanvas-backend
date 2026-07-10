@@ -1,33 +1,33 @@
-export type FeedPostAuthorInput = {
+export type ContentPostAuthor = {
   readonly id: string;
   readonly email?: string | null;
 };
 
-export type FeedMediaAssetInput = {
+export type ContentMediaAsset = {
   readonly id: string;
   readonly mimeType?: string | null;
   readonly processingState: string | null | undefined;
   readonly publicUrl?: string | null;
 };
 
-export type FeedPostCardInput = {
+export type ContentPost = {
   readonly id: string;
   readonly kind: string | null | undefined;
   readonly bodyText?: string | null;
   readonly visibility: string | null | undefined;
   readonly expiresAt?: string | null;
   readonly insertedAt?: string | null;
-  readonly author: FeedPostAuthorInput;
-  readonly mediaAssets?: ReadonlyArray<FeedMediaAssetInput> | null;
+  readonly author: ContentPostAuthor;
+  readonly mediaAssets?: ReadonlyArray<ContentMediaAsset> | null;
 };
 
-export type FeedPostAuthorPresentation = {
+export type ContentPostAuthorPresentation = {
   readonly title: string;
   readonly subtitle: string;
   readonly initials: string;
 };
 
-export type FeedMediaAssetPresentation = {
+export type ContentMediaAssetPresentation = {
   readonly id: string;
   readonly label: string;
   readonly state: 'available' | 'processing' | 'failed' | 'unavailable';
@@ -35,36 +35,36 @@ export type FeedMediaAssetPresentation = {
   readonly body: string;
 };
 
-export type FeedPostCardPresentation = {
+export type ContentPostPresentation = {
   readonly id: string;
   readonly kindLabel: string;
   readonly body: string;
   readonly visibilityLabel: string;
   readonly timestampLabel: string;
   readonly storyExpiryLabel: string | null;
-  readonly author: FeedPostAuthorPresentation;
-  readonly mediaAssets: ReadonlyArray<FeedMediaAssetPresentation>;
+  readonly author: ContentPostAuthorPresentation;
+  readonly mediaAssets: ReadonlyArray<ContentMediaAssetPresentation>;
 };
 
 export function formatPostCardPresentation(
-  post: FeedPostCardInput,
-): FeedPostCardPresentation {
+  post: ContentPost,
+): ContentPostPresentation {
   return {
     id: post.id,
     kindLabel: formatPostKindLabel(post.kind),
     body: formatPostBody(post.bodyText),
     visibilityLabel: formatPostVisibilityLabel(post.visibility),
-    timestampLabel: formatFeedDate(post.insertedAt),
+    timestampLabel: formatContentDate(post.insertedAt),
     storyExpiryLabel: formatStoryExpiryLabel(post.expiresAt),
     author: formatPostAuthorPresentation(),
     mediaAssets:
       post.mediaAssets?.map((asset) =>
-        formatFeedMediaAssetPresentation(asset),
+        formatContentMediaAssetPresentation(asset),
       ) ?? [],
   };
 }
 
-export function formatPostAuthorPresentation(): FeedPostAuthorPresentation {
+export function formatPostAuthorPresentation(): ContentPostAuthorPresentation {
   return {
     title: 'LiveCanvas creator',
     subtitle: 'Creator',
@@ -94,18 +94,18 @@ export function formatStoryExpiryLabel(
     return null;
   }
 
-  const formattedDate = formatFeedDate(expiresAt);
+  const formattedDate = formatContentDate(expiresAt);
 
   return formattedDate === 'Date unavailable'
     ? 'Expiry unavailable'
     : `Expires ${formattedDate}`;
 }
 
-export function formatFeedMediaAssetPresentation(
-  asset: FeedMediaAssetInput,
-): FeedMediaAssetPresentation {
+export function formatContentMediaAssetPresentation(
+  asset: ContentMediaAsset,
+): ContentMediaAssetPresentation {
   if (asset.processingState === 'PROCESSED') {
-    const publicUrl = normalizeFeedMediaPublicUrl(asset.publicUrl);
+    const publicUrl = normalizeContentMediaPublicUrl(asset.publicUrl);
 
     if (publicUrl) {
       return {
@@ -169,8 +169,8 @@ function formatMediaAssetLabel(mimeType: string | null | undefined): string {
 }
 
 function unavailableMedia(
-  asset: FeedMediaAssetInput,
-): FeedMediaAssetPresentation {
+  asset: ContentMediaAsset,
+): ContentMediaAssetPresentation {
   return {
     id: asset.id,
     label: formatMediaAssetLabel(asset.mimeType),
@@ -180,7 +180,7 @@ function unavailableMedia(
   };
 }
 
-function normalizeFeedMediaPublicUrl(
+function normalizeContentMediaPublicUrl(
   publicUrl: string | null | undefined,
 ): string | null {
   const trimmedPublicUrl = publicUrl?.trim();
@@ -189,7 +189,7 @@ function normalizeFeedMediaPublicUrl(
     return null;
   }
 
-  const parsedUrl = parseFeedMediaPublicUrl(trimmedPublicUrl);
+  const parsedUrl = parseContentMediaPublicUrl(trimmedPublicUrl);
 
   if (
     parsedUrl == null ||
@@ -201,7 +201,7 @@ function normalizeFeedMediaPublicUrl(
   return trimmedPublicUrl;
 }
 
-function parseFeedMediaPublicUrl(publicUrl: string): URL | null {
+function parseContentMediaPublicUrl(publicUrl: string): URL | null {
   try {
     return new URL(publicUrl);
   } catch {
@@ -209,7 +209,7 @@ function parseFeedMediaPublicUrl(publicUrl: string): URL | null {
   }
 }
 
-function formatFeedDate(value: string | null | undefined): string {
+function formatContentDate(value: string | null | undefined): string {
   if (value == null) {
     return 'Date unavailable';
   }

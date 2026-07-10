@@ -6,7 +6,7 @@ import {
   postOwnerControlUpdatePostMutation,
   type PostOwnerControlDeletePostMutation,
   type PostOwnerControlUpdatePostMutation,
-} from '../feed/postOwnerControlOperations';
+} from './postOwnerControlOperations';
 import {
   buildDeletePostInput,
   buildPostOwnerEditState,
@@ -17,7 +17,7 @@ import {
   selectPostOwnerEditVisibility,
   updatePostOwnerEditBody,
   type PostOwnerEditState,
-} from '../feed/postOwnerControlsState';
+} from './postOwnerControlsState';
 import {
   DEFAULT_REPORT_POST_REASON,
   canSubmitPostReport,
@@ -25,15 +25,13 @@ import {
   formatReportPostMutationErrors,
   reportPostReducer,
   type ReportPostState,
-} from '../feed/reportPostReducer';
-import type { FeedPostCardInput } from '../feed/feedPresentation';
+} from './reportPostReducer';
+import type { ContentPost } from './contentPostPresentation';
 import type { ContentPostChanges } from './contentPostChanges';
 import {
   contentSurfaceReportPostMutation,
   type ContentSurfaceReportPostMutation,
 } from './contentSurfaceOperations';
-
-export type ContentPost = FeedPostCardInput;
 
 export type PostOwnerPendingAction =
   | {

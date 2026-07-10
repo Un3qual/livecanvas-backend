@@ -53,4 +53,21 @@ export default [
       },
     },
   },
+  {
+    files: ['src/content/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['../feed/*'],
+              message:
+                'Shared content modules must not depend on feed-owned modules.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ];

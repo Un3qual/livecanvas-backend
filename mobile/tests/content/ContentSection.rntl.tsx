@@ -3,7 +3,7 @@ import { render, screen, userEvent } from '@testing-library/react-native';
 import { ContentSection } from '../../src/content/ContentSection';
 import type { ContentPost } from '../../src/content/ContentPostCard';
 import type { PostControls } from '../../src/content/usePostControls';
-import { createReportPostState } from '../../src/feed/reportPostReducer';
+import { createReportPostState } from '../../src/content/reportPostReducer';
 
 describe('ContentSection', () => {
   test('renders post rows with controls and a view-all action', async () => {

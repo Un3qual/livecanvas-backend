@@ -4,18 +4,19 @@ import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import {
   formatPostCardPresentation,
-  type FeedMediaAssetPresentation,
-} from '../feed/feedPresentation';
+  type ContentMediaAssetPresentation,
+  type ContentPost,
+} from './contentPostPresentation';
 import {
   POST_OWNER_DELETE_CONFIRMATION,
   isViewerOwnedPost,
-} from '../feed/postOwnerControlsState';
-import { isPostReportConfirmed } from '../feed/reportPostReducer';
+} from './postOwnerControlsState';
+import { isPostReportConfirmed } from './reportPostReducer';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { radius, spacing, typography } from '../theme/tokens';
-import type { ContentPost, PostControls } from './usePostControls';
+import type { PostControls } from './usePostControls';
 
-export type { ContentPost } from './usePostControls';
+export type { ContentPost } from './contentPostPresentation';
 
 export type ContentPostCardProps = {
   readonly controls: PostControls;
@@ -281,7 +282,7 @@ export function ContentPostCard({
   );
 }
 
-function MediaAssetRow({ asset }: { asset: FeedMediaAssetPresentation }) {
+function MediaAssetRow({ asset }: { asset: ContentMediaAssetPresentation }) {
   const theme = useAppTheme();
 
   return (

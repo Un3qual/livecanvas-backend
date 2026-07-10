@@ -7,6 +7,7 @@ export type {
   postOwnerControlOperationsDeletePostMutation as PostOwnerControlDeletePostMutation,
 } from '../__generated__/postOwnerControlOperationsDeletePostMutation.graphql';
 
+/** Relay mutations shared by Home and profile content surfaces. */
 export const postOwnerControlUpdatePostMutation = graphql`
   mutation postOwnerControlOperationsUpdatePostMutation(
     $input: UpdatePostInput!
