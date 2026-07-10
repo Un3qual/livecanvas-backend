@@ -1,5 +1,5 @@
 defmodule LCGQL.Accounts.ContactResolver do
-  alias LC.Accounts
+  alias LC.{Accounts, Social}
   alias LCGQL.MutationErrors
   alias LCSchemas.Accounts.User
 
@@ -57,7 +57,7 @@ defmodule LCGQL.Accounts.ContactResolver do
         contact_match =
           user
           |> Accounts.get_user_contact_match(contact_entry.id)
-          |> contact_match_payload()
+          |> contact_match_payload(user)
 
         {:ok, %{contact_match: contact_match, errors: []}}
 
@@ -109,7 +109,7 @@ defmodule LCGQL.Accounts.ContactResolver do
       }) do
     user
     |> Accounts.list_user_contact_matches()
-    |> Enum.map(&contact_match_node/1)
+    |> Enum.map(&contact_match_node(&1, user))
     |> Absinthe.Relay.Connection.from_list(args)
   end
 
@@ -123,6 +123,13 @@ defmodule LCGQL.Accounts.ContactResolver do
     |> Map.put(:id, id)
     |> Map.put(:contact_name, Map.get(contact_entry, :contact_name))
     |> Map.put(:birthday, Map.get(contact_entry, :birthday))
+  end
+
+  @spec contact_match_node(LC.Accounts.contact_match(), User.t()) :: contact_match_node()
+  def contact_match_node(contact_match, %User{} = viewer) do
+    contact_match
+    |> contact_match_node()
+    |> Map.update!(:matched_users, &Social.reject_users_blocking_viewer(viewer, &1))
   end
 
   @spec contact_upsert_error(contact_upsert_error_reason()) :: mutation_error()
@@ -168,7 +175,10 @@ defmodule LCGQL.Accounts.ContactResolver do
   defp invite_delivery_error(:delivery_failed),
     do: MutationErrors.user_error(nil, :delivery_failed)
 
-  @spec contact_match_payload(LC.Accounts.contact_match() | nil) :: contact_match_node() | nil
-  defp contact_match_payload(nil), do: nil
-  defp contact_match_payload(contact_match), do: contact_match_node(contact_match)
+  @spec contact_match_payload(LC.Accounts.contact_match() | nil, User.t()) ::
+          contact_match_node() | nil
+  defp contact_match_payload(nil, %User{}), do: nil
+
+  defp contact_match_payload(contact_match, %User{} = viewer),
+    do: contact_match_node(contact_match, viewer)
 end

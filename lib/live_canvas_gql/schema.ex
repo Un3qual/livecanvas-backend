@@ -315,7 +315,7 @@ defmodule LCGQL.Schema do
     fetch_viewer_scoped_node(id, resolution, fn user, local_id ->
       user
       |> Accounts.get_user_contact_match(local_id)
-      |> maybe_contact_match_node()
+      |> maybe_contact_match_node(user)
     end)
   end
 
@@ -328,12 +328,12 @@ defmodule LCGQL.Schema do
     end
   end
 
-  @spec maybe_contact_match_node(Accounts.contact_match() | nil) ::
+  @spec maybe_contact_match_node(Accounts.contact_match() | nil, User.t()) ::
           ContactResolver.contact_match_node() | nil
-  defp maybe_contact_match_node(nil), do: nil
+  defp maybe_contact_match_node(nil, %User{}), do: nil
 
-  defp maybe_contact_match_node(contact_match),
-    do: ContactResolver.contact_match_node(contact_match)
+  defp maybe_contact_match_node(contact_match, %User{} = viewer),
+    do: ContactResolver.contact_match_node(contact_match, viewer)
 
   @spec cast_node_local_id(term()) :: {:ok, integer()} | :error
   defp cast_node_local_id(value) do

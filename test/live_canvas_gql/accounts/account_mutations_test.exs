@@ -5,7 +5,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   import LC.PasskeyTestSupport
   import LC.ProviderAuthTestSupport
 
-  alias LC.Accounts
+  alias LC.{Accounts, Social}
   alias LC.Infra.Repo
   alias LCSchemas.Accounts.UserToken
   alias LCSchemas.Infra.{AccountDeletionRequest, AsyncJob, DataExportRequest}
@@ -1068,6 +1068,50 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                  mutation,
                  LCGQL.Schema,
                  variables: updated_variables,
+                 context: context
+               )
+    end
+
+    test "omits a matched user who blocked the viewer from the mutation payload" do
+      viewer = user_fixture()
+      hidden_match = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _block} = Social.block_user(hidden_match, viewer)
+
+      mutation = """
+      mutation($email: String!) {
+        upsertViewerContactEntry(
+          input: {
+            contactClientId: "hidden-contact"
+            emails: [$email]
+            phoneNumbers: []
+          }
+        ) {
+          contactMatch {
+            matchedUsers {
+              id
+            }
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "upsertViewerContactEntry" => %{
+                    "contactMatch" => %{"matchedUsers" => []},
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"email" => hidden_match.email},
                  context: context
                )
     end

@@ -146,7 +146,12 @@ defmodule LCGQL.Social.Resolver do
   @spec followers(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def followers(%{id: _id} = user, args, resolution) do
     if can_view_relationship_graph?(user, resolution) do
-      query = Social.follower_users_query(user)
+      query =
+        case Resolution.viewer(resolution) do
+          {:ok, viewer} -> Social.follower_users_query(user, viewer)
+          :error -> Social.follower_users_query(user)
+        end
+
       Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
     else
       Absinthe.Relay.Connection.from_list([], args)
@@ -156,7 +161,12 @@ defmodule LCGQL.Social.Resolver do
   @spec following(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def following(%{id: _id} = user, args, resolution) do
     if can_view_relationship_graph?(user, resolution) do
-      query = Social.following_users_query(user)
+      query =
+        case Resolution.viewer(resolution) do
+          {:ok, viewer} -> Social.following_users_query(user, viewer)
+          :error -> Social.following_users_query(user)
+        end
+
       Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
     else
       Absinthe.Relay.Connection.from_list([], args)

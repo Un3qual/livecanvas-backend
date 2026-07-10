@@ -405,6 +405,52 @@ defmodule LCGQL.Social.SocialQueriesTest do
       assert {:ok, %{data: %{"viewerPendingFollowRequests" => %{"edges" => []}}}} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10})
     end
+
+    test "omits requesters who blocked the viewer from the inbox and node refetch" do
+      viewer = user_fixture(privacy_mode: :private)
+      visible_requester = user_fixture()
+      hidden_requester = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, visible_follow} = Social.follow_user(visible_requester, viewer)
+      assert {:ok, hidden_follow} = Social.follow_user(hidden_requester, viewer)
+      assert {:ok, _block} = Social.block_user(hidden_requester, viewer)
+
+      visible_follow_id =
+        Absinthe.Relay.Node.to_global_id(:follow_request, visible_follow.id, LCGQL.Schema)
+
+      hidden_follow_id =
+        Absinthe.Relay.Node.to_global_id(:follow_request, hidden_follow.id, LCGQL.Schema)
+
+      query = """
+      query($hiddenId: ID!) {
+        viewerPendingFollowRequests(first: 10) {
+          edges {
+            node {
+              id
+            }
+          }
+        }
+        hiddenRequest: node(id: $hiddenId) {
+          id
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "viewerPendingFollowRequests" => %{
+                    "edges" => [%{"node" => %{"id" => ^visible_follow_id}}]
+                  },
+                  "hiddenRequest" => nil
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"hiddenId" => hidden_follow_id},
+                 context: context
+               )
+    end
   end
 
   describe "privacy-aware relationship connections" do
@@ -435,6 +481,59 @@ defmodule LCGQL.Social.SocialQueriesTest do
                Absinthe.run(query, LCGQL.Schema,
                  variables: %{"id" => public_user_id, "first" => 10},
                  context: viewer_context
+               )
+    end
+
+    test "omits users who blocked the viewer from the viewer's own connections" do
+      viewer = user_fixture(privacy_mode: :public)
+      visible_follower = user_fixture()
+      hidden_follower = user_fixture()
+      visible_followed = user_fixture(privacy_mode: :public)
+      hidden_followed = user_fixture(privacy_mode: :public)
+      viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+
+      visible_follower_id =
+        Absinthe.Relay.Node.to_global_id(:user, visible_follower.id, LCGQL.Schema)
+
+      visible_followed_id =
+        Absinthe.Relay.Node.to_global_id(:user, visible_followed.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _follow} = Social.follow_user(visible_follower, viewer)
+      assert {:ok, _follow} = Social.follow_user(hidden_follower, viewer)
+      assert {:ok, _follow} = Social.follow_user(viewer, visible_followed)
+      assert {:ok, _follow} = Social.follow_user(viewer, hidden_followed)
+      assert {:ok, _block} = Social.block_user(hidden_follower, viewer)
+      assert {:ok, _block} = Social.block_user(hidden_followed, viewer)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          ... on User {
+            followers(first: 10) { edges { node { id } } }
+            following(first: 10) { edges { node { id } } }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "followers" => %{
+                      "edges" => [%{"node" => %{"id" => ^visible_follower_id}}]
+                    },
+                    "following" => %{
+                      "edges" => [%{"node" => %{"id" => ^visible_followed_id}}]
+                    }
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => viewer_id},
+                 context: context
                )
     end
 
