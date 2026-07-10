@@ -79,7 +79,7 @@ exports `mobile/schema.graphql`.
 - Consumes: `%LCSchemas.Accounts.User{}` actor and target structs.
 - Produces: `LC.Social.unfollow_user/2 :: :ok`, `LC.Social.unblock_user/2 :: :ok`, and `LC.Social.blocked_by_viewer?/2 :: boolean()`.
 
-- [ ] **Step 1: Write failing directional and idempotency tests**
+- [x] **Step 1: Write failing directional and idempotency tests**
 
 Add this describe block after the existing mute-control tests:
 
@@ -122,7 +122,7 @@ describe "reversible relationship controls" do
 end
 ```
 
-- [ ] **Step 2: Run the focused domain tests and verify the new tests fail**
+- [x] **Step 2: Run the focused domain tests and verify the new tests fail**
 
 Run:
 
@@ -132,7 +132,7 @@ mix test test/live_canvas/social_test.exs
 
 Expected: FAIL because `LC.Social.unfollow_user/2`, `unblock_user/2`, and `blocked_by_viewer?/2` are undefined.
 
-- [ ] **Step 3: Implement the minimal directional operations**
+- [x] **Step 3: Implement the minimal directional operations**
 
 Add result types beside the current mute result types:
 
@@ -184,7 +184,7 @@ end
 
 Do not reuse `blocked_between?/2`; that helper is intentionally bidirectional and would leak inbound block state.
 
-- [ ] **Step 4: Format and rerun the focused domain tests**
+- [x] **Step 4: Format and rerun the focused domain tests**
 
 Run:
 
@@ -195,12 +195,18 @@ mix test test/live_canvas/social_test.exs
 
 Expected: PASS with zero failures.
 
-- [ ] **Step 5: Commit the domain milestone**
+- [x] **Step 5: Commit the domain milestone**
 
 ```bash
 git add lib/live_canvas/social.ex test/live_canvas/social_test.exs
 git commit -m "feat: add reversible social domain controls"
 ```
+
+Execution evidence (2026-07-09):
+
+- RED: `mix test test/live_canvas/social_test.exs` -> 13 tests, 2 failures for
+  undefined `unfollow_user/2`, `unblock_user/2`, and `blocked_by_viewer?/2`.
+- GREEN: the same command -> 13 tests, 0 failures.
 
 ---
 
