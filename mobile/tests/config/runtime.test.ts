@@ -65,6 +65,34 @@ describe('routeHrefFromUrl', () => {
     expect(routeHrefFromUrl('livecanvas-mobile://sign-up')).toBe('/sign-up');
   });
 
+  test('accepts password recovery auth routes and reset tokens', () => {
+    expect(routeHrefFromUrl('livecanvas-mobile://password-recovery')).toBe(
+      '/password-recovery',
+    );
+    expect(
+      routeHrefFromUrl('livecanvas-mobile://reset-password?token=reset-token'),
+    ).toBe('/reset-password?token=reset-token');
+  });
+
+  test('maps backend password reset links to the mobile reset route', () => {
+    expect(
+      routeHrefFromUrl('livecanvas-mobile://users/reset-password/reset-token'),
+    ).toBe('/reset-password?token=reset-token');
+    expect(
+      routeHrefFromUrl(
+        'https://livecanvas.invalid/users/reset-password/reset-token',
+      ),
+    ).toBe('/reset-password?token=reset-token');
+  });
+
+  test('does not double-encode backend password reset tokens', () => {
+    expect(
+      routeHrefFromUrl(
+        'https://livecanvas.invalid/users/reset-password/abc%2Bdef',
+      ),
+    ).toBe('/reset-password?token=abc%2Bdef');
+  });
+
   test('preserves live-session query params in known protected deep links', () => {
     expect(
       routeHrefFromUrl(
@@ -139,6 +167,23 @@ describe('resolveLandingHrefForAuth', () => {
         'unauthenticated',
       ),
     ).toBe('/sign-up');
+  });
+
+  test('preserves reset-password deep links for unauthenticated sessions', () => {
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          initialUrl:
+            'livecanvas-mobile://users/reset-password/reset-token',
+          initialHref: '/reset-password?token=reset-token',
+          landingHref: '/reset-password?token=reset-token',
+          defaultHref: '/sign-in',
+          bootSessionState: 'signed_out',
+          resetReason: null,
+        },
+        'unauthenticated',
+      ),
+    ).toBe('/reset-password?token=reset-token');
   });
 
   test('sends authenticated auth-route cold starts to home', () => {
@@ -298,6 +343,52 @@ describe('resolveLandingHrefForAuth', () => {
       ),
     ).toBe('/sign-in?returnTo=%2Fcompose');
   });
+
+  test('preserves settings and contacts deep links across auth routing', () => {
+    const settingsSnapshot = {
+      initialUrl: 'livecanvas-mobile://settings',
+      initialHref: '/settings',
+      landingHref: '/settings',
+      defaultHref: '/home',
+      bootSessionState: 'authenticated' as const,
+      resetReason: null,
+    };
+    const contactsSnapshot = {
+      initialUrl: 'livecanvas-mobile://contacts',
+      initialHref: '/contacts',
+      landingHref: '/contacts',
+      defaultHref: '/home',
+      bootSessionState: 'authenticated' as const,
+      resetReason: null,
+    };
+
+    expect(resolveLandingHrefForAuth(settingsSnapshot, 'authenticated')).toBe(
+      '/settings',
+    );
+    expect(resolveLandingHrefForAuth(contactsSnapshot, 'authenticated')).toBe(
+      '/contacts',
+    );
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          ...settingsSnapshot,
+          bootSessionState: 'signed_out',
+          defaultHref: '/sign-in',
+        },
+        'unauthenticated',
+      ),
+    ).toBe('/sign-in?returnTo=%2Fsettings');
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          ...contactsSnapshot,
+          bootSessionState: 'signed_out',
+          defaultHref: '/sign-in',
+        },
+        'unauthenticated',
+      ),
+    ).toBe('/sign-in?returnTo=%2Fcontacts');
+  });
 });
 
 describe('auth return targets', () => {
@@ -330,6 +421,15 @@ describe('auth return targets', () => {
     );
   });
 
+  test('encodes settings and contacts return targets on auth routes', () => {
+    expect(authRouteHref('/sign-in', '/settings')).toBe(
+      '/sign-in?returnTo=%2Fsettings',
+    );
+    expect(authRouteHref('/sign-in', '/contacts')).toBe(
+      '/sign-in?returnTo=%2Fcontacts',
+    );
+  });
+
   test('reads only the first live-session return target', () => {
     expect(
       readAuthReturnToParam([
@@ -349,6 +449,11 @@ describe('auth return targets', () => {
 
   test('reads compose return targets', () => {
     expect(readAuthReturnToParam('/compose')).toBe('/compose');
+  });
+
+  test('reads settings and contacts return targets', () => {
+    expect(readAuthReturnToParam('/settings')).toBe('/settings');
+    expect(readAuthReturnToParam('/contacts')).toBe('/contacts');
   });
 
   test('rejects external and auth-route return targets', () => {

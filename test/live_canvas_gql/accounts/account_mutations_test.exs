@@ -690,7 +690,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
 
   describe "unlinkViewerIdentity" do
     test "revokes a viewer-owned identity and returns the unlinked node" do
-      viewer = user_fixture()
+      viewer = user_fixture() |> set_password()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
       identity =
@@ -730,6 +730,40 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                )
 
       refute Accounts.get_user_by_identity(:google_provider, "google-mutation-unlink-success")
+    end
+
+    test "rejects unlinking the last sign-in method for a passwordless viewer" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      identity = attach_user_identity(viewer, :google_provider, "google-mutation-last-sign-in")
+      identity_id = Absinthe.Relay.Node.to_global_id(:user_identity, identity.id, LCGQL.Schema)
+
+      mutation = """
+      mutation UnlinkViewerIdentity($identityId: ID!) {
+        unlinkViewerIdentity(input: {userIdentityId: $identityId}) {
+          userIdentity { id }
+          errors { field message }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "unlinkViewerIdentity" => %{
+                    "userIdentity" => nil,
+                    "errors" => [%{"field" => nil, "message" => "last_sign_in_method"}]
+                  }
+                }
+              }} =
+               Absinthe.run(
+                 mutation,
+                 LCGQL.Schema,
+                 variables: %{"identityId" => identity_id},
+                 context: context
+               )
+
+      assert Accounts.get_active_user_identity(viewer, identity.id)
     end
 
     test "returns structured errors for invalid or unowned identity IDs" do
@@ -793,7 +827,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
 
     test "returns already_revoked when unlink is repeated for the same identity" do
-      viewer = user_fixture()
+      viewer = user_fixture() |> set_password()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
       identity =

@@ -11,13 +11,15 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: active; mobile post composer product batch complete; next
+- Track state: active; July 8 product-gap batch complete; next
   product-completeness task not selected
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Last completed detailed plan:
-  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
-- Recent theme: mobile post composer over the existing Relay `createPost`
-  contract is complete; release-candidate QA remains deferred.
+  `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
+- Recent theme: account lifecycle, existing social controls, manual contact
+  discovery, post owner controls, and profile connection lists are complete and
+  review-hardened; reversible social controls and release-candidate QA remain
+  deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in
@@ -82,6 +84,11 @@ and content discovery, live streaming, and chat.
 - `docs/plans/archive/completed/mobile/2026-06-29-release-diagnostics-screen.md`
 - `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
 - `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+- `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
+- `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
+- `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
+- `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
+- `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 1-2)
 
 ## Recommended Plan Order
 
@@ -105,7 +112,12 @@ and content discovery, live streaming, and chat.
 16. Release diagnostics screen.
 17. Mobile feed and content discovery surface.
 18. Mobile post composer over `createPost`.
-19. Release-candidate manual device QA using the one-host/one-viewer checklist.
+19. Mobile account settings and recovery.
+20. Existing-contract social controls: mute, unmute, and block.
+21. Manual contact discovery; invite delivery is deferred pending a real landing route.
+22. Mobile post owner controls.
+23. Profile connection lists and pending follow requests.
+24. Release-candidate manual device QA using the one-host/one-viewer checklist.
 
 ## Active And Queued Follow-Up Plans
 
@@ -113,7 +125,14 @@ Current product batch: none selected.
 
 Recently completed product batch:
 
-- `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+- `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
+- `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 1-2)
+- `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
+- `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
+- `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
+
+Deferred product-gap scope: social-control Tasks 3-4 require an explicitly
+promoted backend contract batch for direction-safe unfollow and unblock.
 
 All previously queued live-session and feed/content product follow-up plans are
 complete and archived. Deferred QA gate:

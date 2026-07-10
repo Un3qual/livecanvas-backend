@@ -25,8 +25,18 @@ defmodule LCGQL.Content.Resolver do
   @type delete_post_result :: {:ok, delete_post_payload()}
   @type report_post_payload :: %{report: PostReport.t() | nil, errors: [mutation_error()]}
   @type report_post_result :: {:ok, report_post_payload()}
+  @type decide_post_report_payload :: %{report: PostReport.t() | nil, errors: [mutation_error()]}
+  @type decide_post_report_result :: {:ok, decide_post_report_payload()}
   @type post_mutation_reason ::
           :invalid_id | :invalid_type | :not_found | :own_post | :unauthenticated
+  @type post_report_mutation_reason ::
+          :invalid_id
+          | :invalid_status
+          | :invalid_type
+          | :invalid_transition
+          | :not_authorized
+          | :not_found
+  @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
 
   @spec create_post(
           term(),
@@ -210,6 +220,47 @@ defmodule LCGQL.Content.Resolver do
     {:ok, %{report: nil, errors: [post_error(nil, :unauthenticated)]}}
   end
 
+  @spec decide_post_report(
+          term(),
+          %{
+            optional(:input) => map(),
+            optional(:report_id) => term(),
+            optional(:status) => atom(),
+            optional(:decision_note) => String.t()
+          },
+          Absinthe.Resolution.t()
+        ) :: decide_post_report_result()
+  def decide_post_report(parent, %{input: input}, resolution),
+    do: decide_post_report(parent, input, resolution)
+
+  def decide_post_report(_parent, %{report_id: report_id} = attrs, %{
+        context: %{current_scope: scope}
+      }) do
+    with {:ok, id} <- decode_post_report_id(report_id),
+         {:ok, report} <- Content.decide_post_report(scope, id, decide_post_report_attrs(attrs)) do
+      {:ok, %{report: report, errors: []}}
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok,
+         %{report: nil, errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)}}
+
+      {:error, reason}
+      when reason in [
+             :invalid_id,
+             :invalid_status,
+             :invalid_type,
+             :not_found,
+             :not_authorized,
+             :invalid_transition
+           ] ->
+        {:ok, %{report: nil, errors: [post_report_error(reason)]}}
+    end
+  end
+
+  def decide_post_report(_parent, _attrs, _resolution) do
+    {:ok, %{report: nil, errors: [post_report_error(:not_authorized)]}}
+  end
+
   @spec post(term(), %{id: term()}, term()) :: {:ok, Post.t() | nil}
   def post(_parent, %{id: post_id}, resolution) do
     with {:ok, id} <- Relay.decode_global_id(post_id, :post, LCGQL.Schema) do
@@ -232,9 +283,45 @@ defmodule LCGQL.Content.Resolver do
 
   def media_asset(_parent, _args, _resolution), do: {:ok, nil}
 
+  @spec staff_post_reports(term(), map(), Absinthe.Resolution.t()) :: connection_result()
+  def staff_post_reports(_parent, args, %{context: %{current_scope: scope}}) do
+    case Content.list_post_reports_for_moderation(scope, args) do
+      {:ok, query} ->
+        Absinthe.Relay.Connection.from_query(
+          query,
+          fn paginated_query ->
+            case Content.run_post_reports_moderation_query(scope, paginated_query) do
+              {:ok, reports} -> reports
+              {:error, :not_authorized} -> []
+            end
+          end,
+          args
+        )
+
+      {:error, :not_authorized} ->
+        Absinthe.Relay.Connection.from_list([], args)
+    end
+  end
+
+  def staff_post_reports(_parent, args, _resolution) do
+    Absinthe.Relay.Connection.from_list([], args)
+  end
+
   @spec media_asset_id(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
   def media_asset_id(media_asset, _args, _resolution),
     do: global_id_field(media_asset, :media_asset)
+
+  @spec post_report_post(map(), map(), Absinthe.Resolution.t()) :: {:ok, Post.t() | nil}
+  def post_report_post(%{post_id: post_id}, _args, resolution)
+      when is_integer(post_id) and post_id > 0 do
+    if staff_post_report_scope?(resolution) do
+      {:ok, Content.get_post(post_id)}
+    else
+      {:ok, nil}
+    end
+  end
+
+  def post_report_post(_post_report, _args, _resolution), do: {:ok, nil}
 
   @spec post_report_post_id(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
   def post_report_post_id(post_report, _args, _resolution),
@@ -243,6 +330,26 @@ defmodule LCGQL.Content.Resolver do
   @spec post_report_reporter_id(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
   def post_report_reporter_id(post_report, _args, _resolution),
     do: global_id_field(post_report, :reporter_id, :user)
+
+  @spec post_report_decision_note(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, String.t() | nil}
+  def post_report_decision_note(post_report, _args, resolution),
+    do: staff_post_report_value(post_report, :decision_note, resolution)
+
+  @spec post_report_reviewed_at(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, DateTime.t() | nil}
+  def post_report_reviewed_at(post_report, _args, resolution),
+    do: staff_post_report_value(post_report, :reviewed_at, resolution)
+
+  @spec post_report_reviewed_by_id(map(), map(), Absinthe.Resolution.t()) ::
+          {:ok, String.t() | nil}
+  def post_report_reviewed_by_id(post_report, _args, resolution) do
+    if staff_post_report_scope?(resolution) do
+      global_id_field(post_report, :reviewed_by_id, :user)
+    else
+      {:ok, nil}
+    end
+  end
 
   @spec media_asset_public_url(map(), map(), Absinthe.Resolution.t()) ::
           {:ok, String.t() | nil}
@@ -325,6 +432,9 @@ defmodule LCGQL.Content.Resolver do
 
   defp decode_post_id(post_id), do: Relay.decode_global_id(post_id, :post, LCGQL.Schema)
 
+  defp decode_post_report_id(report_id),
+    do: Relay.decode_global_id(report_id, :post_report, LCGQL.Schema)
+
   @spec create_post_attrs(map()) ::
           {:ok, %{optional(:body_text | :kind | :media_asset_ids | :visibility) => term()}}
           | {:error, Relay.decode_error()}
@@ -379,6 +489,35 @@ defmodule LCGQL.Content.Resolver do
     Map.take(attrs, [:details, :reason])
   end
 
+  @spec decide_post_report_attrs(map()) :: %{optional(:decision_note | :status) => term()}
+  defp decide_post_report_attrs(attrs) when is_map(attrs) do
+    Map.take(attrs, [:decision_note, :status])
+  end
+
+  defp staff_post_report_value(post_report, field, resolution)
+       when is_map(post_report) and is_atom(field) do
+    if staff_post_report_scope?(resolution) do
+      {:ok, Map.get(post_report, field)}
+    else
+      {:ok, nil}
+    end
+  end
+
+  @spec staff_post_report_scope?(Absinthe.Resolution.t()) :: boolean()
+  defp staff_post_report_scope?(%{
+         context: %{
+           current_scope: %{
+             user: %{id: user_id},
+             staff_permissions: %MapSet{} = staff_permissions
+           }
+         }
+       })
+       when is_integer(user_id) do
+    MapSet.member?(staff_permissions, :post_report_moderation)
+  end
+
+  defp staff_post_report_scope?(_resolution), do: false
+
   @spec maybe_put_media_asset_ids(map(), nil | [pos_integer()]) :: map()
   defp maybe_put_media_asset_ids(attrs, nil), do: Map.delete(attrs, :media_asset_ids)
 
@@ -400,4 +539,13 @@ defmodule LCGQL.Content.Resolver do
 
   defp post_error(field, reason),
     do: MutationErrors.user_error(FieldNames.lower_camel(field), reason)
+
+  @spec post_report_error(post_report_mutation_reason()) :: mutation_error()
+  defp post_report_error(:not_authorized), do: MutationErrors.user_error(nil, :not_authorized)
+
+  defp post_report_error(:invalid_status),
+    do: MutationErrors.user_error(FieldNames.lower_camel(:status), :invalid_status)
+
+  defp post_report_error(reason),
+    do: MutationErrors.user_error(FieldNames.lower_camel(:report_id), reason)
 end

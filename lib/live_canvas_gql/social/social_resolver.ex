@@ -1,6 +1,7 @@
 defmodule LCGQL.Social.Resolver do
   alias LC.{Accounts, Social}
   alias LCGQL.{FieldNames, MutationErrors, Relay, Resolution}
+  alias LCSchemas.Accounts.User
 
   @type fetch_user_error :: :invalid_id | :invalid_type | :not_found
   @type resolver_error ::
@@ -142,7 +143,7 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec followers(map(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
+  @spec followers(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def followers(%{id: _id} = user, args, resolution) do
     if can_view_relationship_graph?(user, resolution) do
       query = Social.follower_users_query(user)
@@ -152,7 +153,7 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
-  @spec following(map(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
+  @spec following(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def following(%{id: _id} = user, args, resolution) do
     if can_view_relationship_graph?(user, resolution) do
       query = Social.following_users_query(user)
@@ -239,10 +240,15 @@ defmodule LCGQL.Social.Resolver do
   defp format_field(nil), do: nil
   defp format_field(field), do: FieldNames.lower_camel(field)
 
-  @spec can_view_relationship_graph?(map(), Absinthe.Resolution.t()) :: boolean()
-  defp can_view_relationship_graph?(%{privacy_mode: :public}, _resolution), do: true
+  @spec can_view_relationship_graph?(User.t(), Absinthe.Resolution.t()) :: boolean()
+  defp can_view_relationship_graph?(%User{privacy_mode: :public} = user, resolution) do
+    case Resolution.viewer(resolution) do
+      {:ok, viewer} -> Social.can_view_user?(viewer, user)
+      :error -> true
+    end
+  end
 
-  defp can_view_relationship_graph?(%{} = user, resolution) do
+  defp can_view_relationship_graph?(%User{} = user, resolution) do
     case Resolution.viewer(resolution) do
       {:ok, viewer} -> Social.can_view_user?(viewer, user)
       :error -> false

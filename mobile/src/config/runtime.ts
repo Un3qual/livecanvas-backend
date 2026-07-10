@@ -5,19 +5,30 @@ import type { AppEnvironment, BootSessionState } from './environment';
 const KNOWN_ROUTE_HREFS = new Set([
   '/sign-in',
   '/sign-up',
+  '/password-recovery',
+  '/reset-password',
   '/home',
   '/profile',
+  '/settings',
   '/compose',
+  '/contacts',
   '/diagnostics',
   '/live-session',
   '/host-broadcast',
 ]);
 
-const AUTH_ROUTE_HREFS = new Set(['/sign-in', '/sign-up']);
+const AUTH_ROUTE_HREFS = new Set([
+  '/sign-in',
+  '/sign-up',
+  '/password-recovery',
+  '/reset-password',
+]);
 const AUTH_RETURN_TO_ROUTE_HREFS = new Set([
   '/compose',
+  '/contacts',
   '/diagnostics',
   '/live-session',
+  '/settings',
   '/host-broadcast',
 ]);
 
@@ -175,10 +186,40 @@ export function routeHrefFromUrl(initialUrl: string | null): string | null {
   }
 
   if (!KNOWN_ROUTE_HREFS.has(candidate)) {
-    return null;
+    return (
+      resetPasswordHrefFromBackendPath(candidate) ??
+      resetPasswordHrefFromBackendPath(pathnameFromUrl(withoutFragment))
+    );
+  }
+
+  if (candidate === '/reset-password' && query) {
+    return `${candidate}?${query}`;
   }
 
   return candidate === '/live-session' && query
     ? `${candidate}?${query}`
     : candidate;
+}
+
+function resetPasswordHrefFromBackendPath(candidate: string): string | null {
+  const match = candidate.match(/^\/users\/reset-password\/([^/]+)$/);
+  const token = decodeResetPasswordPathToken(match?.[1]?.trim() ?? '');
+
+  return token ? `/reset-password?token=${encodeURIComponent(token)}` : null;
+}
+
+function decodeResetPasswordPathToken(token: string): string {
+  try {
+    return decodeURIComponent(token);
+  } catch {
+    return token;
+  }
+}
+
+function pathnameFromUrl(value: string): string {
+  try {
+    return new URL(value).pathname;
+  } catch {
+    return '';
+  }
 }

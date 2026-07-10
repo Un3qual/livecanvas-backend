@@ -1,75 +1,47 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-07-01
-Status: mobile post composer product batch complete; release-candidate QA deferred
+Last reviewed: 2026-07-09
+Status: mobile product-gap batch complete; reversible social controls and release QA deferred
 
 ## Lane Scope
 
 - Own `mobile/` and `docs/plans/mobile/**`.
-- Do not make speculative backend Elixir/GraphQL, shared contract, or
-  coordinator-doc changes from this lane. If active mobile work exposes a
-  verified backend contract, resolver, runtime, or data issue, promote it as
-  cross-lane work and update the backend lane write scope before implementation.
+- Promote verified backend contract/data issues into the backend lane with an
+  explicit write scope before cross-lane implementation.
+- Keep Relay IDs opaque and durable reads/writes Relay-first.
 
 ## Current Batch
 
-- Source plan:
-  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
+- Source plans:
+  - `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
+  - `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 1-2)
+  - `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
+  - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
+  - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: none; Task 4 final verification is complete.
-- Current detail plan: none; the source plan is complete.
-- Latest completed source plan:
-  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
-- Latest completed detail plan:
-  `docs/plans/mobile/2026-07-01-post-composer-create-post-relay.md`
-- Latest QA evidence:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md#2026-06-30-product-follow-up-queue-completion`
-  records passing mobile quality gates after the completed feature queue and
-  notes that preview build/device/account manual QA remains pending in this
-  worker environment.
-- Write scope:
-  - `mobile/**`
-  - `docs/plans/mobile/**`
-- Done condition: met; signed-in mobile viewers can create text-only standard
-  posts and stories from the home surface through the existing Relay
-  `createPost` mutation, with focused tests and final mobile gates recorded in
-  the source plan.
+- Current task: none; implementation and PR review hardening are complete.
+- Write scope: `mobile/**`, `docs/plans/mobile/**`, and the explicitly promoted
+  backend account/contact contracts recorded in `docs/plans/backend/NOW.md`.
+- Done condition: met for account lifecycle, mute/unmute/block, manual contact
+  discovery, post owner controls, connection lists, and review
+  hardening for cross-action races and virtualized pagination.
 - Verification:
-  - From `mobile/`: `bun test tests/feed/postComposerState.test.ts`
-  - From `mobile/`:
-    `bun test tests/feed/PostComposerScreen.test.tsx tests/feed/FeedHomeScreen.test.tsx`
-  - From `mobile/`: `bun run typecheck`
+  - From `mobile/`: `bun run relay`
   - From `mobile/`: `bun run test:quality`
   - From repo root: `git diff --check`
 
+## Deferred Scope
+
+- Social-control Tasks 3-4 remain deferred: backend `unfollowUser`,
+  `unblockUser`, a direction-safe blocked-by-viewer read, and their mobile UI.
+- Native address-book import and bulk contact upload remain out of scope.
+- Contact-invite delivery remains hidden until the emailed token URL has a real
+  landing route.
+- Release-candidate manual device/account QA remains deferred until product
+  explicitly resumes it.
+
 ## Do This Now
 
-No executable mobile implementation task is selected. Pick or plan the next
-product-completeness task from the mobile track before implementation. Keep
-native media picking, signed upload, media attachment UI, and release-candidate
-checklist work out unless the next selected task explicitly promotes them.
-
-## Guardrails
-
-- Do not run remote or authenticated EAS build/submit commands from this lane
-  handoff.
-- Do not run release-candidate manual device QA from this handoff.
-- Do not reactivate archived cleanup or completed live-session feature
-  follow-up plans from this batch.
-- Do not expand the release-candidate checklist into implementation.
-- Do not implement native media picking, signed upload, or media attachment UI
-  in the first composer task.
-- Do not change GraphQL schema shape during this batch unless the active
-  product work proves a backend contract mismatch that must be promoted into
-  the backend lane.
-- Do not decode Relay IDs client-side.
-- Do not construct media signaling topics client-side.
-- Backend live media runtime foundation and the viewer setup contract are
-  complete; do not change backend code unless a backend issue is reproduced and
-  promoted with an explicit cross-lane scope.
-- Implement retained history against the current `LiveSession.timelineEvents`
-  schema, not the stale removed `chatMessages` API.
-
-## Next Action
-
-Select or write the next mobile product task plan before implementation.
+No executable mobile batch is selected. Promote or write the next
+product-completeness plan before implementation; do not treat the deferred
+social or release-QA work as implicitly active.

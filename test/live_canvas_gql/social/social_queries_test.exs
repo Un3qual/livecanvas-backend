@@ -365,6 +365,44 @@ defmodule LCGQL.Social.SocialQueriesTest do
   end
 
   describe "privacy-aware relationship connections" do
+    test "hides public-account relationship connections from blocked viewers" do
+      public_user = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+      follower = user_fixture()
+      followed = user_fixture(privacy_mode: :public)
+      public_user_id = Absinthe.Relay.Node.to_global_id(:user, public_user.id, LCGQL.Schema)
+      viewer_context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _follower} = Social.follow_user(follower, public_user)
+      assert {:ok, _following} = Social.follow_user(public_user, followed)
+      assert {:ok, _block} = Social.block_user(public_user, viewer)
+
+      query = """
+      query($id: ID!, $first: Int!) {
+        node(id: $id) {
+          ... on User {
+            followers(first: $first) { edges { node { id } } }
+            following(first: $first) { edges { node { id } } }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{
+                    "followers" => %{"edges" => []},
+                    "following" => %{"edges" => []}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => public_user_id, "first" => 10},
+                 context: viewer_context
+               )
+    end
+
     test "hides private-account followers from unauthenticated viewers and outsiders" do
       private_user = user_fixture(privacy_mode: :private)
       accepted_follower = user_fixture()

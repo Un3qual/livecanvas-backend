@@ -180,7 +180,8 @@ defmodule LCWeb.Plugs.GraphQLMutationRateLimit do
       "unmuteUser",
       "removeLiveChatMessageEvent",
       "editLiveChatMessage",
-      "reportPost"
+      "reportPost",
+      "decidePostReport"
     ]
 
   @type fragment_definitions :: %{optional(String.t()) => Fragment.t()}

@@ -17,7 +17,11 @@ defmodule LCGQL.Accounts.UserResolver do
   @type unlink_identity_result :: {:ok, unlink_identity_payload()}
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
   @type unlink_identity_error_reason ::
-          :invalid_identity_id | :not_found | :already_revoked | :unauthenticated
+          :invalid_identity_id
+          | :not_found
+          | :already_revoked
+          | :last_sign_in_method
+          | :unauthenticated
 
   @spec register_with_email(
           term(),
@@ -128,6 +132,16 @@ defmodule LCGQL.Accounts.UserResolver do
 
       {:error, :already_revoked} ->
         {:ok, %{user_identity: nil, errors: [unlink_identity_error(:already_revoked)]}}
+
+      {:error, :last_sign_in_method} ->
+        {:ok, %{user_identity: nil, errors: [unlink_identity_error(:last_sign_in_method)]}}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok,
+         %{
+           user_identity: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
     end
   end
 
@@ -146,6 +160,20 @@ defmodule LCGQL.Accounts.UserResolver do
   def user_identity_oauth_provider(%{provider: provider}, _args, _resolution) do
     {:ok, oauth_provider_value(provider)}
   end
+
+  @spec user_identity_can_unlink(map(), map(), Absinthe.Resolution.t()) :: {:ok, boolean()}
+  def user_identity_can_unlink(%{id: identity_id, user_id: user_id}, _args, resolution)
+      when is_integer(identity_id) and is_integer(user_id) do
+    case Resolution.viewer(resolution) do
+      {:ok, %{id: ^user_id} = viewer} ->
+        {:ok, Accounts.user_identity_unlinkable?(viewer, identity_id)}
+
+      _other ->
+        {:ok, false}
+    end
+  end
+
+  def user_identity_can_unlink(_user_identity, _args, _resolution), do: {:ok, false}
 
   @spec viewer(term(), map(), Absinthe.Resolution.t()) :: {:ok, User.t() | nil}
 
@@ -272,6 +300,9 @@ defmodule LCGQL.Accounts.UserResolver do
 
   defp unlink_identity_error(:already_revoked),
     do: MutationErrors.user_error(nil, :already_revoked)
+
+  defp unlink_identity_error(:last_sign_in_method),
+    do: MutationErrors.user_error(nil, :last_sign_in_method)
 
   defp unlink_identity_error(:unauthenticated),
     do: MutationErrors.user_error(nil, :unauthenticated)

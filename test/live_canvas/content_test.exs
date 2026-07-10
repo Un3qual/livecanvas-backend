@@ -3,10 +3,11 @@ defmodule LC.ContentTest do
 
   import LC.AccountsFixtures
 
-  alias LC.{Content, Live}
+  alias LC.{Accounts, Content, Live}
   alias LC.Content.MediaProcessingJob
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema
+  alias LCSchemas.Content.PostReport, as: PostReportSchema
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
   alias LCSchemas.Live.LiveSession
 
@@ -345,6 +346,269 @@ defmodule LC.ContentTest do
       assert %{id: report_id} = Content.get_user_post_report(reporter, report.id)
       assert report_id == report.id
       refute Content.get_user_post_report(other_user, report.id)
+    end
+
+    test "redacts staff review metadata from reporter-facing results" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+      staff_scope = Accounts.scope_for_user(staff)
+
+      {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "reported"})
+      {:ok, report} = Content.report_post(reporter, post, %{reason: :other})
+
+      assert {:ok, moderated_report} =
+               Content.decide_post_report(staff_scope, report.id, %{
+                 status: :reviewed,
+                 decision_note: "internal moderation note"
+               })
+
+      assert moderated_report.reviewed_by_id == staff.id
+      assert %DateTime{} = moderated_report.reviewed_at
+      assert moderated_report.decision_note == "internal moderation note"
+
+      assert reporter_report = Content.get_user_post_report(reporter, report.id)
+      assert reporter_report.status == :reviewed
+      assert is_nil(reporter_report.reviewed_by_id)
+      assert is_nil(reporter_report.reviewed_at)
+      assert is_nil(reporter_report.decision_note)
+
+      assert {:ok, duplicate_report} = Content.report_post(reporter, post, %{reason: :spam})
+      assert duplicate_report.id == report.id
+      assert is_nil(duplicate_report.reviewed_by_id)
+      assert is_nil(duplicate_report.reviewed_at)
+      assert is_nil(duplicate_report.decision_note)
+    end
+  end
+
+  describe "post report moderation" do
+    test "lists and fetches reports only for staff moderators" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      nonstaff = user_fixture()
+
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+      staff_scope = Accounts.scope_for_user(staff)
+      nonstaff_scope = Accounts.scope_for_user(nonstaff)
+
+      {:ok, first_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "first reported"})
+
+      {:ok, second_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "second reported"})
+
+      {:ok, first_report} = Content.report_post(reporter, first_post, %{reason: :spam})
+      {:ok, second_report} = Content.report_post(reporter, second_post, %{reason: :other})
+
+      assert {:ok, query} =
+               Content.list_post_reports_for_moderation(staff_scope, status: :open)
+
+      assert {:ok, open_reports} =
+               Content.run_post_reports_moderation_query(staff_scope, query)
+
+      assert [first_report.id, second_report.id] == Enum.map(open_reports, & &1.id)
+
+      assert {:ok, dismissed_report} =
+               Content.decide_post_report(staff_scope, second_report.id, %{
+                 status: :dismissed,
+                 decision_note: "not a violation"
+               })
+
+      assert {:ok, dismissed_query} =
+               Content.list_post_reports_for_moderation(staff_scope, %{"status" => "dismissed"})
+
+      assert {:ok, dismissed_reports} =
+               Content.run_post_reports_moderation_query(staff_scope, dismissed_query)
+
+      assert [dismissed_report.id] == Enum.map(dismissed_reports, & &1.id)
+
+      assert {:ok, fetched_report} =
+               Content.get_moderation_post_report(staff_scope, first_report.id)
+
+      assert fetched_report.id == first_report.id
+
+      assert {:error, :not_authorized} =
+               Content.list_post_reports_for_moderation(nonstaff_scope, status: :open)
+
+      assert {:error, :not_authorized} =
+               Content.get_moderation_post_report(nonstaff_scope, first_report.id)
+
+      assert {:error, :not_authorized} =
+               Content.list_post_reports_for_moderation(nil, status: :open)
+
+      assert {:error, :not_authorized} =
+               Content.run_post_reports_moderation_query(nonstaff_scope, query)
+    end
+
+    test "does not expose a generic public query runner" do
+      staff = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+      staff_scope = Accounts.scope_for_user(staff)
+
+      refute function_exported?(Content, :run_query, 1)
+      refute function_exported?(Content, :run_post_reports_moderation_query, 1)
+
+      assert_raise ArgumentError, ~r/authorized post report moderation query/, fn ->
+        Content.run_post_reports_moderation_query(staff_scope, from(post in PostSchema))
+      end
+    end
+
+    test "records allowed decisions and keeps terminal report states closed" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      finalizer = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+
+      assert {:ok, _permission} =
+               Accounts.grant_staff_permission(finalizer, :post_report_moderation)
+
+      staff_scope = Accounts.scope_for_user(staff)
+      finalizer_scope = Accounts.scope_for_user(finalizer)
+
+      {:ok, first_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "review then dismiss"})
+
+      {:ok, second_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "direct action"})
+
+      {:ok, third_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "direct dismiss"})
+
+      {:ok, first_report} = Content.report_post(reporter, first_post, %{reason: :spam})
+      {:ok, second_report} = Content.report_post(reporter, second_post, %{reason: :hate})
+      {:ok, third_report} = Content.report_post(reporter, third_post, %{reason: :other})
+
+      assert {:ok, reviewed_report} =
+               Content.decide_post_report(staff_scope, first_report.id, %{
+                 status: :reviewed,
+                 decision_note: "needs another look"
+               })
+
+      assert reviewed_report.status == :reviewed
+      assert reviewed_report.reviewed_by_id == staff.id
+      assert %DateTime{} = reviewed_at = reviewed_report.reviewed_at
+      assert reviewed_report.decision_note == "needs another look"
+
+      assert {:ok, dismissed_after_review} =
+               Content.decide_post_report(finalizer_scope, first_report.id, %{
+                 status: :dismissed,
+                 decision_note: "not a violation"
+               })
+
+      assert dismissed_after_review.status == :dismissed
+      assert dismissed_after_review.reviewed_by_id == finalizer.id
+      assert DateTime.compare(dismissed_after_review.reviewed_at, reviewed_at) == :gt
+      assert dismissed_after_review.decision_note == "not a violation"
+
+      assert {:ok, actioned_report} =
+               Content.decide_post_report(staff_scope, second_report.id, %{
+                 status: :actioned,
+                 decision_note: "policy action tracked elsewhere"
+               })
+
+      assert actioned_report.status == :actioned
+      assert Content.get_post(second_post.id).body_text == "direct action"
+
+      assert {:error, :invalid_transition} =
+               Content.decide_post_report(staff_scope, actioned_report.id, %{status: :dismissed})
+
+      assert {:ok, dismissed_report} =
+               Content.decide_post_report(staff_scope, third_report.id, %{status: :dismissed})
+
+      assert {:error, :invalid_transition} =
+               Content.decide_post_report(staff_scope, dismissed_report.id, %{status: :actioned})
+    end
+
+    test "finalizes reviewed reports when reviewer metadata was nilified" do
+      author = user_fixture()
+      reporter = user_fixture()
+      reviewer = user_fixture()
+      finalizer = user_fixture()
+
+      assert {:ok, _permission} =
+               Accounts.grant_staff_permission(reviewer, :post_report_moderation)
+
+      assert {:ok, _permission} =
+               Accounts.grant_staff_permission(finalizer, :post_report_moderation)
+
+      reviewer_scope = Accounts.scope_for_user(reviewer)
+      finalizer_scope = Accounts.scope_for_user(finalizer)
+
+      {:ok, post} =
+        Content.create_post(author, %{kind: :standard, body_text: "reviewer deleted"})
+
+      {:ok, report} = Content.report_post(reporter, post, %{reason: :other})
+
+      assert {:ok, reviewed_report} =
+               Content.decide_post_report(reviewer_scope, report.id, %{
+                 status: :reviewed,
+                 decision_note: "needs final pass"
+               })
+
+      stale_reviewed_at = DateTime.add(DateTime.utc_now(), -3600, :second)
+
+      {1, nil} =
+        Repo.update_all(
+          from(post_report in PostReportSchema, where: post_report.id == ^reviewed_report.id),
+          set: [reviewed_by_id: nil, reviewed_at: stale_reviewed_at]
+        )
+
+      assert {:ok, dismissed_report} =
+               Content.decide_post_report(finalizer_scope, reviewed_report.id, %{
+                 status: :dismissed
+               })
+
+      assert dismissed_report.status == :dismissed
+      assert dismissed_report.reviewed_by_id == finalizer.id
+      assert DateTime.compare(dismissed_report.reviewed_at, stale_reviewed_at) == :gt
+      assert is_nil(dismissed_report.decision_note)
+    end
+
+    test "accepts params-style string decision statuses and separates invalid status input" do
+      author = user_fixture()
+      reporter = user_fixture()
+      staff = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(staff, :post_report_moderation)
+      staff_scope = Accounts.scope_for_user(staff)
+
+      {:ok, first_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "string decision"})
+
+      {:ok, second_post} =
+        Content.create_post(author, %{kind: :standard, body_text: "invalid decision"})
+
+      {:ok, first_report} = Content.report_post(reporter, first_post, %{reason: :spam})
+      {:ok, second_report} = Content.report_post(reporter, second_post, %{reason: :spam})
+
+      assert {:ok, dismissed_report} =
+               Content.decide_post_report(staff_scope, first_report.id, %{
+                 "status" => "dismissed",
+                 "decision_note" => "params-style status"
+               })
+
+      assert dismissed_report.status == :dismissed
+      assert dismissed_report.decision_note == "params-style status"
+
+      assert {:error, :invalid_status} =
+               Content.decide_post_report(staff_scope, second_report.id, %{
+                 "status" => "archived"
+               })
+    end
+
+    test "rejects nonstaff decisions" do
+      author = user_fixture()
+      reporter = user_fixture()
+      nonstaff = user_fixture()
+      {:ok, post} = Content.create_post(author, %{kind: :standard, body_text: "reported"})
+      {:ok, report} = Content.report_post(reporter, post, %{reason: :spam})
+
+      assert {:error, :not_authorized} =
+               Content.decide_post_report(Accounts.scope_for_user(nonstaff), report.id, %{
+                 status: :dismissed
+               })
     end
   end
 

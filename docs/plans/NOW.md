@@ -1,77 +1,48 @@
 # Current Execution
 
-Last reviewed: 2026-07-01
-Status: mobile post composer product batch complete; backend issues may be promoted as needed; release-candidate QA deferred
+Last reviewed: 2026-07-09
+Status: cross-lane product-gap batch complete; next product batch not selected
 
 ## Purpose
 
-This file is the coordinator dashboard only. It names the active lanes and points
-to the lane `NOW.md` files. The lane `NOW.md` owns executable current-batch
-details.
+This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Lane Pointers
 
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: issue-driven; live media runtime foundation is complete and no
-  standalone backend batch is selected
-- Scope: backend code and backend planning docs
-- Completed source plan:
-  `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
+- State: complete; report moderation plus promoted account/contact contracts
+  are implemented and review-hardened.
+- Latest source plan:
+  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: complete; next mobile product task not selected
-- Scope: `mobile/` and `docs/plans/mobile/**`
-- Completed source plan:
-  `docs/plans/mobile/2026-07-01-mobile-post-composer.md`
-- Latest completed source plan:
-  `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`
+- State: complete; the five July 8 product-gap plans are implemented for their
+  selected scopes and review-hardened.
+- Track: `docs/plans/mobile/TRACK.md`
+- Deferred: reversible unfollow/unblock contracts and release-candidate manual
+  QA, plus contact-invite delivery until a real landing route exists.
 
 ## Execution Rule
 
-For ordinary work, open the relevant lane pointer and execute from that file.
-Use `docs/plans/INDEX.md` only if a lane pointer is stale, blocked, empty, or
-explicitly asks for registry/backlog lookup.
+Open the relevant lane pointer first. Use `docs/plans/INDEX.md` only when a lane
+is stale, blocked, empty, or needs a new plan promoted.
 
 ## Cross-Lane Policy
 
-Work through backend and frontend issues as needed for the selected product
-batch. Do not defer a verified backend contract, resolver, runtime, or data
-issue solely because the current visible surface is mobile/frontend. Promote
-that backend work into the backend lane, keep the write scope explicit, and
-verify both sides that are affected.
-
-## Week Plan
-
-- Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
-- Horizon: 2026-07-01 through 2026-07-07
-- Focus: select the next product-completeness task after the completed mobile
-  text post composer, verify backend issues only when reproduced by active
-  product work, and keep release-candidate manual QA deferred.
-
-## Shared File Policy
-
-Only a coordinator-assigned task edits `docs/plans/NOW.md`,
-`docs/plans/INDEX.md`, `AGENTS.md`, `ARCHITECTURE.md`, or shared contract/schema
-docs. Lane workers update their lane `NOW.md`, source detailed plan, and lane
-track docs.
+Do not defer a reproduced backend contract, resolver, runtime, or data issue
+solely because the visible surface is mobile. Promote it into the backend lane,
+state the write scope, and verify both affected sides.
 
 ## Next Coordinator Decision
 
-Do not reactivate release-candidate QA yet. The mobile post composer batch is
-complete; execute the next mobile step from `docs/plans/mobile/NOW.md` after a
-new product task is selected or planned. Promote backend fixes only when active
-product work proves they are needed, before any release-candidate device QA
-work resumes.
+Select the next product-completeness batch. Do not implicitly activate the
+deferred reversible social-control work or release-candidate device QA.
 
 ## Repair Conditions
 
-Repair this dashboard when:
-
-- a lane pointer is wrong
-- lane status no longer matches the lane `NOW.md`
-- another lane is explicitly reprioritized
-- shared ownership policy changes
+Repair this dashboard when a lane pointer or status stops matching its lane
+`NOW.md`, another lane is reprioritized, or shared ownership policy changes.

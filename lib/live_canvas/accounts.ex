@@ -18,6 +18,7 @@ defmodule LC.Accounts do
   alias LCSchemas.Accounts.{
     EmailAddress,
     PhoneNumber,
+    StaffPermission,
     User,
     UserContactEntry,
     UserContactEntryEmailAddress,
@@ -79,6 +80,7 @@ defmodule LC.Accounts do
   @type contact_match :: %{
           required(:id) => pos_integer(),
           required(:contact_entry) => UserContactEntry.t(),
+          required(:invite_recipient) => String.t() | nil,
           required(:matched_users) => [User.t()]
         }
   @type user_session_result :: {User.t(), DateTime.t()} | nil
@@ -114,6 +116,7 @@ defmodule LC.Accounts do
           access_token: token_payload(),
           refresh_token: token_payload()
         }
+  @sign_in_identity_providers [:apple_provider, :google_provider, :passkey_provider]
   @type auth_provider :: :google | :apple | :passkey
   @type auth_entry_error ::
           :email_taken
@@ -151,9 +154,13 @@ defmodule LC.Accounts do
           optional(:password | :password_confirmation | String.t()) => String.t()
         }
   @type suspension_result :: user_result()
-  @type unlink_user_identity_error :: :not_found | :already_revoked
+  @type unlink_user_identity_error ::
+          :not_found | :already_revoked | :last_sign_in_method | changeset()
   @type unlink_user_identity_result ::
           {:ok, UserIdentity.t()} | {:error, unlink_user_identity_error()}
+  @type staff_permission :: LCSchemas.Accounts.staff_permission()
+  @type staff_permission_result ::
+          {:ok, StaffPermission.t()} | {:error, changeset() | :not_found}
 
   ## Database getters
 
@@ -851,13 +858,76 @@ defmodule LC.Accounts do
   Creates a scope for the given user.
   """
   @spec scope_for_user(User.t() | nil) :: Scope.t() | nil
-  def scope_for_user(user), do: Scope.for_user(user)
+  def scope_for_user(%User{} = user) do
+    staff_permissions =
+      user
+      |> list_active_staff_permissions()
+      |> Enum.map(& &1.permission)
+
+    Scope.for_user(user, staff_permissions)
+  end
+
+  def scope_for_user(nil), do: nil
 
   @doc """
   Returns the empty scope used by adapter layers.
   """
   @spec empty_scope() :: nil
   def empty_scope, do: nil
+
+  @doc """
+  Grants a staff permission to a user.
+
+  If the user already has an active grant for the permission, returns that row.
+  """
+  @spec grant_staff_permission(User.t(), staff_permission()) :: staff_permission_result()
+  def grant_staff_permission(%User{id: user_id}, permission)
+      when is_integer(user_id) and user_id > 0 do
+    case active_staff_permission(user_id, permission) do
+      %StaffPermission{} = staff_permission ->
+        {:ok, staff_permission}
+
+      nil ->
+        %StaffPermission{}
+        |> StaffPermission.changeset(%{
+          user_id: user_id,
+          permission: permission,
+          granted_at: now_utc()
+        })
+        |> Repo.insert()
+        |> handle_staff_permission_grant_insert(user_id, permission)
+    end
+  end
+
+  @doc """
+  Revokes an active staff permission for a user.
+  """
+  @spec revoke_staff_permission(User.t(), staff_permission()) :: staff_permission_result()
+  def revoke_staff_permission(%User{id: user_id}, permission)
+      when is_integer(user_id) and user_id > 0 do
+    case active_staff_permission(user_id, permission) do
+      %StaffPermission{} = staff_permission ->
+        staff_permission
+        |> change(revoked_at: now_utc())
+        |> Repo.update()
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Lists active staff permissions for a user.
+  """
+  @spec list_active_staff_permissions(User.t()) :: [StaffPermission.t()]
+  def list_active_staff_permissions(%User{id: user_id})
+      when is_integer(user_id) and user_id > 0 do
+    user_id
+    |> active_staff_permissions_query()
+    |> Repo.all()
+  end
+
+  def list_active_staff_permissions(%User{}), do: []
 
   @doc """
   Builds an email token payload for the given user.
@@ -1040,10 +1110,28 @@ defmodule LC.Accounts do
   def unlink_user_identity(%User{id: user_id} = user, identity_id)
       when is_integer(identity_id) and identity_id > 0 do
     result =
-      user_id
-      |> user_identity_by_id_query(identity_id)
-      |> Repo.one()
-      |> revoke_identity_if_active()
+      Repo.transact(fn ->
+        # Serialize unlink checks per user so concurrent requests cannot both
+        # observe the same provider as removable and revoke the final sign-in method.
+        persisted_user =
+          from(candidate in User, where: candidate.id == ^user_id, lock: "FOR UPDATE")
+          |> Repo.one()
+
+        user_identity =
+          user_id
+          |> user_identity_by_id_query(identity_id)
+          |> Repo.one()
+
+        with %User{} <- persisted_user,
+             %UserIdentity{} = active_identity <- active_identity(user_identity),
+             true <- identity_unlinkable?(persisted_user, active_identity) do
+          revoke_identity_if_active(active_identity)
+        else
+          nil -> {:error, :not_found}
+          {:error, reason} -> {:error, reason}
+          false -> {:error, :last_sign_in_method}
+        end
+      end)
 
     emit_unlink_identity_auth_event(result, user)
     result
@@ -1054,6 +1142,29 @@ defmodule LC.Accounts do
     emit_unlink_identity_auth_event(result, user)
     result
   end
+
+  @doc """
+  Returns whether an active viewer-owned identity can be removed without deleting the
+  user's final password or provider sign-in method.
+
+  This value is a presentation hint only; `unlink_user_identity/2` rechecks the same
+  invariant while holding a lock on the user row.
+  """
+  @spec user_identity_unlinkable?(User.t(), pos_integer()) :: boolean()
+  def user_identity_unlinkable?(%User{id: user_id}, identity_id)
+      when is_integer(user_id) and is_integer(identity_id) and identity_id > 0 do
+    with %User{} = persisted_user <- Repo.get(User, user_id),
+         %UserIdentity{} = user_identity <-
+           user_id
+           |> active_user_identity_by_id_query(identity_id)
+           |> Repo.one() do
+      identity_unlinkable?(persisted_user, user_identity)
+    else
+      _other -> false
+    end
+  end
+
+  def user_identity_unlinkable?(%User{}, _identity_id), do: false
 
   @doc """
   Upserts a contact entry for a user and syncs its normalized identifier joins.
@@ -1084,11 +1195,18 @@ defmodule LC.Accounts do
   """
   @spec list_user_contact_matches(User.t()) :: [contact_match()]
   def list_user_contact_matches(%User{} = user) do
-    user.id
-    |> user_contact_entries_query()
-    |> Repo.all()
-    |> Repo.preload([:email_addresses, :phone_numbers])
-    |> Enum.map(&build_contact_match(user.id, &1))
+    contact_entries =
+      user.id
+      |> user_contact_entries_query()
+      |> Repo.all()
+      |> Repo.preload([:email_addresses, :phone_numbers])
+
+    owner_email_address_ids = owner_email_address_ids(user.id)
+
+    Enum.map(
+      contact_entries,
+      &build_contact_match(user.id, owner_email_address_ids, &1)
+    )
   end
 
   @doc """
@@ -1105,7 +1223,11 @@ defmodule LC.Accounts do
         nil
 
       contact_entry ->
-        build_contact_match(user.id, preload_contact_entry(contact_entry))
+        build_contact_match(
+          user.id,
+          owner_email_address_ids(user.id),
+          preload_contact_entry(contact_entry)
+        )
     end
   end
 
@@ -1200,7 +1322,7 @@ defmodule LC.Accounts do
           %User{confirmed_at: nil} = confirmed_user ->
             confirmed_user
             |> UserChanges.confirm_changeset()
-            |> update_user_and_delete_all_tokens()
+            |> update_user_and_delete_all_tokens(verify_primary_email: true)
 
           confirmed_user ->
             Repo.delete!(user_token)
@@ -1450,9 +1572,10 @@ defmodule LC.Accounts do
 
   ## Token helper
 
-  defp update_user_and_delete_all_tokens(changeset) do
+  defp update_user_and_delete_all_tokens(changeset, opts \\ []) do
     Repo.transact(fn ->
-      with {:ok, user} <- Repo.update(changeset) do
+      with {:ok, user} <- Repo.update(changeset),
+           {:ok, _user_email_address} <- maybe_verify_primary_email(user, opts) do
         tokens_to_expire =
           Repo.all(from(token in UserToken, where: token.user_id == ^user.id))
 
@@ -1463,6 +1586,14 @@ defmodule LC.Accounts do
         {:ok, {put_primary_email(user), tokens_to_expire}}
       end
     end)
+  end
+
+  defp maybe_verify_primary_email(%User{} = user, opts) when is_list(opts) do
+    if Keyword.get(opts, :verify_primary_email, false) do
+      attach_email_address(user, user.email, verified_at: user.confirmed_at)
+    else
+      {:ok, nil}
+    end
   end
 
   defp attach_email_address(user, email, opts)
@@ -1490,10 +1621,28 @@ defmodule LC.Accounts do
         user_email_address =
           Repo.get_by!(UserEmailAddress, user_id: user.id, email_address_id: email_address.id)
 
-        {:ok, Repo.preload(user_email_address, :email_address)}
+        case maybe_mark_email_verified(user_email_address, opts) do
+          {:ok, verified_user_email_address} ->
+            {:ok, Repo.preload(verified_user_email_address, :email_address)}
+
+          {:error, changeset} ->
+            {:error, changeset}
+        end
 
       {:error, changeset} ->
         {:error, changeset}
+    end
+  end
+
+  defp maybe_mark_email_verified(%UserEmailAddress{} = user_email_address, opts) do
+    case Keyword.get(opts, :verified_at) do
+      %DateTime{} = verified_at ->
+        user_email_address
+        |> change(verified_at: verified_at)
+        |> Repo.update()
+
+      _other ->
+        {:ok, user_email_address}
     end
   end
 
@@ -1921,12 +2070,30 @@ defmodule LC.Accounts do
     )
   end
 
-  defp build_contact_match(owner_id, contact_entry) do
+  defp build_contact_match(owner_id, owner_email_address_ids, contact_entry) do
     %{
       id: contact_entry.id,
       contact_entry: contact_entry,
+      invite_recipient: contact_invite_recipient(contact_entry, owner_email_address_ids),
       matched_users: matched_users_for_contact_entry(owner_id, contact_entry)
     }
+  end
+
+  defp contact_invite_recipient(contact_entry, owner_email_address_ids) do
+    contact_entry.email_addresses
+    |> Enum.reject(&MapSet.member?(owner_email_address_ids, &1.id))
+    |> Enum.map(& &1.normalized_email)
+    |> Enum.sort()
+    |> List.first()
+  end
+
+  defp owner_email_address_ids(owner_id) do
+    from(user_email_address in UserEmailAddress,
+      where: user_email_address.user_id == ^owner_id,
+      select: user_email_address.email_address_id
+    )
+    |> Repo.all()
+    |> MapSet.new()
   end
 
   defp matched_users_for_contact_entry(owner_id, contact_entry) do
@@ -1945,10 +2112,33 @@ defmodule LC.Accounts do
   defp matched_users_by_email(_owner_id, []), do: []
 
   defp matched_users_by_email(owner_id, email_address_ids) do
+    candidate_user_ids =
+      from(user_email_address in UserEmailAddress,
+        where:
+          user_email_address.user_id != ^owner_id and
+            user_email_address.email_address_id in ^email_address_ids,
+        select: user_email_address.user_id,
+        distinct: true
+      )
+
+    # Confirmation used to update only users.confirmed_at. Treat that legacy state as
+    # verification only for the earliest (primary) email join, never for later aliases.
+    primary_email_join_ids =
+      from(user_email_address in UserEmailAddress,
+        where: user_email_address.user_id in subquery(candidate_user_ids),
+        group_by: user_email_address.user_id,
+        select: %{user_id: user_email_address.user_id, id: min(user_email_address.id)}
+      )
+
     from(user in User,
       join: user_email_address in UserEmailAddress,
       on: user_email_address.user_id == user.id,
-      where: user.id != ^owner_id and user_email_address.email_address_id in ^email_address_ids,
+      join: primary_email_join in subquery(primary_email_join_ids),
+      on: primary_email_join.user_id == user.id,
+      where:
+        user.id != ^owner_id and user_email_address.email_address_id in ^email_address_ids and
+          (not is_nil(user_email_address.verified_at) or
+             (not is_nil(user.confirmed_at) and user_email_address.id == primary_email_join.id)),
       distinct: user.id
     )
     |> Repo.all()
@@ -1960,7 +2150,9 @@ defmodule LC.Accounts do
     from(user in User,
       join: user_phone_number in UserPhoneNumber,
       on: user_phone_number.user_id == user.id,
-      where: user.id != ^owner_id and user_phone_number.phone_number_id in ^phone_number_ids,
+      where:
+        user.id != ^owner_id and user_phone_number.phone_number_id in ^phone_number_ids and
+          not is_nil(user_phone_number.verified_at),
       distinct: user.id
     )
     |> Repo.all()
@@ -2117,6 +2309,65 @@ defmodule LC.Accounts do
           user_identity.provider_uid == ^provider_uid and
           is_nil(user_identity.revoked_at),
       limit: 1
+    )
+  end
+
+  @spec active_staff_permission(pos_integer(), staff_permission()) :: StaffPermission.t() | nil
+  defp active_staff_permission(user_id, permission)
+       when is_integer(user_id) and user_id > 0 do
+    user_id
+    |> active_staff_permissions_query()
+    |> where([staff_permission], staff_permission.permission == ^permission)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @spec handle_staff_permission_grant_insert(
+          staff_permission_result(),
+          pos_integer(),
+          staff_permission()
+        ) :: staff_permission_result()
+  defp handle_staff_permission_grant_insert(
+         {:ok, %StaffPermission{} = staff_permission},
+         _user_id,
+         _permission
+       ),
+       do: {:ok, staff_permission}
+
+  defp handle_staff_permission_grant_insert(
+         {:error, %Ecto.Changeset{} = changeset},
+         user_id,
+         permission
+       ) do
+    if active_staff_permission_conflict?(changeset) do
+      case active_staff_permission(user_id, permission) do
+        %StaffPermission{} = staff_permission -> {:ok, staff_permission}
+        nil -> {:error, changeset}
+      end
+    else
+      {:error, changeset}
+    end
+  end
+
+  @spec active_staff_permission_conflict?(Ecto.Changeset.t()) :: boolean()
+  defp active_staff_permission_conflict?(%Ecto.Changeset{errors: errors}) do
+    Enum.any?(errors, fn
+      {:user_id,
+       {_message,
+        constraint: :unique, constraint_name: "staff_permissions_active_user_permission_index"}} ->
+        true
+
+      _error ->
+        false
+    end)
+  end
+
+  @spec active_staff_permissions_query(pos_integer()) :: Ecto.Query.t()
+  defp active_staff_permissions_query(user_id)
+       when is_integer(user_id) and user_id > 0 do
+    from(staff_permission in StaffPermission,
+      where: staff_permission.user_id == ^user_id and is_nil(staff_permission.revoked_at),
+      order_by: [asc: staff_permission.granted_at, asc: staff_permission.id]
     )
   end
 
@@ -2440,7 +2691,7 @@ defmodule LC.Accounts do
   end
 
   defp emit_unlink_identity_auth_event({:error, reason}, %User{} = user)
-       when reason in [:not_found, :already_revoked] do
+       when reason in [:not_found, :already_revoked, :last_sign_in_method] do
     emit_auth_event(:provider_identity_unlink_failed,
       user: user,
       metadata: %{"reason" => Atom.to_string(reason)}
@@ -2459,16 +2710,47 @@ defmodule LC.Accounts do
 
   defp changeset_user_id(_changeset), do: nil
 
-  @spec revoke_identity_if_active(UserIdentity.t() | nil) :: unlink_user_identity_result()
-  defp revoke_identity_if_active(nil), do: {:error, :not_found}
-
-  defp revoke_identity_if_active(%UserIdentity{revoked_at: %DateTime{}}),
-    do: {:error, :already_revoked}
-
+  @spec revoke_identity_if_active(UserIdentity.t()) ::
+          {:ok, UserIdentity.t()} | {:error, changeset()}
   defp revoke_identity_if_active(%UserIdentity{} = user_identity) do
     user_identity
     |> change(revoked_at: now_utc())
     |> Repo.update()
+  end
+
+  @spec active_identity(UserIdentity.t() | nil) ::
+          UserIdentity.t() | {:error, :not_found | :already_revoked}
+  defp active_identity(nil), do: {:error, :not_found}
+  defp active_identity(%UserIdentity{revoked_at: %DateTime{}}), do: {:error, :already_revoked}
+  defp active_identity(%UserIdentity{} = user_identity), do: user_identity
+
+  @spec identity_unlinkable?(User.t(), UserIdentity.t()) :: boolean()
+  defp identity_unlinkable?(%User{hashed_password: hashed_password}, %UserIdentity{
+         id: identity_id,
+         user_id: user_id
+       }) do
+    # A password can replace the provider being removed; passwordless accounts
+    # must retain another identity supported by an actual authentication entry point.
+    password_sign_in_available?(hashed_password) or
+      active_alternate_sign_in_identity?(user_id, identity_id)
+  end
+
+  @spec password_sign_in_available?(term()) :: boolean()
+  defp password_sign_in_available?(hashed_password) when is_binary(hashed_password),
+    do: String.trim(hashed_password) != ""
+
+  defp password_sign_in_available?(_hashed_password), do: false
+
+  @spec active_alternate_sign_in_identity?(pos_integer(), pos_integer()) :: boolean()
+  defp active_alternate_sign_in_identity?(user_id, excluded_identity_id) do
+    from(user_identity in UserIdentity,
+      where:
+        user_identity.user_id == ^user_id and
+          user_identity.id != ^excluded_identity_id and
+          user_identity.provider in ^@sign_in_identity_providers and
+          is_nil(user_identity.revoked_at)
+    )
+    |> Repo.exists?()
   end
 
   @spec normalize_query_limit(term()) :: pos_integer()

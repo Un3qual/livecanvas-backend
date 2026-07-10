@@ -77,5 +77,20 @@ defmodule LCGQL.Content.Mutations do
 
       resolve(&Resolver.report_post/3)
     end
+
+    payload field :decide_post_report do
+      input do
+        field :report_id, non_null(:id)
+        field :status, non_null(:post_report_status)
+        field :decision_note, :string
+      end
+
+      output do
+        field :report, :post_report
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&Resolver.decide_post_report/3)
+    end
   end
 end

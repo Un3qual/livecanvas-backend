@@ -6,7 +6,7 @@ import React, {
   type PropsWithChildren,
 } from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView, Text } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
 
 import { AppButton } from '../../components/AppButton';
@@ -29,9 +29,15 @@ import {
 } from '../profilePresentation';
 import {
   describeRelationshipState,
+  type RelationshipActionKind,
   type RelationshipState,
 } from '../relationshipPresentation';
 import { formatMutationErrors } from '../mutationErrors';
+import {
+  socialControlBlockUserMutation,
+  socialControlMuteUserMutation,
+  socialControlUnmuteUserMutation,
+} from '../socialControlOperations';
 import {
   otherUserProfileScreenResetKey,
   selectActiveRelationshipStateOverride,
@@ -39,6 +45,9 @@ import {
 } from './otherUserProfileRouteState';
 import type { OtherUserProfileScreenFollowUserMutation } from '../../__generated__/OtherUserProfileScreenFollowUserMutation.graphql';
 import type { OtherUserProfileScreenQuery } from '../../__generated__/OtherUserProfileScreenQuery.graphql';
+import type { socialControlOperationsBlockUserMutation } from '../../__generated__/socialControlOperationsBlockUserMutation.graphql';
+import type { socialControlOperationsMuteUserMutation } from '../../__generated__/socialControlOperationsMuteUserMutation.graphql';
+import type { socialControlOperationsUnmuteUserMutation } from '../../__generated__/socialControlOperationsUnmuteUserMutation.graphql';
 
 type OtherUserProfileData = OtherUserProfileScreenQuery['response'];
 type OtherUserProfileNode = OtherUserProfileData['node'];
@@ -46,6 +55,12 @@ type OtherUserProfileUser = Extract<
   NonNullable<OtherUserProfileNode>,
   { readonly __typename: 'User' }
 >;
+type SocialControlMutationResult = {
+  readonly errors: ReadonlyArray<{
+    readonly field?: string | null;
+    readonly message: string;
+  }>;
+};
 
 const otherUserProfileScreenQuery = graphql`
   query OtherUserProfileScreenQuery($id: ID!) {
@@ -90,6 +105,9 @@ const otherUserProfileScreenQuery = graphql`
     }
     relationshipState(creatorId: $id)
     isMuted(creatorId: $id)
+    viewer {
+      id
+    }
   }
 `;
 
@@ -200,11 +218,28 @@ function OtherUserProfileContent({
 }) {
   const theme = useAppTheme();
   const router = useRouter();
-  const [followError, setFollowError] = useState<string | null>(null);
-  const activeFollowSubmissionRef = useRef(false);
+  const [relationshipError, setRelationshipError] = useState<string | null>(null);
+  const [activeRelationshipAction, setActiveRelationshipAction] =
+    useState<RelationshipActionKind | null>(null);
+  const [blockConfirmationVisible, setBlockConfirmationVisible] =
+    useState(false);
+  const [isMutedOverride, setIsMutedOverride] = useState<boolean | null>(null);
+  const activeRelationshipActionRef = useRef<RelationshipActionKind | null>(null);
   const [commitFollowUser, isFollowUserMutationInFlight] =
     useMutation<OtherUserProfileScreenFollowUserMutation>(
       otherUserProfileScreenFollowUserMutation,
+    );
+  const [commitMuteUser, isMuteUserMutationInFlight] =
+    useMutation<socialControlOperationsMuteUserMutation>(
+      socialControlMuteUserMutation,
+    );
+  const [commitUnmuteUser, isUnmuteUserMutationInFlight] =
+    useMutation<socialControlOperationsUnmuteUserMutation>(
+      socialControlUnmuteUserMutation,
+    );
+  const [commitBlockUser, isBlockUserMutationInFlight] =
+    useMutation<socialControlOperationsBlockUserMutation>(
+      socialControlBlockUserMutation,
     );
   const data = useLazyLoadQuery<OtherUserProfileScreenQuery>(
     otherUserProfileScreenQuery,
@@ -213,8 +248,11 @@ function OtherUserProfileContent({
   );
 
   useEffect(() => {
-    activeFollowSubmissionRef.current = false;
-    setFollowError(null);
+    activeRelationshipActionRef.current = null;
+    setActiveRelationshipAction(null);
+    setBlockConfirmationVisible(false);
+    setIsMutedOverride(null);
+    setRelationshipError(null);
   }, [id]);
 
   if (!isUserNode(data.node)) {
@@ -230,10 +268,18 @@ function OtherUserProfileContent({
   const identity = formatProfileIdentity(user);
   const privacy = formatPrivacyModeLabel(user.privacyMode);
   const relationshipState = relationshipStateOverride ?? data.relationshipState;
+  const isMuted = isMutedOverride ?? data.isMuted;
   const relationship = describeRelationshipState({
-    isMuted: data.isMuted,
+    isMuted,
+    isSelf: data.viewer?.id === user.id,
     state: relationshipState,
   });
+  const isRelationshipActionInFlight =
+    activeRelationshipAction !== null ||
+    isFollowUserMutationInFlight ||
+    isMuteUserMutationInFlight ||
+    isUnmuteUserMutationInFlight ||
+    isBlockUserMutationInFlight;
   const currentLiveSession = user.currentLiveSession ?? null;
   const followersPreviewCount = formatConnectionPreviewCount({
     hasNextPage: user.followers?.pageInfo.hasNextPage,
@@ -247,14 +293,16 @@ function OtherUserProfileContent({
   const submitFollowUser = () => {
     if (
       !relationship.canFollow ||
-      isFollowUserMutationInFlight ||
-      activeFollowSubmissionRef.current
+      isRelationshipActionInFlight ||
+      activeRelationshipActionRef.current !== null
     ) {
       return;
     }
 
-    activeFollowSubmissionRef.current = true;
-    setFollowError(null);
+    activeRelationshipActionRef.current = 'follow';
+    setActiveRelationshipAction('follow');
+    setBlockConfirmationVisible(false);
+    setRelationshipError(null);
     commitFollowUser({
       variables: {
         input: {
@@ -262,24 +310,147 @@ function OtherUserProfileContent({
         },
       },
       onCompleted: (payload) => {
-        activeFollowSubmissionRef.current = false;
+        activeRelationshipActionRef.current = null;
+        setActiveRelationshipAction(null);
         const result = payload.followUser;
 
         if (!result?.follow || result.errors.length > 0) {
-          setFollowError(formatRelationshipMutationErrors(result?.errors));
+          setRelationshipError(formatRelationshipMutationErrors(result?.errors));
           return;
         }
 
         onRelationshipMutationSuccess(id, result.follow.state);
       },
       onError: () => {
-        activeFollowSubmissionRef.current = false;
-        setFollowError(
+        activeRelationshipActionRef.current = null;
+        setActiveRelationshipAction(null);
+        setRelationshipError(
           'We could not update this relationship. Check your connection and try again.',
         );
       },
     });
   };
+
+  const requestSocialControl = (action: RelationshipActionKind) => {
+    if (action === 'follow') {
+      submitFollowUser();
+      return;
+    }
+
+    if (
+      isRelationshipActionInFlight ||
+      activeRelationshipActionRef.current !== null
+    ) {
+      return;
+    }
+
+    setRelationshipError(null);
+
+    if (action === 'block') {
+      setBlockConfirmationVisible(true);
+      return;
+    }
+
+    setBlockConfirmationVisible(false);
+    commitSocialControl(action);
+  };
+
+  const confirmBlockUser = () => {
+    if (
+      !blockConfirmationVisible ||
+      isRelationshipActionInFlight ||
+      activeRelationshipActionRef.current !== null
+    ) {
+      return;
+    }
+
+    commitSocialControl('block');
+  };
+
+  const cancelBlockConfirmation = () => {
+    if (activeRelationshipActionRef.current === 'block') {
+      return;
+    }
+
+    setBlockConfirmationVisible(false);
+  };
+
+  function commitSocialControl(
+    action: Exclude<RelationshipActionKind, 'follow'>,
+  ) {
+    activeRelationshipActionRef.current = action;
+    setActiveRelationshipAction(action);
+    setRelationshipError(null);
+
+    switch (action) {
+      case 'mute':
+        commitMuteUser({
+          variables: { input: { mutedId: user.id } },
+          onCompleted: (payload) => {
+            completeSocialControl('mute', payload.muteUser);
+          },
+          onError: failSocialControl,
+        });
+        return;
+
+      case 'unmute':
+        commitUnmuteUser({
+          variables: { input: { mutedId: user.id } },
+          onCompleted: (payload) => {
+            completeSocialControl('unmute', payload.unmuteUser);
+          },
+          onError: failSocialControl,
+        });
+        return;
+
+      case 'block':
+        commitBlockUser({
+          variables: { input: { blockedId: user.id } },
+          onCompleted: (payload) => {
+            completeSocialControl('block', payload.blockUser);
+          },
+          onError: failSocialControl,
+        });
+        return;
+
+      default:
+        activeRelationshipActionRef.current = null;
+        setActiveRelationshipAction(null);
+    }
+  }
+
+  function completeSocialControl(
+    action: Exclude<RelationshipActionKind, 'follow'>,
+    result: SocialControlMutationResult | null | undefined,
+  ) {
+    activeRelationshipActionRef.current = null;
+    setActiveRelationshipAction(null);
+
+    if (!result || result.errors.length > 0) {
+      setRelationshipError(formatRelationshipMutationErrors(result?.errors));
+      return;
+    }
+
+    setBlockConfirmationVisible(false);
+
+    if (action === 'mute') {
+      setIsMutedOverride(true);
+      return;
+    }
+
+    if (action === 'unmute') {
+      setIsMutedOverride(false);
+      return;
+    }
+
+    onRelationshipMutationSuccess(id, 'BLOCKED');
+  }
+
+  function failSocialControl() {
+    activeRelationshipActionRef.current = null;
+    setActiveRelationshipAction(null);
+    setRelationshipError(formatRelationshipMutationErrors(null));
+  }
 
   return (
     <ScrollView
@@ -305,32 +476,64 @@ function OtherUserProfileContent({
       ) : null}
 
       <RelationshipCard
-        errorMessage={followError}
-        isSubmitting={isFollowUserMutationInFlight}
-        onSubmit={submitFollowUser}
+        activeSocialAction={
+          activeRelationshipAction === 'follow' ? null : activeRelationshipAction
+        }
+        blockConfirmationVisible={blockConfirmationVisible}
+        errorMessage={relationshipError}
+        isSubmitting={isRelationshipActionInFlight}
+        onCancelBlock={cancelBlockConfirmation}
+        onConfirmBlock={confirmBlockUser}
+        onFollow={submitFollowUser}
+        onSocialAction={requestSocialControl}
         relationship={relationship}
       />
 
-      <SocialPreviewCard
-        followersPreviewCount={followersPreviewCount}
-        followingPreviewCount={followingPreviewCount}
-      />
+      {relationshipState === 'BLOCKED' ? null : (
+        <SocialPreviewCard
+          followersPreviewCount={followersPreviewCount}
+          followingPreviewCount={followingPreviewCount}
+          onOpenFollowers={() =>
+            router.push({
+              params: { id: user.id },
+              pathname: '/profiles/[id]/followers',
+            })
+          }
+          onOpenFollowing={() =>
+            router.push({
+              params: { id: user.id },
+              pathname: '/profiles/[id]/following',
+            })
+          }
+        />
+      )}
     </ScrollView>
   );
 }
 
 function RelationshipCard({
+  activeSocialAction,
+  blockConfirmationVisible,
   errorMessage,
   isSubmitting,
-  onSubmit,
+  onCancelBlock,
+  onConfirmBlock,
+  onFollow,
+  onSocialAction,
   relationship,
 }: {
+  activeSocialAction: RelationshipActionKind | null;
+  blockConfirmationVisible: boolean;
   errorMessage: string | null;
   isSubmitting: boolean;
-  onSubmit: () => void;
+  onCancelBlock: () => void;
+  onConfirmBlock: () => void;
+  onFollow: () => void;
+  onSocialAction: (action: RelationshipActionKind) => void;
   relationship: ReturnType<typeof describeRelationshipState>;
 }) {
   const theme = useAppTheme();
+  const isBlocking = activeSocialAction === 'block';
 
   return (
     <AppCard>
@@ -344,8 +547,45 @@ function RelationshipCard({
         <AppButton
           disabled={!relationship.canFollow || isSubmitting}
           label={isSubmitting ? 'Saving...' : relationship.actionLabel}
-          onPress={onSubmit}
+          onPress={onFollow}
         />
+      ) : null}
+      {blockConfirmationVisible ? (
+        <View style={styles.summaryPanel}>
+          <Text style={[styles.bodyText, { color: theme.colors.text }]}>
+            Block this profile? Unblock is not available in the mobile app yet.
+          </Text>
+          <View style={styles.rowActions}>
+            <AppButton
+              disabled={isSubmitting}
+              label={isBlocking ? 'Blocking...' : 'Confirm block'}
+              onPress={onConfirmBlock}
+              style={styles.rowActionButton}
+            />
+            <AppButton
+              disabled={isSubmitting}
+              label="Cancel"
+              onPress={onCancelBlock}
+              style={styles.rowActionButton}
+              variant="secondary"
+            />
+          </View>
+        </View>
+      ) : relationship.socialActions.length > 0 ? (
+        <View style={styles.rowActions}>
+          {relationship.socialActions.map((action) => (
+            <AppButton
+              disabled={isSubmitting}
+              key={action.kind}
+              label={
+                activeSocialAction === action.kind ? 'Saving...' : action.label
+              }
+              onPress={() => onSocialAction(action.kind)}
+              style={styles.rowActionButton}
+              variant="secondary"
+            />
+          ))}
+        </View>
       ) : null}
       {errorMessage ? (
         <Text style={[styles.errorText, { color: theme.colors.error }]}>

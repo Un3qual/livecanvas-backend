@@ -182,6 +182,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
               cursor
               node {
                 id
+                canUnlink
               }
             }
             pageInfo {
@@ -198,7 +199,12 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       assert {:ok, %{data: %{"viewer" => %{"userIdentities" => first_page}}}} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 1}, context: context)
 
-      assert [%{"cursor" => first_cursor, "node" => %{"id" => first_id}}] = first_page["edges"]
+      assert [
+               %{
+                 "cursor" => first_cursor,
+                 "node" => %{"id" => first_id, "canUnlink" => true}
+               }
+             ] = first_page["edges"]
       assert is_binary(first_cursor)
       assert is_binary(first_id)
       assert %{"hasNextPage" => true, "endCursor" => end_cursor} = first_page["pageInfo"]
@@ -212,7 +218,12 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
                  context: context
                )
 
-      assert [%{"cursor" => second_cursor, "node" => %{"id" => second_id}}] = second_page["edges"]
+      assert [
+               %{
+                 "cursor" => second_cursor,
+                 "node" => %{"id" => second_id, "canUnlink" => true}
+               }
+             ] = second_page["edges"]
       assert is_binary(second_cursor)
       assert is_binary(second_id)
       assert first_id != second_id
@@ -277,6 +288,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
             edges {
               node {
                 id
+                canUnlink
               }
             }
           }
@@ -289,7 +301,8 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       assert {:ok, %{data: %{"viewer" => %{"userIdentities" => identities}}}} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10}, context: context)
 
-      assert [%{"node" => %{"id" => active_identity_id}}] = identities["edges"]
+      assert [%{"node" => %{"id" => active_identity_id, "canUnlink" => false}}] =
+               identities["edges"]
 
       revoked_identity_id =
         Absinthe.Relay.Node.to_global_id(:user_identity, revoked_identity.id, LCGQL.Schema)
@@ -478,6 +491,101 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
 
       assert {:ok, %{data: %{"node" => %{"privacyMode" => "PUBLIC"}}}} =
                Absinthe.run(query, LCGQL.Schema, variables: %{"id" => user_id})
+    end
+  end
+
+  describe "viewerAccountDeletionRequests" do
+    test "returns a relay connection scoped to the authenticated viewer" do
+      viewer = user_fixture()
+      outsider = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, request} = Accounts.request_user_account_deletion(viewer)
+      assert {:ok, _outsider_request} = Accounts.request_user_account_deletion(outsider)
+
+      request_id =
+        Absinthe.Relay.Node.to_global_id(:account_deletion_request, request.id, LCGQL.Schema)
+
+      query = """
+      query($first: Int!) {
+        viewerAccountDeletionRequests(first: $first) {
+          edges {
+            node {
+              id
+              status
+              requestedAt
+              scheduledPurgeAt
+              completedAt
+              failureReason
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "viewerAccountDeletionRequests" => %{
+                    "edges" => [
+                      %{
+                        "node" => %{
+                          "id" => ^request_id,
+                          "status" => "SCHEDULED",
+                          "requestedAt" => requested_at,
+                          "scheduledPurgeAt" => scheduled_purge_at,
+                          "completedAt" => nil,
+                          "failureReason" => nil
+                        }
+                      }
+                    ],
+                    "pageInfo" => %{"hasNextPage" => false, "endCursor" => end_cursor}
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"first" => 10},
+                 context: context
+               )
+
+      assert is_binary(requested_at)
+      assert is_binary(scheduled_purge_at)
+      assert is_binary(end_cursor)
+    end
+
+    test "returns an empty connection without a viewer scope" do
+      viewer = user_fixture()
+      assert {:ok, _request} = Accounts.request_user_account_deletion(viewer)
+
+      query = """
+      query($first: Int!) {
+        viewerAccountDeletionRequests(first: $first) {
+          edges {
+            node {
+              id
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "viewerAccountDeletionRequests" => %{
+                    "edges" => [],
+                    "pageInfo" => %{"hasNextPage" => false, "endCursor" => nil}
+                  }
+                }
+              }} = Absinthe.run(query, LCGQL.Schema, variables: %{"first" => 10})
     end
   end
 

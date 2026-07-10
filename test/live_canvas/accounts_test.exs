@@ -9,7 +9,14 @@ defmodule LC.AccountsTest do
 
   import LC.AccountsFixtures
   alias LC.Accounts.Tokens
-  alias LCSchemas.Accounts.{User, UserContactEntry, UserToken}
+
+  alias LCSchemas.Accounts.{
+    StaffPermission,
+    User,
+    UserContactEntry,
+    UserEmailAddress,
+    UserToken
+  }
 
   describe "schema shape" do
     test "user exposes join and through email relationships" do
@@ -199,7 +206,7 @@ defmodule LC.AccountsTest do
 
   describe "unlink_user_identity/2" do
     test "revokes an owned identity and makes it undiscoverable" do
-      user = user_fixture()
+      user = user_fixture() |> set_password()
 
       identity =
         attach_user_identity(user, :google_provider, "google-user-unlink-success",
@@ -224,11 +231,50 @@ defmodule LC.AccountsTest do
     end
 
     test "returns already_revoked when unlink is repeated" do
-      user = user_fixture()
+      user = user_fixture() |> set_password()
       identity = attach_user_identity(user, :google_provider, "google-user-unlink-repeat")
 
       assert {:ok, _revoked_identity} = Accounts.unlink_user_identity(user, identity.id)
       assert {:error, :already_revoked} = Accounts.unlink_user_identity(user, identity.id)
+    end
+
+    test "protects the last active identity for a passwordless user" do
+      user = user_fixture()
+      identity = attach_user_identity(user, :google_provider, "google-user-last-sign-in")
+
+      refute Accounts.user_identity_unlinkable?(user, identity.id)
+      assert {:error, :last_sign_in_method} = Accounts.unlink_user_identity(user, identity.id)
+      assert Accounts.get_active_user_identity(user, identity.id)
+    end
+
+    test "allows a passwordless user to unlink either of multiple active identities" do
+      user = user_fixture()
+      first_identity = attach_user_identity(user, :google_provider, "google-user-first-sign-in")
+      second_identity = attach_user_identity(user, :apple_provider, "apple-user-second-sign-in")
+
+      assert Accounts.user_identity_unlinkable?(user, first_identity.id)
+      assert Accounts.user_identity_unlinkable?(user, second_identity.id)
+      assert {:ok, _revoked_identity} = Accounts.unlink_user_identity(user, first_identity.id)
+
+      refute Accounts.user_identity_unlinkable?(user, second_identity.id)
+    end
+
+    test "does not count legacy identities as alternate sign-in methods" do
+      user = user_fixture()
+
+      sign_in_identity =
+        attach_user_identity(user, :google_provider, "google-user-with-legacy-identity")
+
+      legacy_identity =
+        attach_user_identity(user, :instagram_provider, "instagram-user-legacy-identity")
+
+      refute Accounts.user_identity_unlinkable?(user, sign_in_identity.id)
+      assert Accounts.user_identity_unlinkable?(user, legacy_identity.id)
+
+      assert {:error, :last_sign_in_method} =
+               Accounts.unlink_user_identity(user, sign_in_identity.id)
+
+      assert Accounts.get_active_user_identity(user, sign_in_identity.id)
     end
   end
 
@@ -312,30 +358,116 @@ defmodule LC.AccountsTest do
 
   describe "list_user_contact_matches/1" do
     test "returns deterministic match records and excludes self matches" do
-      owner = user_fixture()
-      email_match = user_fixture()
+      owner = user_fixture(email: "a-owner@example.com")
+      email_match = user_fixture(email: "z-email-match@example.com")
       phone_match = user_fixture()
 
-      attach_phone_number(phone_match, "(650) 253-0001")
+      assert {:ok, _owner_alias} =
+               Accounts.attach_user_email_address(owner, "b-owner-alias@example.com")
+
+      attach_phone_number(phone_match, "(650) 253-0001",
+        verified_at: DateTime.utc_now() |> DateTime.truncate(:microsecond)
+      )
 
       assert {:ok, _contact_entry} =
                Accounts.upsert_user_contact_entry(owner, %{
                  contact_client_id: :crypto.strong_rand_bytes(16),
                  contact_name: "Known Friend",
-                 emails: [email_match.email, owner.email],
+                 emails: [email_match.email, owner.email, "b-owner-alias@example.com"],
                  phone_numbers: ["+1 650-253-0001"]
                })
 
       assert [
                %{
                  contact_entry: %{contact_name: "Known Friend"},
+                 invite_recipient: invite_recipient,
                  matched_users: matched_users
                }
              ] = Accounts.list_user_contact_matches(owner)
 
+      assert invite_recipient == email_match.email
       assert Enum.map(matched_users, & &1.id) == Enum.sort([email_match.id, phone_match.id])
       refute Enum.any?(matched_users, &(&1.id == owner.id))
       assert Enum.all?(matched_users, &(is_binary(&1.email) and String.contains?(&1.email, "@")))
+    end
+
+    test "matches only users with verified contact identifiers" do
+      owner = user_fixture()
+      verified_email_match = user_fixture()
+      unverified_email_match = unconfirmed_user_fixture()
+      verified_phone_match = user_fixture()
+      unverified_phone_match = user_fixture()
+      verified_at = DateTime.utc_now() |> DateTime.truncate(:microsecond)
+
+      attach_phone_number(verified_phone_match, "+1 650-253-0002", verified_at: verified_at)
+      attach_phone_number(unverified_phone_match, "+1 650-253-0003")
+
+      assert {:ok, _contact_entry} =
+               Accounts.upsert_user_contact_entry(owner, %{
+                 contact_client_id: :crypto.strong_rand_bytes(16),
+                 emails: [verified_email_match.email, unverified_email_match.email],
+                 phone_numbers: ["+1 650-253-0002", "+1 650-253-0003"]
+               })
+
+      assert [%{matched_users: matched_users}] = Accounts.list_user_contact_matches(owner)
+
+      assert Enum.map(matched_users, & &1.id) ==
+               Enum.sort([verified_email_match.id, verified_phone_match.id])
+
+      refute Enum.any?(matched_users, &(&1.id == unverified_email_match.id))
+      refute Enum.any?(matched_users, &(&1.id == unverified_phone_match.id))
+    end
+
+    test "matches a confirmed user's legacy primary email without a join verification timestamp" do
+      owner = user_fixture()
+      legacy_confirmed_match = user_fixture()
+
+      assert {1, nil} =
+               Repo.update_all(
+                 from(user_email_address in UserEmailAddress,
+                   where: user_email_address.user_id == ^legacy_confirmed_match.id
+                 ),
+                 set: [verified_at: nil]
+               )
+
+      assert {:ok, _contact_entry} =
+               Accounts.upsert_user_contact_entry(owner, %{
+                 contact_client_id: :crypto.strong_rand_bytes(16),
+                 emails: [legacy_confirmed_match.email]
+               })
+
+      assert [%{matched_users: [%{id: matched_user_id}]}] =
+               Accounts.list_user_contact_matches(owner)
+
+      assert matched_user_id == legacy_confirmed_match.id
+    end
+
+    test "does not treat an unverified secondary email as verified by account confirmation" do
+      owner = user_fixture()
+      confirmed_user = user_fixture()
+      secondary_email = unique_user_email()
+
+      assert {:ok, join} =
+               Accounts.attach_user_email_address(confirmed_user, secondary_email,
+                 verified_at: nil
+               )
+
+      assert is_nil(join.verified_at)
+
+      assert is_nil(
+               Repo.get_by!(UserEmailAddress,
+                 user_id: confirmed_user.id,
+                 email_address_id: join.email_address_id
+               ).verified_at
+             )
+
+      assert {:ok, _contact_entry} =
+               Accounts.upsert_user_contact_entry(owner, %{
+                 contact_client_id: :crypto.strong_rand_bytes(16),
+                 emails: [secondary_email]
+               })
+
+      assert [%{matched_users: []}] = Accounts.list_user_contact_matches(owner)
     end
 
     test "returns an empty list when no contacts are imported" do
@@ -464,8 +596,73 @@ defmodule LC.AccountsTest do
       assert %{user: ^user} = Accounts.scope_for_user(user)
     end
 
+    test "scope_for_user/1 includes active staff permissions" do
+      user = user_fixture()
+      assert {:ok, _permission} = Accounts.grant_staff_permission(user, :post_report_moderation)
+
+      assert %{user: ^user, staff_permissions: staff_permissions} = Accounts.scope_for_user(user)
+      assert MapSet.equal?(staff_permissions, MapSet.new([:post_report_moderation]))
+    end
+
     test "empty_scope/0 returns nil" do
       assert is_nil(Accounts.empty_scope())
+    end
+  end
+
+  describe "staff permissions" do
+    test "grants one active staff permission per user and permission" do
+      user = user_fixture()
+
+      assert {:ok, %{__struct__: StaffPermission} = permission} =
+               Accounts.grant_staff_permission(user, :post_report_moderation)
+
+      assert permission.user_id == user.id
+      assert permission.permission == :post_report_moderation
+      assert is_binary(permission.entropy_id)
+      assert %DateTime{} = permission.granted_at
+      assert is_nil(permission.revoked_at)
+
+      assert [%{__struct__: StaffPermission, id: permission_id}] =
+               Accounts.list_active_staff_permissions(user)
+
+      assert permission_id == permission.id
+
+      assert {:ok, %{__struct__: StaffPermission, id: ^permission_id}} =
+               Accounts.grant_staff_permission(user, :post_report_moderation)
+    end
+
+    test "concurrent duplicate grants return the active permission" do
+      user = user_fixture()
+
+      grant_tasks =
+        for _index <- 1..2 do
+          Task.async(fn -> Accounts.grant_staff_permission(user, :post_report_moderation) end)
+        end
+
+      assert [
+               {:ok, %{__struct__: StaffPermission, id: first_permission_id}},
+               {:ok, %{__struct__: StaffPermission, id: second_permission_id}}
+             ] = Enum.map(grant_tasks, &Task.await(&1, 5_000))
+
+      assert first_permission_id == second_permission_id
+
+      assert [%{__struct__: StaffPermission, id: ^first_permission_id}] =
+               Accounts.list_active_staff_permissions(user)
+    end
+
+    test "revokes active staff permissions and excludes revoked grants from reads" do
+      user = user_fixture()
+      assert {:ok, permission} = Accounts.grant_staff_permission(user, :post_report_moderation)
+
+      assert {:ok, revoked_permission} =
+               Accounts.revoke_staff_permission(user, :post_report_moderation)
+
+      assert revoked_permission.id == permission.id
+      assert %DateTime{} = revoked_permission.revoked_at
+      assert [] = Accounts.list_active_staff_permissions(user)
+
+      assert {:error, :not_found} =
+               Accounts.revoke_staff_permission(user, :post_report_moderation)
     end
   end
 
@@ -780,6 +977,12 @@ defmodule LC.AccountsTest do
                Accounts.login_user_by_magic_link(encoded_token)
 
       assert user.confirmed_at
+
+      confirmed_user =
+        Accounts.get_user!(user.id)
+        |> Repo.preload(user_email_addresses: :email_address)
+
+      assert [%{verified_at: %DateTime{}}] = confirmed_user.user_email_addresses
     end
 
     test "returns user and (deleted) token for confirmed user" do

@@ -9,6 +9,7 @@ defmodule LCSchemas do
       Accounts.AuthEventType,
       Accounts.EmailAddress,
       Accounts.PhoneNumber,
+      Accounts.StaffPermission,
       Accounts.User,
       Accounts.UserPrivacyMode,
       Accounts.UserContactEntry,
