@@ -922,7 +922,7 @@ Execution evidence (2026-07-09):
 - Consumes: Task 5 operation/selectors and Tasks 2-4 state/cards/controls.
 - Produces: one shared full-list screen for viewer and other posts/stories/replays.
 
-- [ ] **Step 1: Write failing route and list tests**
+- [x] **Step 1: Write failing route and list tests**
 
 Assert both route files reject invalid/missing/repeated `id` or `kind` values
 with `Profile link is invalid.` Assert a valid route renders the shared screen.
@@ -939,14 +939,14 @@ In the screen suite assert:
 - other posts/stories show report
 - replays open the existing watch route
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 pnpm exec jest --config ./jest.config.js tests/profile/ProfileContentListScreen.rntl.tsx --runInBand
 bun test tests/profile/profileContentRouteParams.test.ts tests/content/contentConnectionState.test.ts
 ```
 
-- [ ] **Step 3: Implement the shared list**
+- [x] **Step 3: Implement the shared list**
 
 The screen accepts:
 
@@ -970,13 +970,13 @@ Render a `FlatList` whose header identifies `Posts`, `Stories`, or `Replays`,
 whose rows use `ContentPostCard` or `LiveSessionSummaryCard`, and whose footer
 uses the shared load-more control. Apply post overlays before passing data.
 
-- [ ] **Step 4: Implement strict route files**
+- [x] **Step 4: Implement strict route files**
 
 Viewer route reads both `id` and `kind` from search params. Other-user route
 reads path `id` and search `kind`. Both wrap the shared screen in
 `RelayRouteBoundary` with kind-specific loading/error copy.
 
-- [ ] **Step 5: Verify full-list behavior and commit**
+- [x] **Step 5: Verify full-list behavior and commit**
 
 ```bash
 pnpm exec jest --config ./jest.config.js tests/profile/ProfileContentListScreen.rntl.tsx --runInBand
@@ -988,6 +988,18 @@ git commit -m "feat(mobile): add paginated profile content lists"
 ```
 
 Do not stage `runtime.test.ts` if it did not need a route-allowlist change.
+
+Execution evidence (2026-07-09):
+
+- RED: the full-list suite failed on the missing viewer route module before
+  implementation existed.
+- GREEN: 6 RNTL route/list tests passed, covering strict params, `first: 10`,
+  opaque cursor pagination, retry retention, ID de-duplication, same-tick
+  guarding, route resets, A -> B -> A stale completion rejection, post
+  controls, and replay navigation.
+- The profile route-param and universal connection suites passed 5 tests.
+- `bun run typecheck`, `bun run typecheck:tests`, `bun run lint`, and
+  `git diff --check` passed. No runtime route allowlist change was needed.
 
 ---
 

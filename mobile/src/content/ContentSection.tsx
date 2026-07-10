@@ -128,7 +128,7 @@ function ContentSectionRows(props: ContentSectionProps) {
   }
 }
 
-function ContentSectionLoadMoreControl({
+export function ContentSectionLoadMoreControl({
   kind,
   loadMore,
 }: {

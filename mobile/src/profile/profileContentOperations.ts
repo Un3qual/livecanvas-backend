@@ -3,7 +3,7 @@ import { graphql } from 'react-relay';
 import type { ProfileContentKind } from '../content/contentSurfaceTypes';
 import type { profileContentOperationsQuery as ProfileContentQuery } from '../__generated__/profileContentOperationsQuery.graphql';
 
-type ProfileContentData = ProfileContentQuery['response'];
+export type ProfileContentData = ProfileContentQuery['response'];
 type ProfileContentNode = ProfileContentData['node'];
 type ProfileContentUser = Extract<
   NonNullable<ProfileContentNode>,
