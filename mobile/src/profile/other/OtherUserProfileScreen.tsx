@@ -30,23 +30,26 @@ import {
 import {
   describeRelationshipState,
   type RelationshipActionKind,
-  type RelationshipState,
 } from '../relationshipPresentation';
 import { formatMutationErrors } from '../mutationErrors';
 import {
   socialControlBlockUserMutation,
   socialControlMuteUserMutation,
+  socialControlUnblockUserMutation,
+  socialControlUnfollowUserMutation,
   socialControlUnmuteUserMutation,
 } from '../socialControlOperations';
 import {
   otherUserProfileScreenResetKey,
-  selectActiveRelationshipStateOverride,
-  type RelationshipStateOverride,
+  selectActiveRelationshipViewOverride,
+  type RelationshipViewOverride,
 } from './otherUserProfileRouteState';
 import type { OtherUserProfileScreenFollowUserMutation } from '../../__generated__/OtherUserProfileScreenFollowUserMutation.graphql';
 import type { OtherUserProfileScreenQuery } from '../../__generated__/OtherUserProfileScreenQuery.graphql';
 import type { socialControlOperationsBlockUserMutation } from '../../__generated__/socialControlOperationsBlockUserMutation.graphql';
 import type { socialControlOperationsMuteUserMutation } from '../../__generated__/socialControlOperationsMuteUserMutation.graphql';
+import type { socialControlOperationsUnblockUserMutation } from '../../__generated__/socialControlOperationsUnblockUserMutation.graphql';
+import type { socialControlOperationsUnfollowUserMutation } from '../../__generated__/socialControlOperationsUnfollowUserMutation.graphql';
 import type { socialControlOperationsUnmuteUserMutation } from '../../__generated__/socialControlOperationsUnmuteUserMutation.graphql';
 
 type OtherUserProfileData = OtherUserProfileScreenQuery['response'];
@@ -104,6 +107,7 @@ const otherUserProfileScreenQuery = graphql`
       }
     }
     relationshipState(creatorId: $id)
+    isBlockedByViewer(creatorId: $id)
     isMuted(creatorId: $id)
     viewer {
       id
@@ -128,20 +132,20 @@ const otherUserProfileScreenFollowUserMutation = graphql`
 
 export function OtherUserProfileScreen({ id }: { id: string }) {
   const [queryRetryKey, retryQuery] = useReducer((key: number) => key + 1, 0);
-  const [relationshipStateOverride, setRelationshipStateOverride] =
-    useState<RelationshipStateOverride | null>(null);
+  const [relationshipViewOverride, setRelationshipViewOverride] =
+    useState<RelationshipViewOverride | null>(null);
   const currentProfileIdRef = useRef(id);
   const resetKey = otherUserProfileScreenResetKey(id, queryRetryKey);
 
   currentProfileIdRef.current = id;
 
   useEffect(() => {
-    setRelationshipStateOverride(null);
+    setRelationshipViewOverride(null);
   }, [id]);
 
   const handleRelationshipMutationSuccess = (
     profileId: string,
-    state: RelationshipState,
+    override: Omit<RelationshipViewOverride, 'profileId'>,
   ) => {
     if (currentProfileIdRef.current !== profileId) {
       return;
@@ -149,7 +153,7 @@ export function OtherUserProfileScreen({ id }: { id: string }) {
 
     // Keep confirmed relationship state in the parent while the keyed remount
     // forces a fresh query, preventing a stale cached relationship flash.
-    setRelationshipStateOverride({ profileId, state });
+    setRelationshipViewOverride({ profileId, ...override });
     retryQuery();
   };
 
@@ -162,8 +166,8 @@ export function OtherUserProfileScreen({ id }: { id: string }) {
         id={id}
         key={resetKey}
         onRelationshipMutationSuccess={handleRelationshipMutationSuccess}
-        relationshipStateOverride={selectActiveRelationshipStateOverride(
-          relationshipStateOverride,
+        relationshipViewOverride={selectActiveRelationshipViewOverride(
+          relationshipViewOverride,
           id,
         )}
       />
@@ -207,14 +211,14 @@ class OtherUserProfileErrorBoundary extends React.Component<
 function OtherUserProfileContent({
   id,
   onRelationshipMutationSuccess,
-  relationshipStateOverride,
+  relationshipViewOverride,
 }: {
   id: string;
   onRelationshipMutationSuccess: (
     profileId: string,
-    state: RelationshipState,
+    override: Omit<RelationshipViewOverride, 'profileId'>,
   ) => void;
-  relationshipStateOverride: RelationshipState | null;
+  relationshipViewOverride: RelationshipViewOverride | null;
 }) {
   const theme = useAppTheme();
   const router = useRouter();
@@ -240,6 +244,14 @@ function OtherUserProfileContent({
   const [commitBlockUser, isBlockUserMutationInFlight] =
     useMutation<socialControlOperationsBlockUserMutation>(
       socialControlBlockUserMutation,
+    );
+  const [commitUnfollowUser, isUnfollowUserMutationInFlight] =
+    useMutation<socialControlOperationsUnfollowUserMutation>(
+      socialControlUnfollowUserMutation,
+    );
+  const [commitUnblockUser, isUnblockUserMutationInFlight] =
+    useMutation<socialControlOperationsUnblockUserMutation>(
+      socialControlUnblockUserMutation,
     );
   const data = useLazyLoadQuery<OtherUserProfileScreenQuery>(
     otherUserProfileScreenQuery,
@@ -267,10 +279,13 @@ function OtherUserProfileContent({
   const user = data.node;
   const identity = formatProfileIdentity(user);
   const privacy = formatPrivacyModeLabel(user.privacyMode);
-  const relationshipState = relationshipStateOverride ?? data.relationshipState;
+  const relationshipState =
+    relationshipViewOverride?.state ?? data.relationshipState;
+  const isBlockedByViewer =
+    relationshipViewOverride?.isBlockedByViewer ?? data.isBlockedByViewer;
   const isMuted = isMutedOverride ?? data.isMuted;
   const relationship = describeRelationshipState({
-    isBlockedByViewer: false,
+    isBlockedByViewer,
     isMuted,
     isSelf: data.viewer?.id === user.id,
     state: relationshipState,
@@ -280,7 +295,9 @@ function OtherUserProfileContent({
     isFollowUserMutationInFlight ||
     isMuteUserMutationInFlight ||
     isUnmuteUserMutationInFlight ||
-    isBlockUserMutationInFlight;
+    isBlockUserMutationInFlight ||
+    isUnfollowUserMutationInFlight ||
+    isUnblockUserMutationInFlight;
   const currentLiveSession = user.currentLiveSession ?? null;
   const followersPreviewCount = formatConnectionPreviewCount({
     hasNextPage: user.followers?.pageInfo.hasNextPage,
@@ -320,7 +337,10 @@ function OtherUserProfileContent({
           return;
         }
 
-        onRelationshipMutationSuccess(id, result.follow.state);
+        onRelationshipMutationSuccess(id, {
+          isBlockedByViewer: false,
+          state: result.follow.state,
+        });
       },
       onError: () => {
         activeRelationshipActionRef.current = null;
@@ -414,6 +434,26 @@ function OtherUserProfileContent({
         });
         return;
 
+      case 'unfollow':
+        commitUnfollowUser({
+          variables: { input: { followedId: user.id } },
+          onCompleted: (payload) => {
+            completeSocialControl('unfollow', payload.unfollowUser);
+          },
+          onError: failSocialControl,
+        });
+        return;
+
+      case 'unblock':
+        commitUnblockUser({
+          variables: { input: { blockedId: user.id } },
+          onCompleted: (payload) => {
+            completeSocialControl('unblock', payload.unblockUser);
+          },
+          onError: failSocialControl,
+        });
+        return;
+
       default:
         activeRelationshipActionRef.current = null;
         setActiveRelationshipAction(null);
@@ -444,7 +484,26 @@ function OtherUserProfileContent({
       return;
     }
 
-    onRelationshipMutationSuccess(id, 'BLOCKED');
+    if (action === 'unfollow') {
+      onRelationshipMutationSuccess(id, {
+        isBlockedByViewer: false,
+        state: user.privacyMode === 'PUBLIC' ? 'PUBLIC' : 'NONE',
+      });
+      return;
+    }
+
+    if (action === 'unblock') {
+      onRelationshipMutationSuccess(id, {
+        isBlockedByViewer: false,
+        state: null,
+      });
+      return;
+    }
+
+    onRelationshipMutationSuccess(id, {
+      isBlockedByViewer: true,
+      state: 'BLOCKED',
+    });
   }
 
   function failSocialControl() {
@@ -554,7 +613,7 @@ function RelationshipCard({
       {blockConfirmationVisible ? (
         <View style={styles.summaryPanel}>
           <Text style={[styles.bodyText, { color: theme.colors.text }]}>
-            Block this profile? Unblock is not available in the mobile app yet.
+            Block this profile? You can unblock it later.
           </Text>
           <View style={styles.rowActions}>
             <AppButton

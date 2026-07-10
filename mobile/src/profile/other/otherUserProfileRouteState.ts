@@ -1,8 +1,9 @@
 import type { RelationshipState } from '../relationshipPresentation';
 
-export type RelationshipStateOverride = {
+export type RelationshipViewOverride = {
+  readonly isBlockedByViewer: boolean | null;
   readonly profileId: string;
-  readonly state: RelationshipState;
+  readonly state: RelationshipState | null;
 };
 
 export function otherUserProfileScreenResetKey(
@@ -12,9 +13,9 @@ export function otherUserProfileScreenResetKey(
   return `${profileId}:${queryRetryKey}`;
 }
 
-export function selectActiveRelationshipStateOverride(
-  override: RelationshipStateOverride | null,
+export function selectActiveRelationshipViewOverride(
+  override: RelationshipViewOverride | null,
   profileId: string,
-): RelationshipState | null {
-  return override?.profileId === profileId ? override.state : null;
+): RelationshipViewOverride | null {
+  return override?.profileId === profileId ? override : null;
 }

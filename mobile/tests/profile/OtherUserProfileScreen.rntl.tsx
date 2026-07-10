@@ -22,6 +22,8 @@ let mockFollowCommit: MutationCommit;
 let mockMuteCommit: MutationCommit;
 let mockUnmuteCommit: MutationCommit;
 let mockBlockCommit: MutationCommit;
+let mockUnfollowCommit: MutationCommit;
+let mockUnblockCommit: MutationCommit;
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -48,6 +50,14 @@ jest.mock('react-relay', () => ({
       return [mockBlockCommit, false];
     }
 
+    if (operationName === 'socialControlOperationsUnfollowUserMutation') {
+      return [mockUnfollowCommit, false];
+    }
+
+    if (operationName === 'socialControlOperationsUnblockUserMutation') {
+      return [mockUnblockCommit, false];
+    }
+
     return [mockFollowCommit, false];
   },
 }));
@@ -57,7 +67,10 @@ beforeEach(() => {
   mockMuteCommit = jest.fn();
   mockUnmuteCommit = jest.fn();
   mockBlockCommit = jest.fn();
+  mockUnfollowCommit = jest.fn();
+  mockUnblockCommit = jest.fn();
   mockQueryData = profileQueryData({
+    isBlockedByViewer: false,
     isMuted: false,
     relationshipState: 'ACCEPTED',
   });
@@ -66,6 +79,7 @@ beforeEach(() => {
 describe('OtherUserProfileScreen social controls', () => {
   test('blocks a social control submitted in the same tick as follow', async () => {
     mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
       isMuted: false,
       relationshipState: 'NONE',
     });
@@ -112,9 +126,124 @@ describe('OtherUserProfileScreen social controls', () => {
     });
   });
 
-  test('confirms before blocking and then hides reversible controls', async () => {
+  test('unfollows with the opaque Relay ID and blocks a same-tick second action', async () => {
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      relationshipState: 'ACCEPTED',
+    });
+
+    await render(<OtherUserProfileScreen id="opaque-profile-id" />);
+
+    const unfollow = screen.getByRole('button', { name: 'Unfollow' });
+    const staleMute = screen.getByRole('button', { name: 'Mute' });
+    await fireEvent.press(unfollow);
+    await fireEvent.press(staleMute);
+
+    expect(mockUnfollowCommit).toHaveBeenCalledTimes(1);
+    expect(mockUnfollowCommit.mock.calls[0]?.[0].variables).toEqual({
+      input: { followedId: 'opaque-profile-id' },
+    });
+    expect(mockMuteCommit).not.toHaveBeenCalled();
+
+    await completeMutation(mockUnfollowCommit, {
+      unfollowUser: { errors: [] },
+    });
+
+    expect(screen.getByText('You can follow this profile.')).toBeOnTheScreen();
+  });
+
+  test('ignores an unfollow completion after navigation changes the profile id', async () => {
     const user = userEvent.setup();
     mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      profileId: 'profile-1',
+      relationshipState: 'ACCEPTED',
+    });
+
+    const view = await render(<OtherUserProfileScreen id="profile-1" />);
+    await user.press(screen.getByRole('button', { name: 'Unfollow' }));
+    expect(mockUnfollowCommit).toHaveBeenCalledTimes(1);
+
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      profileId: 'profile-2',
+      relationshipState: 'ACCEPTED',
+    });
+    await view.rerender(<OtherUserProfileScreen id="profile-2" />);
+
+    await completeMutation(mockUnfollowCommit, {
+      unfollowUser: { errors: [] },
+    });
+
+    expect(screen.getByText('You follow this profile.')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Unfollow' })).toBeOnTheScreen();
+  });
+
+  test('shows unblock only for an outbound block and submits the opaque Relay ID', async () => {
+    const user = userEvent.setup();
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: true,
+      isMuted: false,
+      relationshipState: 'BLOCKED',
+    });
+
+    await render(<OtherUserProfileScreen id="opaque-profile-id" />);
+    await user.press(screen.getByRole('button', { name: 'Unblock' }));
+
+    expect(mockUnblockCommit).toHaveBeenCalledTimes(1);
+    expect(mockUnblockCommit.mock.calls[0]?.[0].variables).toEqual({
+      input: { blockedId: 'opaque-profile-id' },
+    });
+
+    await completeMutation(mockUnblockCommit, {
+      unblockUser: { errors: [] },
+    });
+
+    expect(screen.queryByRole('button', { name: 'Unblock' })).toBeNull();
+    expect(screen.getByText('This profile is not available.')).toBeOnTheScreen();
+  });
+
+  test('does not expose unblock for an inbound-only block', async () => {
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
+      isMuted: false,
+      relationshipState: 'BLOCKED',
+    });
+
+    await render(<OtherUserProfileScreen id="opaque-profile-id" />);
+
+    expect(screen.queryByRole('button', { name: 'Unblock' })).toBeNull();
+    expect(screen.getByText('This profile is not available.')).toBeOnTheScreen();
+  });
+
+  test('keeps unblock payload errors local and retryable', async () => {
+    const user = userEvent.setup();
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: true,
+      isMuted: false,
+      relationshipState: 'BLOCKED',
+    });
+
+    await render(<OtherUserProfileScreen id="opaque-profile-id" />);
+    await user.press(screen.getByRole('button', { name: 'Unblock' }));
+    await completeMutation(mockUnblockCommit, {
+      unblockUser: {
+        errors: [{ field: 'blockedId', message: 'not_found' }],
+      },
+    });
+
+    expect(screen.getByText('blockedId: not_found')).toBeOnTheScreen();
+    await user.press(screen.getByRole('button', { name: 'Unblock' }));
+    expect(mockUnblockCommit).toHaveBeenCalledTimes(2);
+  });
+
+  test('confirms before blocking and then exposes outbound unblock', async () => {
+    const user = userEvent.setup();
+    mockQueryData = profileQueryData({
+      isBlockedByViewer: false,
       isMuted: false,
       relationshipState: 'NONE',
     });
@@ -125,7 +254,7 @@ describe('OtherUserProfileScreen social controls', () => {
 
     expect(
       screen.getByText(
-        'Block this profile? Unblock is not available in the mobile app yet.',
+        'Block this profile? You can unblock it later.',
       ),
     ).toBeOnTheScreen();
     expect(mockBlockCommit).not.toHaveBeenCalled();
@@ -144,9 +273,9 @@ describe('OtherUserProfileScreen social controls', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('This profile is not available.')).toBeOnTheScreen();
+      expect(screen.getByText('You blocked this profile.')).toBeOnTheScreen();
     });
-    expect(screen.queryByRole('button', { name: 'Unblock' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Unblock' })).toBeOnTheScreen();
   });
 
   test('keeps block payload errors local and retryable', async () => {
@@ -173,6 +302,7 @@ describe('OtherUserProfileScreen social controls', () => {
   test('does not expose social controls when the route targets the viewer', async () => {
     mockQueryData = {
       ...profileQueryData({
+        isBlockedByViewer: false,
         isMuted: false,
         relationshipState: 'ACCEPTED',
       }),
@@ -197,20 +327,25 @@ async function completeMutation(
 }
 
 function profileQueryData({
+  isBlockedByViewer,
   isMuted,
+  profileId = 'opaque-profile-id',
   relationshipState,
 }: {
+  isBlockedByViewer: boolean;
   isMuted: boolean;
+  profileId?: string;
   relationshipState: string;
 }) {
   return {
+    isBlockedByViewer,
     isMuted,
     node: {
       __typename: 'User',
       currentLiveSession: null,
       followers: connection([]),
       following: connection([]),
-      id: 'opaque-profile-id',
+      id: profileId,
       privacyMode: 'PUBLIC',
     },
     relationshipState,

@@ -848,7 +848,7 @@ Execution evidence (2026-07-09):
 - Consumes: Task 3's action kinds and mutation documents.
 - Produces: profile-keyed partial overrides and guarded, viewer-safe Unfollow/Unblock UI behavior.
 
-- [ ] **Step 1: Write failing route-override helper tests**
+- [x] **Step 1: Write failing route-override helper tests**
 
 Replace the state helper test's override assertions with:
 
@@ -869,7 +869,7 @@ test('uses partial relationship overrides only for the active profile id', () =>
 });
 ```
 
-- [ ] **Step 2: Write failing RNTL integration tests**
+- [x] **Step 2: Write failing RNTL integration tests**
 
 Add `mockUnfollowCommit` and `mockUnblockCommit` to the existing mutation mocks. Route them by operation name exactly as the mute/block commits are routed. Add `isBlockedByViewer` to `profileQueryData` and its input.
 
@@ -1024,7 +1024,7 @@ function profileQueryData({
 
 Pass `isBlockedByViewer: false` at every existing helper call that represents an ordinary profile.
 
-- [ ] **Step 3: Run the focused tests and verify they fail**
+- [x] **Step 3: Run the focused tests and verify they fail**
 
 Run from `mobile/`:
 
@@ -1035,7 +1035,7 @@ pnpm exec jest --config ./jest.config.js tests/profile/OtherUserProfileScreen.rn
 
 Expected: FAIL because the query field, partial override, mutation hooks, and handlers are absent.
 
-- [ ] **Step 4: Implement the profile-keyed partial override**
+- [x] **Step 4: Implement the profile-keyed partial override**
 
 Replace `RelationshipStateOverride` with:
 
@@ -1065,7 +1065,7 @@ export function selectActiveRelationshipViewOverride(
 
 The nullable fields are deliberate: after unblock, the client knows the outbound block is gone but must refetch the effective relationship instead of guessing whether a follow row or inbound block remains.
 
-- [ ] **Step 5: Extend the profile query and mutation hooks**
+- [x] **Step 5: Extend the profile query and mutation hooks**
 
 Add to `OtherUserProfileScreenQuery` beside `isMuted`:
 
@@ -1088,7 +1088,7 @@ const [commitUnblockUser, isUnblockUserMutationInFlight] =
 
 Include both in `isRelationshipActionInFlight`.
 
-- [ ] **Step 6: Apply the active partial override to presentation**
+- [x] **Step 6: Apply the active partial override to presentation**
 
 Rename the parent state to `relationshipViewOverride`. Pass the active object to the content component. The parent success callback must retain the current-profile guard:
 
@@ -1131,7 +1131,7 @@ onRelationshipMutationSuccess(id, {
 });
 ```
 
-- [ ] **Step 7: Wire unfollow and unblock through the guarded action switch**
+- [x] **Step 7: Wire unfollow and unblock through the guarded action switch**
 
 Add cases to `commitSocialControl`:
 
@@ -1192,7 +1192,7 @@ Change the block confirmation copy to:
 
 In the actual source, put the text on its own indented line as shown; JSX collapses that formatting to the exact sentence asserted by the test.
 
-- [ ] **Step 8: Regenerate Relay and run focused verification**
+- [x] **Step 8: Regenerate Relay and run focused verification**
 
 Run from `mobile/`:
 
@@ -1206,12 +1206,26 @@ bun run typecheck:tests
 
 Expected: Relay generates the updated query artifact; all focused tests and both typechecks pass.
 
-- [ ] **Step 9: Commit the mobile integration milestone**
+- [x] **Step 9: Commit the mobile integration milestone**
 
 ```bash
 git add mobile/src/profile/other/otherUserProfileRouteState.ts mobile/src/profile/other/OtherUserProfileScreen.tsx mobile/src/__generated__ mobile/tests/profile/OtherUserProfileScreen.test.ts mobile/tests/profile/OtherUserProfileScreen.rntl.tsx
 git commit -m "feat(mobile): add unfollow and unblock controls"
 ```
+
+Execution evidence (2026-07-09):
+
+- RED: the route helper suite failed because
+  `selectActiveRelationshipViewOverride` was not exported; the RNTL suite
+  passed 5 existing tests and failed 5 new behavior assertions for absent
+  Unfollow/Unblock wiring and old block copy.
+- Relay regenerated 48 reader, 44 normalization, and 44 operation documents.
+- The route-change test exposed that this RNTL version returns an asynchronous
+  `rerender`; awaiting it removed overlapping `act()` scopes without changing
+  production behavior.
+- GREEN: the pure route/presentation suites passed 9 tests; the profile RNTL
+  suite passed 10 tests; `bun run typecheck` and `bun run typecheck:tests`
+  both passed.
 
 ---
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   otherUserProfileScreenResetKey,
-  selectActiveRelationshipStateOverride,
+  selectActiveRelationshipViewOverride,
 } from '../../src/profile/other/otherUserProfileRouteState';
 
 describe('OtherUserProfileScreen route state helpers', () => {
@@ -12,18 +12,18 @@ describe('OtherUserProfileScreen route state helpers', () => {
     expect(otherUserProfileScreenResetKey('profile-1', 1)).toBe('profile-1:1');
   });
 
-  test('uses relationship overrides only for the active profile id', () => {
+  test('uses partial relationship overrides only for the active profile id', () => {
+    const override = {
+      isBlockedByViewer: false,
+      profileId: 'profile-1',
+      state: null,
+    } as const;
+
+    expect(selectActiveRelationshipViewOverride(override, 'profile-1')).toEqual(
+      override,
+    );
     expect(
-      selectActiveRelationshipStateOverride(
-        { profileId: 'profile-1', state: 'REQUESTED' },
-        'profile-1',
-      ),
-    ).toBe('REQUESTED');
-    expect(
-      selectActiveRelationshipStateOverride(
-        { profileId: 'profile-1', state: 'REQUESTED' },
-        'profile-2',
-      ),
+      selectActiveRelationshipViewOverride(override, 'profile-2'),
     ).toBeNull();
   });
 });
