@@ -9,6 +9,10 @@ defmodule LC.DataCase do
   alias LC.Accounts
   alias LC.Infra.Repo
 
+  @repo_query_capture_key {__MODULE__, :repo_query_capture_ref}
+
+  @type repo_query_capture_participant :: ((-> term()) -> term())
+
   using do
     quote do
       alias LC.Infra.Repo
@@ -70,14 +74,23 @@ defmodule LC.DataCase do
   Captures repo query SQL strings executed while `fun` runs.
 
   The handler accepts queries from the caller and processes that inherit its
-  `$callers` chain, which keeps async tests isolated while including awaited
-  tasks and participating workers.
+  `$callers` chain. An arity-one callback receives a wrapper that raw workers
+  can use around their Repo work to participate without changing `$callers`.
+  This keeps async tests isolated while including awaited Tasks and explicitly
+  participating workers.
   """
-  @spec capture_repo_queries((-> result)) :: {result, [String.t()]} when result: var
+  @spec capture_repo_queries((-> result) | (repo_query_capture_participant() -> result)) ::
+          {result, [String.t()]}
+        when result: var
   def capture_repo_queries(fun) when is_function(fun, 0) do
+    capture_repo_queries(fn _capture_participant -> fun.() end)
+  end
+
+  def capture_repo_queries(fun) when is_function(fun, 1) do
     test_pid = self()
     capture_ref = make_ref()
     handler_id = {__MODULE__, test_pid, capture_ref}
+    capture_participant = &run_repo_query_capture_participant(&1, capture_ref)
 
     :ok =
       :telemetry.attach(
@@ -89,7 +102,7 @@ defmodule LC.DataCase do
 
     result =
       try do
-        fun.()
+        fun.(capture_participant)
       after
         :telemetry.detach(handler_id)
       end
@@ -119,7 +132,7 @@ defmodule LC.DataCase do
         {test_pid, capture_ref}
       )
       when is_pid(test_pid) and is_reference(capture_ref) do
-    if repo_query_capture_participant?(test_pid) do
+    if repo_query_capture_participant?(test_pid, capture_ref) do
       send(test_pid, {:repo_query_event, capture_ref, IO.iodata_to_binary(query)})
     end
 
@@ -143,8 +156,26 @@ defmodule LC.DataCase do
     end
   end
 
-  @spec repo_query_capture_participant?(pid()) :: boolean()
-  defp repo_query_capture_participant?(test_pid) do
-    self() == test_pid or test_pid in Process.get(:"$callers", [])
+  @spec repo_query_capture_participant?(pid(), reference()) :: boolean()
+  defp repo_query_capture_participant?(test_pid, capture_ref) do
+    self() == test_pid or test_pid in Process.get(:"$callers", []) or
+      Process.get(@repo_query_capture_key) == capture_ref
+  end
+
+  @spec run_repo_query_capture_participant((-> result), reference()) :: result when result: var
+  defp run_repo_query_capture_participant(fun, capture_ref) when is_function(fun, 0) do
+    missing = make_ref()
+    previous = Process.get(@repo_query_capture_key, missing)
+    Process.put(@repo_query_capture_key, capture_ref)
+
+    try do
+      fun.()
+    after
+      if previous == missing do
+        Process.delete(@repo_query_capture_key)
+      else
+        Process.put(@repo_query_capture_key, previous)
+      end
+    end
   end
 end

@@ -138,9 +138,10 @@ the focused privacy suite, related feed/chat/live authorization tests,
 - Generic Ecto scope composition lives in internal `LC.ReadPolicy.Scopes`; the
   exported facade exposes action-specific post, live-session,
   relationship-graph user, and pending-follow-request query policies.
-- Repo-query capture now uses unique references and caller-chain scoping, then
-  detaches before draining, preserving meaningful async query-count assertions
-  without cross-test contamination.
+- Repo-query capture now uses unique references, caller-chain scoping, and an
+  explicit participant wrapper for raw workers, then detaches before draining.
+  This preserves meaningful async query-count assertions without cross-test
+  contamination or worker under-counting.
 
 Fresh verification: touched-file formatting, warning-free compilation,
 Dialyzer with 0 errors, Boundary, and changed-code analysis passed; the focused

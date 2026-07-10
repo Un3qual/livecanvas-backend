@@ -26,9 +26,9 @@ block and directional mute behavior.
 - GraphQL obtains the optional viewer, delegates graph authorization to Social,
   paginates authorized queries, and preserves empty-connection behavior for
   hidden graphs.
-- Repo-query capture tags each capture, accepts only the originating process or
-  its `$callers` chain, detaches before draining, and remains safe in async test
-  modules.
+- Repo-query capture tags each capture, accepts the originating process, its
+  `$callers` chain, or raw workers using the explicit participant wrapper,
+  detaches before draining, and remains safe in async test modules.
 
 ## Review Remediation
 
@@ -38,7 +38,7 @@ block and directional mute behavior.
 - Removed duplicate public/viewer relationship-query APIs and reflection tests
   for absent legacy functions.
 - Added negative controls for private-owner graph access and unrelated-process
-  telemetry.
+  telemetry, plus coverage for explicitly participating raw workers.
 - Rebasing preserved PR #116's self-block constraint, nested timeline privacy,
   Relay retry fixes, and shared mutation documents.
 

@@ -18,24 +18,22 @@ defmodule LC.DataCaseTest do
     assert count_table_queries(queries, "users") == 1
   end
 
-  test "capture_repo_queries/1 includes queries from participating worker processes" do
+  test "capture_repo_queries/1 includes queries from sandbox-allowed worker processes" do
     user = user_fixture()
+    test_pid = self()
 
     {loaded_user, queries} =
-      capture_repo_queries(fn ->
-        test_pid = self()
-
+      capture_repo_queries(fn capture_participant ->
         worker_pid =
           spawn(fn ->
-            # Non-Task workers opt into the same caller chain used by Ecto's
-            # sandbox and the scoped telemetry capture.
-            Process.put(:"$callers", [test_pid])
-
             receive do
-              :load_user -> send(test_pid, {:loaded_user, Repo.get!(User, user.id)})
+              :load_user ->
+                loaded_user = capture_participant.(fn -> Repo.get!(User, user.id) end)
+                send(test_pid, {:loaded_user, loaded_user})
             end
           end)
 
+        :ok = Ecto.Adapters.SQL.Sandbox.allow(Repo, self(), worker_pid)
         send(worker_pid, :load_user)
         assert_receive {:loaded_user, loaded_user}
         loaded_user
@@ -45,7 +43,7 @@ defmodule LC.DataCaseTest do
     assert count_table_queries(queries, "users") == 1
   end
 
-  test "capture_repo_queries/1 excludes queries from unrelated processes" do
+  test "capture_repo_queries/1 excludes unregistered worker queries" do
     captured_user = user_fixture()
     unrelated_user = user_fixture()
     test_pid = self()
