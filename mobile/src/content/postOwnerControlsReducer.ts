@@ -72,172 +72,255 @@ export function postOwnerControlsReducer(
 ): PostOwnerControlsState {
   switch (action.type) {
     case 'start_edit':
-      if (state.pendingAction !== null) {
-        return state;
-      }
-
-      return {
-        ...state,
-        deleteConfirmationPostId: null,
-        editingPostId: action.post.id,
-        editState: buildPostOwnerEditState({
-          bodyText: action.post.bodyText,
-          visibility: action.post.visibility,
-        }),
-        errorsByPostId: omitPostId(state.errorsByPostId, action.post.id),
-      };
+      return startPostOwnerEdit(state, action.post);
 
     case 'edit_cancelled':
-      return state.pendingAction === null
-        ? { ...state, editingPostId: null, editState: null }
-        : state;
+      return cancelPostOwnerEdit(state);
 
     case 'edit_body_changed':
-      return state.pendingAction === null && state.editState
-        ? {
-            ...state,
-            editState: updatePostOwnerEditBody(
-              state.editState,
-              action.bodyText,
-            ),
-          }
-        : state;
+      return changePostOwnerEditBody(state, action.bodyText);
 
     case 'edit_visibility_selected':
-      return state.pendingAction === null && state.editState
-        ? {
-            ...state,
-            editState: selectPostOwnerEditVisibility(
-              state.editState,
-              action.visibility,
-            ),
-          }
-        : state;
+      return selectPostOwnerVisibility(state, action.visibility);
 
     case 'validation_failed':
-      if (
-        state.pendingAction !== null ||
-        state.editingPostId !== action.postId
-      ) {
-        return state;
-      }
-
-      return {
-        ...state,
-        errorsByPostId: {
-          ...state.errorsByPostId,
-          [action.postId]: action.message,
-        },
-      };
+      return failPostOwnerValidation(state, action.postId, action.message);
 
     case 'update_started':
-      if (
-        state.pendingAction !== null ||
-        state.editingPostId !== action.postId ||
-        state.editState === null
-      ) {
-        return state;
-      }
-
-      return {
-        ...state,
-        errorsByPostId: omitPostId(state.errorsByPostId, action.postId),
-        pendingAction: { kind: 'update', postId: action.postId },
-      };
+      return startPostOwnerUpdate(state, action.postId);
 
     case 'update_succeeded':
-      if (!isPendingAction(state, 'update', action.post.id)) {
-        return state;
-      }
-
-      return {
-        ...state,
-        editingPostId: null,
-        editState: null,
-        errorsByPostId: omitPostId(state.errorsByPostId, action.post.id),
-        pendingAction: null,
-        updatedPostsById: {
-          ...state.updatedPostsById,
-          [action.post.id]: action.post,
-        },
-      };
+      return completePostOwnerUpdate(state, action.post);
 
     case 'update_failed':
-      return isPendingAction(state, 'update', action.postId)
-        ? {
-            ...state,
-            errorsByPostId: {
-              ...state.errorsByPostId,
-              [action.postId]: action.message,
-            },
-            pendingAction: null,
-          }
-        : state;
+      return failPostOwnerUpdate(state, action.postId, action.message);
 
     case 'delete_requested':
-      if (state.pendingAction !== null) {
-        return state;
-      }
-
-      return {
-        ...state,
-        deleteConfirmationPostId: action.postId,
-        editingPostId: null,
-        editState: null,
-        errorsByPostId: omitPostId(state.errorsByPostId, action.postId),
-      };
+      return requestPostOwnerDelete(state, action.postId);
 
     case 'delete_cancelled':
-      return state.pendingAction === null
-        ? { ...state, deleteConfirmationPostId: null }
-        : state;
+      return cancelPostOwnerDelete(state);
 
     case 'delete_started':
-      if (
-        state.pendingAction !== null ||
-        state.deleteConfirmationPostId !== action.postId
-      ) {
-        return state;
-      }
-
-      return {
-        ...state,
-        errorsByPostId: omitPostId(state.errorsByPostId, action.postId),
-        pendingAction: { kind: 'delete', postId: action.postId },
-      };
+      return startPostOwnerDelete(state, action.postId);
 
     case 'delete_succeeded':
-      if (!isPendingAction(state, 'delete', action.postId)) {
-        return state;
-      }
-
-      return {
-        ...state,
-        deleteConfirmationPostId: null,
-        deletedPostIds: {
-          ...state.deletedPostIds,
-          [action.postId]: true,
-        },
-        errorsByPostId: omitPostId(state.errorsByPostId, action.postId),
-        pendingAction: null,
-        updatedPostsById: omitPostId(state.updatedPostsById, action.postId),
-      };
+      return completePostOwnerDelete(state, action.postId);
 
     case 'delete_failed':
-      return isPendingAction(state, 'delete', action.postId)
-        ? {
-            ...state,
-            errorsByPostId: {
-              ...state.errorsByPostId,
-              [action.postId]: action.message,
-            },
-            pendingAction: null,
-          }
-        : state;
+      return failPostOwnerDelete(state, action.postId, action.message);
 
     default:
       return state;
   }
+}
+
+function startPostOwnerEdit(
+  state: PostOwnerControlsState,
+  post: ContentPost,
+): PostOwnerControlsState {
+  if (state.pendingAction !== null) {
+    return state;
+  }
+
+  return {
+    ...state,
+    deleteConfirmationPostId: null,
+    editingPostId: post.id,
+    editState: buildPostOwnerEditState({
+      bodyText: post.bodyText,
+      visibility: post.visibility,
+    }),
+    errorsByPostId: omitPostId(state.errorsByPostId, post.id),
+  };
+}
+
+function cancelPostOwnerEdit(
+  state: PostOwnerControlsState,
+): PostOwnerControlsState {
+  return state.pendingAction === null
+    ? { ...state, editingPostId: null, editState: null }
+    : state;
+}
+
+function changePostOwnerEditBody(
+  state: PostOwnerControlsState,
+  bodyText: string,
+): PostOwnerControlsState {
+  return state.pendingAction === null && state.editState
+    ? {
+        ...state,
+        editState: updatePostOwnerEditBody(state.editState, bodyText),
+      }
+    : state;
+}
+
+function selectPostOwnerVisibility(
+  state: PostOwnerControlsState,
+  visibility: 'FOLLOWERS' | 'PUBLIC',
+): PostOwnerControlsState {
+  return state.pendingAction === null && state.editState
+    ? {
+        ...state,
+        editState: selectPostOwnerEditVisibility(state.editState, visibility),
+      }
+    : state;
+}
+
+function failPostOwnerValidation(
+  state: PostOwnerControlsState,
+  postId: string,
+  message: string,
+): PostOwnerControlsState {
+  if (state.pendingAction !== null || state.editingPostId !== postId) {
+    return state;
+  }
+
+  return {
+    ...state,
+    errorsByPostId: {
+      ...state.errorsByPostId,
+      [postId]: message,
+    },
+  };
+}
+
+function startPostOwnerUpdate(
+  state: PostOwnerControlsState,
+  postId: string,
+): PostOwnerControlsState {
+  if (
+    state.pendingAction !== null ||
+    state.editingPostId !== postId ||
+    state.editState === null
+  ) {
+    return state;
+  }
+
+  return {
+    ...state,
+    errorsByPostId: omitPostId(state.errorsByPostId, postId),
+    pendingAction: { kind: 'update', postId },
+  };
+}
+
+function completePostOwnerUpdate(
+  state: PostOwnerControlsState,
+  post: ContentPost,
+): PostOwnerControlsState {
+  if (!isPendingAction(state, 'update', post.id)) {
+    return state;
+  }
+
+  return {
+    ...state,
+    editingPostId: null,
+    editState: null,
+    errorsByPostId: omitPostId(state.errorsByPostId, post.id),
+    pendingAction: null,
+    updatedPostsById: {
+      ...state.updatedPostsById,
+      [post.id]: post,
+    },
+  };
+}
+
+function failPostOwnerUpdate(
+  state: PostOwnerControlsState,
+  postId: string,
+  message: string,
+): PostOwnerControlsState {
+  return isPendingAction(state, 'update', postId)
+    ? {
+        ...state,
+        errorsByPostId: {
+          ...state.errorsByPostId,
+          [postId]: message,
+        },
+        pendingAction: null,
+      }
+    : state;
+}
+
+function requestPostOwnerDelete(
+  state: PostOwnerControlsState,
+  postId: string,
+): PostOwnerControlsState {
+  if (state.pendingAction !== null) {
+    return state;
+  }
+
+  return {
+    ...state,
+    deleteConfirmationPostId: postId,
+    editingPostId: null,
+    editState: null,
+    errorsByPostId: omitPostId(state.errorsByPostId, postId),
+  };
+}
+
+function cancelPostOwnerDelete(
+  state: PostOwnerControlsState,
+): PostOwnerControlsState {
+  return state.pendingAction === null
+    ? { ...state, deleteConfirmationPostId: null }
+    : state;
+}
+
+function startPostOwnerDelete(
+  state: PostOwnerControlsState,
+  postId: string,
+): PostOwnerControlsState {
+  if (
+    state.pendingAction !== null ||
+    state.deleteConfirmationPostId !== postId
+  ) {
+    return state;
+  }
+
+  return {
+    ...state,
+    errorsByPostId: omitPostId(state.errorsByPostId, postId),
+    pendingAction: { kind: 'delete', postId },
+  };
+}
+
+function completePostOwnerDelete(
+  state: PostOwnerControlsState,
+  postId: string,
+): PostOwnerControlsState {
+  if (!isPendingAction(state, 'delete', postId)) {
+    return state;
+  }
+
+  return {
+    ...state,
+    deleteConfirmationPostId: null,
+    deletedPostIds: {
+      ...state.deletedPostIds,
+      [postId]: true,
+    },
+    errorsByPostId: omitPostId(state.errorsByPostId, postId),
+    pendingAction: null,
+    updatedPostsById: omitPostId(state.updatedPostsById, postId),
+  };
+}
+
+function failPostOwnerDelete(
+  state: PostOwnerControlsState,
+  postId: string,
+  message: string,
+): PostOwnerControlsState {
+  return isPendingAction(state, 'delete', postId)
+    ? {
+        ...state,
+        errorsByPostId: {
+          ...state.errorsByPostId,
+          [postId]: message,
+        },
+        pendingAction: null,
+      }
+    : state;
 }
 
 export function selectPostOwnerChanges(
@@ -254,6 +337,7 @@ function isPendingAction(
   kind: NonNullable<PostOwnerPendingAction>['kind'],
   postId: string,
 ): boolean {
+  // Match the operation and post so stale async completions cannot mutate newer state.
   return (
     state.pendingAction?.kind === kind &&
     state.pendingAction.postId === postId

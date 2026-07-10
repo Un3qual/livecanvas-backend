@@ -70,4 +70,10 @@ export default [
       ],
     },
   },
+  {
+    files: ['src/content/postOwnerControlsReducer.ts'],
+    rules: {
+      complexity: ['error', 15],
+    },
+  },
 ];
