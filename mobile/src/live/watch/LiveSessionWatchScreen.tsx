@@ -24,6 +24,7 @@ import type { HostBroadcastLocalMediaControlsSnapshot } from '../../host/publish
 import { useStartupState } from '../../providers/StartupGate';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import { createPhoenixSocket } from '../../realtime/phoenixSocket';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../../relay/privacySensitiveFetch';
 import { LiveSessionChatPanel } from '../chat/LiveSessionChatPanel';
 import {
   canStartLiveSessionChatSend,
@@ -116,7 +117,11 @@ export function LiveSessionWatchScreen({
           <ScreenState state="loading" message="Loading live session..." />
         }
       >
-        <LiveSessionWatchContent key={resetKey} sessionId={sessionId} />
+        <LiveSessionWatchContent
+          fetchKey={queryRetryKey}
+          key={resetKey}
+          sessionId={sessionId}
+        />
       </Suspense>
     </LiveSessionWatchErrorBoundary>
   );
@@ -156,8 +161,9 @@ class LiveSessionWatchErrorBoundary extends React.Component<
 }
 
 function LiveSessionWatchContent({
+  fetchKey,
   sessionId,
-}: LiveSessionWatchScreenProps) {
+}: LiveSessionWatchScreenProps & { fetchKey: number }) {
   const theme = useAppTheme();
   const router = useRouter();
   const auth = useAuth();
@@ -171,7 +177,7 @@ function LiveSessionWatchContent({
       timelineBefore: null,
       timelineLast: INITIAL_TIMELINE_HISTORY_COUNT,
     },
-    { fetchPolicy: 'store-and-network' },
+    { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey },
   );
   const [chatState, dispatchChatAction] = useReducer(
     liveSessionChatTimelineReducer,

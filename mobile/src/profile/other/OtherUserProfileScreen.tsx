@@ -15,6 +15,7 @@ import { ScreenState } from '../../components/ScreenState';
 import { liveSessionHref } from '../../live/liveSessionNavigation';
 import { LiveSessionSummaryCard } from '../../live/components/LiveSessionSummaryCard';
 import { useAppTheme } from '../../providers/ThemeProvider';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../../relay/privacySensitiveFetch';
 import { ProfileContentPreviewSections } from '../ProfileContentPreviewSection';
 import {
   ProfileSummaryCard,
@@ -152,10 +153,10 @@ function OtherUserProfileRouteGeneration({ id }: { id: string }) {
       onRetry={retryQuery}
     >
       <OtherUserProfileContent
+        fetchKey={queryRetryKey}
         id={id}
         key={resetKey}
         onRelationshipMutationSuccess={handleRelationshipMutationSuccess}
-        queryFetchKey={queryRetryKey}
       />
     </OtherUserProfileErrorBoundary>
   );
@@ -195,13 +196,13 @@ class OtherUserProfileErrorBoundary extends React.Component<
 }
 
 function OtherUserProfileContent({
+  fetchKey,
   id,
   onRelationshipMutationSuccess,
-  queryFetchKey,
 }: {
+  fetchKey: number;
   id: string;
   onRelationshipMutationSuccess: (profileId: string) => void;
-  queryFetchKey: number;
 }) {
   const theme = useAppTheme();
   const router = useRouter();
@@ -239,10 +240,7 @@ function OtherUserProfileContent({
   const data = useLazyLoadQuery<OtherUserProfileScreenQuery>(
     otherUserProfileScreenQuery,
     { id },
-    {
-      fetchKey: queryFetchKey,
-      fetchPolicy: queryFetchKey === 0 ? 'store-and-network' : 'network-only',
-    },
+    { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey },
   );
 
   useLayoutEffect(() => {

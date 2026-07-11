@@ -4,6 +4,8 @@ defmodule LCGQL.Social.SocialMutationsTest do
   import LC.AccountsFixtures
 
   alias LC.{Accounts, Social}
+  alias LC.Infra.Repo
+  alias LCSchemas.Social.{Block, Follow, Mute}
 
   describe "followUser" do
     test "uses the authenticated viewer as follower" do
@@ -367,7 +369,6 @@ defmodule LCGQL.Social.SocialMutationsTest do
       blocked_id = Absinthe.Relay.Node.to_global_id(:user, blocked.id, LCGQL.Schema)
 
       assert {:ok, _outbound_block} = Social.block_user(viewer, blocked)
-      assert {:ok, _inbound_block} = Social.block_user(blocked, viewer)
 
       mutation = """
       mutation($blockedId: ID!) {
@@ -386,7 +387,6 @@ defmodule LCGQL.Social.SocialMutationsTest do
       end
 
       refute Social.blocked_by_viewer?(viewer, blocked)
-      assert Social.blocked_by_viewer?(blocked, viewer)
     end
 
     test "returns a field error for invalid blockedId and unauthenticated without scope" do
@@ -488,6 +488,52 @@ defmodule LCGQL.Social.SocialMutationsTest do
                   }
                 }
               }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"blockedId" => blocked_id})
+    end
+
+    test "rejects self-blocks without hiding the viewer node" do
+      viewer = user_fixture()
+      viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation($blockedId: ID!) {
+        blockUser(input: {blockedId: $blockedId}) {
+          errors { field message }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "blockUser" => %{
+                    "errors" => [%{"field" => nil, "message" => "not_allowed"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"blockedId" => viewer_id},
+                 context: context
+               )
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) { id }
+        viewer { id }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "node" => %{"id" => ^viewer_id},
+                  "viewer" => %{"id" => ^viewer_id}
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => viewer_id},
+                 context: context
+               )
     end
   end
 
@@ -641,6 +687,181 @@ defmodule LCGQL.Social.SocialMutationsTest do
                   }
                 }
               }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"mutedId" => muted_id})
+    end
+  end
+
+  describe "hidden-target mutation privacy" do
+    test "followUser treats a target who blocked the viewer exactly like a missing user" do
+      viewer = user_fixture()
+      target = user_fixture(privacy_mode: :public)
+      target_id = Absinthe.Relay.Node.to_global_id(:user, target.id, LCGQL.Schema)
+      missing_id = Absinthe.Relay.Node.to_global_id(:user, 9_999_999_999, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _block} = Social.block_user(target, viewer)
+
+      mutation = """
+      mutation($followedId: ID!) {
+        followUser(input: {followedId: $followedId}) {
+          follow {
+            id
+            state
+          }
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok, hidden_result} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"followedId" => target_id},
+                 context: context
+               )
+
+      assert {:ok, missing_result} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"followedId" => missing_id},
+                 context: context
+               )
+
+      assert hidden_result == missing_result
+
+      assert hidden_result == %{
+               data: %{
+                 "followUser" => %{
+                   "follow" => nil,
+                   "errors" => [%{"field" => "followedId", "message" => "not_found"}]
+                 }
+               }
+             }
+
+      assert Repo.get_by(Follow, follower_id: viewer.id, followed_id: target.id) == nil
+    end
+
+    test "follow-request mutations treat requesters who blocked the viewer as missing" do
+      viewer = user_fixture(privacy_mode: :private)
+      accept_requester = user_fixture()
+      decline_requester = user_fixture()
+
+      accept_requester_id =
+        Absinthe.Relay.Node.to_global_id(:user, accept_requester.id, LCGQL.Schema)
+
+      decline_requester_id =
+        Absinthe.Relay.Node.to_global_id(:user, decline_requester.id, LCGQL.Schema)
+
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, accept_follow} = Social.follow_user(accept_requester, viewer)
+      assert {:ok, decline_follow} = Social.follow_user(decline_requester, viewer)
+      assert {:ok, _block} = Social.block_user(accept_requester, viewer)
+      assert {:ok, _block} = Social.block_user(decline_requester, viewer)
+
+      mutation = """
+      mutation($acceptRequesterId: ID!, $declineRequesterId: ID!) {
+        accept: acceptFollowRequest(input: {followerId: $acceptRequesterId}) {
+          follow {
+            id
+          }
+          errors {
+            field
+            message
+          }
+        }
+        decline: declineFollowRequest(input: {followerId: $declineRequesterId}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "accept" => %{
+                    "follow" => nil,
+                    "errors" => [%{"field" => "followerId", "message" => "not_found"}]
+                  },
+                  "decline" => %{
+                    "errors" => [%{"field" => "followerId", "message" => "not_found"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{
+                   "acceptRequesterId" => accept_requester_id,
+                   "declineRequesterId" => decline_requester_id
+                 },
+                 context: context
+               )
+
+      assert Repo.get!(Follow, accept_follow.id).state == :requested
+      assert Repo.get!(Follow, decline_follow.id).state == :requested
+    end
+
+    test "error-only social controls treat a blocker as missing without side effects" do
+      viewer = user_fixture()
+      target = user_fixture()
+      target_id = Absinthe.Relay.Node.to_global_id(:user, target.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, existing_follow} = Social.follow_user(viewer, target)
+      assert {:ok, existing_outbound_block} = Social.block_user(viewer, target)
+      assert {:ok, existing_mute} = Social.mute_user(viewer, target)
+      assert {:ok, _block} = Social.block_user(target, viewer)
+
+      mutation = """
+      mutation($targetId: ID!) {
+        block: blockUser(input: {blockedId: $targetId}) {
+          errors { field message }
+        }
+        unfollow: unfollowUser(input: {followedId: $targetId}) {
+          errors { field message }
+        }
+        unblock: unblockUser(input: {blockedId: $targetId}) {
+          errors { field message }
+        }
+        mute: muteUser(input: {mutedId: $targetId}) {
+          errors { field message }
+        }
+        unmute: unmuteUser(input: {mutedId: $targetId}) {
+          errors { field message }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "block" => %{
+                    "errors" => [%{"field" => "blockedId", "message" => "not_found"}]
+                  },
+                  "unfollow" => %{
+                    "errors" => [%{"field" => "followedId", "message" => "not_found"}]
+                  },
+                  "unblock" => %{
+                    "errors" => [%{"field" => "blockedId", "message" => "not_found"}]
+                  },
+                  "mute" => %{
+                    "errors" => [%{"field" => "mutedId", "message" => "not_found"}]
+                  },
+                  "unmute" => %{
+                    "errors" => [%{"field" => "mutedId", "message" => "not_found"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"targetId" => target_id},
+                 context: context
+               )
+
+      assert Repo.get!(Follow, existing_follow.id).id == existing_follow.id
+      assert Repo.get!(Block, existing_outbound_block.id).id == existing_outbound_block.id
+      assert Repo.get!(Mute, existing_mute.id).id == existing_mute.id
     end
   end
 end

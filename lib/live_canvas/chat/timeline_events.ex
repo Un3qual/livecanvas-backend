@@ -18,6 +18,7 @@ defmodule LC.Chat.TimelineEvents do
   }
 
   alias LCSchemas.Live.LiveSession
+  alias LCSchemas.Social.Block
 
   # `:redacted_placeholder` is intentionally query-visible but not produced by
   # the current removal flow; default moderation hides messages until product
@@ -216,11 +217,39 @@ defmodule LC.Chat.TimelineEvents do
     )
   end
 
+  @spec history_query(pos_integer(), pos_integer()) :: Ecto.Query.t()
+  def history_query(live_session_id, viewer_id)
+      when is_integer(live_session_id) and is_integer(viewer_id) do
+    live_session_id
+    |> history_query()
+    |> exclude_blocked_actors(viewer_id)
+  end
+
   @spec event_query(pos_integer()) :: Ecto.Query.t()
   def event_query(timeline_event_id) when is_integer(timeline_event_id) do
     base_projection_query()
     |> where([event_state: event_state], event_state.timeline_event_id == ^timeline_event_id)
     |> limit(1)
+  end
+
+  @spec event_query(pos_integer(), pos_integer()) :: Ecto.Query.t()
+  def event_query(timeline_event_id, viewer_id)
+      when is_integer(timeline_event_id) and is_integer(viewer_id) do
+    timeline_event_id
+    |> event_query()
+    |> exclude_blocked_actors(viewer_id)
+  end
+
+  @spec exclude_blocked_actors(Ecto.Query.t(), pos_integer()) :: Ecto.Query.t()
+  defp exclude_blocked_actors(query, viewer_id) when is_integer(viewer_id) do
+    query
+    |> join(:left, [event: event], block in Block,
+      as: :actor_block,
+      on:
+        (block.blocker_id == event.actor_user_id and block.blocked_id == ^viewer_id) or
+          (block.blocker_id == ^viewer_id and block.blocked_id == event.actor_user_id)
+    )
+    |> where([actor_block: block], is_nil(block.id))
   end
 
   @spec target_event_id_from(TimelineProjection.t() | map()) ::

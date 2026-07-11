@@ -4,6 +4,8 @@ defmodule LC.Chat.TimelineBroadcasts do
   alias LC.Chat.TimelineProjection
   alias Phoenix.Socket.Broadcast
 
+  @hidden_viewer_ids_key :__timeline_hidden_viewer_ids__
+
   @type event_payload :: %{
           __typename: String.t(),
           id: pos_integer(),
@@ -18,21 +20,47 @@ defmodule LC.Chat.TimelineBroadcasts do
   @typep chat_message_payload_key :: :body | :edited | :edit_count
   @typep chat_message_payload_value :: String.t() | boolean() | non_neg_integer() | nil
 
-  @spec broadcast_event(TimelineProjection.t(), String.t()) :: :ok
-  def broadcast_event(%{live_session_id: live_session_id} = timeline_event, topic)
-      when is_integer(live_session_id) and is_binary(topic) do
-    broadcast_timeline(topic, "timeline:event", %{event: event_payload(timeline_event)})
+  @spec broadcast_event(TimelineProjection.t(), String.t(), [pos_integer()]) :: :ok
+  def broadcast_event(
+        %{live_session_id: live_session_id} = timeline_event,
+        topic,
+        hidden_viewer_ids
+      )
+      when is_integer(live_session_id) and is_binary(topic) and is_list(hidden_viewer_ids) do
+    broadcast_timeline(topic, "timeline:event", %{
+      @hidden_viewer_ids_key => hidden_viewer_ids,
+      event: event_payload(timeline_event)
+    })
   end
 
-  def broadcast_event(_timeline_event, _topic), do: :ok
+  def broadcast_event(_timeline_event, _topic, _hidden_viewer_ids), do: :ok
 
-  @spec broadcast_event_update(TimelineProjection.t(), String.t()) :: :ok
-  def broadcast_event_update(%{live_session_id: live_session_id} = timeline_event, topic)
-      when is_integer(live_session_id) and is_binary(topic) do
-    broadcast_timeline(topic, "timeline:event_updated", %{event: event_payload(timeline_event)})
+  @spec broadcast_event_update(TimelineProjection.t(), String.t(), [pos_integer()]) :: :ok
+  def broadcast_event_update(
+        %{live_session_id: live_session_id} = timeline_event,
+        topic,
+        hidden_viewer_ids
+      )
+      when is_integer(live_session_id) and is_binary(topic) and is_list(hidden_viewer_ids) do
+    broadcast_timeline(topic, "timeline:event_updated", %{
+      @hidden_viewer_ids_key => hidden_viewer_ids,
+      event: event_payload(timeline_event)
+    })
   end
 
-  def broadcast_event_update(_timeline_event, _topic), do: :ok
+  def broadcast_event_update(_timeline_event, _topic, _hidden_viewer_ids), do: :ok
+
+  @spec visible_to_viewer?(map(), pos_integer()) :: boolean()
+  def visible_to_viewer?(%{@hidden_viewer_ids_key => hidden_viewer_ids}, viewer_id)
+      when is_list(hidden_viewer_ids) and is_integer(viewer_id) do
+    viewer_id not in hidden_viewer_ids
+  end
+
+  def visible_to_viewer?(_payload, _viewer_id), do: true
+
+  @spec public_broadcast_payload(map()) :: map()
+  def public_broadcast_payload(payload) when is_map(payload),
+    do: Map.delete(payload, @hidden_viewer_ids_key)
 
   @spec broadcast_event_removed(pos_integer(), String.t()) :: :ok
   def broadcast_event_removed(timeline_event_id, topic)

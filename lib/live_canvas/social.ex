@@ -81,9 +81,26 @@ defmodule LC.Social do
   Records a block relationship between two users.
   """
   @spec block_user(struct(), struct()) :: block_result()
+  def block_user(%User{id: user_id}, %User{id: user_id}) when is_integer(user_id),
+    do: {:error, :not_allowed}
+
   def block_user(%User{id: blocker_id}, %User{id: blocked_id}) do
     %Block{blocker_id: blocker_id, blocked_id: blocked_id}
     |> Repo.insert()
+  end
+
+  @doc """
+  Returns whether the target user has blocked the viewer.
+
+  The argument order is intentionally directional: `blocked_by?(viewer, target)`
+  answers only whether `target` created the block.
+  """
+  @spec blocked_by?(User.t(), User.t()) :: boolean()
+  def blocked_by?(%User{id: blocked_id}, %User{id: blocker_id}) do
+    Repo.exists?(
+      from block in Block,
+        where: block.blocker_id == ^blocker_id and block.blocked_id == ^blocked_id
+    )
   end
 
   @doc """
@@ -121,6 +138,25 @@ defmodule LC.Social do
       from block in Block,
         where: block.blocker_id == ^blocker_id and block.blocked_id == ^blocked_id
     )
+  end
+
+  @doc """
+  Returns the IDs of users who have blocked the viewer.
+
+  This explicitly I/O-bearing batch helper keeps GraphQL projections from
+  issuing one block query per candidate user.
+  """
+  @spec user_ids_blocking_viewer(User.t(), [User.t()]) :: [pos_integer()]
+  def user_ids_blocking_viewer(%User{}, []), do: []
+
+  def user_ids_blocking_viewer(%User{id: viewer_id}, users) when is_list(users) do
+    user_ids = Enum.map(users, & &1.id)
+
+    from(block in Block,
+      where: block.blocked_id == ^viewer_id and block.blocker_id in ^user_ids,
+      select: block.blocker_id
+    )
+    |> Repo.all()
   end
 
   @doc """
@@ -180,6 +216,7 @@ defmodule LC.Social do
   @spec follower_users_query(User.t()) :: Ecto.Query.t()
   def follower_users_query(%User{id: user_id}) do
     from(follower in User,
+      as: :social_user,
       join: follow in Follow,
       on: follow.follower_id == follower.id,
       where: follow.followed_id == ^user_id and follow.state == :accepted,
@@ -189,11 +226,22 @@ defmodule LC.Social do
   end
 
   @doc """
+  Returns followers visible to the authenticated viewer.
+  """
+  @spec follower_users_query(User.t(), User.t()) :: Ecto.Query.t()
+  def follower_users_query(%User{} = user, %User{} = viewer) do
+    user
+    |> follower_users_query()
+    |> exclude_users_blocking_viewer(viewer)
+  end
+
+  @doc """
   Returns a deterministic query for users that the given follower follows.
   """
   @spec following_users_query(User.t()) :: Ecto.Query.t()
   def following_users_query(%User{id: user_id}) do
     from(followed in User,
+      as: :social_user,
       join: follow in Follow,
       on: follow.followed_id == followed.id,
       where: follow.follower_id == ^user_id and follow.state == :accepted,
@@ -203,12 +251,24 @@ defmodule LC.Social do
   end
 
   @doc """
+  Returns followed users visible to the authenticated viewer.
+  """
+  @spec following_users_query(User.t(), User.t()) :: Ecto.Query.t()
+  def following_users_query(%User{} = user, %User{} = viewer) do
+    user
+    |> following_users_query()
+    |> exclude_users_blocking_viewer(viewer)
+  end
+
+  @doc """
   Returns a deterministic query for pending follow requests owned by the user.
   """
   @spec pending_follow_requests_query(User.t()) :: Ecto.Query.t()
   def pending_follow_requests_query(%User{id: user_id}) do
     from(follow in Follow,
-      where: follow.followed_id == ^user_id and follow.state == :requested,
+      left_join: block in Block,
+      on: block.blocker_id == follow.follower_id and block.blocked_id == ^user_id,
+      where: follow.followed_id == ^user_id and follow.state == :requested and is_nil(block.id),
       preload: [:follower],
       order_by: [asc: follow.requested_at, asc: follow.id]
     )
@@ -221,8 +281,11 @@ defmodule LC.Social do
   def get_pending_follow_request(%User{id: user_id}, follow_id)
       when is_integer(follow_id) do
     from(follow in Follow,
+      left_join: block in Block,
+      on: block.blocker_id == follow.follower_id and block.blocked_id == ^user_id,
       where:
         follow.followed_id == ^user_id and follow.id == ^follow_id and follow.state == :requested,
+      where: is_nil(block.id),
       preload: [:follower],
       limit: 1
     )
@@ -280,6 +343,16 @@ defmodule LC.Social do
           (block.blocker_id == ^left_user_id and block.blocked_id == ^right_user_id) or
             (block.blocker_id == ^right_user_id and block.blocked_id == ^left_user_id)
     )
+  end
+
+  @spec exclude_users_blocking_viewer(Ecto.Query.t(), User.t()) :: Ecto.Query.t()
+  defp exclude_users_blocking_viewer(query, %User{id: viewer_id}) do
+    query
+    |> join(:left, [social_user: user], block in Block,
+      as: :social_viewer_block,
+      on: block.blocker_id == user.id and block.blocked_id == ^viewer_id
+    )
+    |> where([social_viewer_block: block], is_nil(block.id))
   end
 
   @spec normalize_mute_insert({:ok, Mute.t()} | {:error, term()}, pos_integer(), pos_integer()) ::

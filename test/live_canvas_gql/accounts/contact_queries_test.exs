@@ -3,7 +3,7 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
 
   import LC.AccountsFixtures
 
-  alias LC.Accounts
+  alias LC.{Accounts, Social}
 
   describe "viewerContactMatches" do
     test "returns viewer-owned matches as a relay connection with matched user nodes" do
@@ -147,6 +147,88 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
 
       assert page_info["hasNextPage"] == false
       assert is_nil(page_info["endCursor"])
+    end
+
+    test "omits matched users who blocked the viewer" do
+      viewer = user_fixture()
+      visible_match = user_fixture()
+      hidden_match = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _block} = Social.block_user(hidden_match, viewer)
+
+      assert {:ok, _contact_entry} =
+               Accounts.upsert_user_contact_entry(viewer, %{
+                 contact_client_id: :crypto.strong_rand_bytes(16),
+                 contact_name: "Mixed Match",
+                 emails: [visible_match.email, hidden_match.email],
+                 phone_numbers: []
+               })
+
+      visible_match_id =
+        Absinthe.Relay.Node.to_global_id(:user, visible_match.id, LCGQL.Schema)
+
+      query = """
+      query {
+        viewerContactMatches(first: 5) {
+          edges {
+            node {
+              matchedUsers {
+                id
+              }
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "viewerContactMatches" => %{
+                    "edges" => [
+                      %{"node" => %{"matchedUsers" => [%{"id" => ^visible_match_id}]}}
+                    ]
+                  }
+                }
+              }} = Absinthe.run(query, LCGQL.Schema, context: context)
+    end
+
+    test "batches block visibility across contact match rows" do
+      viewer = user_fixture()
+      matched_users = Enum.map(1..3, fn _index -> user_fixture() end)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      Enum.with_index(matched_users, 1)
+      |> Enum.each(fn {matched_user, index} ->
+        assert {:ok, _contact_entry} =
+                 Accounts.upsert_user_contact_entry(viewer, %{
+                   contact_client_id: "batch-contact-#{index}",
+                   contact_name: "Batch Match #{index}",
+                   emails: [matched_user.email],
+                   phone_numbers: []
+                 })
+      end)
+
+      query = """
+      query {
+        viewerContactMatches(first: 5) {
+          edges {
+            node {
+              matchedUsers {
+                id
+              }
+            }
+          }
+        }
+      }
+      """
+
+      {result, queries} =
+        capture_repo_queries(fn -> Absinthe.run(query, LCGQL.Schema, context: context) end)
+
+      assert {:ok, %{data: %{"viewerContactMatches" => %{"edges" => [_, _, _]}}}} = result
+      assert count_table_queries(queries, "blocks") == 1
     end
   end
 end

@@ -67,6 +67,7 @@ export function ViewerBootstrap({ children }: PropsWithChildren) {
         }
       >
         <ViewerBootstrapQueryLoader
+          fetchKey={queryRetryKey}
           key={queryRetryKey}
           onResolved={(viewer) =>
             setResolvedBootstrap({ tokens: state.tokens, viewer })
@@ -112,8 +113,10 @@ class ViewerBootstrapErrorBoundary extends React.Component<
 }
 
 function ViewerBootstrapQueryLoader({
+  fetchKey,
   onResolved,
 }: {
+  fetchKey: number;
   onResolved: (viewer: ViewerBootstrapViewer) => void;
 }) {
   const { signOut } = useAuth();
@@ -129,7 +132,7 @@ function ViewerBootstrapQueryLoader({
       }
     `,
     {},
-    { fetchPolicy: 'network-only' },
+    { fetchKey, fetchPolicy: 'network-only' },
   );
   const viewer = data.viewer;
 

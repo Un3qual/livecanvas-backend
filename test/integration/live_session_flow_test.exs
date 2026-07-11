@@ -36,14 +36,23 @@ defmodule LC.Integration.LiveSessionFlowTest do
         "body" => "integration hello"
       })
 
-    assert_reply ref, :ok, %{
-      event: %{id: event_id, body: "integration hello", actor_id: sender_id}
-    }
+    sender_global_id = Absinthe.Relay.Node.to_global_id(:user, follower.id, LCGQL.Schema)
 
-    assert sender_id == follower.id
+    assert_reply ref, :ok, %{
+      event: %{
+        id: event_global_id,
+        body: "integration hello",
+        actor: %{id: ^sender_global_id}
+      }
+    }
 
     assert_broadcast "timeline:event", %{
-      event: %{id: ^event_id, body: "integration hello", actor_id: ^sender_id}
+      event: %{id: event_id, body: "integration hello", actor_id: follower_id}
     }
+
+    assert follower_id == follower.id
+
+    assert event_global_id ==
+             Absinthe.Relay.Node.to_global_id(:chat_message_event, event_id, LCGQL.Schema)
   end
 end

@@ -33,8 +33,8 @@ defmodule LCGQL.Chat.Resolver do
          # History reads stay valid after a session ends, so GraphQL must
          # consult the dedicated history policy instead of join-only rules.
          :ok <- Chat.authorize_history_access(viewer, live_session) do
-      live_session
-      |> Chat.timeline_history_query()
+      viewer
+      |> Chat.timeline_history_query(live_session)
       |> Absinthe.Relay.Connection.from_query(&Chat.run_query/1, args)
     else
       _other -> Absinthe.Relay.Connection.from_list([], args)
@@ -141,7 +141,7 @@ defmodule LCGQL.Chat.Resolver do
         %{context: %{current_scope: %{user: %{id: _id} = viewer}}}
       ) do
     with {:ok, event_id} <- decode_chat_message_event_id(chat_message_event_id),
-         %{} = timeline_event <- Chat.get_timeline_event(viewer, event_id),
+         %{} = timeline_event <- Chat.get_timeline_event_for_moderation(viewer, event_id),
          {:ok, %{removed_event_id: removed_event_id, transitioned?: transitioned?}} <-
            Chat.remove_timeline_chat_message(timeline_event, viewer, %{}) do
       :ok =

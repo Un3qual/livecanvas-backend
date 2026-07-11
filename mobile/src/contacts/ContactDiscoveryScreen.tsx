@@ -18,8 +18,10 @@ import {
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
+import { useRelayRouteFetchKey } from '../components/RelayRouteBoundary';
 import { ScreenState } from '../components/ScreenState';
 import { useAppTheme } from '../providers/ThemeProvider';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../relay/privacySensitiveFetch';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
@@ -49,6 +51,10 @@ type ContactMatchNode = NonNullable<
   >[number]
 >['node'];
 type ContactMatchedUser = ContactMatch['matchedUsers'][number];
+type LocalContactMatches = {
+  readonly fetchKey: number;
+  readonly matches: ContactMatch[];
+};
 
 const styles = StyleSheet.create({
   screen: {
@@ -102,15 +108,16 @@ export function ContactDiscoveryScreen() {
   const theme = useAppTheme();
   const router = useRouter();
   const relayEnvironment = useRelayEnvironment();
+  const routeFetchKey = useRelayRouteFetchKey();
   const data = useLazyLoadQuery<ContactDiscoveryQuery>(
     contactDiscoveryQuery,
     CONTACT_DISCOVERY_QUERY_VARIABLES,
-    { fetchPolicy: 'store-and-network' },
+    { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey: routeFetchKey },
   );
   const queryConnection = data.viewerContactMatches;
   const queryPageInfo = readProfileConnectionPageInfo(queryConnection);
-  // Relay can replace the initial connection after a store-and-network refresh;
-  // this key resets locally accumulated pages to that fresh source connection.
+  // Relay replaces the initial connection after the network refresh; this key
+  // resets locally accumulated pages to that fresh source connection.
   const paginationResetKey = [
     queryPageInfo.endCursor ?? '',
     queryPageInfo.hasNextPage ? 'next' : 'end',
@@ -125,7 +132,10 @@ export function ContactDiscoveryScreen() {
   const [displayName, setDisplayName] = useState('');
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [localMatches, setLocalMatches] = useState<ContactMatch[]>([]);
+  const [localMatches, setLocalMatches] = useState<LocalContactMatches>({
+    fetchKey: routeFetchKey,
+    matches: [],
+  });
   const [extraMatches, setExtraMatches] = useState<ContactMatch[]>([]);
   const [pageInfo, setPageInfo] = useState(() => queryPageInfo);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -134,7 +144,7 @@ export function ContactDiscoveryScreen() {
     queryConnection,
   );
   const contactMatches = mergeContactMatches(
-    localMatches,
+    localMatches.fetchKey === routeFetchKey ? localMatches.matches : [],
     queryMatches.concat(extraMatches),
   );
 
@@ -165,7 +175,7 @@ export function ContactDiscoveryScreen() {
           ...CONTACT_DISCOVERY_QUERY_VARIABLES,
           after: pageInfo.endCursor,
         },
-        { fetchPolicy: 'network-only' },
+        PRIVACY_SENSITIVE_FETCH_OPTIONS,
       ).toPromise()) as ContactDiscoveryData | null | undefined;
       const pageConnection = pageData?.viewerContactMatches;
 
@@ -218,7 +228,13 @@ export function ContactDiscoveryScreen() {
           return;
         }
 
-        setLocalMatches((current) => upsertLocalContactMatch(current, contactMatch));
+        setLocalMatches((current) => ({
+          fetchKey: routeFetchKey,
+          matches: upsertLocalContactMatch(
+            current.fetchKey === routeFetchKey ? current.matches : [],
+            contactMatch,
+          ),
+        }));
       },
       onError: () => {
         activeSearchRef.current = false;

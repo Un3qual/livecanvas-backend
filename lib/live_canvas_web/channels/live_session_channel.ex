@@ -12,10 +12,11 @@ defmodule LCWeb.LiveSessionChannel do
 
   @disconnect_event "disconnect"
   @media_events Live.media_events() |> Map.values()
+  @timeline_actor_events ["timeline:event", "timeline:event_updated"]
   @media_target_user_ids_key :__live_media_target_user_ids__
   @media_internal_payload_keys [@media_target_user_ids_key]
 
-  intercept @media_events
+  intercept @media_events ++ @timeline_actor_events
 
   @impl true
   @spec join(String.t(), map(), Phoenix.Socket.t()) ::
@@ -104,6 +105,25 @@ defmodule LCWeb.LiveSessionChannel do
 
     {:noreply, socket}
   end
+
+  def handle_out(
+        event,
+        payload,
+        %Phoenix.Socket{assigns: %{current_user: %{id: viewer_id}}} = socket
+      )
+      when event in @timeline_actor_events and is_map(payload) and is_integer(viewer_id) do
+    if Chat.timeline_broadcast_visible_to_viewer?(payload, viewer_id) do
+      payload = Chat.public_timeline_broadcast_payload(payload)
+      payload = normalize_timeline_channel_payload(event, payload)
+
+      push(socket, event, payload)
+    end
+
+    {:noreply, socket}
+  end
+
+  def handle_out(event, _payload, socket) when event in @timeline_actor_events,
+    do: {:noreply, socket}
 
   def handle_out(event, payload, socket) when is_binary(event) and is_map(payload) do
     payload = normalize_timeline_channel_payload(event, payload)

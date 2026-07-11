@@ -4,6 +4,8 @@ defmodule LC.SocialTest do
   import LC.AccountsFixtures
 
   alias LC.{Accounts, ReadPolicy, Social}
+  alias LC.Infra.Repo
+  alias LCSchemas.Social.Block
 
   test "private accounts start as requested" do
     follower = user_fixture()
@@ -22,6 +24,67 @@ defmodule LC.SocialTest do
 
     assert :blocked = Social.relationship_state(viewer, creator)
     refute Social.can_view_user?(viewer, creator)
+  end
+
+  describe "directional block privacy" do
+    test "block_user/2 rejects self-blocks" do
+      viewer = user_fixture()
+
+      assert {:error, :not_allowed} = Social.block_user(viewer, viewer)
+      assert Repo.get_by(Block, blocker_id: viewer.id, blocked_id: viewer.id) == nil
+    end
+
+    test "the database rejects self-block rows" do
+      viewer = user_fixture()
+
+      assert_raise Ecto.ConstraintError, fn ->
+        Repo.insert!(%Block{blocker_id: viewer.id, blocked_id: viewer.id})
+      end
+    end
+
+    test "blocked_by?/2 only reports the target-to-viewer direction" do
+      viewer = user_fixture()
+      target = user_fixture()
+
+      assert {:ok, _block} = Social.block_user(target, viewer)
+
+      assert Social.blocked_by?(viewer, target)
+      refute Social.blocked_by?(target, viewer)
+    end
+
+    test "user_ids_blocking_viewer/2 returns blocker IDs from one read" do
+      viewer = user_fixture()
+      visible_first = user_fixture()
+      hidden = user_fixture()
+      visible_last = user_fixture()
+
+      assert {:ok, _block} = Social.block_user(hidden, viewer)
+
+      assert Social.user_ids_blocking_viewer(viewer, [visible_first, hidden, visible_last]) ==
+               [hidden.id]
+    end
+
+    test "viewer-aware relationship queries omit users who blocked the viewer" do
+      viewer = user_fixture()
+      owner = user_fixture(privacy_mode: :public)
+      visible_follower = user_fixture()
+      hidden_follower = user_fixture()
+      visible_followed = user_fixture(privacy_mode: :public)
+      hidden_followed = user_fixture(privacy_mode: :public)
+
+      assert {:ok, _follow} = Social.follow_user(visible_follower, owner)
+      assert {:ok, _follow} = Social.follow_user(hidden_follower, owner)
+      assert {:ok, _follow} = Social.follow_user(owner, visible_followed)
+      assert {:ok, _follow} = Social.follow_user(owner, hidden_followed)
+      assert {:ok, _block} = Social.block_user(hidden_follower, viewer)
+      assert {:ok, _block} = Social.block_user(hidden_followed, viewer)
+
+      followers = owner |> Social.follower_users_query(viewer) |> Social.run_query()
+      following = owner |> Social.following_users_query(viewer) |> Social.run_query()
+
+      assert Enum.map(followers, & &1.id) == [visible_follower.id]
+      assert Enum.map(following, & &1.id) == [visible_followed.id]
+    end
   end
 
   describe "mute controls" do
@@ -224,6 +287,28 @@ defmodule LC.SocialTest do
 
       assert {:ok, accepted_follow} = Social.accept_follow_request(follow, followed)
       assert Social.get_pending_follow_request(followed, accepted_follow.id) == nil
+    end
+
+    test "pending request reads omit requesters who blocked the request owner" do
+      followed = user_fixture(privacy_mode: :private)
+      visible_requester = user_fixture()
+      hidden_requester = user_fixture()
+
+      assert {:ok, visible_follow} = Social.follow_user(visible_requester, followed)
+      assert {:ok, hidden_follow} = Social.follow_user(hidden_requester, followed)
+      assert {:ok, _block} = Social.block_user(hidden_requester, followed)
+
+      pending_requests =
+        followed
+        |> Social.pending_follow_requests_query()
+        |> Social.run_query()
+
+      assert Enum.map(pending_requests, & &1.id) == [visible_follow.id]
+
+      assert Social.get_pending_follow_request(followed, visible_follow.id).id ==
+               visible_follow.id
+
+      assert Social.get_pending_follow_request(followed, hidden_follow.id) == nil
     end
 
     test "decline_follow_request/2 deletes a pending request" do

@@ -4,7 +4,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
   import LC.AccountsFixtures
   import LC.SocialFixtures
 
-  alias LC.{Accounts, Chat, Content, Live}
+  alias LC.{Accounts, Chat, Content, Live, Social}
   alias LCSchemas.Content.Post
   alias LCSchemas.Live.LiveSession
 
@@ -61,6 +61,58 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                )
 
       assert user_email == user.email
+    end
+
+    test "returns nil when the target user blocked the authenticated viewer" do
+      viewer = user_fixture()
+      target = user_fixture(privacy_mode: :public)
+      target_id = Absinthe.Relay.Node.to_global_id(:user, target.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _block} = Social.block_user(target, viewer)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on User {
+            privacyMode
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => target_id},
+                 context: context
+               )
+    end
+
+    test "returns the target when the authenticated viewer created the block" do
+      viewer = user_fixture()
+      target = user_fixture(privacy_mode: :public)
+      target_id = Absinthe.Relay.Node.to_global_id(:user, target.id, LCGQL.Schema)
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _block} = Social.block_user(viewer, target)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on User {
+            privacyMode
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => %{"id" => ^target_id, "privacyMode" => "PUBLIC"}}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => target_id},
+                 context: context
+               )
     end
 
     test "refetches visible profile posts, stories, current live session, and replays from a user relay id" do
@@ -657,6 +709,42 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                   }
                 }
               }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => contact_match_id},
+                 context: context
+               )
+    end
+
+    test "omits a blocking user from contact match node refetch" do
+      viewer = user_fixture()
+      hidden_match = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _block} = Social.block_user(hidden_match, viewer)
+
+      {:ok, contact_entry} =
+        Accounts.upsert_user_contact_entry(viewer, %{
+          contact_client_id: :crypto.strong_rand_bytes(16),
+          contact_name: "Hidden Match",
+          emails: [hidden_match.email]
+        })
+
+      contact_match_id =
+        Absinthe.Relay.Node.to_global_id(:contact_match, contact_entry.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          ... on ContactMatch {
+            matchedUsers {
+              id
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => %{"matchedUsers" => []}}}} =
                Absinthe.run(query, LCGQL.Schema,
                  variables: %{"id" => contact_match_id},
                  context: context

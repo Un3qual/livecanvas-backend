@@ -34,6 +34,7 @@ import {
 } from '../live/components/LiveSessionSummaryCard';
 import { liveSessionHref } from '../live/liveSessionNavigation';
 import { useAppTheme } from '../providers/ThemeProvider';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../relay/privacySensitiveFetch';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { spacing, typography } from '../theme/tokens';
 import {
@@ -131,7 +132,7 @@ export function FeedHomeScreen() {
   return (
     <FeedHomeErrorBoundary key={queryRetryKey} onRetry={retryQuery}>
       <Suspense fallback={<FeedHomeLoadingState />}>
-        <FeedHomeContent key={queryRetryKey} />
+        <FeedHomeContent fetchKey={queryRetryKey} key={queryRetryKey} />
       </Suspense>
     </FeedHomeErrorBoundary>
   );
@@ -211,7 +212,7 @@ export function pushFeedHomeAction(
   router.push(action.route);
 }
 
-export function FeedHomeContent() {
+export function FeedHomeContent({ fetchKey = 0 }: { fetchKey?: number }) {
   const theme = useAppTheme();
   const router = useRouter();
   const relayEnvironment = useRelayEnvironment();
@@ -226,7 +227,7 @@ export function FeedHomeContent() {
   const data = useLazyLoadQuery<FeedHomeScreenQuery>(
     feedHomeScreenQuery,
     FEED_HOME_QUERY_VARIABLES,
-    { fetchPolicy: 'store-and-network' },
+    { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey },
   );
   const [refreshedHomeData, setRefreshedHomeData] =
     useState<FeedHomeManualRefreshSnapshot | null>(null);

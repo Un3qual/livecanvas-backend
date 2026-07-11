@@ -18,8 +18,10 @@ import {
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
+import { useRelayRouteFetchKey } from '../components/RelayRouteBoundary';
 import { ScreenState } from '../components/ScreenState';
 import { useAppTheme } from '../providers/ThemeProvider';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../relay/privacySensitiveFetch';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { spacing, typography } from '../theme/tokens';
 import {
@@ -88,10 +90,11 @@ export function PendingFollowRequestsScreen() {
   const theme = useAppTheme();
   const router = useRouter();
   const relayEnvironment = useRelayEnvironment();
+  const routeFetchKey = useRelayRouteFetchKey();
   const data = useLazyLoadQuery<PendingRequestsQuery>(
     pendingRequestsQuery,
     PROFILE_CONNECTION_QUERY_VARIABLES,
-    { fetchPolicy: 'store-and-network' },
+    { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey: routeFetchKey },
   );
   const initialConnection = data.viewerPendingFollowRequests;
   const initialPageInfo = readProfileConnectionPageInfo(initialConnection);
@@ -153,7 +156,7 @@ export function PendingFollowRequestsScreen() {
           ...PROFILE_CONNECTION_QUERY_VARIABLES,
           after: pageInfo.endCursor,
         },
-        { fetchPolicy: 'network-only' },
+        PRIVACY_SENSITIVE_FETCH_OPTIONS,
       ).toPromise()) as PendingRequestsQuery['response'] | null | undefined;
       const pageConnection = pageData?.viewerPendingFollowRequests;
 

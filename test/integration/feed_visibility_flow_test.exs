@@ -105,7 +105,7 @@ defmodule LC.Integration.FeedVisibilityFlowTest do
                 },
                 "publicRelationship" => "PUBLIC",
                 "followedRelationship" => "ACCEPTED",
-                "blockedRelationship" => "BLOCKED",
+                "blockedRelationship" => "NONE",
                 "mutedRelationship" => "PUBLIC",
                 "reverseMutedRelationship" => "PUBLIC",
                 "mutedCreatorMuted" => true,

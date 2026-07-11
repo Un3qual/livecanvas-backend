@@ -71,13 +71,22 @@ defmodule LC.Chat do
   end
 
   @doc """
+  Returns timeline projections after excluding actors who blocked the viewer.
+  """
+  @spec timeline_history_query(User.t(), LiveSession.t()) :: Ecto.Query.t()
+  def timeline_history_query(%User{id: viewer_id}, %LiveSession{id: live_session_id})
+      when is_integer(viewer_id) and is_integer(live_session_id) do
+    TimelineEvents.history_query(live_session_id, viewer_id)
+  end
+
+  @doc """
   Returns one visible timeline event when the viewer can read its session history.
   """
   @spec get_timeline_event(User.t(), integer()) :: TimelineProjection.t() | nil
   def get_timeline_event(%User{} = viewer, timeline_event_id)
       when is_integer(timeline_event_id) do
     with %{live_session_id: live_session_id} = timeline_event <-
-           timeline_event_id |> TimelineEvents.event_query() |> Repo.one(),
+           timeline_event_id |> TimelineEvents.event_query(viewer.id) |> Repo.one(),
          %LiveSession{} = live_session <- Repo.get(LiveSession, live_session_id),
          :ok <- authorize_history_access(viewer, live_session) do
       timeline_event
@@ -87,6 +96,28 @@ defmodule LC.Chat do
   end
 
   def get_timeline_event(%User{}, _timeline_event_id), do: nil
+
+  @doc """
+  Returns one timeline event for a moderation attempt.
+
+  Active session hosts bypass actor-to-host block visibility so an event author
+  cannot prevent moderation. Other viewers retain the normal visibility policy.
+  """
+  @spec get_timeline_event_for_moderation(User.t(), integer()) :: TimelineProjection.t() | nil
+  def get_timeline_event_for_moderation(%User{} = viewer, timeline_event_id)
+      when is_integer(timeline_event_id) do
+    with %{live_session_id: live_session_id} = timeline_event <-
+           timeline_event_id |> TimelineEvents.event_query() |> Repo.one(),
+         %LiveSession{} = live_session <- Repo.get(LiveSession, live_session_id),
+         :ok <- authorize_timeline_host_actor(live_session, viewer) do
+      timeline_event
+    else
+      {:error, :not_authorized} -> get_timeline_event(viewer, timeline_event_id)
+      _other -> nil
+    end
+  end
+
+  def get_timeline_event_for_moderation(%User{}, _timeline_event_id), do: nil
 
   @doc """
   Persists an append-only timeline chat message event and its current projection.
@@ -169,7 +200,11 @@ defmodule LC.Chat do
   @spec broadcast_timeline_event(TimelineProjection.t() | map(), String.t()) :: :ok
   def broadcast_timeline_event(timeline_event, topic)
       when is_map(timeline_event) and is_binary(topic) do
-    TimelineBroadcasts.broadcast_event(timeline_event, topic)
+    TimelineBroadcasts.broadcast_event(
+      timeline_event,
+      topic,
+      hidden_timeline_viewer_ids(timeline_event)
+    )
   end
 
   def broadcast_timeline_event(_timeline_event, _topic), do: :ok
@@ -180,7 +215,11 @@ defmodule LC.Chat do
   @spec broadcast_timeline_event_update(TimelineProjection.t() | map(), String.t()) :: :ok
   def broadcast_timeline_event_update(timeline_event, topic)
       when is_map(timeline_event) and is_binary(topic) do
-    TimelineBroadcasts.broadcast_event_update(timeline_event, topic)
+    TimelineBroadcasts.broadcast_event_update(
+      timeline_event,
+      topic,
+      hidden_timeline_viewer_ids(timeline_event)
+    )
   end
 
   def broadcast_timeline_event_update(_timeline_event, _topic), do: :ok
@@ -203,6 +242,26 @@ defmodule LC.Chat do
   def timeline_event_payload(timeline_event) when is_map(timeline_event) do
     TimelineBroadcasts.event_payload(timeline_event)
   end
+
+  @doc false
+  @spec timeline_broadcast_visible_to_viewer?(map(), pos_integer()) :: boolean()
+  def timeline_broadcast_visible_to_viewer?(payload, viewer_id)
+      when is_map(payload) and is_integer(viewer_id) do
+    TimelineBroadcasts.visible_to_viewer?(payload, viewer_id)
+  end
+
+  @doc false
+  @spec public_timeline_broadcast_payload(map()) :: map()
+  def public_timeline_broadcast_payload(payload) when is_map(payload),
+    do: TimelineBroadcasts.public_broadcast_payload(payload)
+
+  @spec hidden_timeline_viewer_ids(TimelineProjection.t() | map()) :: [pos_integer()]
+  defp hidden_timeline_viewer_ids(%{actor_user_id: actor_user_id})
+       when is_integer(actor_user_id) do
+    ReadPolicy.blocked_peer_ids(%User{id: actor_user_id})
+  end
+
+  defp hidden_timeline_viewer_ids(_timeline_event), do: []
 
   @spec active_host(pos_integer()) :: User.t() | nil
   defp active_host(host_id) when is_integer(host_id) do

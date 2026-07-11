@@ -22,6 +22,11 @@ type QueryOptions = {
   readonly fetchPolicy?: string;
 };
 
+type QueryCall = {
+  readonly operationName: string;
+  readonly options: QueryOptions;
+};
+
 let mockQueryData: Record<string, unknown>;
 let mockFollowCommit: MutationCommit;
 let mockMuteCommit: MutationCommit;
@@ -29,7 +34,7 @@ let mockUnmuteCommit: MutationCommit;
 let mockBlockCommit: MutationCommit;
 let mockUnfollowCommit: MutationCommit;
 let mockUnblockCommit: MutationCommit;
-let mockQueryOptions: QueryOptions[];
+let mockQueryCalls: QueryCall[];
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -41,11 +46,11 @@ jest.mock('expo-router', () => ({
 jest.mock('react-relay', () => ({
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
   useLazyLoadQuery: (
-    _query: unknown,
+    query: unknown,
     _variables: Record<string, unknown>,
     options: QueryOptions,
   ) => {
-    mockQueryOptions.push(options);
+    mockQueryCalls.push({ operationName: mockOperationName(query), options });
     return mockQueryData;
   },
   useMutation: (mutation: unknown) => {
@@ -82,7 +87,7 @@ beforeEach(() => {
   mockBlockCommit = jest.fn();
   mockUnfollowCommit = jest.fn();
   mockUnblockCommit = jest.fn();
-  mockQueryOptions = [];
+  mockQueryCalls = [];
   mockQueryData = profileQueryData({
     isBlockedByViewer: false,
     isMuted: false,
@@ -91,6 +96,26 @@ beforeEach(() => {
 });
 
 describe('OtherUserProfileScreen social controls', () => {
+  test('renders the generic unavailable state when the profile node is hidden', async () => {
+    mockQueryData = {
+      isMuted: false,
+      node: null,
+      relationshipState: 'NONE',
+      viewer: { id: 'viewer-id' },
+    };
+
+    await render(<OtherUserProfileScreen id="opaque-profile-id" />);
+
+    expect(screen.getByText('This profile is unavailable.')).toBeOnTheScreen();
+    expect(screen.queryByText('LiveCanvas user')).toBeNull();
+    expect(screen.queryByText('Public profile')).toBeNull();
+    expect(screen.queryByText('This profile is not available.')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mute' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Block' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'View followers' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'View following' })).toBeNull();
+  });
+
   test('blocks a social control submitted in the same tick as follow', async () => {
     mockQueryData = profileQueryData({
       isBlockedByViewer: false,
@@ -177,7 +202,7 @@ describe('OtherUserProfileScreen social controls', () => {
     });
 
     expect(screen.getByText('This profile is not available.')).toBeOnTheScreen();
-    expect(mockQueryOptions).toContainEqual({
+    expect(profileQueryOptions()).toContainEqual({
       fetchKey: 1,
       fetchPolicy: 'network-only',
     });
@@ -212,7 +237,7 @@ describe('OtherUserProfileScreen social controls', () => {
     expect(screen.getByRole('button', { name: 'Unfollow' })).toBeOnTheScreen();
   });
 
-  test('restores the cache-first profile policy after navigating following a refetch', async () => {
+  test('keeps profile identity network-authorized after refetch and navigation', async () => {
     const user = userEvent.setup();
     mockQueryData = profileQueryData({
       isBlockedByViewer: false,
@@ -234,7 +259,7 @@ describe('OtherUserProfileScreen social controls', () => {
       unfollowUser: { errors: [] },
     });
 
-    expect(mockQueryOptions.at(-1)).toEqual({
+    expect(profileQueryOptions().at(-1)).toEqual({
       fetchKey: 1,
       fetchPolicy: 'network-only',
     });
@@ -247,9 +272,9 @@ describe('OtherUserProfileScreen social controls', () => {
     });
     await view.rerender(<OtherUserProfileScreen id="profile-2" />);
 
-    expect(mockQueryOptions.at(-1)).toEqual({
+    expect(profileQueryOptions().at(-1)).toEqual({
       fetchKey: 0,
-      fetchPolicy: 'store-and-network',
+      fetchPolicy: 'network-only',
     });
   });
 
@@ -331,7 +356,7 @@ describe('OtherUserProfileScreen social controls', () => {
 
     expect(screen.queryByRole('button', { name: 'Unblock' })).toBeNull();
     expect(screen.getByText('You can follow this profile.')).toBeOnTheScreen();
-    expect(mockQueryOptions).toContainEqual({
+    expect(profileQueryOptions()).toContainEqual({
       fetchKey: 1,
       fetchPolicy: 'network-only',
     });
@@ -518,4 +543,12 @@ function mockOperationName(operation: unknown): string {
   }
 
   return '';
+}
+
+function profileQueryOptions(): QueryOptions[] {
+  return mockQueryCalls
+    .filter(
+      ({ operationName }) => operationName === 'OtherUserProfileScreenQuery',
+    )
+    .map(({ options }) => options);
 }

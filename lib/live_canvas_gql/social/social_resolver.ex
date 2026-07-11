@@ -19,7 +19,7 @@ defmodule LCGQL.Social.Resolver do
   def follow_user(_parent, %{followed_id: followed_id}, %{
         context: %{current_scope: %{user: %{id: _id} = follower}}
       }) do
-    with {:ok, followed} <- fetch_user(followed_id, :followed_id),
+    with {:ok, followed} <- fetch_visible_user(followed_id, :followed_id, follower),
          {:ok, follow} <- Social.follow_user(follower, followed) do
       {:ok, %{follow: follow_payload(follow), errors: []}}
     else
@@ -46,7 +46,7 @@ defmodule LCGQL.Social.Resolver do
         %{follower_id: follower_id},
         %{context: %{current_scope: %{user: %{id: _id} = acting_user}}}
       ) do
-    with {:ok, follower} <- fetch_user(follower_id, :follower_id),
+    with {:ok, follower} <- fetch_visible_user(follower_id, :follower_id, acting_user),
          # Accept-follow is viewer-owned: only an already-pending request for
          # the authenticated viewer can transition to accepted.
          %{} = follow <- Social.get_pending_follow_request_for_follower(acting_user, follower),
@@ -79,7 +79,7 @@ defmodule LCGQL.Social.Resolver do
         %{follower_id: follower_id},
         %{context: %{current_scope: %{user: %{id: _id} = acting_user}}}
       ) do
-    with {:ok, follower} <- fetch_user(follower_id, :follower_id),
+    with {:ok, follower} <- fetch_visible_user(follower_id, :follower_id, acting_user),
          %{} = follow <- Social.get_pending_follow_request_for_follower(acting_user, follower),
          :ok <- Social.decline_follow_request(follow, acting_user) do
       {:ok, %{errors: []}}
@@ -136,7 +136,7 @@ defmodule LCGQL.Social.Resolver do
     # contract, so GraphQL derives the viewer from auth scope instead of
     # trusting a caller-supplied viewer ID.
     with {:ok, viewer} <- Resolution.viewer(resolution),
-         {:ok, creator} <- fetch_user(creator_id, :creator_id) do
+         {:ok, creator} <- fetch_visible_user(creator_id, :creator_id, viewer) do
       {:ok, Social.relationship_state(viewer, creator)}
     else
       _ -> {:ok, :none}
@@ -146,7 +146,7 @@ defmodule LCGQL.Social.Resolver do
   @spec is_muted(any(), %{creator_id: term()}, Absinthe.Resolution.t()) :: {:ok, boolean()}
   def is_muted(_parent, %{creator_id: creator_id}, resolution) do
     with {:ok, viewer} <- Resolution.viewer(resolution),
-         {:ok, creator} <- fetch_user(creator_id, :creator_id) do
+         {:ok, creator} <- fetch_visible_user(creator_id, :creator_id, viewer) do
       {:ok, Social.muted?(viewer, creator)}
     else
       # Keep read queries stable by treating invalid or missing users as
@@ -169,7 +169,12 @@ defmodule LCGQL.Social.Resolver do
   @spec followers(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def followers(%{id: _id} = user, args, resolution) do
     if can_view_relationship_graph?(user, resolution) do
-      query = Social.follower_users_query(user)
+      query =
+        case Resolution.viewer(resolution) do
+          {:ok, viewer} -> Social.follower_users_query(user, viewer)
+          :error -> Social.follower_users_query(user)
+        end
+
       Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
     else
       Absinthe.Relay.Connection.from_list([], args)
@@ -179,7 +184,12 @@ defmodule LCGQL.Social.Resolver do
   @spec following(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def following(%{id: _id} = user, args, resolution) do
     if can_view_relationship_graph?(user, resolution) do
-      query = Social.following_users_query(user)
+      query =
+        case Resolution.viewer(resolution) do
+          {:ok, viewer} -> Social.following_users_query(user, viewer)
+          :error -> Social.following_users_query(user)
+        end
+
       Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
     else
       Absinthe.Relay.Connection.from_list([], args)
@@ -211,6 +221,18 @@ defmodule LCGQL.Social.Resolver do
     end
   end
 
+  @spec fetch_visible_user(term(), atom(), User.t()) ::
+          {:ok, User.t()} | {:error, {atom(), fetch_user_error()}}
+  defp fetch_visible_user(user_id, field, %User{} = viewer) do
+    with {:ok, user} <- fetch_user(user_id, field),
+         false <- Social.blocked_by?(viewer, user) do
+      {:ok, user}
+    else
+      true -> {:error, {field, :not_found}}
+      {:error, _reason} = error -> error
+    end
+  end
+
   @spec error_only_user_action(map(), Absinthe.Resolution.t(), atom(), (map(), map() -> term())) ::
           {:ok, error_only_result_payload()}
   defp error_only_user_action(args, resolution, target_field, action_fun)
@@ -230,7 +252,7 @@ defmodule LCGQL.Social.Resolver do
   @spec run_error_only_user_action(map(), term(), atom(), (map(), map() -> term())) ::
           {:ok, error_only_result_payload()}
   defp run_error_only_user_action(actor, target_id, target_field, action_fun) do
-    with {:ok, target} <- fetch_user(target_id, target_field),
+    with {:ok, target} <- fetch_visible_user(target_id, target_field, actor),
          :ok <- normalize_error_only_action(action_fun.(actor, target)) do
       {:ok, %{errors: []}}
     else
