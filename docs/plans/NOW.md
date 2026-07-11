@@ -31,8 +31,9 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 3 planning-only; backend contract proof is defined, but no
-  implementation batch is active.
+- State: Batch 3 planning-only; backend upload finalization, processed-only
+  attachment, and schema-privacy work is defined, but no implementation batch
+  is active.
 - Verification: 30 node-query tests, 0 failures.
 
 ### Mobile Lane
@@ -57,7 +58,7 @@ state the write scope, and verify both affected sides.
 ## Next Coordinator Action
 
 Review and approve Batch 3, Media Post Publishing. After approval, promote its
-explicit backend contract-proof and mobile implementation scopes into the lane
+explicit backend lifecycle and mobile implementation scopes into the lane
 pointers without activating Batches 4-5.
 
 ## Repair Conditions

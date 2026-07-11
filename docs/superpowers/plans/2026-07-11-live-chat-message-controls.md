@@ -107,7 +107,7 @@ list. Commit each task with its focused tests.
 - Modify: `mobile/src/live/chat/liveSessionChatPanelPresentation.ts`
 - Modify: `mobile/src/live/watch/LiveSessionWatchScreen.tsx`
 - Modify: `mobile/tests/live/LiveSessionChatPanel.test.ts`
-- Modify: `mobile/tests/live/LiveSessionWatchScreen.rntl.tsx`
+- Create: `mobile/tests/live/LiveSessionWatchScreen.rntl.tsx`
 
 **Interfaces:**
 - Consumes: viewer ID, host ID, session status, row actor IDs, Task 3's controller, and existing timeline dispatch.

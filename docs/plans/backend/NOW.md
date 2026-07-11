@@ -41,8 +41,8 @@ Status: Batch 3 Media Post Publishing planned; awaiting approval
 
 No backend implementation batch is active. Review
 `docs/superpowers/plans/2026-07-11-media-post-publishing.md`; after approval,
-promote Task 1's focused media ownership/processing contract proof. Backend
-production changes remain conditional on a reproduced failure.
+promote Task 1's storage-verified upload finalization, processed-only attachment,
+and GraphQL schema-privacy work.
 
 ## References
 

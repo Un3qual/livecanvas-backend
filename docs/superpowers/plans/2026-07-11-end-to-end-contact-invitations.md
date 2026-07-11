@@ -4,7 +4,7 @@
 
 **Goal:** Let a viewer email an unmatched contact a working HTTPS invitation that safely returns through app authentication and records a one-time, recipient-bound conversion.
 
-**Architecture:** Accounts owns opaque SHA3-hashed invite-token validation and transactional consumption. A public Phoenix landing route exposes only a generic valid/invalid state and an explicit LiveCanvas deep link; authenticated Relay consumption verifies that the viewer owns the token's verified normalized recipient email, writes a minimal conversion record, and deletes the token. Mobile preserves the token through sign-in/sign-up and exposes delivery state only after the route contract is configured.
+**Architecture:** Accounts owns opaque SHA3-hashed invite-token validation and transactional consumption. Emailed HTTPS links keep the raw token in a URL fragment, so it is never sent to Phoenix, proxies, request telemetry, or referrers; a neutral public landing page uses a static client asset to translate that fragment into an explicit LiveCanvas deep link. Authenticated Relay consumption verifies that the viewer owns the token's verified normalized recipient email, writes a minimal conversion record, and deletes the token. Mobile preserves the token through sign-in/sign-up and exposes delivery state only after the route contract is configured.
 
 **Tech Stack:** Elixir, Ecto/PostgreSQL, Phoenix, Absinthe Relay, ExUnit, Expo Router, React Native, TypeScript, React Relay, Bun, Jest/RNTL.
 
@@ -17,7 +17,7 @@
 - Public failures use one generic state for malformed, unknown, expired, consumed, recipient-mismatched, and tampered tokens.
 - Consumption requires an authenticated viewer with a verified email whose normalized value equals `users_tokens.sent_to`.
 - Consumption records conversion only. It never follows users, reveals inviter email, imports contacts, or changes profile visibility.
-- The emailed link uses a configured HTTPS origin and stable `/invites/:token` path. No placeholder origin is permitted.
+- The emailed link uses a configured HTTPS origin and stable `/invites#token=<encoded-token>` URL. The raw token must never appear in a server-visible path, query string, log, telemetry event, or referrer. No placeholder origin is permitted.
 - Relay IDs and auth return routes remain opaque and allowlisted.
 - Mobile tests stay under `mobile/tests/**`; public backend functions require typespecs and typed changes run `mix typecheck`.
 
@@ -27,15 +27,15 @@
 
 Implement and prove the token lifecycle before enabling mobile delivery. The
 conversion table is deliberately minimal: token identity, inviter, recipient
-user, and consumption time. The public controller never consumes or exposes
-token metadata. Mobile consumption occurs only after authentication and uses
+user, and consumption time. The public controller never receives, consumes, or
+exposes token metadata. Mobile consumption occurs only after authentication and uses
 the existing allowlisted `returnTo` mechanism.
 
 ## File Structure
 
 - Persistence: a relational conversion schema under `LCSchemas.Accounts` plus one migration.
-- Token lifecycle: `LC.Accounts.Tokens` validates serialized context/hash/expiry; `LC.Accounts` owns lookup and transactional consumption.
-- Public landing: `LCWeb.ContactInviteController` and focused HTML template.
+- Token lifecycle: `LC.Accounts.Tokens` validates serialized context/hash/expiry; `LC.Accounts` owns transactional consumption.
+- Public landing: `LCWeb.ContactInviteController`, focused HTML template, and a static fragment-to-deep-link asset.
 - GraphQL: Accounts contact mutation exposes authenticated consumption and configured delivery URLs.
 - Mobile routing: `/invite?token=...` plus allowlisted auth return handling.
 - Mobile contact UI: existing delivery mutation gains explicit row-level sent/retry/terminal states.
@@ -52,17 +52,15 @@ the existing allowlisted `returnTo` mechanism.
 - Modify: `test/live_canvas/accounts_test.exs`
 
 **Interfaces:**
-- Produces: `Tokens.valid_contact_invite_token?/2`, `Accounts.contact_invite_status/1`, and `Accounts.consume_contact_invite/2`.
-- `contact_invite_status/1` returns only `:valid | :invalid`.
+- Produces: `Tokens.valid_contact_invite_token?/2` and `Accounts.consume_contact_invite/2`.
 - `consume_contact_invite/2` returns `{:ok, ContactInviteConversion.t()} | {:error, :invalid_contact_invite}`.
 
 - [ ] Create `contact_invite_conversions` with bigint `id`, database-generated UUIDv7 `entropy_id`, UUID `invite_token_id`, nullable `inviter_id`, nullable `recipient_user_id`, `consumed_at :utc_datetime_usec`, and `:utc_datetime_usec` timestamps.
 - [ ] Add unique indexes for `entropy_id` and `invite_token_id`; use `on_delete: :nilify_all` for both user references so deletion cannot make consumption reusable.
 - [ ] Add the schema table-contract summary and typespecs. Do not store recipient email or raw token material in the conversion row.
 - [ ] Add 7-day `valid_contact_invite_token?/2` validation requiring secure hash match and exact `:contact_invite_token` context.
-- [ ] Implement public status lookup as a read-only, generic result. It must not return inviter, recipient, token ID, or expiry.
 - [ ] Implement transactional consumption with `FOR UPDATE`: decode, lock, validate context/hash/expiry, require a verified normalized viewer email equal to `sent_to`, insert the conversion, then delete the token before commit.
-- [ ] Cover valid status, malformed/tampered/wrong-context/expired/consumed status, verified recipient success, unverified or different recipient rejection, repeat consumption, and two concurrent consumers yielding exactly one conversion.
+- [ ] Cover malformed/tampered/wrong-context/expired/consumed rejection, verified recipient success, unverified or different recipient rejection, repeat consumption, and two concurrent consumers yielding exactly one conversion.
 - [ ] Run `MIX_ENV=test mix ecto.reset`, `mix test test/live_canvas/accounts/user_token_test.exs test/live_canvas/accounts_test.exs`, `mix typecheck`, and focused formatting; commit with `feat: consume contact invites once`.
 
 ### Task 2: Add The HTTPS Landing Route And Configured Delivery Origin
@@ -76,20 +74,24 @@ the existing allowlisted `returnTo` mechanism.
 - Create: `lib/live_canvas_web/controllers/contact_invite_controller.ex`
 - Create: `lib/live_canvas_web/controllers/contact_invite_html.ex`
 - Create: `lib/live_canvas_web/controllers/contact_invite_html/show.html.heex`
+- Modify: `assets/js/app.js`
+- Create: `assets/js/contact_invite_landing.js`
+- Create: `assets/js/contact_invite_landing.test.js`
 - Create: `test/live_canvas_web/controllers/contact_invite_controller_test.exs`
 - Modify: `test/live_canvas_gql/accounts/account_mutations_test.exs`
 
 **Interfaces:**
-- Consumes: `Accounts.contact_invite_status/1` and configured `:public_app_origin`.
-- Produces: `GET /invites/:token` and `livecanvas-mobile://invite?token=...` on the valid landing state.
+- Consumes: configured `:public_app_origin` only.
+- Produces: `GET /invites` and client-side `livecanvas-mobile://invite?token=...` without transmitting the token to the server.
 
 - [ ] Configure `:public_app_origin` with a local/test default and require `LIVE_CANVAS_PUBLIC_ORIGIN` in production. Validate it is an absolute `https` URI with a host and no query/fragment.
-- [ ] Replace `https://livecanvas.invalid` construction with `<public_app_origin>/invites/<percent-encoded-token>`; keep URL construction at the GraphQL boundary and never include inviter/recipient values.
-- [ ] Add the public `GET /invites/:token` route outside authenticated browser pipelines. The controller calls only `contact_invite_status/1` and assigns `:valid` or `:invalid`.
-- [ ] Render valid invitations with neutral copy and one explicit `livecanvas-mobile://invite?token=<encoded-token>` action. Render every invalid state with the same generic expired-or-invalid copy and no deep link.
-- [ ] Add `Cache-Control: no-store` and a restrictive referrer policy so token URLs are not cached or forwarded as referrers.
-- [ ] Test valid landing, malformed/tampered/expired/consumed generic landing, no inviter/recipient leakage, configured HTTPS delivery URL, and startup failure for an invalid production origin.
-- [ ] Run the focused controller, account mutation, and Accounts tests plus `mix typecheck`; commit with `feat: add contact invite landing route`.
+- [ ] Replace `https://livecanvas.invalid` construction with `<public_app_origin>/invites#token=<percent-encoded-token>`; keep URL construction at the GraphQL boundary and never include inviter/recipient values.
+- [ ] Add the public `GET /invites` route outside authenticated browser pipelines. The controller renders the same neutral page for every request and never accepts or looks up a token.
+- [ ] Add a pure, unit-tested fragment parser and import its guarded landing-page initializer from `assets/js/app.js`. It reads exactly one nonblank `token` value from `window.location.hash`, sets the explicit `livecanvas-mobile://invite?token=<encoded-token>` action, and otherwise leaves the page in one generic invalid-or-expired state. Do not interpolate the fragment into server-rendered HTML.
+- [ ] Add `Cache-Control: no-store`, a restrictive content security policy, and a no-referrer policy. After constructing the app link, clear the fragment with `history.replaceState` so screenshots and copied browser URLs do not retain the token.
+- [ ] Test that generated delivery URLs place the token only in `URI.fragment`, while the controller route, endpoint telemetry path, response body, and referrer policy contain no raw token. Test the pure fragment parser for valid, missing, duplicated, and malformed token fragments.
+- [ ] Test configured HTTPS delivery URLs use the fragment contract and that invalid production origins fail startup.
+- [ ] Run the focused controller, account mutation, Accounts, and asset parser tests plus `mix assets.build` and `mix typecheck`; commit with `feat: add contact invite landing route`.
 
 ### Task 3: Expose Authenticated Relay Consumption
 
@@ -129,7 +131,7 @@ the existing allowlisted `returnTo` mechanism.
 - Consumed by: Task 5 delivery/readback tests.
 
 - [ ] Add `/invite` to known routes and authenticated return-to routes. Preserve exactly one nonblank token query value; reject arrays, missing tokens, malformed decoding, and arbitrary nested return targets.
-- [ ] Normalize both `livecanvas-mobile://invite?token=...` and HTTPS `/invites/:token` startup URLs to `/invite?token=...` without logging the token.
+- [ ] Normalize both `livecanvas-mobile://invite?token=...` and HTTPS `/invites#token=...` startup URLs to `/invite?token=...` without logging the token. Update the existing startup URL parser, which currently discards fragments, only for this allowlisted invite origin/path.
 - [ ] When unauthenticated, show neutral invitation copy with Sign in and Create account actions built through `authRouteHref(..., '/invite?token=...')`.
 - [ ] After successful password or provider authentication, return to the allowlisted invite route and commit `consumeContactInvite` once. Already authenticated viewers consume from the same screen.
 - [ ] Render exactly `checking`, `requires_auth`, `consuming`, `consumed`, `invalid`, and `retryable_error` states; invalid payloads do not disclose recipient mismatch or token history.

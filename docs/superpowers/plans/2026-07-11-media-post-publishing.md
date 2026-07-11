@@ -4,7 +4,7 @@
 
 **Goal:** Let an authenticated viewer publish a standard post or story with one image or video while preserving the existing text-only path.
 
-**Architecture:** The existing Relay `requestMediaUpload`, viewer-scoped `mediaAsset`, and `createPost(mediaAssetIds:)` contracts remain authoritative. Mobile adds an injected picker/upload boundary, a pure publishing reducer, and a controller that requests a signed upload, uploads exactly the returned headers, polls the opaque media node until attachable, then submits the post.
+**Architecture:** The existing Relay `requestMediaUpload`, viewer-scoped `mediaAsset`, and `createPost(mediaAssetIds:)` contracts remain authoritative, with one missing lifecycle step made explicit: an authenticated `finalizeMediaUpload` mutation verifies the object exists in server-owned storage before moving it from `PENDING_UPLOAD` to `UPLOADED` and enqueueing processing. Mobile adds an injected picker/upload boundary, a pure publishing reducer, and a controller that requests a signed upload, uploads exactly the returned headers, finalizes the upload, polls the opaque media node to `PROCESSED`, then submits the post.
 
 **Tech Stack:** Elixir, Absinthe Relay, ExUnit, Expo SDK 55, Expo ImagePicker, React Native, TypeScript, React Relay, Bun, Jest/RNTL.
 
@@ -12,20 +12,22 @@
 
 - Design source: `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`, Batch 3.
 - Support exactly one selected image or video. Multiple attachments remain deferred.
+- Use one exact client/server MIME allowlist: `image/jpeg`, `image/png`, `image/webp`, and `video/mp4`. Wildcard `image/*` or `video/*` acceptance is forbidden.
 - Apply early mobile limits of 25 MiB for images and 100 MiB for videos when the picker reports `fileSize`; backend ownership and media-processing checks remain authoritative.
 - Keep text-only post and story publishing available and unchanged.
 - Treat Relay IDs as opaque; never derive storage keys or owner IDs on mobile.
+- A post may attach only an owner-scoped asset in `PROCESSED`; `PENDING_UPLOAD`, `UPLOADED`, and `FAILED` are never attachable.
 - The signed HTTP request sends only the method and headers returned by `requestMediaUpload`; it must not attach the viewer bearer token to the storage URL.
+- A successful client upload does not prove persistence. Only server-side storage verification may finalize an upload and enqueue processing.
 - New retry attempts request a fresh signed upload. Never reuse a URL after expiry or an indeterminate upload failure.
 - Cancellation aborts selection follow-up, upload, polling, and submission callbacks without mutating an unmounted composer.
 - Mobile tests stay under `mobile/tests/**`.
-- Backend production code changes only if Task 1 reproduces a contract defect.
 
 ---
 
 ## Executor Brief
 
-Complete the backend contract proof before adding mobile dependencies. Tasks 2-3
+Complete the missing backend lifecycle contract before adding mobile dependencies. Tasks 2-3
 build and test the native boundary plus pure workflow away from the screen. Task
 4 integrates the workflow with the existing composer and runs the complete
 mobile gate. Commit each completed task with its tests and update this plan's
@@ -33,30 +35,47 @@ checkboxes/evidence in the same milestone commit.
 
 ## File Structure
 
-- Backend proof: `test/live_canvas_gql/content/content_mutations_test.exs` and `test/live_canvas_gql/content/content_queries_test.exs`.
+- Backend lifecycle: object-storage verification, Relay finalization, processed-only attachment, and schema privacy tests.
 - Native boundary: `mobile/src/content/mediaPostSelection.ts` owns picker normalization only.
 - Pure workflow: `mobile/src/content/mediaPostPublishingState.ts` owns stages, stale-attempt rejection, retry, and cancellation decisions.
 - Network boundary: `mobile/src/content/mediaPostUploadClient.ts` owns signed upload and polling helpers.
 - Controller: `mobile/src/content/useMediaPostPublishing.ts` coordinates Relay commits, HTTP upload, polling, and cancellation.
 - Composer: `mobile/src/feed/PostComposerScreen.tsx`, `mobile/src/content/postComposerState.ts`, and `mobile/src/feed/postComposerOperations.ts` expose the finished workflow.
 
-### Task 1: Prove The Existing Media Ownership And Processing Contract
+### Task 1: Complete And Prove The Media Upload Lifecycle Contract
 
 **Files:**
+- Modify: `config/config.exs`
+- Modify: `config/runtime.exs`
+- Modify: `config/test.exs`
+- Modify: `lib/live_canvas/infra/object_storage.ex`
+- Modify: `lib/live_canvas/infra/object_storage/configurable_adapter.ex`
+- Modify: `lib/live_canvas/infra/object_storage/fake_adapter.ex`
+- Modify: `lib/live_canvas/content.ex`
+- Modify: `lib/live_canvas/content/media_asset.ex`
+- Modify: `lib/live_canvas_gql/content/content_mutations.ex`
+- Modify: `lib/live_canvas_gql/content/content_resolver.ex`
+- Modify: `lib/live_canvas_gql/content/content_types.ex`
+- Modify: `test/live_canvas/infra/object_storage/configurable_adapter_test.exs`
+- Modify: `test/live_canvas/content_test.exs`
 - Modify: `test/live_canvas_gql/content/content_mutations_test.exs`
 - Modify: `test/live_canvas_gql/content/content_queries_test.exs`
-- Modify only on reproduced failure: `lib/live_canvas/content.ex`
-- Modify only on reproduced failure: `lib/live_canvas_gql/content/content_resolver.ex`
+- Modify: `test/live_canvas_gql/relay/node_queries_test.exs`
+- Modify: `test/integration/media_webhook_async_flow_test.exs`
 
 **Interfaces:**
-- Consumes: `requestMediaUpload(input: {mimeType})`, `mediaAsset(id:)`, and `createPost(input: {mediaAssetIds})`.
-- Produces: a verified contract that only the owner can poll or attach an asset and that attachment requires `processingState: PROCESSED`.
+- Consumes: the existing `requestMediaUpload(input: {mimeType})`, viewer-scoped `mediaAsset(id:)`, and `createPost(input: {mediaAssetIds})` contracts.
+- Produces: `ObjectStorage.verify_upload/1` and authenticated Relay `finalizeMediaUpload(input: {mediaAssetId})`, plus a verified processed-only attachment contract.
 
-- [ ] Add focused GraphQL tests covering one supported image MIME type, one supported video MIME type, unsupported MIME rejection, anonymous upload rejection, foreign-owner node lookup returning `null`, pending/failed asset attachment rejection, and processed owner asset attachment success.
-- [ ] Assert the upload payload includes opaque asset ID, method, URL, exact headers, and expiry without exposing `storage_key`.
-- [ ] Run `mix test test/live_canvas_gql/content/content_mutations_test.exs test/live_canvas_gql/content/content_queries_test.exs`; expected result is all tests passing without backend production changes.
-- [ ] If a focused test fails, repair only the reproduced ownership or processing predicate, add typespecs to changed public functions, and run `mix typecheck`.
-- [ ] Run `mix format --check-formatted` on touched backend files and commit with `test: prove media publishing contract`.
+- [ ] Extend the object-storage behaviour with `verify_upload(%{key, mime_type})`. Give the configurable adapter a dedicated server-side verification origin, separate from the browser upload URL and public CDN origin; perform a `Req` `HEAD` through `Req.Test`, and accept only a 2xx response with a matching normalized content type. Never reuse a client upload signature for verification; support a server-only authorization header when the verification service requires it. Keep the fake adapter deterministic for tests.
+- [ ] Add `finalizeMediaUpload` as a Relay payload mutation. Decode the opaque media ID, refetch it through the authenticated owner boundary, verify its persisted storage key and MIME type through `ObjectStorage`, then call the existing transactional finalizer that moves `PENDING_UPLOAD` to `UPLOADED` and enqueues processing.
+- [ ] Keep verification not-found, content-type mismatch, timeout, and storage-unavailable results retryable without changing the database state. Make repeated successful finalization idempotent and never permit a foreign owner to distinguish missing from inaccessible assets.
+- [ ] Enforce the shared four-type MIME allowlist in the upload-request changeset before signing storage access. Test all four accepted values plus representative rejected image, video, and non-media values such as GIF, QuickTime, and octet-stream; adapt the existing unsupported-processing fixture so it does not rely on requesting a now-invalid upload.
+- [ ] Tighten `create_post` attachment to accept only owner-scoped `PROCESSED` assets; update existing tests that currently treat `UPLOADED` as attachable.
+- [ ] Remove `storageKey` from the GraphQL `MediaAsset` node itself, not merely from mobile selections. Add schema validation proving it is unqueryable while the opaque asset ID, MIME type, processing state, and public URL remain available as authorized.
+- [ ] Add focused GraphQL tests covering all four supported MIME types, representative unsupported MIME rejection, anonymous upload/finalization rejection, foreign-owner lookup/finalization returning the same missing result, pending/uploaded/failed attachment rejection, and processed owner attachment success.
+- [ ] Add an integration contract test for request upload -> storage-verified finalization -> queued worker -> `PROCESSED` -> post attachment, plus verification-failure cases proving no premature transition or job enqueue.
+- [ ] Run the focused object-storage, content, GraphQL, Relay schema, and media integration tests; run `mix typecheck` and focused formatting; commit with `feat: complete media upload lifecycle`.
 
 ### Task 2: Add Native Selection And Pure Publishing State
 
@@ -75,7 +94,7 @@ checkboxes/evidence in the same milestone commit.
 
 - [ ] Install the Expo SDK-compatible `expo-image-picker` package and configure photo-library permission copy; do not request camera permission from the post composer.
 - [ ] Define `PickedPostMedia` as `{uri, mimeType, fileName, fileSize, mediaKind: 'image' | 'video'}` and normalize cancelled picker results to `null`.
-- [ ] Reject selections without a supported `image/*` or `video/*` MIME type, images above 25 MiB, and videos above 100 MiB when `fileSize` is available; return viewer-safe messages rather than raw picker errors.
+- [ ] Accept only the shared four-type MIME allowlist; reject GIF, HEIC, QuickTime, arbitrary wildcard-matching image/video values, and non-media values. Enforce 25 MiB for allowed images and 100 MiB for MP4 when `fileSize` is available, returning viewer-safe messages rather than raw picker errors.
 - [ ] Implement reducer stages exactly as `idle`, `selecting`, `selected`, `requesting`, `uploading`, `processing`, `ready`, `submitting`, `succeeded`, `failed`, and `cancelled`.
 - [ ] Give every asynchronous attempt a monotonically increasing `attemptId`; reducer completions with an older ID must return the identical state object.
 - [ ] Cover picker cancellation, invalid type/size, each legal transition, duplicate transition rejection, stale completions, retry reset, and cancellation in focused Bun tests.
@@ -90,6 +109,7 @@ checkboxes/evidence in the same milestone commit.
 - Create: `mobile/tests/content/mediaPostUploadClient.test.ts`
 - Create: `mobile/tests/content/useMediaPostPublishing.rntl.tsx`
 - Generate: `mobile/src/__generated__/postComposerOperationsRequestMediaUploadMutation.graphql.ts`
+- Generate: `mobile/src/__generated__/postComposerOperationsFinalizeMediaUploadMutation.graphql.ts`
 - Generate: `mobile/src/__generated__/postComposerOperationsMediaAssetQuery.graphql.ts`
 - Regenerate: `mobile/src/__generated__/postComposerOperationsCreatePostMutation.graphql.ts`
 
@@ -97,12 +117,13 @@ checkboxes/evidence in the same milestone commit.
 - Produces: `uploadSignedMedia({selection, signedUpload, signal})`, `pollMediaAssetUntilTerminal({assetId, signal, fetchAsset, delay})`, and `useMediaPostPublishing()`.
 - `useMediaPostPublishing()` returns `{state, selectMedia, removeMedia, retryMedia, cancel, submit}` and accepts injected picker, upload, delay, and Relay commit functions in tests.
 
-- [ ] Add Relay operations for `requestMediaUpload`, viewer-scoped `mediaAsset(id:)`, and `createPost` with `mediaAssetIds: [state.mediaAssetId]` only in the `ready` stage.
+- [ ] Add Relay operations for `requestMediaUpload`, `finalizeMediaUpload`, viewer-scoped `mediaAsset(id:)`, and `createPost` with `mediaAssetIds: [state.mediaAssetId]` only in the `ready` stage.
 - [ ] Implement signed upload using the returned `PUT` or `POST`, exact returned headers, selected binary body, and an `AbortSignal`; treat non-2xx responses as retryable upload failures and never add app authorization headers.
+- [ ] After a 2xx storage response, commit `finalizeMediaUpload` once for the active attempt. Begin polling only after finalization succeeds; map storage verification unavailable/not-yet-visible to a retryable state that requests a fresh signed upload on retry.
 - [ ] Poll every second for at most 60 attempts. Resolve only on `PROCESSED`, fail terminally on `FAILED` or a missing owner-scoped node, and return a retryable timeout after the final pending response.
 - [ ] Abort the current controller on remove, retry, auth loss, unmount, or explicit cancel. Retry must discard the prior asset/URL and begin with a new `requestMediaUpload` mutation.
 - [ ] Preserve a processed asset when `createPost` returns payload errors so the viewer can retry submission during the same mounted composer session.
-- [ ] Test signed-header fidelity, absence of bearer authorization, non-2xx upload, expired-URL retry, processing success/failure/timeout, auth loss, unmount, and duplicate submit guards.
+- [ ] Test signed-header fidelity, absence of bearer authorization, non-2xx upload, finalization verification failure, expired-URL retry, processing success/failure/timeout, auth loss, unmount, and duplicate submit guards.
 - [ ] Run `cd mobile && bun run relay`, the two focused tests, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: upload and process post media`.
 
 ### Task 4: Integrate Media Publishing Into The Composer
