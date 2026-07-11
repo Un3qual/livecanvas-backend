@@ -18,6 +18,7 @@
 - Consumption requires an authenticated viewer with a verified email whose normalized value equals `users_tokens.sent_to`.
 - Consumption records conversion only. It never follows users, reveals inviter email, imports contacts, or changes profile visibility.
 - The emailed link uses a configured HTTPS origin and stable `/invites#token=<encoded-token>` URL. The raw token must never appear in a server-visible path, query string, log, telemetry event, or referrer. No placeholder origin is permitted.
+- Do not add a legacy `/invites/:token` route. The pre-feature URL uses the non-routable `livecanvas.invalid` placeholder, no landing route exists, and mobile invite delivery is hidden; revoke those unusable pre-cutover tokens before enabling the real delivery surface instead of reintroducing secrets in request paths.
 - Relay IDs and auth return routes remain opaque and allowlisted.
 - Mobile tests stay under `mobile/tests/**`; public backend functions require typespecs and typed changes run `mix typecheck`.
 
@@ -59,6 +60,7 @@ the existing allowlisted `returnTo` mechanism.
 - [ ] Add unique indexes for `entropy_id` and `invite_token_id`; use `on_delete: :nilify_all` for both user references so deletion cannot make consumption reusable.
 - [ ] Add the schema table-contract summary and typespecs. Do not store recipient email or raw token material in the conversion row.
 - [ ] Add 7-day `valid_contact_invite_token?/2` validation requiring secure hash match and exact `:contact_invite_token` context.
+- [ ] In the conversion-table migration, delete pre-cutover `user_tokens` rows in the `:contact_invite_token` context. They were issued only with the non-routable placeholder URL and must not remain as ghost-valid credentials after the fragment contract launches.
 - [ ] Implement transactional consumption with `FOR UPDATE`: decode, lock, validate context/hash/expiry, require a verified normalized viewer email equal to `sent_to`, insert the conversion, then delete the token before commit.
 - [ ] Cover malformed/tampered/wrong-context/expired/consumed rejection, verified recipient success, unverified or different recipient rejection, repeat consumption, and two concurrent consumers yielding exactly one conversion.
 - [ ] Run `MIX_ENV=test mix ecto.reset`, `mix test test/live_canvas/accounts/user_token_test.exs test/live_canvas/accounts_test.exs`, `mix typecheck`, and focused formatting; commit with `feat: consume contact invites once`.
@@ -99,6 +101,7 @@ the existing allowlisted `returnTo` mechanism.
 - Modify: `lib/live_canvas_gql/accounts/account_mutations.ex`
 - Modify: `lib/live_canvas_gql/accounts/contact_resolver.ex`
 - Modify: `test/live_canvas_gql/accounts/account_mutations_test.exs`
+- Modify: `test/live_canvas_gql/relay/graphql_rate_limit_test.exs`
 - Modify: `mobile/schema.graphql`
 
 **Interfaces:**
@@ -110,7 +113,7 @@ the existing allowlisted `returnTo` mechanism.
 - [ ] Return `consumed: true` only for the committed conversion. Map malformed, expired, consumed, tampered, wrong-recipient, and unknown tokens to one `invalid_contact_invite` payload error.
 - [ ] Return the existing unauthenticated payload shape without performing token lookup.
 - [ ] Cover success, all generic failure variants, repeat consumption, wrong verified account, and unauthenticated access in GraphQL tests.
-- [ ] Confirm the existing generic GraphQL mutation rate limit covers delivery and consumption; add a focused rate-limit test without creating a token-specific bypass.
+- [ ] Prove both `deliverViewerContactInvite` and `consumeContactInvite` fall through the existing `:graphql_mutation` bucket: with its test limit set to one, the second request for each mutation returns the structured 429 response. Do not register either as auth/moderation traffic or add an unthrottled token-specific branch.
 - [ ] Refresh `mobile/schema.graphql`, run the focused backend tests and `mix typecheck`, and commit with `feat: expose contact invite consumption`.
 
 ### Task 4: Preserve Invite Routing Through Authentication
