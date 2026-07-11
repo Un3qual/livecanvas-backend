@@ -193,9 +193,7 @@ function canFailWorkflow(state: MediaPostPublishingState): boolean {
 }
 
 function canRemoveSelection(state: MediaPostPublishingState): boolean {
-  return !['requesting', 'uploading', 'processing', 'submitting'].includes(
-    state.stage,
-  );
+  return state.stage !== 'idle';
 }
 
 function canCancel(state: MediaPostPublishingState): boolean {

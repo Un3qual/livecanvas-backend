@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-11
-Status: Batch 3 Media Post Publishing active; Task 3 next
+Status: Batch 3 Media Post Publishing active; Task 4 next
 
 ## Lane Scope
 
@@ -44,6 +44,7 @@ Status: Batch 3 Media Post Publishing active; Task 3 next
 
 ## Next Action
 
-Use `docs/superpowers/plans/2026-07-11-media-post-publishing.md`. Task 2 native
-selection/state is complete. Execute Task 3 upload/polling/controller, then
-Task 4 composer integration. Keep Batches 4-5 queued.
+Use `docs/superpowers/plans/2026-07-11-media-post-publishing.md`. Tasks 2-3
+native selection, upload, polling, and controller work are complete. Execute
+Task 4 composer integration and final mobile verification. Keep Batches 4-5
+queued.
