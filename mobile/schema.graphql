@@ -52,6 +52,7 @@ type RootMutationType {
   removeLiveChatMessageEvent(input: RemoveLiveChatMessageEventInput!): RemoveLiveChatMessageEventPayload
   createPost(input: CreatePostInput!): CreatePostPayload
   requestMediaUpload(input: RequestMediaUploadInput!): RequestMediaUploadPayload
+  finalizeMediaUpload(input: FinalizeMediaUploadInput!): FinalizeMediaUploadPayload
   updatePost(input: UpdatePostInput!): UpdatePostPayload
   deletePost(input: DeletePostInput!): DeletePostPayload
   reportPost(input: ReportPostInput!): ReportPostPayload
@@ -214,6 +215,15 @@ input RequestMediaUploadInput {
 type RequestMediaUploadPayload {
   mediaAsset: MediaAsset
   signedUpload: SignedUpload
+  errors: [UserError!]!
+}
+
+input FinalizeMediaUploadInput {
+  mediaAssetId: ID!
+}
+
+type FinalizeMediaUploadPayload {
+  mediaAsset: MediaAsset
   errors: [UserError!]!
 }
 
@@ -638,10 +648,6 @@ type Post implements Node {
 type MediaAsset implements Node {
   "The ID of an object"
   id: ID!
-
-  ownerId: ID!
-
-  storageKey: String!
 
   mimeType: String!
 

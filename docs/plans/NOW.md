@@ -31,14 +31,14 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 3 Task 1 active: complete and prove the backend media upload
-  lifecycle before mobile implementation begins.
-- Verification: 30 node-query tests, 0 failures.
+- State: Batch 3 Task 1 complete; hold the verified media lifecycle contract
+  stable while mobile Tasks 2-4 execute.
+- Verification: 239 focused tests, 0 failures; typecheck and schema export pass.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 3 active; Tasks 2-4 follow the backend Task 1 contract.
+- State: Batch 3 Task 2 next; the backend Task 1 contract is exported.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: 13 focused Bun, 54 focused Jest, 464 full Bun, and 104 full
   Jest tests passed; Relay generation, typechecks, lint, and patch hygiene pass.

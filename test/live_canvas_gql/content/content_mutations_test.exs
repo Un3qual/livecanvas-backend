@@ -2,8 +2,11 @@ defmodule LCGQL.Content.ContentMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
 
   alias LC.{Accounts, Content}
+  alias LC.Infra.ObjectStorage.FakeAdapter
+  alias LCSchemas.Infra.AsyncJob
 
   test "createPost persists a post for the authenticated viewer" do
     viewer = user_fixture()
@@ -57,19 +60,19 @@ defmodule LCGQL.Content.ContentMutationsTest do
     viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
     context = %{current_scope: Accounts.scope_for_user(viewer)}
 
-    assert {:ok, first_asset} =
-             Content.create_media_asset(viewer, %{
-               storage_key: "uploads/users/#{viewer.id}/story-first.jpg",
-               mime_type: "image/jpeg",
-               processing_state: :uploaded
-             })
+    first_asset =
+      media_asset_fixture(viewer, %{
+        storage_key: "uploads/users/#{viewer.id}/story-first.jpg",
+        mime_type: "image/jpeg",
+        processing_state: :processed
+      })
 
-    assert {:ok, second_asset} =
-             Content.create_media_asset(viewer, %{
-               storage_key: "uploads/users/#{viewer.id}/story-second.jpg",
-               mime_type: "image/jpeg",
-               processing_state: :processed
-             })
+    second_asset =
+      media_asset_fixture(viewer, %{
+        storage_key: "uploads/users/#{viewer.id}/story-second.jpg",
+        mime_type: "image/jpeg",
+        processing_state: :processed
+      })
 
     first_asset_id = Absinthe.Relay.Node.to_global_id(:media_asset, first_asset.id, LCGQL.Schema)
 
@@ -157,6 +160,64 @@ defmodule LCGQL.Content.ContentMutationsTest do
             }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"bodyText" => "first post"})
   end
 
+  test "createPost attaches only processed media" do
+    viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    mutation = """
+    mutation($mediaAssetIds: [ID!]!) {
+      createPost(input: {kind: STANDARD, bodyText: "state gate", mediaAssetIds: $mediaAssetIds}) {
+        post { id }
+        errors { field message }
+      }
+    }
+    """
+
+    for state <- [:pending_upload, :uploaded, :failed] do
+      media_asset = media_asset_fixture(viewer, %{processing_state: state})
+
+      media_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "createPost" => %{
+                    "post" => nil,
+                    "errors" => [
+                      %{
+                        "field" => "media_asset_ids",
+                        "message" => "must reference viewer-owned processed assets"
+                      }
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"mediaAssetIds" => [media_asset_id]},
+                 context: context
+               )
+    end
+
+    processed_asset = media_asset_fixture(viewer, %{processing_state: :processed})
+
+    processed_asset_id =
+      Absinthe.Relay.Node.to_global_id(:media_asset, processed_asset.id, LCGQL.Schema)
+
+    assert {:ok,
+            %{
+              data: %{
+                "createPost" => %{"post" => %{"id" => post_id}, "errors" => []}
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"mediaAssetIds" => [processed_asset_id]},
+               context: context
+             )
+
+    assert is_binary(post_id)
+  end
+
   test "requestMediaUpload returns upload instructions for the authenticated viewer" do
     viewer = user_fixture()
     context = %{current_scope: Accounts.scope_for_user(viewer)}
@@ -199,7 +260,10 @@ defmodule LCGQL.Content.ContentMutationsTest do
                     "method" => "PUT",
                     "url" => upload_url,
                     "expiresAt" => expires_at,
-                    "headers" => [%{"name" => "content-type", "value" => "image/jpeg"}]
+                    "headers" => [
+                      %{"name" => "content-type", "value" => "image/jpeg"},
+                      %{"name" => "if-none-match", "value" => "*"}
+                    ]
                   },
                   "errors" => []
                 }
@@ -244,6 +308,148 @@ defmodule LCGQL.Content.ContentMutationsTest do
                 }
               }
             }} = Absinthe.run(mutation, LCGQL.Schema, variables: %{"mimeType" => "image/jpeg"})
+  end
+
+  test "requestMediaUpload enforces the shared MIME allowlist" do
+    viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    mutation = """
+    mutation($mimeType: String!) {
+      requestMediaUpload(input: {mimeType: $mimeType}) {
+        mediaAsset { mimeType }
+        errors { field message }
+      }
+    }
+    """
+
+    for mime_type <- ["image/jpeg", "image/png", "image/webp", "video/mp4"] do
+      assert {:ok,
+              %{
+                data: %{
+                  "requestMediaUpload" => %{
+                    "mediaAsset" => %{"mimeType" => ^mime_type},
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"mimeType" => mime_type},
+                 context: context
+               )
+    end
+
+    for mime_type <- ["image/gif", "video/quicktime", "application/octet-stream"] do
+      assert {:ok,
+              %{
+                data: %{
+                  "requestMediaUpload" => %{
+                    "mediaAsset" => nil,
+                    "errors" => [%{"field" => "mime_type", "message" => "is not supported"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"mimeType" => mime_type},
+                 context: context
+               )
+    end
+  end
+
+  test "finalizeMediaUpload verifies storage and enqueues processing" do
+    viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    assert {:ok, %{media_asset: media_asset}} =
+             Content.request_media_upload(viewer, %{mime_type: "image/jpeg"})
+
+    assert :ok =
+             FakeAdapter.put_object(%{
+               key: media_asset.storage_key,
+               mime_type: media_asset.mime_type,
+               content_length: 1024
+             })
+
+    media_asset_id =
+      Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
+
+    mutation = """
+    mutation($mediaAssetId: ID!) {
+      finalizeMediaUpload(input: {mediaAssetId: $mediaAssetId}) {
+        mediaAsset { id processingState publicUrl }
+        errors { field message }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "finalizeMediaUpload" => %{
+                  "mediaAsset" => %{
+                    "id" => ^media_asset_id,
+                    "processingState" => "UPLOADED",
+                    "publicUrl" => nil
+                  },
+                  "errors" => []
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"mediaAssetId" => media_asset_id},
+               context: context
+             )
+
+    assert Repo.aggregate(AsyncJob, :count, :id) == 1
+  end
+
+  test "finalizeMediaUpload is authenticated and hides foreign ownership" do
+    owner = user_fixture()
+    outsider = user_fixture()
+
+    assert {:ok, %{media_asset: media_asset}} =
+             Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+    media_asset_id =
+      Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
+
+    missing_id = Absinthe.Relay.Node.to_global_id(:media_asset, 9_999_999_999, LCGQL.Schema)
+
+    mutation = """
+    mutation($mediaAssetId: ID!) {
+      finalizeMediaUpload(input: {mediaAssetId: $mediaAssetId}) {
+        mediaAsset { id }
+        errors { field message }
+      }
+    }
+    """
+
+    assert {:ok,
+            %{
+              data: %{
+                "finalizeMediaUpload" => %{
+                  "mediaAsset" => nil,
+                  "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                }
+              }
+            }} =
+             Absinthe.run(mutation, LCGQL.Schema, variables: %{"mediaAssetId" => media_asset_id})
+
+    for id <- [media_asset_id, missing_id] do
+      assert {:ok,
+              %{
+                data: %{
+                  "finalizeMediaUpload" => %{
+                    "mediaAsset" => nil,
+                    "errors" => [%{"field" => "mediaAssetId", "message" => "not_found"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"mediaAssetId" => id},
+                 context: %{current_scope: Accounts.scope_for_user(outsider)}
+               )
+    end
   end
 
   test "updatePost updates a viewer-owned post" do

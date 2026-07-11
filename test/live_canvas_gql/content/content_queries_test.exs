@@ -2,6 +2,7 @@ defmodule LCGQL.Content.ContentQueriesTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
 
   alias LC.{Accounts, Content}
   alias LCSchemas.Content.Post
@@ -81,32 +82,32 @@ defmodule LCGQL.Content.ContentQueriesTest do
   test "post query exposes attached media assets for a visible story post" do
     author = user_fixture()
 
-    assert {:ok, uploaded_asset} =
-             Content.create_media_asset(author, %{
-               storage_key: "uploads/users/#{author.id}/story-uploaded.jpg",
-               mime_type: "image/jpeg",
-               processing_state: :uploaded
-             })
+    first_processed_asset =
+      media_asset_fixture(author, %{
+        storage_key: "uploads/users/#{author.id}/story-first.jpg",
+        mime_type: "image/jpeg",
+        processing_state: :processed
+      })
 
-    assert {:ok, processed_asset} =
-             Content.create_media_asset(author, %{
-               storage_key: "uploads/users/#{author.id}/story-processed.jpg",
-               mime_type: "image/jpeg",
-               processing_state: :processed
-             })
+    processed_asset =
+      media_asset_fixture(author, %{
+        storage_key: "uploads/users/#{author.id}/story-processed.jpg",
+        mime_type: "image/jpeg",
+        processing_state: :processed
+      })
 
     {:ok, post} =
       Content.create_post(author, %{
         kind: :story,
         body_text: "story post",
         visibility: :public,
-        media_asset_ids: [uploaded_asset.id, processed_asset.id]
+        media_asset_ids: [first_processed_asset.id, processed_asset.id]
       })
 
     post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
 
-    uploaded_asset_id =
-      Absinthe.Relay.Node.to_global_id(:media_asset, uploaded_asset.id, LCGQL.Schema)
+    first_processed_asset_id =
+      Absinthe.Relay.Node.to_global_id(:media_asset, first_processed_asset.id, LCGQL.Schema)
 
     processed_asset_id =
       Absinthe.Relay.Node.to_global_id(:media_asset, processed_asset.id, LCGQL.Schema)
@@ -138,9 +139,9 @@ defmodule LCGQL.Content.ContentQueriesTest do
 
     expected_media_assets = [
       %{
-        "id" => uploaded_asset_id,
+        "id" => first_processed_asset_id,
         "mimeType" => "image/jpeg",
-        "processingState" => "UPLOADED"
+        "processingState" => "PROCESSED"
       },
       %{
         "id" => processed_asset_id,
@@ -156,19 +157,19 @@ defmodule LCGQL.Content.ContentQueriesTest do
   test "post query does not expose owner-scoped media fields through mediaAssets" do
     author = user_fixture()
 
-    assert {:ok, uploaded_asset} =
-             Content.create_media_asset(author, %{
-               storage_key: "uploads/users/#{author.id}/story-private.jpg",
-               mime_type: "image/jpeg",
-               processing_state: :uploaded
-             })
+    processed_asset =
+      media_asset_fixture(author, %{
+        storage_key: "uploads/users/#{author.id}/story-private.jpg",
+        mime_type: "image/jpeg",
+        processing_state: :processed
+      })
 
     {:ok, post} =
       Content.create_post(author, %{
         kind: :story,
         body_text: "story post",
         visibility: :public,
-        media_asset_ids: [uploaded_asset.id]
+        media_asset_ids: [processed_asset.id]
       })
 
     post_id = Absinthe.Relay.Node.to_global_id(:post, post.id, LCGQL.Schema)
@@ -276,9 +277,6 @@ defmodule LCGQL.Content.ContentQueriesTest do
     }
     """
 
-    assert {:ok, expected_public_url} =
-             LC.Infra.ObjectStorage.public_asset_url(media_asset.storage_key)
-
     assert {:ok,
             %{
               data: %{
@@ -286,7 +284,7 @@ defmodule LCGQL.Content.ContentQueriesTest do
                   "id" => returned_media_asset_id,
                   "mimeType" => "image/jpeg",
                   "processingState" => "PENDING_UPLOAD",
-                  "publicUrl" => returned_public_url
+                  "publicUrl" => nil
                 }
               }
             }} =
@@ -296,7 +294,61 @@ defmodule LCGQL.Content.ContentQueriesTest do
              )
 
     assert returned_media_asset_id == media_asset_id
-    assert returned_public_url == expected_public_url
+  end
+
+  test "mediaAsset publicUrl remains null for uploaded and failed assets" do
+    viewer = user_fixture()
+    context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+    query = """
+    query($id: ID!) {
+      mediaAsset(id: $id) {
+        processingState
+        publicUrl
+      }
+    }
+    """
+
+    for state <- [:uploaded, :failed] do
+      media_asset = media_asset_fixture(viewer, %{processing_state: state})
+
+      media_asset_id =
+        Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
+
+      expected_state = state |> Atom.to_string() |> String.upcase()
+
+      assert {:ok,
+              %{
+                data: %{
+                  "mediaAsset" => %{
+                    "processingState" => ^expected_state,
+                    "publicUrl" => nil
+                  }
+                }
+              }} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => media_asset_id},
+                 context: context
+               )
+    end
+  end
+
+  test "mediaAsset node does not expose raw ownership or storage fields" do
+    query = """
+    query($id: ID!) {
+      mediaAsset(id: $id) {
+        ownerId
+        storageKey
+      }
+    }
+    """
+
+    assert {:ok, %{errors: errors}} =
+             Absinthe.run(query, LCGQL.Schema, variables: %{"id" => "unused"})
+
+    messages = Enum.map(errors, & &1.message)
+    assert "Cannot query field \"ownerId\" on type \"MediaAsset\"." in messages
+    assert "Cannot query field \"storageKey\" on type \"MediaAsset\"." in messages
   end
 
   test "mediaAsset query returns null without matching viewer scope" do

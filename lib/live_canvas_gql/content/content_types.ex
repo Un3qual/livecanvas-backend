@@ -98,8 +98,6 @@ defmodule LCGQL.Content.Types do
   end
 
   node object(:media_asset) do
-    field :owner_id, non_null(:id)
-    field :storage_key, non_null(:string)
     field :mime_type, non_null(:string)
     field :processing_state, non_null(:media_processing_state)
 

@@ -2,6 +2,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
   import Ecto.Query
 
   alias LC.{Accounts, Content, Live}
@@ -166,12 +167,12 @@ defmodule LCGQL.Live.LiveMutationsTest do
       viewer_context = %{current_scope: Accounts.scope_for_user(viewer)}
       host_id = Absinthe.Relay.Node.to_global_id(:user, host.id, LCGQL.Schema)
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/mobile-live-contract.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/mobile-live-contract.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       recording_media_asset_id =
         Absinthe.Relay.Node.to_global_id(:media_asset, recording_asset.id, LCGQL.Schema)
@@ -1490,12 +1491,12 @@ defmodule LCGQL.Live.LiveMutationsTest do
       host = user_fixture()
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/graphql-recording.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :uploaded
-               })
+      recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/graphql-recording.mp4",
+          mime_type: "video/mp4",
+          processing_state: :uploaded
+        })
 
       session_id =
         Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)
@@ -1530,9 +1531,6 @@ defmodule LCGQL.Live.LiveMutationsTest do
       }
       """
 
-      assert {:ok, expected_public_url} =
-               LC.Infra.ObjectStorage.public_asset_url(recording_asset.storage_key)
-
       expected_recording_media_asset_local_id = recording_asset.id
 
       assert {:ok,
@@ -1545,7 +1543,7 @@ defmodule LCGQL.Live.LiveMutationsTest do
                       "recordingMediaAsset" => %{
                         "id" => ^recording_media_asset_id,
                         "processingState" => "UPLOADED",
-                        "publicUrl" => returned_public_url
+                        "publicUrl" => nil
                       }
                     },
                     "errors" => []
@@ -1561,8 +1559,6 @@ defmodule LCGQL.Live.LiveMutationsTest do
                    "recordingMediaAssetId" => recording_media_asset_id
                  }
                )
-
-      assert returned_public_url == expected_public_url
 
       assert %{recording_media_asset_id: ^expected_recording_media_asset_local_id} =
                Live.get_live_session!(started_session.id)
@@ -1623,12 +1619,12 @@ defmodule LCGQL.Live.LiveMutationsTest do
       other_user = user_fixture()
       {:ok, started_session} = Live.start_live_session(host, %{visibility: :public})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(other_user, %{
-                 storage_key: "uploads/users/#{other_user.id}/graphql-foreign-recording.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :uploaded
-               })
+      recording_asset =
+        media_asset_fixture(other_user, %{
+          storage_key: "uploads/users/#{other_user.id}/graphql-foreign-recording.mp4",
+          mime_type: "video/mp4",
+          processing_state: :uploaded
+        })
 
       session_id =
         Absinthe.Relay.Node.to_global_id(:live_session, started_session.id, LCGQL.Schema)

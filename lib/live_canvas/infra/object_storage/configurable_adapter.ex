@@ -7,6 +7,9 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
 
   @type adapter_config :: %{
           upload_base_url: String.t(),
+          verification_base_url: String.t(),
+          verification_authorization_header: String.t() | nil,
+          verification_request_options: keyword(),
           public_base_url: String.t(),
           upload_ttl_seconds: pos_integer()
         }
@@ -24,13 +27,32 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
        %{
          method: :put,
          url: upload_url,
-         headers: %{"content-type" => mime_type},
+         headers: %{"content-type" => mime_type, "if-none-match" => "*"},
          expires_at: expires_at
        }}
     end
   end
 
   def sign_upload(_request), do: {:error, :invalid_upload_request}
+
+  @impl LC.Infra.ObjectStorage
+  @spec verify_upload(LC.Infra.ObjectStorage.verification_request()) ::
+          {:ok, LC.Infra.ObjectStorage.verified_upload()} | {:error, term()}
+  def verify_upload(%{key: key, mime_type: mime_type, max_bytes: max_bytes})
+      when is_binary(key) and is_binary(mime_type) and is_integer(max_bytes) and max_bytes > 0 do
+    with :ok <- validate_storage_key(key),
+         {:ok, config} <- fetch_config(),
+         {:ok, verification_url} <- build_object_url(config.verification_base_url, key),
+         {:ok, response} <- request_verification(verification_url, config),
+         {:ok, verified_upload} <- validate_verification_response(response, mime_type, max_bytes) do
+      {:ok, verified_upload}
+    else
+      {:error, %_exception{}} -> {:error, :storage_unavailable}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def verify_upload(_request), do: {:error, :invalid_verification_request}
 
   @impl LC.Infra.ObjectStorage
   @spec public_asset_url(LC.Infra.ObjectStorage.storage_key()) ::
@@ -58,18 +80,22 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
   @spec fetch_config() :: {:ok, adapter_config()} | {:error, :invalid_config}
   defp fetch_config do
     with {:ok, upload_base_url} <- fetch_base_url(:upload_base_url),
+         {:ok, verification_base_url} <- fetch_base_url(:verification_base_url),
          {:ok, public_base_url} <- fetch_base_url(:public_base_url),
          {:ok, upload_ttl_seconds} <- fetch_upload_ttl_seconds() do
       {:ok,
        %{
          upload_base_url: upload_base_url,
+         verification_base_url: verification_base_url,
+         verification_authorization_header: fetch_verification_authorization_header(),
+         verification_request_options: fetch_verification_request_options(),
          public_base_url: public_base_url,
          upload_ttl_seconds: upload_ttl_seconds
        }}
     end
   end
 
-  @spec fetch_base_url(:upload_base_url | :public_base_url) ::
+  @spec fetch_base_url(:upload_base_url | :verification_base_url | :public_base_url) ::
           {:ok, String.t()} | {:error, :invalid_config}
   defp fetch_base_url(key) do
     config = Application.get_env(:live_canvas, __MODULE__, [])
@@ -79,6 +105,26 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
       {:ok, normalized_value}
     else
       _ -> {:error, :invalid_config}
+    end
+  end
+
+  @spec fetch_verification_authorization_header() :: String.t() | nil
+  defp fetch_verification_authorization_header do
+    config = Application.get_env(:live_canvas, __MODULE__, [])
+
+    case Keyword.get(config, :verification_authorization_header) do
+      value when is_binary(value) and value != "" -> value
+      _other -> nil
+    end
+  end
+
+  @spec fetch_verification_request_options() :: keyword()
+  defp fetch_verification_request_options do
+    config = Application.get_env(:live_canvas, __MODULE__, [])
+
+    case Keyword.get(config, :verification_request_options, []) do
+      options when is_list(options) -> options
+      _other -> []
     end
   end
 
@@ -120,6 +166,95 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
       :ok
     else
       {:error, :invalid_storage_key}
+    end
+  end
+
+  @spec request_verification(String.t(), adapter_config()) ::
+          {:ok, Req.Response.t()} | {:error, Exception.t()}
+  defp request_verification(url, config) do
+    options =
+      config.verification_request_options
+      |> Keyword.merge(url: url, headers: verification_headers(config), retry: false)
+
+    Req.head(options)
+  end
+
+  @spec verification_headers(adapter_config()) :: %{optional(String.t()) => String.t()}
+  defp verification_headers(%{verification_authorization_header: nil}), do: %{}
+
+  defp verification_headers(%{verification_authorization_header: value}) when is_binary(value) do
+    %{"authorization" => value}
+  end
+
+  @spec validate_verification_response(Req.Response.t(), String.t(), pos_integer()) ::
+          {:ok, LC.Infra.ObjectStorage.verified_upload()} | {:error, atom()}
+  defp validate_verification_response(%Req.Response{status: 404}, _mime_type, _max_bytes),
+    do: {:error, :upload_not_found}
+
+  defp validate_verification_response(%Req.Response{status: status}, _mime_type, _max_bytes)
+       when status < 200 or status >= 300,
+       do: {:error, :storage_unavailable}
+
+  defp validate_verification_response(%Req.Response{} = response, mime_type, max_bytes) do
+    with {:ok, content_length} <- parse_content_length(response),
+         :ok <- validate_content_length(content_length, max_bytes),
+         {:ok, content_type} <- parse_content_type(response),
+         :ok <- validate_content_type(content_type, mime_type) do
+      {:ok, %{content_length: content_length, content_type: content_type}}
+    end
+  end
+
+  @spec parse_content_length(Req.Response.t()) ::
+          {:ok, integer()} | {:error, :invalid_content_length}
+  defp parse_content_length(response) do
+    case Req.Response.get_header(response, "content-length") do
+      [value] ->
+        case Integer.parse(value) do
+          {content_length, ""} -> {:ok, content_length}
+          _other -> {:error, :invalid_content_length}
+        end
+
+      _other ->
+        {:error, :invalid_content_length}
+    end
+  end
+
+  @spec validate_content_length(integer(), pos_integer()) ::
+          :ok | {:error, :empty_upload | :invalid_content_length | :upload_too_large}
+  defp validate_content_length(0, _max_bytes), do: {:error, :empty_upload}
+
+  defp validate_content_length(value, _max_bytes) when value < 0,
+    do: {:error, :invalid_content_length}
+
+  defp validate_content_length(value, max_bytes) when value > max_bytes,
+    do: {:error, :upload_too_large}
+
+  defp validate_content_length(_value, _max_bytes), do: :ok
+
+  @spec parse_content_type(Req.Response.t()) :: {:ok, String.t()} | {:error, atom()}
+  defp parse_content_type(response) do
+    case Req.Response.get_header(response, "content-type") do
+      [value] ->
+        content_type =
+          value |> String.split(";", parts: 2) |> hd() |> String.trim() |> String.downcase()
+
+        if content_type == "" do
+          {:error, :content_type_mismatch}
+        else
+          {:ok, content_type}
+        end
+
+      _other ->
+        {:error, :content_type_mismatch}
+    end
+  end
+
+  @spec validate_content_type(String.t(), String.t()) :: :ok | {:error, :content_type_mismatch}
+  defp validate_content_type(actual, expected) do
+    if actual == String.downcase(String.trim(expected)) do
+      :ok
+    else
+      {:error, :content_type_mismatch}
     end
   end
 end

@@ -8,9 +8,14 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapterTest do
 
     Application.put_env(:live_canvas, ConfigurableAdapter,
       upload_base_url: "https://uploads.example.test/direct",
+      verification_base_url: "https://verify.example.test/objects",
+      verification_authorization_header: "Bearer server-only",
+      verification_request_options: [plug: {Req.Test, ConfigurableAdapter}],
       public_base_url: "https://cdn.example.test/assets",
       upload_ttl_seconds: 600
     )
+
+    Req.Test.verify_on_exit!()
 
     on_exit(fn ->
       if previous do
@@ -32,8 +37,76 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapterTest do
 
     assert upload.method == :put
     assert upload.url == "https://uploads.example.test/direct/uploads/users/7/media.jpg"
-    assert upload.headers == %{"content-type" => "image/jpeg"}
+
+    assert upload.headers == %{
+             "content-type" => "image/jpeg",
+             "if-none-match" => "*"
+           }
+
     assert %DateTime{} = upload.expires_at
+  end
+
+  test "verify_upload/1 performs an authorized HEAD against the private verification origin" do
+    Req.Test.expect(ConfigurableAdapter, fn conn ->
+      assert conn.method == "HEAD"
+      assert conn.request_path == "/objects/uploads/users/7/media.jpg"
+      assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer server-only"]
+
+      conn
+      |> Plug.Conn.put_resp_header("content-type", "image/jpeg; charset=binary")
+      |> Plug.Conn.put_resp_header("content-length", "1024")
+      |> Plug.Conn.send_resp(200, "")
+    end)
+
+    assert {:ok, %{content_length: 1024, content_type: "image/jpeg"}} =
+             ConfigurableAdapter.verify_upload(%{
+               key: "uploads/users/7/media.jpg",
+               mime_type: "image/jpeg",
+               max_bytes: 25 * 1024 * 1024
+             })
+  end
+
+  test "verify_upload/1 rejects missing, empty, oversized, and mismatched objects" do
+    cases = [
+      {200, [{"content-type", "image/jpeg"}], :invalid_content_length},
+      {200, [{"content-type", "image/jpeg"}, {"content-length", "garbage"}],
+       :invalid_content_length},
+      {200, [{"content-type", "image/jpeg"}, {"content-length", "-1"}], :invalid_content_length},
+      {200, [{"content-type", "image/jpeg"}, {"content-length", "0"}], :empty_upload},
+      {200, [{"content-type", "image/jpeg"}, {"content-length", "11"}], :upload_too_large},
+      {200, [{"content-type", "video/mp4"}, {"content-length", "10"}], :content_type_mismatch},
+      {404, [], :upload_not_found},
+      {503, [], :storage_unavailable}
+    ]
+
+    for {status, headers, expected_error} <- cases do
+      Req.Test.expect(ConfigurableAdapter, fn conn ->
+        conn =
+          Enum.reduce(headers, conn, fn {name, value}, acc ->
+            Plug.Conn.put_resp_header(acc, name, value)
+          end)
+
+        Plug.Conn.send_resp(conn, status, "")
+      end)
+
+      assert {:error, ^expected_error} =
+               ConfigurableAdapter.verify_upload(%{
+                 key: "uploads/users/7/media.jpg",
+                 mime_type: "image/jpeg",
+                 max_bytes: 10
+               })
+    end
+  end
+
+  test "verify_upload/1 maps transport failures to storage unavailable" do
+    Req.Test.expect(ConfigurableAdapter, &Req.Test.transport_error(&1, :timeout))
+
+    assert {:error, :storage_unavailable} =
+             ConfigurableAdapter.verify_upload(%{
+               key: "uploads/users/7/media.jpg",
+               mime_type: "image/jpeg",
+               max_bytes: 10
+             })
   end
 
   test "public_asset_url/1 builds configured serving URLs" do
@@ -49,6 +122,7 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapterTest do
   test "rejects upload base URLs with query components" do
     Application.put_env(:live_canvas, ConfigurableAdapter,
       upload_base_url: "https://uploads.example.test/direct?token=abc",
+      verification_base_url: "https://verify.example.test/objects",
       public_base_url: "https://cdn.example.test/assets",
       upload_ttl_seconds: 600
     )
@@ -63,6 +137,7 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapterTest do
   test "rejects public base URLs with fragment components" do
     Application.put_env(:live_canvas, ConfigurableAdapter,
       upload_base_url: "https://uploads.example.test/direct",
+      verification_base_url: "https://verify.example.test/objects",
       public_base_url: "https://cdn.example.test/assets#v2",
       upload_ttl_seconds: 600
     )

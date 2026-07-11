@@ -19,6 +19,11 @@ defmodule LCGQL.Content.Resolver do
           errors: [mutation_error()]
         }
   @type request_media_upload_result :: {:ok, request_media_upload_payload()}
+  @type finalize_media_upload_payload :: %{
+          media_asset: MediaAsset.t() | nil,
+          errors: [mutation_error()]
+        }
+  @type finalize_media_upload_result :: {:ok, finalize_media_upload_payload()}
   @type update_post_payload :: %{post: Post.t() | nil, errors: [mutation_error()]}
   @type update_post_result :: {:ok, update_post_payload()}
   @type delete_post_payload :: %{deleted_post_id: String.t() | nil, errors: [mutation_error()]}
@@ -112,6 +117,37 @@ defmodule LCGQL.Content.Resolver do
        signed_upload: nil,
        errors: [MutationErrors.user_error(nil, :unauthenticated)]
      }}
+  end
+
+  @spec finalize_media_upload(
+          term(),
+          %{optional(:input) => map(), optional(:media_asset_id) => term()},
+          Absinthe.Resolution.t()
+        ) :: finalize_media_upload_result()
+  def finalize_media_upload(parent, %{input: input}, resolution),
+    do: finalize_media_upload(parent, input, resolution)
+
+  def finalize_media_upload(_parent, %{media_asset_id: media_asset_id}, %{
+        context: %{current_scope: %{user: %{id: _id} = viewer}}
+      }) do
+    with {:ok, id} <- Relay.decode_global_id(media_asset_id, :media_asset, LCGQL.Schema),
+         {:ok, media_asset} <- Content.finalize_media_upload(viewer, id, %{}) do
+      {:ok, %{media_asset: media_asset, errors: []}}
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok,
+         %{
+           media_asset: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
+
+      {:error, reason} ->
+        finalize_media_upload_error(:media_asset_id, reason)
+    end
+  end
+
+  def finalize_media_upload(_parent, _attrs, _resolution) do
+    finalize_media_upload_error(nil, :unauthenticated)
   end
 
   @spec update_post(
@@ -395,6 +431,20 @@ defmodule LCGQL.Content.Resolver do
 
   defp post_payload_error(field, reason) do
     {:ok, %{post: nil, errors: [post_error(field, reason)]}}
+  end
+
+  @spec finalize_media_upload_error(:media_asset_id | nil, atom()) ::
+          finalize_media_upload_result()
+  defp finalize_media_upload_error(nil, reason) do
+    {:ok, %{media_asset: nil, errors: [MutationErrors.user_error(nil, reason)]}}
+  end
+
+  defp finalize_media_upload_error(field, reason) do
+    {:ok,
+     %{
+       media_asset: nil,
+       errors: [MutationErrors.user_error(FieldNames.lower_camel(field), reason)]
+     }}
   end
 
   defp global_id_field(%{id: id}, type), do: global_id_field(id, type)

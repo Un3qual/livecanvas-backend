@@ -44,7 +44,8 @@ end
 metrics_endpoint_enabled = parse_boolean_env.("METRICS_ENDPOINT_ENABLED", false)
 metrics_endpoint_token = System.get_env("METRICS_ENDPOINT_TOKEN")
 
-if metrics_endpoint_enabled and not (is_binary(metrics_endpoint_token) and String.trim(metrics_endpoint_token) != "") do
+if metrics_endpoint_enabled and
+     not (is_binary(metrics_endpoint_token) and String.trim(metrics_endpoint_token) != "") do
   raise """
   environment variable METRICS_ENDPOINT_TOKEN is required when METRICS_ENDPOINT_ENABLED is true.
   """
@@ -113,6 +114,19 @@ if config_env() == :prod do
       For example: https://cdn.example.com/media
       """
 
+  object_storage_verification_base_url =
+    System.get_env("OBJECT_STORAGE_VERIFICATION_BASE_URL") ||
+      raise """
+      environment variable OBJECT_STORAGE_VERIFICATION_BASE_URL is missing.
+      For example: https://storage-api.example.com/objects
+      """
+
+  object_storage_verification_authorization_header =
+    case System.get_env("OBJECT_STORAGE_VERIFICATION_AUTHORIZATION") do
+      value when is_binary(value) and value != "" -> value
+      _other -> nil
+    end
+
   object_storage_upload_ttl_seconds =
     case Integer.parse(System.get_env("OBJECT_STORAGE_UPLOAD_TTL_SECONDS", "900")) do
       {value, ""} when value > 0 ->
@@ -129,6 +143,8 @@ if config_env() == :prod do
 
   config :live_canvas, LC.Infra.ObjectStorage.ConfigurableAdapter,
     upload_base_url: object_storage_upload_base_url,
+    verification_base_url: object_storage_verification_base_url,
+    verification_authorization_header: object_storage_verification_authorization_header,
     public_base_url: object_storage_public_base_url,
     upload_ttl_seconds: object_storage_upload_ttl_seconds
 

@@ -136,7 +136,11 @@ defmodule LC.Content.MediaProcessingJob do
 
   @spec apply_webhook_state_update(MediaAssetSchema.t(), String.t(), webhook_payload()) ::
           :ok | {:drop, term()} | {:error, term()}
-  defp apply_webhook_state_update(media_asset, "processed", event_payload) do
+  defp apply_webhook_state_update(
+         %MediaAssetSchema{processing_state: :uploaded} = media_asset,
+         "processed",
+         event_payload
+       ) do
     metadata =
       event_payload
       |> Map.get("metadata", Map.get(event_payload, :metadata, %{}))
@@ -149,8 +153,30 @@ defmodule LC.Content.MediaProcessingJob do
     end
   end
 
-  defp apply_webhook_state_update(media_asset, "failed", _event_payload),
-    do: mark_media_asset_failed(media_asset)
+  defp apply_webhook_state_update(
+         %MediaAssetSchema{processing_state: :processed},
+         "processed",
+         _event_payload
+       ),
+       do: :ok
+
+  defp apply_webhook_state_update(
+         %MediaAssetSchema{processing_state: :uploaded} = media_asset,
+         "failed",
+         _event_payload
+       ),
+       do: mark_media_asset_failed(media_asset)
+
+  defp apply_webhook_state_update(
+         %MediaAssetSchema{processing_state: :failed},
+         "failed",
+         _event_payload
+       ),
+       do: :ok
+
+  defp apply_webhook_state_update(_media_asset, state, _event_payload)
+       when state in ["processed", "failed"],
+       do: {:drop, :invalid_media_state}
 
   defp apply_webhook_state_update(_media_asset, _processing_state, _event_payload),
     do: {:drop, :invalid_processing_state}
@@ -159,7 +185,7 @@ defmodule LC.Content.MediaProcessingJob do
           {:ok, MediaAssetSchema.t()} | {:error, Ecto.Changeset.t()}
   defp update_media_asset(media_asset, attrs) do
     media_asset
-    |> MediaAsset.changeset(attrs)
+    |> MediaAsset.processing_changeset(attrs)
     |> Repo.update()
   end
 

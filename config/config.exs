@@ -102,7 +102,10 @@ config :live_canvas, LC.Live.MediaSignaling,
   ]
 
 config :live_canvas, LC.Infra.ObjectStorage, adapter: LC.Infra.ObjectStorage.FakeAdapter
-config :live_canvas, LC.Infra.ObjectStorage.ConfigurableAdapter, upload_ttl_seconds: 900
+
+config :live_canvas, LC.Infra.ObjectStorage.ConfigurableAdapter,
+  upload_ttl_seconds: 900,
+  verification_request_options: []
 
 config :live_canvas, LC.Infra.SMS, adapter: LC.Infra.SMS.FakeAdapter
 

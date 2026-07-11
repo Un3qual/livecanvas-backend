@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-11
-Status: Batch 3 Media Post Publishing Task 1 active
+Status: Batch 3 Media Post Publishing Task 1 complete
 
 ## Lane Scope
 
@@ -26,31 +26,27 @@ Status: Batch 3 Media Post Publishing Task 1 active
 
 ## Verification
 
-- `mix format --check-formatted test/live_canvas_gql/relay/node_queries_test.exs`
-- `mix test test/live_canvas_gql/relay/node_queries_test.exs`
-- Result: 30 tests, 0 failures.
-- Repository-wide formatting remains red only in seven unrelated baseline
-  files: `config/runtime.exs`, `lib/live_canvas/dev/seed_data.ex`,
-  `test/integration/live/end_session_recording_atomicity_test.exs`,
-  `test/live_canvas/chat_test.exs`,
-  `test/live_canvas/dev/seed_data_test.exs`,
-  `test/live_canvas_gql/accounts/account_queries_test.exs`, and
-  `test/live_canvas_web/telemetry_test.exs`.
+- Focused backend lifecycle suite: 239 tests, 0 failures.
+- `mix typecheck` and `mix compile --warnings-as-errors` passed.
+- Touched-file formatting and `git diff --check` passed.
+- Exported `mobile/schema.graphql` contains `finalizeMediaUpload` and omits
+  `MediaAsset.ownerId` and `MediaAsset.storageKey`.
+- Repository-wide formatting remains red only in three unrelated baseline
+  files: `lib/live_canvas/dev/seed_data.ex`, `test/live_canvas/chat_test.exs`,
+  and `test/live_canvas_web/telemetry_test.exs`.
 
 ## Current Batch
 
 - Source plan: `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
-- Current task: Task 1, Complete And Prove The Media Upload Lifecycle Contract.
-- Write scope: the Task 1 backend/config/schema/test files plus
-  `mobile/schema.graphql` named by the source plan.
-- Done condition: storage-verified idempotent finalization, write-once uploads,
-  processed-only attachment, lifecycle-gated processing, private media schema,
-  and focused backend/typecheck gates pass.
+- Completed task: Task 1, Complete And Prove The Media Upload Lifecycle Contract.
+- Result: storage-verified idempotent finalization, write-once uploads,
+  processed-only attachment, lifecycle-gated processing, and a private Relay
+  media schema are ready for mobile Tasks 2-4.
 
 ## Next Action
 
-Execute Task 1 test-first. Hand the exported Relay schema to the mobile lane;
-do not activate Batch 4.
+Hold the backend contract stable while the mobile lane executes Tasks 2-4.
+Do not activate Batch 4.
 
 ## References
 

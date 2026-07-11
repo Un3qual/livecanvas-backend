@@ -2,6 +2,7 @@ defmodule LCGQL.Relay.NodeQueriesTest do
   use LC.DataCase, async: true
 
   import LC.AccountsFixtures
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
   import LC.SocialFixtures
 
   alias LC.{Accounts, Chat, Content, Live, Social}
@@ -130,12 +131,12 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       {:ok, current_live_session} = Live.start_live_session(owner, %{visibility: :followers})
       {:ok, current_live_session} = Live.mark_session_live(current_live_session)
 
-      assert {:ok, replay_asset} =
-               Content.create_media_asset(owner, %{
-                 storage_key: "uploads/users/#{owner.id}/node-profile-replay.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      replay_asset =
+        media_asset_fixture(owner, %{
+          storage_key: "uploads/users/#{owner.id}/node-profile-replay.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       {:ok, replay_session} = Live.start_live_session(owner, %{visibility: :followers})
 
@@ -290,15 +291,15 @@ defmodule LCGQL.Relay.NodeQueriesTest do
           set: [expires_at: older_at, inserted_at: newer_at, updated_at: newer_at]
         )
 
-      {:ok, older_asset} =
-        Content.create_media_asset(owner, %{
+      older_asset =
+        media_asset_fixture(owner, %{
           storage_key: "uploads/users/#{owner.id}/older-profile-replay.mp4",
           mime_type: "video/mp4",
           processing_state: :processed
         })
 
-      {:ok, newer_asset} =
-        Content.create_media_asset(owner, %{
+      newer_asset =
+        media_asset_fixture(owner, %{
           storage_key: "uploads/users/#{owner.id}/newer-profile-replay.mp4",
           mime_type: "video/mp4",
           processing_state: :processed
@@ -418,12 +419,12 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       {:ok, current_live_session} = Live.start_live_session(owner, %{visibility: :followers})
       {:ok, _current_live_session} = Live.mark_session_live(current_live_session)
 
-      assert {:ok, replay_asset} =
-               Content.create_media_asset(owner, %{
-                 storage_key: "uploads/users/#{owner.id}/hidden-node-profile-replay.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      replay_asset =
+        media_asset_fixture(owner, %{
+          storage_key: "uploads/users/#{owner.id}/hidden-node-profile-replay.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       {:ok, replay_session} = Live.start_live_session(owner, %{visibility: :followers})
 
@@ -790,8 +791,12 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       viewer = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
-      assert {:ok, %{media_asset: media_asset}} =
-               Content.request_media_upload(viewer, %{mime_type: "image/jpeg"})
+      media_asset =
+        media_asset_fixture(viewer, %{
+          storage_key: "uploads/users/#{viewer.id}/processed-node.jpg",
+          mime_type: "image/jpeg",
+          processing_state: :processed
+        })
 
       media_asset_id =
         Absinthe.Relay.Node.to_global_id(:media_asset, media_asset.id, LCGQL.Schema)
@@ -809,16 +814,13 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       }
       """
 
-      assert {:ok, expected_public_url} =
-               LC.Infra.ObjectStorage.public_asset_url(media_asset.storage_key)
-
       assert {:ok,
               %{
                 data: %{
                   "node" => %{
                     "id" => ^media_asset_id,
                     "mimeType" => "image/jpeg",
-                    "processingState" => "PENDING_UPLOAD",
+                    "processingState" => "PROCESSED",
                     "publicUrl" => returned_public_url
                   }
                 }
@@ -827,6 +829,9 @@ defmodule LCGQL.Relay.NodeQueriesTest do
                  variables: %{"id" => media_asset_id},
                  context: context
                )
+
+      assert {:ok, expected_public_url} =
+               LC.Infra.ObjectStorage.public_asset_url(media_asset.storage_key)
 
       assert returned_public_url == expected_public_url
     end
@@ -1085,12 +1090,12 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       context = %{current_scope: Accounts.scope_for_user(viewer)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/node-recording.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/node-recording.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       {:ok, ended_session} =
         Live.end_live_session(live_session, %{recording_media_asset_id: recording_asset.id})
@@ -1203,12 +1208,12 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       context = %{current_scope: Accounts.scope_for_user(viewer)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/recording-safe-shape.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/recording-safe-shape.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       {:ok, ended_session} =
         Live.end_live_session(live_session, %{recording_media_asset_id: recording_asset.id})
@@ -1243,12 +1248,12 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       context = %{current_scope: Accounts.scope_for_user(outsider)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :followers})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/private-node-recording.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/private-node-recording.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       {:ok, ended_session} =
         Live.end_live_session(live_session, %{recording_media_asset_id: recording_asset.id})
@@ -1354,12 +1359,12 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       context = %{current_scope: Accounts.scope_for_user(outsider)}
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :followers})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/private-ended-node.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/private-ended-node.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       {:ok, ended_session} =
         Live.end_live_session(live_session, %{recording_media_asset_id: recording_asset.id})
@@ -1414,12 +1419,12 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       _follow = accepted_follow_fixture(viewer, host)
       {:ok, live_session} = Live.start_live_session(host, %{visibility: :followers})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/authorized-replay-node.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/authorized-replay-node.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       {:ok, ended_session} =
         Live.end_live_session(live_session, %{recording_media_asset_id: recording_asset.id})
@@ -1541,17 +1546,11 @@ defmodule LCGQL.Relay.NodeQueriesTest do
       }
       """
 
-      assert {:ok, first_public_url} =
-               LC.Infra.ObjectStorage.public_asset_url(first_asset.storage_key)
-
-      assert {:ok, second_public_url} =
-               LC.Infra.ObjectStorage.public_asset_url(second_asset.storage_key)
-
       assert {:ok,
               %{
                 data: %{
-                  "firstAsset" => %{"id" => ^first_asset_id, "publicUrl" => ^first_public_url},
-                  "secondAsset" => %{"id" => ^second_asset_id, "publicUrl" => ^second_public_url}
+                  "firstAsset" => %{"id" => ^first_asset_id, "publicUrl" => nil},
+                  "secondAsset" => %{"id" => ^second_asset_id, "publicUrl" => nil}
                 }
               }} =
                Absinthe.run(query, LCGQL.Schema,

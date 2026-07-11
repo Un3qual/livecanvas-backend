@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-11
-Status: Batch 3 Media Post Publishing active; backend Task 1 first
+Status: Batch 3 Media Post Publishing active; Task 2 next
 
 ## Lane Scope
 
@@ -37,14 +37,13 @@ Status: Batch 3 Media Post Publishing active; backend Task 1 first
 
 ## Deferred Scope
 
-- Batch 3 is active. Mobile Tasks 2-4 execute after backend Task 1 exports the
-  verified finalization/schema contract. Batches 4-5 remain queued.
+- Batch 3 backend Task 1 is complete. Mobile Tasks 2-4 are executable against
+  the exported verified finalization/schema contract. Batches 4-5 remain queued.
 - Content details, comments, reactions, replay management, native address-book
   import, and release-candidate QA remain out of scope.
 
 ## Next Action
 
-Use `docs/superpowers/plans/2026-07-11-media-post-publishing.md`. After backend
-Task 1 exports `finalizeMediaUpload`, execute Task 2 native selection/state,
-Task 3 upload/polling/controller, and Task 4 composer integration. Keep Batches
-4-5 queued.
+Use `docs/superpowers/plans/2026-07-11-media-post-publishing.md`. Execute Task 2
+native selection/state, then Task 3 upload/polling/controller and Task 4
+composer integration. Keep Batches 4-5 queued.
