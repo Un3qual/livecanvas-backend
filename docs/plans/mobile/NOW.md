@@ -1,47 +1,47 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-09
-Status: mobile product-gap batch complete; reversible social controls and release QA deferred
+Status: Batch 1 reversible social controls complete
 
 ## Lane Scope
 
 - Own `mobile/` and `docs/plans/mobile/**`.
-- Promote verified backend contract/data issues into the backend lane with an
-  explicit write scope before cross-lane implementation.
+- Consume explicitly promoted backend contracts recorded in the backend lane.
 - Keep Relay IDs opaque and durable reads/writes Relay-first.
 
-## Current Batch
+## Completed Batch
 
-- Source plans:
-  - `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
-  - `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 1-2)
-  - `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
-  - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
-  - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
+- Design:
+  `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
+- Implementation:
+  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
+- Source product plan:
+  `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Current task: none; implementation and PR review hardening are complete.
-- Write scope: `mobile/**`, `docs/plans/mobile/**`, and the explicitly promoted
-  backend account/contact contracts recorded in `docs/plans/backend/NOW.md`.
-- Done condition: met for account lifecycle, mute/unmute/block, manual contact
-  discovery, post owner controls, connection lists, and review
-  hardening for cross-action races and virtualized pagination.
-- Verification:
-  - From `mobile/`: `bun run relay`
-  - From `mobile/`: `bun run test:quality`
-  - From repo root: `git diff --check`
+- Delivered Unfollow for accepted outbound relationships and Unblock only for
+  viewer-originated blocks.
+- Guarded duplicate/cross-action taps and stale route completions; payload
+  errors remain local and retryable.
+
+## Verification
+
+- `bun run relay`: 48 reader, 44 normalization, and 44 operation documents;
+  no resulting artifact diff.
+- Focused pure route/presentation suites: 9 tests, 0 failures.
+- Focused profile RNTL suite: 11 tests, 0 failures, including A -> B -> A stale
+  mutation completion coverage.
+- `bun run test:quality`: both typechecks and lint passed; 457 Bun tests and 87
+  Jest tests passed.
 
 ## Deferred Scope
 
-- Social-control Tasks 3-4 remain deferred: backend `unfollowUser`,
-  `unblockUser`, a direction-safe blocked-by-viewer read, and their mobile UI.
+- Batches 2-5 remain queued and are not executable without their own approved
+  implementation plans.
 - Native address-book import and bulk contact upload remain out of scope.
-- Contact-invite delivery remains hidden until the emailed token URL has a real
-  landing route.
-- Release-candidate manual device/account QA remains deferred until product
-  explicitly resumes it.
+- Release-candidate manual device/account QA remains deferred until all five
+  product batches close.
 
-## Do This Now
+## Next Action
 
-No executable mobile batch is selected. Promote or write the next
-product-completeness plan before implementation; do not treat the deferred
-social or release-QA work as implicitly active.
+No mobile batch is executable. The coordinator should plan Batch 2, Profile
+Content Surfaces, before promoting new mobile work.

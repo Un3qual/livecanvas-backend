@@ -17,6 +17,12 @@ defmodule LCGQL.Social.Queries do
       resolve(&Resolver.is_muted/3)
     end
 
+    field :is_blocked_by_viewer, non_null(:boolean) do
+      arg(:creator_id, non_null(:id))
+
+      resolve(&Resolver.is_blocked_by_viewer/3)
+    end
+
     connection field :viewer_pending_follow_requests,
                  node_type: :follow_request,
                  paginate: :forward do

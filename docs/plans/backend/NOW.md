@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-09
-Status: report moderation and cross-lane account/contact contracts complete
+Status: Batch 1 reversible social-control contract complete
 
 ## Lane Scope
 
@@ -9,32 +9,36 @@ Status: report moderation and cross-lane account/contact contracts complete
 - Cross-lane mobile contract work must name its backend write scope explicitly.
 - Shared coordinator docs and shared contracts require explicit assignment.
 
-## Current Batch
+## Completed Batch
 
-- Source plan:
-  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
-- Task: complete, including PR review hardening.
-- Write scope: staff report authorization, moderation queue and decision API,
-  mutation limiting, identity unlink safety, contact-match projection, GraphQL
-  schema, and focused backend tests.
-- Done condition: met. Staff-only moderation operations are Relay-first and
-  rate-limited; the latest terminal decision owns one atomic actor/time/note
-  tuple; passwordless users cannot unlink their last provider identity; and
-  persisted contact matches expose a viewer-owned invite recipient.
-- Verification:
-  - `mix test test/live_canvas/accounts_test.exs test/live_canvas/content_test.exs test/live_canvas_gql/accounts/contact_resolver_test.exs test/live_canvas_gql/accounts/contact_queries_test.exs test/live_canvas_gql/accounts/account_mutations_test.exs test/live_canvas/accounts/auth_event_test.exs`
-  - `mix test test/live_canvas_web/plugs/graphql_mutation_rate_limit_test.exs`
-  - `mix typecheck`
-  - `git diff --check`
+- Design:
+  `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
+- Implementation:
+  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
+- Delivered directional, idempotent `unfollowUser` and `unblockUser` mutations
+  plus outbound-only `isBlockedByViewer`.
+- Preserved Relay IDs, viewer-derived authorization, reverse relationship rows,
+  and payload-safe invalid/authentication failures.
+
+## Verification
+
+- Batch files pass `mix format --check-formatted` when checked explicitly.
+- Focused social domain/GraphQL suite: 49 tests, 0 failures.
+- `mix typecheck`: 0 errors.
+- `mix absinthe.schema.sdl --schema LCGQL.Schema mobile/schema.graphql`: passed
+  with no resulting schema diff.
+- Repository-wide `mix format --check-formatted` remains blocked by seven
+  pre-existing, untouched files outside this batch; no unrelated formatting
+  churn was included.
 
 ## Next Action
 
-No standalone backend batch is selected. Promote the next verified product
-contract or runtime issue here before implementation. Do not reopen the broader
-release-readiness roadmap solely because this cross-lane batch completed.
+No backend batch is executable. Await an approved Batch 2 Profile Content
+Surfaces implementation plan and promote backend work only if that plan names a
+backend contract or data dependency.
 
 ## References
 
-- Previous completed backend foundation:
-  `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
-- Mobile product-gap batch: `docs/plans/mobile/NOW.md`
+- Mobile lane: `docs/plans/mobile/NOW.md`
+- Previous backend batch:
+  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`

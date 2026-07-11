@@ -18,6 +18,8 @@ defmodule LC.Social do
   @type follow_result :: {:ok, Follow.t()} | {:error, term()}
   @type block_result :: {:ok, Block.t()} | {:error, term()}
   @type mute_result :: {:ok, Mute.t()} | {:error, term()}
+  @type unfollow_result :: :ok
+  @type unblock_result :: :ok
   @type unmute_result :: :ok
   @type decline_follow_result :: :ok | {:error, :not_allowed | Ecto.Changeset.t()}
 
@@ -82,6 +84,43 @@ defmodule LC.Social do
   def block_user(%User{id: blocker_id}, %User{id: blocked_id}) do
     %Block{blocker_id: blocker_id, blocked_id: blocked_id}
     |> Repo.insert()
+  end
+
+  @doc """
+  Removes the authenticated follower's directional relationship to a user.
+  """
+  @spec unfollow_user(User.t(), User.t()) :: unfollow_result()
+  def unfollow_user(%User{id: follower_id}, %User{id: followed_id}) do
+    from(follow in Follow,
+      where: follow.follower_id == ^follower_id and follow.followed_id == ^followed_id
+    )
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  @doc """
+  Removes the authenticated blocker's directional block of a user.
+  """
+  @spec unblock_user(User.t(), User.t()) :: unblock_result()
+  def unblock_user(%User{id: blocker_id}, %User{id: blocked_id}) do
+    from(block in Block,
+      where: block.blocker_id == ^blocker_id and block.blocked_id == ^blocked_id
+    )
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  @doc """
+  Returns whether the viewer has an outbound block against the target user.
+  """
+  @spec blocked_by_viewer?(User.t(), User.t()) :: boolean()
+  def blocked_by_viewer?(%User{id: blocker_id}, %User{id: blocked_id}) do
+    Repo.exists?(
+      from block in Block,
+        where: block.blocker_id == ^blocker_id and block.blocked_id == ^blocked_id
+    )
   end
 
   @doc """
