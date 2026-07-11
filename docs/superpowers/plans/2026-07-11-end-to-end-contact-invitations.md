@@ -94,7 +94,8 @@ the existing allowlisted `returnTo` mechanism.
 - [ ] Add `Cache-Control: no-store`, a restrictive content security policy, and a no-referrer policy. After constructing the app link, clear the fragment with `history.replaceState` so screenshots and copied browser URLs do not retain the token.
 - [ ] Test that generated delivery URLs place the token only in `URI.fragment`, while the controller route, endpoint telemetry path, response body, and referrer policy contain no raw token. Test the pure fragment parser for valid, missing, duplicated, and malformed token fragments.
 - [ ] Test configured HTTPS delivery URLs use the fragment contract and that invalid production origins fail startup.
-- [ ] Run the focused controller, account mutation, Accounts, and asset parser tests plus `mix assets.build` and `mix typecheck`; commit with `feat: add contact invite landing route`.
+- [ ] Run the pure landing parser suite explicitly with `bun test assets/js/contact_invite_landing.test.js`; `mix assets.build` does not execute JavaScript tests.
+- [ ] Run the focused controller, account mutation, and Accounts tests plus `mix assets.build` and `mix typecheck`; commit with `feat: add contact invite landing route`.
 
 ### Task 3: Expose Authenticated Relay Consumption
 

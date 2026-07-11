@@ -118,7 +118,8 @@ list. Commit each task with its focused tests.
 - [ ] Show row-local error copy and Retry/Refresh without hiding the row. Ended-session updates must close any edit form and remove Edit immediately.
 - [ ] Wire mutation success into timeline dispatch and preserve current send draft, send status, load-older state, scroll identity, and lifecycle rows.
 - [ ] Cover author/non-author/host action visibility, edit cancel/save, host removal confirmation, payload/transport errors, ended-session closure, duplicate taps, and response/broadcast races in RNTL tests.
-- [ ] Run `cd mobile && bun test tests/live/liveSessionChatControlsState.test.ts tests/live/useLiveSessionChatControls.rntl.tsx tests/live/liveSessionChatTimelineReducer.test.ts tests/live/LiveSessionChatPanel.test.ts tests/live/LiveSessionWatchScreen.rntl.tsx`.
+- [ ] Run the pure suites with `cd mobile && bun test tests/live/liveSessionChatControlsState.test.ts tests/live/liveSessionChatTimelineReducer.test.ts tests/live/LiveSessionChatPanel.test.ts`.
+- [ ] Run the RNTL suites through their configured Jest runner with `cd mobile && bun run test:jest -- --runTestsByPath tests/live/useLiveSessionChatControls.rntl.tsx tests/live/LiveSessionWatchScreen.rntl.tsx`; do not pass `.rntl.tsx` files to Bun test filters.
 - [ ] Run `cd mobile && bun run test:quality`, then `git diff --check`; commit with `feat: add live chat message controls`.
 
 ## Completion And Handoff
