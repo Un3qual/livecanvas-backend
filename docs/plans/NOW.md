@@ -38,7 +38,7 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 3 Task 2 next; the backend Task 1 contract is exported.
+- State: Batch 3 Task 2 complete; Task 3 upload/polling/controller is next.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: 13 focused Bun, 54 focused Jest, 464 full Bun, and 104 full
   Jest tests passed; Relay generation, typechecks, lint, and patch hygiene pass.

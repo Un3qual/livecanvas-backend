@@ -117,13 +117,18 @@ baseline files.
 - Produces: `PickedPostMedia`, `pickPostMedia()`, `MediaPostPublishingState`, `mediaPostPublishingReducer`, and `canAttachSelectedMedia`.
 - Consumed by: Tasks 3-4.
 
-- [ ] Install the Expo SDK-compatible `expo-image-picker` package and configure photo-library permission copy; do not request camera permission from the post composer.
-- [ ] Define `PickedPostMedia` as `{uri, mimeType, fileName, fileSize, mediaKind: 'image' | 'video'}` and normalize cancelled picker results to `null`.
-- [ ] Accept only the shared four-type MIME allowlist; reject GIF, HEIC, QuickTime, arbitrary wildcard-matching image/video values, and non-media values. Enforce 25 MiB for allowed images and 100 MiB for MP4 when `fileSize` is available, returning viewer-safe messages rather than raw picker errors.
-- [ ] Implement reducer stages exactly as `idle`, `selecting`, `selected`, `requesting`, `uploading`, `processing`, `ready`, `submitting`, `succeeded`, `failed`, and `cancelled`.
-- [ ] Give every asynchronous attempt a monotonically increasing `attemptId`; reducer completions with an older ID must return the identical state object.
-- [ ] Cover picker cancellation, invalid type/size, each legal transition, duplicate transition rejection, stale completions, retry reset, and cancellation in focused Bun tests.
-- [ ] Run `cd mobile && bun test tests/content/mediaPostSelection.test.ts tests/content/mediaPostPublishingState.test.ts`, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: add media publishing workflow state`.
+- [x] Install the Expo SDK-compatible `expo-image-picker` package and configure photo-library permission copy; do not request camera permission from the post composer.
+- [x] Define `PickedPostMedia` as `{uri, mimeType, fileName, fileSize, mediaKind: 'image' | 'video'}` and normalize cancelled picker results to `null`.
+- [x] Accept only the shared four-type MIME allowlist; reject GIF, HEIC, QuickTime, arbitrary wildcard-matching image/video values, and non-media values. Enforce 25 MiB for allowed images and 100 MiB for MP4 when `fileSize` is available, returning viewer-safe messages rather than raw picker errors.
+- [x] Implement reducer stages exactly as `idle`, `selecting`, `selected`, `requesting`, `uploading`, `processing`, `ready`, `submitting`, `succeeded`, `failed`, and `cancelled`.
+- [x] Give every asynchronous attempt a monotonically increasing `attemptId`; reducer completions with an older ID must return the identical state object.
+- [x] Cover picker cancellation, invalid type/size, each legal transition, duplicate transition rejection, stale completions, retry reset, and cancellation in focused Bun tests.
+- [x] Run `cd mobile && bun test tests/content/mediaPostSelection.test.ts tests/content/mediaPostPublishingState.test.ts`, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: add media publishing workflow state`.
+
+**Task 2 evidence (2026-07-11):** 12 focused Bun tests pass; production
+and test TypeScript checks plus the full mobile lint gate pass. The installed
+`expo-image-picker` version is SDK 55 compatible and the configured plugin adds
+only post-selection photo-library copy to the existing camera/microphone app.
 
 ### Task 3: Implement Signed Upload, Polling, And Cancellation
 
