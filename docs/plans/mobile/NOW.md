@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-07-09
-Status: Batch 2 Profile Content Surfaces complete; no mobile batch active
+Last reviewed: 2026-07-11
+Status: Batch 3 Media Post Publishing planned; awaiting approval
 
 ## Lane Scope
 
@@ -37,11 +37,16 @@ Status: Batch 2 Profile Content Surfaces complete; no mobile batch active
 
 ## Deferred Scope
 
-- Batch 3 is planning-only; Batches 4-5 remain queued and are not executable.
-- Media publishing, content details, comments, reactions, replay management,
-  native address-book import, and release-candidate QA remain out of scope.
+- Batches 3-5 now have implementation plans, but Batch 3 remains planning-only
+  pending approval and Batches 4-5 remain queued and non-executable.
+- Media publishing is the next planned batch, but remains non-executable until
+  approval. Content details, comments, reactions, replay management, native
+  address-book import, and release-candidate QA remain out of scope.
 
 ## Next Action
 
-No mobile implementation batch is active. Batch 3, Media Post Publishing, is
-the next coordinator planning action only; do not execute it until promoted.
+No mobile implementation batch is active. Review
+`docs/superpowers/plans/2026-07-11-media-post-publishing.md`; after approval,
+promote Batch 3 only. Keep
+`docs/superpowers/plans/2026-07-11-live-chat-message-controls.md` and
+`docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md` queued.
