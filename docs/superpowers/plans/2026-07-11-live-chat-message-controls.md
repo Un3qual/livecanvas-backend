@@ -72,11 +72,11 @@ list. Commit each task with its focused tests.
 - Consumed by: Tasks 3-4.
 
 - [ ] Define edit and remove operations using only opaque `chatMessageEventId` inputs; edit selects the full row projection and remove selects the removed opaque ID plus payload errors.
-- [ ] Track pending operations as `{eventId, action: 'edit' | 'remove', attemptId}` and row errors as a map keyed by event ID. A same-tick duplicate for the same row/action must be rejected.
+- [ ] Track at most one pending operation per event ID as `{action: 'edit' | 'remove', attemptId}` and row errors as a map keyed by event ID. Reject any same-tick edit or remove while that row has either action pending, while allowing a new action after the prior attempt settles.
 - [ ] Implement `canEditChatRow({viewerId, row, sessionStatus})` as actor equality plus non-ended status, and `canRemoveChatRow({viewerId, hostId, row})` as host equality plus a chat-message row.
-- [ ] Reject stale mutation completions by `attemptId`; a stale error cannot replace a newer success or resurrect a removed row.
+- [ ] Reject stale mutation completions by row-scoped `attemptId`; removal success tombstones the event ID and invalidates every edit attempt for that row, so a late edit response or error cannot replace, resurrect, or clear the removed row.
 - [ ] Map `not_authorized`, `session_ended`, `not_found`, invalid input, unauthenticated, and transport failures to viewer-safe row-level copy.
-- [ ] Cover eligibility, pending isolation across rows, duplicate taps, stale completion, success/error clearing, and ended-session transitions in focused Bun tests.
+- [ ] Cover eligibility, pending isolation across rows, same-action duplicates, conflicting edit/remove attempts by a host-author, removal tombstones, stale completion, success/error clearing, and ended-session transitions in focused Bun tests.
 - [ ] Run `cd mobile && bun run relay`, `bun test tests/live/liveSessionChatControlsState.test.ts`, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: add live chat control state`.
 
 ### Task 3: Reconcile Mutation Results Through The Timeline Reducer
@@ -124,5 +124,5 @@ list. Commit each task with its focused tests.
 ## Completion And Handoff
 
 - Close this batch only after the backend mutation/channel proof and full mobile quality gate pass.
-- Promote `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md` as Batch 5 in the same lane-closure milestone.
+- After implementation closes, hand back to the coordinator; the coordinator owns the explicitly assigned shared lane-pointer update that promotes `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md` as Batch 5.
 - Do not broaden the batch into general viewer deletion, reactions, or chat administration.

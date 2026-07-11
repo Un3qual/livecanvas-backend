@@ -13,7 +13,7 @@
 - Design source: `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`, Batch 5.
 - Execute only after Live-Chat Message Controls closes and this plan is promoted through the lane `NOW.md` files.
 - Contact invite tokens expire exactly 7 days after `inserted_at`.
-- Persist only SHA3-256 token hashes; never persist or log raw secrets.
+- In backend/database persistence, store only SHA3-256 token hashes. Mobile may retain the raw token only in the Task 4 fixed-slot SecureStore handoff for at most one hour; never place it in ordinary app storage or logs.
 - Public failures use one generic state for malformed, unknown, expired, consumed, recipient-mismatched, and tampered tokens.
 - Consumption requires an authenticated viewer who owns an email whose normalized value equals `users_tokens.sent_to`. The email must already be verified, or the locked recipient-bound invite token itself must atomically verify that exact email and confirm a password-created account before conversion; the token cannot verify any different email.
 - Consumption records conversion only. It never follows users, reveals inviter email, imports contacts, or changes profile visibility.
@@ -87,8 +87,8 @@ the existing allowlisted `returnTo` mechanism.
 - Consumes: configured `:public_app_origin` only.
 - Produces: `GET /invites` and client-side `livecanvas-mobile://invite?token=...` without transmitting the token to the server.
 
-- [ ] Configure `:public_app_origin` with a local/test default and require `LIVE_CANVAS_PUBLIC_ORIGIN` in production. Validate it is an absolute `https` URI with a host and no query/fragment.
-- [ ] Replace `https://livecanvas.invalid` construction with `<public_app_origin>/invites#token=<percent-encoded-token>`; keep URL construction at the GraphQL boundary and never include inviter/recipient values.
+- [ ] Configure `:public_app_origin` with a local/test default and require `LIVE_CANVAS_PUBLIC_ORIGIN` in production. Validate it is an absolute `https` URI with a host, no query/fragment, and no path other than empty or `/`; normalize away one trailing slash before use.
+- [ ] Replace `https://livecanvas.invalid` construction with `<normalized-public-app-origin>/invites#token=<percent-encoded-token>`; keep URL construction at the GraphQL boundary and never include inviter/recipient values. Test both `https://host` and `https://host/` configuration values produce exactly `https://host/invites#...` with one path separator.
 - [ ] Add the public `GET /invites` route outside authenticated browser pipelines. The controller renders the same neutral page for every request and never accepts or looks up a token.
 - [ ] Add a pure, unit-tested fragment parser and import its guarded landing-page initializer from `assets/js/app.js`. It reads exactly one nonblank `token` value from `window.location.hash`, sets the explicit `livecanvas-mobile://invite?token=<encoded-token>` action, and otherwise leaves the page in one generic invalid-or-expired state. Do not interpolate the fragment into server-rendered HTML.
 - [ ] Add `Cache-Control: no-store`, a restrictive content security policy, and a no-referrer policy. After constructing the app link, clear the fragment with `history.replaceState` so screenshots and copied browser URLs do not retain the token.
@@ -121,27 +121,30 @@ the existing allowlisted `returnTo` mechanism.
 
 **Files:**
 - Modify: `mobile/src/config/runtime.ts`
+- Create: `mobile/src/contacts/contactInviteHandoff.ts`
 - Create: `mobile/src/contacts/contactInviteState.ts`
 - Create: `mobile/src/contacts/contactInviteOperations.ts`
 - Create: `mobile/src/contacts/ContactInviteScreen.tsx`
 - Create: `mobile/app/invite.tsx`
 - Modify: `mobile/tests/config/runtime.test.ts`
+- Create: `mobile/tests/contacts/contactInviteHandoff.test.ts`
 - Create: `mobile/tests/contacts/contactInviteState.test.ts`
 - Create: `mobile/tests/contacts/ContactInviteScreen.rntl.tsx`
 - Generate: `mobile/src/__generated__/contactInviteOperationsConsumeMutation.graphql.ts`
 
 **Interfaces:**
-- Produces: allowlisted `/invite?token=...` parsing, `contactInviteConsumeMutation`, `ContactInviteState`, and `ContactInviteScreen`.
+- Produces: one-time `/invite?handoff=<opaque-id>` routing backed by protected pending-invite storage, `contactInviteConsumeMutation`, `ContactInviteState`, and `ContactInviteScreen`.
 - Consumed by: Task 5 delivery/readback tests.
 
-- [ ] Add `/invite` to known routes and authenticated return-to routes. Preserve exactly one nonblank token query value; reject arrays, missing tokens, malformed decoding, and arbitrary nested return targets. Keep `mobile/app/invite.tsx` outside the authenticated route group.
-- [ ] Normalize both `livecanvas-mobile://invite?token=...` and HTTPS `/invites#token=...` startup URLs to `/invite?token=...` without logging the token. Update the existing startup URL parser, which currently discards fragments, only for this allowlisted invite origin/path.
-- [ ] Make `/invite?token=...` an explicit public exception in `resolveLandingHrefForAuth`: a signed-out startup invite must land on the neutral invite screen instead of being rewritten to `/sign-in`, while every other protected initial route keeps the existing auth redirect. Test signed-out deep-link and HTTPS-fragment startup, normal protected-route redirect, and malformed invite fallback.
-- [ ] When unauthenticated, show neutral invitation copy with Sign in and Create account actions built through `authRouteHref(..., '/invite?token=...')`.
-- [ ] After successful password or provider authentication, return to the allowlisted invite route and commit `consumeContactInvite` once. Password sign-up keeps the token until this commit so the backend can atomically verify the matching new email; already authenticated viewers consume from the same screen.
+- [ ] Add a protected pending-invite handoff backed by the existing Expo SecureStore dependency. Keep one fixed-slot record `{handoffId, token, expiresAt}`; generate `handoffId` with `Crypto.randomUUID()`, expire it after one hour, replace any older pending invite, and expose injected store/load/clear functions for tests. Never log or return the raw token from this module.
+- [ ] In async startup bootstrap, accept exactly one nonblank token from `livecanvas-mobile://invite?token=...` or the allowlisted HTTPS `/invites#token=...` fragment, persist it before routing, and replace it with `/invite?handoff=<opaque-id>`. Do not retain the raw invite URL or token in `StartupSnapshot.initialUrl`, `initialHref`, navigation state, telemetry, or error text; storage failure falls back to the generic invalid state.
+- [ ] Add `/invite` to known routes and authenticated return-to routes, but allow only one nonblank opaque `handoff` value. Reject token-bearing return targets, arrays, missing values, malformed decoding, and arbitrary nested return targets. Keep `mobile/app/invite.tsx` outside the authenticated route group.
+- [ ] Make `/invite?handoff=...` an explicit public exception in `resolveLandingHrefForAuth`: a signed-out startup invite must land on the neutral invite screen instead of being rewritten to `/sign-in`, while every other protected initial route keeps the existing auth redirect. Test signed-out deep-link and HTTPS-fragment bootstrap, redaction of the raw token from the snapshot, normal protected-route redirect, expired/mismatched handoff, and malformed invite fallback.
+- [ ] When unauthenticated, show neutral invitation copy with Sign in and Create account actions built through `authRouteHref(..., '/invite?handoff=...')`; auth return URLs must contain only the opaque handoff ID.
+- [ ] After successful password or provider authentication, return to the allowlisted handoff route, resolve the raw token from SecureStore only at consumption time, and commit `consumeContactInvite` once. Password sign-up keeps the protected record until this commit so the backend can atomically verify the matching new email; already authenticated viewers consume from the same screen.
 - [ ] Render exactly `checking`, `requires_auth`, `consuming`, `consumed`, `invalid`, and `retryable_error` states; invalid payloads do not disclose recipient mismatch or token history.
-- [ ] Guard duplicate commits and stale callbacks by attempt ID, and clear the token from navigation after success so a refresh cannot re-submit it.
-- [ ] Run `cd mobile && bun run relay`, focused runtime/state/screen tests, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: consume contact invites in mobile`.
+- [ ] Guard duplicate commits and stale callbacks by attempt ID. Clear the protected handoff after success, terminal invalidity, mismatch, or expiry; retain it only across retryable transport errors within its one-hour lifetime, so refresh cannot re-submit a consumed token.
+- [ ] Run `cd mobile && bun run relay`, focused runtime/handoff/state/screen tests, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: consume contact invites in mobile`.
 
 ### Task 5: Enable Contact-Row Invite Delivery
 
@@ -165,5 +168,5 @@ the existing allowlisted `returnTo` mechanism.
 ## Completion And Handoff
 
 - Close Batch 5 only after migrations, backend tests/typecheck, public route tests, Relay generation, and the full mobile quality gate pass.
-- After closure, update the coordinator and lane pointers to state that all five product batches are complete and resume `docs/plans/mobile/2026-06-25-release-candidate-checklist.md` as the next explicit gate.
+- After closure, hand back to the coordinator. The coordinator owns the explicitly assigned shared-doc update to mark all five product batches complete in the dashboard and lane pointers, then resumes `docs/plans/mobile/2026-06-25-release-candidate-checklist.md` as the next gate.
 - Do not add automatic relationships, native address-book import, bulk upload, or store-distribution work to this batch.

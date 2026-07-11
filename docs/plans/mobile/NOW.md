@@ -39,8 +39,9 @@ Status: Batch 3 Media Post Publishing planned; awaiting approval
 
 - Batches 3-5 now have implementation plans, but Batch 3 remains planning-only
   pending approval and Batches 4-5 remain queued and non-executable.
-- Media publishing, content details, comments, reactions, replay management,
-  native address-book import, and release-candidate QA remain out of scope.
+- Media publishing is the next planned batch, but remains non-executable until
+  approval. Content details, comments, reactions, replay management, native
+  address-book import, and release-candidate QA remain out of scope.
 
 ## Next Action
 

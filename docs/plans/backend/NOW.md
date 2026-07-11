@@ -41,8 +41,8 @@ Status: Batch 3 Media Post Publishing planned; awaiting approval
 
 No backend implementation batch is active. Review
 `docs/superpowers/plans/2026-07-11-media-post-publishing.md`; after approval,
-promote Task 1's storage-verified upload finalization, processed-only attachment,
-and GraphQL schema-privacy work.
+promote Task 1's MIME allowlist validation, storage-verified upload finalization,
+processed-only attachment, and GraphQL schema-privacy work.
 
 ## References
 
