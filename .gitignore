@@ -35,3 +35,6 @@ live_canvas-*.tar
 npm-debug.log
 /assets/node_modules/
 /.pnpm-store/
+
+# Local isolated agent worktrees.
+/.worktrees/
