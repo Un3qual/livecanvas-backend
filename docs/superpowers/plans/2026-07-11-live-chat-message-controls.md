@@ -13,12 +13,12 @@
 - Design source: `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`, Batch 4.
 - Execute only after Media Post Publishing closes and this plan is promoted through the lane `NOW.md` files.
 - Edit is available only on a `ChatMessageEvent` row to that message's actor while the session is not `ENDED`; lifecycle rows are never editable even when they carry the viewer as actor.
-- Remove is available only on a `ChatMessageEvent` row to the live-session host. General viewer deletion and lifecycle-row removal remain deferred.
+- Remove is available only on a `ChatMessageEvent` row to the live-session host while the session is not `ENDED`. General viewer deletion and lifecycle-row removal remain deferred.
 - Server authorization is authoritative; mobile action visibility is usability, not an authorization boundary.
 - Mutation responses and channel broadcasts may arrive in either order and must remain idempotent.
 - Retained-history pagination, send behavior, and opaque IDs/cursors must remain unchanged.
 - Mobile tests stay under `mobile/tests/**`.
-- Backend production code changes only if Task 1 reproduces a contract or broadcast defect.
+- The ended-session removal defect is reproduced in the current domain authorizer; Task 1 includes the narrow backend repair.
 
 ---
 
@@ -44,18 +44,19 @@ list. Commit each task with its focused tests.
 **Files:**
 - Modify: `test/live_canvas_gql/chat/chat_mutations_test.exs`
 - Modify: `test/live_canvas_web/channels/live_session_channel_test.exs`
-- Modify only on reproduced failure: `lib/live_canvas/chat.ex`
-- Modify only on reproduced failure: `lib/live_canvas_gql/chat/chat_resolver.ex`
+- Modify: `lib/live_canvas/chat.ex`
+- Modify: `lib/live_canvas_gql/chat/chat_resolver.ex`
 
 **Interfaces:**
 - Consumes: `editLiveChatMessage`, `removeLiveChatMessageEvent`, `timeline:event_updated`, and `timeline:event_removed`.
 - Produces: a verified response/broadcast contract for mobile reconciliation.
 
-- [ ] Complete the focused matrix for actor edit success, different-actor rejection, ended-session rejection, host remove success, non-host rejection, repeated remove, hidden actor/host relationship state, malformed/wrong-type IDs, and unauthenticated access.
+- [ ] Complete the focused matrix for actor edit success, different-actor rejection, ended-session edit rejection, active-session host remove success, ended-session host remove rejection, non-host rejection, repeated remove, hidden actor/host relationship state, malformed/wrong-type IDs, and unauthenticated access.
 - [ ] Assert edit success returns the complete `ChatMessageEvent` projection (`id`, `body`, `edited`, `editCount`, `editedAt`, `actor { id }`) and broadcasts the same opaque event ID.
 - [ ] Assert remove success returns `removedTimelineEventId`, broadcasts only on the first transition, and repeated removal returns the existing viewer-safe not-found shape without a second broadcast.
-- [ ] Run `mix test test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs`; expected result is all tests passing without backend production changes.
-- [ ] If a contract defect is reproduced, repair only the action-specific `LC.Chat` or resolver path, keep public typespecs current, then run `mix typecheck`.
+- [ ] Add an action-specific host-remove authorizer in `LC.Chat` that rejects `ENDED` sessions before delegating to the existing host check; do not tighten the shared host authorizer used by unrelated recording lifecycle actions. Map `:session_ended` through the removal resolver's existing viewer-safe payload path. Prove ended-session removal leaves the timeline row unchanged and emits no removal broadcast.
+- [ ] Run `mix test test/live_canvas_gql/chat/chat_mutations_test.exs test/live_canvas_web/channels/live_session_channel_test.exs`; expected result is the complete authorization and broadcast matrix passing after the narrow ended-session repair.
+- [ ] Keep the repair limited to the action-specific `LC.Chat` removal and resolver paths, keep public typespecs current, then run `mix typecheck`.
 - [ ] Run formatting checks on touched backend files and commit with `test: prove live chat control contract`.
 
 ### Task 2: Add Relay Operations And Pure Per-Row Control State
@@ -73,10 +74,10 @@ list. Commit each task with its focused tests.
 
 - [ ] Define edit and remove operations using only opaque `chatMessageEventId` inputs; edit selects the full row projection and remove selects the removed opaque ID plus payload errors.
 - [ ] Track at most one pending operation per event ID as `{action: 'edit' | 'remove', attemptId}` and row errors as a map keyed by event ID. Reject any same-tick edit or remove while that row has either action pending, while allowing a new action after the prior attempt settles.
-- [ ] Implement `canEditChatRow({viewerId, row, sessionStatus})` as `row.__typename === 'ChatMessageEvent'` plus actor equality and non-ended status, and `canRemoveChatRow({viewerId, hostId, row})` as host equality plus the same chat-message row guard.
+- [ ] Implement `canEditChatRow({viewerId, row, sessionStatus})` as `row.__typename === 'ChatMessageEvent'` plus actor equality and non-ended status, and `canRemoveChatRow({viewerId, hostId, row, sessionStatus})` as host equality plus the same chat-message row guard and non-ended status.
 - [ ] Reject stale mutation completions by row-scoped `attemptId`; removal success tombstones the event ID and invalidates every edit attempt for that row, so a late edit response or error cannot replace, resurrect, or clear the removed row.
 - [ ] Map `not_authorized`, `session_ended`, `not_found`, invalid input, unauthenticated, and transport failures to viewer-safe row-level copy.
-- [ ] Cover eligibility for chat and actor-bearing lifecycle rows, pending isolation across rows, same-action duplicates, conflicting edit/remove attempts by a host-author, removal tombstones, stale completion, success/error clearing, and ended-session transitions in focused Bun tests. Assert `LiveSessionStartedEvent` and `LiveSessionEndedEvent` rows never expose Edit or Remove even when their actor matches the viewer/host.
+- [ ] Cover eligibility for active and ended chat rows plus actor-bearing lifecycle rows, pending isolation across rows, same-action duplicates, conflicting edit/remove attempts by a host-author, removal tombstones, stale completion, success/error clearing, and ended-session transitions in focused Bun tests. Assert ended chat rows expose neither Edit nor Remove, and `LiveSessionStartedEvent` and `LiveSessionEndedEvent` rows never expose either action even when their actor matches the viewer/host.
 - [ ] Run `cd mobile && bun run relay`, `bun test tests/live/liveSessionChatControlsState.test.ts`, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: add live chat control state`.
 
 ### Task 3: Reconcile Mutation Results Through The Timeline Reducer
@@ -115,7 +116,7 @@ list. Commit each task with its focused tests.
 
 - [ ] Add an Edit action only to eligible authored chat rows. Editing replaces the row body with a bounded text input, Save, and Cancel; Save trims the body and uses the backend's existing length validation.
 - [ ] Add Remove only for the host and require a deliberate confirmation press before committing; disable both actions only for the affected row while pending.
-- [ ] Show row-local error copy and Retry/Refresh without hiding the row. Ended-session updates must close any edit form and remove Edit immediately.
+- [ ] Show row-local error copy and Retry/Refresh without hiding the row. Ended-session updates must close any edit form and remove both Edit and Remove immediately.
 - [ ] Wire mutation success into timeline dispatch and preserve current send draft, send status, load-older state, scroll identity, and lifecycle rows.
 - [ ] Cover author/non-author/host action visibility, edit cancel/save, host removal confirmation, payload/transport errors, ended-session closure, duplicate taps, and response/broadcast races in RNTL tests.
 - [ ] Run the pure suites with `cd mobile && bun test tests/live/liveSessionChatControlsState.test.ts tests/live/liveSessionChatTimelineReducer.test.ts tests/live/LiveSessionChatPanel.test.ts`.

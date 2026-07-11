@@ -62,9 +62,16 @@ checkboxes/evidence in the same milestone commit.
 - Modify: `lib/live_canvas_gql/content/content_types.ex`
 - Modify: `test/live_canvas/infra/object_storage/configurable_adapter_test.exs`
 - Modify: `test/live_canvas/infra/object_storage/fake_adapter_test.exs`
+- Modify: `test/support/fixtures/content_fixtures.ex`
+- Modify: `test/integration/live/end_session_recording_atomicity_test.exs`
 - Modify: `test/live_canvas/content_test.exs`
+- Modify: `test/live_canvas/infra/data_governance_deletion_test.exs`
+- Modify: `test/live_canvas/live_test.exs`
+- Modify: `test/live_canvas_gql/accounts/account_queries_test.exs`
 - Modify: `test/live_canvas_gql/content/content_mutations_test.exs`
 - Modify: `test/live_canvas_gql/content/content_queries_test.exs`
+- Modify: `test/live_canvas_gql/feed/feed_queries_test.exs`
+- Modify: `test/live_canvas_gql/live/live_mutations_test.exs`
 - Modify: `test/live_canvas_gql/relay/node_queries_test.exs`
 - Modify: `test/integration/media_webhook_async_flow_test.exs`
 - Modify: `mobile/schema.graphql`
@@ -79,6 +86,7 @@ checkboxes/evidence in the same milestone commit.
 - [ ] Add `finalizeMediaUpload` as a Relay payload mutation. Decode the opaque media ID and delegate directly to the verified domain finalizer; do not duplicate or weaken storage verification in the resolver.
 - [ ] Keep verification not-found, missing/invalid/zero/oversized content length, content-type mismatch, timeout, and storage-unavailable results retryable without changing the database state. Make repeated successful finalization idempotent and never permit a foreign owner to distinguish missing from inaccessible assets.
 - [ ] Enforce the shared four-type MIME allowlist in the upload-request changeset before signing storage access. Test all four accepted values plus representative rejected image, video, and non-media values such as GIF, QuickTime, and octet-stream; adapt the existing unsupported-processing fixture so it does not rely on requesting a now-invalid upload.
+- [ ] Remove the production `Content.create_media_asset/2` escape hatch, which currently accepts caller-controlled processing state and arbitrary MIME values through the generic media-asset changeset. Replace the generic public write path with purpose-specific changesets: upload-request insertion accepts only the validated MIME and server-owned key while forcing `PENDING_UPLOAD`; attachment accepts only the server-owned `post_id`; and internal processing/finalization transitions accept only their narrowly owned fields. Move arbitrary-state setup into the shared test-only `media_asset_fixture`, migrate every direct test caller listed in this task to that fixture, and prove no production or test reference to `Content.create_media_asset/2` remains.
 - [ ] Tighten `create_post` attachment to accept only owner-scoped `PROCESSED` assets; update existing tests that currently treat `UPLOADED` as attachable.
 - [ ] Gate `MediaProcessingJob` state transitions from both queue payloads and signed webhook payloads. Processing may advance only an `UPLOADED` asset; a callback for `PENDING_UPLOAD` must be dropped without changing the asset, and already terminal states remain idempotent. Keep this production path in Task 1's write scope.
 - [ ] Remove both `storageKey` and raw `ownerId` from the GraphQL `MediaAsset` node itself, not merely from mobile selections. Keep `publicUrl` nullable and gate its resolver/domain helper on `PROCESSED`: return null for owner-scoped `PENDING_UPLOAD`, `UPLOADED`, and `FAILED` assets, and return the canonical serving URL only for an authorized processed asset. Add schema validation proving the private fields are unqueryable while opaque ID, MIME type, processing state, and the state-gated public URL remain available as authorized.
