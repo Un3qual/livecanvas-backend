@@ -160,7 +160,7 @@ defmodule LCGQL.Social.Resolver do
   def is_blocked_by_viewer(_parent, %{creator_id: creator_id}, resolution) do
     with {:ok, viewer} <- Resolution.viewer(resolution),
          {:ok, creator} <- fetch_user(creator_id, :creator_id) do
-      {:ok, Social.blocked_by_viewer?(viewer, creator)}
+      {:ok, ReadPolicy.viewer_blocked_owner?(viewer, creator)}
     else
       _ -> {:ok, false}
     end

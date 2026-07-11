@@ -146,4 +146,4 @@ the focused privacy suite, related feed/chat/live authorization tests,
 Fresh verification: touched-file formatting, warning-free compilation,
 Dialyzer with 0 errors, Boundary, and changed-code analysis passed; the focused
 policy/privacy/authorization suite passed 216 tests with 0 failures. The full
-backend suite passed 934 tests with 0 failures and 1 excluded test.
+backend suite passed 943 tests with 0 failures and 1 excluded test.

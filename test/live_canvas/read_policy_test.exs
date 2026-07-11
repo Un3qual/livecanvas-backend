@@ -18,6 +18,8 @@ defmodule LC.ReadPolicyTest do
 
       assert ReadPolicy.viewer_blocked_by_owner?(viewer, owner)
       refute ReadPolicy.viewer_blocked_by_owner?(owner, viewer)
+      refute ReadPolicy.viewer_blocked_owner?(viewer, owner)
+      assert ReadPolicy.viewer_blocked_owner?(owner, viewer)
       assert ReadPolicy.blocked_between?(viewer, owner)
       assert ReadPolicy.blocked_between?(owner, viewer)
     end

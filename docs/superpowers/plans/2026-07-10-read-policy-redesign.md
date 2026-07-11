@@ -47,7 +47,7 @@ block and directional mute behavior.
 - 216 focused policy, social, feed, chat, contact, Relay-node, GraphQL, and
   integration tests: 0 failures.
 - Timeline channel integration test: 1 test, 0 failures.
-- Full backend suite: 934 tests, 0 failures, 1 excluded.
+- Full backend suite: 943 tests, 0 failures, 1 excluded.
 - `mix compile --warnings-as-errors`: passed.
 - `mix typecheck`: passed with 0 Dialyzer errors.
 - `mix boundary.spec`: passed; internal scope modules remain unexported.

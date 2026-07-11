@@ -324,8 +324,8 @@ defmodule LCGQL.Social.SocialMutationsTest do
                  )
       end
 
-      assert Social.relationship_state(viewer, followed) == :public
-      assert Social.relationship_state(followed, viewer) == :accepted
+      assert ReadPolicy.relationship_state(viewer, followed) == :public
+      assert ReadPolicy.relationship_state(followed, viewer) == :accepted
     end
 
     test "returns a field error for an invalid followedId and an auth error without scope" do
@@ -386,7 +386,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
                  )
       end
 
-      refute Social.blocked_by_viewer?(viewer, blocked)
+      refute ReadPolicy.viewer_blocked_owner?(viewer, blocked)
     end
 
     test "returns a field error for invalid blockedId and unauthenticated without scope" do

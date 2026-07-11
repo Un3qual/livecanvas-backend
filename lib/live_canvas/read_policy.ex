@@ -19,6 +19,13 @@ defmodule LC.ReadPolicy do
     do: Relationships.blocked_by?(viewer, owner)
 
   @doc """
+  Returns whether the viewer blocked the owner.
+  """
+  @spec viewer_blocked_owner?(User.t(), User.t()) :: boolean()
+  def viewer_blocked_owner?(%User{} = viewer, %User{} = owner),
+    do: Relationships.blocked_by?(owner, viewer)
+
+  @doc """
   Returns whether either user blocked the other.
   """
   @spec blocked_between?(User.t(), User.t()) :: boolean()

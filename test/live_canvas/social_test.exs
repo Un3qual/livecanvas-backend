@@ -161,15 +161,15 @@ defmodule LC.SocialTest do
 
       assert {:ok, _viewer_follow} = Social.follow_user(viewer, creator)
       assert {:ok, _reverse_follow} = Social.follow_user(creator, viewer)
-      assert Social.relationship_state(viewer, creator) == :accepted
-      assert Social.relationship_state(creator, viewer) == :accepted
+      assert ReadPolicy.relationship_state(viewer, creator) == :accepted
+      assert ReadPolicy.relationship_state(creator, viewer) == :accepted
 
       assert :ok = Social.unfollow_user(viewer, creator)
-      assert Social.relationship_state(viewer, creator) == :public
-      assert Social.relationship_state(creator, viewer) == :accepted
+      assert ReadPolicy.relationship_state(viewer, creator) == :public
+      assert ReadPolicy.relationship_state(creator, viewer) == :accepted
 
       assert :ok = Social.unfollow_user(viewer, creator)
-      assert Social.relationship_state(viewer, creator) == :public
+      assert ReadPolicy.relationship_state(viewer, creator) == :public
     end
 
     test "unblock_user/2 removes only the viewer's outbound block and is idempotent" do
@@ -178,16 +178,16 @@ defmodule LC.SocialTest do
 
       assert {:ok, _outbound_block} = Social.block_user(viewer, creator)
       assert {:ok, _inbound_block} = Social.block_user(creator, viewer)
-      assert Social.blocked_by_viewer?(viewer, creator)
-      assert Social.blocked_by_viewer?(creator, viewer)
+      assert ReadPolicy.viewer_blocked_owner?(viewer, creator)
+      assert ReadPolicy.viewer_blocked_owner?(creator, viewer)
 
       assert :ok = Social.unblock_user(viewer, creator)
-      refute Social.blocked_by_viewer?(viewer, creator)
-      assert Social.blocked_by_viewer?(creator, viewer)
-      assert Social.relationship_state(viewer, creator) == :blocked
+      refute ReadPolicy.viewer_blocked_owner?(viewer, creator)
+      assert ReadPolicy.viewer_blocked_owner?(creator, viewer)
+      assert ReadPolicy.relationship_state(viewer, creator) == :blocked
 
       assert :ok = Social.unblock_user(viewer, creator)
-      refute Social.blocked_by_viewer?(viewer, creator)
+      refute ReadPolicy.viewer_blocked_owner?(viewer, creator)
     end
   end
 
