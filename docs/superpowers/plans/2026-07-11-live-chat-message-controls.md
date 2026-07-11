@@ -12,8 +12,8 @@
 
 - Design source: `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`, Batch 4.
 - Execute only after Media Post Publishing closes and this plan is promoted through the lane `NOW.md` files.
-- Edit is available only to the message actor while the session is not `ENDED`.
-- Remove is available only to the live-session host. General viewer deletion remains deferred.
+- Edit is available only on a `ChatMessageEvent` row to that message's actor while the session is not `ENDED`; lifecycle rows are never editable even when they carry the viewer as actor.
+- Remove is available only on a `ChatMessageEvent` row to the live-session host. General viewer deletion and lifecycle-row removal remain deferred.
 - Server authorization is authoritative; mobile action visibility is usability, not an authorization boundary.
 - Mutation responses and channel broadcasts may arrive in either order and must remain idempotent.
 - Retained-history pagination, send behavior, and opaque IDs/cursors must remain unchanged.
@@ -73,10 +73,10 @@ list. Commit each task with its focused tests.
 
 - [ ] Define edit and remove operations using only opaque `chatMessageEventId` inputs; edit selects the full row projection and remove selects the removed opaque ID plus payload errors.
 - [ ] Track at most one pending operation per event ID as `{action: 'edit' | 'remove', attemptId}` and row errors as a map keyed by event ID. Reject any same-tick edit or remove while that row has either action pending, while allowing a new action after the prior attempt settles.
-- [ ] Implement `canEditChatRow({viewerId, row, sessionStatus})` as actor equality plus non-ended status, and `canRemoveChatRow({viewerId, hostId, row})` as host equality plus a chat-message row.
+- [ ] Implement `canEditChatRow({viewerId, row, sessionStatus})` as `row.__typename === 'ChatMessageEvent'` plus actor equality and non-ended status, and `canRemoveChatRow({viewerId, hostId, row})` as host equality plus the same chat-message row guard.
 - [ ] Reject stale mutation completions by row-scoped `attemptId`; removal success tombstones the event ID and invalidates every edit attempt for that row, so a late edit response or error cannot replace, resurrect, or clear the removed row.
 - [ ] Map `not_authorized`, `session_ended`, `not_found`, invalid input, unauthenticated, and transport failures to viewer-safe row-level copy.
-- [ ] Cover eligibility, pending isolation across rows, same-action duplicates, conflicting edit/remove attempts by a host-author, removal tombstones, stale completion, success/error clearing, and ended-session transitions in focused Bun tests.
+- [ ] Cover eligibility for chat and actor-bearing lifecycle rows, pending isolation across rows, same-action duplicates, conflicting edit/remove attempts by a host-author, removal tombstones, stale completion, success/error clearing, and ended-session transitions in focused Bun tests. Assert `LiveSessionStartedEvent` and `LiveSessionEndedEvent` rows never expose Edit or Remove even when their actor matches the viewer/host.
 - [ ] Run `cd mobile && bun run relay`, `bun test tests/live/liveSessionChatControlsState.test.ts`, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: add live chat control state`.
 
 ### Task 3: Reconcile Mutation Results Through The Timeline Reducer
