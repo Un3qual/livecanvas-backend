@@ -222,7 +222,7 @@ defmodule LC.Chat.TimelineEvents do
       when is_integer(live_session_id) and is_integer(viewer_id) do
     live_session_id
     |> history_query()
-    |> exclude_actors_blocking_viewer(viewer_id)
+    |> exclude_blocked_actors(viewer_id)
   end
 
   @spec event_query(pos_integer()) :: Ecto.Query.t()
@@ -237,15 +237,17 @@ defmodule LC.Chat.TimelineEvents do
       when is_integer(timeline_event_id) and is_integer(viewer_id) do
     timeline_event_id
     |> event_query()
-    |> exclude_actors_blocking_viewer(viewer_id)
+    |> exclude_blocked_actors(viewer_id)
   end
 
-  @spec exclude_actors_blocking_viewer(Ecto.Query.t(), pos_integer()) :: Ecto.Query.t()
-  defp exclude_actors_blocking_viewer(query, viewer_id) when is_integer(viewer_id) do
+  @spec exclude_blocked_actors(Ecto.Query.t(), pos_integer()) :: Ecto.Query.t()
+  defp exclude_blocked_actors(query, viewer_id) when is_integer(viewer_id) do
     query
     |> join(:left, [event: event], block in Block,
       as: :actor_block,
-      on: block.blocker_id == event.actor_user_id and block.blocked_id == ^viewer_id
+      on:
+        (block.blocker_id == event.actor_user_id and block.blocked_id == ^viewer_id) or
+          (block.blocker_id == ^viewer_id and block.blocked_id == event.actor_user_id)
     )
     |> where([actor_block: block], is_nil(block.id))
   end

@@ -71,6 +71,10 @@ type LiveSessionNode = {
 };
 
 type QueryVariables = Record<string, unknown>;
+type QueryOptions = {
+  readonly fetchKey?: number;
+  readonly fetchPolicy?: string;
+};
 
 type FetchQueryCall = { readonly variables: QueryVariables };
 type FetchQueryImplementation = (
@@ -146,6 +150,7 @@ type DeletePostMutationConfig = {
 
 let mockQueryData: FeedHomeQueryData;
 let mockQueryVariables: QueryVariables | null;
+let mockQueryOptions: QueryOptions | null;
 let mockFetchQueryCalls: FetchQueryCall[];
 let mockFetchQueryImplementation: FetchQueryImplementation | null;
 let mockFetchQueryResult: FeedHomeQueryData;
@@ -192,8 +197,10 @@ jest.mock('react-relay', () => ({
   useLazyLoadQuery: (
     _query: unknown,
     variables: QueryVariables,
+    options: QueryOptions,
   ): FeedHomeQueryData => {
     mockQueryVariables = variables;
+    mockQueryOptions = options;
     return mockQueryData;
   },
   useMutation: (mutation: unknown) => {
@@ -235,6 +242,7 @@ function mockRelayOperationName(mutation: unknown): string {
 beforeEach(() => {
   mockQueryData = createFilledQueryData();
   mockQueryVariables = null;
+  mockQueryOptions = null;
   mockFetchQueryCalls = [];
   mockFetchQueryImplementation = null;
   mockFetchQueryResult = createFilledQueryData();
@@ -257,6 +265,10 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
       replayFirst: 10,
       storyAfter: null,
       storyFirst: 10,
+    });
+    expect(mockQueryOptions).toEqual({
+      fetchKey: 0,
+      fetchPolicy: 'network-only',
     });
   });
 

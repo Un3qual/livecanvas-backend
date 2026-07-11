@@ -253,6 +253,50 @@ defmodule LCWeb.LiveSessionChannelTest do
            } = Chat.get_timeline_event(viewer, event_id)
   end
 
+  test "timeline chat broadcasts omit viewers blocked in either direction" do
+    host = user_fixture(privacy_mode: :public)
+    sender = user_fixture()
+    viewer_blocked_by_sender = user_fixture()
+    viewer_who_blocked_sender = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+
+    assert {:ok, _join_payload, sender_socket} =
+             subscribe_and_join(socket_for(sender), LiveSessionChannel, session_topic)
+
+    assert {:ok, _join_payload, _hidden_socket} =
+             subscribe_and_join(
+               socket_for(viewer_blocked_by_sender),
+               LiveSessionChannel,
+               session_topic
+             )
+
+    assert {:ok, _join_payload, _hidden_socket} =
+             subscribe_and_join(
+               socket_for(viewer_who_blocked_sender),
+               LiveSessionChannel,
+               session_topic
+             )
+
+    _actor_block = block_fixture(sender, viewer_blocked_by_sender)
+    _viewer_block = block_fixture(viewer_who_blocked_sender, sender)
+
+    ref = push(sender_socket, "timeline:chat_message:send", %{"body" => "hidden"})
+    assert_reply ref, :ok, %{event: %{body: "hidden"}}, @channel_reply_timeout
+
+    assert_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "timeline:event",
+      payload: %{event: %{body: "hidden"}}
+    }
+
+    refute_receive %Phoenix.Socket.Message{
+      topic: ^session_topic,
+      event: "timeline:event",
+      payload: %{event: %{body: "hidden"}}
+    }
+  end
+
   test "sending timeline:chat_message:send rejects stale sockets after session end" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()

@@ -29,6 +29,25 @@ defmodule LC.ReadPolicy do
   end
 
   @doc """
+  Returns the IDs of every user with a block relationship to the given user.
+
+  Realtime delivery uses this batched fact to avoid one block query per
+  connected viewer.
+  """
+  @spec blocked_peer_ids(User.t()) :: [pos_integer()]
+  def blocked_peer_ids(%User{id: user_id}) when is_integer(user_id) do
+    from(block in Block,
+      where: block.blocker_id == ^user_id or block.blocked_id == ^user_id,
+      select: {block.blocker_id, block.blocked_id}
+    )
+    |> Repo.all()
+    |> Enum.map(fn
+      {^user_id, peer_id} -> peer_id
+      {peer_id, ^user_id} -> peer_id
+    end)
+  end
+
+  @doc """
   Returns the shared viewer-scoped relationship state for an owner visibility mode.
   """
   @spec relationship_state(User.t(), User.t(), owner_visibility()) :: relationship_state()

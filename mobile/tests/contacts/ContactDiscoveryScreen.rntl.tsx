@@ -80,6 +80,7 @@ let mockFetchQueryResult: ContactDiscoveryQueryData;
 let mockFetchQueryVariables: QueryVariables | null;
 let mockQueryError: Error | null;
 let mockPushedRoutes: unknown[];
+let mockRouteFetchKey: number | null;
 const mockUpsertContactCommit =
   jest.fn<undefined, [UpsertContactMutationConfig]>();
 const mockDeliverInviteCommit =
@@ -99,6 +100,20 @@ jest.mock('expo-router', () => ({
     },
   }),
 }));
+
+jest.mock('../../src/components/RelayRouteBoundary', () => {
+  const actual = jest.requireActual(
+    '../../src/components/RelayRouteBoundary',
+  ) as typeof import('../../src/components/RelayRouteBoundary');
+
+  return {
+    ...actual,
+    useRelayRouteFetchKey: () => {
+      const routeFetchKey = actual.useRelayRouteFetchKey();
+      return mockRouteFetchKey ?? routeFetchKey;
+    },
+  };
+});
 
 jest.mock('react-relay', () => ({
   fetchQuery: (
@@ -160,6 +175,7 @@ function mockRelayOperationName(mutation: unknown): string {
 
 beforeEach(() => {
   mockQueryError = null;
+  mockRouteFetchKey = null;
   mockQueryData = {
     viewerContactMatches: connection([]),
   };
@@ -266,6 +282,47 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     expect(mockPushedRoutes).toEqual([
       { params: { id: 'opaque-user-id' }, pathname: '/profiles/[id]' },
     ]);
+  });
+
+  test('drops local matched-user identity after a privacy refresh', async () => {
+    const user = userEvent.setup();
+    mockRouteFetchKey = 0;
+    const view = await render(<ContactDiscoveryScreen />);
+
+    await user.type(screen.getByLabelText('Contact email'), 'friend@example.com');
+    await user.press(screen.getByRole('button', { name: 'Search contacts' }));
+
+    await completeUpsertContact({
+      upsertViewerContactEntry: {
+        contactMatch: contactMatch({
+          id: 'contact-match-privacy',
+          matchedUsers: [
+            {
+              email: 'hidden@example.com',
+              id: 'hidden-user-id',
+              privacyMode: 'PUBLIC',
+            },
+          ],
+        }),
+        errors: [],
+      },
+    });
+
+    expect(screen.getByText('hidden@example.com')).toBeOnTheScreen();
+
+    mockQueryData = {
+      viewerContactMatches: connection([
+        contactMatch({
+          id: 'contact-match-privacy',
+          matchedUsers: [],
+        }),
+      ]),
+    };
+    mockRouteFetchKey = 1;
+    await view.rerender(<ContactDiscoveryScreen />);
+
+    expect(screen.queryByText('hidden@example.com')).toBeNull();
+    expect(screen.getByText('No LiveCanvas match yet.')).toBeOnTheScreen();
   });
 
   test('hides invite delivery until a real landing route exists', async () => {

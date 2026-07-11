@@ -51,6 +51,10 @@ type ContactMatchNode = NonNullable<
   >[number]
 >['node'];
 type ContactMatchedUser = ContactMatch['matchedUsers'][number];
+type LocalContactMatches = {
+  readonly fetchKey: number;
+  readonly matches: ContactMatch[];
+};
 
 const styles = StyleSheet.create({
   screen: {
@@ -128,7 +132,10 @@ export function ContactDiscoveryScreen() {
   const [displayName, setDisplayName] = useState('');
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [localMatches, setLocalMatches] = useState<ContactMatch[]>([]);
+  const [localMatches, setLocalMatches] = useState<LocalContactMatches>({
+    fetchKey: routeFetchKey,
+    matches: [],
+  });
   const [extraMatches, setExtraMatches] = useState<ContactMatch[]>([]);
   const [pageInfo, setPageInfo] = useState(() => queryPageInfo);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -137,7 +144,7 @@ export function ContactDiscoveryScreen() {
     queryConnection,
   );
   const contactMatches = mergeContactMatches(
-    localMatches,
+    localMatches.fetchKey === routeFetchKey ? localMatches.matches : [],
     queryMatches.concat(extraMatches),
   );
 
@@ -221,7 +228,13 @@ export function ContactDiscoveryScreen() {
           return;
         }
 
-        setLocalMatches((current) => upsertLocalContactMatch(current, contactMatch));
+        setLocalMatches((current) => ({
+          fetchKey: routeFetchKey,
+          matches: upsertLocalContactMatch(
+            current.fetchKey === routeFetchKey ? current.matches : [],
+            contactMatch,
+          ),
+        }));
       },
       onError: () => {
         activeSearchRef.current = false;

@@ -32,6 +32,7 @@ import {
 } from '../live/components/LiveSessionSummaryCard';
 import { liveSessionHref } from '../live/liveSessionNavigation';
 import { useAppTheme } from '../providers/ThemeProvider';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../relay/privacySensitiveFetch';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
@@ -381,7 +382,7 @@ export function FeedHomeContent({ fetchKey = 0 }: { fetchKey?: number }) {
   const data = useLazyLoadQuery<FeedHomeScreenQuery>(
     feedHomeScreenQuery,
     FEED_HOME_QUERY_VARIABLES,
-    { fetchKey, fetchPolicy: 'store-and-network' },
+    { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey },
   );
   const [refreshedHomeData, setRefreshedHomeData] =
     useState<FeedHomeManualRefreshSnapshot | null>(null);
