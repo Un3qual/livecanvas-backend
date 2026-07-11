@@ -74,6 +74,31 @@ describe('postComposerState', () => {
     );
   });
 
+  test('permits media-only publishing and omits a blank body', () => {
+    const state = selectPostComposerKind(createPostComposerState(), 'STORY');
+
+    expect(canSubmitPostComposer(state)).toBe(false);
+    expect(canSubmitPostComposer(state, true)).toBe(true);
+    expect(getPostComposerValidationMessage(state, true)).toBeNull();
+    expect(buildCreatePostInput(state, true)).toEqual({
+      kind: 'STORY',
+      visibility: 'FOLLOWERS',
+    });
+  });
+
+  test('keeps trimmed body text when ready media accompanies the post', () => {
+    const state = updatePostComposerBody(
+      createPostComposerState(),
+      '  A view worth sharing  ',
+    );
+
+    expect(buildCreatePostInput(state, true)).toEqual({
+      bodyText: 'A view worth sharing',
+      kind: 'STANDARD',
+      visibility: 'FOLLOWERS',
+    });
+  });
+
   test('rejects drafts over the backend body length limit', () => {
     const oversizedState = updatePostComposerBody(
       createPostComposerState(),

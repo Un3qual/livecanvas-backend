@@ -19,7 +19,7 @@ export type PostComposerState = {
 };
 
 export type CreatePostInput = {
-  readonly bodyText: string;
+  readonly bodyText?: string;
   readonly kind: PostComposerKind;
   readonly visibility: PostComposerVisibility;
 };
@@ -92,8 +92,11 @@ export function selectPostComposerVisibility(
   };
 }
 
-export function canSubmitPostComposer(state: PostComposerState): boolean {
-  return getPostComposerValidationMessage(state) == null;
+export function canSubmitPostComposer(
+  state: PostComposerState,
+  hasReadyMedia = false,
+): boolean {
+  return getPostComposerValidationMessage(state, hasReadyMedia) == null;
 }
 
 export function countPostComposerBodyTextCharacters(bodyText: string): number {
@@ -111,13 +114,16 @@ export function countPostComposerBodyTextCharacters(bodyText: string): number {
 
 export function buildCreatePostInput(
   state: PostComposerState,
+  hasReadyMedia = false,
 ): CreatePostInput | null {
-  if (!canSubmitPostComposer(state)) {
+  if (!canSubmitPostComposer(state, hasReadyMedia)) {
     return null;
   }
 
+  const bodyText = state.bodyText.trim();
+
   return {
-    bodyText: state.bodyText.trim(),
+    ...(bodyText ? { bodyText } : {}),
     kind: state.kind,
     visibility: state.visibility,
   };
@@ -125,10 +131,11 @@ export function buildCreatePostInput(
 
 export function getPostComposerValidationMessage(
   state: PostComposerState,
+  hasReadyMedia = false,
 ): string | null {
   const bodyText = state.bodyText.trim();
 
-  if (!bodyText) {
+  if (!bodyText && !hasReadyMedia) {
     return EMPTY_BODY_ERROR;
   }
 

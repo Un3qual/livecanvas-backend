@@ -9,6 +9,7 @@ import {
 } from '@testing-library/react-native';
 
 import ComposeRoute from '../../app/(app)/compose';
+import type { MediaPostPublishingState } from '../../src/content/mediaPostPublishingState';
 import { PostComposerScreen } from '../../src/feed/PostComposerScreen';
 
 type CreatePostCommitConfig = {
@@ -30,6 +31,12 @@ const mockRouter = {
 const mockCreatePostCommit =
   jest.fn<undefined, [CreatePostCommitConfig]>();
 let mockCreatePostInFlight = false;
+const mockCancelMedia = jest.fn();
+const mockRemoveMedia = jest.fn();
+const mockRetryMedia = jest.fn();
+const mockSelectMedia = jest.fn();
+const mockSubmitMedia = jest.fn();
+let mockMediaState = createMockMediaState();
 
 jest.mock('expo-router', () => ({
   useRouter: () => mockRouter,
@@ -40,6 +47,22 @@ jest.mock('react-relay', () => ({
   useMutation: () => [mockCreatePostCommit, mockCreatePostInFlight],
 }));
 
+jest.mock('../../src/content/useMediaPostPublishing', () => ({
+  useMediaPostPublishing: () => ({
+    cancel: mockCancelMedia,
+    removeMedia: mockRemoveMedia,
+    retryMedia: mockRetryMedia,
+    selectMedia: mockSelectMedia,
+    state: mockMediaState,
+    submit: mockSubmitMedia,
+  }),
+}));
+
+jest.mock('../../src/feed/postComposerOperations', () => ({
+  postComposerCreatePostMutation: {},
+  usePostComposerMediaPublishingDependencies: () => ({}),
+}));
+
 describe('PostComposerScreen with React Native Testing Library', () => {
   beforeEach(() => {
     mockRouter.back.mockClear();
@@ -48,6 +71,12 @@ describe('PostComposerScreen with React Native Testing Library', () => {
     mockRouter.replace.mockClear();
     mockCreatePostCommit.mockClear();
     mockCreatePostInFlight = false;
+    mockCancelMedia.mockClear();
+    mockRemoveMedia.mockClear();
+    mockRetryMedia.mockClear();
+    mockSelectMedia.mockClear();
+    mockSubmitMedia.mockClear();
+    mockMediaState = createMockMediaState();
   });
 
   test('keeps compose route pointed at the post composer screen', () => {
@@ -144,6 +173,115 @@ describe('PostComposerScreen with React Native Testing Library', () => {
         },
       }),
     );
+  });
+
+  test('publishes a media-only image and resets after success', async () => {
+    const user = userEvent.setup();
+    mockMediaState = readyMediaState('image', 'sunrise.jpg', 'image/jpeg');
+    const view = await render(<PostComposerScreen />);
+
+    expect(screen.getByText('Image: sunrise.jpg')).toBeOnTheScreen();
+    expect(screen.getByText('Media ready to publish.')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Post' })).toBeEnabled();
+
+    await user.press(screen.getByRole('button', { name: 'Post' }));
+
+    expect(mockSubmitMedia).toHaveBeenCalledTimes(1);
+    expect(mockSubmitMedia).toHaveBeenCalledWith({
+      kind: 'STANDARD',
+      visibility: 'FOLLOWERS',
+    });
+    expect(mockCreatePostCommit).not.toHaveBeenCalled();
+
+    mockMediaState = { ...mockMediaState, stage: 'succeeded' };
+    await view.rerender(<PostComposerScreen />);
+
+    expect(mockRemoveMedia).toHaveBeenCalledTimes(1);
+    expect(mockRouter.replace).toHaveBeenCalledTimes(1);
+    expect(mockRouter.replace).toHaveBeenCalledWith('/home');
+    expect(screen.getByLabelText('Post body')).toHaveDisplayValue('');
+  });
+
+  test('publishes mixed text and video using the ready media controller', async () => {
+    const user = userEvent.setup();
+    mockMediaState = readyMediaState('video', 'launch.mp4', 'video/mp4');
+
+    await render(<PostComposerScreen />);
+
+    await user.type(screen.getByLabelText('Post body'), '  Launch clip  ', {
+      skipBlur: true,
+    });
+    await user.press(screen.getByRole('button', { name: 'Story' }));
+    await user.press(screen.getByRole('button', { name: 'Public' }));
+    await user.press(screen.getByRole('button', { name: 'Post' }));
+
+    expect(screen.getByText('Video: launch.mp4')).toBeOnTheScreen();
+    expect(mockSubmitMedia).toHaveBeenCalledWith({
+      bodyText: 'Launch clip',
+      kind: 'STORY',
+      visibility: 'PUBLIC',
+    });
+    expect(mockCreatePostCommit).not.toHaveBeenCalled();
+  });
+
+  test('exposes media progress, cancellation, retry, remove, and replace actions', async () => {
+    const user = userEvent.setup();
+    mockMediaState = {
+      ...readyMediaState('image', 'draft.webp', 'image/webp'),
+      stage: 'uploading',
+      uploadConfirmed: false,
+    };
+    const view = await render(<PostComposerScreen />);
+
+    expect(screen.getByText('Uploading media...')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Post' })).toBeDisabled();
+    await user.press(screen.getByRole('button', { name: 'Cancel upload' }));
+    expect(mockCancelMedia).toHaveBeenCalledTimes(1);
+
+    mockMediaState = {
+      ...mockMediaState,
+      errorMessage: 'This media could not be processed.',
+      stage: 'failed',
+      uploadConfirmed: true,
+    };
+    await view.rerender(<PostComposerScreen />);
+
+    expect(
+      screen.getByText('This media could not be processed.'),
+    ).toBeOnTheScreen();
+    await user.press(screen.getByRole('button', { name: 'Retry upload' }));
+    await user.press(screen.getByRole('button', { name: 'Replace' }));
+    await user.press(screen.getByRole('button', { name: 'Remove' }));
+
+    expect(mockRetryMedia).toHaveBeenCalledTimes(1);
+    expect(mockSelectMedia).toHaveBeenCalledTimes(1);
+    expect(mockRemoveMedia).toHaveBeenCalledTimes(1);
+  });
+
+  test('preserves the draft after picker cancellation and blocks duplicate media submits', async () => {
+    const user = userEvent.setup();
+    const view = await render(<PostComposerScreen />);
+
+    await user.type(screen.getByLabelText('Post body'), 'Keep my draft', {
+      skipBlur: true,
+    });
+    await user.press(screen.getByRole('button', { name: 'Select media' }));
+    expect(mockSelectMedia).toHaveBeenCalledTimes(1);
+
+    mockMediaState = { ...createMockMediaState(), attemptId: 1, stage: 'cancelled' };
+    await view.rerender(<PostComposerScreen />);
+
+    expect(screen.getByLabelText('Post body')).toHaveDisplayValue(
+      'Keep my draft',
+    );
+
+    mockMediaState = readyMediaState('image', 'ready.png', 'image/png');
+    await view.rerender(<PostComposerScreen />);
+    const postButton = screen.getByRole('button', { name: 'Post' });
+    await fireEvent.press(postButton);
+    await fireEvent.press(postButton);
+
+    expect(mockSubmitMedia).toHaveBeenCalledTimes(1);
   });
 
   test('blocks duplicate submissions and cancel before rerender', async () => {
@@ -338,4 +476,36 @@ async function completeCreatePost(
   await act(() => {
     config?.onCompleted?.({ createPost });
   });
+}
+
+function createMockMediaState(): MediaPostPublishingState {
+  return {
+    attemptId: 0,
+    errorMessage: null,
+    mediaAssetId: null,
+    selection: null,
+    stage: 'idle',
+    uploadConfirmed: false,
+  };
+}
+
+function readyMediaState(
+  mediaKind: 'image' | 'video',
+  fileName: string,
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp' | 'video/mp4',
+): MediaPostPublishingState {
+  return {
+    attemptId: 2,
+    errorMessage: null,
+    mediaAssetId: 'media-1',
+    selection: {
+      fileName,
+      fileSize: 1024,
+      mediaKind,
+      mimeType,
+      uri: `file://${fileName}`,
+    },
+    stage: 'ready',
+    uploadConfirmed: true,
+  };
 }

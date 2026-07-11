@@ -172,14 +172,20 @@ RNTL tests pass; production and test TypeScript checks plus lint pass.
 - Consumes: Task 3's controller and existing `buildCreatePostInput`.
 - Produces: a tested composer supporting text-only, image, and video publishing.
 
-- [ ] Add Select media, Replace, Remove, Cancel upload, and Retry actions with a single selected-media preview summary and explicit requesting/uploading/processing/ready/failure copy.
-- [ ] Permit submission when either nonblank body text is valid or one media asset is in the `ready` stage. Preserve the existing text-only rules when no media is ready; for a media-only post/story, omit blank `bodyText` from the mutation input and include only the ready asset ID. Reject an empty body when media is absent or not yet ready.
-- [ ] Disable kind/audience/body changes and duplicate submits only while the active stage requires it; picker cancellation must return to the unchanged composer.
-- [ ] Verify failed post creation keeps the ready asset, successful creation resets all text/media state, and navigation still replaces the route with `/home` exactly once.
-- [ ] Add state and RNTL coverage for successful media-only image and video publishing, mixed text/media publishing, empty-without-ready-media rejection, selection cancellation, upload retry, processing failure, auth loss, duplicate taps, remove/replace, and unchanged text-only submission.
-- [ ] Run the pure suites with `cd mobile && bun test tests/content/mediaPostSelection.test.ts tests/content/mediaPostPublishingState.test.ts tests/content/mediaPostUploadClient.test.ts tests/content/postComposerState.test.ts`.
-- [ ] Run the RNTL suites through their configured Jest runner with `cd mobile && bun run test:jest -- --runTestsByPath tests/content/useMediaPostPublishing.rntl.tsx tests/feed/PostComposerScreen.rntl.tsx`; do not pass `.rntl.tsx` files to Bun test filters.
-- [ ] Run `cd mobile && bun run test:quality`, then `git diff --check`; commit with `feat: publish posts with media`.
+- [x] Add Select media, Replace, Remove, Cancel upload, and Retry actions with a single selected-media preview summary and explicit requesting/uploading/processing/ready/failure copy.
+- [x] Permit submission when either nonblank body text is valid or one media asset is in the `ready` stage. Preserve the existing text-only rules when no media is ready; for a media-only post/story, omit blank `bodyText` from the mutation input and include only the ready asset ID. Reject an empty body when media is absent or not yet ready.
+- [x] Disable kind/audience/body changes and duplicate submits only while the active stage requires it; picker cancellation must return to the unchanged composer.
+- [x] Verify failed post creation keeps the ready asset, successful creation resets all text/media state, and navigation still replaces the route with `/home` exactly once.
+- [x] Add state and RNTL coverage for successful media-only image and video publishing, mixed text/media publishing, empty-without-ready-media rejection, selection cancellation, upload retry, processing failure, auth loss, duplicate taps, remove/replace, and unchanged text-only submission.
+- [x] Run the pure suites with `cd mobile && bun test tests/content/mediaPostSelection.test.ts tests/content/mediaPostPublishingState.test.ts tests/content/mediaPostUploadClient.test.ts tests/content/postComposerState.test.ts`.
+- [x] Run the RNTL suites through their configured Jest runner with `cd mobile && bun run test:jest -- --runTestsByPath tests/content/useMediaPostPublishing.rntl.tsx tests/feed/PostComposerScreen.rntl.tsx`; do not pass `.rntl.tsx` files to Bun test filters.
+- [x] Run `cd mobile && bun run test:quality`, then `git diff --check`; commit with `feat: publish posts with media`.
+
+**Task 4 evidence (2026-07-11):** 27 focused pure tests and 23 focused RNTL
+tests pass. The full mobile quality gate passes with 490 Bun and 126 Jest tests,
+plus production/test typechecks and lint. Focused open-handle detection reports
+no leaked handles, the backend regression suite passes 966 tests, and
+`git diff --check` passes.
 
 ## Completion And Handoff
 

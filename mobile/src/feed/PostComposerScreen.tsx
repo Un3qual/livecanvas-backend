@@ -12,6 +12,8 @@ import { useMutation } from 'react-relay';
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
+import type { MediaPostPublishingState } from '../content/mediaPostPublishingState';
+import type { PickedPostMedia } from '../content/mediaPostSelection';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
@@ -30,9 +32,11 @@ import {
   type PostComposerKind,
   type PostComposerVisibility,
 } from '../content/postComposerState';
+import { useMediaPostPublishing } from '../content/useMediaPostPublishing';
 import {
   postComposerCreatePostMutation,
   type PostComposerCreatePostMutation,
+  usePostComposerMediaPublishingDependencies,
 } from './postComposerOperations';
 
 const POST_COMPOSER_KIND_LABELS: Record<PostComposerKind, string> = {
@@ -81,6 +85,13 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   validation: typography.body,
+  mediaPanel: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  mediaSummary: typography.body,
   segmentedGroup: {
     gap: spacing.sm,
   },
@@ -102,10 +113,21 @@ export function PostComposerScreen() {
   const theme = useAppTheme();
   const isMountedRef = useRef(true);
   const activeCreatePostRef = useRef(false);
+  const activeMediaSubmitRef = useRef(false);
+  const handledMediaSuccessRef = useRef<number | null>(null);
   const [state, setState] = useState(() => createPostComposerState());
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [bodyBlurred, setBodyBlurred] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const mediaDependencies = usePostComposerMediaPublishingDependencies();
+  const {
+    cancel: cancelMedia,
+    removeMedia,
+    retryMedia,
+    selectMedia,
+    state: mediaState,
+    submit: submitMedia,
+  } = useMediaPostPublishing({ dependencies: mediaDependencies });
   const [commitCreatePost, isCreatePostInFlight] =
     useMutation<PostComposerCreatePostMutation>(
       postComposerCreatePostMutation,
@@ -113,8 +135,14 @@ export function PostComposerScreen() {
   const trimmedBodyLength = countPostComposerBodyTextCharacters(
     state.bodyText.trim(),
   );
-  const validationMessage = getPostComposerValidationMessage(state);
-  const canSubmit = canSubmitPostComposer(state);
+  const hasReadyMedia = mediaState.stage === 'ready';
+  const validationMessage = getPostComposerValidationMessage(
+    state,
+    hasReadyMedia,
+  );
+  const canSubmit =
+    canSubmitPostComposer(state, hasReadyMedia) &&
+    !isMediaPreparationBlocking(mediaState.stage);
   const isSubmitting = isPostSubmissionActive();
   const shouldShowValidation =
     validationMessage !== null &&
@@ -128,16 +156,38 @@ export function PostComposerScreen() {
     () => () => {
       isMountedRef.current = false;
       activeCreatePostRef.current = false;
+      activeMediaSubmitRef.current = false;
     },
     [],
   );
+
+  useEffect(() => {
+    if (mediaState.stage !== 'submitting') {
+      activeMediaSubmitRef.current = false;
+    }
+
+    if (
+      mediaState.stage !== 'succeeded' ||
+      handledMediaSuccessRef.current === mediaState.attemptId
+    ) {
+      return;
+    }
+
+    handledMediaSuccessRef.current = mediaState.attemptId;
+    setState(createPostComposerState());
+    setSubmitAttempted(false);
+    setBodyBlurred(false);
+    setSuccessMessage('Post created.');
+    removeMedia();
+    router.replace('/home');
+  }, [mediaState.attemptId, mediaState.stage, removeMedia, router]);
 
   function handleSubmit() {
     if (isPostSubmissionActive()) {
       return;
     }
 
-    const input = buildCreatePostInput(state);
+    const input = buildCreatePostInput(state, hasReadyMedia);
 
     if (input === null) {
       setSubmitAttempted(true);
@@ -146,6 +196,13 @@ export function PostComposerScreen() {
 
     setSubmitAttempted(true);
     setSuccessMessage(null);
+
+    if (hasReadyMedia) {
+      activeMediaSubmitRef.current = true;
+      submitMedia(input);
+      return;
+    }
+
     activeCreatePostRef.current = true;
     commitCreatePost({
       variables: { input },
@@ -201,7 +258,12 @@ export function PostComposerScreen() {
   }
 
   function isPostSubmissionActive() {
-    return isCreatePostInFlight || activeCreatePostRef.current;
+    return (
+      isCreatePostInFlight ||
+      activeCreatePostRef.current ||
+      activeMediaSubmitRef.current ||
+      mediaState.stage === 'submitting'
+    );
   }
 
   return (
@@ -213,7 +275,7 @@ export function PostComposerScreen() {
       <AppHeader
         eyebrow="Create"
         title="Compose post"
-        subtitle="Share a text update with followers or publish it publicly."
+        subtitle="Share text, a photo, or a video with followers or publicly."
       />
 
       <AppCard style={styles.card}>
@@ -263,6 +325,85 @@ export function PostComposerScreen() {
               {successMessage}
             </Text>
           ) : null}
+        </View>
+
+        <View style={styles.segmentedGroup}>
+          <Text style={[styles.label, { color: theme.colors.text }]}>Media</Text>
+          <View
+            style={[
+              styles.mediaPanel,
+              {
+                backgroundColor: theme.colors.surfaceMuted,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            {mediaState.selection ? (
+              <Text style={[styles.mediaSummary, { color: theme.colors.text }]}>
+                {formatMediaSummary(mediaState.selection)}
+              </Text>
+            ) : null}
+            <Text
+              style={[
+                styles.validation,
+                {
+                  color:
+                    mediaState.stage === 'failed'
+                      ? theme.colors.error
+                      : theme.colors.textMuted,
+                },
+              ]}
+            >
+              {getMediaStatusMessage(mediaState)}
+            </Text>
+            <View style={styles.buttonRow}>
+              {!mediaState.selection &&
+              !isMediaPreparationActive(mediaState.stage) ? (
+                <AppButton
+                  disabled={isSubmitting}
+                  label="Select media"
+                  onPress={selectMedia}
+                  variant="secondary"
+                />
+              ) : null}
+              {mediaState.selection &&
+              !isMediaPreparationActive(mediaState.stage) &&
+              mediaState.stage !== 'submitting' &&
+              mediaState.stage !== 'succeeded' ? (
+                <AppButton
+                  disabled={isSubmitting}
+                  label="Replace"
+                  onPress={selectMedia}
+                  variant="secondary"
+                />
+              ) : null}
+              {mediaState.selection &&
+              mediaState.stage !== 'submitting' &&
+              mediaState.stage !== 'succeeded' ? (
+                <AppButton
+                  disabled={isSubmitting}
+                  label="Remove"
+                  onPress={removeMedia}
+                  variant="secondary"
+                />
+              ) : null}
+              {isMediaPreparationActive(mediaState.stage) ? (
+                <AppButton
+                  label="Cancel upload"
+                  onPress={cancelMedia}
+                  variant="secondary"
+                />
+              ) : null}
+              {mediaState.stage === 'failed' ? (
+                <AppButton
+                  disabled={isSubmitting}
+                  label="Retry upload"
+                  onPress={retryMedia}
+                  variant="secondary"
+                />
+              ) : null}
+            </View>
+          </View>
         </View>
 
         <View style={styles.segmentedGroup}>
@@ -338,4 +479,53 @@ export function PostComposerScreen() {
       </AppCard>
     </ScrollView>
   );
+}
+
+function isMediaPreparationActive(
+  stage: MediaPostPublishingState['stage'],
+): boolean {
+  return ['selecting', 'requesting', 'uploading', 'processing'].includes(stage);
+}
+
+function isMediaPreparationBlocking(
+  stage: MediaPostPublishingState['stage'],
+): boolean {
+  return (
+    isMediaPreparationActive(stage) ||
+    stage === 'selected' ||
+    stage === 'failed'
+  );
+}
+
+function formatMediaSummary(selection: PickedPostMedia): string {
+  const kind = selection.mediaKind === 'image' ? 'Image' : 'Video';
+
+  return `${kind}: ${selection.fileName ?? selection.mimeType}`;
+}
+
+function getMediaStatusMessage(state: MediaPostPublishingState): string {
+  switch (state.stage) {
+    case 'idle':
+      return 'No media selected.';
+    case 'selecting':
+      return 'Opening media library...';
+    case 'selected':
+      return 'Media selected.';
+    case 'requesting':
+      return 'Preparing secure upload...';
+    case 'uploading':
+      return 'Uploading media...';
+    case 'processing':
+      return 'Processing media...';
+    case 'ready':
+      return 'Media ready to publish.';
+    case 'submitting':
+      return 'Publishing post...';
+    case 'succeeded':
+      return 'Post created.';
+    case 'failed':
+      return state.errorMessage ?? 'We could not publish this media. Try again.';
+    case 'cancelled':
+      return 'Media publishing cancelled.';
+  }
 }

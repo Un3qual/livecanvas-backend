@@ -11,18 +11,17 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: Batches 1-2 complete; Batch 3 active; Batches 4-5 queued
+- Track state: Batches 1-3 complete; Batch 4 active; Batch 5 queued
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
-- Current implementation: Batch 3, Media Post Publishing. Backend Task 1
-  establishes the lifecycle/schema contract before mobile Tasks 2-4.
+  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
+- Current implementation: Batch 4, Live-Chat Message Controls. Backend Task 1
+  establishes the authorization/broadcast contract before mobile Tasks 2-4.
 - Last completed detailed plan:
-  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
-- Recent theme: universal content cards, controls, sections, Home pagination,
-  independently retryable profile previews, and stale-safe paginated profile
-  content lists are complete and review-hardened; release-candidate QA remains
-  deferred.
+  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
+- Recent theme: one-image-or-video post/story publishing now completes native
+  selection, exact signed upload, verified processing, and composer submission;
+  release-candidate QA remains deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in
@@ -131,11 +130,12 @@ and content discovery, live streaming, and chat.
 
 Active product batch:
 
-- `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
+- `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - Status: active; execute backend Task 1 before mobile Tasks 2-4.
 
 Recently completed product batch:
 
+- `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
 - `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
 - `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
@@ -143,9 +143,8 @@ Recently completed product batch:
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-Queued product batches after Media Post Publishing:
+Queued product batches after Live-Chat Message Controls:
 
-- `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 
 These have implementation plans but remain non-executable until the prior batch
