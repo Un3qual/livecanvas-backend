@@ -3,7 +3,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
 
   import LC.AccountsFixtures
 
-  alias LC.{Accounts, Social}
+  alias LC.{Accounts, ReadPolicy, Social}
   alias LC.Infra.Repo
   alias LCSchemas.Social.{Block, Follow, Mute}
 
@@ -44,7 +44,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
                )
 
       assert is_binary(follow_id)
-      assert :requested == Social.relationship_state(viewer, followed)
+      assert :requested == ReadPolicy.relationship_state(viewer, followed)
     end
 
     test "returns structured errors for non-global followedId values" do
@@ -153,7 +153,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
                )
 
       assert is_binary(follow_id)
-      assert :accepted == Social.relationship_state(requester, viewer)
+      assert :accepted == ReadPolicy.relationship_state(requester, viewer)
     end
 
     test "removes the request from the pending inbox once accepted" do
@@ -268,7 +268,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
                )
 
       assert Social.get_pending_follow_request(viewer, follow.id) == nil
-      assert :none == Social.relationship_state(requester, viewer)
+      assert :none == ReadPolicy.relationship_state(requester, viewer)
     end
 
     test "returns unauthenticated errors without a viewer scope" do
@@ -324,8 +324,8 @@ defmodule LCGQL.Social.SocialMutationsTest do
                  )
       end
 
-      assert Social.relationship_state(viewer, followed) == :public
-      assert Social.relationship_state(followed, viewer) == :accepted
+      assert ReadPolicy.relationship_state(viewer, followed) == :public
+      assert ReadPolicy.relationship_state(followed, viewer) == :accepted
     end
 
     test "returns a field error for an invalid followedId and an auth error without scope" do
@@ -386,7 +386,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
                  )
       end
 
-      refute Social.blocked_by_viewer?(viewer, blocked)
+      refute ReadPolicy.viewer_blocked_owner?(viewer, blocked)
     end
 
     test "returns a field error for invalid blockedId and unauthenticated without scope" do
@@ -568,7 +568,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
                  context: context
                )
 
-      assert Social.muted?(viewer, muted)
+      assert ReadPolicy.viewer_muted_owner?(viewer, muted)
     end
 
     test "returns structured errors for non-global ids" do
@@ -661,7 +661,7 @@ defmodule LCGQL.Social.SocialMutationsTest do
                  context: context
                )
 
-      refute Social.muted?(viewer, muted)
+      refute ReadPolicy.viewer_muted_owner?(viewer, muted)
     end
 
     test "returns unauthenticated errors without a viewer scope" do

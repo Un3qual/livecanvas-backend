@@ -45,11 +45,8 @@ defmodule LC.Dev.SeedDataTest do
     assert %User{} = creator = Accounts.get_user_by_email("dev-creator@example.com")
     assert %User{} = host = Accounts.get_user_by_email("dev-host@example.com")
 
-    assert [creator.id, host.id] ==
-             viewer
-             |> Social.following_users_query()
-             |> Repo.all()
-             |> Enum.map(& &1.id)
+    assert {:ok, following_query} = Social.visible_following_users_query(viewer, viewer)
+    assert [creator.id, host.id] == following_query |> Repo.all() |> Enum.map(& &1.id)
 
     assert @seeded_home_feed_posts ==
              viewer

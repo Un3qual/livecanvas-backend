@@ -22,8 +22,8 @@ defmodule LC.SocialTest do
     assert {:ok, _follow} = Social.follow_user(viewer, creator)
     assert {:ok, _block} = Social.block_user(creator, viewer)
 
-    assert :blocked = Social.relationship_state(viewer, creator)
-    refute Social.can_view_user?(viewer, creator)
+    assert :blocked = ReadPolicy.relationship_state(viewer, creator)
+    refute ReadPolicy.viewer_can_view_relationship_graph?(viewer, creator)
   end
 
   describe "directional block privacy" do
@@ -42,17 +42,17 @@ defmodule LC.SocialTest do
       end
     end
 
-    test "blocked_by?/2 only reports the target-to-viewer direction" do
+    test "viewer_blocked_by_owner?/2 only reports the target-to-viewer direction" do
       viewer = user_fixture()
       target = user_fixture()
 
       assert {:ok, _block} = Social.block_user(target, viewer)
 
-      assert Social.blocked_by?(viewer, target)
-      refute Social.blocked_by?(target, viewer)
+      assert ReadPolicy.viewer_blocked_by_owner?(viewer, target)
+      refute ReadPolicy.viewer_blocked_by_owner?(target, viewer)
     end
 
-    test "user_ids_blocking_viewer/2 returns blocker IDs from one read" do
+    test "blocking_owner_ids/2 returns blocker IDs from one read" do
       viewer = user_fixture()
       visible_first = user_fixture()
       hidden = user_fixture()
@@ -60,7 +60,7 @@ defmodule LC.SocialTest do
 
       assert {:ok, _block} = Social.block_user(hidden, viewer)
 
-      assert Social.user_ids_blocking_viewer(viewer, [visible_first, hidden, visible_last]) ==
+      assert ReadPolicy.blocking_owner_ids(viewer, [visible_first.id, hidden.id, visible_last.id]) ==
                [hidden.id]
     end
 
@@ -79,11 +79,44 @@ defmodule LC.SocialTest do
       assert {:ok, _block} = Social.block_user(hidden_follower, viewer)
       assert {:ok, _block} = Social.block_user(hidden_followed, viewer)
 
-      followers = owner |> Social.follower_users_query(viewer) |> Social.run_query()
-      following = owner |> Social.following_users_query(viewer) |> Social.run_query()
+      assert {:ok, public_followers_query} = Social.visible_follower_users_query(owner, nil)
+      assert {:ok, followers_query} = Social.visible_follower_users_query(owner, viewer)
+      assert {:ok, public_following_query} = Social.visible_following_users_query(owner, nil)
+      assert {:ok, following_query} = Social.visible_following_users_query(owner, viewer)
 
+      public_followers = Social.run_query(public_followers_query)
+      followers = Social.run_query(followers_query)
+      public_following = Social.run_query(public_following_query)
+      following = Social.run_query(following_query)
+
+      assert Enum.map(public_followers, & &1.id) == [visible_follower.id, hidden_follower.id]
       assert Enum.map(followers, & &1.id) == [visible_follower.id]
+      assert Enum.map(public_following, & &1.id) == [visible_followed.id, hidden_followed.id]
       assert Enum.map(following, & &1.id) == [visible_followed.id]
+    end
+  end
+
+  describe "relationship graph queries" do
+    test "derive graph access from the owner instead of a public query escape hatch" do
+      outsider = user_fixture()
+      owner = user_fixture(privacy_mode: :private)
+      follower = user_fixture()
+
+      assert {:ok, pending_follow} = Social.follow_user(follower, owner)
+      assert {:ok, _accepted_follow} = Social.accept_follow_request(pending_follow, owner)
+
+      assert :hidden = Social.visible_follower_users_query(owner, nil)
+      assert :hidden = Social.visible_following_users_query(owner, nil)
+      assert :hidden = Social.visible_follower_users_query(owner, outsider)
+      assert :hidden = Social.visible_following_users_query(owner, outsider)
+
+      assert {:ok, follower_query} = Social.visible_follower_users_query(owner, owner)
+      assert Enum.map(Social.run_query(follower_query), & &1.id) == [follower.id]
+
+      assert {:ok, followed_owner_query} =
+               Social.visible_follower_users_query(owner, follower)
+
+      assert Enum.map(Social.run_query(followed_owner_query), & &1.id) == [follower.id]
     end
   end
 
@@ -93,8 +126,8 @@ defmodule LC.SocialTest do
       muted = user_fixture()
 
       assert {:ok, _mute} = Social.mute_user(muter, muted)
-      assert Social.muted?(muter, muted)
-      refute Social.muted?(muted, muter)
+      assert ReadPolicy.viewer_muted_owner?(muter, muted)
+      refute ReadPolicy.viewer_muted_owner?(muted, muter)
     end
 
     test "mute_user/2 is idempotent for the same muter/muted pair" do
@@ -105,7 +138,7 @@ defmodule LC.SocialTest do
       assert {:ok, second_mute} = Social.mute_user(muter, muted)
 
       assert first_mute.id == second_mute.id
-      assert Social.muted?(muter, muted)
+      assert ReadPolicy.viewer_muted_owner?(muter, muted)
     end
 
     test "unmute_user/2 removes a mute relationship and is idempotent" do
@@ -114,10 +147,10 @@ defmodule LC.SocialTest do
 
       assert {:ok, _mute} = Social.mute_user(muter, muted)
       assert :ok = Social.unmute_user(muter, muted)
-      refute Social.muted?(muter, muted)
+      refute ReadPolicy.viewer_muted_owner?(muter, muted)
 
       assert :ok = Social.unmute_user(muter, muted)
-      refute Social.muted?(muter, muted)
+      refute ReadPolicy.viewer_muted_owner?(muter, muted)
     end
   end
 
@@ -128,15 +161,15 @@ defmodule LC.SocialTest do
 
       assert {:ok, _viewer_follow} = Social.follow_user(viewer, creator)
       assert {:ok, _reverse_follow} = Social.follow_user(creator, viewer)
-      assert Social.relationship_state(viewer, creator) == :accepted
-      assert Social.relationship_state(creator, viewer) == :accepted
+      assert ReadPolicy.relationship_state(viewer, creator) == :accepted
+      assert ReadPolicy.relationship_state(creator, viewer) == :accepted
 
       assert :ok = Social.unfollow_user(viewer, creator)
-      assert Social.relationship_state(viewer, creator) == :public
-      assert Social.relationship_state(creator, viewer) == :accepted
+      assert ReadPolicy.relationship_state(viewer, creator) == :public
+      assert ReadPolicy.relationship_state(creator, viewer) == :accepted
 
       assert :ok = Social.unfollow_user(viewer, creator)
-      assert Social.relationship_state(viewer, creator) == :public
+      assert ReadPolicy.relationship_state(viewer, creator) == :public
     end
 
     test "unblock_user/2 removes only the viewer's outbound block and is idempotent" do
@@ -145,16 +178,16 @@ defmodule LC.SocialTest do
 
       assert {:ok, _outbound_block} = Social.block_user(viewer, creator)
       assert {:ok, _inbound_block} = Social.block_user(creator, viewer)
-      assert Social.blocked_by_viewer?(viewer, creator)
-      assert Social.blocked_by_viewer?(creator, viewer)
+      assert ReadPolicy.viewer_blocked_owner?(viewer, creator)
+      assert ReadPolicy.viewer_blocked_owner?(creator, viewer)
 
       assert :ok = Social.unblock_user(viewer, creator)
-      refute Social.blocked_by_viewer?(viewer, creator)
-      assert Social.blocked_by_viewer?(creator, viewer)
-      assert Social.relationship_state(viewer, creator) == :blocked
+      refute ReadPolicy.viewer_blocked_owner?(viewer, creator)
+      assert ReadPolicy.viewer_blocked_owner?(creator, viewer)
+      assert ReadPolicy.relationship_state(viewer, creator) == :blocked
 
       assert :ok = Social.unblock_user(viewer, creator)
-      refute Social.blocked_by_viewer?(viewer, creator)
+      refute ReadPolicy.viewer_blocked_owner?(viewer, creator)
     end
   end
 
@@ -177,66 +210,30 @@ defmodule LC.SocialTest do
       assert {:ok, _mute} = Social.mute_user(viewer, muted_creator)
       assert {:ok, _reverse_mute} = Social.mute_user(reverse_muter, viewer)
 
-      assert Social.relationship_state(viewer, public_creator) == :public
-      assert Social.relationship_state(viewer, private_creator) == :none
-      assert Social.relationship_state(viewer, followed_private_creator) == :accepted
-      assert Social.relationship_state(viewer, blocked_creator) == :blocked
-      assert Social.relationship_state(viewer, muted_creator) == :public
-      assert Social.relationship_state(viewer, reverse_muter) == :public
+      assert ReadPolicy.relationship_state(viewer, public_creator) == :public
+      assert ReadPolicy.relationship_state(viewer, private_creator) == :none
 
-      assert Social.can_view_user?(viewer, public_creator)
-      refute Social.can_view_user?(viewer, private_creator)
-      assert Social.can_view_user?(viewer, followed_private_creator)
-      refute Social.can_view_user?(viewer, blocked_creator)
-      assert Social.can_view_user?(viewer, muted_creator)
-      assert Social.can_view_user?(viewer, reverse_muter)
+      assert ReadPolicy.relationship_state(viewer, followed_private_creator) ==
+               :accepted
 
-      assert Social.muted?(viewer, muted_creator)
-      refute Social.muted?(muted_creator, viewer)
-      refute Social.muted?(viewer, reverse_muter)
-      assert Social.muted?(reverse_muter, viewer)
-    end
+      assert ReadPolicy.relationship_state(viewer, blocked_creator) == :blocked
+      assert ReadPolicy.relationship_state(viewer, muted_creator) == :public
+      assert ReadPolicy.relationship_state(viewer, reverse_muter) == :public
 
-    test "matches the shared read-policy relationship and mute helpers" do
-      viewer = user_fixture()
-      public_creator = user_fixture(privacy_mode: :public)
-      private_creator = user_fixture(privacy_mode: :private)
-      followed_private_creator = user_fixture(privacy_mode: :private)
-      blocked_creator = user_fixture(privacy_mode: :public)
-      muted_creator = user_fixture(privacy_mode: :public)
-      reverse_muter = user_fixture(privacy_mode: :public)
+      assert ReadPolicy.viewer_can_view_relationship_graph?(viewer, public_creator)
+      refute ReadPolicy.viewer_can_view_relationship_graph?(viewer, private_creator)
 
-      assert {:ok, follow} = Social.follow_user(viewer, followed_private_creator)
-
-      assert {:ok, _accepted_follow} =
-               Social.accept_follow_request(follow, followed_private_creator)
-
-      assert {:ok, _block} = Social.block_user(blocked_creator, viewer)
-      assert {:ok, _mute} = Social.mute_user(viewer, muted_creator)
-      assert {:ok, _reverse_mute} = Social.mute_user(reverse_muter, viewer)
-
-      assert ReadPolicy.relationship_state(viewer, public_creator, public_creator.privacy_mode) ==
-               Social.relationship_state(viewer, public_creator)
-
-      assert ReadPolicy.relationship_state(viewer, private_creator, private_creator.privacy_mode) ==
-               Social.relationship_state(viewer, private_creator)
-
-      assert ReadPolicy.relationship_state(
+      assert ReadPolicy.viewer_can_view_relationship_graph?(
                viewer,
-               followed_private_creator,
-               followed_private_creator.privacy_mode
-             ) == Social.relationship_state(viewer, followed_private_creator)
+               followed_private_creator
+             )
 
-      assert ReadPolicy.relationship_state(viewer, blocked_creator, blocked_creator.privacy_mode) ==
-               Social.relationship_state(viewer, blocked_creator)
-
-      assert ReadPolicy.relationship_state(viewer, muted_creator, muted_creator.privacy_mode) ==
-               Social.relationship_state(viewer, muted_creator)
-
-      assert ReadPolicy.relationship_state(viewer, reverse_muter, reverse_muter.privacy_mode) ==
-               Social.relationship_state(viewer, reverse_muter)
+      refute ReadPolicy.viewer_can_view_relationship_graph?(viewer, blocked_creator)
+      assert ReadPolicy.viewer_can_view_relationship_graph?(viewer, muted_creator)
+      assert ReadPolicy.viewer_can_view_relationship_graph?(viewer, reverse_muter)
 
       assert ReadPolicy.viewer_muted_owner?(viewer, muted_creator)
+      refute ReadPolicy.viewer_muted_owner?(muted_creator, viewer)
       refute ReadPolicy.viewer_muted_owner?(viewer, reverse_muter)
       assert ReadPolicy.viewer_muted_owner?(reverse_muter, viewer)
     end
@@ -248,7 +245,7 @@ defmodule LC.SocialTest do
       assert {:ok, _follow} = Social.follow_user(viewer, creator)
       assert {:ok, public_creator} = Accounts.update_user_privacy_mode(creator, :public)
 
-      assert ReadPolicy.relationship_state(viewer, public_creator, :public) == :requested
+      assert ReadPolicy.relationship_state(viewer, public_creator) == :requested
       assert ReadPolicy.viewer_can_read_owner?(viewer, public_creator, :public)
     end
   end
@@ -319,7 +316,7 @@ defmodule LC.SocialTest do
       assert :ok = Social.decline_follow_request(follow, followed)
 
       assert Social.get_pending_follow_request(followed, follow.id) == nil
-      assert :none == Social.relationship_state(follower, followed)
+      assert :none == ReadPolicy.relationship_state(follower, followed)
     end
   end
 end

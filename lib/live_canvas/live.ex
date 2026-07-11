@@ -1302,10 +1302,7 @@ defmodule LC.Live do
         [live_session],
         live_session.id in ^session_ids and live_session.status in [:starting, :live]
       )
-      |> ReadPolicy.viewer_visible_query(viewer,
-        owner_key: :host_id,
-        visibility_key: :visibility
-      )
+      |> ReadPolicy.visible_live_sessions_query(viewer)
       |> select([live_session], live_session.id)
       |> Repo.all()
       |> Map.new(&{&1, true})

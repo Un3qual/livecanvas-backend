@@ -1,7 +1,7 @@
 # Read-Policy Redesign and Quality Stack
 
 Date: 2026-07-10
-Status: approved for implementation
+Status: implemented and verified
 Owner: backend and mobile lanes
 
 ## Goal
@@ -125,3 +125,25 @@ the focused privacy suite, related feed/chat/live authorization tests,
 - changing database schemas or indexes;
 - redesigning staff moderation;
 - broad cleanup outside relationship and viewer-visibility policy.
+
+## Implementation Result
+
+- `LC.ReadPolicy.Relationships` now owns block, mute, follow-state, and batched
+  blocker-ID reads; `LC.ReadPolicy` exposes the action-specific public facade.
+- Social retains relationship mutations and authorized relationship-graph
+  queries. Owner privacy is checked before a query is returned, so callers
+  cannot select a fail-open public path.
+- GraphQL user resolution, social reads, graph authorization, and contact
+  projection now call `ReadPolicy` without encoding block direction locally.
+- Generic Ecto scope composition lives in internal `LC.ReadPolicy.Scopes`; the
+  exported facade exposes action-specific post, live-session,
+  relationship-graph user, and pending-follow-request query policies.
+- Repo-query capture now uses unique references, caller-chain scoping, and an
+  explicit participant wrapper for raw workers, then detaches before draining.
+  This preserves meaningful async query-count assertions without cross-test
+  contamination or worker under-counting.
+
+Fresh verification: touched-file formatting, warning-free compilation,
+Dialyzer with 0 errors, Boundary, and changed-code analysis passed; the focused
+policy/privacy/authorization suite passed 216 tests with 0 failures. The full
+backend suite passed 943 tests with 0 failures and 1 excluded test.

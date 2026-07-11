@@ -15,7 +15,18 @@ defmodule LC do
     top_level?: true,
     deps: [LCPayload, LCSchemas],
     exports:
-      [Accounts, Authz, Chat, Content, Feed, Live, RateLimiter, RealtimeRuntime, Social] ++
+      [
+        Accounts,
+        Authz,
+        Chat,
+        Content,
+        Feed,
+        Live,
+        RateLimiter,
+        ReadPolicy,
+        RealtimeRuntime,
+        Social
+      ] ++
         @test_support_exports
 
   @spec repo_module() :: LC.Infra.Repo

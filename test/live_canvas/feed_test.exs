@@ -236,7 +236,7 @@ defmodule LC.FeedTest do
           set: [inserted_at: newer_inserted_at, updated_at: newer_inserted_at]
         )
 
-      assert [first_post, second_post] = invoke_profile_posts(viewer, profile_owner, limit: 10)
+      assert [first_post, second_post] = Feed.profile_posts(viewer, profile_owner, limit: 10)
       assert first_post.id == newer_post.id
       assert second_post.id == older_post.id
     end
@@ -276,10 +276,10 @@ defmodule LC.FeedTest do
       _mute = mute_fixture(viewer, muted_owner)
       assert {:ok, _suspended_owner} = Accounts.suspend_user(suspended_owner)
 
-      assert [] = invoke_profile_posts(viewer, private_owner, limit: 10)
-      assert [] = invoke_profile_posts(viewer, blocked_owner, limit: 10)
-      assert [] = invoke_profile_posts(viewer, muted_owner, limit: 10)
-      assert [] = invoke_profile_posts(viewer, suspended_owner, limit: 10)
+      assert [] = Feed.profile_posts(viewer, private_owner, limit: 10)
+      assert [] = Feed.profile_posts(viewer, blocked_owner, limit: 10)
+      assert [] = Feed.profile_posts(viewer, muted_owner, limit: 10)
+      assert [] = Feed.profile_posts(viewer, suspended_owner, limit: 10)
     end
 
     test "returns no posts for an unsaved profile owner instead of the viewer feed" do
@@ -293,7 +293,7 @@ defmodule LC.FeedTest do
           visibility: :public
         })
 
-      assert [] = invoke_profile_posts(viewer, %User{}, limit: 10)
+      assert [] = Feed.profile_posts(viewer, %User{}, limit: 10)
     end
   end
 
@@ -354,7 +354,7 @@ defmodule LC.FeedTest do
         )
 
       assert [first_story, second_story] =
-               invoke_profile_story_feed(viewer, profile_owner, limit: 10)
+               Feed.profile_story_feed(viewer, profile_owner, limit: 10)
 
       assert first_story.id == newer_story.id
       assert second_story.id == older_story.id
@@ -373,7 +373,7 @@ defmodule LC.FeedTest do
 
       {:ok, _block} = Social.block_user(blocked_owner, viewer)
 
-      assert [] = invoke_profile_story_feed(viewer, blocked_owner, limit: 10)
+      assert [] = Feed.profile_story_feed(viewer, blocked_owner, limit: 10)
     end
 
     test "returns no stories for an unsaved profile owner instead of the viewer feed" do
@@ -388,11 +388,11 @@ defmodule LC.FeedTest do
           expires_at: DateTime.add(DateTime.utc_now(), 60, :second)
         })
 
-      assert [] = invoke_profile_story_feed(viewer, %User{}, limit: 10)
+      assert [] = Feed.profile_story_feed(viewer, %User{}, limit: 10)
     end
   end
 
-  describe "viewer_visible_query/3" do
+  describe "visible_posts_query/2" do
     test "applies the home feed visibility matrix to post queries" do
       viewer = user_fixture()
       followed_creator = user_fixture()
@@ -441,10 +441,7 @@ defmodule LC.FeedTest do
 
       helper_post_ids =
         Post
-        |> ReadPolicy.viewer_visible_query(viewer,
-          owner_key: :author_id,
-          visibility_key: :visibility
-        )
+        |> ReadPolicy.visible_posts_query(viewer)
         |> order_by([post], desc: post.inserted_at, desc: post.id)
         |> Repo.all()
         |> Enum.map(& &1.id)
@@ -786,23 +783,5 @@ defmodule LC.FeedTest do
     |> Repo.update_all(set: [ended_at: ended_at])
 
     Live.get_live_session!(session_id)
-  end
-
-  defp invoke_profile_posts(viewer, owner, opts) do
-    invoke_feed(:profile_posts, [viewer, owner, opts], [])
-  end
-
-  defp invoke_profile_story_feed(viewer, owner, opts) do
-    invoke_feed(:profile_story_feed, [viewer, owner, opts], [])
-  end
-
-  defp invoke_feed(function_name, args, missing_value) do
-    arity = length(args)
-
-    if function_exported?(Feed, function_name, arity) do
-      apply(Feed, function_name, args)
-    else
-      missing_value
-    end
   end
 end

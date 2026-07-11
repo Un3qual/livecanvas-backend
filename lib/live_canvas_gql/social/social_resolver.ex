@@ -1,5 +1,5 @@
 defmodule LCGQL.Social.Resolver do
-  alias LC.{Accounts, Social}
+  alias LC.{Accounts, ReadPolicy, Social}
   alias LCGQL.{FieldNames, MutationErrors, Relay, Resolution}
   alias LCSchemas.Accounts.User
 
@@ -130,14 +130,14 @@ defmodule LCGQL.Social.Resolver do
   end
 
   @spec relationship_state(any(), %{creator_id: term()}, Absinthe.Resolution.t()) ::
-          {:ok, Social.relationship_state()}
+          {:ok, ReadPolicy.relationship_state()}
   def relationship_state(_parent, %{creator_id: creator_id}, resolution) do
     # Relationship-state reads are viewer-scoped in the stabilized mobile
     # contract, so GraphQL derives the viewer from auth scope instead of
     # trusting a caller-supplied viewer ID.
     with {:ok, viewer} <- Resolution.viewer(resolution),
          {:ok, creator} <- fetch_visible_user(creator_id, :creator_id, viewer) do
-      {:ok, Social.relationship_state(viewer, creator)}
+      {:ok, ReadPolicy.relationship_state(viewer, creator)}
     else
       _ -> {:ok, :none}
     end
@@ -147,7 +147,7 @@ defmodule LCGQL.Social.Resolver do
   def is_muted(_parent, %{creator_id: creator_id}, resolution) do
     with {:ok, viewer} <- Resolution.viewer(resolution),
          {:ok, creator} <- fetch_visible_user(creator_id, :creator_id, viewer) do
-      {:ok, Social.muted?(viewer, creator)}
+      {:ok, ReadPolicy.viewer_muted_owner?(viewer, creator)}
     else
       # Keep read queries stable by treating invalid or missing users as
       # "not muted" instead of raising at the GraphQL boundary.
@@ -160,7 +160,7 @@ defmodule LCGQL.Social.Resolver do
   def is_blocked_by_viewer(_parent, %{creator_id: creator_id}, resolution) do
     with {:ok, viewer} <- Resolution.viewer(resolution),
          {:ok, creator} <- fetch_user(creator_id, :creator_id) do
-      {:ok, Social.blocked_by_viewer?(viewer, creator)}
+      {:ok, ReadPolicy.viewer_blocked_owner?(viewer, creator)}
     else
       _ -> {:ok, false}
     end
@@ -168,31 +168,21 @@ defmodule LCGQL.Social.Resolver do
 
   @spec followers(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def followers(%{id: _id} = user, args, resolution) do
-    if can_view_relationship_graph?(user, resolution) do
-      query =
-        case Resolution.viewer(resolution) do
-          {:ok, viewer} -> Social.follower_users_query(user, viewer)
-          :error -> Social.follower_users_query(user)
-        end
+    viewer = viewer_or_nil(resolution)
 
-      Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
-    else
-      Absinthe.Relay.Connection.from_list([], args)
+    case Social.visible_follower_users_query(user, viewer) do
+      {:ok, query} -> Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+      :hidden -> Absinthe.Relay.Connection.from_list([], args)
     end
   end
 
   @spec following(User.t(), map(), Absinthe.Resolution.t()) :: {:ok, map()}
   def following(%{id: _id} = user, args, resolution) do
-    if can_view_relationship_graph?(user, resolution) do
-      query =
-        case Resolution.viewer(resolution) do
-          {:ok, viewer} -> Social.following_users_query(user, viewer)
-          :error -> Social.following_users_query(user)
-        end
+    viewer = viewer_or_nil(resolution)
 
-      Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
-    else
-      Absinthe.Relay.Connection.from_list([], args)
+    case Social.visible_following_users_query(user, viewer) do
+      {:ok, query} -> Absinthe.Relay.Connection.from_query(query, &Social.run_query/1, args)
+      :hidden -> Absinthe.Relay.Connection.from_list([], args)
     end
   end
 
@@ -225,7 +215,7 @@ defmodule LCGQL.Social.Resolver do
           {:ok, User.t()} | {:error, {atom(), fetch_user_error()}}
   defp fetch_visible_user(user_id, field, %User{} = viewer) do
     with {:ok, user} <- fetch_user(user_id, field),
-         false <- Social.blocked_by?(viewer, user) do
+         false <- ReadPolicy.viewer_blocked_by_owner?(viewer, user) do
       {:ok, user}
     else
       true -> {:error, {field, :not_found}}
@@ -285,18 +275,11 @@ defmodule LCGQL.Social.Resolver do
   defp format_field(nil), do: nil
   defp format_field(field), do: FieldNames.lower_camel(field)
 
-  @spec can_view_relationship_graph?(User.t(), Absinthe.Resolution.t()) :: boolean()
-  defp can_view_relationship_graph?(%User{privacy_mode: :public} = user, resolution) do
+  @spec viewer_or_nil(Absinthe.Resolution.t()) :: User.t() | nil
+  defp viewer_or_nil(resolution) do
     case Resolution.viewer(resolution) do
-      {:ok, viewer} -> Social.can_view_user?(viewer, user)
-      :error -> true
-    end
-  end
-
-  defp can_view_relationship_graph?(%User{} = user, resolution) do
-    case Resolution.viewer(resolution) do
-      {:ok, viewer} -> Social.can_view_user?(viewer, user)
-      :error -> false
+      {:ok, viewer} -> viewer
+      :error -> nil
     end
   end
 end
