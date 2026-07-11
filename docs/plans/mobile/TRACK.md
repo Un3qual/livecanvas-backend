@@ -11,12 +11,13 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: Batch 2 Profile Content Surfaces complete; no batch active
+- Track state: Batches 1-2 complete; Batches 3-5 planned; no batch active
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
-- Next planning target: Batch 3, Media Post Publishing. Planning only; do not
-  execute until approved and promoted through `docs/plans/mobile/NOW.md`.
+- Next approval target: Batch 3, Media Post Publishing. Its implementation plan
+  exists, but remains planning-only until approved and promoted through
+  `docs/plans/mobile/NOW.md`.
 - Last completed detailed plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Recent theme: universal content cards, controls, sections, Home pagination,
@@ -129,11 +130,10 @@ and content discovery, live streaming, and chat.
 
 ## Active And Queued Follow-Up Plans
 
-Current product batch:
+Next planned product batch:
 
-- `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
-- Backend Task 1 proves the existing profile connections before mobile Tasks
-  2-6 build universal content surfaces.
+- `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
+- Status: awaiting approval; not executable.
 
 Recently completed product batch:
 
@@ -144,15 +144,13 @@ Recently completed product batch:
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-Queued product batches after Profile Content Surfaces:
+Queued product batches after Media Post Publishing:
 
-- Media post publishing.
-- Live-chat message controls.
-- End-to-end contact invitations.
+- `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
+- `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 
-These remain design scope in
-`docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`; each
-requires its own implementation plan before promotion.
+These have implementation plans but remain non-executable until the prior batch
+closes and the next plan is explicitly promoted.
 
 All previously queued live-session and feed/content product follow-up plans are
 complete and archived. Deferred QA gate:

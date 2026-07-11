@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
-Last reviewed: 2026-07-09
-Status: Batch 2 Profile Content Surfaces complete; no backend batch active
+Last reviewed: 2026-07-11
+Status: Batch 3 Media Post Publishing planned; awaiting approval
 
 ## Lane Scope
 
@@ -39,11 +39,17 @@ Status: Batch 2 Profile Content Surfaces complete; no backend batch active
 
 ## Next Action
 
-No backend implementation batch is active. Batch 3, Media Post Publishing, is
-the next coordinator planning action only; do not execute it until promoted.
+No backend implementation batch is active. Review
+`docs/superpowers/plans/2026-07-11-media-post-publishing.md`; after approval,
+promote Task 1's focused media ownership/processing contract proof. Backend
+production changes remain conditional on a reproduced failure.
 
 ## References
 
 - Mobile lane: `docs/plans/mobile/NOW.md`
 - Completed Batch 1 plan:
   `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
+- Queued Batch 4 plan:
+  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
+- Queued Batch 5 plan:
+  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
