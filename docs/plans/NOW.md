@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-09
-Status: Batch 1 complete; Batch 2 planning next
+Status: Batch 2 Profile Content Surfaces complete; Batch 3 planning next
 
 ## Purpose
 
@@ -9,35 +9,37 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Approved Sequence
 
-- Design:
+- Sequence design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
-- Completed Batch 1 implementation:
-  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- Remaining order: profile content surfaces, media post publishing, live-chat
-  message controls, then end-to-end contact invitations.
-- Release-candidate device QA remains deferred until the five product batches
-  close.
+- Batch 2 design:
+  `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
+- Latest completed implementation:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Batch 1 reversible social controls is complete in stacked base PR #115.
+- Remaining order after Batch 2: media post publishing, live-chat message
+  controls, then end-to-end contact invitations.
+- Release-candidate device QA remains deferred until all five batches close.
 
 ## Lane Pointers
 
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 1 reversible social-control contract complete.
-- No backend implementation batch is active.
+- State: closed for Batch 2; no backend production change was required.
+- Verification: 30 node-query tests, 0 failures.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 1 reversible social controls complete.
+- State: closed for Batch 2; no mobile implementation batch is active.
 - Track: `docs/plans/mobile/TRACK.md`
-- No mobile implementation batch is active.
+- Verification: 13 focused Bun, 54 focused Jest, 464 full Bun, and 104 full
+  Jest tests passed; Relay generation, typechecks, lint, and patch hygiene pass.
 
 ## Execution Rule
 
-Do not begin Batch 2 implementation from the approved design alone. Create,
-approve, and promote its own implementation plan before reopening either lane.
-Batches 3-5 remain queued design scope.
+No implementation batch is active. Prepare Batch 3 design and execution plan
+without starting code or promoting a lane until the user approves it.
 
 ## Cross-Lane Policy
 
@@ -47,8 +49,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Create the implementation plan for Batch 2, Profile Content Surfaces. This is a
-planning action, not an executable implementation batch.
+Design and plan Batch 3, Media Post Publishing. Do not execute or activate the
+batch until that plan is approved.
 
 ## Repair Conditions
 

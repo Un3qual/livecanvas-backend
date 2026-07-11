@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<75ab9348bf928490dfd1ac30de18b653>>
+ * @generated SignedSource<<1e3cfe47830cd9fdea26b076ff387672>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,10 +16,10 @@ export type ReportPostInput = {
   postId: string;
   reason: PostReportReason;
 };
-export type feedHomeOperationsReportPostMutation$variables = {
+export type contentSurfaceOperationsReportPostMutation$variables = {
   input: ReportPostInput;
 };
-export type feedHomeOperationsReportPostMutation$data = {
+export type contentSurfaceOperationsReportPostMutation$data = {
   readonly reportPost: {
     readonly errors: ReadonlyArray<{
       readonly field: string | null | undefined;
@@ -34,9 +34,9 @@ export type feedHomeOperationsReportPostMutation$data = {
     } | null | undefined;
   } | null | undefined;
 };
-export type feedHomeOperationsReportPostMutation = {
-  response: feedHomeOperationsReportPostMutation$data;
-  variables: feedHomeOperationsReportPostMutation$variables;
+export type contentSurfaceOperationsReportPostMutation = {
+  response: contentSurfaceOperationsReportPostMutation$data;
+  variables: contentSurfaceOperationsReportPostMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -142,7 +142,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "feedHomeOperationsReportPostMutation",
+    "name": "contentSurfaceOperationsReportPostMutation",
     "selections": (v1/*: any*/),
     "type": "RootMutationType",
     "abstractKey": null
@@ -151,20 +151,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "feedHomeOperationsReportPostMutation",
+    "name": "contentSurfaceOperationsReportPostMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "95d512298acf3b69ca2e6bd0ddd024b3",
+    "cacheID": "229b1a74bc6c496ab70c548daf478f1c",
     "id": null,
     "metadata": {},
-    "name": "feedHomeOperationsReportPostMutation",
+    "name": "contentSurfaceOperationsReportPostMutation",
     "operationKind": "mutation",
-    "text": "mutation feedHomeOperationsReportPostMutation(\n  $input: ReportPostInput!\n) {\n  reportPost(input: $input) {\n    report {\n      id\n      postId\n      reason\n      status\n      insertedAt\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation contentSurfaceOperationsReportPostMutation(\n  $input: ReportPostInput!\n) {\n  reportPost(input: $input) {\n    report {\n      id\n      postId\n      reason\n      status\n      insertedAt\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "00cedd21b9bb5ae5cf1056b89323a5ba";
+(node as any).hash = "2c923a74cc796995057692af9ce75ded";
 
 export default node;

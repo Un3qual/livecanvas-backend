@@ -266,12 +266,16 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     await render(<FeedHomeContent />);
 
     expect(screen.getByText('Stories')).toBeOnTheScreen();
+    expect(screen.getByTestId('content-section-stories')).toBeOnTheScreen();
     expect(screen.getByText('Story update')).toBeOnTheScreen();
     expect(screen.getByText('Home feed')).toBeOnTheScreen();
+    expect(screen.getByTestId('content-section-posts')).toBeOnTheScreen();
     expect(screen.getByText('First public post')).toBeOnTheScreen();
     expect(screen.getAllByText('Live now')).not.toHaveLength(0);
+    expect(screen.getByTestId('content-section-live')).toBeOnTheScreen();
     expect(screen.getByText('live-host@example.com')).toBeOnTheScreen();
     expect(screen.getByText('Replays')).toBeOnTheScreen();
+    expect(screen.getByTestId('content-section-replays')).toBeOnTheScreen();
     expect(screen.getByText('replay-host@example.com')).toBeOnTheScreen();
     expect(screen.getByText('Your live session')).toBeOnTheScreen();
     expect(screen.getByText('viewer-host@example.com')).toBeOnTheScreen();
@@ -403,6 +407,66 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     expect(
       screen.queryAllByRole('button', { name: 'Load more stories' }),
     ).toHaveLength(0);
+  });
+
+  test('drops unrefreshed older stories when refresh replaces the base window', async () => {
+    const user = userEvent.setup();
+    mockQueryData = {
+      ...createFilledQueryData(),
+      storyFeed: connection(
+        [
+          post({
+            bodyText: 'Current story',
+            expiresAt: '2026-07-01T17:15:30Z',
+            id: 'story-1',
+            kind: 'STORY',
+          }),
+        ],
+        { endCursor: 'story-cursor', hasNextPage: true },
+      ),
+    };
+    mockFetchQueryImplementation = (variables) =>
+      variables.storyAfter === 'story-cursor'
+        ? Promise.resolve({
+            ...createFilledQueryData(),
+            storyFeed: connection([
+              post({
+                bodyText: 'Older retained story',
+                expiresAt: '2026-07-01T15:15:30Z',
+                id: 'story-2',
+                kind: 'STORY',
+              }),
+            ]),
+          })
+        : Promise.resolve({
+            ...createFilledQueryData(),
+            storyFeed: connection(
+              [
+                post({
+                  bodyText: 'Refreshed current story',
+                  expiresAt: '2026-07-01T18:15:30Z',
+                  id: 'story-1',
+                  kind: 'STORY',
+                }),
+              ],
+              { endCursor: 'story-cursor', hasNextPage: true },
+            ),
+          });
+
+    const view = await render(<FeedHomeContent />);
+    await user.press(screen.getByRole('button', { name: 'Load more stories' }));
+    await waitFor(() => {
+      expect(screen.getByText('Older retained story')).toBeOnTheScreen();
+    });
+
+    await act(() => {
+      getRefreshControl(view).props.onRefresh?.();
+    });
+    await waitFor(() => {
+      expect(screen.getByText('Refreshed current story')).toBeOnTheScreen();
+    });
+
+    expect(screen.queryByText('Older retained story')).toBeNull();
   });
 
   test('syncs load-more controls when Relay delivers newer query pageInfo', async () => {
@@ -1133,6 +1197,22 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     await user.press(screen.getByRole('button', { name: 'Save post' }));
 
     expect(mockUpdatePostCommit).toHaveBeenCalledTimes(2);
+
+    mockQueryData = {
+      ...mockQueryData,
+      homeFeed: connection([
+        post({
+          author: {
+            email: 'viewer@example.com',
+            id: 'viewer-1',
+          },
+          bodyText: 'Updated owner post',
+          id: 'own-post',
+          visibility: 'PUBLIC',
+        }),
+        post({ bodyText: 'Other post', id: 'post-1' }),
+      ]),
+    };
 
     await completeUpdatePost(
       {

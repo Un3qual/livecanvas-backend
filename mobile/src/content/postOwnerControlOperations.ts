@@ -7,13 +7,14 @@ export type {
   postOwnerControlOperationsDeletePostMutation as PostOwnerControlDeletePostMutation,
 } from '../__generated__/postOwnerControlOperationsDeletePostMutation.graphql';
 
+/** Relay mutations shared by Home and profile content surfaces. */
 export const postOwnerControlUpdatePostMutation = graphql`
   mutation postOwnerControlOperationsUpdatePostMutation(
     $input: UpdatePostInput!
   ) {
     updatePost(input: $input) {
       post {
-        ...feedHomeOperationsPostFields @relay(mask: false)
+        ...contentSurfaceOperationsPostFields @relay(mask: false)
       }
       errors {
         field
@@ -28,7 +29,7 @@ export const postOwnerControlDeletePostMutation = graphql`
     $input: DeletePostInput!
   ) {
     deletePost(input: $input) {
-      deletedPostId
+      deletedPostId @deleteRecord
       errors {
         field
         message

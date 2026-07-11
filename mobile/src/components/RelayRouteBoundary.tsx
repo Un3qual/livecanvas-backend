@@ -1,11 +1,17 @@
-import React, { Suspense, useReducer, type PropsWithChildren } from 'react';
+import React, {
+  Suspense,
+  useReducer,
+  type PropsWithChildren,
+  type ReactNode,
+} from 'react';
 
 import { ScreenState } from './ScreenState';
 
-type RelayRouteBoundaryProps = PropsWithChildren<{
+type RelayRouteBoundaryProps = {
+  readonly children: ReactNode | ((retryKey: number) => ReactNode);
   readonly errorMessage: string;
   readonly loadingMessage: string;
-}>;
+};
 
 export function RelayRouteBoundary({
   children,
@@ -23,7 +29,7 @@ export function RelayRouteBoundary({
       <Suspense
         fallback={<ScreenState state="loading" message={loadingMessage} />}
       >
-        {children}
+        {typeof children === 'function' ? children(retryKey) : children}
       </Suspense>
     </RelayRouteErrorBoundary>
   );

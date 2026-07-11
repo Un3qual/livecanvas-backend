@@ -15,7 +15,7 @@ import {
   selectPostComposerKind,
   selectPostComposerVisibility,
   updatePostComposerBody,
-} from '../../src/feed/postComposerState';
+} from '../../src/content/postComposerState';
 
 describe('postComposerState', () => {
   test('creates a default followers-visible standard draft and blocks empty submission', () => {

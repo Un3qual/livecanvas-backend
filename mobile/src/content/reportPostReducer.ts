@@ -1,3 +1,4 @@
+/** Report state shared by every surface that renders visible posts. */
 export const REPORT_POST_REASONS = [
   'SPAM',
   'HARASSMENT',

@@ -17,6 +17,7 @@ import { liveSessionHref } from '../../live/liveSessionNavigation';
 import { LiveSessionSummaryCard } from '../../live/components/LiveSessionSummaryCard';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import { readConnectionNodes } from '../../relay/readConnectionNodes';
+import { ProfileContentPreviewSections } from '../ProfileContentPreviewSection';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { SectionHeading, SummaryStat } from '../components/ProfileCards';
 import {
@@ -473,6 +474,11 @@ function ViewerProfileContent() {
           session={currentLiveSession}
         />
       ) : null}
+
+      <ProfileContentPreviewSections
+        profileId={viewer.id}
+        scope="viewer"
+      />
 
       <AppCard>
         <SectionHeading

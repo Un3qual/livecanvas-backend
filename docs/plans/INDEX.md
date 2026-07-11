@@ -15,10 +15,9 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 1 reversible social-control contract complete; no executable
-  backend batch
-- Last completed source plan:
-  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
+- State: idle after Batch 2; no backend implementation batch active
+- Latest completed source plan:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
   contract, resolver, runtime, or data issue.
@@ -26,12 +25,11 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 1 reversible social controls complete; no executable mobile
-  batch
+- State: idle after Batch 2; no mobile implementation batch active
 - Track: `docs/plans/mobile/TRACK.md`
-- Last completed source plan:
-  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- Latest completed product theme: Batch 1 reversible social controls
+- Latest completed source plan:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Latest completed product theme: Batch 2 Profile Content Surfaces
 - Latest completed detailed plans: account settings and recovery, existing
   social controls, contact discovery, post owner controls, and profile
   connection lists
@@ -58,12 +56,12 @@ Use this file when:
 
 - Design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
-- Last completed implementation:
-  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- State: Batch 1 reversible social controls complete; Batch 2 Profile Content
-  Surfaces is the next planning target
-- Queue: profile content surfaces, media post publishing, live-chat message
-  controls, and end-to-end contact invitations
+- Latest completed implementation:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- State: Batches 1-2 complete; no implementation batch active
+- Next planning target: Batch 3, Media Post Publishing
+- Queue after Batch 3: live-chat message controls and end-to-end contact
+  invitations
 - Notes: batches execute sequentially. Release-candidate device QA follows the
   five product batches and remains deferred.
 
@@ -106,10 +104,10 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: Batch 1 reversible social controls complete; Batch 2 planning next
-- Last completed implementation plan:
-  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- Latest completed theme: July 8 mobile product-gap batch
+- State: Batch 2 complete; no mobile implementation plan active
+- Latest completed implementation plan:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Latest completed theme: Profile Content Surfaces
 
 ### Backend Code Quality Cleanup
 

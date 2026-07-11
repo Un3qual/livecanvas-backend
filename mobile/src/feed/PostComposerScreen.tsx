@@ -29,7 +29,7 @@ import {
   updatePostComposerBody,
   type PostComposerKind,
   type PostComposerVisibility,
-} from './postComposerState';
+} from '../content/postComposerState';
 import {
   postComposerCreatePostMutation,
   type PostComposerCreatePostMutation,

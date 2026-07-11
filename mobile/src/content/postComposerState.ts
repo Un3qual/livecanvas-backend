@@ -1,3 +1,4 @@
+/** Shared post-input rules used by creation and owner editing surfaces. */
 export const POST_COMPOSER_KINDS = ['STANDARD', 'STORY'] as const;
 export type PostComposerKind = (typeof POST_COMPOSER_KINDS)[number];
 

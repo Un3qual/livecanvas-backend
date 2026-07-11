@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<17ddc3f29f570c0ca54f363e3d7dc7c9>>
+ * @generated SignedSource<<80c5aced879e2d1322b211d65b1cc556>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ export type MediaProcessingState = "FAILED" | "PENDING_UPLOAD" | "PROCESSED" | "
 export type PostKind = "STANDARD" | "STORY" | "%future added value";
 export type PostVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
 import { FragmentRefs } from "relay-runtime";
-export type feedHomeOperationsPostFields$data = {
+export type contentSurfaceOperationsPostFields$data = {
   readonly author: {
     readonly email: string | null | undefined;
     readonly id: string;
@@ -30,11 +30,11 @@ export type feedHomeOperationsPostFields$data = {
     readonly publicUrl: string | null | undefined;
   }>;
   readonly visibility: PostVisibility;
-  readonly " $fragmentType": "feedHomeOperationsPostFields";
+  readonly " $fragmentType": "contentSurfaceOperationsPostFields";
 };
-export type feedHomeOperationsPostFields$key = {
-  readonly " $data"?: feedHomeOperationsPostFields$data;
-  readonly " $fragmentSpreads": FragmentRefs<"feedHomeOperationsPostFields">;
+export type contentSurfaceOperationsPostFields$key = {
+  readonly " $data"?: contentSurfaceOperationsPostFields$data;
+  readonly " $fragmentSpreads": FragmentRefs<"contentSurfaceOperationsPostFields">;
 };
 
 const node: ReaderFragment = (function(){
@@ -49,7 +49,7 @@ return {
   "argumentDefinitions": [],
   "kind": "Fragment",
   "metadata": null,
-  "name": "feedHomeOperationsPostFields",
+  "name": "contentSurfaceOperationsPostFields",
   "selections": [
     (v0/*: any*/),
     {
@@ -145,6 +145,6 @@ return {
 };
 })();
 
-(node as any).hash = "b5296b7a4dd211cb3f4c46133ecfb054";
+(node as any).hash = "49971f34a55af7728258cda128f80d32";
 
 export default node;
