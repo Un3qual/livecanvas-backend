@@ -15,19 +15,21 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: complete; next issue-driven batch not selected
+- State: idle after Batch 2; no backend implementation batch active
 - Latest completed source plan:
-  `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
-  contract, resolver, runtime, or data issue
+  contract, resolver, runtime, or data issue.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: complete; next product-completeness task not selected
+- State: idle after Batch 2; no mobile implementation batch active
 - Track: `docs/plans/mobile/TRACK.md`
-- Latest completed product theme: July 8 mobile product-gap batch
+- Latest completed source plan:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Latest completed product theme: Batch 2 Profile Content Surfaces
 - Latest completed detailed plans: account settings and recovery, existing
   social controls, contact discovery, post owner controls, and profile
   connection lists
@@ -36,8 +38,8 @@ Use this file when:
   completed chat batch adds retained timeline history and live chat channel
   integration. Frontend structure, TypeScript readability, and XState live
   workflow cleanup are complete. The queued feature follow-ups through the July
-  8 product-gap batch are complete for their selected scopes; reversible
-  unfollow/unblock and release-candidate manual QA remain deferred.
+  8 product-gap batch and reversible unfollow/unblock are complete for their
+  selected scopes; release-candidate manual QA remains deferred.
 
 ## Track Registry
 
@@ -45,15 +47,27 @@ Use this file when:
 
 - Plan: `docs/plans/2026-07-01-cross-lane-product-week.md`
 - State: complete for the July 8 product-gap batch
-- Current theme: select the next product-completeness task after account,
-  social, contact, post-owner, profile-connection, and moderation work
+- Handoff: superseded by the approved Next Five Product Batches design
 - Notes: release-candidate manual QA, compliance hard-delete enablement, and
   backend starter-kit extraction remain outside this week unless explicitly
   resumed
 
+### Next Five Product Batches
+
+- Design:
+  `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
+- Latest completed implementation:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- State: Batches 1-2 complete; no implementation batch active
+- Next planning target: Batch 3, Media Post Publishing
+- Queue after Batch 3: live-chat message controls and end-to-end contact
+  invitations
+- Notes: batches execute sequentially. Release-candidate device QA follows the
+  five product batches and remains deferred.
+
 ### Product Gap Candidate Plans
 
-- State: implemented for the selected scopes; none remains the active lane batch
+- State: July 8 scopes and reversible social-control Tasks 3-4 complete
 - Mobile account settings and recovery:
   `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
 - Mobile social controls:
@@ -68,9 +82,9 @@ Use this file when:
   `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
 - Notes: account settings, contact discovery, post owner controls, profile
   connection lists, moderation operations, and the existing-contract portion
-  of social controls are complete. Social-control Tasks 3-4 remain deferred
-  pending explicit backend/mobile promotion. Contact-invite delivery is also
-  deferred until the emailed token URL has a real landing route.
+  of social controls are complete. Contact-invite delivery remains queued as
+  Batch 5 because its
+  emailed token URL still needs a real landing route.
 
 ### Backend Live Media Signaling Contract
 
@@ -90,10 +104,10 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: complete; next product-completeness task not selected
-- Latest completed theme: July 8 mobile product-gap batch
-- Latest completed detailed plan:
-  `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
+- State: Batch 2 complete; no mobile implementation plan active
+- Latest completed implementation plan:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Latest completed theme: Profile Content Surfaces
 
 ### Backend Code Quality Cleanup
 

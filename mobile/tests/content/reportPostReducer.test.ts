@@ -8,7 +8,7 @@ import {
   formatReportPostMutationErrors,
   isPostReportConfirmed,
   reportPostReducer,
-} from '../../src/feed/reportPostReducer';
+} from '../../src/content/reportPostReducer';
 
 describe('reportPostReducer', () => {
   test('tracks one active post report and blocks duplicate submissions', () => {

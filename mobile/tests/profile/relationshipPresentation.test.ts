@@ -15,10 +15,28 @@ const unmuteAndBlockActions = [
   { destructive: true, kind: 'block', label: 'Block' },
 ] satisfies ReadonlyArray<RelationshipAction>;
 
+const unfollowMuteAndBlockActions = [
+  { destructive: false, kind: 'unfollow', label: 'Unfollow' },
+  ...muteAndBlockActions,
+] satisfies ReadonlyArray<RelationshipAction>;
+
+const unfollowUnmuteAndBlockActions = [
+  { destructive: false, kind: 'unfollow', label: 'Unfollow' },
+  ...unmuteAndBlockActions,
+] satisfies ReadonlyArray<RelationshipAction>;
+
+const unblockActions = [
+  { destructive: false, kind: 'unblock', label: 'Unblock' },
+] satisfies ReadonlyArray<RelationshipAction>;
+
 describe('relationshipPresentation', () => {
   test('describes public profiles with a supported follow action', () => {
     expect(
-      describeRelationshipState({ isMuted: false, state: 'PUBLIC' }),
+      describeRelationshipState({
+        isBlockedByViewer: false,
+        isMuted: false,
+        state: 'PUBLIC',
+      }),
     ).toEqual({
       actionLabel: 'Follow',
       canFollow: true,
@@ -29,7 +47,13 @@ describe('relationshipPresentation', () => {
   });
 
   test('describes non-followed private profiles with a supported request action', () => {
-    expect(describeRelationshipState({ isMuted: false, state: 'NONE' })).toEqual({
+    expect(
+      describeRelationshipState({
+        isBlockedByViewer: false,
+        isMuted: false,
+        state: 'NONE',
+      }),
+    ).toEqual({
       actionLabel: 'Request follow',
       canFollow: true,
       label: 'Not following',
@@ -40,7 +64,11 @@ describe('relationshipPresentation', () => {
 
   test('keeps requested profiles non-actionable', () => {
     expect(
-      describeRelationshipState({ isMuted: false, state: 'REQUESTED' }),
+      describeRelationshipState({
+        isBlockedByViewer: false,
+        isMuted: false,
+        state: 'REQUESTED',
+      }),
     ).toEqual({
       actionLabel: null,
       canFollow: false,
@@ -50,31 +78,57 @@ describe('relationshipPresentation', () => {
     });
   });
 
-  test('keeps accepted profiles non-actionable and reflects muted state', () => {
+  test('offers unfollow for accepted profiles and reflects muted state', () => {
     expect(
-      describeRelationshipState({ isMuted: false, state: 'ACCEPTED' }),
+      describeRelationshipState({
+        isBlockedByViewer: false,
+        isMuted: false,
+        state: 'ACCEPTED',
+      }),
     ).toEqual({
       actionLabel: null,
       canFollow: false,
       label: 'Following',
-      socialActions: muteAndBlockActions,
+      socialActions: unfollowMuteAndBlockActions,
       status: 'You follow this profile.',
     });
 
     expect(
-      describeRelationshipState({ isMuted: true, state: 'ACCEPTED' }),
+      describeRelationshipState({
+        isBlockedByViewer: false,
+        isMuted: true,
+        state: 'ACCEPTED',
+      }),
     ).toEqual({
       actionLabel: null,
       canFollow: false,
       label: 'Following',
-      socialActions: unmuteAndBlockActions,
+      socialActions: unfollowUnmuteAndBlockActions,
       status: 'You follow this profile. Notifications are muted.',
     });
   });
 
-  test('keeps blocked profiles non-actionable and without unblock', () => {
+  test('offers unblock only for the viewer outbound block direction', () => {
     expect(
-      describeRelationshipState({ isMuted: false, state: 'BLOCKED' }),
+      describeRelationshipState({
+        isBlockedByViewer: true,
+        isMuted: false,
+        state: 'BLOCKED',
+      }),
+    ).toEqual({
+      actionLabel: null,
+      canFollow: false,
+      label: 'Blocked',
+      socialActions: unblockActions,
+      status: 'You blocked this profile.',
+    });
+
+    expect(
+      describeRelationshipState({
+        isBlockedByViewer: false,
+        isMuted: false,
+        state: 'BLOCKED',
+      }),
     ).toEqual({
       actionLabel: null,
       canFollow: false,
@@ -87,6 +141,7 @@ describe('relationshipPresentation', () => {
   test('keeps future relationship values non-actionable', () => {
     expect(
       describeRelationshipState({
+        isBlockedByViewer: false,
         isMuted: false,
         state: '%future added value',
       }),
@@ -102,6 +157,7 @@ describe('relationshipPresentation', () => {
   test('suppresses relationship actions when the target is the viewer', () => {
     expect(
       describeRelationshipState({
+        isBlockedByViewer: false,
         isMuted: false,
         isSelf: true,
         state: 'ACCEPTED',

@@ -1,14 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
-  formatFeedMediaAssetPresentation,
+  formatContentMediaAssetPresentation,
   formatPostAuthorPresentation,
   formatPostCardPresentation,
   formatPostVisibilityLabel,
   formatStoryExpiryLabel,
-} from '../../src/feed/feedPresentation';
+} from '../../src/content/contentPostPresentation';
 
-describe('feedPresentation', () => {
+describe('contentPostPresentation', () => {
   test('formats standard and story posts with opaque Relay IDs preserved', () => {
     expect(
       formatPostCardPresentation({
@@ -102,7 +102,7 @@ describe('feedPresentation', () => {
 
   test('formats media asset processing states without exposing unusable URLs', () => {
     expect(
-      formatFeedMediaAssetPresentation({
+      formatContentMediaAssetPresentation({
         id: 'TWVkaWFBc3NldDox',
         mimeType: 'image/jpeg',
         processingState: 'PROCESSED',
@@ -117,7 +117,7 @@ describe('feedPresentation', () => {
     });
 
     expect(
-      formatFeedMediaAssetPresentation({
+      formatContentMediaAssetPresentation({
         id: 'TWVkaWFBc3NldDFi',
         mimeType: 'image/jpeg',
         processingState: 'PROCESSED',
@@ -139,7 +139,7 @@ describe('feedPresentation', () => {
       'file:///tmp/post.jpg',
     ]) {
       expect(
-        formatFeedMediaAssetPresentation({
+        formatContentMediaAssetPresentation({
           id: `unsafe-${publicUrl}`,
           mimeType: 'image/jpeg',
           processingState: 'PROCESSED',
@@ -155,7 +155,7 @@ describe('feedPresentation', () => {
     }
 
     expect(
-      formatFeedMediaAssetPresentation({
+      formatContentMediaAssetPresentation({
         id: 'TWVkaWFBc3NldDoy',
         mimeType: 'video/mp4',
         processingState: 'UPLOADED',
@@ -170,7 +170,7 @@ describe('feedPresentation', () => {
     });
 
     expect(
-      formatFeedMediaAssetPresentation({
+      formatContentMediaAssetPresentation({
         id: 'TWVkaWFBc3NldDoz',
         mimeType: 'application/octet-stream',
         processingState: 'FAILED',
@@ -185,7 +185,7 @@ describe('feedPresentation', () => {
     });
 
     expect(
-      formatFeedMediaAssetPresentation({
+      formatContentMediaAssetPresentation({
         id: 'TWVkaWFBc3NldDo0',
         mimeType: null,
         processingState: '%future added value',

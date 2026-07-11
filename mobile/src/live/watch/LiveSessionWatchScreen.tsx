@@ -24,6 +24,7 @@ import type { HostBroadcastLocalMediaControlsSnapshot } from '../../host/publish
 import { useStartupState } from '../../providers/StartupGate';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import { createPhoenixSocket } from '../../realtime/phoenixSocket';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../../relay/privacySensitiveFetch';
 import { LiveSessionChatPanel } from '../chat/LiveSessionChatPanel';
 import {
   canStartLiveSessionChatSend,
@@ -176,7 +177,7 @@ function LiveSessionWatchContent({
       timelineBefore: null,
       timelineLast: INITIAL_TIMELINE_HISTORY_COUNT,
     },
-    { fetchKey, fetchPolicy: 'store-and-network' },
+    { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey },
   );
   const [chatState, dispatchChatAction] = useReducer(
     liveSessionChatTimelineReducer,

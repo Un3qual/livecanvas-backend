@@ -105,6 +105,18 @@ defmodule LCGQL.Social.Resolver do
     error_only_user_action(args, resolution, :blocked_id, &Social.block_user/2)
   end
 
+  @spec unfollow_user(any(), %{followed_id: term()}, any()) ::
+          {:ok, error_only_result_payload()}
+  def unfollow_user(_parent, args, resolution) do
+    error_only_user_action(args, resolution, :followed_id, &Social.unfollow_user/2)
+  end
+
+  @spec unblock_user(any(), %{blocked_id: term()}, any()) ::
+          {:ok, error_only_result_payload()}
+  def unblock_user(_parent, args, resolution) do
+    error_only_user_action(args, resolution, :blocked_id, &Social.unblock_user/2)
+  end
+
   @spec mute_user(any(), %{muted_id: term()}, any()) ::
           {:ok, error_only_result_payload()}
   def mute_user(_parent, args, resolution) do
@@ -139,6 +151,17 @@ defmodule LCGQL.Social.Resolver do
     else
       # Keep read queries stable by treating invalid or missing users as
       # "not muted" instead of raising at the GraphQL boundary.
+      _ -> {:ok, false}
+    end
+  end
+
+  @spec is_blocked_by_viewer(any(), %{creator_id: term()}, Absinthe.Resolution.t()) ::
+          {:ok, boolean()}
+  def is_blocked_by_viewer(_parent, %{creator_id: creator_id}, resolution) do
+    with {:ok, viewer} <- Resolution.viewer(resolution),
+         {:ok, creator} <- fetch_user(creator_id, :creator_id) do
+      {:ok, Social.blocked_by_viewer?(viewer, creator)}
+    else
       _ -> {:ok, false}
     end
   end

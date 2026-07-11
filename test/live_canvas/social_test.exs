@@ -121,6 +121,43 @@ defmodule LC.SocialTest do
     end
   end
 
+  describe "reversible relationship controls" do
+    test "unfollow_user/2 removes only the viewer's directional follow and is idempotent" do
+      viewer = user_fixture(privacy_mode: :public)
+      creator = user_fixture(privacy_mode: :public)
+
+      assert {:ok, _viewer_follow} = Social.follow_user(viewer, creator)
+      assert {:ok, _reverse_follow} = Social.follow_user(creator, viewer)
+      assert Social.relationship_state(viewer, creator) == :accepted
+      assert Social.relationship_state(creator, viewer) == :accepted
+
+      assert :ok = Social.unfollow_user(viewer, creator)
+      assert Social.relationship_state(viewer, creator) == :public
+      assert Social.relationship_state(creator, viewer) == :accepted
+
+      assert :ok = Social.unfollow_user(viewer, creator)
+      assert Social.relationship_state(viewer, creator) == :public
+    end
+
+    test "unblock_user/2 removes only the viewer's outbound block and is idempotent" do
+      viewer = user_fixture(privacy_mode: :public)
+      creator = user_fixture(privacy_mode: :public)
+
+      assert {:ok, _outbound_block} = Social.block_user(viewer, creator)
+      assert {:ok, _inbound_block} = Social.block_user(creator, viewer)
+      assert Social.blocked_by_viewer?(viewer, creator)
+      assert Social.blocked_by_viewer?(creator, viewer)
+
+      assert :ok = Social.unblock_user(viewer, creator)
+      refute Social.blocked_by_viewer?(viewer, creator)
+      assert Social.blocked_by_viewer?(creator, viewer)
+      assert Social.relationship_state(viewer, creator) == :blocked
+
+      assert :ok = Social.unblock_user(viewer, creator)
+      refute Social.blocked_by_viewer?(viewer, creator)
+    end
+  end
+
   describe "viewer visibility matrix" do
     test "keeps block, mute, reverse-mute, and follower/public state separate" do
       viewer = user_fixture()

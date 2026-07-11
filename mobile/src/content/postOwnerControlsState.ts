@@ -4,6 +4,7 @@ import {
   countPostComposerBodyTextCharacters,
 } from './postComposerState';
 
+/** Editable owner state shared by every post and story surface. */
 export type PostOwnerEditState = {
   readonly bodyText: string;
   readonly errorMessage: string | null;

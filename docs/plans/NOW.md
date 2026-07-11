@@ -1,36 +1,45 @@
 # Current Execution
 
-Last reviewed: 2026-07-10
-Status: directional privacy quality cleanup complete; ReadPolicy redesign next as stacked PR
+Last reviewed: 2026-07-09
+Status: Batch 2 Profile Content Surfaces complete; Batch 3 planning next
 
 ## Purpose
 
 This is the coordinator dashboard. Lane `NOW.md` files own executable details.
+
+## Approved Sequence
+
+- Sequence design:
+  `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
+- Batch 2 design:
+  `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
+- Latest completed implementation:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Batch 1 reversible social controls is complete in stacked base PR #115.
+- Remaining order after Batch 2: media post publishing, live-chat message
+  controls, then end-to-end contact invitations.
+- Release-candidate device QA remains deferred until all five batches close.
 
 ## Lane Pointers
 
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: PR #116 contact-projection cleanup is complete and verified; the
-  ReadPolicy redesign follows from the pushed cleanup head.
-- Completed cleanup plan:
-  `docs/superpowers/plans/2026-07-10-directional-block-quality-cleanup.md`
-- Queued stacked plan:
-  `docs/superpowers/plans/2026-07-10-read-policy-redesign.md`
+- State: closed for Batch 2; no backend production change was required.
+- Verification: 30 node-query tests, 0 failures.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: viewer-profile query-boundary cleanup is complete and verified.
+- State: closed for Batch 2; no mobile implementation batch is active.
 - Track: `docs/plans/mobile/TRACK.md`
-- Deferred: reversible unfollow/unblock contracts and release-candidate manual
-  QA, plus contact-invite delivery until a real landing route exists.
+- Verification: 13 focused Bun, 54 focused Jest, 464 full Bun, and 104 full
+  Jest tests passed; Relay generation, typechecks, lint, and patch hygiene pass.
 
 ## Execution Rule
 
-Open the relevant lane pointer first. Use `docs/plans/INDEX.md` only when a lane
-is stale, blocked, empty, or needs a new plan promoted.
+No implementation batch is active. Prepare Batch 3 design and execution plan
+without starting code or promoting a lane until the user approves it.
 
 ## Cross-Lane Policy
 
@@ -38,11 +47,10 @@ Do not defer a reproduced backend contract, resolver, runtime, or data issue
 solely because the visible surface is mobile. Promote it into the backend lane,
 state the write scope, and verify both affected sides.
 
-## Active Cross-Lane Decision
+## Next Coordinator Action
 
-Push the verified PR #116 cleanup, then branch `codex/read-policy-redesign`
-from that exact remote head and publish its PR against
-`codex/directional-block-privacy`. Deferred product work stays inactive.
+Design and plan Batch 3, Media Post Publishing. Do not execute or activate the
+batch until that plan is approved.
 
 ## Repair Conditions
 

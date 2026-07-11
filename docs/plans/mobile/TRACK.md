@@ -11,14 +11,17 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: active; July 8 product-gap batch complete; next
-  product-completeness task not selected
+- Track state: Batch 2 Profile Content Surfaces complete; no batch active
 - Lane pointer: `docs/plans/mobile/NOW.md`
+- Latest completed implementation plan:
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Next planning target: Batch 3, Media Post Publishing. Planning only; do not
+  execute until approved and promoted through `docs/plans/mobile/NOW.md`.
 - Last completed detailed plan:
-  `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
-- Recent theme: account lifecycle, existing social controls, manual contact
-  discovery, post owner controls, and profile connection lists are complete and
-  review-hardened; reversible social controls and release-candidate QA remain
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Recent theme: universal content cards, controls, sections, Home pagination,
+  independently retryable profile previews, and stale-safe paginated profile
+  content lists are complete and review-hardened; release-candidate QA remains
   deferred.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
@@ -88,7 +91,7 @@ and content discovery, live streaming, and chat.
 - `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
-- `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 1-2)
+- `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
 
 ## Recommended Plan Order
 
@@ -117,22 +120,39 @@ and content discovery, live streaming, and chat.
 21. Manual contact discovery; invite delivery is deferred pending a real landing route.
 22. Mobile post owner controls.
 23. Profile connection lists and pending follow requests.
-24. Release-candidate manual device QA using the one-host/one-viewer checklist.
+24. Reversible social controls: direction-safe unfollow and unblock.
+25. Profile content surfaces.
+26. Media post publishing.
+27. Live-chat message controls.
+28. End-to-end contact invitations.
+29. Release-candidate manual device QA using the one-host/one-viewer checklist.
 
 ## Active And Queued Follow-Up Plans
 
-Current product batch: none selected.
+Current product batch:
+
+- `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Backend Task 1 proves the existing profile connections before mobile Tasks
+  2-6 build universal content surfaces.
 
 Recently completed product batch:
 
+- `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
-- `docs/plans/mobile/2026-07-08-mobile-social-controls.md` (Tasks 1-2)
+- `docs/plans/mobile/2026-07-08-mobile-social-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-contact-discovery.md`
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-Deferred product-gap scope: social-control Tasks 3-4 require an explicitly
-promoted backend contract batch for direction-safe unfollow and unblock.
+Queued product batches after Profile Content Surfaces:
+
+- Media post publishing.
+- Live-chat message controls.
+- End-to-end contact invitations.
+
+These remain design scope in
+`docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`; each
+requires its own implementation plan before promotion.
 
 All previously queued live-session and feed/content product follow-up plans are
 complete and archived. Deferred QA gate:

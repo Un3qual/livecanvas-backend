@@ -1,3 +1,14 @@
+import {
+  contentConnectionReducer,
+  createContentConnectionState,
+  selectContentRows,
+  type ContentConnectionState,
+} from '../content/contentConnectionState';
+import type {
+  ContentNode,
+  ContentRequestIdentity,
+} from '../content/contentSurfaceTypes';
+
 export type FeedHomePaginationSection = 'homeFeed' | 'replays' | 'stories';
 
 export type FeedHomePaginationPageInfo = {
@@ -7,38 +18,34 @@ export type FeedHomePaginationPageInfo = {
 
 export type FeedHomePaginationSectionInput = FeedHomePaginationPageInfo & {
   readonly basePageIdentity?: string;
-};
-
-export type FeedHomeSectionPaginationState = {
-  readonly error: string | null;
-  readonly hasLoadedMore: boolean;
-  readonly isLoadingMore: boolean;
-  readonly pageInfo: FeedHomePaginationPageInfo;
+  readonly rows?: ReadonlyArray<ContentNode>;
 };
 
 export type FeedHomePaginationState = {
+  readonly connections: Record<
+    FeedHomePaginationSection,
+    ContentConnectionState<ContentNode>
+  >;
   readonly isRefreshing: boolean;
   readonly refreshError: string | null;
-  readonly sectionBasePageIdentities: Record<FeedHomePaginationSection, string>;
-  readonly sections: Record<
-    FeedHomePaginationSection,
-    FeedHomeSectionPaginationState
-  >;
 };
 
 export type FeedHomePaginationAction =
   | {
+      readonly request: ContentRequestIdentity;
       readonly section: FeedHomePaginationSection;
       readonly type: 'load_more_start';
     }
   | {
       readonly message: string;
+      readonly request: ContentRequestIdentity;
       readonly section: FeedHomePaginationSection;
       readonly type: 'load_more_error';
     }
   | {
-      readonly basePageIdentity?: string;
       readonly pageInfo: FeedHomePaginationPageInfo;
+      readonly request: ContentRequestIdentity;
+      readonly rows: ReadonlyArray<ContentNode>;
       readonly section: FeedHomePaginationSection;
       readonly type: 'load_more_success';
     }
@@ -64,10 +71,17 @@ export type FeedHomePaginationAction =
       readonly type: 'query_page_info_sync';
     };
 
+export type FeedHomeLoadMoreState = {
+  readonly error: string | null;
+  readonly isLoading: boolean;
+};
+
 const EMPTY_PAGE_INFO: FeedHomePaginationPageInfo = {
   endCursor: null,
   hasNextPage: false,
 };
+
+const HOME_ROUTE_GENERATION = 0;
 
 export function createFeedHomePaginationState(sections: {
   readonly homeFeed?: FeedHomePaginationSectionInput | null;
@@ -75,18 +89,13 @@ export function createFeedHomePaginationState(sections: {
   readonly stories?: FeedHomePaginationSectionInput | null;
 }): FeedHomePaginationState {
   return {
+    connections: {
+      homeFeed: createConnectionState(sections.homeFeed),
+      replays: createConnectionState(sections.replays),
+      stories: createConnectionState(sections.stories),
+    },
     isRefreshing: false,
     refreshError: null,
-    sectionBasePageIdentities: {
-      homeFeed: basePageIdentityFromInput(sections.homeFeed),
-      replays: basePageIdentityFromInput(sections.replays),
-      stories: basePageIdentityFromInput(sections.stories),
-    },
-    sections: {
-      homeFeed: createSectionState(sections.homeFeed),
-      replays: createSectionState(sections.replays),
-      stories: createSectionState(sections.stories),
-    },
   };
 }
 
@@ -96,48 +105,47 @@ export function feedHomePaginationReducer(
 ): FeedHomePaginationState {
   switch (action.type) {
     case 'load_more_start':
-      return updateSection(state, action.section, (sectionState) => ({
-        ...sectionState,
-        error: null,
-        isLoadingMore: true,
-      }));
+      return updateConnection(
+        state,
+        action.section,
+        contentConnectionReducer(state.connections[action.section], {
+          request: action.request,
+          type: 'load_more_start',
+        }),
+      );
 
     case 'load_more_error':
-      return updateSection(state, action.section, (sectionState) =>
-        sectionState.isLoadingMore
-          ? {
-              ...sectionState,
-              error: action.message,
-              isLoadingMore: false,
-            }
-          : sectionState,
+      return updateConnection(
+        state,
+        action.section,
+        contentConnectionReducer(state.connections[action.section], {
+          message: action.message,
+          request: action.request,
+          type: 'load_more_error',
+        }),
       );
 
     case 'load_more_success':
-      return updateSection(state, action.section, (sectionState) =>
-        sectionState.isLoadingMore &&
-        state.sectionBasePageIdentities[action.section] ===
-          (action.basePageIdentity ??
-            state.sectionBasePageIdentities[action.section])
-          ? {
-              ...sectionState,
-              error: null,
-              hasLoadedMore: true,
-              isLoadingMore: false,
-              pageInfo: action.pageInfo,
-            }
-          : sectionState,
+      return updateConnection(
+        state,
+        action.section,
+        contentConnectionReducer(state.connections[action.section], {
+          pageInfo: action.pageInfo,
+          request: action.request,
+          rows: action.rows,
+          type: 'load_more_success',
+        }),
       );
 
     case 'refresh_start':
       return {
         ...state,
+        connections: updateAllConnections(state.connections, (connection) => ({
+          ...connection,
+          activeRequest: null,
+        })),
         isRefreshing: true,
         refreshError: null,
-        sections: updateAllSections(state.sections, (sectionState) => ({
-          ...sectionState,
-          isLoadingMore: false,
-        })),
       };
 
     case 'refresh_error':
@@ -150,35 +158,15 @@ export function feedHomePaginationReducer(
     case 'refresh_success':
       return {
         ...state,
+        connections: createConnections(action.sections),
         isRefreshing: false,
         refreshError: null,
-        sectionBasePageIdentities: {
-          homeFeed: basePageIdentityFromInput(action.sections.homeFeed),
-          replays: basePageIdentityFromInput(action.sections.replays),
-          stories: basePageIdentityFromInput(action.sections.stories),
-        },
-        sections: {
-          homeFeed: createSectionState(action.sections.homeFeed),
-          replays: createSectionState(action.sections.replays),
-          stories: createSectionState(action.sections.stories),
-        },
       };
 
     case 'query_page_info_sync':
       return {
         ...state,
-        sectionBasePageIdentities: {
-          homeFeed: basePageIdentityFromInput(action.sections.homeFeed),
-          replays: basePageIdentityFromInput(action.sections.replays),
-          stories: basePageIdentityFromInput(action.sections.stories),
-        },
-        sections: updateAllSections(state.sections, (sectionState, section) =>
-          syncSectionPageInfo(
-            sectionState,
-            state.sectionBasePageIdentities[section],
-            action.sections[section],
-          ),
-        ),
+        connections: replaceBaseConnections(state.connections, action.sections),
       };
 
     default:
@@ -186,40 +174,79 @@ export function feedHomePaginationReducer(
   }
 }
 
+export function selectFeedHomeBasePageIdentity(
+  state: FeedHomePaginationState,
+  section: FeedHomePaginationSection,
+): string {
+  return state.connections[section].basePageIdentity;
+}
+
+export function selectFeedHomeLoadMoreState(
+  state: FeedHomePaginationState,
+  section: FeedHomePaginationSection,
+): FeedHomeLoadMoreState {
+  const connection = state.connections[section];
+
+  return {
+    error: connection.error,
+    isLoading: connection.activeRequest !== null,
+  };
+}
+
 export function selectFeedHomePageInfo(
   state: FeedHomePaginationState,
   section: FeedHomePaginationSection,
 ): FeedHomePaginationPageInfo {
-  return state.sections[section].pageInfo;
+  return state.connections[section].pageInfo;
 }
 
-function createSectionState(
-  pageInfo?: FeedHomePaginationSectionInput | null,
-): FeedHomeSectionPaginationState {
+export function selectFeedHomeRows<Node extends ContentNode>(
+  state: FeedHomePaginationState,
+  section: FeedHomePaginationSection,
+): Node[] {
+  return selectContentRows(state.connections[section]) as Node[];
+}
+
+function createConnectionState(
+  input?: FeedHomePaginationSectionInput | null,
+): ContentConnectionState<ContentNode> {
+  return createContentConnectionState({
+    basePageIdentity: basePageIdentityFromInput(input),
+    baseRows: input?.rows ?? [],
+    pageInfo: pageInfoFromInput(input),
+    routeGeneration: HOME_ROUTE_GENERATION,
+  });
+}
+
+function createConnections(
+  sections: Record<
+    FeedHomePaginationSection,
+    FeedHomePaginationSectionInput
+  >,
+): FeedHomePaginationState['connections'] {
   return {
-    error: null,
-    hasLoadedMore: false,
-    isLoadingMore: false,
-    pageInfo: pageInfoFromInput(pageInfo),
+    homeFeed: createConnectionState(sections.homeFeed),
+    replays: createConnectionState(sections.replays),
+    stories: createConnectionState(sections.stories),
   };
 }
 
-function syncSectionPageInfo(
-  sectionState: FeedHomeSectionPaginationState,
-  currentBasePageIdentity: string,
-  pageInfo: FeedHomePaginationSectionInput,
-): FeedHomeSectionPaginationState {
-  if (currentBasePageIdentity !== basePageIdentityFromInput(pageInfo)) {
-    return createSectionState(pageInfo);
-  }
-
-  return sectionState.hasLoadedMore
-    ? sectionState
-    : {
-        ...sectionState,
-        error: null,
-        pageInfo: pageInfoFromInput(pageInfo),
-      };
+function replaceBaseConnections(
+  connections: FeedHomePaginationState['connections'],
+  sections: Record<
+    FeedHomePaginationSection,
+    FeedHomePaginationSectionInput
+  >,
+): FeedHomePaginationState['connections'] {
+  return updateAllConnections(connections, (connection, section) =>
+    contentConnectionReducer(connection, {
+      basePageIdentity: basePageIdentityFromInput(sections[section]),
+      baseRows: sections[section].rows ?? [],
+      pageInfo: pageInfoFromInput(sections[section]),
+      routeGeneration: HOME_ROUTE_GENERATION,
+      type: 'replace_base',
+    }),
+  );
 }
 
 function pageInfoFromInput(
@@ -239,32 +266,34 @@ function basePageIdentityFromInput(
   return pageInfo?.basePageIdentity ?? '';
 }
 
-function updateAllSections(
-  sections: FeedHomePaginationState['sections'],
+function updateAllConnections(
+  connections: FeedHomePaginationState['connections'],
   update: (
-    sectionState: FeedHomeSectionPaginationState,
+    connection: ContentConnectionState<ContentNode>,
     section: FeedHomePaginationSection,
-  ) => FeedHomeSectionPaginationState,
-): FeedHomePaginationState['sections'] {
+  ) => ContentConnectionState<ContentNode>,
+): FeedHomePaginationState['connections'] {
   return {
-    homeFeed: update(sections.homeFeed, 'homeFeed'),
-    replays: update(sections.replays, 'replays'),
-    stories: update(sections.stories, 'stories'),
+    homeFeed: update(connections.homeFeed, 'homeFeed'),
+    replays: update(connections.replays, 'replays'),
+    stories: update(connections.stories, 'stories'),
   };
 }
 
-function updateSection(
+function updateConnection(
   state: FeedHomePaginationState,
   section: FeedHomePaginationSection,
-  update: (
-    sectionState: FeedHomeSectionPaginationState,
-  ) => FeedHomeSectionPaginationState,
+  connection: ContentConnectionState<ContentNode>,
 ): FeedHomePaginationState {
+  if (connection === state.connections[section]) {
+    return state;
+  }
+
   return {
     ...state,
-    sections: {
-      ...state.sections,
-      [section]: update(state.sections[section]),
+    connections: {
+      ...state.connections,
+      [section]: connection,
     },
   };
 }

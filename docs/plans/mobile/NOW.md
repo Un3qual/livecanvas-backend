@@ -1,38 +1,47 @@
 # Mobile Lane NOW
 
-Last reviewed: 2026-07-10
-Status: viewer-profile privacy query cleanup complete; reversible controls deferred
+Last reviewed: 2026-07-09
+Status: Batch 2 Profile Content Surfaces complete; no mobile batch active
 
 ## Lane Scope
 
 - Own `mobile/` and `docs/plans/mobile/**`.
-- Promote verified backend contract/data issues into the backend lane with an
-  explicit write scope before cross-lane implementation.
-- Keep Relay IDs opaque and durable reads/writes Relay-first.
+- Consume explicitly promoted backend contracts recorded in the backend lane.
+- Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Recently Completed
+## Last Completed Batch
 
+- Design:
+  `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
 - Source plan:
-  `docs/superpowers/plans/2026-07-10-directional-block-quality-cleanup.md`
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Result: viewer-owned profile data stays cache-friendly while follower,
-  following, and request previews refresh in a network-fresh child boundary.
-- Write scope: viewer profile components, shared Relay fetch options, generated
-  Relay output, focused profile tests, and this lane pointer.
-- Verification: Relay generation, TypeScript, ESLint, 457 Bun tests, and 84
-  Jest tests passed; real cache coverage withholds stale third-party identities.
+- Completed tasks: Tasks 1-7.
+- Deliver universal content state, cards, controls, and sections; migrate Home;
+  then add independent profile previews and shared paginated lists.
+- Controls appear in previews and lists: edit/delete for owned posts/stories,
+  report for non-owned posts/stories, and watch navigation for replays.
+- Done condition: Home remains regression-green; viewer and visible other-user
+  profiles show independently retryable previews plus stale-safe full lists.
+
+## Verification
+
+- Relay: 49 reader and 45 normalization documents compiled.
+- Focused final gates: 13 Bun tests and 54 RNTL/Jest tests passed.
+- Full `bun run test:quality`: typechecks and lint passed; 464 Bun tests and
+  104 Jest tests passed.
+- `git diff --check` passed and the working tree was clean before closure.
+- Independent stacked-diff review found one Important Home refresh-retention
+  gap; commit `b8da57d` fixed it and re-review reported no remaining Critical
+  or Important findings.
 
 ## Deferred Scope
 
-- Social-control Tasks 3-4 remain deferred: backend `unfollowUser`,
-  `unblockUser`, a direction-safe blocked-by-viewer read, and their mobile UI.
-- Native address-book import and bulk contact upload remain out of scope.
-- Contact-invite delivery remains hidden until the emailed token URL has a real
-  landing route.
-- Release-candidate manual device/account QA remains deferred until product
-  explicitly resumes it.
+- Batch 3 is planning-only; Batches 4-5 remain queued and are not executable.
+- Media publishing, content details, comments, reactions, replay management,
+  native address-book import, and release-candidate QA remain out of scope.
 
 ## Next Action
 
-No mobile batch is selected. Keep unblock, unfollow, contact-invite delivery,
-and device QA deferred.
+No mobile implementation batch is active. Batch 3, Media Post Publishing, is
+the next coordinator planning action only; do not execute it until promoted.

@@ -15,6 +15,7 @@ import { ScreenState } from '../../components/ScreenState';
 import { liveSessionHref } from '../../live/liveSessionNavigation';
 import { LiveSessionSummaryCard } from '../../live/components/LiveSessionSummaryCard';
 import { useAppTheme } from '../../providers/ThemeProvider';
+import { ProfileContentPreviewSections } from '../ProfileContentPreviewSection';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { profileScreenStyles as styles } from '../components/profileScreenStyles';
 import {
@@ -265,6 +266,11 @@ function ViewerProfileContent({ fetchKey }: { fetchKey: number }) {
           session={currentLiveSession}
         />
       ) : null}
+
+      <ProfileContentPreviewSections
+        profileId={viewer.id}
+        scope="viewer"
+      />
 
       <ViewerProfileSocialSectionsBoundary />
     </ScrollView>

@@ -1,4 +1,9 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import {
+  render,
+  screen,
+  userEvent,
+  within,
+} from '@testing-library/react-native';
 
 import { OtherUserProfileScreen } from '../../src/profile/other/OtherUserProfileScreen';
 import { ViewerProfileScreen } from '../../src/profile/viewer/ViewerProfileScreen';
@@ -18,10 +23,15 @@ jest.mock('expo-router', () => ({
 
 jest.mock('react-relay', () => ({
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
-  useLazyLoadQuery: (query: { params?: { name?: string } }) =>
+  useLazyLoadQuery: (
+    query: { params?: { name?: string } },
+    variables: Record<string, unknown>,
+  ) =>
     // Social previews use their network-fresh operation and dedicated mock data.
     query.params?.name === 'ViewerProfileSocialSectionsQuery'
       ? (mockSocialQueryData ?? mockQueryData)
+      : mockIsProfileContentVariables(variables)
+        ? mockProfileContentData(variables)
       : mockQueryData,
   useMutation: () => [jest.fn(), false],
 }));
@@ -71,11 +81,40 @@ describe('profile preview full-list links', () => {
     await user.press(screen.getByRole('button', { name: 'View all followers' }));
     await user.press(screen.getByRole('button', { name: 'View all following' }));
     await user.press(screen.getByRole('button', { name: 'View requests' }));
+    await user.press(
+      within(screen.getByTestId('content-section-posts')).getByRole('button', {
+        name: 'View all',
+      }),
+    );
+    await user.press(
+      within(screen.getByTestId('content-section-stories')).getByRole(
+        'button',
+        { name: 'View all' },
+      ),
+    );
+    await user.press(
+      within(screen.getByTestId('content-section-replays')).getByRole(
+        'button',
+        { name: 'View all' },
+      ),
+    );
 
     expect(mockPushedRoutes).toEqual([
       '/profile/followers',
       '/profile/following',
       '/profile/requests',
+      {
+        params: { id: 'viewer-id', kind: 'posts' },
+        pathname: '/profile/content',
+      },
+      {
+        params: { id: 'viewer-id', kind: 'stories' },
+        pathname: '/profile/content',
+      },
+      {
+        params: { id: 'viewer-id', kind: 'replays' },
+        pathname: '/profile/content',
+      },
     ]);
   });
 
@@ -99,6 +138,23 @@ describe('profile preview full-list links', () => {
 
     await user.press(screen.getByRole('button', { name: 'View followers' }));
     await user.press(screen.getByRole('button', { name: 'View following' }));
+    await user.press(
+      within(screen.getByTestId('content-section-posts')).getByRole('button', {
+        name: 'View all',
+      }),
+    );
+    await user.press(
+      within(screen.getByTestId('content-section-stories')).getByRole(
+        'button',
+        { name: 'View all' },
+      ),
+    );
+    await user.press(
+      within(screen.getByTestId('content-section-replays')).getByRole(
+        'button',
+        { name: 'View all' },
+      ),
+    );
 
     expect(mockPushedRoutes).toEqual([
       {
@@ -108,6 +164,18 @@ describe('profile preview full-list links', () => {
       {
         params: { id: 'opaque-profile-id' },
         pathname: '/profiles/[id]/following',
+      },
+      {
+        params: { id: 'opaque-profile-id', kind: 'posts' },
+        pathname: '/profiles/[id]/content',
+      },
+      {
+        params: { id: 'opaque-profile-id', kind: 'stories' },
+        pathname: '/profiles/[id]/content',
+      },
+      {
+        params: { id: 'opaque-profile-id', kind: 'replays' },
+        pathname: '/profiles/[id]/content',
       },
     ]);
   });
@@ -131,6 +199,9 @@ describe('profile preview full-list links', () => {
 
     expect(screen.queryByRole('button', { name: 'View followers' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'View following' })).toBeNull();
+    expect(screen.queryByTestId('content-section-posts')).toBeNull();
+    expect(screen.queryByTestId('content-section-stories')).toBeNull();
+    expect(screen.queryByTestId('content-section-replays')).toBeNull();
   });
 });
 
@@ -141,5 +212,36 @@ function connection<Node>(nodes: ReadonlyArray<Node>) {
       endCursor: null,
       hasNextPage: false,
     },
+  };
+}
+
+function mockIsProfileContentVariables(
+  variables: Record<string, unknown>,
+): variables is Record<string, unknown> & {
+  readonly id: string;
+  readonly includePosts: boolean;
+  readonly includeReplays: boolean;
+  readonly includeStories: boolean;
+} {
+  return typeof variables.includePosts === 'boolean';
+}
+
+function mockProfileContentData(
+  variables: Record<string, unknown> & {
+    readonly id: string;
+    readonly includePosts: boolean;
+    readonly includeReplays: boolean;
+    readonly includeStories: boolean;
+  },
+) {
+  return {
+    node: {
+      __typename: 'User',
+      id: variables.id,
+      posts: variables.includePosts ? connection([]) : undefined,
+      replayFeed: variables.includeReplays ? connection([]) : undefined,
+      storyFeed: variables.includeStories ? connection([]) : undefined,
+    },
+    viewer: { id: 'viewer-id' },
   };
 }

@@ -1,34 +1,49 @@
 # Backend Lane NOW
 
-Last reviewed: 2026-07-10
-Status: directional privacy quality cleanup complete; stacked redesign next
+Last reviewed: 2026-07-09
+Status: Batch 2 Profile Content Surfaces complete; no backend batch active
 
 ## Lane Scope
 
 - Own backend Elixir/GraphQL code and backend planning docs.
 - Cross-lane mobile contract work must name its backend write scope explicitly.
-- Shared coordinator docs and shared contracts require explicit assignment.
+- Shared coordinator docs and contracts require explicit assignment.
 
-## Recently Completed
+## Last Completed Batch
 
+- Design:
+  `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
 - Source plan:
-  `docs/superpowers/plans/2026-07-10-directional-block-quality-cleanup.md`
-- Result: contact visibility I/O is explicit, singleton/list responses share
-  one pure projection path, and the one-query contract is preserved.
-- Write scope: `lib/live_canvas/social.ex`, contact GraphQL boundary code,
-  focused tests, the completed privacy plan, and backend lane documentation.
-- Verification: affected backend suite 144 tests, 0 failures; warning-free
-  compile; Dialyzer 0 errors; boundary and changed-code smell gates passed.
-- Queued stacked plan:
-  `docs/superpowers/plans/2026-07-10-read-policy-redesign.md`
+  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+- Completed task: Task 1 proved `User.posts`, `User.storyFeed`, and
+  `User.replayFeed` cursor ordering, filtering, and authorization.
+- Write scope: `test/live_canvas_gql/relay/node_queries_test.exs`.
+- Conditional production scope: `lib/live_canvas/feed.ex` and
+  `lib/live_canvas_gql/accounts/user_resolver.ex` only if the focused test
+  reproduces a real defect.
+- Result: deterministic profile connection tests pass without widening viewer
+  visibility or accepting raw IDs; no backend production change was required.
+
+## Verification
+
+- `mix format --check-formatted test/live_canvas_gql/relay/node_queries_test.exs`
+- `mix test test/live_canvas_gql/relay/node_queries_test.exs`
+- Result: 30 tests, 0 failures.
+- Repository-wide formatting remains red only in seven unrelated baseline
+  files: `config/runtime.exs`, `lib/live_canvas/dev/seed_data.ex`,
+  `test/integration/live/end_session_recording_atomicity_test.exs`,
+  `test/live_canvas/chat_test.exs`,
+  `test/live_canvas/dev/seed_data_test.exs`,
+  `test/live_canvas_gql/accounts/account_queries_test.exs`, and
+  `test/live_canvas_web/telemetry_test.exs`.
 
 ## Next Action
 
-Push PR #116, then create `codex/read-policy-redesign` from its remote head and
-execute the queued stacked plan test-first.
+No backend implementation batch is active. Batch 3, Media Post Publishing, is
+the next coordinator planning action only; do not execute it until promoted.
 
 ## References
 
-- Previous completed backend foundation:
-  `docs/plans/archive/completed/backend/2026-06-04-live-media-runtime-foundation.md`
-- Mobile product-gap batch: `docs/plans/mobile/NOW.md`
+- Mobile lane: `docs/plans/mobile/NOW.md`
+- Completed Batch 1 plan:
+  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`

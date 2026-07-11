@@ -126,6 +126,7 @@ test('retries a failed privacy-sensitive profile request with a fresh fetch', as
 
 function visibleProfileData() {
   return {
+    isBlockedByViewer: false,
     isMuted: false,
     node: {
       __typename: 'User',
@@ -143,6 +144,7 @@ function visibleProfileData() {
 function hiddenProfilePayload(): GraphQLResponse {
   return {
     data: {
+      isBlockedByViewer: false,
       isMuted: false,
       node: null,
       relationshipState: 'NONE',

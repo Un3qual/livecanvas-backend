@@ -8,6 +8,7 @@ import { AppCard } from '../../components/AppCard';
 import { AppHeader } from '../../components/AppHeader';
 import { ScreenState } from '../../components/ScreenState';
 import { useAppTheme } from '../../providers/ThemeProvider';
+import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../../relay/privacySensitiveFetch';
 import { readConnectionNodes } from '../../relay/readConnectionNodes';
 import { spacing, typography } from '../../theme/tokens';
 import { liveSessionHref } from '../liveSessionNavigation';
@@ -185,7 +186,7 @@ function LiveDiscoveryContent({ fetchKey }: { fetchKey: number }) {
       }
     `,
     { first: 20 },
-    { fetchKey, fetchPolicy: 'store-and-network' },
+    { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey },
   );
 
   const currentSession = data.viewer?.currentLiveSession ?? null;
