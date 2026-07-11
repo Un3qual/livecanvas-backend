@@ -15,7 +15,7 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 3 planned and awaiting approval; no backend implementation batch active
+- State: Batch 3 Task 1 active
 - Latest completed source plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
@@ -25,7 +25,7 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 3 planned and awaiting approval; no mobile implementation batch active
+- State: Batch 3 active; mobile Tasks 2-4 follow backend Task 1
 - Track: `docs/plans/mobile/TRACK.md`
 - Latest completed source plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
@@ -61,8 +61,8 @@ Use this file when:
 - Batch 3 plan: `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
 - Batch 4 plan: `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - Batch 5 plan: `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
-- State: Batches 1-2 complete; Batches 3-5 planned; no implementation batch active
-- Next approval target: Batch 3, Media Post Publishing
+- State: Batches 1-2 complete; Batch 3 active; Batches 4-5 queued
+- Current implementation: Batch 3, Media Post Publishing
 - Notes: batches execute sequentially. Release-candidate device QA follows the
   five product batches and remains deferred.
 
@@ -105,7 +105,7 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: Batch 2 complete; Batch 3 planned and awaiting approval
+- State: Batch 2 complete; Batch 3 active
 - Latest completed implementation plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Latest completed theme: Profile Content Surfaces

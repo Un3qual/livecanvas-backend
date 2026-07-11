@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-11
-Status: Batch 3 Media Post Publishing planned; awaiting approval
+Status: Batch 3 Media Post Publishing Task 1 active
 
 ## Lane Scope
 
@@ -37,12 +37,20 @@ Status: Batch 3 Media Post Publishing planned; awaiting approval
   `test/live_canvas_gql/accounts/account_queries_test.exs`, and
   `test/live_canvas_web/telemetry_test.exs`.
 
+## Current Batch
+
+- Source plan: `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
+- Current task: Task 1, Complete And Prove The Media Upload Lifecycle Contract.
+- Write scope: the Task 1 backend/config/schema/test files plus
+  `mobile/schema.graphql` named by the source plan.
+- Done condition: storage-verified idempotent finalization, write-once uploads,
+  processed-only attachment, lifecycle-gated processing, private media schema,
+  and focused backend/typecheck gates pass.
+
 ## Next Action
 
-No backend implementation batch is active. Review
-`docs/superpowers/plans/2026-07-11-media-post-publishing.md`; after approval,
-promote Task 1's MIME allowlist validation, storage-verified upload finalization,
-processed-only attachment, and GraphQL schema-privacy work.
+Execute Task 1 test-first. Hand the exported Relay schema to the mobile lane;
+do not activate Batch 4.
 
 ## References
 

@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-11
-Status: Batches 1-2 complete; Batches 3-5 planned; Batch 3 awaiting approval
+Status: Batch 3 Media Post Publishing active; Batches 4-5 queued
 
 ## Purpose
 
@@ -31,23 +31,22 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 3 planning-only; backend upload finalization, processed-only
-  attachment, and schema-privacy work is defined, but no implementation batch
-  is active.
+- State: Batch 3 Task 1 active: complete and prove the backend media upload
+  lifecycle before mobile implementation begins.
 - Verification: 30 node-query tests, 0 failures.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 3 planning-only; no mobile implementation batch is active.
+- State: Batch 3 active; Tasks 2-4 follow the backend Task 1 contract.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: 13 focused Bun, 54 focused Jest, 464 full Bun, and 104 full
   Jest tests passed; Relay generation, typechecks, lint, and patch hygiene pass.
 
 ## Execution Rule
 
-No implementation batch is active. Review Batch 3's implementation plan before
-promoting either lane. Batches 4-5 stay queued even though their plans now exist.
+Execute Batch 3 from its implementation plan. Complete backend Task 1 before
+mobile Tasks 2-4. Batches 4-5 remain queued and non-executable.
 
 ## Cross-Lane Policy
 
@@ -57,9 +56,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Review and approve Batch 3, Media Post Publishing. After approval, promote its
-explicit backend lifecycle and mobile implementation scopes into the lane
-pointers without activating Batches 4-5.
+Complete Batch 3, Media Post Publishing, then close both lane pointers and
+promote Batch 4, Live-Chat Message Controls. Do not start Batch 4 in this batch.
 
 ## Repair Conditions
 

@@ -11,13 +11,12 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: Batches 1-2 complete; Batches 3-5 planned; no batch active
+- Track state: Batches 1-2 complete; Batch 3 active; Batches 4-5 queued
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
-- Next approval target: Batch 3, Media Post Publishing. Its implementation plan
-  exists, but remains planning-only until approved and promoted through
-  `docs/plans/mobile/NOW.md`.
+- Current implementation: Batch 3, Media Post Publishing. Backend Task 1
+  establishes the lifecycle/schema contract before mobile Tasks 2-4.
 - Last completed detailed plan:
   `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
 - Recent theme: universal content cards, controls, sections, Home pagination,
@@ -130,10 +129,10 @@ and content discovery, live streaming, and chat.
 
 ## Active And Queued Follow-Up Plans
 
-Next planned product batch:
+Active product batch:
 
 - `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
-- Status: awaiting approval; not executable.
+- Status: active; execute backend Task 1 before mobile Tasks 2-4.
 
 Recently completed product batch:
 

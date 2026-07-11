@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-11
-Status: Batch 3 Media Post Publishing planned; awaiting approval
+Status: Batch 3 Media Post Publishing active; backend Task 1 first
 
 ## Lane Scope
 
@@ -37,16 +37,14 @@ Status: Batch 3 Media Post Publishing planned; awaiting approval
 
 ## Deferred Scope
 
-- Batches 3-5 now have implementation plans, but Batch 3 remains planning-only
-  pending approval and Batches 4-5 remain queued and non-executable.
-- Media publishing is the next planned batch, but remains non-executable until
-  approval. Content details, comments, reactions, replay management, native
-  address-book import, and release-candidate QA remain out of scope.
+- Batch 3 is active. Mobile Tasks 2-4 execute after backend Task 1 exports the
+  verified finalization/schema contract. Batches 4-5 remain queued.
+- Content details, comments, reactions, replay management, native address-book
+  import, and release-candidate QA remain out of scope.
 
 ## Next Action
 
-No mobile implementation batch is active. Review
-`docs/superpowers/plans/2026-07-11-media-post-publishing.md`; after approval,
-promote Batch 3 only. Keep
-`docs/superpowers/plans/2026-07-11-live-chat-message-controls.md` and
-`docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md` queued.
+Use `docs/superpowers/plans/2026-07-11-media-post-publishing.md`. After backend
+Task 1 exports `finalizeMediaUpload`, execute Task 2 native selection/state,
+Task 3 upload/polling/controller, and Task 4 composer integration. Keep Batches
+4-5 queued.
