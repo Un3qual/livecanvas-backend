@@ -45,6 +45,7 @@ the existing allowlisted `returnTo` mechanism.
 
 **Files:**
 - Create: `priv/repo/migrations/20260711120000_create_contact_invite_conversions.exs`
+- Modify: `lib/live_canvas_schemas.ex`
 - Create: `lib/live_canvas_schemas/accounts/contact_invite_conversion.ex`
 - Modify: `lib/live_canvas_schemas/accounts.ex`
 - Modify: `lib/live_canvas/accounts/tokens.ex`
@@ -58,9 +59,9 @@ the existing allowlisted `returnTo` mechanism.
 
 - [ ] Create `contact_invite_conversions` with bigint `id`, database-generated UUIDv7 `entropy_id`, UUID `invite_token_id`, nullable `inviter_id`, nullable `recipient_user_id`, `consumed_at :utc_datetime_usec`, and `:utc_datetime_usec` timestamps.
 - [ ] Add unique indexes for `entropy_id` and `invite_token_id`; use `on_delete: :nilify_all` for both user references so deletion cannot make consumption reusable.
-- [ ] Add the schema table-contract summary and typespecs. Do not store recipient email or raw token material in the conversion row.
+- [ ] Add the schema table-contract summary and typespecs, and export `Accounts.ContactInviteConversion` from the top-level `LCSchemas` Boundary so Accounts aliases and return types remain legal. Do not store recipient email or raw token material in the conversion row.
 - [ ] Add 7-day `valid_contact_invite_token?/2` validation requiring secure hash match and exact `:contact_invite_token` context.
-- [ ] In the conversion-table migration, delete pre-cutover `user_tokens` rows in the `:contact_invite_token` context. They were issued only with the non-routable placeholder URL and must not remain as ghost-valid credentials after the fragment contract launches.
+- [ ] In the conversion-table migration, delete pre-cutover `users_tokens` rows in the `:contact_invite_token` context. They were issued only with the non-routable placeholder URL and must not remain as ghost-valid credentials after the fragment contract launches.
 - [ ] Implement transactional consumption with `FOR UPDATE`: decode, lock, validate context/hash/expiry, require a verified normalized viewer email equal to `sent_to`, insert the conversion, then delete the token before commit.
 - [ ] Cover malformed/tampered/wrong-context/expired/consumed rejection, verified recipient success, unverified or different recipient rejection, repeat consumption, and two concurrent consumers yielding exactly one conversion.
 - [ ] Run `MIX_ENV=test mix ecto.reset`, `mix test test/live_canvas/accounts/user_token_test.exs test/live_canvas/accounts_test.exs`, `mix typecheck`, and focused formatting; commit with `feat: consume contact invites once`.

@@ -62,20 +62,22 @@ checkboxes/evidence in the same milestone commit.
 - Modify: `test/live_canvas_gql/content/content_queries_test.exs`
 - Modify: `test/live_canvas_gql/relay/node_queries_test.exs`
 - Modify: `test/integration/media_webhook_async_flow_test.exs`
+- Modify: `mobile/schema.graphql`
 
 **Interfaces:**
 - Consumes: the existing `requestMediaUpload(input: {mimeType})`, viewer-scoped `mediaAsset(id:)`, and `createPost(input: {mediaAssetIds})` contracts.
 - Produces: `ObjectStorage.verify_upload/1`, storage-verifying `Content.finalize_media_upload/3`, and authenticated Relay `finalizeMediaUpload(input: {mediaAssetId})`, plus a verified processed-only attachment contract.
 
-- [ ] Extend the object-storage behaviour with `verify_upload(%{key, mime_type})`. Give the configurable adapter a dedicated server-side verification origin, separate from the browser upload URL and public CDN origin; perform a `Req` `HEAD` through `Req.Test`, and accept only a 2xx response with a matching normalized content type. Never reuse a client upload signature for verification; support a server-only authorization header when the verification service requires it. Keep the fake adapter deterministic for tests.
+- [ ] Extend the object-storage behaviour with `verify_upload(%{key, mime_type})`. Give the configurable adapter a dedicated server-side verification origin, separate from the browser upload URL and public CDN origin; perform a production `Req.head` or `Req.request` against that verification URL, and accept only a 2xx response with a matching normalized content type. Use `Req.Test` only through test configuration/options. Never reuse a client upload signature for verification; support a server-only authorization header when the verification service requires it. Keep the fake adapter deterministic for tests.
 - [ ] Move verification into the public `Content.finalize_media_upload/3` domain function: owner-scope the asset, verify its persisted storage key and MIME type through `ObjectStorage`, and only then call a private transactional transition that moves `PENDING_UPLOAD` to `UPLOADED` and enqueues processing. No public helper may expose the unverified transition.
 - [ ] Add `finalizeMediaUpload` as a Relay payload mutation. Decode the opaque media ID and delegate directly to the verified domain finalizer; do not duplicate or weaken storage verification in the resolver.
 - [ ] Keep verification not-found, content-type mismatch, timeout, and storage-unavailable results retryable without changing the database state. Make repeated successful finalization idempotent and never permit a foreign owner to distinguish missing from inaccessible assets.
 - [ ] Enforce the shared four-type MIME allowlist in the upload-request changeset before signing storage access. Test all four accepted values plus representative rejected image, video, and non-media values such as GIF, QuickTime, and octet-stream; adapt the existing unsupported-processing fixture so it does not rely on requesting a now-invalid upload.
 - [ ] Tighten `create_post` attachment to accept only owner-scoped `PROCESSED` assets; update existing tests that currently treat `UPLOADED` as attachable.
-- [ ] Remove `storageKey` from the GraphQL `MediaAsset` node itself, not merely from mobile selections. Add schema validation proving it is unqueryable while the opaque asset ID, MIME type, processing state, and public URL remain available as authorized.
+- [ ] Remove both `storageKey` and raw `ownerId` from the GraphQL `MediaAsset` node itself, not merely from mobile selections. Add schema validation proving both fields are unqueryable while the opaque asset ID, MIME type, processing state, and public URL remain available as authorized.
 - [ ] Add focused GraphQL tests covering all four supported MIME types, representative unsupported MIME rejection, anonymous upload/finalization rejection, foreign-owner lookup/finalization returning the same missing result, pending/uploaded/failed attachment rejection, and processed owner attachment success.
 - [ ] Add direct domain and integration contract tests for request upload -> storage-verified finalization -> queued worker -> `PROCESSED` -> post attachment. Exercise the public finalizer rather than a resolver-only wrapper, and add verification-failure cases proving no caller can trigger a premature transition or job enqueue.
+- [ ] Export the changed backend schema with `mix absinthe.schema.sdl --schema LCGQL.Schema mobile/schema.graphql`, then prove the snapshot contains `finalizeMediaUpload` and omits `MediaAsset.storageKey` and `MediaAsset.ownerId` before mobile Relay generation.
 - [ ] Run the focused object-storage, content, GraphQL, Relay schema, and media integration tests; run `mix typecheck` and focused formatting; commit with `feat: complete media upload lifecycle`.
 
 ### Task 2: Add Native Selection And Pure Publishing State
