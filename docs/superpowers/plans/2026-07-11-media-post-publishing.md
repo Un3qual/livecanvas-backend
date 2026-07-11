@@ -60,6 +60,7 @@ checkboxes/evidence in the same milestone commit.
 - Modify: `lib/live_canvas_gql/content/content_resolver.ex`
 - Modify: `lib/live_canvas_gql/content/content_types.ex`
 - Modify: `test/live_canvas/infra/object_storage/configurable_adapter_test.exs`
+- Modify: `test/live_canvas/infra/object_storage/fake_adapter_test.exs`
 - Modify: `test/live_canvas/content_test.exs`
 - Modify: `test/live_canvas_gql/content/content_mutations_test.exs`
 - Modify: `test/live_canvas_gql/content/content_queries_test.exs`
@@ -132,7 +133,7 @@ checkboxes/evidence in the same milestone commit.
 - [ ] Abort the current controller on remove, auth loss, unmount, or explicit cancel. Retry before a confirmed storage 2xx discards the prior asset/URL and starts a new `requestMediaUpload`; retry after a confirmed 2xx keeps the same asset and resumes finalization/readback so a later-processed asset cannot be abandoned behind a replacement.
 - [ ] Preserve a processed asset when `createPost` returns payload errors so the viewer can retry submission during the same mounted composer session.
 - [ ] Test signed-header fidelity, raw-body PUT and POST behavior, absence of bearer authorization, non-2xx upload, expired-URL replacement before 2xx, lost/ambiguous finalization responses that reuse the same asset, pending finalization retry, already-uploaded/processed readback, processing failure/timeout, auth loss, unmount, and duplicate submit guards.
-- [ ] Run `cd mobile && bun run relay`, the two focused tests, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: upload and process post media`.
+- [ ] Run `cd mobile && bun run relay`, `bun test tests/content/mediaPostUploadClient.test.ts`, `bun run test:jest -- --runTestsByPath tests/content/useMediaPostPublishing.rntl.tsx`, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: upload and process post media`.
 
 ### Task 4: Integrate Media Publishing Into The Composer
 
@@ -151,7 +152,8 @@ checkboxes/evidence in the same milestone commit.
 - [ ] Disable kind/audience/body changes and duplicate submits only while the active stage requires it; picker cancellation must return to the unchanged composer.
 - [ ] Verify failed post creation keeps the ready asset, successful creation resets all text/media state, and navigation still replaces the route with `/home` exactly once.
 - [ ] Add state and RNTL coverage for successful media-only image and video publishing, mixed text/media publishing, empty-without-ready-media rejection, selection cancellation, upload retry, processing failure, auth loss, duplicate taps, remove/replace, and unchanged text-only submission.
-- [ ] Run `cd mobile && bun test tests/content/mediaPostSelection.test.ts tests/content/mediaPostPublishingState.test.ts tests/content/mediaPostUploadClient.test.ts tests/content/useMediaPostPublishing.rntl.tsx tests/content/postComposerState.test.ts tests/feed/PostComposerScreen.rntl.tsx`.
+- [ ] Run the pure suites with `cd mobile && bun test tests/content/mediaPostSelection.test.ts tests/content/mediaPostPublishingState.test.ts tests/content/mediaPostUploadClient.test.ts tests/content/postComposerState.test.ts`.
+- [ ] Run the RNTL suites through their configured Jest runner with `cd mobile && bun run test:jest -- --runTestsByPath tests/content/useMediaPostPublishing.rntl.tsx tests/feed/PostComposerScreen.rntl.tsx`; do not pass `.rntl.tsx` files to Bun test filters.
 - [ ] Run `cd mobile && bun run test:quality`, then `git diff --check`; commit with `feat: publish posts with media`.
 
 ## Completion And Handoff
