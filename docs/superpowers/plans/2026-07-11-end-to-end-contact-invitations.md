@@ -4,7 +4,7 @@
 
 **Goal:** Let a viewer email an unmatched contact a working HTTPS invitation that safely returns through app authentication and records a one-time, recipient-bound conversion.
 
-**Architecture:** Accounts owns opaque SHA3-hashed invite-token validation and transactional consumption. Emailed HTTPS links keep the raw token in a URL fragment, so it is never sent to Phoenix, proxies, request telemetry, or referrers; a neutral public landing page uses a static client asset to translate that fragment into an explicit LiveCanvas deep link. Authenticated Relay consumption verifies that the viewer owns the token's verified normalized recipient email, writes a minimal conversion record, and deletes the token. Mobile preserves the token through sign-in/sign-up and exposes delivery state only after the route contract is configured.
+**Architecture:** Accounts owns opaque SHA3-hashed invite-token validation and transactional consumption. Emailed HTTPS links keep the raw token in a URL fragment, so it is never sent to Phoenix, proxies, request telemetry, or referrers; a neutral public landing page uses a static client asset to translate that fragment into an explicit LiveCanvas deep link. Authenticated Relay consumption requires the viewer to own the normalized recipient email. A matching verified email consumes directly; for password sign-up, possession of the recipient-bound email token atomically verifies only that matching email and confirms the account before recording conversion and deleting the token. Mobile preserves the token through sign-in/sign-up and exposes delivery state only after the route contract is configured.
 
 **Tech Stack:** Elixir, Ecto/PostgreSQL, Phoenix, Absinthe Relay, ExUnit, Expo Router, React Native, TypeScript, React Relay, Bun, Jest/RNTL.
 
@@ -15,7 +15,7 @@
 - Contact invite tokens expire exactly 7 days after `inserted_at`.
 - Persist only SHA3-256 token hashes; never persist or log raw secrets.
 - Public failures use one generic state for malformed, unknown, expired, consumed, recipient-mismatched, and tampered tokens.
-- Consumption requires an authenticated viewer with a verified email whose normalized value equals `users_tokens.sent_to`.
+- Consumption requires an authenticated viewer who owns an email whose normalized value equals `users_tokens.sent_to`. The email must already be verified, or the locked recipient-bound invite token itself must atomically verify that exact email and confirm a password-created account before conversion; the token cannot verify any different email.
 - Consumption records conversion only. It never follows users, reveals inviter email, imports contacts, or changes profile visibility.
 - The emailed link uses a configured HTTPS origin and stable `/invites#token=<encoded-token>` URL. The raw token must never appear in a server-visible path, query string, log, telemetry event, or referrer. No placeholder origin is permitted.
 - Do not add a legacy `/invites/:token` route. The pre-feature URL uses the non-routable `livecanvas.invalid` placeholder, no landing route exists, and mobile invite delivery is hidden; revoke those unusable pre-cutover tokens before enabling the real delivery surface instead of reintroducing secrets in request paths.
@@ -62,8 +62,8 @@ the existing allowlisted `returnTo` mechanism.
 - [ ] Add the schema table-contract summary and typespecs, and export `Accounts.ContactInviteConversion` from the top-level `LCSchemas` Boundary so Accounts aliases and return types remain legal. Do not store recipient email or raw token material in the conversion row.
 - [ ] Add 7-day `valid_contact_invite_token?/2` validation requiring secure hash match and exact `:contact_invite_token` context.
 - [ ] In the conversion-table migration, delete pre-cutover `users_tokens` rows in the `:contact_invite_token` context. They were issued only with the non-routable placeholder URL and must not remain as ghost-valid credentials after the fragment contract launches.
-- [ ] Implement transactional consumption with `FOR UPDATE`: decode, lock, validate context/hash/expiry, require a verified normalized viewer email equal to `sent_to`, insert the conversion, then delete the token before commit.
-- [ ] Cover malformed/tampered/wrong-context/expired/consumed rejection, verified recipient success, unverified or different recipient rejection, repeat consumption, and two concurrent consumers yielding exactly one conversion.
+- [ ] Implement transactional consumption with `FOR UPDATE`: decode, lock, validate context/hash/expiry, and find a viewer-owned normalized email equal to `sent_to`. Accept an already verified join directly. When the exact matching join is unverified, treat possession of this recipient-bound email token as proof for only that address: set the join's `verified_at` and the password-created user's `confirmed_at` in the same transaction before inserting the conversion and deleting the token. Never verify a nonmatching email or commit partial verification if conversion fails.
+- [ ] Cover malformed/tampered/wrong-context/expired/consumed rejection, verified recipient success, password-sign-up success that atomically verifies only the matching join and confirms the user, different-recipient rejection without verification changes, repeat consumption, rollback safety, and two concurrent consumers yielding exactly one verification/conversion.
 - [ ] Run `MIX_ENV=test mix ecto.reset`, `mix test test/live_canvas/accounts/user_token_test.exs test/live_canvas/accounts_test.exs`, `mix typecheck`, and focused formatting; commit with `feat: consume contact invites once`.
 
 ### Task 2: Add The HTTPS Landing Route And Configured Delivery Origin
@@ -113,7 +113,7 @@ the existing allowlisted `returnTo` mechanism.
 - [ ] Resolve through `Accounts.consume_contact_invite/2` using only `resolution.context.current_scope.user`; never accept a viewer/recipient ID from input.
 - [ ] Return `consumed: true` only for the committed conversion. Map malformed, expired, consumed, tampered, wrong-recipient, and unknown tokens to one `invalid_contact_invite` payload error.
 - [ ] Return the existing unauthenticated payload shape without performing token lookup.
-- [ ] Cover success, all generic failure variants, repeat consumption, wrong verified account, and unauthenticated access in GraphQL tests.
+- [ ] Cover success, password-created unverified recipient success with committed email/account verification, all generic failure variants, repeat consumption, wrong account, and unauthenticated access in GraphQL tests.
 - [ ] Prove both `deliverViewerContactInvite` and `consumeContactInvite` fall through the existing `:graphql_mutation` bucket: with its test limit set to one, the second request for each mutation returns the structured 429 response. Do not register either as auth/moderation traffic or add an unthrottled token-specific branch.
 - [ ] Refresh `mobile/schema.graphql`, run the focused backend tests and `mix typecheck`, and commit with `feat: expose contact invite consumption`.
 
@@ -134,10 +134,11 @@ the existing allowlisted `returnTo` mechanism.
 - Produces: allowlisted `/invite?token=...` parsing, `contactInviteConsumeMutation`, `ContactInviteState`, and `ContactInviteScreen`.
 - Consumed by: Task 5 delivery/readback tests.
 
-- [ ] Add `/invite` to known routes and authenticated return-to routes. Preserve exactly one nonblank token query value; reject arrays, missing tokens, malformed decoding, and arbitrary nested return targets.
+- [ ] Add `/invite` to known routes and authenticated return-to routes. Preserve exactly one nonblank token query value; reject arrays, missing tokens, malformed decoding, and arbitrary nested return targets. Keep `mobile/app/invite.tsx` outside the authenticated route group.
 - [ ] Normalize both `livecanvas-mobile://invite?token=...` and HTTPS `/invites#token=...` startup URLs to `/invite?token=...` without logging the token. Update the existing startup URL parser, which currently discards fragments, only for this allowlisted invite origin/path.
+- [ ] Make `/invite?token=...` an explicit public exception in `resolveLandingHrefForAuth`: a signed-out startup invite must land on the neutral invite screen instead of being rewritten to `/sign-in`, while every other protected initial route keeps the existing auth redirect. Test signed-out deep-link and HTTPS-fragment startup, normal protected-route redirect, and malformed invite fallback.
 - [ ] When unauthenticated, show neutral invitation copy with Sign in and Create account actions built through `authRouteHref(..., '/invite?token=...')`.
-- [ ] After successful password or provider authentication, return to the allowlisted invite route and commit `consumeContactInvite` once. Already authenticated viewers consume from the same screen.
+- [ ] After successful password or provider authentication, return to the allowlisted invite route and commit `consumeContactInvite` once. Password sign-up keeps the token until this commit so the backend can atomically verify the matching new email; already authenticated viewers consume from the same screen.
 - [ ] Render exactly `checking`, `requires_auth`, `consuming`, `consumed`, `invalid`, and `retryable_error` states; invalid payloads do not disclose recipient mismatch or token history.
 - [ ] Guard duplicate commits and stale callbacks by attempt ID, and clear the token from navigation after success so a refresh cannot re-submit it.
 - [ ] Run `cd mobile && bun run relay`, focused runtime/state/screen tests, `bun run typecheck`, and `bun run typecheck:tests`; commit with `feat: consume contact invites in mobile`.
