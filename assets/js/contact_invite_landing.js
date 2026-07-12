@@ -38,6 +38,10 @@ export function initializeContactInviteLanding(
     action.href = `livecanvas-mobile://invite?token=${encodeURIComponent(token)}`
     action.hidden = false
     state.textContent = "Your invitation is ready."
+  } else if (action && state) {
+    action.removeAttribute("href")
+    action.hidden = true
+    state.textContent = "This invite is invalid or expired."
   }
 
   windowObject.history.replaceState(

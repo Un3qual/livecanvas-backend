@@ -45,6 +45,20 @@ defmodule LCWeb.ContactInviteControllerTest do
     refute endpoint_path =~ @raw_token
   end
 
+  test "the public HTML router pipeline does not fetch a session or resolve a viewer scope" do
+    session_fetch = fn _conn -> flunk("the public invite pipeline fetched the session") end
+
+    conn =
+      Plug.Test.conn(:get, "/invites")
+      |> put_private(:phoenix_endpoint, LCWeb.Endpoint)
+      |> put_private(:plug_session_fetch, session_fetch)
+      |> LCWeb.Router.call(LCWeb.Router.init([]))
+
+    assert html_response(conn, 200) =~ "Open this invite in LiveCanvas"
+    assert conn.private.plug_session_fetch === session_fetch
+    refute Map.has_key?(conn.assigns, :current_scope)
+  end
+
   test "GET /invites renders the same neutral page for unrelated query values", %{conn: conn} do
     first_body = conn |> get(~p"/invites") |> html_response(200)
     second_body = conn |> recycle() |> get(~p"/invites?source=unknown") |> html_response(200)
