@@ -200,6 +200,35 @@ describe('mediaPostPublishingReducer', () => {
     });
   });
 
+  test('discards a confirmed asset after deterministic finalization rejection', () => {
+    const confirmed: MediaPostPublishingState = {
+      attemptId: 3,
+      errorMessage: null,
+      mediaAssetId: 'rejected-id',
+      selection,
+      selectionFallback: null,
+      stage: 'processing',
+      uploadConfirmed: true,
+    };
+
+    const failed = reduce(confirmed, {
+      attemptId: 3,
+      discardUpload: true,
+      message: 'Choose the media and try again.',
+      type: 'workflowFailed',
+    });
+
+    expect(failed).toMatchObject({
+      mediaAssetId: null,
+      stage: 'failed',
+      uploadConfirmed: false,
+    });
+    expect(reduce(failed, { type: 'retryRequested' })).toMatchObject({
+      mediaAssetId: null,
+      stage: 'requesting',
+    });
+  });
+
   test('handles picker cancellation, workflow failure, removal, and explicit cancellation', () => {
     const selecting = reduce(createMediaPostPublishingState(), {
       type: 'selectionStarted',

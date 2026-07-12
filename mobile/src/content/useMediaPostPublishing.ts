@@ -175,6 +175,7 @@ export function useMediaPostPublishing({
 
       send({
         attemptId,
+        discardUpload: shouldDiscardUpload(error),
         message: formatMediaPublishingError(error),
         type: 'workflowFailed',
       });
@@ -205,6 +206,10 @@ export function useMediaPostPublishing({
           } catch (finalizeError) {
             if (isAbortError(finalizeError) || controller.signal.aborted) {
               return;
+            }
+
+            if (shouldDiscardUpload(finalizeError)) {
+              throw finalizeError;
             }
 
             const readback = await dependencies.fetchAsset({
@@ -318,9 +323,8 @@ export function useMediaPostPublishing({
     activeControllerRef.current = controller;
     const selectionAttemptId = selectingState.attemptId;
 
-    void dependencies
-      .pickMedia()
-      .then((selection) => {
+    observePromise(
+      dependencies.pickMedia().then((selection) => {
         if (!isActiveAttempt(controller, selectionAttemptId)) {
           return;
         }
@@ -346,15 +350,17 @@ export function useMediaPostPublishing({
           return;
         }
 
-        void requestUploadAndProcess(
-          selection,
-          controller,
-          requestingState.attemptId,
+        observePromise(
+          requestUploadAndProcess(
+            selection,
+            controller,
+            requestingState.attemptId,
+          ),
         );
-      })
-      .catch((error) => {
-        failWorkflow(controller, selectionAttemptId, error);
-      });
+      }).catch((error) => {
+          failWorkflow(controller, selectionAttemptId, error);
+        }),
+    );
   }, [dependencies, failWorkflow, isActiveAttempt, requestUploadAndProcess, send]);
 
   const retryMedia = useCallback(() => {
@@ -370,19 +376,23 @@ export function useMediaPostPublishing({
       retryState.stage === 'processing' &&
       retryState.mediaAssetId !== null
     ) {
-      void finalizeAndPoll(
-        retryState.mediaAssetId,
-        controller,
-        retryState.attemptId,
+      observePromise(
+        finalizeAndPoll(
+          retryState.mediaAssetId,
+          controller,
+          retryState.attemptId,
+        ),
       );
       return;
     }
 
     if (retryState.stage === 'requesting' && retryState.selection !== null) {
-      void requestUploadAndProcess(
-        retryState.selection,
-        controller,
-        retryState.attemptId,
+      observePromise(
+        requestUploadAndProcess(
+          retryState.selection,
+          controller,
+          retryState.attemptId,
+        ),
       );
       return;
     }
@@ -419,15 +429,14 @@ export function useMediaPostPublishing({
       activeControllerRef.current = controller;
       const attemptId = submittingState.attemptId;
 
-      void dependencies
-        .createPost({
+      observePromise(
+        dependencies.createPost({
           input: {
             ...input,
             mediaAssetIds: [submittingState.mediaAssetId],
           },
           signal: controller.signal,
-        })
-        .then((result) => {
+        }).then((result) => {
           if (!isActiveAttempt(controller, attemptId)) {
             return;
           }
@@ -456,7 +465,8 @@ export function useMediaPostPublishing({
             message: formatCreatePostMutationErrors(null),
             type: 'submissionFailed',
           });
-        });
+        }),
+      );
     },
     [dependencies, isActiveAttempt, send],
   );
@@ -496,9 +506,13 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
-function abortedError(): MediaPostUploadError {
-  return new MediaPostUploadError(
-    'aborted',
-    'Media publishing was cancelled.',
+function shouldDiscardUpload(error: unknown): boolean {
+  return (
+    error instanceof MediaPostUploadError &&
+    ['asset_missing', 'processing_failed', 'upload_rejected'].includes(error.code)
   );
+}
+
+function observePromise(promise: Promise<unknown>): void {
+  promise.catch(() => undefined);
 }

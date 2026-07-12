@@ -13,9 +13,10 @@ import type { postComposerOperationsRequestMediaUploadMutation as PostComposerRe
 import { pickPostMedia } from '../content/mediaPostSelection';
 import {
   MediaPostUploadError,
+  finalizeUploadPayloadError,
+  normalizeMediaAssetProcessingState,
   uploadSignedMedia,
   type MediaAssetPollResult,
-  type MediaAssetProcessingState,
 } from '../content/mediaPostUploadClient';
 import type { MediaPostPublishingDependencies } from '../content/useMediaPostPublishing';
 
@@ -154,12 +155,16 @@ export function usePostComposerMediaPublishingDependencies(): MediaPostPublishin
         ).then((payload) => {
           const result = payload.finalizeMediaUpload;
 
-          if (!result?.mediaAsset || result.errors.length > 0) {
-            throw new Error('Media finalization is temporarily unavailable.');
+          if (result?.errors.length) {
+            throw finalizeUploadPayloadError(result.errors);
+          }
+
+          if (!result?.mediaAsset) {
+            throw finalizeUploadPayloadError([]);
           }
 
           return {
-            processingState: normalizeProcessingState(
+            processingState: normalizeMediaAssetProcessingState(
               result.mediaAsset.processingState,
             ),
           };
@@ -224,21 +229,20 @@ function relayMutationPromise<T>(
     }
 
     let disposable: RelayDisposable | null = null;
-    const cleanup = () => signal.removeEventListener('abort', abort);
     const abort = () => {
       disposable?.dispose();
-      cleanup();
+      signal.removeEventListener('abort', abort);
       reject(abortedError());
     };
 
     signal.addEventListener('abort', abort, { once: true });
     disposable = commit(
       (payload) => {
-        cleanup();
+        signal.removeEventListener('abort', abort);
         resolve(payload);
       },
       (error) => {
-        cleanup();
+        signal.removeEventListener('abort', abort);
         reject(error);
       },
     );
@@ -283,7 +287,7 @@ function relayFetchAsset(
         resolve(
           payload.mediaAsset
             ? {
-                processingState: normalizeProcessingState(
+                processingState: normalizeMediaAssetProcessingState(
                   payload.mediaAsset.processingState,
                 ),
               }
@@ -306,29 +310,19 @@ function defaultDelay(
       return;
     }
 
+    let timeout: ReturnType<typeof setTimeout> | null = null;
     const abort = () => {
-      clearTimeout(timeout);
+      if (timeout !== null) {
+        clearTimeout(timeout);
+      }
       reject(abortedError());
     };
-    const timeout = setTimeout(() => {
+    timeout = setTimeout(() => {
       signal.removeEventListener('abort', abort);
       resolve();
     }, milliseconds);
     signal.addEventListener('abort', abort, { once: true });
   });
-}
-
-function normalizeProcessingState(state: string): MediaAssetProcessingState {
-  if (
-    state === 'PENDING_UPLOAD' ||
-    state === 'UPLOADED' ||
-    state === 'PROCESSED' ||
-    state === 'FAILED'
-  ) {
-    return state;
-  }
-
-  throw new Error('Unsupported media processing state.');
 }
 
 function isSignedUploadMethod(method: string): method is 'PUT' | 'POST' {

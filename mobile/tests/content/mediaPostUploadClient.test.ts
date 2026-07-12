@@ -2,7 +2,10 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   MediaPostUploadError,
+  finalizeUploadPayloadError,
+  normalizeMediaAssetProcessingState,
   pollMediaAssetUntilTerminal,
+  readPickedMediaBody,
   uploadSignedMedia,
   type MediaAssetProcessingState,
   type SignedMediaUpload,
@@ -28,6 +31,20 @@ const signedUpload: SignedMediaUpload = {
 };
 
 describe('uploadSignedMedia', () => {
+  test('reads device-local picker URIs through the native file API', async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    let openedUri: string | null = null;
+
+    await expect(
+      readPickedMediaBody(selection, new AbortController().signal, (uri) => {
+        openedUri = uri;
+        return { bytes: async () => bytes };
+      }),
+    ).resolves.toEqual(bytes);
+
+    expect(String(openedUri)).toBe('file:///photo.jpg');
+  });
+
   test('uses PUT or POST with the raw body and exactly the signed headers', async () => {
     for (const method of ['PUT', 'POST'] as const) {
       const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
@@ -126,6 +143,27 @@ describe('uploadSignedMedia', () => {
       }),
     ).rejects.toEqual(
       new MediaPostUploadError('aborted', 'Media publishing was cancelled.'),
+    );
+  });
+});
+
+describe('media upload response normalization', () => {
+  test('keeps Relay future enum values nonterminal so polling can continue', () => {
+    expect(normalizeMediaAssetProcessingState('%future added value')).toBe(
+      '%future added value',
+    );
+  });
+
+  test('classifies deterministic finalization payload errors as fresh-upload failures', () => {
+    expect(finalizeUploadPayloadError([{ message: 'empty_upload' }])).toEqual(
+      new MediaPostUploadError(
+        'upload_rejected',
+        'This upload cannot be processed. Choose the media and try again.',
+      ),
+    );
+
+    expect(finalizeUploadPayloadError([{ message: 'storage_unavailable' }])).toEqual(
+      new Error('Media finalization is temporarily unavailable.'),
     );
   });
 });

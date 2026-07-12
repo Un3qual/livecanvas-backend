@@ -108,7 +108,7 @@ if config_env() == :prod do
       """
 
   object_storage_upload_signing_authorization_header =
-    case System.get_env("OBJECT_STORAGE_UPLOAD_SIGNING_AUTHORIZATION") do
+    case System.get_env("OBJECT_STORAGE_UPLOAD_SIGNING_AUTHORIZATION_HEADER") do
       value when is_binary(value) and value != "" -> value
       _other -> nil
     end
@@ -128,7 +128,7 @@ if config_env() == :prod do
       """
 
   object_storage_verification_authorization_header =
-    case System.get_env("OBJECT_STORAGE_VERIFICATION_AUTHORIZATION") do
+    case System.get_env("OBJECT_STORAGE_VERIFICATION_AUTHORIZATION_HEADER") do
       value when is_binary(value) and value != "" -> value
       _other -> nil
     end

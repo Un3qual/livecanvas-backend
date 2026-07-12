@@ -1,4 +1,4 @@
-import type * as ImagePicker from 'expo-image-picker';
+import type { ImagePickerAsset } from 'expo-image-picker';
 
 export const MEDIA_POST_MIME_TYPES = [
   'image/jpeg',
@@ -19,7 +19,7 @@ export type PickedPostMedia = {
 };
 
 export type MediaPostPicker = Pick<
-  typeof ImagePicker,
+  typeof import('expo-image-picker'),
   'launchImageLibraryAsync' | 'requestMediaLibraryPermissionsAsync'
 >;
 
@@ -92,9 +92,14 @@ async function loadDefaultPicker(): Promise<MediaPostPicker> {
 }
 
 function normalizePickedPostMedia(
-  asset: ImagePicker.ImagePickerAsset,
+  asset: ImagePickerAsset,
 ): PickedPostMedia {
-  const mimeType = normalizeMimeType(asset.mimeType);
+  const mimeType = normalizeMimeType(
+    asset.mimeType,
+    asset.file?.type,
+    asset.fileName,
+    asset.uri,
+  );
   const mediaKind = mediaKindForMimeType(mimeType);
   const fileSize = normalizeFileSize(asset.fileSize);
 
@@ -109,14 +114,60 @@ function normalizePickedPostMedia(
   };
 }
 
-function normalizeMimeType(mimeType: string | null | undefined): MediaPostMimeType {
+function normalizeMimeType(
+  mimeType: string | null | undefined,
+  webFileMimeType: string | null | undefined,
+  fileName: string | null | undefined,
+  uri: string,
+): MediaPostMimeType {
   const normalizedMimeType = mimeType?.trim().toLowerCase();
 
   if (isMediaPostMimeType(normalizedMimeType)) {
     return normalizedMimeType;
   }
 
+  if (normalizedMimeType) {
+    throw new MediaPostSelectionError(UNSUPPORTED_TYPE_ERROR);
+  }
+
+  const normalizedWebMimeType = webFileMimeType?.trim().toLowerCase();
+
+  if (isMediaPostMimeType(normalizedWebMimeType)) {
+    return normalizedWebMimeType;
+  }
+
+  const inferredMimeType =
+    inferMimeTypeFromPath(fileName) ?? inferMimeTypeFromPath(uri);
+
+  if (inferredMimeType) {
+    return inferredMimeType;
+  }
+
   throw new MediaPostSelectionError(UNSUPPORTED_TYPE_ERROR);
+}
+
+function inferMimeTypeFromPath(
+  path: string | null | undefined,
+): MediaPostMimeType | null {
+  const normalizedPath = path?.split(/[?#]/, 1)[0]?.toLowerCase();
+
+  if (normalizedPath?.endsWith('.jpg') || normalizedPath?.endsWith('.jpeg')) {
+    return 'image/jpeg';
+  }
+
+  if (normalizedPath?.endsWith('.png')) {
+    return 'image/png';
+  }
+
+  if (normalizedPath?.endsWith('.webp')) {
+    return 'image/webp';
+  }
+
+  if (normalizedPath?.endsWith('.mp4')) {
+    return 'video/mp4';
+  }
+
+  return null;
 }
 
 function isMediaPostMimeType(

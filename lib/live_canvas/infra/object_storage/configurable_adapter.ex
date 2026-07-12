@@ -28,7 +28,7 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
          {:ok, requested_expires_at} <- upload_expiration(config.upload_ttl_seconds),
          {:ok, response} <- request_upload_ticket(key, mime_type, requested_expires_at, config),
          {:ok, upload} <-
-           validate_upload_ticket_response(response, mime_type, requested_expires_at) do
+           validate_upload_ticket_response(response, key, mime_type, requested_expires_at) do
       {:ok, upload}
     else
       {:error, %_exception{}} -> {:error, :storage_unavailable}
@@ -194,10 +194,11 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
     Req.post(options)
   end
 
-  @spec validate_upload_ticket_response(Req.Response.t(), String.t(), DateTime.t()) ::
+  @spec validate_upload_ticket_response(Req.Response.t(), String.t(), String.t(), DateTime.t()) ::
           {:ok, LC.Infra.ObjectStorage.signed_upload()} | {:error, atom()}
   defp validate_upload_ticket_response(
          %Req.Response{status: status},
+         _key,
          _mime_type,
          _requested_expires_at
        )
@@ -206,11 +207,13 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
 
   defp validate_upload_ticket_response(
          %Req.Response{body: body},
+         key,
          mime_type,
          requested_expires_at
        )
        when is_map(body) do
-    with {:ok, method} <- upload_ticket_method(Map.get(body, "method")),
+    with :ok <- upload_ticket_key(Map.get(body, "key"), key),
+         {:ok, method} <- upload_ticket_method(Map.get(body, "method")),
          {:ok, url} <- upload_ticket_url(Map.get(body, "url")),
          {:ok, headers} <- upload_ticket_headers(Map.get(body, "headers"), mime_type),
          {:ok, expires_at} <-
@@ -219,8 +222,12 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
     end
   end
 
-  defp validate_upload_ticket_response(_response, _mime_type, _requested_expires_at),
+  defp validate_upload_ticket_response(_response, _key, _mime_type, _requested_expires_at),
     do: {:error, :invalid_upload_ticket}
+
+  @spec upload_ticket_key(term(), String.t()) :: :ok | {:error, :invalid_upload_ticket}
+  defp upload_ticket_key(key, key), do: :ok
+  defp upload_ticket_key(_ticket_key, _requested_key), do: {:error, :invalid_upload_ticket}
 
   @spec upload_ticket_method(term()) :: {:ok, :put} | {:error, :invalid_upload_ticket}
   defp upload_ticket_method("PUT"), do: {:ok, :put}

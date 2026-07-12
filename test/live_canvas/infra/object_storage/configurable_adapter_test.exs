@@ -121,6 +121,7 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapterTest do
       payload = Jason.decode!(body)
 
       Req.Test.json(conn, %{
+        key: payload["key"],
         method: "PUT",
         url: "https://uploads.example.test/object?ticket=unbound",
         headers: %{"content-type" => "image/jpeg"},
@@ -141,8 +142,30 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapterTest do
       payload = Jason.decode!(body)
 
       Req.Test.json(conn, %{
+        key: payload["key"],
         method: "POST",
         url: "https://uploads.example.test/object?ticket=wrong-method",
+        headers: payload["required_headers"],
+        expires_at: payload["expires_at"]
+      })
+    end)
+
+    assert {:error, :invalid_upload_ticket} =
+             ConfigurableAdapter.sign_upload(%{
+               key: "uploads/users/7/media.jpg",
+               mime_type: "image/jpeg"
+             })
+  end
+
+  test "sign_upload/1 rejects tickets that are bound to a different storage key" do
+    Req.Test.expect(ConfigurableAdapter, fn conn ->
+      {:ok, body, conn} = Plug.Conn.read_body(conn)
+      payload = Jason.decode!(body)
+
+      Req.Test.json(conn, %{
+        key: "uploads/users/8/other.jpg",
+        method: "PUT",
+        url: "https://uploads.example.test/object?ticket=wrong-key",
         headers: payload["required_headers"],
         expires_at: payload["expires_at"]
       })
@@ -275,6 +298,7 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapterTest do
              }
 
       Req.Test.json(conn, %{
+        key: payload["key"],
         method: "PUT",
         url: "https://uploads.example.test/objects/uploads/users/7/media.jpg?ticket=bound",
         headers: payload["required_headers"],

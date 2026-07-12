@@ -299,6 +299,38 @@ describe('PostComposerScreen with React Native Testing Library', () => {
     expect(mockSubmitMedia).toHaveBeenCalledTimes(1);
   });
 
+  test('allows a text-only post after media selection fails before choosing an asset', async () => {
+    const user = userEvent.setup();
+    mockMediaState = {
+      ...createMockMediaState(),
+      attemptId: 1,
+      errorMessage: 'We could not open your media library.',
+      stage: 'failed',
+    };
+
+    await render(<PostComposerScreen />);
+    await user.type(screen.getByLabelText('Post body'), 'Text still works', {
+      skipBlur: true,
+    });
+
+    expect(screen.queryByRole('button', { name: 'Retry upload' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Post' })).toBeEnabled();
+    await user.press(screen.getByRole('button', { name: 'Post' }));
+
+    expect(mockCreatePostCommit).toHaveBeenCalledTimes(1);
+    expect(mockCreatePostCommit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variables: {
+          input: {
+            bodyText: 'Text still works',
+            kind: 'STANDARD',
+            visibility: 'FOLLOWERS',
+          },
+        },
+      }),
+    );
+  });
+
   test('blocks duplicate submissions and cancel before rerender', async () => {
     const user = userEvent.setup();
 

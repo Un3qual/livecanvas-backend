@@ -14,7 +14,7 @@ import { AppCard } from '../components/AppCard';
 import { AppHeader } from '../components/AppHeader';
 import type { MediaPostPublishingState } from '../content/mediaPostPublishingState';
 import type { PickedPostMedia } from '../content/mediaPostSelection';
-import { useAppTheme } from '../providers/ThemeProvider';
+import { useAppTheme, type AppTheme } from '../providers/ThemeProvider';
 import { radius, spacing, typography } from '../theme/tokens';
 import {
   POST_COMPOSER_BODY_TEXT_MAX_LENGTH,
@@ -142,7 +142,7 @@ export function PostComposerScreen() {
   );
   const canSubmit =
     canSubmitPostComposer(state, hasReadyMedia) &&
-    !isMediaPreparationBlocking(mediaState.stage);
+    !isMediaPreparationBlocking(mediaState);
   const isSubmitting = isPostSubmissionActive();
   const shouldShowValidation =
     validationMessage !== null &&
@@ -279,205 +279,364 @@ export function PostComposerScreen() {
       />
 
       <AppCard style={styles.card}>
-        <View style={styles.fieldGroup}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>
-            Post body
-          </Text>
-          <TextInput
-            accessibilityLabel="Post body"
-            editable={!isSubmitting}
-            multiline
-            onBlur={() => {
-              setBodyBlurred(true);
-            }}
-            onChangeText={(bodyText) => {
-              if (isPostSubmissionActive()) {
-                return;
-              }
-
+        <PostBodyField
+          bodyText={state.bodyText}
+          isSubmitting={isSubmitting}
+          onBlur={() => setBodyBlurred(true)}
+          onChange={(bodyText) => {
+            if (!isPostSubmissionActive()) {
+              setSuccessMessage(null);
+              setState((current) => updatePostComposerBody(current, bodyText));
+            }
+          }}
+          successMessage={successMessage}
+          theme={theme}
+          trimmedBodyLength={trimmedBodyLength}
+          visibleMessage={visibleMessage}
+        />
+        <MediaField
+          cancelMedia={cancelMedia}
+          isSubmitting={isSubmitting}
+          mediaState={mediaState}
+          removeMedia={removeMedia}
+          retryMedia={retryMedia}
+          selectMedia={selectMedia}
+          theme={theme}
+        />
+        <PostKindField
+          isSubmitting={isSubmitting}
+          onSelect={(kind) => {
+            if (!isPostSubmissionActive()) {
+              setSuccessMessage(null);
+              setState((current) => selectPostComposerKind(current, kind));
+            }
+          }}
+          selectedKind={state.kind}
+          theme={theme}
+        />
+        <PostVisibilityField
+          isSubmitting={isSubmitting}
+          onSelect={(visibility) => {
+            if (!isPostSubmissionActive()) {
               setSuccessMessage(null);
               setState((current) =>
-                updatePostComposerBody(current, bodyText),
+                selectPostComposerVisibility(current, visibility),
               );
-            }}
-            placeholder="What do you want to share?"
-            placeholderTextColor={theme.colors.textMuted}
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.border,
-                color: theme.colors.text,
-              },
-            ]}
-            value={state.bodyText}
-          />
-          <Text style={[styles.counter, { color: theme.colors.textMuted }]}>
-            {trimmedBodyLength}/{POST_COMPOSER_BODY_TEXT_MAX_LENGTH}
-          </Text>
-          {visibleMessage ? (
-            <Text style={[styles.validation, { color: theme.colors.error }]}>
-              {visibleMessage}
-            </Text>
-          ) : null}
-          {successMessage ? (
-            <Text style={[styles.validation, { color: theme.colors.accent }]}>
-              {successMessage}
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={styles.segmentedGroup}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>Media</Text>
-          <View
-            style={[
-              styles.mediaPanel,
-              {
-                backgroundColor: theme.colors.surfaceMuted,
-                borderColor: theme.colors.border,
-              },
-            ]}
-          >
-            {mediaState.selection ? (
-              <Text style={[styles.mediaSummary, { color: theme.colors.text }]}>
-                {formatMediaSummary(mediaState.selection)}
-              </Text>
-            ) : null}
-            <Text
-              style={[
-                styles.validation,
-                {
-                  color:
-                    mediaState.errorMessage !== null
-                      ? theme.colors.error
-                      : theme.colors.textMuted,
-                },
-              ]}
-            >
-              {getMediaStatusMessage(mediaState)}
-            </Text>
-            <View style={styles.buttonRow}>
-              {!mediaState.selection &&
-              !isMediaPreparationActive(mediaState.stage) ? (
-                <AppButton
-                  disabled={isSubmitting}
-                  label="Select media"
-                  onPress={selectMedia}
-                  variant="secondary"
-                />
-              ) : null}
-              {mediaState.selection &&
-              !isMediaPreparationActive(mediaState.stage) &&
-              mediaState.stage !== 'submitting' &&
-              mediaState.stage !== 'succeeded' ? (
-                <AppButton
-                  disabled={isSubmitting}
-                  label="Replace"
-                  onPress={selectMedia}
-                  variant="secondary"
-                />
-              ) : null}
-              {mediaState.selection &&
-              mediaState.stage !== 'submitting' &&
-              mediaState.stage !== 'succeeded' ? (
-                <AppButton
-                  disabled={isSubmitting}
-                  label="Remove"
-                  onPress={removeMedia}
-                  variant="secondary"
-                />
-              ) : null}
-              {isMediaPreparationActive(mediaState.stage) ? (
-                <AppButton
-                  label="Cancel upload"
-                  onPress={cancelMedia}
-                  variant="secondary"
-                />
-              ) : null}
-              {mediaState.stage === 'failed' ? (
-                <AppButton
-                  disabled={isSubmitting}
-                  label="Retry upload"
-                  onPress={retryMedia}
-                  variant="secondary"
-                />
-              ) : null}
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.segmentedGroup}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>
-            Post kind
-          </Text>
-          <View style={styles.buttonRow}>
-            {POST_COMPOSER_KINDS.map((kind) => (
-              <AppButton
-                disabled={isSubmitting}
-                key={kind}
-                label={POST_COMPOSER_KIND_LABELS[kind]}
-                onPress={() => {
-                  if (isPostSubmissionActive()) {
-                    return;
-                  }
-
-                  setSuccessMessage(null);
-                  setState((current) =>
-                    selectPostComposerKind(current, kind),
-                  );
-                }}
-                variant={state.kind === kind ? 'primary' : 'secondary'}
-                selected={state.kind === kind}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.segmentedGroup}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>
-            Audience
-          </Text>
-          <View style={styles.buttonRow}>
-            {POST_COMPOSER_VISIBILITIES.map((visibility) => (
-              <AppButton
-                disabled={isSubmitting}
-                key={visibility}
-                label={POST_COMPOSER_VISIBILITY_LABELS[visibility]}
-                onPress={() => {
-                  if (isPostSubmissionActive()) {
-                    return;
-                  }
-
-                  setSuccessMessage(null);
-                  setState((current) =>
-                    selectPostComposerVisibility(current, visibility),
-                  );
-                }}
-                variant={
-                  state.visibility === visibility ? 'primary' : 'secondary'
-                }
-                selected={state.visibility === visibility}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.actionRow}>
-          <AppButton
-            disabled={isSubmitting}
-            label="Cancel"
-            onPress={handleCancel}
-            variant="secondary"
-          />
-          <AppButton
-            disabled={!canSubmit || isSubmitting}
-            label={isSubmitting ? 'Posting...' : 'Post'}
-            onPress={handleSubmit}
-            variant="primary"
-          />
-        </View>
+            }
+          }}
+          selectedVisibility={state.visibility}
+          theme={theme}
+        />
+        <PostComposerActions
+          canSubmit={canSubmit}
+          isSubmitting={isSubmitting}
+          onCancel={handleCancel}
+          onSubmit={handleSubmit}
+        />
       </AppCard>
     </ScrollView>
+  );
+}
+
+function PostBodyField({
+  bodyText,
+  isSubmitting,
+  onBlur,
+  onChange,
+  successMessage,
+  theme,
+  trimmedBodyLength,
+  visibleMessage,
+}: {
+  readonly bodyText: string;
+  readonly isSubmitting: boolean;
+  readonly onBlur: () => void;
+  readonly onChange: (bodyText: string) => void;
+  readonly successMessage: string | null;
+  readonly theme: AppTheme;
+  readonly trimmedBodyLength: number;
+  readonly visibleMessage: string | null;
+}) {
+  return (
+    <View style={styles.fieldGroup}>
+      <Text style={[styles.label, { color: theme.colors.text }]}>Post body</Text>
+      <TextInput
+        accessibilityLabel="Post body"
+        editable={!isSubmitting}
+        multiline
+        onBlur={onBlur}
+        onChangeText={onChange}
+        placeholder="What do you want to share?"
+        placeholderTextColor={theme.colors.textMuted}
+        style={[
+          styles.input,
+          {
+            backgroundColor: theme.colors.surfaceMuted,
+            borderColor: theme.colors.border,
+            color: theme.colors.text,
+          },
+        ]}
+        value={bodyText}
+      />
+      <Text style={[styles.counter, { color: theme.colors.textMuted }]}>
+        {trimmedBodyLength}/{POST_COMPOSER_BODY_TEXT_MAX_LENGTH}
+      </Text>
+      {visibleMessage ? (
+        <Text style={[styles.validation, { color: theme.colors.error }]}>
+          {visibleMessage}
+        </Text>
+      ) : null}
+      {successMessage ? (
+        <Text style={[styles.validation, { color: theme.colors.accent }]}>
+          {successMessage}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function MediaField({
+  cancelMedia,
+  isSubmitting,
+  mediaState,
+  removeMedia,
+  retryMedia,
+  selectMedia,
+  theme,
+}: {
+  readonly cancelMedia: () => void;
+  readonly isSubmitting: boolean;
+  readonly mediaState: MediaPostPublishingState;
+  readonly removeMedia: () => void;
+  readonly retryMedia: () => void;
+  readonly selectMedia: () => void;
+  readonly theme: AppTheme;
+}) {
+  return (
+    <View style={styles.segmentedGroup}>
+      <Text style={[styles.label, { color: theme.colors.text }]}>Media</Text>
+      <MediaPanel
+        cancelMedia={cancelMedia}
+        isSubmitting={isSubmitting}
+        mediaState={mediaState}
+        removeMedia={removeMedia}
+        retryMedia={retryMedia}
+        selectMedia={selectMedia}
+        theme={theme}
+      />
+    </View>
+  );
+}
+
+function MediaPanel({
+  cancelMedia,
+  isSubmitting,
+  mediaState,
+  removeMedia,
+  retryMedia,
+  selectMedia,
+  theme,
+}: {
+  readonly cancelMedia: () => void;
+  readonly isSubmitting: boolean;
+  readonly mediaState: MediaPostPublishingState;
+  readonly removeMedia: () => void;
+  readonly retryMedia: () => void;
+  readonly selectMedia: () => void;
+  readonly theme: AppTheme;
+}) {
+  return (
+    <View
+      style={[
+        styles.mediaPanel,
+        {
+          backgroundColor: theme.colors.surfaceMuted,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      {mediaState.selection ? (
+        <Text style={[styles.mediaSummary, { color: theme.colors.text }]}>
+          {formatMediaSummary(mediaState.selection)}
+        </Text>
+      ) : null}
+      <Text
+        style={[
+          styles.validation,
+          {
+            color:
+              mediaState.errorMessage !== null
+                ? theme.colors.error
+                : theme.colors.textMuted,
+          },
+        ]}
+      >
+        {getMediaStatusMessage(mediaState)}
+      </Text>
+      <MediaActions
+        cancelMedia={cancelMedia}
+        isSubmitting={isSubmitting}
+        mediaState={mediaState}
+        removeMedia={removeMedia}
+        retryMedia={retryMedia}
+        selectMedia={selectMedia}
+      />
+    </View>
+  );
+}
+
+function MediaActions({
+  cancelMedia,
+  isSubmitting,
+  mediaState,
+  removeMedia,
+  retryMedia,
+  selectMedia,
+}: {
+  readonly cancelMedia: () => void;
+  readonly isSubmitting: boolean;
+  readonly mediaState: MediaPostPublishingState;
+  readonly removeMedia: () => void;
+  readonly retryMedia: () => void;
+  readonly selectMedia: () => void;
+}) {
+  const isPreparationActive = isMediaPreparationActive(mediaState.stage);
+  const canEditSelection =
+    mediaState.stage !== 'submitting' && mediaState.stage !== 'succeeded';
+
+  return (
+    <View style={styles.buttonRow}>
+      {!mediaState.selection && !isPreparationActive ? (
+        <AppButton
+          disabled={isSubmitting}
+          label="Select media"
+          onPress={selectMedia}
+          variant="secondary"
+        />
+      ) : null}
+      {mediaState.selection && !isPreparationActive && canEditSelection ? (
+        <AppButton
+          disabled={isSubmitting}
+          label="Replace"
+          onPress={selectMedia}
+          variant="secondary"
+        />
+      ) : null}
+      {mediaState.selection && canEditSelection ? (
+        <AppButton
+          disabled={isSubmitting}
+          label="Remove"
+          onPress={removeMedia}
+          variant="secondary"
+        />
+      ) : null}
+      {isPreparationActive ? (
+        <AppButton
+          label="Cancel upload"
+          onPress={cancelMedia}
+          variant="secondary"
+        />
+      ) : null}
+      {mediaState.stage === 'failed' && mediaState.selection ? (
+        <AppButton
+          disabled={isSubmitting}
+          label="Retry upload"
+          onPress={retryMedia}
+          variant="secondary"
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function PostKindField({
+  isSubmitting,
+  onSelect,
+  selectedKind,
+  theme,
+}: {
+  readonly isSubmitting: boolean;
+  readonly onSelect: (kind: PostComposerKind) => void;
+  readonly selectedKind: PostComposerKind;
+  readonly theme: AppTheme;
+}) {
+  return (
+    <View style={styles.segmentedGroup}>
+      <Text style={[styles.label, { color: theme.colors.text }]}>Post kind</Text>
+      <View style={styles.buttonRow}>
+        {POST_COMPOSER_KINDS.map((kind) => (
+          <AppButton
+            disabled={isSubmitting}
+            key={kind}
+            label={POST_COMPOSER_KIND_LABELS[kind]}
+            onPress={() => onSelect(kind)}
+            selected={selectedKind === kind}
+            variant={selectedKind === kind ? 'primary' : 'secondary'}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function PostVisibilityField({
+  isSubmitting,
+  onSelect,
+  selectedVisibility,
+  theme,
+}: {
+  readonly isSubmitting: boolean;
+  readonly onSelect: (visibility: PostComposerVisibility) => void;
+  readonly selectedVisibility: PostComposerVisibility;
+  readonly theme: AppTheme;
+}) {
+  return (
+    <View style={styles.segmentedGroup}>
+      <Text style={[styles.label, { color: theme.colors.text }]}>Audience</Text>
+      <View style={styles.buttonRow}>
+        {POST_COMPOSER_VISIBILITIES.map((visibility) => (
+          <AppButton
+            disabled={isSubmitting}
+            key={visibility}
+            label={POST_COMPOSER_VISIBILITY_LABELS[visibility]}
+            onPress={() => onSelect(visibility)}
+            selected={selectedVisibility === visibility}
+            variant={
+              selectedVisibility === visibility ? 'primary' : 'secondary'
+            }
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function PostComposerActions({
+  canSubmit,
+  isSubmitting,
+  onCancel,
+  onSubmit,
+}: {
+  readonly canSubmit: boolean;
+  readonly isSubmitting: boolean;
+  readonly onCancel: () => void;
+  readonly onSubmit: () => void;
+}) {
+  return (
+    <View style={styles.actionRow}>
+      <AppButton
+        disabled={isSubmitting}
+        label="Cancel"
+        onPress={onCancel}
+        variant="secondary"
+      />
+      <AppButton
+        disabled={!canSubmit || isSubmitting}
+        label={isSubmitting ? 'Posting...' : 'Post'}
+        onPress={onSubmit}
+        variant="primary"
+      />
+    </View>
   );
 }
 
@@ -488,12 +647,12 @@ function isMediaPreparationActive(
 }
 
 function isMediaPreparationBlocking(
-  stage: MediaPostPublishingState['stage'],
+  state: MediaPostPublishingState,
 ): boolean {
   return (
-    isMediaPreparationActive(stage) ||
-    stage === 'selected' ||
-    stage === 'failed'
+    isMediaPreparationActive(state.stage) ||
+    state.stage === 'selected' ||
+    (state.stage === 'failed' && state.selection !== null)
   );
 }
 
@@ -531,5 +690,7 @@ function getMediaStatusMessage(state: MediaPostPublishingState): string {
       return 'We could not publish this media. Try again.';
     case 'cancelled':
       return 'Media publishing cancelled.';
+    default:
+      return 'Media status unavailable.';
   }
 }

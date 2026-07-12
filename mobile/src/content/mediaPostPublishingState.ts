@@ -58,6 +58,7 @@ export type MediaPostPublishingAction =
       readonly type: 'submissionFailed';
     })
   | (AttemptAction & {
+      readonly discardUpload?: boolean;
       readonly message: string;
       readonly type: 'workflowFailed';
     })
@@ -96,6 +97,18 @@ export function mediaPostPublishingReducer(
     return state;
   }
 
+  return (
+    reduceSelectionAction(state, action) ??
+    reduceUploadAction(state, action) ??
+    reduceSubmissionAction(state, action) ??
+    reduceWorkflowAction(state, action)
+  );
+}
+
+function reduceSelectionAction(
+  state: MediaPostPublishingState,
+  action: MediaPostPublishingAction,
+): MediaPostPublishingState | null {
   switch (action.type) {
     case 'selectionStarted':
       return canStartSelection(state)
@@ -122,6 +135,16 @@ export function mediaPostPublishingReducer(
         ? restoreSelectionFallback(state)
         : state;
 
+    default:
+      return null;
+  }
+}
+
+function reduceUploadAction(
+  state: MediaPostPublishingState,
+  action: MediaPostPublishingAction,
+): MediaPostPublishingState | null {
+  switch (action.type) {
     case 'uploadRequested':
       return state.stage === 'selected' && state.selection
         ? {
@@ -153,6 +176,16 @@ export function mediaPostPublishingReducer(
         ? { ...state, errorMessage: null, stage: 'ready' }
         : state;
 
+    default:
+      return null;
+  }
+}
+
+function reduceSubmissionAction(
+  state: MediaPostPublishingState,
+  action: MediaPostPublishingAction,
+): MediaPostPublishingState | null {
+  switch (action.type) {
     case 'submissionStarted':
       return canAttachSelectedMedia(state)
         ? { ...state, errorMessage: null, stage: 'submitting' }
@@ -168,6 +201,16 @@ export function mediaPostPublishingReducer(
         ? { ...state, errorMessage: action.message, stage: 'ready' }
         : state;
 
+    default:
+      return null;
+  }
+}
+
+function reduceWorkflowAction(
+  state: MediaPostPublishingState,
+  action: MediaPostPublishingAction,
+): MediaPostPublishingState {
+  switch (action.type) {
     case 'workflowFailed':
       if (state.stage === 'selecting' && state.selectionFallback) {
         return {
@@ -179,7 +222,15 @@ export function mediaPostPublishingReducer(
       }
 
       return canFailWorkflow(state)
-        ? { ...state, errorMessage: action.message, stage: 'failed' }
+        ? {
+            ...state,
+            errorMessage: action.message,
+            mediaAssetId: action.discardUpload ? null : state.mediaAssetId,
+            stage: 'failed',
+            uploadConfirmed: action.discardUpload
+              ? false
+              : state.uploadConfirmed,
+          }
         : state;
 
     case 'retryRequested':
@@ -197,6 +248,9 @@ export function mediaPostPublishingReducer(
             stage: 'cancelled',
           }
         : state;
+
+    default:
+      return state;
   }
 }
 

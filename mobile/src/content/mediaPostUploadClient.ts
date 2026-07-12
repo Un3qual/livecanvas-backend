@@ -13,7 +13,8 @@ export type MediaAssetProcessingState =
   | 'PENDING_UPLOAD'
   | 'UPLOADED'
   | 'PROCESSED'
-  | 'FAILED';
+  | 'FAILED'
+  | '%future added value';
 
 export type MediaAssetPollResult = {
   readonly processingState: MediaAssetProcessingState;
@@ -25,6 +26,7 @@ export type MediaPostUploadErrorCode =
   | 'processing_failed'
   | 'processing_timeout'
   | 'processing_unavailable'
+  | 'upload_rejected'
   | 'upload_failed';
 
 export class MediaPostUploadError extends Error {
@@ -46,6 +48,14 @@ type ReadSelectionBody = (
   selection: PickedPostMedia,
   signal: AbortSignal,
 ) => Promise<BodyInit>;
+
+type LocalMediaFile = {
+  readonly bytes: () => Promise<Uint8Array<ArrayBuffer>>;
+};
+
+type OpenLocalMediaFile = (
+  uri: string,
+) => LocalMediaFile | Promise<LocalMediaFile>;
 
 export async function uploadSignedMedia({
   fetchImpl = fetch,
@@ -164,17 +174,67 @@ export async function pollMediaAssetUntilTerminal({
   );
 }
 
-async function readPickedMediaBody(
+export async function readPickedMediaBody(
   selection: PickedPostMedia,
   signal: AbortSignal,
+  openFile: OpenLocalMediaFile = openExpoFile,
 ): Promise<BodyInit> {
-  const response = await fetch(selection.uri, { signal });
+  throwIfAborted(signal);
+  const file = await openFile(selection.uri);
+  const bytes = await file.bytes();
+  throwIfAborted(signal);
+  return bytes;
+}
 
-  if (!response.ok) {
-    throw uploadFailedError();
+async function openExpoFile(uri: string): Promise<LocalMediaFile> {
+  const { File } = await import('expo-file-system');
+  return new File(uri);
+}
+
+export function normalizeMediaAssetProcessingState(
+  state: string,
+): MediaAssetProcessingState {
+  if (
+    state === 'PENDING_UPLOAD' ||
+    state === 'UPLOADED' ||
+    state === 'PROCESSED' ||
+    state === 'FAILED' ||
+    state === '%future added value'
+  ) {
+    return state;
   }
 
-  return response.blob();
+  throw new Error('Unsupported media processing state.');
+}
+
+const TERMINAL_FINALIZE_ERRORS = new Set([
+  'content_type_mismatch',
+  'empty_upload',
+  'invalid_content_length',
+  'invalid_id',
+  'invalid_storage_key',
+  'invalid_type',
+  'not_found',
+  'processing_failed',
+  'unsupported_mime_type',
+  'upload_too_large',
+]);
+
+export function finalizeUploadPayloadError(
+  errors: ReadonlyArray<{ readonly message: string }>,
+): Error {
+  const isTerminal = errors.some(({ message }) =>
+    TERMINAL_FINALIZE_ERRORS.has(message.trim().toLowerCase()),
+  );
+
+  if (isTerminal) {
+    return new MediaPostUploadError(
+      'upload_rejected',
+      'This upload cannot be processed. Choose the media and try again.',
+    );
+  }
+
+  return new Error('Media finalization is temporarily unavailable.');
 }
 
 function abortableDelay(

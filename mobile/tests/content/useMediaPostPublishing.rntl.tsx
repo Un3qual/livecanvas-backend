@@ -243,6 +243,35 @@ describe('useMediaPostPublishing', () => {
     expect(finalizeUpload.mock.calls[1]?.[0].mediaAssetId).toBe('asset-id');
   });
 
+  test('requests a fresh asset after deterministic finalization rejection', async () => {
+    const requestUpload = jest
+      .fn()
+      .mockResolvedValueOnce({ mediaAssetId: 'rejected-id', signedUpload })
+      .mockResolvedValueOnce({ mediaAssetId: 'fresh-id', signedUpload });
+    const finalizeUpload = jest
+      .fn()
+      .mockRejectedValueOnce(
+        new MediaPostUploadError(
+          'upload_rejected',
+          'This upload cannot be processed. Choose the media and try again.',
+        ),
+      )
+      .mockResolvedValueOnce({ processingState: 'PROCESSED' });
+    const dependencies = createDependencies({ finalizeUpload, requestUpload });
+
+    await render(<Harness dependencies={dependencies} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Select' }));
+
+    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('failed'));
+    expect(screen.getByTestId('asset-id')).toHaveTextContent('none');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Retry' }));
+
+    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('ready'));
+    expect(requestUpload).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('asset-id')).toHaveTextContent('fresh-id');
+  });
+
   test('preserves the ready asset after createPost payload errors', async () => {
     const createPost = jest
       .fn()

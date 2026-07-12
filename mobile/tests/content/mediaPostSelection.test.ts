@@ -107,6 +107,55 @@ describe('pickPostMedia', () => {
     }
   });
 
+  test('infers an exact allowed MIME type when picker metadata is absent', async () => {
+    const examples = [
+      ['photo.JPEG', 'file:///ignored', 'image/jpeg', 'image'],
+      [null, 'content://picker/asset.webp?token=1', 'image/webp', 'image'],
+      ['clip.mp4', 'content://picker/no-extension', 'video/mp4', 'video'],
+    ] as const;
+
+    for (const [fileName, uri, mimeType, mediaKind] of examples) {
+      const picker = pickerWithResult({
+        canceled: false,
+        assets: [
+          {
+            fileName,
+            fileSize: 1024,
+            height: 100,
+            type: mediaKind,
+            uri,
+            width: 100,
+          },
+        ],
+      });
+
+      await expect(pickPostMedia(picker)).resolves.toMatchObject({
+        mediaKind,
+        mimeType,
+      });
+    }
+  });
+
+  test('rejects missing MIME metadata when no exact allowed extension is available', async () => {
+    const picker = pickerWithResult({
+      canceled: false,
+      assets: [
+        {
+          fileName: 'unknown.bin',
+          fileSize: 1024,
+          height: 100,
+          type: 'image',
+          uri: 'content://picker/unknown',
+          width: 100,
+        },
+      ],
+    });
+
+    await expect(pickPostMedia(picker)).rejects.toEqual(
+      new MediaPostSelectionError('Choose a JPEG, PNG, WebP, or MP4 file.'),
+    );
+  });
+
   test('enforces image and video limits when picker size metadata is available', async () => {
     const cases = [
       ['image/jpeg', 25 * 1024 * 1024, true],
