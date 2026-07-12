@@ -39,12 +39,13 @@ export function redactContactInviteSnapshotUrl(
 }
 
 function parseContactInviteLink(path: string): ParsedContactInviteLink {
+  const isInviteCandidate = looksLikeContactInviteCandidate(path);
   let parsed: URL;
 
   try {
     parsed = new URL(path);
   } catch {
-    return looksLikeMalformedContactInvite(path)
+    return isInviteCandidate
       ? { status: 'invalid' }
       : { status: 'not_invite' };
   }
@@ -73,12 +74,14 @@ function parseContactInviteLink(path: string): ParsedContactInviteLink {
     return parseSingleTokenParameters(parsed.hash.slice(1));
   }
 
-  return { status: 'not_invite' };
+  return isInviteCandidate ? { status: 'invalid' } : { status: 'not_invite' };
 }
 
-function looksLikeMalformedContactInvite(path: string): boolean {
+function looksLikeContactInviteCandidate(path: string): boolean {
   return (
-    /^livecanvas-mobile:\/\/invite(?:[/:?#]|$)/i.test(path) ||
+    /^livecanvas-mobile:(?:\/{0,3}invite(?:[/:?#]|$)|\/\/[^/?#]*@invite(?:[/:?#]|$))/i.test(
+      path,
+    ) ||
     /^https:\/\/[^/?#]*\/invites(?:[?#]|$)/i.test(path)
   );
 }

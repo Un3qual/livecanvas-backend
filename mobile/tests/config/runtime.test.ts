@@ -586,7 +586,37 @@ describe('contact invite startup bootstrap', () => {
       expect(snapshot.initialUrl).toBe('/invite');
       expect(snapshot.initialHref).toBe('/invite');
     }
+  });
 
+  test('redacts structurally recognizable malformed custom-scheme invite attempts', async () => {
+    for (const initialUrl of [
+      'livecanvas-mobile:/invite?token=raw-secret',
+      'livecanvas-mobile:///invite?token=raw-secret',
+      'livecanvas-mobile:invite?token=raw-secret',
+      'livecanvas-mobile://user@invite:not-a-port?token=raw-secret',
+    ]) {
+      const snapshot = await bootstrapRuntime(environment, {
+        getInitialUrl: () => Promise.resolve(initialUrl),
+      });
+
+      expect(snapshot.initialUrl).toBe('/invite');
+      expect(snapshot.initialHref).toBe('/invite');
+      expect(JSON.stringify(snapshot)).not.toContain('raw-secret');
+    }
+  });
+
+  test('preserves unrelated custom-scheme routes in the startup snapshot', async () => {
+    for (const initialUrl of [
+      'livecanvas-mobile://profile',
+      'livecanvas-mobile:/contacts?filter=invite',
+      'livecanvas-mobile:settings?token=not-an-invite-token',
+    ]) {
+      const snapshot = await bootstrapRuntime(environment, {
+        getInitialUrl: () => Promise.resolve(initialUrl),
+      });
+
+      expect(snapshot.initialUrl).toBe(initialUrl);
+    }
   });
 });
 

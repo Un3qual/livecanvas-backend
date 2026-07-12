@@ -119,12 +119,29 @@ describe('Expo Router contact invite native intent', () => {
     expect(storageWrites).toBe(0);
   });
 
+  test('fails closed for structurally recognizable malformed custom-scheme invites', async () => {
+    for (const path of [
+      'livecanvas-mobile:/invite?token=raw-secret',
+      'livecanvas-mobile:///invite?token=raw-secret',
+      'livecanvas-mobile:invite?token=raw-secret',
+      'livecanvas-mobile://user@invite:not-a-port?token=raw-secret',
+    ]) {
+      const href = await redirectSystemPath({ initial: false, path });
+
+      expect(href).toBe('/invite');
+      expect(JSON.stringify(href)).not.toContain('raw-secret');
+    }
+
+    expect(storageWrites).toBe(0);
+  });
+
   test('passes unrelated incoming paths through unchanged', async () => {
-    expect(
-      await redirectSystemPath({
-        initial: false,
-        path: 'livecanvas-mobile://profile',
-      }),
-    ).toBe('livecanvas-mobile://profile');
+    for (const path of [
+      'livecanvas-mobile://profile',
+      'livecanvas-mobile:/contacts?filter=invite',
+      'livecanvas-mobile:settings?token=not-an-invite-token',
+    ]) {
+      expect(await redirectSystemPath({ initial: false, path })).toBe(path);
+    }
   });
 });
