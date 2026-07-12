@@ -172,7 +172,14 @@ defmodule LCGQL.Chat.Resolver do
          }}
 
       {:error, reason}
-      when reason in [:invalid_id, :invalid_type, :not_authorized, :not_chat_message, :not_found] ->
+      when reason in [
+             :invalid_id,
+             :invalid_type,
+             :not_authorized,
+             :not_chat_message,
+             :not_found,
+             :session_ended
+           ] ->
         {:ok,
          %{
            removed_timeline_event_id: nil,

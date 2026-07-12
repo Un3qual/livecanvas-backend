@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-11
-Status: Batch 4 Live-Chat Message Controls active; backend Task 1 next
+Status: Batch 4 complete; Batch 5 waits for backend Tasks 1-3
 
 ## Lane Scope
 
@@ -9,33 +9,24 @@ Status: Batch 4 Live-Chat Message Controls active; backend Task 1 next
 - Consume explicitly promoted backend contracts recorded in the backend lane.
 - Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Last Completed Batch
+## Current Batch
 
+- Batch 5 mobile Tasks 4-5 wait for the backend token, landing, and Relay
+  consumption contracts in Tasks 1-3.
 - Source plan:
-  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
-- Track: `docs/plans/mobile/TRACK.md`
-- Completed tasks: mobile Tasks 2-4 after the verified backend lifecycle Task 1.
-- Result: authenticated viewers can select one allowlisted image or MP4, upload
-  it through the exact signed storage contract, wait for processing, and
-  publish media-only or mixed text/media standard posts and stories.
-
-## Verification
-
-- Relay: 51 reader and 47 normalization documents compiled.
-- Focused final gates: 28 Bun tests and 25 RNTL/Jest tests passed.
-- Full `bun run test:quality`: typechecks and lint passed; 491 Bun tests and
-  128 Jest tests passed.
-- Focused Jest open-handle detection and `git diff --check` passed.
+  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+- Write scope after the backend handoff: protected invite routing, authenticated
+  consumption, and explicit contact-row delivery state named in Tasks 4-5.
+- Done condition: the focused invite suites, Relay generation, typechecks, full
+  mobile quality gate, and patch hygiene pass.
 
 ## Deferred Scope
 
-- Batch 4 mobile Tasks 2-4 wait for the backend mutation/broadcast contract in
-  Task 1. Batch 5 remains queued.
 - Content details, comments, reactions, replay management, native address-book
   import, and release-candidate QA remain out of scope.
 
 ## Next Action
 
-Wait for backend Task 1 in
-`docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`, then execute
-mobile Tasks 2-4. Keep Batch 5 queued.
+Wait for backend Tasks 1-3 in
+`docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`, then
+execute mobile Tasks 4-5.

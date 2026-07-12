@@ -7,7 +7,11 @@ import {
   type ReactNode,
 } from 'react';
 
-import { createLiveSessionChatPanelModel } from '../../src/live/chat/liveSessionChatPanelPresentation';
+import {
+  createLiveSessionChatPanelModel,
+  formatLiveSessionChatPanelRow,
+} from '../../src/live/chat/liveSessionChatPanelPresentation';
+import { createLiveSessionChatControlsState } from '../../src/live/chat/liveSessionChatControlsState';
 import type { LiveSessionTimelineHistoryRow } from '../../src/live/liveSessionTimelineHistory';
 
 function NativeComponent({
@@ -105,6 +109,48 @@ const reactInternals = (
 };
 
 describe('LiveSessionChatPanel presentation model', () => {
+  test('derives row controls only for active chat rows with the right identities', () => {
+    const controlsState = createLiveSessionChatControlsState();
+    const authored = chatRow({ actor: { id: 'viewer-1' }, id: 'authored' });
+    const other = chatRow({ actor: { id: 'viewer-2' }, id: 'other' });
+
+    expect(
+      formatLiveSessionChatPanelRow(authored, {
+        controlsState,
+        hostId: 'viewer-2',
+        sessionStatus: 'LIVE',
+        viewerId: 'viewer-1',
+      }),
+    ).toMatchObject({ canEdit: true, canRemove: false, isPending: false });
+    expect(
+      formatLiveSessionChatPanelRow(other, {
+        controlsState,
+        hostId: 'viewer-1',
+        sessionStatus: 'LIVE',
+        viewerId: 'viewer-1',
+      }),
+    ).toMatchObject({ canEdit: false, canRemove: true, isPending: false });
+    expect(
+      formatLiveSessionChatPanelRow(authored, {
+        controlsState,
+        hostId: 'viewer-1',
+        sessionStatus: 'ENDED',
+        viewerId: 'viewer-1',
+      }),
+    ).toMatchObject({ canEdit: false, canRemove: false });
+    expect(
+      formatLiveSessionChatPanelRow(
+        lifecycleRow({ actor: { id: 'viewer-1' }, id: 'lifecycle' }),
+        {
+          controlsState,
+          hostId: 'viewer-1',
+          sessionStatus: 'LIVE',
+          viewerId: 'viewer-1',
+        },
+      ),
+    ).toMatchObject({ canEdit: false, canRemove: false });
+  });
+
   test('keeps retained chat, lifecycle, and future timeline rows available for lazy rendering', () => {
     const rows = [
       chatRow({
@@ -417,6 +463,9 @@ function withHookDispatcher<ReturnValue>(
 ): ReturnValue {
   const previousDispatcher = reactInternals.H;
   reactInternals.H = {
+    useEffect(effect: () => (() => void) | undefined): void {
+      effect();
+    },
     useState<State>(
       initialState: State,
     ): [State, (nextState: State) => void] {

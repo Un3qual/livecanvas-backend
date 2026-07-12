@@ -34,10 +34,16 @@ defmodule LC.Chat.TimelineEvents do
           | {:error, Ecto.Changeset.t() | :not_authorized | :not_found | :hidden | :session_ended}
   @type lifecycle_event_type :: :live_session_started | :live_session_ended
   @type lifecycle_result :: {:ok, TimelineProjection.t()} | {:error, Ecto.Changeset.t()}
-  @type removal_authorizer :: (LiveSession.t(), User.t() -> :ok | {:error, :not_authorized})
+  @type removal_authorizer ::
+          (LiveSession.t(), User.t() -> :ok | {:error, :not_authorized | :session_ended})
   @type removal_result ::
           {:ok, %{removed_event_id: pos_integer(), transitioned?: boolean()}}
-          | {:error, Ecto.Changeset.t() | :not_authorized | :not_found | :not_chat_message}
+          | {:error,
+             Ecto.Changeset.t()
+             | :not_authorized
+             | :not_found
+             | :not_chat_message
+             | :session_ended}
 
   @spec create_chat_message(repo(), LiveSession.t(), User.t(), map()) :: create_result()
   def create_chat_message(
@@ -161,13 +167,16 @@ defmodule LC.Chat.TimelineEvents do
              is_map(attrs) and is_function(authorizer, 2) do
     with {:ok, target_event_id} <- target_event_id_from(timeline_event) do
       repo.transaction(fn ->
-        with %LiveSessionTimelineEventState{} = event_state <-
-               locked_event_state_query(target_event_id) |> repo.one(),
-             %LiveSessionTimelineEvent{} = target_event <-
+        # Keep mutable row locks ordered with edit_chat_message/5 so concurrent
+        # edit and removal transactions cannot wait on each other in a cycle.
+        with %LiveSessionTimelineEvent{} = target_event <-
                target_event_query(target_event_id) |> repo.one(),
              :ok <- require_removable_event_type(target_event),
-             %LiveSession{} = live_session <- repo.get(LiveSession, target_event.live_session_id),
-             :ok <- authorizer.(live_session, actor) do
+             %LiveSession{} = live_session <-
+               locked_live_session_query(target_event.live_session_id) |> repo.one(),
+             :ok <- authorizer.(live_session, actor),
+             %LiveSessionTimelineEventState{} = event_state <-
+               locked_event_state_query(target_event_id) |> repo.one() do
           remove_chat_message_projection(repo, target_event, event_state, actor_user_id, attrs)
         else
           nil -> repo.rollback(:not_found)

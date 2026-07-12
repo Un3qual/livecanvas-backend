@@ -15,9 +15,9 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 4 Task 1 next
+- State: Batch 5 Task 1 next
 - Latest completed source plan:
-  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
+  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
   contract, resolver, runtime, or data issue.
@@ -25,11 +25,11 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 4 active; mobile Tasks 2-4 follow backend Task 1
+- State: Batch 5 active; mobile Tasks 4-5 follow backend Tasks 1-3
 - Track: `docs/plans/mobile/TRACK.md`
 - Latest completed source plan:
-  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
-- Latest completed product theme: Batch 3 Media Post Publishing
+  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
+- Latest completed product theme: Batch 4 Live-Chat Message Controls
 - Latest completed detailed plans: account settings and recovery, existing
   social controls, contact discovery, post owner controls, and profile
   connection lists
@@ -57,12 +57,12 @@ Use this file when:
 - Design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Latest completed implementation:
-  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
+  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - Batch 3 plan: `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
 - Batch 4 plan: `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - Batch 5 plan: `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
-- State: Batches 1-3 complete; Batch 4 active; Batch 5 queued
-- Current implementation: Batch 4, Live-Chat Message Controls
+- State: Batches 1-4 complete; Batch 5 active
+- Current implementation: Batch 5, End-to-End Contact Invitations
 - Notes: batches execute sequentially. Release-candidate device QA follows the
   five product batches and remains deferred.
 
@@ -105,11 +105,11 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: Batch 3 complete; Batch 4 active
+- State: Batch 4 complete; Batch 5 active
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
-- Latest completed theme: Media Post Publishing
-- Next plan: `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
+  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
+- Latest completed theme: Live-Chat Message Controls
+- Next plan: `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 
 ### Backend Code Quality Cleanup
 

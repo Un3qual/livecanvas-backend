@@ -7,10 +7,12 @@ import {
   appendRows,
   mergeNewerPageInfo,
   mergeOlderPageInfo,
+  mergeConfirmedTimelineUpdate,
   mergeRealtimeEvent,
   mergeRetainedInitialPageInfo,
   mergeRetainedRefreshRows,
   prependRows,
+  removeTimelineEvent,
   replaceWithRows,
 } from './liveSessionChatTimelineMerge';
 
@@ -35,7 +37,7 @@ export function liveSessionChatTimelineReducer(
       return {
         ...state,
         ...(state.eventIds.length === 0
-          ? replaceWithRows(action.history.rows)
+          ? replaceWithRows(state, action.history.rows)
           : mergeRetainedRefreshRows(state, action.history.rows)),
         pageInfo:
           state.eventIds.length === 0
@@ -71,6 +73,20 @@ export function liveSessionChatTimelineReducer(
       }
 
       return mergeRealtimeEvent(state, action.event);
+
+    case 'mutation_update_confirmed':
+      if (!isActiveSessionAction(state, action.sessionId)) {
+        return state;
+      }
+
+      return mergeConfirmedTimelineUpdate(state, action.event);
+
+    case 'mutation_remove_confirmed':
+      if (!isActiveSessionAction(state, action.sessionId)) {
+        return state;
+      }
+
+      return removeTimelineEvent(state, action.eventId);
 
     default:
       return state;

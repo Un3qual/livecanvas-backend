@@ -1104,6 +1104,46 @@ defmodule LCWeb.LiveSessionChannelTest do
     }
   end
 
+  test "removeLiveChatMessageEvent does not remove or broadcast after the session ends" do
+    host = user_fixture(privacy_mode: :public)
+    viewer = user_fixture()
+    {:ok, session} = Live.start_live_session(host, %{visibility: :public})
+    {:ok, event} = Chat.create_timeline_chat_message(session, viewer, %{body: "retained"})
+    {:ok, _ended_session} = Live.end_live_session(session)
+
+    session_topic = LiveSessionTopics.live_session_topic(session.id)
+    :ok = Phoenix.PubSub.subscribe(LC.PubSub, session_topic)
+
+    event_id = Absinthe.Relay.Node.to_global_id(:chat_message_event, event.id, LCGQL.Schema)
+    context = %{current_scope: Accounts.scope_for_user(host)}
+
+    assert {:ok,
+            %{
+              data: %{
+                "removeLiveChatMessageEvent" => %{
+                  "removedTimelineEventId" => nil,
+                  "errors" => [%{"field" => nil, "message" => "session_ended"}]
+                }
+              }
+            }} =
+             Absinthe.run(
+               remove_message_mutation(),
+               LCGQL.Schema,
+               context: context,
+               variables: %{"chatMessageEventId" => event_id}
+             )
+
+    assert %{id: retained_event_id, body: "retained"} =
+             Chat.get_timeline_event(viewer, event.id)
+
+    assert retained_event_id == event.id
+
+    refute_receive %Phoenix.Socket.Broadcast{
+      topic: ^session_topic,
+      event: "timeline:event_removed"
+    }
+  end
+
   test "viewer who muted host cannot join a live session topic" do
     host = user_fixture(privacy_mode: :public)
     viewer = user_fixture()
