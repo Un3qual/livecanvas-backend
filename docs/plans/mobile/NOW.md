@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-11
-Status: Batch 4 complete; Batch 5 waits for backend Tasks 1-3
+Status: all five product batches complete; release-candidate device QA active
 
 ## Lane Scope
 
@@ -9,24 +9,24 @@ Status: Batch 4 complete; Batch 5 waits for backend Tasks 1-3
 - Consume explicitly promoted backend contracts recorded in the backend lane.
 - Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Current Batch
+## Current Gate
 
-- Batch 5 mobile Tasks 4-5 wait for the backend token, landing, and Relay
-  consumption contracts in Tasks 1-3.
-- Source plan:
+- Source checklist:
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+- Batch 5 source plan, now complete:
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
-- Write scope after the backend handoff: protected invite routing, authenticated
-  consumption, and explicit contact-row delivery state named in Tasks 4-5.
-- Done condition: the focused invite suites, Relay generation, typechecks, full
-  mobile quality gate, and patch hygiene pass.
+- Current scope: local entry gates followed by the checklist's manual
+  one-host/one-viewer preview-build and device QA.
+- Done condition: every launch blocker is cleared or explicitly removed from
+  release scope, with manual evidence recorded in the checklist.
 
 ## Deferred Scope
 
-- Content details, comments, reactions, replay management, native address-book
-  import, and release-candidate QA remain out of scope.
+- Native address-book import, bulk contact upload, multi-viewer scale, store
+  submission, and other checklist-deferred follow-up remain out of scope.
 
 ## Next Action
 
-Wait for backend Tasks 1-3 in
-`docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`, then
-execute mobile Tasks 4-5.
+Run the checklist's local entry gates. Then inventory target EAS environment
+values, preview-build availability, beta accounts, and physical devices before
+starting manual QA; do not run remote EAS commands without explicit approval.

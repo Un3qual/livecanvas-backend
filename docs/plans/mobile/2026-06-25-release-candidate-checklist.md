@@ -1,6 +1,6 @@
 # Mobile Release Candidate Checklist
 
-Last reviewed: 2026-06-30
+Last reviewed: 2026-07-11
 
 Source plan:
 `docs/plans/archive/completed/mobile/2026-06-05-testing-beta-release-readiness.md`
@@ -14,8 +14,10 @@ distribution build without `developmentClient`.
 No remote or authenticated EAS build or submit command is required by this
 checklist.
 
-Current status: deferred until product explicitly resumes release-candidate QA.
-Use `docs/plans/mobile/NOW.md` for the active non-QA product-batch selection.
+Current status: active after completion of all five approved product batches.
+Use `docs/plans/mobile/NOW.md` for the executable gate pointer. Begin with local
+entry criteria; remote EAS commands and physical-device work still require the
+listed external prerequisites.
 
 ## Entry Criteria
 

@@ -15,9 +15,9 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 5 Task 1 next
+- State: Batch 5 backend complete; release-candidate QA support only
 - Latest completed source plan:
-  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
+  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
   contract, resolver, runtime, or data issue.
@@ -25,11 +25,11 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 5 active; mobile Tasks 4-5 follow backend Tasks 1-3
+- State: all five product batches complete; release-candidate QA active
 - Track: `docs/plans/mobile/TRACK.md`
 - Latest completed source plan:
-  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
-- Latest completed product theme: Batch 4 Live-Chat Message Controls
+  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+- Latest completed product theme: Batch 5 End-to-End Contact Invitations
 - Latest completed detailed plans: account settings and recovery, existing
   social controls, contact discovery, post owner controls, and profile
   connection lists
@@ -39,7 +39,7 @@ Use this file when:
   integration. Frontend structure, TypeScript readability, and XState live
   workflow cleanup are complete. The queued feature follow-ups through the July
   8 product-gap batch and reversible unfollow/unblock are complete for their
-  selected scopes; release-candidate manual QA remains deferred.
+  selected scopes; release-candidate manual QA is now active.
 
 ## Track Registry
 
@@ -57,14 +57,14 @@ Use this file when:
 - Design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Latest completed implementation:
-  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
+  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Batch 3 plan: `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
 - Batch 4 plan: `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - Batch 5 plan: `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
-- State: Batches 1-4 complete; Batch 5 active
-- Current implementation: Batch 5, End-to-End Contact Invitations
-- Notes: batches execute sequentially. Release-candidate device QA follows the
-  five product batches and remains deferred.
+- State: all five product batches complete
+- Current gate: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+- Notes: release-candidate device QA follows the completed five-batch sequence
+  and is now active.
 
 ### Product Gap Candidate Plans
 
@@ -82,10 +82,8 @@ Use this file when:
 - Backend report moderation operations:
   `docs/plans/moderation/2026-07-08-report-moderation-operations.md`
 - Notes: account settings, contact discovery, post owner controls, profile
-  connection lists, moderation operations, and the existing-contract portion
-  of social controls are complete. Contact-invite delivery remains queued as
-  Batch 5 because its
-  emailed token URL still needs a real landing route.
+  connection lists, moderation operations, the existing-contract portion of
+  social controls, and end-to-end contact-invite delivery are complete.
 
 ### Backend Live Media Signaling Contract
 
@@ -105,11 +103,11 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: Batch 4 complete; Batch 5 active
+- State: all five product batches complete; release-candidate QA active
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
-- Latest completed theme: Live-Chat Message Controls
-- Next plan: `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+- Latest completed theme: End-to-End Contact Invitations
+- Next gate: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
 ### Backend Code Quality Cleanup
 
