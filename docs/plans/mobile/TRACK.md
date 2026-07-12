@@ -20,8 +20,9 @@ and content discovery, live streaming, and chat.
 - Last completed detailed plan:
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Recent theme: end-to-end contact invitations now complete fragment-only HTTPS
-  delivery, protected authentication handoff, one-time recipient-bound
-  consumption, and explicit contact-row delivery state.
+  delivery from one shared trusted public origin, neutral recipient email copy,
+  protected authentication handoff, one-time recipient-bound consumption, and
+  explicit contact-row delivery state.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in

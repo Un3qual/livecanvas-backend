@@ -80,13 +80,18 @@ listed external prerequisites.
 
 - All five approved product batches are complete, including end-to-end contact
   invitation delivery and authenticated one-time consumption.
+- Whole-branch review fixes keep delivered invite copy neutral, reject reserved
+  placeholder origins, require exact configured-origin HTTPS handoff on mobile,
+  and prevent the public landing endpoint from running GraphQL session/viewer
+  context.
 - Backend: a fresh test database reset and all migrations pass; `mix test`
-  reports 1,007 tests passing with one excluded; typecheck, warnings-as-errors
+  reports 1,010 tests, zero failures, and one excluded; typecheck, warnings-as-errors
   compilation, changed-file formatting, typespec checks, asset build, and the
   public invite parser suite pass.
-- Mobile: Relay generation is current and `bun run test:quality` passes with
-  both typechecks, lint, 539 Bun tests, and 160 Jest tests. Jest retains the
-  existing non-failing worker force-exit warning.
+- Mobile: the integration fixes did not change the GraphQL schema or Relay
+  operations, so regeneration was not required. `bun run test:quality` passes
+  with both typechecks, lint, 544 Bun tests, and 160 Jest tests. Jest retains
+  the existing non-failing worker force-exit warning.
 - Repo root: `git diff --check` passes for the complete Batch 5 branch.
 - Target EAS environment values, preview-build availability, beta accounts, and
   physical host/viewer devices still require release-operator confirmation, so

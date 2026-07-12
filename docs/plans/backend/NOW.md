@@ -14,15 +14,18 @@ Status: Batch 5 backend complete; release-candidate QA support only
 - Source plan:
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Completed scope: Tasks 1-3 delivered recipient-bound one-time consumption,
-  the configured fragment-only HTTPS landing contract, and authenticated Relay
-  consumption.
+  neutral invite delivery, the trusted configured fragment-only HTTPS landing
+  contract, authenticated Relay consumption, and a public endpoint that bypasses
+  GraphQL session/viewer context.
 - No backend implementation batch is active. Promote only a reproduced backend
   defect from release-candidate QA with an explicit write scope.
 
 ## Verification
 
 - Batch 5 database reset, focused token/Accounts/controller/GraphQL suites,
-  full backend tests, typecheck, asset build, and patch hygiene pass.
+  1,010 full backend tests, typecheck, warnings-as-errors compilation, typespec
+  checks, asset build, landing parser, changed-file formatting, and patch
+  hygiene pass.
 
 ## Next Action
 

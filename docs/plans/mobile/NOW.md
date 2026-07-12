@@ -17,6 +17,9 @@ Status: all five product batches complete; release-candidate device QA active
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Current scope: local entry gates followed by the checklist's manual
   one-host/one-viewer preview-build and device QA.
+- Invite entry requirement: target `EXPO_PUBLIC_APP_ORIGIN` must match backend
+  `LIVE_CANVAS_PUBLIC_ORIGIN`; manual evidence must exercise an actual delivered
+  invite through the HTTPS landing and native app handoff.
 - Done condition: every launch blocker is cleared or explicitly removed from
   release scope, with manual evidence recorded in the checklist.
 

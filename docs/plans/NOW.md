@@ -33,16 +33,18 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 - Pointer: `docs/plans/backend/NOW.md`
 - State: Batch 5 backend Tasks 1-3 complete; stand by only for defects found by
   release-candidate QA.
-- Verification: Batch 5 focused Accounts, public-route, GraphQL, type, asset,
-  and full backend gates pass.
+- Verification: neutral invite delivery, trusted public-origin configuration,
+  endpoint-neutral public landing, focused GraphQL behavior, assets, types, and
+  the 1,010-test backend suite pass.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
 - State: Batch 5 mobile Tasks 4-5 complete; release-candidate QA is active.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: focused invite suites and the full mobile quality gate pass;
-  Relay generation, typechecks, lint, and patch hygiene pass.
+- Verification: configured-origin invite routing and the full mobile quality
+  gate pass with 544 Bun and 160 Jest tests; typechecks, lint, and patch hygiene
+  pass. Relay inputs were unchanged by the integration fixes.
 
 ## Execution Rule
 
