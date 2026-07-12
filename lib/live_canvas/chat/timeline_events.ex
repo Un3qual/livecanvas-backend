@@ -34,10 +34,16 @@ defmodule LC.Chat.TimelineEvents do
           | {:error, Ecto.Changeset.t() | :not_authorized | :not_found | :hidden | :session_ended}
   @type lifecycle_event_type :: :live_session_started | :live_session_ended
   @type lifecycle_result :: {:ok, TimelineProjection.t()} | {:error, Ecto.Changeset.t()}
-  @type removal_authorizer :: (LiveSession.t(), User.t() -> :ok | {:error, :not_authorized})
+  @type removal_authorizer ::
+          (LiveSession.t(), User.t() -> :ok | {:error, :not_authorized | :session_ended})
   @type removal_result ::
           {:ok, %{removed_event_id: pos_integer(), transitioned?: boolean()}}
-          | {:error, Ecto.Changeset.t() | :not_authorized | :not_found | :not_chat_message}
+          | {:error,
+             Ecto.Changeset.t()
+             | :not_authorized
+             | :not_found
+             | :not_chat_message
+             | :session_ended}
 
   @spec create_chat_message(repo(), LiveSession.t(), User.t(), map()) :: create_result()
   def create_chat_message(
@@ -166,7 +172,8 @@ defmodule LC.Chat.TimelineEvents do
              %LiveSessionTimelineEvent{} = target_event <-
                target_event_query(target_event_id) |> repo.one(),
              :ok <- require_removable_event_type(target_event),
-             %LiveSession{} = live_session <- repo.get(LiveSession, target_event.live_session_id),
+             %LiveSession{} = live_session <-
+               locked_live_session_query(target_event.live_session_id) |> repo.one(),
              :ok <- authorizer.(live_session, actor) do
           remove_chat_message_projection(repo, target_event, event_state, actor_user_id, attrs)
         else

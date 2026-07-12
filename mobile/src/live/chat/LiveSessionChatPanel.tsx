@@ -129,7 +129,9 @@ export function LiveSessionChatPanel({
   const theme = useAppTheme();
   const [draftMessage, setDraftMessage] = useState('');
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState('');
+  const [editDraftsByEventId, setEditDraftsByEventId] = useState<
+    Readonly<Record<string, string>>
+  >({});
   const [removeConfirmationEventId, setRemoveConfirmationEventId] = useState<
     string | null
   >(null);
@@ -149,6 +151,7 @@ export function LiveSessionChatPanel({
     if (messageControls?.sessionStatus === 'ENDED') {
       setEditingEventId(null);
       setRemoveConfirmationEventId(null);
+      setEditDraftsByEventId({});
       return;
     }
 
@@ -186,15 +189,24 @@ export function LiveSessionChatPanel({
     const row = formatLiveSessionChatPanelRow(item, messageControls);
     const isEditing = editingEventId === item.id && row.canEdit;
     const isConfirmingRemoval = removeConfirmationEventId === item.id;
+    const editDraft =
+      editDraftsByEventId[item.id] ??
+      (item.kind === 'chat_message' ? item.body : '');
+    const rowAccessibilityName = row.title.slice(0, 80);
 
-    function beginEdit() {
+    function beginEdit(preserveDraft = false) {
       if (item.kind !== 'chat_message' || row.isPending) {
         return;
       }
 
       messageControls?.clearRowError(item.id);
       setRemoveConfirmationEventId(null);
-      setEditDraft(item.body);
+      if (!preserveDraft || editDraftsByEventId[item.id] === undefined) {
+        setEditDraftsByEventId((current) => ({
+          ...current,
+          [item.id]: item.body,
+        }));
+      }
       setEditingEventId(item.id);
     }
 
@@ -212,8 +224,12 @@ export function LiveSessionChatPanel({
     function retryRowAction() {
       messageControls?.clearRowError(item.id);
 
-      if (row.canEdit) {
-        beginEdit();
+      if (row.failedAction === 'remove' && row.canRemove) {
+        setRemoveConfirmationEventId(item.id);
+      } else if (row.failedAction === 'edit' && row.canEdit) {
+        beginEdit(true);
+      } else if (row.canEdit) {
+        beginEdit(true);
       } else if (row.canRemove) {
         setRemoveConfirmationEventId(item.id);
       }
@@ -240,7 +256,12 @@ export function LiveSessionChatPanel({
             accessibilityLabel="Edit message"
             editable={!row.isPending}
             maxLength={2000}
-            onChangeText={setEditDraft}
+            onChangeText={(body) =>
+              setEditDraftsByEventId((current) => ({
+                ...current,
+                [item.id]: body,
+              }))
+            }
             style={[
               styles.editInput,
               {
@@ -263,6 +284,11 @@ export function LiveSessionChatPanel({
               {row.error}
             </Text>
             <AppButton
+              accessibilityLabel={`${
+                row.failedAction === 'remove'
+                  ? 'Retry removing'
+                  : 'Retry editing'
+              } message: ${rowAccessibilityName}`}
               label="Retry"
               onPress={retryRowAction}
               style={styles.rowAction}
@@ -282,7 +308,16 @@ export function LiveSessionChatPanel({
             <AppButton
               disabled={row.isPending}
               label="Cancel"
-              onPress={() => setEditingEventId(null)}
+              onPress={() => {
+                setEditingEventId(null);
+                setEditDraftsByEventId((current) =>
+                  Object.fromEntries(
+                    Object.entries(current).filter(
+                      ([eventId]) => eventId !== item.id,
+                    ),
+                  ),
+                );
+              }}
               style={styles.rowAction}
               variant="secondary"
             />
@@ -291,15 +326,17 @@ export function LiveSessionChatPanel({
           <View style={styles.rowActions}>
             {row.canEdit ? (
               <AppButton
+                accessibilityLabel={`Edit message: ${rowAccessibilityName}`}
                 disabled={row.isPending}
                 label={row.pendingAction === 'edit' ? 'Editing...' : 'Edit'}
-                onPress={beginEdit}
+                onPress={() => beginEdit()}
                 style={styles.rowAction}
                 variant="secondary"
               />
             ) : null}
             {row.canRemove && !isConfirmingRemoval ? (
               <AppButton
+                accessibilityLabel={`Remove message: ${rowAccessibilityName}`}
                 disabled={row.isPending}
                 label={row.pendingAction === 'remove' ? 'Removing...' : 'Remove'}
                 onPress={() => {

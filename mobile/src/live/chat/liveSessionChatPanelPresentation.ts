@@ -15,6 +15,7 @@ export type LiveSessionChatPanelRowModel = {
   readonly canRemove: boolean;
   readonly detail: string;
   readonly error: string | null;
+  readonly failedAction: LiveSessionChatControlAction | null;
   readonly id: string;
   readonly isPending: boolean;
   readonly pendingAction: LiveSessionChatControlAction | null;
@@ -115,6 +116,8 @@ export function formatLiveSessionChatPanelRow(
         })
       : false,
     error: controls?.controlsState.errorsByEventId[row.id] ?? null,
+    failedAction:
+      controls?.controlsState.failedActionByEventId[row.id] ?? null,
     isPending: pendingAction !== null,
     pendingAction,
   };

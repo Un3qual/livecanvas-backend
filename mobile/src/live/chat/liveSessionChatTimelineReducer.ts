@@ -37,7 +37,7 @@ export function liveSessionChatTimelineReducer(
       return {
         ...state,
         ...(state.eventIds.length === 0
-          ? replaceWithRows(action.history.rows)
+          ? replaceWithRows(state, action.history.rows)
           : mergeRetainedRefreshRows(state, action.history.rows)),
         pageInfo:
           state.eventIds.length === 0

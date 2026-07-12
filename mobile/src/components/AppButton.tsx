@@ -4,6 +4,7 @@ import { useAppTheme } from '../providers/ThemeProvider';
 import { typography, spacing, radius, touchTarget } from '../theme/tokens';
 
 type AppButtonProps = {
+  accessibilityLabel?: string;
   disabled?: boolean;
   label: string;
   onPress: () => void;
@@ -29,6 +30,7 @@ const styles = StyleSheet.create({
  * Sized to meet Apple HIG touch-target minimums.
  */
 export function AppButton({
+  accessibilityLabel,
   disabled = false,
   label,
   onPress,
@@ -44,6 +46,7 @@ export function AppButton({
 
   return (
     <Pressable
+      accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       accessibilityState={accessibilityState}
       disabled={disabled}

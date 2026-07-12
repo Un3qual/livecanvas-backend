@@ -9,6 +9,9 @@ export type LiveSessionChatPendingOperation = {
 
 export type LiveSessionChatControlsState = {
   readonly errorsByEventId: Readonly<Record<string, string>>;
+  readonly failedActionByEventId: Readonly<
+    Record<string, LiveSessionChatControlAction>
+  >;
   readonly pendingByEventId: Readonly<
     Record<string, LiveSessionChatPendingOperation>
   >;
@@ -44,6 +47,7 @@ type RemoveEligibilityInput = EditEligibilityInput & {
 export function createLiveSessionChatControlsState(): LiveSessionChatControlsState {
   return {
     errorsByEventId: {},
+    failedActionByEventId: {},
     pendingByEventId: {},
     removedEventIds: {},
   };
@@ -92,6 +96,10 @@ export function liveSessionChatControlsReducer(
       return {
         ...state,
         errorsByEventId: omitKey(state.errorsByEventId, action.eventId),
+        failedActionByEventId: omitKey(
+          state.failedActionByEventId,
+          action.eventId,
+        ),
         pendingByEventId: {
           ...state.pendingByEventId,
           [action.eventId]: {
@@ -112,6 +120,10 @@ export function liveSessionChatControlsReducer(
       return {
         ...state,
         errorsByEventId: omitKey(state.errorsByEventId, action.eventId),
+        failedActionByEventId: omitKey(
+          state.failedActionByEventId,
+          action.eventId,
+        ),
         pendingByEventId: omitKey(state.pendingByEventId, action.eventId),
         removedEventIds:
           action.action === 'remove'
@@ -133,6 +145,10 @@ export function liveSessionChatControlsReducer(
           ...state.errorsByEventId,
           [action.eventId]: action.message,
         },
+        failedActionByEventId: {
+          ...state.failedActionByEventId,
+          [action.eventId]: action.action,
+        },
         pendingByEventId: omitKey(state.pendingByEventId, action.eventId),
       };
 
@@ -144,6 +160,10 @@ export function liveSessionChatControlsReducer(
       return {
         ...state,
         errorsByEventId: omitKey(state.errorsByEventId, action.eventId),
+        failedActionByEventId: omitKey(
+          state.failedActionByEventId,
+          action.eventId,
+        ),
       };
 
     case 'reset':

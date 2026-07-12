@@ -463,7 +463,7 @@ function withHookDispatcher<ReturnValue>(
 ): ReturnValue {
   const previousDispatcher = reactInternals.H;
   reactInternals.H = {
-    useEffect(effect: () => void | (() => void)): void {
+    useEffect(effect: () => (() => void) | undefined): void {
       effect();
     },
     useState<State>(

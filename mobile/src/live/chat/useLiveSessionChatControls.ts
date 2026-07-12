@@ -70,6 +70,8 @@ export function useLiveSessionChatControls(
   );
   const commitEditRef = useRef(commitEdit);
   const commitRemoveRef = useRef(commitRemove);
+  // Attempt identity is kept outside React state so same-tick duplicate actions
+  // cannot race a render and so superseded callbacks can be rejected precisely.
   const activeByEventIdRef = useRef<
     Record<
       string,
@@ -78,6 +80,7 @@ export function useLiveSessionChatControls(
   >({});
   const nextAttemptIdRef = useRef(0);
   const isMountedRef = useRef(true);
+  const previousViewerIdRef = useRef(viewerId);
   const runtimeRef = useRef({ hostId, sessionStatus, viewerId });
   commitEditRef.current = commitEdit;
   commitRemoveRef.current = commitRemove;
@@ -93,12 +96,18 @@ export function useLiveSessionChatControls(
   }, []);
 
   useLayoutEffect(() => {
-    if (viewerId !== null && sessionStatus !== 'ENDED') {
-      return;
+    const viewerChanged = previousViewerIdRef.current !== viewerId;
+    previousViewerIdRef.current = viewerId;
+
+    if (viewerId === null || viewerChanged) {
+      activeByEventIdRef.current = {};
     }
 
-    activeByEventIdRef.current = {};
-    dispatch({ type: 'reset' });
+    if (viewerId === null || viewerChanged || sessionStatus === 'ENDED') {
+      // Ended sessions hide controls immediately, but accepted requests remain
+      // eligible to reconcile their server-authoritative timeline result.
+      dispatch({ type: 'reset' });
+    }
   }, [sessionStatus, viewerId]);
 
   const dispatchControl = useCallback((action: LiveSessionChatControlsAction) => {
@@ -120,6 +129,8 @@ export function useLiveSessionChatControls(
     ): boolean => {
       const active = activeByEventIdRef.current[eventId];
 
+      // Only the exact mounted attempt may settle UI or timeline state; auth
+      // changes and unmounts invalidate the ref before late callbacks arrive.
       return (
         isMountedRef.current &&
         active?.action === action &&
@@ -128,6 +139,14 @@ export function useLiveSessionChatControls(
     },
     [],
   );
+
+  const clearActiveAttempt = useCallback((eventId: string): void => {
+    activeByEventIdRef.current = Object.fromEntries(
+      Object.entries(activeByEventIdRef.current).filter(
+        ([activeEventId]) => activeEventId !== eventId,
+      ),
+    );
+  }, []);
 
   const settleFailure = useCallback(
     (
@@ -140,7 +159,7 @@ export function useLiveSessionChatControls(
         return;
       }
 
-      delete activeByEventIdRef.current[eventId];
+      clearActiveAttempt(eventId);
       dispatchControl({
         action,
         attemptId,
@@ -149,7 +168,7 @@ export function useLiveSessionChatControls(
         type: 'operation_failed',
       });
     },
-    [dispatchControl, isCurrentAttempt],
+    [clearActiveAttempt, dispatchControl, isCurrentAttempt],
   );
 
   const editMessage = useCallback(
@@ -195,7 +214,7 @@ export function useLiveSessionChatControls(
             return;
           }
 
-          delete activeByEventIdRef.current[eventId];
+          clearActiveAttempt(eventId);
           dispatchControl({
             action: 'edit',
             attemptId,
@@ -219,7 +238,13 @@ export function useLiveSessionChatControls(
         },
       });
     },
-    [dispatchControl, dispatchTimeline, isCurrentAttempt, settleFailure],
+    [
+      clearActiveAttempt,
+      dispatchControl,
+      dispatchTimeline,
+      isCurrentAttempt,
+      settleFailure,
+    ],
   );
 
   const removeMessage = useCallback(
@@ -266,7 +291,7 @@ export function useLiveSessionChatControls(
             return;
           }
 
-          delete activeByEventIdRef.current[eventId];
+          clearActiveAttempt(eventId);
           dispatchControl({
             action: 'remove',
             attemptId,
@@ -283,7 +308,13 @@ export function useLiveSessionChatControls(
         },
       });
     },
-    [dispatchControl, dispatchTimeline, isCurrentAttempt, settleFailure],
+    [
+      clearActiveAttempt,
+      dispatchControl,
+      dispatchTimeline,
+      isCurrentAttempt,
+      settleFailure,
+    ],
   );
 
   return useMemo(

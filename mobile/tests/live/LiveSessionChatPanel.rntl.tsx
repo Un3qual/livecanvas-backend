@@ -37,7 +37,9 @@ describe('LiveSessionChatPanel message controls', () => {
     await renderPanel({ controls, rows: [chatRow('event-1', 'viewer-1')] });
 
     await user.type(screen.getByPlaceholderText('Write a message'), 'send draft');
-    await user.press(screen.getByRole('button', { name: 'Edit' }));
+    await user.press(
+      screen.getByRole('button', { name: 'Edit message: body-event-1' }),
+    );
     await user.clear(screen.getByLabelText('Edit message'));
     await user.type(screen.getByLabelText('Edit message'), '  updated body  ');
     await user.press(screen.getByRole('button', { name: 'Save' }));
@@ -59,12 +61,16 @@ describe('LiveSessionChatPanel message controls', () => {
     });
     await renderPanel({ controls, rows: [chatRow('event-1', 'viewer-2')] });
 
-    await user.press(screen.getByRole('button', { name: 'Remove' }));
+    await user.press(
+      screen.getByRole('button', { name: 'Remove message: body-event-1' }),
+    );
     expect(controls.removeMessage).not.toHaveBeenCalled();
     await user.press(screen.getByRole('button', { name: 'Cancel removal' }));
     expect(screen.queryByRole('button', { name: 'Confirm remove' })).toBeNull();
 
-    await user.press(screen.getByRole('button', { name: 'Remove' }));
+    await user.press(
+      screen.getByRole('button', { name: 'Remove message: body-event-1' }),
+    );
     await user.press(screen.getByRole('button', { name: 'Confirm remove' }));
     expect(controls.removeMessage).toHaveBeenCalledTimes(1);
     expect(controls.removeMessage).toHaveBeenCalledWith('event-1');
@@ -82,9 +88,15 @@ describe('LiveSessionChatPanel message controls', () => {
     ];
     const view = await renderPanel({ controls, rows });
 
-    expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(1);
-    expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(1);
-    await user.press(screen.getByRole('button', { name: 'Edit' }));
+    expect(
+      screen.getAllByRole('button', { name: /^Edit message:/ }),
+    ).toHaveLength(1);
+    expect(
+      screen.getAllByRole('button', { name: /^Remove message:/ }),
+    ).toHaveLength(1);
+    await user.press(
+      screen.getByRole('button', { name: 'Edit message: body-event-1' }),
+    );
     expect(screen.getByLabelText('Edit message')).toBeOnTheScreen();
 
     await view.rerender(
@@ -95,8 +107,8 @@ describe('LiveSessionChatPanel message controls', () => {
     );
 
     expect(screen.queryByLabelText('Edit message')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Edit message:/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Remove message:/ })).toBeNull();
   });
 
   test('disables only the pending row and keeps row errors visible with retry', async () => {
@@ -119,12 +131,108 @@ describe('LiveSessionChatPanel message controls', () => {
     });
 
     expect(screen.getByText('This live session has ended.')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Editing...' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Edit' })).toBeEnabled();
+    expect(
+      screen.getByRole('button', { name: 'Edit message: body-event-2' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Edit message: body-event-1' }),
+    ).toBeEnabled();
 
-    await user.press(screen.getByRole('button', { name: 'Retry' }));
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Retry editing message: body-event-1',
+      }),
+    );
     expect(controls.clearRowError).toHaveBeenCalledWith('event-1');
     expect(screen.getByLabelText('Edit message')).toBeOnTheScreen();
+  });
+
+  test('preserves a failed edit draft when retrying the same row', async () => {
+    const user = userEvent.setup();
+    const controls = messageControls({
+      hostId: 'viewer-2',
+      viewerId: 'viewer-1',
+    });
+    const rows = [chatRow('event-1', 'viewer-1')];
+    const view = await renderPanel({ controls, rows });
+
+    await user.press(
+      screen.getByRole('button', { name: 'Edit message: body-event-1' }),
+    );
+    await user.clear(screen.getByLabelText('Edit message'));
+    await user.type(screen.getByLabelText('Edit message'), 'failed draft');
+    await user.press(screen.getByRole('button', { name: 'Save' }));
+
+    const failedControls = messageControls({
+      controlsState: {
+        ...createLiveSessionChatControlsState(),
+        errorsByEventId: { 'event-1': 'Could not update this message.' },
+        failedActionByEventId: { 'event-1': 'edit' as const },
+      },
+      hostId: 'viewer-2',
+      viewerId: 'viewer-1',
+    });
+    await view.rerender(panel({ controls: failedControls, rows }));
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Retry editing message: body-event-1',
+      }),
+    );
+
+    expect(screen.getByLabelText('Edit message').props.value).toBe(
+      'failed draft',
+    );
+  });
+
+  test('retries the failed action when a host can both edit and remove', async () => {
+    const user = userEvent.setup();
+    const controlsState = {
+      ...createLiveSessionChatControlsState(),
+      errorsByEventId: { 'event-1': 'Could not update this message.' },
+      failedActionByEventId: { 'event-1': 'remove' as const },
+    };
+    const controls = messageControls({
+      controlsState,
+      hostId: 'viewer-1',
+      viewerId: 'viewer-1',
+    });
+    await renderPanel({
+      controls,
+      rows: [chatRow('event-1', 'viewer-1')],
+    });
+
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Retry removing message: body-event-1',
+      }),
+    );
+
+    expect(screen.getByRole('button', { name: 'Confirm remove' })).toBeOnTheScreen();
+    expect(screen.queryByLabelText('Edit message')).toBeNull();
+  });
+
+  test('gives row controls unique accessible names', async () => {
+    const controls = messageControls({
+      hostId: 'viewer-1',
+      viewerId: 'viewer-1',
+    });
+    await renderPanel({
+      controls,
+      rows: [chatRow('event-1', 'viewer-1'), chatRow('event-2', 'viewer-1')],
+    });
+
+    expect(
+      screen.getByRole('button', { name: 'Edit message: body-event-1' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: 'Edit message: body-event-2' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: 'Remove message: body-event-1' }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: 'Remove message: body-event-2' }),
+    ).toBeOnTheScreen();
   });
 });
 

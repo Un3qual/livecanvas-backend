@@ -290,6 +290,10 @@ describe('liveSessionChatControlsReducer', () => {
       'event-1': 'Edit failed.',
       'event-2': 'Remove failed.',
     });
+    expect(state.failedActionByEventId).toEqual({
+      'event-1': 'edit',
+      'event-2': 'remove',
+    });
 
     const cleared = reduce(state, {
       eventId: 'event-1',
@@ -297,6 +301,9 @@ describe('liveSessionChatControlsReducer', () => {
     });
     expect(cleared.errorsByEventId).toEqual({
       'event-2': 'Remove failed.',
+    });
+    expect(cleared.failedActionByEventId).toEqual({
+      'event-2': 'remove',
     });
   });
 });

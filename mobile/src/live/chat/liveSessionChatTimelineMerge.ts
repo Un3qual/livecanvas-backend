@@ -13,12 +13,17 @@ import type {
 } from './liveSessionChatState';
 
 export function replaceWithRows(
+  state: LiveSessionChatState,
   rows: ReadonlyArray<LiveSessionTimelineHistoryRow>,
 ): Pick<LiveSessionChatState, 'eventIds' | 'eventsById'> {
   const eventIds: Array<string> = [];
   const eventsById: Record<string, LiveSessionTimelineHistoryRow> = {};
 
   for (const row of rows) {
+    if (state.removedEventIds[row.id]) {
+      continue;
+    }
+
     if (!eventsById[row.id]) {
       eventIds.push(row.id);
     }
@@ -38,15 +43,21 @@ export function mergeRetainedRefreshRows(
   const incomingEventIds: Array<string> = [];
 
   for (const row of rows) {
+    if (state.removedEventIds[row.id]) {
+      continue;
+    }
+
+    const preferredRow = preferMonotonicChatRow(eventsById[row.id], row);
+
     if (incomingIds.has(row.id)) {
-      eventsById[row.id] = row;
+      eventsById[row.id] = preferredRow;
       continue;
     }
 
     incomingIds.add(row.id);
     incomingEventIds.push(row.id);
 
-    eventsById[row.id] = row;
+    eventsById[row.id] = preferredRow;
   }
 
   if (incomingEventIds.length === 0) {
@@ -176,12 +187,16 @@ export function prependRows(
   const prependedIds: Array<string> = [];
 
   for (const row of rows) {
+    if (state.removedEventIds[row.id]) {
+      continue;
+    }
+
     if (!eventIds.has(row.id)) {
       prependedIds.push(row.id);
       eventIds.add(row.id);
     }
 
-    eventsById[row.id] = row;
+    eventsById[row.id] = preferMonotonicChatRow(eventsById[row.id], row);
   }
 
   return {
@@ -199,12 +214,16 @@ export function appendRows(
   const appendedIds: Array<string> = [];
 
   for (const row of rows) {
+    if (state.removedEventIds[row.id]) {
+      continue;
+    }
+
     if (!eventIds.has(row.id)) {
       appendedIds.push(row.id);
       eventIds.add(row.id);
     }
 
-    eventsById[row.id] = row;
+    eventsById[row.id] = preferMonotonicChatRow(eventsById[row.id], row);
   }
 
   return {
@@ -243,14 +262,18 @@ function mergeRealtimeTimelineEvent(
     return state;
   }
 
+  if (state.removedEventIds[row.id]) {
+    return state;
+  }
+
   const eventExists = state.eventsById[row.id] !== undefined;
   const existingRow = state.eventsById[row.id];
 
   if (
-    mode === 'replace_existing' &&
     existingRow?.kind === 'chat_message' &&
     row.kind === 'chat_message' &&
-    row.editCount <= existingRow.editCount
+    (row.editCount < existingRow.editCount ||
+      (mode === 'replace_existing' && row.editCount === existingRow.editCount))
   ) {
     return state;
   }
@@ -309,7 +332,10 @@ export function removeTimelineEvent(
   state: LiveSessionChatState,
   removedTimelineEventId: string,
 ): LiveSessionChatState {
-  if (!state.eventsById[removedTimelineEventId]) {
+  if (
+    state.removedEventIds[removedTimelineEventId] &&
+    !state.eventsById[removedTimelineEventId]
+  ) {
     return state;
   }
 
@@ -327,7 +353,26 @@ export function removeTimelineEvent(
       (eventId) => eventId !== removedTimelineEventId,
     ),
     eventsById,
+    removedEventIds: {
+      ...state.removedEventIds,
+      [removedTimelineEventId]: true,
+    },
   };
+}
+
+function preferMonotonicChatRow(
+  existingRow: LiveSessionTimelineHistoryRow | undefined,
+  incomingRow: LiveSessionTimelineHistoryRow,
+): LiveSessionTimelineHistoryRow {
+  if (
+    existingRow?.kind === 'chat_message' &&
+    incomingRow.kind === 'chat_message' &&
+    incomingRow.editCount < existingRow.editCount
+  ) {
+    return existingRow;
+  }
+
+  return incomingRow;
 }
 
 function readRealtimeTimelineRow(

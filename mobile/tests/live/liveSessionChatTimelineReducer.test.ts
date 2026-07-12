@@ -68,6 +68,7 @@ describe('liveSessionChatTimelineReducer', () => {
       eventIds: [],
       eventsById: {},
       pageInfo: null,
+      removedEventIds: {},
     });
     expect(selectLiveSessionChatVisibleRows(reset)).toEqual([]);
   });
@@ -450,6 +451,7 @@ describe('liveSessionChatTimelineReducer', () => {
       eventIds: [],
       eventsById: {},
       pageInfo: null,
+      removedEventIds: {},
     });
   });
 
@@ -642,6 +644,77 @@ describe('liveSessionChatTimelineReducer', () => {
       type: 'realtime_event_received',
     });
     expect(duplicateRemoval).toBe(removed);
+  });
+
+  test('stale create and retained payloads cannot roll back a confirmed edit', () => {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
+      history: history(
+        [chatRow('event-1', 'original')],
+        pageInfo('cursor-1', 'cursor-1'),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+    const edited = liveSessionChatTimelineReducer(initial, {
+      event: mutationUpdate('event-1', 'edited', 1),
+      sessionId: 'session-1',
+      type: 'mutation_update_confirmed',
+    });
+    const afterCreateReplay = liveSessionChatTimelineReducer(edited, {
+      event: realtimeTimelineEvent('event-1', 'original'),
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+    const afterRetainedReplay = liveSessionChatTimelineReducer(afterCreateReplay, {
+      history: history(
+        [chatRow('event-1', 'original')],
+        pageInfo('cursor-1', 'cursor-1'),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+
+    expect(afterCreateReplay.eventsById['event-1']).toMatchObject({
+      body: 'edited',
+      editCount: 1,
+    });
+    expect(afterRetainedReplay.eventsById['event-1']).toMatchObject({
+      body: 'edited',
+      editCount: 1,
+    });
+  });
+
+  test('confirmed removals tombstone rows against realtime and retained replays', () => {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
+      history: history(
+        [chatRow('event-1', 'remove me')],
+        pageInfo('cursor-1', 'cursor-1'),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+    const removed = liveSessionChatTimelineReducer(initial, {
+      eventId: 'event-1',
+      sessionId: 'session-1',
+      type: 'mutation_remove_confirmed',
+    });
+    const afterCreateReplay = liveSessionChatTimelineReducer(removed, {
+      event: realtimeTimelineEvent('event-1', 'remove me'),
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+    const afterRetainedReplay = liveSessionChatTimelineReducer(afterCreateReplay, {
+      history: history(
+        [chatRow('event-1', 'remove me')],
+        pageInfo('cursor-1', 'cursor-1'),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+
+    expect(removed).toHaveProperty('removedEventIds.event-1', true);
+    expect(afterCreateReplay.eventIds).toEqual([]);
+    expect(afterRetainedReplay.eventIds).toEqual([]);
   });
 
   test('stale session actions are ignored', () => {

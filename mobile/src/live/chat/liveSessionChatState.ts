@@ -19,6 +19,7 @@ export type LiveSessionChatState = {
   readonly eventIds: ReadonlyArray<string>;
   readonly eventsById: Readonly<Record<string, LiveSessionTimelineHistoryRow>>;
   readonly pageInfo: LiveSessionTimelineHistoryPageInfo | null;
+  readonly removedEventIds: Readonly<Record<string, true>>;
 };
 
 export type LiveSessionChatMutationUpdate = {
@@ -71,5 +72,6 @@ export function createLiveSessionChatState(): LiveSessionChatState {
     eventIds: [],
     eventsById: {},
     pageInfo: null,
+    removedEventIds: {},
   };
 }

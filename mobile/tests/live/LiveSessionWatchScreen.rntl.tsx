@@ -37,6 +37,7 @@ const mockControlsController: LiveSessionChatControlsController = {
   clearRowError: jest.fn(),
   controlsState: {
     errorsByEventId: {},
+    failedActionByEventId: {},
     pendingByEventId: {},
     removedEventIds: {},
   },
@@ -189,7 +190,7 @@ describe('LiveSessionWatchScreen chat control wiring', () => {
       viewerId: 'viewer-1',
     });
 
-    await act(async () => {
+    await act(() => {
       mockChatControlsInput?.dispatchTimeline({
         event: {
           actor: { id: 'viewer-1' },
@@ -206,7 +207,7 @@ describe('LiveSessionWatchScreen chat control wiring', () => {
       expect(mockChatPanelProps?.rows[0]?.body).toBe('edited');
     });
 
-    await act(async () => {
+    await act(() => {
       mockChatControlsInput?.dispatchTimeline({
         eventId: 'event-1',
         type: 'mutation_remove_confirmed',

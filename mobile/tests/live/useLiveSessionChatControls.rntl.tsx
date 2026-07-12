@@ -63,7 +63,7 @@ describe('useLiveSessionChatControls', () => {
     let controller: LiveSessionChatControlsController | null = null;
     await render(<Harness onController={(value) => { controller = value; }} />);
 
-    await act(async () => {
+    await act(() => {
       controller?.editMessage('event-1', 'updated body');
       controller?.editMessage('event-1', 'updated body');
       controller?.removeMessage('event-1');
@@ -83,7 +83,7 @@ describe('useLiveSessionChatControls', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Edit message' }));
 
-    await act(async () => {
+    await act(() => {
       mockEditCommit.mock.calls[0]?.[0].onCompleted?.({
         editLiveChatMessage: {
           chatMessageEvent: {
@@ -113,7 +113,7 @@ describe('useLiveSessionChatControls', () => {
     expect(screen.getByTestId('pending').props.children).toBe('none');
     expect(screen.getByTestId('error').props.children).toBe('none');
 
-    await act(async () => {
+    await act(() => {
       mockEditCommit.mock.calls[0]?.[0].onError?.(new Error('late'));
     });
     expect(screen.getByTestId('error').props.children).toBe('none');
@@ -125,7 +125,7 @@ describe('useLiveSessionChatControls', () => {
 
     await fireEvent.press(screen.getByRole('button', { name: 'Remove message' }));
 
-    await act(async () => {
+    await act(() => {
       mockRemoveCommit.mock.calls[0]?.[0].onCompleted?.({
         removeLiveChatMessageEvent: {
           errors: [],
@@ -146,7 +146,7 @@ describe('useLiveSessionChatControls', () => {
     await render(<Harness />);
 
     await fireEvent.press(screen.getByRole('button', { name: 'Edit message' }));
-    await act(async () => {
+    await act(() => {
       mockEditCommit.mock.calls[0]?.[0].onCompleted?.({
         editLiveChatMessage: {
           chatMessageEvent: null,
@@ -162,7 +162,7 @@ describe('useLiveSessionChatControls', () => {
     expect(screen.getByTestId('error').props.children).toBe('none');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Edit message' }));
-    await act(async () => {
+    await act(() => {
       mockEditCommit.mock.calls[1]?.[0].onError?.(new Error('network'));
     });
     expect(screen.getByTestId('error').props.children).toBe(
@@ -170,7 +170,7 @@ describe('useLiveSessionChatControls', () => {
     );
   });
 
-  test('invalidates pending callbacks on auth loss and unmount', async () => {
+  test('reconciles an accepted mutation after session end hides the controls', async () => {
     const dispatchTimeline = jest.fn();
     const view = await render(<Harness dispatchTimeline={dispatchTimeline} />);
 
@@ -178,11 +178,52 @@ describe('useLiveSessionChatControls', () => {
     const editCompletion = mockEditCommit.mock.calls[0]?.[0].onCompleted;
 
     await view.rerender(
-      <Harness dispatchTimeline={dispatchTimeline} viewerId={null} />,
+      <Harness dispatchTimeline={dispatchTimeline} sessionStatus="ENDED" />,
     );
     expect(screen.getByTestId('pending').props.children).toBe('none');
 
-    await act(async () => {
+    await act(() => {
+      editCompletion?.({
+        editLiveChatMessage: {
+          chatMessageEvent: {
+            actor: { id: 'viewer-1' },
+            body: 'accepted before end',
+            editCount: 1,
+            edited: true,
+            editedAt: '2026-07-11T12:01:00.000000Z',
+            id: 'event-1',
+          },
+          errors: [],
+        },
+      });
+    });
+
+    expect(dispatchTimeline).toHaveBeenCalledWith({
+      event: {
+        actor: { id: 'viewer-1' },
+        body: 'accepted before end',
+        editCount: 1,
+        edited: true,
+        editedAt: '2026-07-11T12:01:00.000000Z',
+        id: 'event-1',
+      },
+      type: 'mutation_update_confirmed',
+    });
+  });
+
+  test('invalidates pending callbacks on auth identity change and unmount', async () => {
+    const dispatchTimeline = jest.fn();
+    const view = await render(<Harness dispatchTimeline={dispatchTimeline} />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit message' }));
+    const editCompletion = mockEditCommit.mock.calls[0]?.[0].onCompleted;
+
+    await view.rerender(
+      <Harness dispatchTimeline={dispatchTimeline} viewerId="viewer-2" />,
+    );
+    expect(screen.getByTestId('pending').props.children).toBe('none');
+
+    await act(() => {
       editCompletion?.({
         editLiveChatMessage: {
           chatMessageEvent: {
@@ -204,7 +245,7 @@ describe('useLiveSessionChatControls', () => {
     const removeCompletion = mockRemoveCommit.mock.calls[0]?.[0].onCompleted;
     await view.unmount();
 
-    await act(async () => {
+    await act(() => {
       removeCompletion?.({
         removeLiveChatMessageEvent: {
           errors: [],
