@@ -6,7 +6,7 @@ import {
   storeContactInviteHandoff,
   withContactInviteToken,
   type ContactInviteHandoffStorage,
-} from '../../src/contacts/contactInviteHandoff';
+} from '../../src/contacts/contactInviteHandoffCore';
 
 function memoryStorage(): ContactInviteHandoffStorage & { value: string | null } {
   return {

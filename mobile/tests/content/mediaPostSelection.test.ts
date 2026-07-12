@@ -2,9 +2,9 @@ import { describe, expect, test } from 'bun:test';
 
 import {
   MediaPostSelectionError,
-  pickPostMedia,
+  pickPostMediaWithPicker,
   type MediaPostPicker,
-} from '../../src/content/mediaPostSelection';
+} from '../../src/content/mediaPostSelectionCore';
 
 function pickerWithResult(
   result: Awaited<ReturnType<MediaPostPicker['launchImageLibraryAsync']>>,
@@ -28,7 +28,7 @@ describe('pickPostMedia', () => {
         Promise.resolve({ granted: true }),
     } as MediaPostPicker;
 
-    await expect(pickPostMedia(picker)).resolves.toBeNull();
+    await expect(pickPostMediaWithPicker(picker)).resolves.toBeNull();
     expect(pickerOptions).toEqual({
       allowsEditing: false,
       allowsMultipleSelection: false,
@@ -67,7 +67,7 @@ describe('pickPostMedia', () => {
         ],
       });
 
-      await expect(pickPostMedia(picker)).resolves.toEqual({
+      await expect(pickPostMediaWithPicker(picker)).resolves.toEqual({
         file: null,
         fileName: 'selected-media',
         fileSize: 1024,
@@ -99,7 +99,7 @@ describe('pickPostMedia', () => {
       ],
     });
 
-    await expect(pickPostMedia(picker)).resolves.toMatchObject({ file });
+    await expect(pickPostMediaWithPicker(picker)).resolves.toMatchObject({ file });
   });
 
   test('rejects unsupported media with viewer-safe copy', async () => {
@@ -124,7 +124,7 @@ describe('pickPostMedia', () => {
         ],
       });
 
-      await expect(pickPostMedia(picker)).rejects.toEqual(
+      await expect(pickPostMediaWithPicker(picker)).rejects.toEqual(
         new MediaPostSelectionError(
           'Choose a JPEG, PNG, WebP, or MP4 file.',
         ),
@@ -154,7 +154,7 @@ describe('pickPostMedia', () => {
         ],
       });
 
-      await expect(pickPostMedia(picker)).resolves.toMatchObject({
+      await expect(pickPostMediaWithPicker(picker)).resolves.toMatchObject({
         mediaKind,
         mimeType,
       });
@@ -176,7 +176,7 @@ describe('pickPostMedia', () => {
       ],
     });
 
-    await expect(pickPostMedia(picker)).rejects.toEqual(
+    await expect(pickPostMediaWithPicker(picker)).rejects.toEqual(
       new MediaPostSelectionError('Choose a JPEG, PNG, WebP, or MP4 file.'),
     );
   });
@@ -206,13 +206,13 @@ describe('pickPostMedia', () => {
       });
 
       if (accepted) {
-        expect((await pickPostMedia(picker))?.fileSize).toBe(fileSize);
+        expect((await pickPostMediaWithPicker(picker))?.fileSize).toBe(fileSize);
       } else {
         const expectedMessage = mimeType.startsWith('image/')
           ? 'Images must be 25 MB or smaller.'
           : 'Videos must be 100 MB or smaller.';
 
-        await expect(pickPostMedia(picker)).rejects.toEqual(
+        await expect(pickPostMediaWithPicker(picker)).rejects.toEqual(
           new MediaPostSelectionError(expectedMessage),
         );
       }
@@ -234,14 +234,16 @@ describe('pickPostMedia', () => {
       ],
     });
 
-    await expect(pickPostMedia(noSizePicker)).resolves.toMatchObject({
+    await expect(pickPostMediaWithPicker(noSizePicker)).resolves.toMatchObject({
       fileName: null,
       fileSize: null,
       mimeType: 'image/png',
     });
 
     await expect(
-      pickPostMedia(pickerWithResult({ assets: null, canceled: true }, false)),
+      pickPostMediaWithPicker(
+        pickerWithResult({ assets: null, canceled: true }, false),
+      ),
     ).rejects.toEqual(
       new MediaPostSelectionError(
         'Allow photo library access to select media.',
@@ -255,7 +257,7 @@ describe('pickPostMedia', () => {
         Promise.resolve({ granted: true }),
     } as unknown as MediaPostPicker;
 
-    await expect(pickPostMedia(failingPicker)).rejects.toEqual(
+    await expect(pickPostMediaWithPicker(failingPicker)).rejects.toEqual(
       new MediaPostSelectionError('We could not open your media library.'),
     );
   });

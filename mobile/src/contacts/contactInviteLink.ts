@@ -1,31 +1,7 @@
-import { storeContactInviteHandoff } from './contactInviteHandoff';
-
-type ParsedContactInviteLink =
+export type ParsedContactInviteLink =
   | { readonly status: 'invalid' }
   | { readonly status: 'not_invite' }
   | { readonly status: 'valid'; readonly token: string };
-
-export async function redirectContactInviteSystemPath(
-  path: string,
-  publicAppOrigin: string | null,
-): Promise<string> {
-  const parsed = parseContactInviteLink(path, publicAppOrigin);
-
-  if (parsed.status === 'not_invite') {
-    return path;
-  }
-
-  if (parsed.status === 'invalid') {
-    return '/invite';
-  }
-
-  try {
-    const { handoffId } = await storeContactInviteHandoff(parsed.token);
-    return `/invite?handoff=${encodeURIComponent(handoffId)}`;
-  } catch {
-    return '/invite';
-  }
-}
 
 export function redactContactInviteSnapshotUrl(
   initialUrl: string | null,
@@ -40,7 +16,7 @@ export function redactContactInviteSnapshotUrl(
     : '/invite';
 }
 
-function parseContactInviteLink(
+export function parseContactInviteLink(
   path: string,
   publicAppOrigin: string | null,
 ): ParsedContactInviteLink {

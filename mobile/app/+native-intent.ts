@@ -1,4 +1,4 @@
-import { redirectContactInviteSystemPath } from '../src/contacts/contactInviteLink';
+import { redirectContactInviteSystemPath } from '../src/contacts/contactInviteNativeLink';
 import { resolveEnvironment } from '../src/config/environment';
 
 export function redirectSystemPath({ path }: {
