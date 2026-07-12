@@ -1240,6 +1240,8 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
           [delivery_url] = Regex.run(~r{https://\S+/invites#token=\S+}, email.text_body)
           uri = URI.parse(delivery_url)
 
+          assert email.text_body =~ "You're invited to join LiveCanvas."
+          refute email.text_body =~ viewer.email
           assert delivery_url =~ ~r{^https://app\.livecanvas\.example/invites#token=}
           assert uri.scheme == "https"
           assert uri.host == "app.livecanvas.example"

@@ -1484,7 +1484,6 @@ defmodule LC.Accounts do
     with {:ok, %{token: serialized_value}} <-
            issue_contact_invite_token(user, normalized_recipient) do
       UserNotifier.deliver_contact_invite_instructions(
-        user,
         normalized_recipient,
         invite_url_fun.(serialized_value)
       )
