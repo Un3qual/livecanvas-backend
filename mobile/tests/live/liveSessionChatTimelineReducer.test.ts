@@ -582,6 +582,68 @@ describe('liveSessionChatTimelineReducer', () => {
     expect(removed.eventsById).not.toHaveProperty('event-1');
   });
 
+  test('confirmed mutations reconcile idempotently with either realtime order', () => {
+    const initial = liveSessionChatTimelineReducer(activeState('session-1'), {
+      history: history(
+        [chatRow('event-1', 'original'), chatRow('event-2', 'remove me')],
+        pageInfo('cursor-1', 'cursor-2'),
+      ),
+      sessionId: 'session-1',
+      type: 'retained_initial_loaded',
+    });
+
+    const responseFirst = liveSessionChatTimelineReducer(initial, {
+      event: mutationUpdate('event-1', 'edited once', 1),
+      sessionId: 'session-1',
+      type: 'mutation_update_confirmed',
+    });
+    expect(responseFirst.eventsById['event-1']).toMatchObject({
+      body: 'edited once',
+      cursor: 'cursor-event-1',
+      editCount: 1,
+    });
+
+    const duplicateBroadcast = liveSessionChatTimelineReducer(responseFirst, {
+      event: realtimeTimelineEventUpdatedAtCount('event-1', 'edited once', 1),
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+    expect(duplicateBroadcast).toBe(responseFirst);
+
+    const broadcastFirst = liveSessionChatTimelineReducer(responseFirst, {
+      event: realtimeTimelineEventUpdatedAtCount('event-1', 'edited twice', 2),
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+    const staleResponse = liveSessionChatTimelineReducer(broadcastFirst, {
+      event: mutationUpdate('event-1', 'edited once', 1),
+      sessionId: 'session-1',
+      type: 'mutation_update_confirmed',
+    });
+    expect(staleResponse).toBe(broadcastFirst);
+    expect(staleResponse.eventsById['event-1']).toMatchObject({
+      body: 'edited twice',
+      editCount: 2,
+    });
+
+    const removed = liveSessionChatTimelineReducer(staleResponse, {
+      eventId: 'event-2',
+      sessionId: 'session-1',
+      type: 'mutation_remove_confirmed',
+    });
+    expect(removed.eventIds).toEqual(['event-1']);
+
+    const duplicateRemoval = liveSessionChatTimelineReducer(removed, {
+      event: {
+        kind: 'timeline_event_removed',
+        removedTimelineEventId: 'event-2',
+      },
+      sessionId: 'session-1',
+      type: 'realtime_event_received',
+    });
+    expect(duplicateRemoval).toBe(removed);
+  });
+
   test('stale session actions are ignored', () => {
     const active = liveSessionChatTimelineReducer(activeState('session-1'), {
       history: history([chatRow('event-1', 'active')], pageInfo('cursor-1', 'cursor-1')),
@@ -750,12 +812,20 @@ function realtimeTimelineEventUpdated(
   id: string,
   body: string,
 ): LiveSessionRealtimeEvent {
+  return realtimeTimelineEventUpdatedAtCount(id, body, 1);
+}
+
+function realtimeTimelineEventUpdatedAtCount(
+  id: string,
+  body: string,
+  editCount: number,
+): LiveSessionRealtimeEvent {
   return {
     event: {
       __typename: 'ChatMessageEvent',
       actor: { id: `actor-${id}` },
       body,
-      editCount: 1,
+      editCount,
       edited: true,
       editedAt: '2026-06-04T18:01:00.000000Z',
       eventType: 'chat_message_edited',
@@ -763,5 +833,16 @@ function realtimeTimelineEventUpdated(
       occurredAt: '2026-06-04T18:00:00.000000Z',
     },
     kind: 'timeline_event_updated',
+  };
+}
+
+function mutationUpdate(id: string, body: string, editCount: number) {
+  return {
+    actor: { id: `actor-${id}` },
+    body,
+    editCount,
+    edited: true,
+    editedAt: '2026-06-04T18:01:00.000000Z',
+    id,
   };
 }

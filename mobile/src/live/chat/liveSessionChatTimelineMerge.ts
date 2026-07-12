@@ -7,7 +7,10 @@ import type {
   LiveSessionTimelineHistoryPageInfo,
   LiveSessionTimelineHistoryRow,
 } from '../liveSessionTimelineHistory';
-import type { LiveSessionChatState } from './liveSessionChatState';
+import type {
+  LiveSessionChatMutationUpdate,
+  LiveSessionChatState,
+} from './liveSessionChatState';
 
 export function replaceWithRows(
   rows: ReadonlyArray<LiveSessionTimelineHistoryRow>,
@@ -222,7 +225,7 @@ export function mergeRealtimeEvent(
       return mergeRealtimeTimelineEvent(state, event.event, 'replace_existing');
 
     case 'timeline_event_removed':
-      return removeRealtimeTimelineEvent(state, event.removedTimelineEventId);
+      return removeTimelineEvent(state, event.removedTimelineEventId);
 
     default:
       return state;
@@ -241,6 +244,17 @@ function mergeRealtimeTimelineEvent(
   }
 
   const eventExists = state.eventsById[row.id] !== undefined;
+  const existingRow = state.eventsById[row.id];
+
+  if (
+    mode === 'replace_existing' &&
+    existingRow?.kind === 'chat_message' &&
+    row.kind === 'chat_message' &&
+    row.editCount <= existingRow.editCount
+  ) {
+    return state;
+  }
+
   const nextRow = eventExists
     ? {
         ...row,
@@ -262,7 +276,36 @@ function mergeRealtimeTimelineEvent(
   };
 }
 
-function removeRealtimeTimelineEvent(
+export function mergeConfirmedTimelineUpdate(
+  state: LiveSessionChatState,
+  update: LiveSessionChatMutationUpdate,
+): LiveSessionChatState {
+  const current = state.eventsById[update.id];
+
+  if (
+    current?.kind !== 'chat_message' ||
+    update.editCount <= current.editCount
+  ) {
+    return state;
+  }
+
+  return {
+    ...state,
+    eventsById: {
+      ...state.eventsById,
+      [update.id]: {
+        ...current,
+        actor: update.actor,
+        body: update.body,
+        editCount: update.editCount,
+        edited: update.edited,
+        editedAt: update.editedAt,
+      },
+    },
+  };
+}
+
+export function removeTimelineEvent(
   state: LiveSessionChatState,
   removedTimelineEventId: string,
 ): LiveSessionChatState {
