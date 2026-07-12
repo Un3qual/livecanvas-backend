@@ -27,6 +27,25 @@ defmodule LC.ContentTest do
     def verify_upload(_request), do: {:error, :storage_unavailable}
   end
 
+  defmodule BlockingMediaProcessing do
+    @moduledoc false
+
+    @behaviour LC.Content.MediaProcessing
+
+    def process_upload(media_asset) do
+      test_pid =
+        :live_canvas
+        |> Application.fetch_env!(__MODULE__)
+        |> Keyword.fetch!(:test_pid)
+
+      send(test_pid, {:media_processing_started, self(), media_asset.id})
+
+      receive do
+        :finish_media_processing -> {:ok, %{width: 640}}
+      end
+    end
+  end
+
   describe "create_post/2" do
     test "persists author-owned content" do
       author = user_fixture()
@@ -933,6 +952,62 @@ defmodule LC.ContentTest do
       job = %AsyncJob{kind: "media_asset_processing", payload: %{media_asset_id: 9_999_999_999}}
 
       assert :ok = MediaProcessingJob.handle(job)
+    end
+
+    test "the first terminal transition wins when queue processing races a webhook" do
+      previous_processing_config =
+        Application.fetch_env!(:live_canvas, LC.Content.MediaProcessing)
+
+      Application.put_env(:live_canvas, LC.Content.MediaProcessing,
+        adapter: BlockingMediaProcessing
+      )
+
+      Application.put_env(:live_canvas, BlockingMediaProcessing, test_pid: self())
+
+      on_exit(fn ->
+        Application.put_env(
+          :live_canvas,
+          LC.Content.MediaProcessing,
+          previous_processing_config
+        )
+
+        Application.delete_env(:live_canvas, BlockingMediaProcessing)
+      end)
+
+      owner = user_fixture()
+
+      media_asset =
+        media_asset_fixture(owner, %{
+          mime_type: "image/jpeg",
+          processing_state: :uploaded
+        })
+
+      assert {:ok, :accepted} =
+               Content.ingest_media_processing_webhook("evt_terminal_race", %{
+                 "event_type" => "media.failed",
+                 "media_asset_id" => media_asset.id,
+                 "processing_state" => "failed"
+               })
+
+      webhook_job = Repo.get_by!(AsyncJob, kind: "media_processing_webhook")
+
+      processing_job = %AsyncJob{
+        kind: "media_asset_processing",
+        payload: %{media_asset_id: media_asset.id}
+      }
+
+      processing_task = Task.async(fn -> MediaProcessingJob.handle(processing_job) end)
+
+      assert_receive {:media_processing_started, processing_pid, media_asset_id}
+      assert media_asset_id == media_asset.id
+      assert :ok = MediaProcessingJob.handle(webhook_job)
+
+      send(processing_pid, :finish_media_processing)
+      assert :ok = Task.await(processing_task)
+
+      persisted_media_asset = Repo.get!(MediaAssetSchema, media_asset.id)
+      assert persisted_media_asset.processing_state == :failed
+      assert persisted_media_asset.width == nil
     end
   end
 

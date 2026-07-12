@@ -4,9 +4,13 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
   @behaviour LC.Infra.ObjectStorage
 
   @default_upload_ttl_seconds 900
+  @upload_method "PUT"
+  @write_once_header "*"
 
   @type adapter_config :: %{
-          upload_base_url: String.t(),
+          upload_signing_url: String.t(),
+          upload_signing_authorization_header: String.t() | nil,
+          upload_signing_request_options: keyword(),
           verification_base_url: String.t(),
           verification_authorization_header: String.t() | nil,
           verification_request_options: keyword(),
@@ -21,15 +25,14 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
       when is_binary(key) and is_binary(mime_type) do
     with :ok <- validate_storage_key(key),
          {:ok, config} <- fetch_config(),
-         {:ok, upload_url} <- build_object_url(config.upload_base_url, key),
-         {:ok, expires_at} <- upload_expiration(config.upload_ttl_seconds) do
-      {:ok,
-       %{
-         method: :put,
-         url: upload_url,
-         headers: %{"content-type" => mime_type, "if-none-match" => "*"},
-         expires_at: expires_at
-       }}
+         {:ok, requested_expires_at} <- upload_expiration(config.upload_ttl_seconds),
+         {:ok, response} <- request_upload_ticket(key, mime_type, requested_expires_at, config),
+         {:ok, upload} <-
+           validate_upload_ticket_response(response, mime_type, requested_expires_at) do
+      {:ok, upload}
+    else
+      {:error, %_exception{}} -> {:error, :storage_unavailable}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -79,23 +82,27 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
 
   @spec fetch_config() :: {:ok, adapter_config()} | {:error, :invalid_config}
   defp fetch_config do
-    with {:ok, upload_base_url} <- fetch_base_url(:upload_base_url),
+    with {:ok, upload_signing_url} <- fetch_base_url(:upload_signing_url),
          {:ok, verification_base_url} <- fetch_base_url(:verification_base_url),
          {:ok, public_base_url} <- fetch_base_url(:public_base_url),
          {:ok, upload_ttl_seconds} <- fetch_upload_ttl_seconds() do
       {:ok,
        %{
-         upload_base_url: upload_base_url,
+         upload_signing_url: upload_signing_url,
+         upload_signing_authorization_header:
+           fetch_authorization_header(:upload_signing_authorization_header),
+         upload_signing_request_options: fetch_request_options(:upload_signing_request_options),
          verification_base_url: verification_base_url,
-         verification_authorization_header: fetch_verification_authorization_header(),
-         verification_request_options: fetch_verification_request_options(),
+         verification_authorization_header:
+           fetch_authorization_header(:verification_authorization_header),
+         verification_request_options: fetch_request_options(:verification_request_options),
          public_base_url: public_base_url,
          upload_ttl_seconds: upload_ttl_seconds
        }}
     end
   end
 
-  @spec fetch_base_url(:upload_base_url | :verification_base_url | :public_base_url) ::
+  @spec fetch_base_url(:upload_signing_url | :verification_base_url | :public_base_url) ::
           {:ok, String.t()} | {:error, :invalid_config}
   defp fetch_base_url(key) do
     config = Application.get_env(:live_canvas, __MODULE__, [])
@@ -108,21 +115,25 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
     end
   end
 
-  @spec fetch_verification_authorization_header() :: String.t() | nil
-  defp fetch_verification_authorization_header do
+  @spec fetch_authorization_header(
+          :upload_signing_authorization_header
+          | :verification_authorization_header
+        ) :: String.t() | nil
+  defp fetch_authorization_header(key) do
     config = Application.get_env(:live_canvas, __MODULE__, [])
 
-    case Keyword.get(config, :verification_authorization_header) do
+    case Keyword.get(config, key) do
       value when is_binary(value) and value != "" -> value
       _other -> nil
     end
   end
 
-  @spec fetch_verification_request_options() :: keyword()
-  defp fetch_verification_request_options do
+  @spec fetch_request_options(:upload_signing_request_options | :verification_request_options) ::
+          keyword()
+  defp fetch_request_options(key) do
     config = Application.get_env(:live_canvas, __MODULE__, [])
 
-    case Keyword.get(config, :verification_request_options, []) do
+    case Keyword.get(config, key, []) do
       options when is_list(options) -> options
       _other -> []
     end
@@ -159,6 +170,122 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
     end
   end
 
+  @spec request_upload_ticket(String.t(), String.t(), DateTime.t(), adapter_config()) ::
+          {:ok, Req.Response.t()} | {:error, Exception.t()}
+  defp request_upload_ticket(key, mime_type, expires_at, config) do
+    required_headers = required_upload_headers(mime_type)
+
+    options =
+      config.upload_signing_request_options
+      |> Keyword.merge(
+        url: config.upload_signing_url,
+        headers: authorization_headers(config.upload_signing_authorization_header),
+        json: %{
+          key: key,
+          method: @upload_method,
+          content_type: mime_type,
+          expires_at: DateTime.to_iso8601(expires_at),
+          required_headers: required_headers,
+          write_once: true
+        },
+        retry: false
+      )
+
+    Req.post(options)
+  end
+
+  @spec validate_upload_ticket_response(Req.Response.t(), String.t(), DateTime.t()) ::
+          {:ok, LC.Infra.ObjectStorage.signed_upload()} | {:error, atom()}
+  defp validate_upload_ticket_response(
+         %Req.Response{status: status},
+         _mime_type,
+         _requested_expires_at
+       )
+       when status < 200 or status >= 300,
+       do: {:error, :storage_unavailable}
+
+  defp validate_upload_ticket_response(
+         %Req.Response{body: body},
+         mime_type,
+         requested_expires_at
+       )
+       when is_map(body) do
+    with {:ok, method} <- upload_ticket_method(Map.get(body, "method")),
+         {:ok, url} <- upload_ticket_url(Map.get(body, "url")),
+         {:ok, headers} <- upload_ticket_headers(Map.get(body, "headers"), mime_type),
+         {:ok, expires_at} <-
+           upload_ticket_expiration(Map.get(body, "expires_at"), requested_expires_at) do
+      {:ok, %{method: method, url: url, headers: headers, expires_at: expires_at}}
+    end
+  end
+
+  defp validate_upload_ticket_response(_response, _mime_type, _requested_expires_at),
+    do: {:error, :invalid_upload_ticket}
+
+  @spec upload_ticket_method(term()) :: {:ok, :put} | {:error, :invalid_upload_ticket}
+  defp upload_ticket_method("PUT"), do: {:ok, :put}
+  defp upload_ticket_method(_method), do: {:error, :invalid_upload_ticket}
+
+  @spec upload_ticket_url(term()) :: {:ok, String.t()} | {:error, :invalid_upload_ticket}
+  defp upload_ticket_url(url) when is_binary(url) do
+    uri = URI.parse(url)
+
+    if uri.scheme == "https" and is_binary(uri.host) and uri.host != "" and is_nil(uri.fragment) do
+      {:ok, url}
+    else
+      {:error, :invalid_upload_ticket}
+    end
+  end
+
+  defp upload_ticket_url(_url), do: {:error, :invalid_upload_ticket}
+
+  @spec upload_ticket_headers(term(), String.t()) ::
+          {:ok, %{optional(String.t()) => String.t()}} | {:error, :invalid_upload_ticket}
+  defp upload_ticket_headers(headers, mime_type) when is_map(headers) do
+    normalized_headers =
+      Map.new(headers, fn
+        {name, value} when is_binary(name) and is_binary(value) ->
+          {String.downcase(String.trim(name)), value}
+
+        _invalid_header ->
+          {"", ""}
+      end)
+
+    required_headers = required_upload_headers(mime_type)
+
+    if Map.take(normalized_headers, Map.keys(required_headers)) == required_headers and
+         Enum.all?(normalized_headers, fn {name, value} -> name != "" and value != "" end) do
+      {:ok, normalized_headers}
+    else
+      {:error, :invalid_upload_ticket}
+    end
+  end
+
+  defp upload_ticket_headers(_headers, _mime_type), do: {:error, :invalid_upload_ticket}
+
+  @spec upload_ticket_expiration(term(), DateTime.t()) ::
+          {:ok, DateTime.t()} | {:error, :invalid_upload_ticket}
+  defp upload_ticket_expiration(value, requested_expires_at) when is_binary(value) do
+    now = DateTime.utc_now()
+
+    with {:ok, expires_at, 0} <- DateTime.from_iso8601(value),
+         :gt <- DateTime.compare(expires_at, now),
+         comparison when comparison in [:lt, :eq] <-
+           DateTime.compare(expires_at, requested_expires_at) do
+      {:ok, expires_at}
+    else
+      _invalid_expiration -> {:error, :invalid_upload_ticket}
+    end
+  end
+
+  defp upload_ticket_expiration(_value, _requested_expires_at),
+    do: {:error, :invalid_upload_ticket}
+
+  @spec required_upload_headers(String.t()) :: %{String.t() => String.t()}
+  defp required_upload_headers(mime_type) do
+    %{"content-type" => mime_type, "if-none-match" => @write_once_header}
+  end
+
   @spec validate_storage_key(LC.Infra.ObjectStorage.storage_key()) ::
           :ok | {:error, :invalid_storage_key}
   defp validate_storage_key(key) when is_binary(key) do
@@ -174,15 +301,19 @@ defmodule LC.Infra.ObjectStorage.ConfigurableAdapter do
   defp request_verification(url, config) do
     options =
       config.verification_request_options
-      |> Keyword.merge(url: url, headers: verification_headers(config), retry: false)
+      |> Keyword.merge(
+        url: url,
+        headers: authorization_headers(config.verification_authorization_header),
+        retry: false
+      )
 
     Req.head(options)
   end
 
-  @spec verification_headers(adapter_config()) :: %{optional(String.t()) => String.t()}
-  defp verification_headers(%{verification_authorization_header: nil}), do: %{}
+  @spec authorization_headers(String.t() | nil) :: %{optional(String.t()) => String.t()}
+  defp authorization_headers(nil), do: %{}
 
-  defp verification_headers(%{verification_authorization_header: value}) when is_binary(value) do
+  defp authorization_headers(value) when is_binary(value) do
     %{"authorization" => value}
   end
 

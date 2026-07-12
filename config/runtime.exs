@@ -100,12 +100,18 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
-  object_storage_upload_base_url =
-    System.get_env("OBJECT_STORAGE_UPLOAD_BASE_URL") ||
+  object_storage_upload_signing_url =
+    System.get_env("OBJECT_STORAGE_UPLOAD_SIGNING_URL") ||
       raise """
-      environment variable OBJECT_STORAGE_UPLOAD_BASE_URL is missing.
-      For example: https://uploads.example.com/direct
+      environment variable OBJECT_STORAGE_UPLOAD_SIGNING_URL is missing.
+      For example: https://storage-api.example.com/upload-tickets
       """
+
+  object_storage_upload_signing_authorization_header =
+    case System.get_env("OBJECT_STORAGE_UPLOAD_SIGNING_AUTHORIZATION") do
+      value when is_binary(value) and value != "" -> value
+      _other -> nil
+    end
 
   object_storage_public_base_url =
     System.get_env("OBJECT_STORAGE_PUBLIC_BASE_URL") ||
@@ -142,7 +148,8 @@ if config_env() == :prod do
   config :live_canvas, LC.Infra.ObjectStorage, adapter: LC.Infra.ObjectStorage.ConfigurableAdapter
 
   config :live_canvas, LC.Infra.ObjectStorage.ConfigurableAdapter,
-    upload_base_url: object_storage_upload_base_url,
+    upload_signing_url: object_storage_upload_signing_url,
+    upload_signing_authorization_header: object_storage_upload_signing_authorization_header,
     verification_base_url: object_storage_verification_base_url,
     verification_authorization_header: object_storage_verification_authorization_header,
     public_base_url: object_storage_public_base_url,

@@ -46,6 +46,7 @@ describe('mediaPostPublishingReducer', () => {
       errorMessage: null,
       mediaAssetId: null,
       selection: null,
+      selectionFallback: null,
       stage: 'idle',
       uploadConfirmed: false,
     });
@@ -147,6 +148,7 @@ describe('mediaPostPublishingReducer', () => {
       errorMessage: null,
       mediaAssetId: 'ready-id',
       selection,
+      selectionFallback: null,
       stage: 'ready',
       uploadConfirmed: true,
     };
@@ -171,6 +173,7 @@ describe('mediaPostPublishingReducer', () => {
       errorMessage: 'Upload failed.',
       mediaAssetId: 'discard-me',
       selection,
+      selectionFallback: null,
       stage: 'failed',
       uploadConfirmed: false,
     };
@@ -233,5 +236,29 @@ describe('mediaPostPublishingReducer', () => {
       ...createMediaPostPublishingState(),
       attemptId: failed.attemptId + 1,
     });
+  });
+
+  test('restores ready media when replacement selection is cancelled', () => {
+    const ready: MediaPostPublishingState = {
+      attemptId: 4,
+      errorMessage: null,
+      mediaAssetId: 'ready-id',
+      selection,
+      selectionFallback: null,
+      stage: 'ready',
+      uploadConfirmed: true,
+    };
+
+    const selectingReplacement = reduce(ready, { type: 'selectionStarted' });
+    const restored = reduce(selectingReplacement, {
+      attemptId: selectingReplacement.attemptId,
+      type: 'selectionCancelled',
+    });
+
+    expect(restored).toEqual({
+      ...ready,
+      attemptId: selectingReplacement.attemptId + 1,
+    });
+    expect(canAttachSelectedMedia(restored)).toBe(true);
   });
 });

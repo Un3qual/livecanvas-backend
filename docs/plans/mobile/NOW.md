@@ -22,9 +22,9 @@ Status: Batch 4 Live-Chat Message Controls active; backend Task 1 next
 ## Verification
 
 - Relay: 51 reader and 47 normalization documents compiled.
-- Focused final gates: 27 Bun tests and 23 RNTL/Jest tests passed.
-- Full `bun run test:quality`: typechecks and lint passed; 490 Bun tests and
-  126 Jest tests passed.
+- Focused final gates: 28 Bun tests and 25 RNTL/Jest tests passed.
+- Full `bun run test:quality`: typechecks and lint passed; 491 Bun tests and
+  128 Jest tests passed.
 - Focused Jest open-handle detection and `git diff --check` passed.
 
 ## Deferred Scope

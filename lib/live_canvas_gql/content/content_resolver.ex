@@ -389,7 +389,54 @@ defmodule LCGQL.Content.Resolver do
 
   @spec media_asset_public_url(map(), map(), Absinthe.Resolution.t()) ::
           {:ok, String.t() | nil}
-  def media_asset_public_url(%{storage_key: _storage_key} = media_asset, _args, _resolution) do
+  def media_asset_public_url(
+        %{authorized_media_asset: %MediaAsset{} = media_asset},
+        _args,
+        _resolution
+      ) do
+    resolve_media_asset_public_url(media_asset)
+  end
+
+  def media_asset_public_url(%MediaAsset{} = media_asset, _args, resolution) do
+    media_asset
+    |> authorized_media_asset(resolution)
+    |> resolve_media_asset_public_url()
+  end
+
+  def media_asset_public_url(_media_asset, _args, _resolution), do: {:ok, nil}
+
+  @spec authorized_media_asset(MediaAsset.t(), Absinthe.Resolution.t()) :: MediaAsset.t() | nil
+  defp authorized_media_asset(%MediaAsset{id: id, post_id: post_id}, resolution)
+       when is_integer(id) and id > 0 do
+    owner_media_asset(id, resolution) || visible_post_media_asset(post_id, id, resolution)
+  end
+
+  defp authorized_media_asset(_media_asset, _resolution), do: nil
+
+  @spec owner_media_asset(pos_integer(), Absinthe.Resolution.t()) :: MediaAsset.t() | nil
+  defp owner_media_asset(id, %{
+         context: %{current_scope: %{user: %{id: viewer_id} = viewer}}
+       })
+       when is_integer(viewer_id) and viewer_id > 0 do
+    Content.get_user_media_asset(viewer, id)
+  end
+
+  defp owner_media_asset(_id, _resolution), do: nil
+
+  @spec visible_post_media_asset(term(), pos_integer(), Absinthe.Resolution.t()) ::
+          MediaAsset.t() | nil
+  defp visible_post_media_asset(post_id, media_asset_id, resolution)
+       when is_integer(post_id) and post_id > 0 do
+    if visible_post(post_id, resolution) do
+      Content.get_post_media_asset(post_id, media_asset_id)
+    end
+  end
+
+  defp visible_post_media_asset(_post_id, _media_asset_id, _resolution), do: nil
+
+  @spec resolve_media_asset_public_url(MediaAsset.t() | nil) :: {:ok, String.t() | nil}
+  defp resolve_media_asset_public_url(%MediaAsset{storage_key: storage_key} = media_asset)
+       when is_binary(storage_key) do
     case Content.media_asset_public_url(media_asset) do
       {:ok, public_url} ->
         {:ok, public_url}
@@ -401,7 +448,7 @@ defmodule LCGQL.Content.Resolver do
     end
   end
 
-  def media_asset_public_url(_media_asset, _args, _resolution), do: {:ok, nil}
+  defp resolve_media_asset_public_url(_media_asset), do: {:ok, nil}
 
   @spec media_assets(map(), map(), Absinthe.Resolution.t()) ::
           LCGQL.Dataloader.dataloader_result()

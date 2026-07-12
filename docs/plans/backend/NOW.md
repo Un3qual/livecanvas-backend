@@ -20,10 +20,13 @@ Status: Batch 4 Live-Chat Message Controls Task 1 next
 
 ## Verification
 
-- Focused backend lifecycle suite: 239 tests, 0 failures.
-- Full backend regression suite: 966 tests, 0 failures, 1 excluded.
+- Original focused backend lifecycle suite: 239 tests, 0 failures.
+- Review-focused backend suite: 128 tests, 0 failures.
+- Full backend regression suite: 971 tests, 0 failures, 1 excluded.
 - `mix typecheck` and `mix compile --warnings-as-errors` passed.
 - Touched-file formatting and `git diff --check` passed.
+- Authenticated upload-ticket binding, terminal-state race safety, and
+  field-level `publicUrl` authorization have dedicated regression coverage.
 - Exported `mobile/schema.graphql` contains `finalizeMediaUpload` and omits
   `MediaAsset.ownerId` and `MediaAsset.storageKey`.
 - Repository-wide formatting remains red only in three unrelated baseline

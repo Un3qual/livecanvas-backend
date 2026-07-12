@@ -95,12 +95,18 @@ checkboxes/evidence in the same milestone commit.
 - [x] Export the changed backend schema with `mix absinthe.schema.sdl --schema LCGQL.Schema mobile/schema.graphql`, then prove the snapshot contains `finalizeMediaUpload` and omits `MediaAsset.storageKey` and `MediaAsset.ownerId` before mobile Relay generation.
 - [x] Run the focused object-storage, content, GraphQL, Relay schema, and media integration tests; run `mix typecheck` and focused formatting; commit with `feat: complete media upload lifecycle`.
 
-**Task 1 evidence (2026-07-11):** the focused backend suite passes with
-239 tests and zero failures; `mix typecheck`, warnings-as-errors compilation,
-touched-file formatting, and `git diff --check` pass. The exported mobile schema
-contains `finalizeMediaUpload` and the `MediaAsset` node omits `ownerId` and
-`storageKey`. Repository-wide formatting remains blocked only by three untouched
-baseline files.
+**Task 1 evidence (2026-07-11):** the original focused backend suite passes
+with 239 tests and zero failures. Review hardening additionally proves that the
+server requests an authenticated, method- and header-bound write-once ticket;
+the upload gateway rejects precondition bypass and same-key overwrite; terminal
+processing transitions are row-locked; and `publicUrl` re-authorizes its owner,
+visible-post, or retained-recording context. The review-focused backend suite
+passes 128 tests and the full backend suite passes 971 tests with zero failures
+and one exclusion. `mix typecheck`, warnings-as-errors compilation, touched-file
+formatting, and `git diff --check` pass. The exported mobile schema contains
+`finalizeMediaUpload` and the `MediaAsset` node omits `ownerId` and `storageKey`.
+Repository-wide formatting remains blocked only by three untouched baseline
+files.
 
 ### Task 2: Add Native Selection And Pure Publishing State
 
@@ -181,11 +187,12 @@ RNTL tests pass; production and test TypeScript checks plus lint pass.
 - [x] Run the RNTL suites through their configured Jest runner with `cd mobile && bun run test:jest -- --runTestsByPath tests/content/useMediaPostPublishing.rntl.tsx tests/feed/PostComposerScreen.rntl.tsx`; do not pass `.rntl.tsx` files to Bun test filters.
 - [x] Run `cd mobile && bun run test:quality`, then `git diff --check`; commit with `feat: publish posts with media`.
 
-**Task 4 evidence (2026-07-11):** 27 focused pure tests and 23 focused RNTL
-tests pass. The full mobile quality gate passes with 490 Bun and 126 Jest tests,
-plus production/test typechecks and lint. Focused open-handle detection reports
-no leaked handles, the backend regression suite passes 966 tests, and
-`git diff --check` passes.
+**Task 4 evidence (2026-07-11):** 28 focused pure tests and 25 focused RNTL
+tests pass, including ready-media preservation after replace cancellation and
+retryable submission errors. The full mobile quality gate passes with 491 Bun
+and 128 Jest tests, plus production/test typechecks and lint. Focused
+open-handle detection reports no leaked handles, the backend regression suite
+passes 971 tests with one exclusion, and `git diff --check` passes.
 
 ## Completion And Handoff
 

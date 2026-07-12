@@ -467,6 +467,21 @@ defmodule LC.Content do
   end
 
   @doc """
+  Gets a media asset only when it is persistently attached to the provided post.
+
+  Callers must independently authorize visibility of the post before exposing
+  the returned asset.
+  """
+  @spec get_post_media_asset(pos_integer(), pos_integer()) :: MediaAssetSchema.t() | nil
+  def get_post_media_asset(post_id, media_asset_id)
+      when is_integer(post_id) and post_id > 0 and is_integer(media_asset_id) and
+             media_asset_id > 0 do
+    Repo.get_by(MediaAssetSchema, id: media_asset_id, post_id: post_id)
+  end
+
+  def get_post_media_asset(_post_id, _media_asset_id), do: nil
+
+  @doc """
   Gets a durable media asset that is safe to expose from an ended live session.
   """
   @spec get_live_recording_media_asset(pos_integer()) :: MediaAssetSchema.t() | nil

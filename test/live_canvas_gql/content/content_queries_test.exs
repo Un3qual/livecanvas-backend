@@ -5,6 +5,7 @@ defmodule LCGQL.Content.ContentQueriesTest do
   import LC.ContentFixtures, only: [media_asset_fixture: 2]
 
   alias LC.{Accounts, Content}
+  alias LCGQL.Content.Resolver
   alias LCSchemas.Content.Post
 
   test "post query returns a public post by global ID" do
@@ -120,6 +121,7 @@ defmodule LCGQL.Content.ContentQueriesTest do
           id
           mimeType
           processingState
+          publicUrl
         }
       }
     }
@@ -141,12 +143,15 @@ defmodule LCGQL.Content.ContentQueriesTest do
       %{
         "id" => first_processed_asset_id,
         "mimeType" => "image/jpeg",
-        "processingState" => "PROCESSED"
+        "processingState" => "PROCESSED",
+        "publicUrl" => "https://object-storage.invalid/uploads/users/#{author.id}/story-first.jpg"
       },
       %{
         "id" => processed_asset_id,
         "mimeType" => "image/jpeg",
-        "processingState" => "PROCESSED"
+        "processingState" => "PROCESSED",
+        "publicUrl" =>
+          "https://object-storage.invalid/uploads/users/#{author.id}/story-processed.jpg"
       }
     ]
 
@@ -331,6 +336,19 @@ defmodule LCGQL.Content.ContentQueriesTest do
                  context: context
                )
     end
+  end
+
+  test "publicUrl child resolution re-authorizes a supplied processed asset" do
+    owner = user_fixture()
+    outsider = user_fixture()
+    media_asset = media_asset_fixture(owner, %{processing_state: :processed})
+
+    outsider_resolution = %Absinthe.Resolution{
+      context: %{current_scope: Accounts.scope_for_user(outsider)}
+    }
+
+    assert {:ok, nil} =
+             Resolver.media_asset_public_url(media_asset, %{}, outsider_resolution)
   end
 
   test "mediaAsset node does not expose raw ownership or storage fields" do

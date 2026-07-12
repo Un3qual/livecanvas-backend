@@ -348,7 +348,7 @@ export function PostComposerScreen() {
                 styles.validation,
                 {
                   color:
-                    mediaState.stage === 'failed'
+                    mediaState.errorMessage !== null
                       ? theme.colors.error
                       : theme.colors.textMuted,
                 },
@@ -504,6 +504,10 @@ function formatMediaSummary(selection: PickedPostMedia): string {
 }
 
 function getMediaStatusMessage(state: MediaPostPublishingState): string {
+  if (state.errorMessage !== null) {
+    return state.errorMessage;
+  }
+
   switch (state.stage) {
     case 'idle':
       return 'No media selected.';
@@ -524,7 +528,7 @@ function getMediaStatusMessage(state: MediaPostPublishingState): string {
     case 'succeeded':
       return 'Post created.';
     case 'failed':
-      return state.errorMessage ?? 'We could not publish this media. Try again.';
+      return 'We could not publish this media. Try again.';
     case 'cancelled':
       return 'Media publishing cancelled.';
   }

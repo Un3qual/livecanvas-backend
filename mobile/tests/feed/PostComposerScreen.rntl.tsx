@@ -258,6 +258,21 @@ describe('PostComposerScreen with React Native Testing Library', () => {
     expect(mockRemoveMedia).toHaveBeenCalledTimes(1);
   });
 
+  test('shows a retryable publishing error without discarding ready media', async () => {
+    mockMediaState = {
+      ...readyMediaState('image', 'retry.png', 'image/png'),
+      errorMessage: 'The post could not be created. Try again.',
+    };
+
+    await render(<PostComposerScreen />);
+
+    expect(
+      screen.getByText('The post could not be created. Try again.'),
+    ).toBeOnTheScreen();
+    expect(screen.getByText('Image: retry.png')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Post' })).toBeEnabled();
+  });
+
   test('preserves the draft after picker cancellation and blocks duplicate media submits', async () => {
     const user = userEvent.setup();
     const view = await render(<PostComposerScreen />);
@@ -484,6 +499,7 @@ function createMockMediaState(): MediaPostPublishingState {
     errorMessage: null,
     mediaAssetId: null,
     selection: null,
+    selectionFallback: null,
     stage: 'idle',
     uploadConfirmed: false,
   };
@@ -505,6 +521,7 @@ function readyMediaState(
       mimeType,
       uri: `file://${fileName}`,
     },
+    selectionFallback: null,
     stage: 'ready',
     uploadConfirmed: true,
   };

@@ -30,6 +30,9 @@ config :live_canvas, LCWeb.Plugs.WebhookSignature,
 config :live_canvas, LC.Infra.AsyncJobs.Worker, enabled: false
 
 config :live_canvas, LC.Infra.ObjectStorage.ConfigurableAdapter,
+  upload_signing_request_options: [
+    plug: {Req.Test, LC.Infra.ObjectStorage.ConfigurableAdapter}
+  ],
   verification_request_options: [
     plug: {Req.Test, LC.Infra.ObjectStorage.ConfigurableAdapter}
   ]

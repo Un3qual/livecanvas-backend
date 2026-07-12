@@ -22,6 +22,15 @@ export type MediaPostPublishingState = {
   readonly errorMessage: string | null;
   readonly mediaAssetId: string | null;
   readonly selection: PickedPostMedia | null;
+  readonly selectionFallback: MediaPostSelectionFallback | null;
+  readonly stage: MediaPostPublishingStage;
+  readonly uploadConfirmed: boolean;
+};
+
+type MediaPostSelectionFallback = {
+  readonly errorMessage: string | null;
+  readonly mediaAssetId: string | null;
+  readonly selection: PickedPostMedia | null;
   readonly stage: MediaPostPublishingStage;
   readonly uploadConfirmed: boolean;
 };
@@ -62,6 +71,7 @@ export function createMediaPostPublishingState(): MediaPostPublishingState {
     errorMessage: null,
     mediaAssetId: null,
     selection: null,
+    selectionFallback: null,
     stage: 'idle',
     uploadConfirmed: false,
   };
@@ -92,6 +102,7 @@ export function mediaPostPublishingReducer(
         ? {
             ...createMediaPostPublishingState(),
             attemptId: state.attemptId + 1,
+            selectionFallback: selectionFallbackFor(state),
             stage: 'selecting',
           }
         : state;
@@ -99,8 +110,8 @@ export function mediaPostPublishingReducer(
     case 'selectionSucceeded':
       return state.stage === 'selecting'
         ? {
-            ...state,
-            errorMessage: null,
+            ...createMediaPostPublishingState(),
+            attemptId: state.attemptId,
             selection: action.selection,
             stage: 'selected',
           }
@@ -108,7 +119,7 @@ export function mediaPostPublishingReducer(
 
     case 'selectionCancelled':
       return state.stage === 'selecting'
-        ? resetStateAfter(state)
+        ? restoreSelectionFallback(state)
         : state;
 
     case 'uploadRequested':
@@ -158,6 +169,15 @@ export function mediaPostPublishingReducer(
         : state;
 
     case 'workflowFailed':
+      if (state.stage === 'selecting' && state.selectionFallback) {
+        return {
+          ...state.selectionFallback,
+          attemptId: state.attemptId,
+          errorMessage: action.message,
+          selectionFallback: null,
+        };
+      }
+
       return canFailWorkflow(state)
         ? { ...state, errorMessage: action.message, stage: 'failed' }
         : state;
@@ -235,5 +255,35 @@ function resetStateAfter(
   return {
     ...createMediaPostPublishingState(),
     attemptId: state.attemptId + 1,
+  };
+}
+
+function selectionFallbackFor(
+  state: MediaPostPublishingState,
+): MediaPostSelectionFallback | null {
+  if (state.selection === null) {
+    return null;
+  }
+
+  return {
+    errorMessage: state.errorMessage,
+    mediaAssetId: state.mediaAssetId,
+    selection: state.selection,
+    stage: state.stage,
+    uploadConfirmed: state.uploadConfirmed,
+  };
+}
+
+function restoreSelectionFallback(
+  state: MediaPostPublishingState,
+): MediaPostPublishingState {
+  if (state.selectionFallback === null) {
+    return resetStateAfter(state);
+  }
+
+  return {
+    ...state.selectionFallback,
+    attemptId: state.attemptId + 1,
+    selectionFallback: null,
   };
 }

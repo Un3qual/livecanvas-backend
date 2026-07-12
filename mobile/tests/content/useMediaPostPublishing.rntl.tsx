@@ -268,6 +268,25 @@ describe('useMediaPostPublishing', () => {
     expect(createPost).toHaveBeenCalledTimes(2);
   });
 
+  test('keeps the ready asset when replacement selection is cancelled', async () => {
+    const pickMedia = jest
+      .fn()
+      .mockResolvedValueOnce(selection)
+      .mockResolvedValueOnce(null);
+    const dependencies = createDependencies({ pickMedia });
+
+    await render(<Harness dependencies={dependencies} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Select' }));
+    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('ready'));
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Select' }));
+    await waitFor(() => expect(pickMedia).toHaveBeenCalledTimes(2));
+
+    expect(screen.getByTestId('stage')).toHaveTextContent('ready');
+    expect(screen.getByTestId('asset-id')).toHaveTextContent('asset-id');
+    expect(dependencies.requestUpload).toHaveBeenCalledTimes(1);
+  });
+
   test('aborts active work on remove, auth loss, and unmount', async () => {
     const observedSignals: AbortSignal[] = [];
     const upload = jest.fn(
