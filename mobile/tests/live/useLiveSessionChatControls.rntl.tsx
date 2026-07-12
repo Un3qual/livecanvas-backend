@@ -211,6 +211,47 @@ describe('useLiveSessionChatControls', () => {
     });
   });
 
+  test('reconciles an accepted mutation after logout hides the controls', async () => {
+    const dispatchTimeline = jest.fn();
+    const view = await render(<Harness dispatchTimeline={dispatchTimeline} />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Edit message' }));
+    const editCompletion = mockEditCommit.mock.calls[0]?.[0].onCompleted;
+
+    await view.rerender(
+      <Harness dispatchTimeline={dispatchTimeline} viewerId={null} />,
+    );
+    expect(screen.getByTestId('pending').props.children).toBe('none');
+
+    await act(() => {
+      editCompletion?.({
+        editLiveChatMessage: {
+          chatMessageEvent: {
+            actor: { id: 'viewer-1' },
+            body: 'accepted before logout',
+            editCount: 1,
+            edited: true,
+            editedAt: '2026-07-11T12:01:00.000000Z',
+            id: 'event-1',
+          },
+          errors: [],
+        },
+      });
+    });
+
+    expect(dispatchTimeline).toHaveBeenCalledWith({
+      event: {
+        actor: { id: 'viewer-1' },
+        body: 'accepted before logout',
+        editCount: 1,
+        edited: true,
+        editedAt: '2026-07-11T12:01:00.000000Z',
+        id: 'event-1',
+      },
+      type: 'mutation_update_confirmed',
+    });
+  });
+
   test('invalidates pending callbacks on auth identity change and unmount', async () => {
     const dispatchTimeline = jest.fn();
     const view = await render(<Harness dispatchTimeline={dispatchTimeline} />);
@@ -218,6 +259,9 @@ describe('useLiveSessionChatControls', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Edit message' }));
     const editCompletion = mockEditCommit.mock.calls[0]?.[0].onCompleted;
 
+    await view.rerender(
+      <Harness dispatchTimeline={dispatchTimeline} viewerId={null} />,
+    );
     await view.rerender(
       <Harness dispatchTimeline={dispatchTimeline} viewerId="viewer-2" />,
     );

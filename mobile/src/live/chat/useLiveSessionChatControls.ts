@@ -75,7 +75,11 @@ export function useLiveSessionChatControls(
   const activeByEventIdRef = useRef<
     Record<
       string,
-      { readonly action: LiveSessionChatControlAction; readonly attemptId: number }
+      {
+        readonly action: LiveSessionChatControlAction;
+        readonly attemptId: number;
+        readonly viewerId: string;
+      }
     >
   >({});
   const nextAttemptIdRef = useRef(0);
@@ -99,8 +103,12 @@ export function useLiveSessionChatControls(
     const viewerChanged = previousViewerIdRef.current !== viewerId;
     previousViewerIdRef.current = viewerId;
 
-    if (viewerId === null || viewerChanged) {
-      activeByEventIdRef.current = {};
+    if (viewerId !== null && viewerChanged) {
+      activeByEventIdRef.current = Object.fromEntries(
+        Object.entries(activeByEventIdRef.current).filter(
+          ([, active]) => active.viewerId === viewerId,
+        ),
+      );
     }
 
     if (viewerId === null || viewerChanged || sessionStatus === 'ENDED') {
@@ -129,8 +137,8 @@ export function useLiveSessionChatControls(
     ): boolean => {
       const active = activeByEventIdRef.current[eventId];
 
-      // Only the exact mounted attempt may settle UI or timeline state; auth
-      // changes and unmounts invalidate the ref before late callbacks arrive.
+      // Only the exact mounted attempt may settle UI or timeline state; a
+      // different signed-in viewer and unmount invalidate late callbacks.
       return (
         isMountedRef.current &&
         active?.action === action &&
@@ -184,7 +192,11 @@ export function useLiveSessionChatControls(
       }
 
       const attemptId = ++nextAttemptIdRef.current;
-      activeByEventIdRef.current[eventId] = { action: 'edit', attemptId };
+      activeByEventIdRef.current[eventId] = {
+        action: 'edit',
+        attemptId,
+        viewerId: runtime.viewerId,
+      };
       dispatchControl({
         action: 'edit',
         attemptId,
@@ -261,7 +273,11 @@ export function useLiveSessionChatControls(
       }
 
       const attemptId = ++nextAttemptIdRef.current;
-      activeByEventIdRef.current[eventId] = { action: 'remove', attemptId };
+      activeByEventIdRef.current[eventId] = {
+        action: 'remove',
+        attemptId,
+        viewerId: runtime.viewerId,
+      };
       dispatchControl({
         action: 'remove',
         attemptId,
