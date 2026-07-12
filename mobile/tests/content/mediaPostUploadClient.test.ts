@@ -12,7 +12,12 @@ import {
 } from '../../src/content/mediaPostUploadClient';
 import type { PickedPostMedia } from '../../src/content/mediaPostSelection';
 
+type MediaUploadFetch = NonNullable<
+  Parameters<typeof uploadSignedMedia>[0]['fetchImpl']
+>;
+
 const selection: PickedPostMedia = {
+  file: null,
   fileName: 'photo.jpg',
   fileSize: 1024,
   mediaKind: 'image',
@@ -31,28 +36,37 @@ const signedUpload: SignedMediaUpload = {
 };
 
 describe('uploadSignedMedia', () => {
-  test('reads device-local picker URIs through the native file API', async () => {
-    const bytes = new Uint8Array([1, 2, 3]);
-    let openedUri: string | null = null;
+  test('keeps native picker media URI-backed instead of reading it into JS memory', async () => {
+    await expect(
+      readPickedMediaBody(selection, new AbortController().signal),
+    ).resolves.toEqual({ uri: 'file:///photo.jpg' });
+  });
+
+  test('keeps the browser File as the upload body on web', async () => {
+    const webFile = new Blob(['browser-file'], { type: 'image/jpeg' });
 
     await expect(
-      readPickedMediaBody(selection, new AbortController().signal, (uri) => {
-        openedUri = uri;
-        return { bytes: () => Promise.resolve(bytes) };
-      }),
-    ).resolves.toEqual(bytes);
-
-    expect(String(openedUri)).toBe('file:///photo.jpg');
+      readPickedMediaBody(
+        { ...selection, file: webFile },
+        new AbortController().signal,
+      ),
+    ).resolves.toBe(webFile);
   });
 
   test('uses PUT or POST with the raw body and exactly the signed headers', async () => {
     for (const method of ['PUT', 'POST'] as const) {
-      const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+      const calls: Array<{
+        input: RequestInfo | URL;
+        init?: Parameters<MediaUploadFetch>[1];
+      }> = [];
       const rawBody = new Blob(['raw-binary']);
-      const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const fetchImpl = ((
+        input: RequestInfo | URL,
+        init?: Parameters<MediaUploadFetch>[1],
+      ) => {
         calls.push({ input, init });
         return Promise.resolve(new Response(null, { status: 204 }));
-      }) as typeof fetch;
+      }) as MediaUploadFetch;
 
       await expect(
         uploadSignedMedia({
@@ -90,7 +104,7 @@ describe('uploadSignedMedia', () => {
 
   test('reports non-2xx responses and transport loss as retryable pre-confirmation failures', async () => {
     const httpFetch = (() =>
-      Promise.resolve(new Response(null, { status: 412 }))) as typeof fetch;
+      Promise.resolve(new Response(null, { status: 412 }))) as MediaUploadFetch;
 
     await expect(
       uploadSignedMedia({
@@ -108,7 +122,7 @@ describe('uploadSignedMedia', () => {
     );
 
     const transportFetch = (() =>
-      Promise.reject(new TypeError('network detail'))) as typeof fetch;
+      Promise.reject(new TypeError('network detail'))) as MediaUploadFetch;
 
     await expect(
       uploadSignedMedia({
@@ -135,7 +149,7 @@ describe('uploadSignedMedia', () => {
         fetchImpl: (() =>
           Promise.reject(
             new DOMException('Aborted', 'AbortError'),
-          )) as typeof fetch,
+          )) as MediaUploadFetch,
         readSelectionBody: () => Promise.resolve(new Blob(['raw'])),
         selection,
         signal: controller.signal,

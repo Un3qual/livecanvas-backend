@@ -331,6 +331,26 @@ describe('PostComposerScreen with React Native Testing Library', () => {
     );
   });
 
+  test('blocks text-only submission while a cancelled media selection is still attached', async () => {
+    const user = userEvent.setup();
+    mockMediaState = {
+      ...readyMediaState('video', 'cancelled.mp4', 'video/mp4'),
+      mediaAssetId: null,
+      stage: 'cancelled',
+      uploadConfirmed: false,
+    };
+
+    await render(<PostComposerScreen />);
+    await user.type(screen.getByLabelText('Post body'), 'Keep the video', {
+      skipBlur: true,
+    });
+
+    expect(screen.getByText('Video: cancelled.mp4')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Post' })).toBeDisabled();
+    expect(mockCreatePostCommit).not.toHaveBeenCalled();
+    expect(mockSubmitMedia).not.toHaveBeenCalled();
+  });
+
   test('blocks duplicate submissions and cancel before rerender', async () => {
     const user = userEvent.setup();
 
@@ -547,6 +567,7 @@ function readyMediaState(
     errorMessage: null,
     mediaAssetId: 'media-1',
     selection: {
+      file: null,
       fileName,
       fileSize: 1024,
       mediaKind,

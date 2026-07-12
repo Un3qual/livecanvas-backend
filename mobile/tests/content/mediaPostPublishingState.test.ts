@@ -11,6 +11,7 @@ import {
 import type { PickedPostMedia } from '../../src/content/mediaPostSelection';
 
 const selection: PickedPostMedia = {
+  file: null,
   fileName: 'photo.jpg',
   fileSize: 1024,
   mediaKind: 'image',

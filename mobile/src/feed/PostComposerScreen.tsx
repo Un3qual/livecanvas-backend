@@ -651,8 +651,7 @@ function isMediaPreparationBlocking(
 ): boolean {
   return (
     isMediaPreparationActive(state.stage) ||
-    state.stage === 'selected' ||
-    (state.stage === 'failed' && state.selection !== null)
+    (state.selection !== null && state.stage !== 'ready')
   );
 }
 

@@ -11,6 +11,7 @@ export type MediaPostMimeType = (typeof MEDIA_POST_MIME_TYPES)[number];
 export type MediaPostKind = 'image' | 'video';
 
 export type PickedPostMedia = {
+  readonly file: Blob | null;
   readonly fileName: string | null;
   readonly fileSize: number | null;
   readonly mediaKind: MediaPostKind;
@@ -106,6 +107,7 @@ function normalizePickedPostMedia(
   enforceFileSize(mediaKind, fileSize);
 
   return {
+    file: asset.file ?? null,
     fileName: asset.fileName ?? null,
     fileSize,
     mediaKind,

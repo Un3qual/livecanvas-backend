@@ -68,6 +68,7 @@ describe('pickPostMedia', () => {
       });
 
       await expect(pickPostMedia(picker)).resolves.toEqual({
+        file: null,
         fileName: 'selected-media',
         fileSize: 1024,
         mediaKind,
@@ -75,6 +76,30 @@ describe('pickPostMedia', () => {
         uri: 'file:///selected-media',
       });
     }
+  });
+
+  test('retains the browser File handle for a URI-backed web upload', async () => {
+    const file = new File(['browser-file'], 'browser.jpg', {
+      type: 'image/jpeg',
+    });
+
+    const picker = pickerWithResult({
+      canceled: false,
+      assets: [
+        {
+          file,
+          fileName: file.name,
+          fileSize: file.size,
+          height: 100,
+          mimeType: file.type,
+          type: 'image',
+          uri: 'blob:https://livecanvas.test/asset',
+          width: 100,
+        },
+      ],
+    });
+
+    await expect(pickPostMedia(picker)).resolves.toMatchObject({ file });
   });
 
   test('rejects unsupported media with viewer-safe copy', async () => {

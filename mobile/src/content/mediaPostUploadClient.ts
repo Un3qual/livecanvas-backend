@@ -41,24 +41,19 @@ export class MediaPostUploadError extends Error {
 
 type FetchImplementation = (
   input: RequestInfo | URL,
-  init?: RequestInit,
+  init?: Omit<RequestInit, 'body'> & { readonly body?: MediaUploadBody },
 ) => Promise<Response>;
+
+type NativeMediaUriBody = { readonly uri: string };
+type MediaUploadBody = BodyInit | NativeMediaUriBody;
 
 type ReadSelectionBody = (
   selection: PickedPostMedia,
   signal: AbortSignal,
-) => Promise<BodyInit>;
-
-type LocalMediaFile = {
-  readonly bytes: () => Promise<Uint8Array<ArrayBuffer>>;
-};
-
-type OpenLocalMediaFile = (
-  uri: string,
-) => LocalMediaFile | Promise<LocalMediaFile>;
+) => Promise<MediaUploadBody>;
 
 export async function uploadSignedMedia({
-  fetchImpl = fetch,
+  fetchImpl = fetchMediaUpload,
   readSelectionBody = readPickedMediaBody,
   selection,
   signal,
@@ -174,21 +169,21 @@ export async function pollMediaAssetUntilTerminal({
   );
 }
 
-export async function readPickedMediaBody(
+export function readPickedMediaBody(
   selection: PickedPostMedia,
   signal: AbortSignal,
-  openFile: OpenLocalMediaFile = openExpoFile,
-): Promise<BodyInit> {
+): Promise<MediaUploadBody> {
   throwIfAborted(signal);
-  const file = await openFile(selection.uri);
-  const bytes = await file.bytes();
-  throwIfAborted(signal);
-  return bytes;
+  return Promise.resolve(selection.file ?? { uri: selection.uri });
 }
 
-async function openExpoFile(uri: string): Promise<LocalMediaFile> {
-  const { File } = await import('expo-file-system');
-  return new File(uri);
+function fetchMediaUpload(
+  input: RequestInfo | URL,
+  init?: Omit<RequestInit, 'body'> & { readonly body?: MediaUploadBody },
+): Promise<Response> {
+  // React Native recognizes `{uri}` request bodies and streams them through its
+  // native networking layer; browsers receive the original File/Blob instead.
+  return fetch(input, init as RequestInit);
 }
 
 export function normalizeMediaAssetProcessingState(

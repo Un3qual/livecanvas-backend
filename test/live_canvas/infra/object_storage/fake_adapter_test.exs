@@ -36,6 +36,28 @@ defmodule LC.Infra.ObjectStorage.FakeAdapterTest do
              })
   end
 
+  test "keeps uploaded objects after the caller process exits" do
+    key = "uploads/users/7/cross-process-#{System.unique_integer([:positive])}.jpg"
+
+    uploader =
+      Task.async(fn ->
+        FakeAdapter.put_object(%{
+          key: key,
+          mime_type: "image/jpeg",
+          content_length: 1024
+        })
+      end)
+
+    assert :ok = Task.await(uploader)
+
+    assert {:ok, %{content_length: 1024, content_type: "image/jpeg"}} =
+             ObjectStorage.verify_upload(%{
+               key: key,
+               mime_type: "image/jpeg",
+               max_bytes: 25 * 1024 * 1024
+             })
+  end
+
   test "verification rejects absent, empty, oversized, and mismatched fake objects" do
     key = "uploads/users/7/verification.jpg"
 

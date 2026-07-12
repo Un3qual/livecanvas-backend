@@ -1,10 +1,34 @@
 defmodule LC.Infra.ObjectStorage.FakeAdapter do
   @moduledoc false
 
+  use GenServer
+
   @behaviour LC.Infra.ObjectStorage
 
   @upload_ttl_seconds 900
   @objects_table __MODULE__
+
+  @type state :: :ets.tid()
+
+  @spec start_link(keyword()) :: GenServer.on_start()
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
+  end
+
+  @impl true
+  @spec init(:ok) :: {:ok, state()}
+  def init(:ok) do
+    table =
+      :ets.new(@objects_table, [
+        :named_table,
+        :public,
+        :set,
+        read_concurrency: true,
+        write_concurrency: true
+      ])
+
+    {:ok, table}
+  end
 
   @impl LC.Infra.ObjectStorage
   @spec sign_upload(LC.Infra.ObjectStorage.upload_request()) ::
@@ -58,8 +82,6 @@ defmodule LC.Infra.ObjectStorage.FakeAdapter do
   def put_object(%{key: key, mime_type: mime_type, content_length: content_length} = object)
       when is_binary(key) and is_binary(mime_type) and is_integer(content_length) and
              content_length >= 0 do
-    ensure_objects_table!()
-
     case :ets.insert_new(@objects_table, {key, object}) do
       true -> :ok
       false -> {:error, :precondition_failed}
@@ -79,35 +101,9 @@ defmodule LC.Infra.ObjectStorage.FakeAdapter do
 
   @spec get_object(String.t()) :: map() | nil
   defp get_object(key) do
-    ensure_objects_table!()
-
     case :ets.lookup(@objects_table, key) do
       [{^key, object}] -> object
       [] -> nil
-    end
-  end
-
-  @spec ensure_objects_table!() :: :ok
-  defp ensure_objects_table! do
-    case :ets.whereis(@objects_table) do
-      :undefined ->
-        _table =
-          try do
-            :ets.new(@objects_table, [
-              :named_table,
-              :public,
-              :set,
-              read_concurrency: true,
-              write_concurrency: true
-            ])
-          rescue
-            ArgumentError -> @objects_table
-          end
-
-        :ok
-
-      _table ->
-        :ok
     end
   end
 end

@@ -55,6 +55,7 @@ jest.mock('../../src/auth/AuthProvider', () => ({
 }));
 
 const selection: PickedPostMedia = {
+  file: null,
   fileName: 'photo.jpg',
   fileSize: 1024,
   mediaKind: 'image',
