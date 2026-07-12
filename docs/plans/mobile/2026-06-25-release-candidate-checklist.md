@@ -72,6 +72,22 @@ listed external prerequisites.
   worker environment, so the manual device QA sections below remain pending and
   the full release-candidate device QA is not marked complete.
 
+### 2026-07-11 Five Product Batch Closure
+
+- All five approved product batches are complete, including end-to-end contact
+  invitation delivery and authenticated one-time consumption.
+- Backend: a fresh test database reset and all migrations pass; `mix test`
+  reports 1,007 tests passing with one excluded; typecheck, warnings-as-errors
+  compilation, changed-file formatting, typespec checks, asset build, and the
+  public invite parser suite pass.
+- Mobile: Relay generation is current and `bun run test:quality` passes with
+  both typechecks, lint, 539 Bun tests, and 160 Jest tests. Jest retains the
+  existing non-failing worker force-exit warning.
+- Repo root: `git diff --check` passes for the complete Batch 5 branch.
+- Target EAS environment values, preview-build availability, beta accounts, and
+  physical host/viewer devices still require release-operator confirmation, so
+  the manual device sections remain pending.
+
 ## Launch Blockers
 
 Any item in this section blocks beta release until fixed or explicitly removed
