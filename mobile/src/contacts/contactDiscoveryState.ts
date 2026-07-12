@@ -13,6 +13,29 @@ export type ContactInviteInput = {
   readonly recipient: string;
 };
 
+export type ContactInviteDeliveryStatus =
+  | 'idle'
+  | 'sending'
+  | 'sent'
+  | 'retryable_error'
+  | 'terminal_invalid_recipient';
+
+type ContactInviteDelivery = {
+  readonly attemptId: number;
+  readonly contactMatchId: string;
+  readonly status: Exclude<ContactInviteDeliveryStatus, 'idle'>;
+};
+
+export type ContactInviteDeliveryState = Readonly<
+  Record<string, ContactInviteDelivery>
+>;
+
+type ContactInviteDeliveryAttempt = {
+  readonly attemptId: number;
+  readonly contactMatchId: string;
+  readonly recipient: string;
+};
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EMPTY_EMAIL_ERROR = 'Enter an email address.';
 const INVALID_EMAIL_ERROR = 'Enter a valid email address.';
@@ -80,8 +103,69 @@ export function buildContactInviteInput(
   return { recipient: normalizedEmail };
 }
 
-export function contactDiscoveryInviteSentMessage(email: string): string {
-  return `Invite sent to ${normalizeContactDiscoveryEmail(email)}.`;
+export function createContactInviteDeliveryState(): ContactInviteDeliveryState {
+  return {};
+}
+
+export function beginContactInviteDelivery(
+  state: ContactInviteDeliveryState,
+  attempt: ContactInviteDeliveryAttempt,
+): ContactInviteDeliveryState {
+  const recipient = normalizeContactDiscoveryEmail(attempt.recipient);
+
+  return {
+    ...state,
+    [recipient]: {
+      attemptId: attempt.attemptId,
+      contactMatchId: attempt.contactMatchId,
+      status: 'sending',
+    },
+  };
+}
+
+export function completeContactInviteDelivery(
+  state: ContactInviteDeliveryState,
+  completion: ContactInviteDeliveryAttempt & {
+    readonly status: Exclude<ContactInviteDeliveryStatus, 'idle' | 'sending'>;
+  },
+): ContactInviteDeliveryState {
+  const recipient = normalizeContactDiscoveryEmail(completion.recipient);
+  const current = state[recipient];
+
+  if (
+    current?.attemptId !== completion.attemptId ||
+    current.contactMatchId !== completion.contactMatchId
+  ) {
+    return state;
+  }
+
+  return {
+    ...state,
+    [recipient]: { ...current, status: completion.status },
+  };
+}
+
+export function readContactInviteDeliveryStatus(
+  state: ContactInviteDeliveryState,
+  recipient: string,
+  contactMatchId: string,
+): ContactInviteDeliveryStatus {
+  const delivery = state[normalizeContactDiscoveryEmail(recipient)];
+
+  return delivery?.contactMatchId === contactMatchId
+    ? delivery.status
+    : 'idle';
+}
+
+export function contactInviteDeliveryFailureStatus(
+  errors: ReadonlyArray<ContactDiscoveryMutationError> | null | undefined,
+): 'retryable_error' | 'terminal_invalid_recipient' {
+  return errors?.some(
+    (error) =>
+      error.message === 'invalid_recipient' || error.field === 'recipient',
+  )
+    ? 'terminal_invalid_recipient'
+    : 'retryable_error';
 }
 
 export function formatContactUpsertMutationErrors(

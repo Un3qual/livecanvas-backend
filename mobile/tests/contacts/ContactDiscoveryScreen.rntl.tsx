@@ -325,29 +325,154 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     expect(screen.getByText('No LiveCanvas match yet.')).toBeOnTheScreen();
   });
 
-  test('hides invite delivery until a real landing route exists', async () => {
-    const user = userEvent.setup();
-
+  test('delivers one normalized invite and preserves the discovery rows', async () => {
+    mockQueryData = {
+      viewerContactMatches: connection([
+        contactMatch({
+          contactName: 'No Match',
+          id: 'contact-match-invite',
+          inviteRecipient: ' Friend@Example.COM ',
+        }),
+        contactMatch({
+          contactName: 'Other row',
+          id: 'contact-match-other',
+        }),
+      ]),
+    };
     await render(<ContactDiscoveryScreen />);
 
-    await user.type(screen.getByLabelText('Contact email'), ' nomatch@example.com ');
-    await user.press(screen.getByRole('button', { name: 'Search contacts' }));
+    const sendButton = screen.getByRole('button', { name: 'Send invite' });
+    await fireEvent.press(sendButton);
+    await fireEvent.press(sendButton);
 
-    await completeUpsertContact({
-      upsertViewerContactEntry: {
-        contactMatch: contactMatch({
-          contactName: null,
-          id: 'contact-match-2',
-          inviteRecipient: 'nomatch@example.com',
-          matchedUsers: [],
+    expect(mockDeliverInviteCommit).toHaveBeenCalledTimes(1);
+    expect(mockDeliverInviteCommit.mock.calls[0]?.[0].variables).toEqual({
+      input: { recipient: 'friend@example.com' },
+    });
+    expect(screen.getByRole('button', { name: 'Sending...' })).toBeDisabled();
+
+    await completeInviteDelivery({
+      deliverViewerContactInvite: { errors: [] },
+    });
+
+    expect(screen.getByRole('button', { name: 'Sent' })).toBeDisabled();
+    expect(screen.getByText('No Match')).toBeOnTheScreen();
+    expect(screen.getByText('Other row')).toBeOnTheScreen();
+    expect(screen.queryByText(/https?:\/\//)).toBeNull();
+    expect(screen.queryByText(/token=/)).toBeNull();
+  });
+
+  test('retries transport and delivery failures for the same recipient', async () => {
+    mockQueryData = {
+      viewerContactMatches: connection([
+        contactMatch({
+          id: 'contact-match-retry',
+          inviteRecipient: 'retry@example.com',
         }),
-        errors: [],
+      ]),
+    };
+    await render(<ContactDiscoveryScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Send invite' }));
+    await failInviteDelivery();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Retry' }));
+    expect(mockDeliverInviteCommit).toHaveBeenCalledTimes(2);
+
+    await completeInviteDelivery(
+      {
+        deliverViewerContactInvite: {
+          errors: [{ field: null, message: 'delivery_failed' }],
+        },
+      },
+      1,
+    );
+
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeOnTheScreen();
+  });
+
+  test('renders invalid recipients as a terminal viewer-safe state', async () => {
+    mockQueryData = {
+      viewerContactMatches: connection([
+        contactMatch({
+          id: 'contact-match-invalid',
+          inviteRecipient: 'recipient@example.com',
+        }),
+      ]),
+    };
+    await render(<ContactDiscoveryScreen />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Send invite' }));
+    await completeInviteDelivery({
+      deliverViewerContactInvite: {
+        errors: [{ field: 'recipient', message: 'invalid_recipient' }],
       },
     });
 
-    expect(screen.getByText('No LiveCanvas match yet.')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Cannot invite' })).toBeDisabled();
+    expect(screen.queryByText('invalid_recipient')).toBeNull();
+  });
+
+  test('suppresses invite delivery for matched and invalid-recipient rows', async () => {
+    mockQueryData = {
+      viewerContactMatches: connection([
+        contactMatch({
+          id: 'contact-match-matched',
+          inviteRecipient: 'matched@example.com',
+          matchedUsers: [
+            {
+              email: 'matched@example.com',
+              id: 'matched-user',
+              privacyMode: 'PUBLIC',
+            },
+          ],
+        }),
+        contactMatch({
+          id: 'contact-match-malformed',
+          inviteRecipient: 'not-an-email',
+        }),
+      ]),
+    };
+    await render(<ContactDiscoveryScreen />);
+
+    expect(screen.getByRole('button', { name: 'Open profile' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Send invite' })).toBeNull();
-    expect(mockDeliverInviteCommit).not.toHaveBeenCalled();
+  });
+
+  test('ignores stale delivery completion after the row becomes matched', async () => {
+    mockQueryData = {
+      viewerContactMatches: connection([
+        contactMatch({
+          id: 'contact-match-stale',
+          inviteRecipient: 'stale@example.com',
+        }),
+      ]),
+    };
+    const view = await render(<ContactDiscoveryScreen />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Send invite' }));
+
+    mockQueryData = {
+      viewerContactMatches: connection([
+        contactMatch({
+          id: 'contact-match-stale',
+          inviteRecipient: null,
+          matchedUsers: [
+            {
+              email: 'stale@example.com',
+              id: 'matched-user',
+              privacyMode: 'PUBLIC',
+            },
+          ],
+        }),
+      ]),
+    };
+    await view.rerender(<ContactDiscoveryScreen />);
+    await completeInviteDelivery({
+      deliverViewerContactInvite: { errors: [] },
+    });
+
+    expect(screen.getByRole('button', { name: 'Open profile' })).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Sent' })).toBeNull();
   });
 
   test('renders query rows, empty state, and retryable payload errors', async () => {
@@ -377,7 +502,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     expect(screen.getByText('Enter a valid email address.')).toBeOnTheScreen();
   });
 
-  test('keeps invite delivery hidden for persisted no-match contacts', async () => {
+  test('shows invite delivery for persisted no-match contacts', async () => {
     mockQueryData = {
       viewerContactMatches: connection([
         contactMatch({
@@ -391,7 +516,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
 
     await render(<ContactDiscoveryScreen />);
 
-    expect(screen.queryByRole('button', { name: 'Send invite' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Send invite' })).toBeOnTheScreen();
     expect(mockDeliverInviteCommit).not.toHaveBeenCalled();
   });
 
@@ -434,6 +559,29 @@ async function completeUpsertContact(
 
   await act(() => {
     config?.onCompleted?.(payload);
+  });
+}
+
+async function completeInviteDelivery(
+  payload: Parameters<NonNullable<DeliverInviteMutationConfig['onCompleted']>>[0],
+  callIndex = 0,
+) {
+  const config = mockDeliverInviteCommit.mock.calls[callIndex]?.[0];
+
+  expect(config).toBeDefined();
+
+  await act(() => {
+    config?.onCompleted?.(payload);
+  });
+}
+
+async function failInviteDelivery(callIndex = 0) {
+  const config = mockDeliverInviteCommit.mock.calls[callIndex]?.[0];
+
+  expect(config).toBeDefined();
+
+  await act(() => {
+    config?.onError?.(new Error('network failed'));
   });
 }
 
