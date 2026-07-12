@@ -542,6 +542,7 @@ describe('auth return targets', () => {
 describe('contact invite startup bootstrap', () => {
   const environment = {
     apiBaseUrl: 'https://api.example.test',
+    publicAppOrigin: 'https://app.example.test',
     websocketUrl: 'wss://api.example.test/socket',
     bootSessionState: 'signed_out' as const,
   };
@@ -571,6 +572,19 @@ describe('contact invite startup bootstrap', () => {
 
     expect(snapshot.initialHref).toBe('/invite');
     expect(JSON.stringify(snapshot)).not.toContain('https-secret');
+  });
+
+  test('fails closed for a wrong-origin HTTPS invite without snapshot token leakage', async () => {
+    const snapshot = await bootstrapRuntime(environment, {
+      getInitialUrl: () =>
+        Promise.resolve(
+          'https://wrong.example.test/invites#token=wrong-origin-secret',
+        ),
+    });
+
+    expect(snapshot.initialUrl).toBe('/invite');
+    expect(snapshot.initialHref).toBe('/invite');
+    expect(JSON.stringify(snapshot)).not.toContain('wrong-origin-secret');
   });
 
   test('uses the generic invite state for malformed, duplicate, or failed storage', async () => {

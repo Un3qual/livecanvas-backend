@@ -27,6 +27,10 @@ listed external prerequisites.
 - EAS environment values are configured for the target API and websocket
   endpoints. Do not rely on local `.env` or `.env.local` files for remote EAS
   jobs.
+- Backend `LIVE_CANVAS_PUBLIC_ORIGIN` and mobile
+  `EXPO_PUBLIC_APP_ORIGIN` are configured to the same normalized, non-placeholder
+  HTTPS origin. The API origin is a separate value and must not substitute for
+  the public app origin.
 - At least two test accounts exist: one host account and one separate viewer
   account.
 - A physical host device with camera and microphone is available. A physical
@@ -131,6 +135,20 @@ from the release scope.
   without leaking the previous viewer.
 - Repeat sign-in for a separate viewer account on the second device or
   simulator.
+
+### Contact Invitations
+
+- From an authenticated inviter, send an invite to an unmatched email contact
+  and inspect the actual delivered email. Confirm the copy is neutral, does not
+  disclose the inviter's email, and links to the configured public app origin at
+  `/invites#token=...`.
+- Open that HTTPS link on the recipient device, confirm the neutral landing page
+  offers the LiveCanvas app handoff, and continue through the app without the raw
+  token appearing in visible navigation state.
+- Complete sign-in or account creation for the invited email, return through the
+  opaque handoff route, and confirm the invitation is consumed once. A forwarded
+  invite opened by an account that does not own the recipient email must remain
+  in the generic invalid state.
 
 ### Profiles
 

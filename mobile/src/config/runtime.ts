@@ -65,7 +65,7 @@ export async function bootstrapRuntime(
 
   return deriveStartupSnapshot(
     environment,
-    redactContactInviteSnapshotUrl(initialUrl),
+    redactContactInviteSnapshotUrl(initialUrl, environment.publicAppOrigin),
   );
 }
 

@@ -28,10 +28,16 @@ if config_env() == :prod do
     System.get_env("LIVE_CANVAS_PUBLIC_ORIGIN") ||
       raise "environment variable LIVE_CANVAS_PUBLIC_ORIGIN is required."
 
+  public_app_origin = String.trim(public_app_origin)
   public_app_origin_uri = URI.parse(public_app_origin)
+  public_app_origin_host = String.downcase(public_app_origin_uri.host || "")
+
+  placeholder_origin? =
+    public_app_origin_host == "invalid" or String.ends_with?(public_app_origin_host, ".invalid")
 
   unless public_app_origin_uri.scheme == "https" and
            is_binary(public_app_origin_uri.host) and public_app_origin_uri.host != "" and
+           not placeholder_origin? and
            public_app_origin_uri.userinfo == nil and public_app_origin_uri.query == nil and
            public_app_origin_uri.fragment == nil and
            public_app_origin_uri.path in [nil, "", "/"] do

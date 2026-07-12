@@ -7,8 +7,9 @@ type ParsedContactInviteLink =
 
 export async function redirectContactInviteSystemPath(
   path: string,
+  publicAppOrigin: string | null,
 ): Promise<string> {
-  const parsed = parseContactInviteLink(path);
+  const parsed = parseContactInviteLink(path, publicAppOrigin);
 
   if (parsed.status === 'not_invite') {
     return path;
@@ -28,17 +29,21 @@ export async function redirectContactInviteSystemPath(
 
 export function redactContactInviteSnapshotUrl(
   initialUrl: string | null,
+  publicAppOrigin: string,
 ): string | null {
   if (!initialUrl) {
     return initialUrl;
   }
 
-  return parseContactInviteLink(initialUrl).status === 'not_invite'
+  return parseContactInviteLink(initialUrl, publicAppOrigin).status === 'not_invite'
     ? initialUrl
     : '/invite';
 }
 
-function parseContactInviteLink(path: string): ParsedContactInviteLink {
+function parseContactInviteLink(
+  path: string,
+  publicAppOrigin: string | null,
+): ParsedContactInviteLink {
   const isInviteCandidate = looksLikeContactInviteCandidate(path);
   let parsed: URL;
 
@@ -67,7 +72,11 @@ function parseContactInviteLink(path: string): ParsedContactInviteLink {
     Boolean(parsed.hostname) &&
     parsed.pathname === '/invites'
   ) {
-    if (hasUnexpectedAuthority(parsed) || parsed.search) {
+    if (
+      hasUnexpectedAuthority(parsed) ||
+      parsed.search ||
+      !matchesPublicAppOrigin(parsed, publicAppOrigin)
+    ) {
       return { status: 'invalid' };
     }
 
@@ -75,6 +84,21 @@ function parseContactInviteLink(path: string): ParsedContactInviteLink {
   }
 
   return isInviteCandidate ? { status: 'invalid' } : { status: 'not_invite' };
+}
+
+function matchesPublicAppOrigin(
+  parsed: URL,
+  publicAppOrigin: string | null,
+): boolean {
+  if (!publicAppOrigin) {
+    return false;
+  }
+
+  try {
+    return parsed.origin === new URL(publicAppOrigin).origin;
+  } catch {
+    return false;
+  }
 }
 
 function looksLikeContactInviteCandidate(path: string): boolean {

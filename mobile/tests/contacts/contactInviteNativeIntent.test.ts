@@ -34,11 +34,13 @@ const { bootstrapRuntime } = await import('../../src/config/runtime');
 
 const environment = {
   apiBaseUrl: 'https://api.example.test',
+  publicAppOrigin: 'https://app.example.test',
   websocketUrl: 'wss://api.example.test/socket',
   bootSessionState: 'signed_out' as const,
 };
 
 beforeEach(() => {
+  process.env.EXPO_PUBLIC_APP_ORIGIN = 'https://app.example.test/';
   storedValue = null;
   storageShouldFail = false;
   nextHandoffId = '550e8400-e29b-41d4-a716-446655440010';
@@ -80,6 +82,37 @@ describe('Expo Router contact invite native intent', () => {
     expect(storedValue).toContain('warm-secret');
     expect(JSON.stringify(href)).not.toContain('warm-secret');
     expect(storageWrites).toBe(1);
+  });
+
+  test('fails closed for a wrong-origin HTTPS invite without writing protected storage', async () => {
+    const rawUrl =
+      'https://wrong.example.test/invites#token=wrong-origin-secret';
+    const href = await redirectSystemPath({ initial: false, path: rawUrl });
+
+    expect(href).toBe('/invite');
+    expect(JSON.stringify(href)).not.toContain('wrong-origin-secret');
+    expect(storageWrites).toBe(0);
+
+    const snapshot = await bootstrapRuntime(environment, {
+      getInitialUrl: () => Promise.resolve(rawUrl),
+    });
+
+    expect(snapshot.initialUrl).toBe('/invite');
+    expect(snapshot.initialHref).toBe('/invite');
+    expect(JSON.stringify(snapshot)).not.toContain('wrong-origin-secret');
+  });
+
+  test('fails closed for invalid public-origin configuration without storing a token', async () => {
+    process.env.EXPO_PUBLIC_APP_ORIGIN = 'https://livecanvas.invalid';
+
+    const href = await redirectSystemPath({
+      initial: false,
+      path: 'https://livecanvas.invalid/invites#token=config-secret',
+    });
+
+    expect(href).toBe('/invite');
+    expect(JSON.stringify(href)).not.toContain('config-secret');
+    expect(storageWrites).toBe(0);
   });
 
   test('maps malformed links and protected-storage failure to generic invite', async () => {
@@ -146,6 +179,7 @@ describe('Expo Router contact invite native intent', () => {
       'livecanvas-mobile://profile',
       'livecanvas-mobile:/contacts?filter=invite',
       'livecanvas-mobile:settings?token=not-an-invite-token',
+      'https://marketing.example.test/news#token=not-an-invite-token',
     ]) {
       expect(await redirectSystemPath({ initial: false, path })).toBe(path);
     }

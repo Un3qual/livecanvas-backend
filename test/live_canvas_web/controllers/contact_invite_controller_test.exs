@@ -80,6 +80,8 @@ defmodule LCWeb.ContactInviteControllerTest do
     for invalid_origin <- [
           "http://app.livecanvas.example",
           "https://",
+          "https://livecanvas.invalid",
+          "https://placeholder.invalid/",
           "https://app.livecanvas.example/invites",
           "https://app.livecanvas.example?token=visible",
           "https://app.livecanvas.example#token=visible"
@@ -96,6 +98,41 @@ defmodule LCWeb.ContactInviteControllerTest do
     assert_raise RuntimeError, ~r/LIVE_CANVAS_PUBLIC_ORIGIN.*required/s, fn ->
       Config.Reader.read!(runtime_config, env: :prod, target: :host)
     end
+  end
+
+  test "production public origin normalizes one trailing slash" do
+    runtime_config = Path.expand("../../../config/runtime.exs", __DIR__)
+
+    put_runtime_env(%{
+      "LIVE_CANVAS_PUBLIC_ORIGIN" => "https://app.livecanvas.example/"
+    })
+
+    config = Config.Reader.read!(runtime_config, env: :prod, target: :host)
+
+    assert config
+           |> Keyword.fetch!(:live_canvas)
+           |> Keyword.fetch!(:public_app_origin) == "https://app.livecanvas.example"
+  end
+
+  defp put_runtime_env(overrides) do
+    values =
+      Map.merge(
+        %{
+          "APPLE_OIDC_AUDIENCES" => "apple-client",
+          "DATABASE_URL" => "ecto://postgres:postgres@localhost/live_canvas",
+          "GOOGLE_OIDC_AUDIENCES" => "google-client",
+          "OBJECT_STORAGE_PUBLIC_BASE_URL" => "https://cdn.livecanvas.example",
+          "OBJECT_STORAGE_UPLOAD_SIGNING_URL" =>
+            "https://storage.livecanvas.example/upload-tickets",
+          "OBJECT_STORAGE_VERIFICATION_BASE_URL" => "https://storage.livecanvas.example/objects",
+          "SECRET_KEY_BASE" => String.duplicate("a", 64)
+        },
+        overrides
+      )
+
+    originals = Map.new(values, fn {name, _value} -> {name, System.get_env(name)} end)
+    Enum.each(values, fn {name, value} -> System.put_env(name, value) end)
+    on_exit(fn -> Enum.each(originals, fn {name, value} -> restore_env(name, value) end) end)
   end
 
   defp restore_env(name, nil), do: System.delete_env(name)
