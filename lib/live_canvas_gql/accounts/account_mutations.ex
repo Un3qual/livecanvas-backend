@@ -204,6 +204,19 @@ defmodule LCGQL.Accounts.Mutations do
       resolve(&ContactResolver.deliver_viewer_contact_invite/3)
     end
 
+    payload field :consume_contact_invite do
+      input do
+        field :token, non_null(:string)
+      end
+
+      output do
+        field :consumed, non_null(:boolean)
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&ContactResolver.consume_contact_invite/3)
+    end
+
     payload field :issue_viewer_auth_tokens do
       input do
         field :device_info, :device_info_input

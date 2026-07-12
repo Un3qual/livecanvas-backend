@@ -7,8 +7,9 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   import Swoosh.TestAssertions
 
   alias LC.{Accounts, Social}
+  alias LC.Accounts.Tokens
   alias LC.Infra.Repo
-  alias LCSchemas.Accounts.UserToken
+  alias LCSchemas.Accounts.{ContactInviteConversion, UserEmailAddress, UserToken}
   alias LCSchemas.Infra.{AccountDeletionRequest, AsyncJob, DataExportRequest}
 
   describe "registerWithEmail" do
@@ -1367,6 +1368,180 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
   end
 
+  describe "consumeContactInvite" do
+    test "consumes a verified recipient invite and supports exact-token idempotent readback" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "graphql-invite-recipient@example.com")
+      token = issue_contact_invite(inviter, recipient.email)
+
+      assert %{"consumed" => true, "errors" => []} =
+               consume_contact_invite(token, recipient)
+
+      assert %{"consumed" => true, "errors" => []} =
+               consume_contact_invite(token, recipient)
+
+      assert %ContactInviteConversion{recipient_user_id: recipient_id} =
+               Repo.one(ContactInviteConversion)
+
+      assert recipient_id == recipient.id
+      refute Repo.get_by(UserToken, context: :contact_invite_token)
+    end
+
+    test "atomically verifies and confirms a password-created matching recipient" do
+      inviter = user_fixture()
+      password = valid_user_password()
+
+      assert {:ok, %{user: recipient}} =
+               Accounts.sign_up_with_password(%{
+                 email: "graphql-password-invite@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      assert {:ok, other_join} =
+               Accounts.attach_user_email_address(recipient, "other-graphql-address@example.com")
+
+      token = issue_contact_invite(inviter, String.upcase(recipient.email))
+
+      assert %{"consumed" => true, "errors" => []} =
+               consume_contact_invite(token, recipient)
+
+      reloaded =
+        Accounts.get_user!(recipient.id)
+        |> Repo.preload(user_email_addresses: :email_address)
+
+      assert %DateTime{} = reloaded.confirmed_at
+
+      assert Enum.any?(reloaded.user_email_addresses, fn join ->
+               join.email_address.normalized_email == recipient.email and
+                 match?(%DateTime{}, join.verified_at)
+             end)
+
+      assert is_nil(Repo.get!(UserEmailAddress, other_join.id).verified_at)
+    end
+
+    test "returns one generic error for malformed, unknown, tampered, expired, and wrong-context tokens" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "graphql-invalid-invite@example.com")
+
+      valid_token = issue_contact_invite(inviter, recipient.email)
+      assert {:ok, %{id: token_id}} = Tokens.decode_serialized_value(valid_token)
+      tampered_token = Tokens.encode_serialized_value(token_id, "tampered-secret")
+
+      expired_token = issue_contact_invite(inviter, recipient.email)
+      assert {:ok, %{id: expired_token_id}} = Tokens.decode_serialized_value(expired_token)
+
+      Repo.update_all(
+        from(user_token in UserToken, where: user_token.id == ^expired_token_id),
+        set: [inserted_at: DateTime.add(DateTime.utc_now(), -8, :day)]
+      )
+
+      assert {:ok, %{token: wrong_context_token}} =
+               Accounts.issue_password_reset_token(recipient)
+
+      unknown_token = Tokens.encode_serialized_value(Ecto.UUID.generate(), "unknown-secret")
+
+      for token <- [
+            "malformed",
+            unknown_token,
+            tampered_token,
+            expired_token,
+            wrong_context_token
+          ] do
+        assert %{
+                 "consumed" => false,
+                 "errors" => [
+                   %{"field" => nil, "message" => "invalid_contact_invite"}
+                 ]
+               } = consume_contact_invite(token, recipient)
+      end
+    end
+
+    test "returns the generic error to the wrong recipient without changing verification" do
+      inviter = user_fixture()
+      intended_recipient = user_fixture(email: "graphql-intended-recipient@example.com")
+      password = valid_user_password()
+
+      assert {:ok, %{user: wrong_recipient}} =
+               Accounts.sign_up_with_password(%{
+                 email: "graphql-wrong-recipient@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      token = issue_contact_invite(inviter, intended_recipient.email)
+
+      assert %{
+               "consumed" => false,
+               "errors" => [%{"field" => nil, "message" => "invalid_contact_invite"}]
+             } = consume_contact_invite(token, wrong_recipient)
+
+      reloaded =
+        Accounts.get_user!(wrong_recipient.id)
+        |> Repo.preload(:user_email_addresses)
+
+      assert is_nil(reloaded.confirmed_at)
+      assert Enum.all?(reloaded.user_email_addresses, &is_nil(&1.verified_at))
+    end
+
+    test "returns the generic error for wrong-secret and wrong-account conversion replay" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "graphql-replay-recipient@example.com")
+      wrong_recipient = user_fixture()
+      token = issue_contact_invite(inviter, recipient.email)
+
+      assert %{"consumed" => true, "errors" => []} =
+               consume_contact_invite(token, recipient)
+
+      assert {:ok, %{id: token_id}} = Tokens.decode_serialized_value(token)
+      wrong_secret_token = Tokens.encode_serialized_value(token_id, "wrong-secret")
+
+      for {replay_token, viewer} <- [
+            {wrong_secret_token, recipient},
+            {token, wrong_recipient}
+          ] do
+        assert %{
+                 "consumed" => false,
+                 "errors" => [
+                   %{"field" => nil, "message" => "invalid_contact_invite"}
+                 ]
+               } = consume_contact_invite(replay_token, viewer)
+      end
+    end
+
+    test "returns the generic error when exact-token replay is outside the handoff window" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "graphql-old-replay-recipient@example.com")
+      token = issue_contact_invite(inviter, recipient.email)
+
+      assert %{"consumed" => true, "errors" => []} =
+               consume_contact_invite(token, recipient)
+
+      Repo.update_all(ContactInviteConversion,
+        set: [consumed_at: DateTime.add(DateTime.utc_now(), -61, :minute)]
+      )
+
+      assert %{
+               "consumed" => false,
+               "errors" => [%{"field" => nil, "message" => "invalid_contact_invite"}]
+             } = consume_contact_invite(token, recipient)
+    end
+
+    test "returns the existing unauthenticated payload without consuming or looking up the token" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "graphql-unauthenticated-recipient@example.com")
+      token = issue_contact_invite(inviter, recipient.email)
+
+      assert %{
+               "consumed" => false,
+               "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+             } = consume_contact_invite(token)
+
+      assert Repo.get_by(UserToken, context: :contact_invite_token)
+      refute Repo.one(ContactInviteConversion)
+    end
+  end
+
   describe "beginAuthChallenge" do
     test "returns structured auth errors for providers that do not use challenge issuance" do
       mutation = """
@@ -2531,5 +2706,40 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
 
       assert {:error, :revoked_token} = Accounts.authenticate_refresh_token(refresh_token)
     end
+  end
+
+  defp issue_contact_invite(inviter, recipient_email) do
+    assert {:ok, %{token: token}} =
+             Accounts.issue_contact_invite_token(inviter, recipient_email)
+
+    token
+  end
+
+  defp consume_contact_invite(token, viewer \\ nil) do
+    mutation = """
+    mutation ConsumeContactInvite($token: String!) {
+      consumeContactInvite(input: {token: $token}) {
+        consumed
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    context =
+      case viewer do
+        nil -> %{}
+        viewer -> %{current_scope: Accounts.scope_for_user(viewer)}
+      end
+
+    assert {:ok, %{data: %{"consumeContactInvite" => payload}}} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"token" => token},
+               context: context
+             )
+
+    payload
   end
 end

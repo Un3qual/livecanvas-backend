@@ -19,6 +19,8 @@ defmodule LCGQL.Accounts.ContactResolver do
   @type contact_upsert_result :: {:ok, contact_upsert_payload()}
   @type invite_delivery_payload :: %{errors: [mutation_error()]}
   @type invite_delivery_result :: {:ok, invite_delivery_payload()}
+  @type invite_consumption_payload :: %{consumed: boolean(), errors: [mutation_error()]}
+  @type invite_consumption_result :: {:ok, invite_consumption_payload()}
   @type contact_upsert_error_reason ::
           :invalid_contact_client_id
           | :invalid_birthday
@@ -100,6 +102,34 @@ defmodule LCGQL.Accounts.ContactResolver do
 
   def deliver_viewer_contact_invite(_parent, _args, _resolution) do
     {:ok, %{errors: [invite_delivery_error(:unauthenticated)]}}
+  end
+
+  @spec consume_contact_invite(
+          term(),
+          %{optional(:input) => map(), optional(:token) => String.t()},
+          Absinthe.Resolution.t()
+        ) :: invite_consumption_result()
+  def consume_contact_invite(parent, %{input: input}, resolution),
+    do: consume_contact_invite(parent, input, resolution)
+
+  def consume_contact_invite(_parent, %{token: token}, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
+    case Accounts.consume_contact_invite(user, token) do
+      {:ok, _conversion} ->
+        {:ok, %{consumed: true, errors: []}}
+
+      {:error, :invalid_contact_invite} ->
+        {:ok, %{consumed: false, errors: [contact_invite_consumption_error()]}}
+    end
+  end
+
+  def consume_contact_invite(_parent, _args, _resolution) do
+    {:ok,
+     %{
+       consumed: false,
+       errors: [MutationErrors.user_error(nil, :unauthenticated)]
+     }}
   end
 
   @spec viewer_contact_matches(term(), map(), Absinthe.Resolution.t()) ::
@@ -211,6 +241,10 @@ defmodule LCGQL.Accounts.ContactResolver do
 
   defp invite_delivery_error(:delivery_failed),
     do: MutationErrors.user_error(nil, :delivery_failed)
+
+  @spec contact_invite_consumption_error() :: mutation_error()
+  defp contact_invite_consumption_error,
+    do: MutationErrors.user_error(nil, :invalid_contact_invite)
 
   @spec contact_match_payload(LC.Accounts.contact_match() | nil, User.t()) ::
           contact_match_node() | nil
