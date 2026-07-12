@@ -1174,13 +1174,13 @@ defmodule LC.AccountsTest do
       assert user_token.context == :contact_invite_fragment_token
     end
 
-    test "rejects a contact row after it becomes matched" do
+    test "suppresses a contact row after it becomes matched" do
       user = user_fixture()
       recipient_email = "domain-matched-contact@example.com"
       contact_entry = upsert_contact_entry(user, emails: [recipient_email])
       _recipient = user_fixture(email: recipient_email)
 
-      assert {:error, :invalid_contact_match} =
+      assert {:ok, :suppressed} =
                Accounts.deliver_contact_invite_instructions(
                  user,
                  contact_entry.id,
@@ -1193,9 +1193,41 @@ defmodule LC.AccountsTest do
                context: :contact_invite_fragment_token
              )
     end
+
+    test "does not advertise or deliver to a malformed imported email" do
+      user = user_fixture()
+      contact_entry = upsert_contact_entry(user, emails: ["not-an-email"])
+
+      assert [%{invite_recipient: nil}] = Accounts.list_user_contact_matches(user)
+
+      assert {:error, :invalid_contact_match} =
+               Accounts.deliver_contact_invite_instructions(
+                 user,
+                 contact_entry.id,
+                 &"https://app.livecanvas.example/invites#token=#{&1}"
+               )
+
+      refute Repo.get_by(UserToken,
+               user_id: user.id,
+               context: :contact_invite_fragment_token
+             )
+    end
   end
 
   describe "consume_contact_invite/2" do
+    test "rejects a stale deleted viewer without consuming the token" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "deleted-invite-recipient@example.com")
+      {token, persisted} = issue_contact_invite(inviter, recipient.email)
+
+      Repo.delete!(recipient)
+
+      assert {:error, :invalid_contact_invite} =
+               Accounts.consume_contact_invite(recipient, token)
+
+      assert Repo.get(UserToken, persisted.id)
+    end
+
     test "rejects malformed, tampered, wrong-context, and expired tokens" do
       inviter = user_fixture()
       recipient = user_fixture(email: "invite-recipient@example.com")

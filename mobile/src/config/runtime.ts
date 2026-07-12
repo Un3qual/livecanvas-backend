@@ -198,17 +198,19 @@ function normalizeAuthReturnToHref(returnToHref?: string | null): string | null 
 
   if (routePath === '/invite') {
     const handoffs = parsed.searchParams.getAll('handoff');
+    const handoff = handoffs[0];
 
-    return parsed.searchParams.size === 1 && isOpaqueHandoffId(handoffs[0])
-      ? `/invite?handoff=${encodeURIComponent(handoffs[0]!)}`
+    return parsed.searchParams.size === 1 && isOpaqueHandoffId(handoff)
+      ? `/invite?handoff=${encodeURIComponent(handoff)}`
       : null;
   }
 
   if (routePath === '/live-session') {
     const sessionIds = parsed.searchParams.getAll('sessionId');
+    const sessionId = sessionIds[0];
 
-    return parsed.searchParams.size === 1 && Boolean(sessionIds[0]?.trim())
-      ? `/live-session?sessionId=${encodeURIComponent(sessionIds[0]!)}`
+    return parsed.searchParams.size === 1 && Boolean(sessionId?.trim())
+      ? `/live-session?sessionId=${encodeURIComponent(sessionId ?? '')}`
       : null;
   }
 

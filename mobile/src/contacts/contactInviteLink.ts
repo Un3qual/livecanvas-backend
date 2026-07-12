@@ -143,7 +143,8 @@ function parseSingleTokenParameters(
     return { status: 'invalid' };
   }
 
-  const [rawKey = '', rawValue = '', ...extra] = pairs[0]!.split('=');
+  const [pair = ''] = pairs;
+  const [rawKey = '', rawValue = '', ...extra] = pair.split('=');
 
   if (
     rawKey !== 'token' ||

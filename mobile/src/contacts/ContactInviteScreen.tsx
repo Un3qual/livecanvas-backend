@@ -153,7 +153,7 @@ export function ContactInviteScreen() {
     }
 
     if (authState.status === 'unauthenticated') {
-      void readContactInviteHandoffStatus(handoffId)
+      readContactInviteHandoffStatus(handoffId)
         .then((status) => {
           if (!isCurrentAttempt(attempt)) {
             return;
@@ -178,7 +178,7 @@ export function ContactInviteScreen() {
     }
 
     dispatch({ attemptId: attempt.id, handoffId, type: 'consuming' });
-    void withContactInviteToken(handoffId, commitToken)
+    withContactInviteToken(handoffId, commitToken)
       .then(async (result) => {
         if (!isCurrentAttempt(attempt)) {
           return;
@@ -323,5 +323,11 @@ function contactInviteContent(
         message: 'We could not confirm the invitation. Try again.',
         title: 'Could not confirm invitation',
       };
+    default:
+      return assertNever(status);
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected contact invite state: ${String(value)}`);
 }

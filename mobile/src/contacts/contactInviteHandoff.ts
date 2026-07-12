@@ -63,7 +63,7 @@ export async function storeContactInviteHandoff(
   return { handoffId };
 }
 
-export async function readContactInviteHandoffStatus(
+export function readContactInviteHandoffStatus(
   requestedHandoffId: string,
   options: ContactInviteHandoffOptions = {},
 ): Promise<ContactInviteHandoffStatus> {
@@ -120,7 +120,7 @@ export async function withContactInviteToken<Value>(
   return { status: 'matched', value: await callback(lookup.token) };
 }
 
-export async function clearContactInviteHandoff(
+export function clearContactInviteHandoff(
   requestedHandoffId: string,
   options: ContactInviteHandoffOptions = {},
 ): Promise<boolean> {

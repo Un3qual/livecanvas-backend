@@ -113,6 +113,18 @@ defmodule LCWeb.ContactInviteControllerTest do
     end
   end
 
+  test "malformed production public origin authorities fail runtime configuration" do
+    runtime_config = Path.expand("../../../config/runtime.exs", __DIR__)
+
+    put_runtime_env(%{
+      "LIVE_CANVAS_PUBLIC_ORIGIN" => "https://app.livecanvas.example:not-a-port"
+    })
+
+    assert_raise RuntimeError, ~r/LIVE_CANVAS_PUBLIC_ORIGIN.*absolute HTTPS origin/s, fn ->
+      Config.Reader.read!(runtime_config, env: :prod, target: :host)
+    end
+  end
+
   test "production public origin normalizes one trailing slash" do
     runtime_config = Path.expand("../../../config/runtime.exs", __DIR__)
 

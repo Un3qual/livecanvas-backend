@@ -545,7 +545,13 @@ function contactInviteButtonLabel(status: ContactInviteDeliveryStatus): string {
       return 'Retry';
     case 'terminal_invalid_recipient':
       return 'Cannot invite';
+    default:
+      return assertNever(status);
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected contact invite status: ${String(value)}`);
 }
 
 function readCurrentInviteRows(

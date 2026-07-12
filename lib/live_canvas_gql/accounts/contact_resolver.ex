@@ -86,7 +86,7 @@ defmodule LCGQL.Accounts.ContactResolver do
       }) do
     with {:ok, contact_entry_id} <-
            Relay.decode_global_id(contact_match_id, :contact_match, LCGQL.Schema),
-         {:ok, _email} <-
+         {:ok, _delivery} <-
            Accounts.deliver_contact_invite_instructions(
              user,
              contact_entry_id,

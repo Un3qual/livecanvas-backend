@@ -1337,7 +1337,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                )
     end
 
-    test "rejects foreign, self-owned, and newly matched contact rows without issuing tokens" do
+    test "rejects foreign and self-owned contact rows while suppressing newly matched rows" do
       viewer = user_fixture()
       outsider = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
@@ -1363,7 +1363,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
       }
       """
 
-      for contact_entry <- [foreign_contact, self_contact, matched_contact] do
+      for contact_entry <- [foreign_contact, self_contact] do
         assert {:ok,
                 %{
                   data: %{
@@ -1380,8 +1380,59 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                  )
       end
 
+      assert {:ok,
+              %{
+                data: %{
+                  "deliverViewerContactInvite" => %{
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"contactMatchId" => contact_match_id(matched_contact)},
+                 context: context
+               )
+
       refute Repo.get_by(
                UserToken,
+               user_id: viewer.id,
+               context: :contact_invite_fragment_token
+             )
+    end
+
+    test "suppresses delivery to a hidden matched account without revealing the match" do
+      viewer = user_fixture()
+      hidden_match = user_fixture(email: "hidden-contact@example.com")
+      assert {:ok, _block} = Social.block_user(hidden_match, viewer)
+
+      contact_entry = upsert_contact_entry(viewer, emails: [hidden_match.email])
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation DeliverViewerContactInvite($contactMatchId: ID!) {
+        deliverViewerContactInvite(input: {contactMatchId: $contactMatchId}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "deliverViewerContactInvite" => %{
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"contactMatchId" => contact_match_id(contact_entry)},
+                 context: context
+               )
+
+      refute Repo.get_by(UserToken,
                user_id: viewer.id,
                context: :contact_invite_fragment_token
              )

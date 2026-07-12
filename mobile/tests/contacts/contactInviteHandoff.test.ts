@@ -11,14 +11,16 @@ import {
 function memoryStorage(): ContactInviteHandoffStorage & { value: string | null } {
   return {
     value: null,
-    async deleteItem() {
+    deleteItem() {
       this.value = null;
+      return Promise.resolve();
     },
-    async getItem() {
-      return this.value;
+    getItem() {
+      return Promise.resolve(this.value);
     },
-    async setItem(_key, value) {
+    setItem(_key, value) {
       this.value = value;
+      return Promise.resolve();
     },
   };
 }
@@ -99,9 +101,9 @@ describe('contact invite handoff', () => {
 
     const result = await withContactInviteToken(
       'handoff-a',
-      async () => {
+      () => {
         callbackCalls += 1;
-        return 'consumed';
+        return Promise.resolve('consumed');
       },
       { now: () => 2_000, storage },
     );

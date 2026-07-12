@@ -2,6 +2,7 @@ defmodule LC.Accounts.UserTokenTest do
   use LC.DataCase
 
   alias LC.Accounts
+  alias LC.Infra.Repo
   alias LCSchemas.Accounts.UserToken
 
   import LC.AccountsFixtures
@@ -87,6 +88,18 @@ defmodule LC.Accounts.UserTokenTest do
       assert persisted.context == :contact_invite_fragment_token
       assert persisted.sent_to == "friend@example.com"
       assert persisted.user_id == user.id
+    end
+
+    test "issue_contact_invite_token/2 rejects malformed recipients without persisting a token" do
+      user = user_fixture()
+
+      assert {:error, :invalid_recipient} =
+               Accounts.issue_contact_invite_token(user, "not-an-email")
+
+      refute Repo.get_by(UserToken,
+               user_id: user.id,
+               context: :contact_invite_fragment_token
+             )
     end
 
     test "valid_contact_invite_token?/2 accepts an exact fresh contact invite secret" do

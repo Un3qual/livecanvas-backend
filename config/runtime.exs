@@ -29,7 +29,13 @@ if config_env() == :prod do
       raise "environment variable LIVE_CANVAS_PUBLIC_ORIGIN is required."
 
   public_app_origin = String.trim(public_app_origin)
-  public_app_origin_uri = URI.parse(public_app_origin)
+
+  public_app_origin_uri =
+    case URI.new(public_app_origin) do
+      {:ok, uri} -> uri
+      {:error, _reason} -> %URI{}
+    end
+
   public_app_origin_host = String.downcase(public_app_origin_uri.host || "")
   public_app_origin_port = public_app_origin_uri.port
   trailing_dot_host? = String.ends_with?(public_app_origin_host, ".")

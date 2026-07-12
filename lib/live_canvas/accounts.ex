@@ -58,6 +58,7 @@ defmodule LC.Accounts do
 
   @type token_payload :: %{token: String.t(), user_token: UserToken.t()}
   @type token_result :: {:ok, token_payload()} | {:error, changeset()}
+  @type contact_invite_token_result :: token_result() | {:error, :invalid_recipient}
   @type contact_invite_consumption_result ::
           {:ok, ContactInviteConversion.t()}
           | {:error, LCSchemas.Accounts.contact_invite_consumption_error()}
@@ -1010,14 +1011,15 @@ defmodule LC.Accounts do
   @doc """
   Persists and returns a contact invite token payload for the given recipient.
   """
-  @spec issue_contact_invite_token(User.t(), String.t()) :: token_result()
+  @spec issue_contact_invite_token(User.t(), String.t()) :: contact_invite_token_result()
   def issue_contact_invite_token(%User{} = user, recipient) when is_binary(recipient) do
-    # Invite recipients are persisted in normalized form so token lookups stay deterministic.
-    issue_user_token(
-      user,
-      :contact_invite_fragment_token,
-      sent_to: normalize_invite_recipient(recipient)
-    )
+    with {:ok, normalized_recipient} <- validate_invite_recipient(recipient) do
+      issue_user_token(
+        user,
+        :contact_invite_fragment_token,
+        sent_to: normalized_recipient
+      )
+    end
   end
 
   @doc """
@@ -1476,7 +1478,7 @@ defmodule LC.Accounts do
   Delivers contact invite instructions for a viewer-owned unmatched contact.
   """
   @spec deliver_contact_invite_instructions(User.t(), pos_integer(), (String.t() -> String.t())) ::
-          {:ok, Swoosh.Email.t()} | {:error, changeset() | term()}
+          {:ok, Swoosh.Email.t() | :suppressed} | {:error, changeset() | term()}
   def deliver_contact_invite_instructions(%User{} = user, contact_entry_id, invite_url_fun)
       when is_integer(contact_entry_id) and contact_entry_id > 0 and
              is_function(invite_url_fun, 1) do
@@ -2105,7 +2107,7 @@ defmodule LC.Accounts do
   end
 
   @spec prepare_contact_invite_delivery(User.t(), pos_integer()) ::
-          {:ok, %{recipient: String.t(), token: String.t()}}
+          {:ok, %{recipient: String.t(), token: String.t()} | :suppressed}
           | {:error, :invalid_contact_match | changeset() | term()}
   defp prepare_contact_invite_delivery(%User{} = user, contact_entry_id) do
     Repo.transact(fn ->
@@ -2114,6 +2116,11 @@ defmodule LC.Accounts do
           with {:ok, %{token: token}} <- issue_contact_invite_token(user, recipient) do
             {:ok, %{recipient: recipient, token: token}}
           end
+
+        %{matched_users: [_matched_user | _rest]} ->
+          # A blocked account is removed later at the GraphQL visibility boundary. Treat every
+          # matched row as a successful no-op so the delivery result cannot disclose that account.
+          {:ok, :suppressed}
 
         _other ->
           {:error, :invalid_contact_match}
@@ -2154,7 +2161,12 @@ defmodule LC.Accounts do
     |> Enum.reject(&MapSet.member?(owner_email_address_ids, &1.id))
     |> Enum.map(& &1.normalized_email)
     |> Enum.sort()
-    |> List.first()
+    |> Enum.find_value(fn recipient ->
+      case validate_invite_recipient(recipient) do
+        {:ok, normalized_recipient} -> normalized_recipient
+        {:error, :invalid_recipient} -> nil
+      end
+    end)
   end
 
   defp owner_email_address_ids(owner_id) do
@@ -2284,6 +2296,23 @@ defmodule LC.Accounts do
     |> String.trim()
     |> String.downcase()
   end
+
+  @spec validate_invite_recipient(term()) ::
+          {:ok, String.t()} | {:error, :invalid_recipient}
+  defp validate_invite_recipient(recipient) when is_binary(recipient) do
+    changeset =
+      UserChanges.email_changeset(%User{}, %{
+        email: normalize_invite_recipient(recipient)
+      })
+
+    if changeset.valid? do
+      {:ok, get_field(changeset, :email)}
+    else
+      {:error, :invalid_recipient}
+    end
+  end
+
+  defp validate_invite_recipient(_recipient), do: {:error, :invalid_recipient}
 
   defp normalize_contact_phone_numbers(values) when is_list(values) do
     values
