@@ -19,6 +19,11 @@ defmodule LCGQL.Content.Resolver do
           errors: [mutation_error()]
         }
   @type request_media_upload_result :: {:ok, request_media_upload_payload()}
+  @type finalize_media_upload_payload :: %{
+          media_asset: MediaAsset.t() | nil,
+          errors: [mutation_error()]
+        }
+  @type finalize_media_upload_result :: {:ok, finalize_media_upload_payload()}
   @type update_post_payload :: %{post: Post.t() | nil, errors: [mutation_error()]}
   @type update_post_result :: {:ok, update_post_payload()}
   @type delete_post_payload :: %{deleted_post_id: String.t() | nil, errors: [mutation_error()]}
@@ -112,6 +117,37 @@ defmodule LCGQL.Content.Resolver do
        signed_upload: nil,
        errors: [MutationErrors.user_error(nil, :unauthenticated)]
      }}
+  end
+
+  @spec finalize_media_upload(
+          term(),
+          %{optional(:input) => map(), optional(:media_asset_id) => term()},
+          Absinthe.Resolution.t()
+        ) :: finalize_media_upload_result()
+  def finalize_media_upload(parent, %{input: input}, resolution),
+    do: finalize_media_upload(parent, input, resolution)
+
+  def finalize_media_upload(_parent, %{media_asset_id: media_asset_id}, %{
+        context: %{current_scope: %{user: %{id: _id} = viewer}}
+      }) do
+    with {:ok, id} <- Relay.decode_global_id(media_asset_id, :media_asset, LCGQL.Schema),
+         {:ok, media_asset} <- Content.finalize_media_upload(viewer, id, %{}) do
+      {:ok, %{media_asset: media_asset, errors: []}}
+    else
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok,
+         %{
+           media_asset: nil,
+           errors: MutationErrors.changeset_errors(changeset, &Atom.to_string/1)
+         }}
+
+      {:error, reason} ->
+        finalize_media_upload_error(:media_asset_id, reason)
+    end
+  end
+
+  def finalize_media_upload(_parent, _attrs, _resolution) do
+    finalize_media_upload_error(nil, :unauthenticated)
   end
 
   @spec update_post(
@@ -353,7 +389,54 @@ defmodule LCGQL.Content.Resolver do
 
   @spec media_asset_public_url(map(), map(), Absinthe.Resolution.t()) ::
           {:ok, String.t() | nil}
-  def media_asset_public_url(%{storage_key: _storage_key} = media_asset, _args, _resolution) do
+  def media_asset_public_url(
+        %{authorized_media_asset: %MediaAsset{} = media_asset},
+        _args,
+        _resolution
+      ) do
+    resolve_media_asset_public_url(media_asset)
+  end
+
+  def media_asset_public_url(%MediaAsset{} = media_asset, _args, resolution) do
+    media_asset
+    |> authorized_media_asset(resolution)
+    |> resolve_media_asset_public_url()
+  end
+
+  def media_asset_public_url(_media_asset, _args, _resolution), do: {:ok, nil}
+
+  @spec authorized_media_asset(MediaAsset.t(), Absinthe.Resolution.t()) :: MediaAsset.t() | nil
+  defp authorized_media_asset(%MediaAsset{id: id, post_id: post_id}, resolution)
+       when is_integer(id) and id > 0 do
+    owner_media_asset(id, resolution) || visible_post_media_asset(post_id, id, resolution)
+  end
+
+  defp authorized_media_asset(_media_asset, _resolution), do: nil
+
+  @spec owner_media_asset(pos_integer(), Absinthe.Resolution.t()) :: MediaAsset.t() | nil
+  defp owner_media_asset(id, %{
+         context: %{current_scope: %{user: %{id: viewer_id} = viewer}}
+       })
+       when is_integer(viewer_id) and viewer_id > 0 do
+    Content.get_user_media_asset(viewer, id)
+  end
+
+  defp owner_media_asset(_id, _resolution), do: nil
+
+  @spec visible_post_media_asset(term(), pos_integer(), Absinthe.Resolution.t()) ::
+          MediaAsset.t() | nil
+  defp visible_post_media_asset(post_id, media_asset_id, resolution)
+       when is_integer(post_id) and post_id > 0 do
+    if visible_post(post_id, resolution) do
+      Content.get_post_media_asset(post_id, media_asset_id)
+    end
+  end
+
+  defp visible_post_media_asset(_post_id, _media_asset_id, _resolution), do: nil
+
+  @spec resolve_media_asset_public_url(MediaAsset.t() | nil) :: {:ok, String.t() | nil}
+  defp resolve_media_asset_public_url(%MediaAsset{storage_key: storage_key} = media_asset)
+       when is_binary(storage_key) do
     case Content.media_asset_public_url(media_asset) do
       {:ok, public_url} ->
         {:ok, public_url}
@@ -365,7 +448,7 @@ defmodule LCGQL.Content.Resolver do
     end
   end
 
-  def media_asset_public_url(_media_asset, _args, _resolution), do: {:ok, nil}
+  defp resolve_media_asset_public_url(_media_asset), do: {:ok, nil}
 
   @spec media_assets(map(), map(), Absinthe.Resolution.t()) ::
           LCGQL.Dataloader.dataloader_result()
@@ -395,6 +478,20 @@ defmodule LCGQL.Content.Resolver do
 
   defp post_payload_error(field, reason) do
     {:ok, %{post: nil, errors: [post_error(field, reason)]}}
+  end
+
+  @spec finalize_media_upload_error(:media_asset_id | nil, atom()) ::
+          finalize_media_upload_result()
+  defp finalize_media_upload_error(nil, reason) do
+    {:ok, %{media_asset: nil, errors: [MutationErrors.user_error(nil, reason)]}}
+  end
+
+  defp finalize_media_upload_error(field, reason) do
+    {:ok,
+     %{
+       media_asset: nil,
+       errors: [MutationErrors.user_error(FieldNames.lower_camel(field), reason)]
+     }}
   end
 
   defp global_id_field(%{id: id}, type), do: global_id_field(id, type)

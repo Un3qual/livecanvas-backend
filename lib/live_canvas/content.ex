@@ -35,14 +35,13 @@ defmodule LC.Content do
   @type post_report_decision_attrs :: %{
           optional(:status | :decision_note | String.t()) => term()
         }
-  @type media_asset_result :: {:ok, MediaAssetSchema.t()} | {:error, changeset()}
   @type live_recording_media_asset_opts :: [lock: :for_update]
   @type live_recording_media_asset_result ::
           {:ok, MediaAssetSchema.t()} | {:error, :invalid_processing_state | :not_found}
   @type media_upload_result ::
           {:ok, %{media_asset: MediaAssetSchema.t(), upload: ObjectStorage.signed_upload()}}
           | {:error, changeset() | :invalid_upload_request | term()}
-  @type media_asset_public_url_result :: {:ok, String.t()} | {:error, term()}
+  @type media_asset_public_url_result :: {:ok, String.t() | nil} | {:error, term()}
   @type media_finalize_result :: {:ok, MediaAssetSchema.t()} | {:error, changeset() | atom()}
   @type webhook_ingest_result ::
           {:ok, :accepted | :duplicate}
@@ -51,9 +50,11 @@ defmodule LC.Content do
           {:ok, [MediaAssetSchema.t()]} | {:error, Ecto.Changeset.t()}
   @media_processing_job_kind "media_asset_processing"
   @media_processing_job_max_attempts 2
+  @image_upload_max_bytes 25 * 1024 * 1024
+  @video_upload_max_bytes 100 * 1024 * 1024
   @moderation_post_reports_query_alias :moderation_post_reports
   @post_report_statuses [:open, :reviewed, :dismissed, :actioned]
-  @post_media_asset_error "must reference viewer-owned uploaded or processed assets"
+  @post_media_asset_error "must reference viewer-owned processed assets"
 
   @doc """
   Persists a post owned by the given author.
@@ -215,16 +216,6 @@ defmodule LC.Content do
   def decide_post_report(_scope, _report_id, _attrs), do: {:error, :not_authorized}
 
   @doc """
-  Persists media metadata owned by the given user.
-  """
-  @spec create_media_asset(User.t(), map()) :: media_asset_result()
-  def create_media_asset(%User{id: owner_id}, attrs) when is_map(attrs) do
-    %MediaAssetSchema{}
-    |> MediaAsset.changeset(MediaAsset.attrs_for_insert(owner_id, attrs))
-    |> Repo.insert()
-  end
-
-  @doc """
   Creates a viewer-owned media row and returns signed upload instructions.
   """
   @spec request_media_upload(User.t(), map()) :: media_upload_result()
@@ -233,7 +224,9 @@ defmodule LC.Content do
 
     changeset =
       %MediaAssetSchema{}
-      |> MediaAsset.changeset(MediaAsset.attrs_for_upload_request(owner_id, attrs, storage_key))
+      |> MediaAsset.upload_request_changeset(
+        MediaAsset.attrs_for_upload_request(owner_id, attrs, storage_key)
+      )
 
     if changeset.valid? do
       mime_type = Ecto.Changeset.get_field(changeset, :mime_type)
@@ -474,6 +467,21 @@ defmodule LC.Content do
   end
 
   @doc """
+  Gets a media asset only when it is persistently attached to the provided post.
+
+  Callers must independently authorize visibility of the post before exposing
+  the returned asset.
+  """
+  @spec get_post_media_asset(pos_integer(), pos_integer()) :: MediaAssetSchema.t() | nil
+  def get_post_media_asset(post_id, media_asset_id)
+      when is_integer(post_id) and post_id > 0 and is_integer(media_asset_id) and
+             media_asset_id > 0 do
+    Repo.get_by(MediaAssetSchema, id: media_asset_id, post_id: post_id)
+  end
+
+  def get_post_media_asset(_post_id, _media_asset_id), do: nil
+
+  @doc """
   Gets a durable media asset that is safe to expose from an ended live session.
   """
   @spec get_live_recording_media_asset(pos_integer()) :: MediaAssetSchema.t() | nil
@@ -531,10 +539,17 @@ defmodule LC.Content do
   Returns the canonical public serving URL for a persisted media asset.
   """
   @spec media_asset_public_url(MediaAssetSchema.t()) :: media_asset_public_url_result()
-  def media_asset_public_url(%MediaAssetSchema{storage_key: storage_key})
+  def media_asset_public_url(%MediaAssetSchema{
+        processing_state: :processed,
+        storage_key: storage_key
+      })
       when is_binary(storage_key) do
     ObjectStorage.public_asset_url(storage_key)
   end
+
+  def media_asset_public_url(%MediaAssetSchema{processing_state: state})
+      when state in [:pending_upload, :uploaded, :failed],
+      do: {:ok, nil}
 
   def media_asset_public_url(%MediaAssetSchema{}), do: {:error, :invalid_storage_key}
 
@@ -542,7 +557,7 @@ defmodule LC.Content do
   Finalizes a pending upload for the owner and enqueues async media processing.
   """
   @spec finalize_media_upload(User.t(), pos_integer(), map()) :: media_finalize_result()
-  def finalize_media_upload(%User{} = owner, media_asset_id, attrs)
+  def finalize_media_upload(%User{id: owner_id} = owner, media_asset_id, attrs)
       when is_integer(media_asset_id) and media_asset_id > 0 and is_map(attrs) do
     case get_user_media_asset(owner, media_asset_id) do
       nil ->
@@ -552,20 +567,75 @@ defmodule LC.Content do
         {:ok, media_asset}
 
       %MediaAssetSchema{processing_state: :uploaded} = media_asset ->
-        enqueue_media_processing(media_asset)
+        finalize_verified_upload(owner_id, media_asset)
 
       %MediaAssetSchema{processing_state: :failed} ->
         {:error, :processing_failed}
 
       %MediaAssetSchema{processing_state: :pending_upload} = media_asset ->
-        finalize_pending_upload(media_asset, attrs)
+        with {:ok, _verified_upload} <- verify_pending_upload(media_asset) do
+          finalize_verified_upload(owner_id, media_asset)
+        end
     end
   end
 
-  @spec finalize_pending_upload(MediaAssetSchema.t(), map()) :: media_finalize_result()
-  defp finalize_pending_upload(media_asset, attrs) do
+  @spec verify_pending_upload(MediaAssetSchema.t()) ::
+          {:ok, ObjectStorage.verified_upload()} | {:error, atom()}
+  defp verify_pending_upload(%MediaAssetSchema{
+         storage_key: storage_key,
+         mime_type: mime_type
+       }) do
+    with {:ok, max_bytes} <- upload_max_bytes(mime_type) do
+      ObjectStorage.verify_upload(%{
+        key: storage_key,
+        mime_type: mime_type,
+        max_bytes: max_bytes
+      })
+    end
+  end
+
+  @spec upload_max_bytes(String.t()) :: {:ok, pos_integer()} | {:error, :unsupported_mime_type}
+  defp upload_max_bytes(mime_type) when mime_type in ["image/jpeg", "image/png", "image/webp"],
+    do: {:ok, @image_upload_max_bytes}
+
+  defp upload_max_bytes("video/mp4"), do: {:ok, @video_upload_max_bytes}
+  defp upload_max_bytes(_mime_type), do: {:error, :unsupported_mime_type}
+
+  @spec finalize_verified_upload(pos_integer(), MediaAssetSchema.t()) :: media_finalize_result()
+  defp finalize_verified_upload(owner_id, %MediaAssetSchema{id: media_asset_id}) do
+    Repo.transact(fn ->
+      owner_id
+      |> locked_user_media_asset_query(media_asset_id)
+      |> Repo.one()
+      |> finalize_locked_media_asset()
+    end)
+  end
+
+  @spec locked_user_media_asset_query(pos_integer(), pos_integer()) :: Ecto.Query.t()
+  defp locked_user_media_asset_query(owner_id, media_asset_id) do
+    from(media_asset in MediaAssetSchema,
+      where: media_asset.id == ^media_asset_id and media_asset.owner_id == ^owner_id,
+      lock: "FOR UPDATE"
+    )
+  end
+
+  @spec finalize_locked_media_asset(MediaAssetSchema.t() | nil) :: media_finalize_result()
+  defp finalize_locked_media_asset(nil), do: {:error, :not_found}
+
+  defp finalize_locked_media_asset(%MediaAssetSchema{processing_state: :processed} = media_asset),
+    do: {:ok, media_asset}
+
+  defp finalize_locked_media_asset(%MediaAssetSchema{processing_state: :failed}),
+    do: {:error, :processing_failed}
+
+  defp finalize_locked_media_asset(%MediaAssetSchema{processing_state: :uploaded} = media_asset),
+    do: enqueue_media_processing(media_asset)
+
+  defp finalize_locked_media_asset(
+         %MediaAssetSchema{processing_state: :pending_upload} = media_asset
+       ) do
     with {:ok, uploaded_asset} <-
-           update_media_asset(media_asset, Map.put(attrs, :processing_state, :uploaded)),
+           update_media_asset(media_asset, %{processing_state: :uploaded}),
          {:ok, _queued_asset} <- enqueue_media_processing(uploaded_asset) do
       {:ok, uploaded_asset}
     end
@@ -576,7 +646,7 @@ defmodule LC.Content do
        when is_integer(media_asset_id) and media_asset_id > 0 do
     # Enqueue uses a stable dedupe key so repeated finalize calls remain
     # idempotent while still guaranteeing processing is durably scheduled.
-    case AsyncJobs.enqueue(
+    case media_processing_queue().enqueue(
            @media_processing_job_kind,
            %{media_asset_id: media_asset_id},
            dedupe_key: "media_asset_processing:#{media_asset_id}",
@@ -585,6 +655,11 @@ defmodule LC.Content do
       {:ok, _job} -> {:ok, uploaded_asset}
       {:error, _reason} -> {:error, :enqueue_failed}
     end
+  end
+
+  @spec media_processing_queue() :: module()
+  defp media_processing_queue do
+    Application.get_env(:live_canvas, :media_processing_queue, AsyncJobs)
   end
 
   @spec normalize_media_asset_ids(map(), Ecto.Changeset.t()) ::
@@ -656,7 +731,7 @@ defmodule LC.Content do
          post_id: nil,
          processing_state: processing_state
        })
-       when processing_state in [:uploaded, :processed],
+       when processing_state == :processed,
        do: true
 
   defp attachable_post_media_asset?(%MediaAssetSchema{}), do: false
@@ -669,7 +744,7 @@ defmodule LC.Content do
        when is_integer(post_id) and post_id > 0 and is_list(media_assets) do
     Enum.reduce_while(media_assets, {:ok, []}, fn media_asset, {:ok, attached_assets} ->
       case media_asset
-           |> MediaAsset.changeset(%{post_id: post_id})
+           |> MediaAsset.attachment_changeset(%{post_id: post_id})
            |> Repo.update() do
         {:ok, attached_asset} ->
           {:cont, {:ok, [attached_asset | attached_assets]}}
@@ -691,7 +766,7 @@ defmodule LC.Content do
           {:ok, MediaAssetSchema.t()} | {:error, changeset()}
   defp update_media_asset(%MediaAssetSchema{} = media_asset, attrs) when is_map(attrs) do
     media_asset
-    |> MediaAsset.changeset(attrs)
+    |> MediaAsset.processing_changeset(attrs)
     |> Repo.update()
   end
 

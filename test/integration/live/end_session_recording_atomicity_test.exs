@@ -3,8 +3,9 @@ defmodule LC.Integration.Live.EndSessionRecordingAtomicityTest do
 
   import Ecto.Query
   import LC.AccountsFixtures, only: [user_fixture: 1]
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
 
-  alias LC.{Content, Live}
+  alias LC.Live
   alias LC.Infra.Repo
   alias LC.TestSupport.Live.PeerRuntimeHelper
   alias LCSchemas.Accounts.User
@@ -13,6 +14,7 @@ defmodule LC.Integration.Live.EndSessionRecordingAtomicityTest do
   test "returns a structured error when the recording asset disappears before the end write" do
     PeerRuntimeHelper.with_local_repo_auto_mode(fn ->
       host = user_fixture(%{email: unique_email("host")})
+
       try do
         session = live_session_fixture(host)
         recording_asset = recording_asset_fixture(host)
@@ -79,8 +81,8 @@ defmodule LC.Integration.Live.EndSessionRecordingAtomicityTest do
   end
 
   defp recording_asset_fixture(host) do
-    {:ok, recording_asset} =
-      Content.create_media_asset(host, %{
+    recording_asset =
+      media_asset_fixture(host, %{
         storage_key: "uploads/users/#{host.id}/recording-race.mp4",
         mime_type: "video/mp4",
         processing_state: :uploaded

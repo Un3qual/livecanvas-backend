@@ -3,6 +3,7 @@ defmodule LC.Infra.DataGovernanceDeletionTest do
 
   import Ecto.Query
   import LC.AccountsFixtures
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
   import LC.SocialFixtures
 
   alias LC.{Accounts, Chat, Content, Live}
@@ -96,12 +97,12 @@ defmodule LC.Infra.DataGovernanceDeletionTest do
       assert {:ok, post} =
                Content.create_post(user, %{body_text: "queued for deletion", kind: :standard})
 
-      assert {:ok, media_asset} =
-               Content.create_media_asset(user, %{
-                 post_id: post.id,
-                 mime_type: "image/jpeg",
-                 storage_key: "uploads/stubbed-delete.jpg"
-               })
+      media_asset =
+        media_asset_fixture(user, %{
+          post_id: post.id,
+          mime_type: "image/jpeg",
+          storage_key: "uploads/stubbed-delete.jpg"
+        })
 
       assert {:ok, session} = Live.start_live_session(user, %{visibility: :public})
       assert {:ok, participant} = Live.join_live_session(session, other_user, :viewer)

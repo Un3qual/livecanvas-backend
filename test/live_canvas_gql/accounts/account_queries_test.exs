@@ -2,6 +2,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
   alias LC.{Accounts, Content, Live}
 
   describe "viewer" do
@@ -56,12 +57,12 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
       {:ok, _duplicate_starting_session} =
         Live.start_live_session(viewer, %{visibility: :followers})
 
-      assert {:ok, replay_asset} =
-               Content.create_media_asset(viewer, %{
-                 storage_key: "uploads/users/#{viewer.id}/viewer-profile-replay.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      replay_asset =
+        media_asset_fixture(viewer, %{
+          storage_key: "uploads/users/#{viewer.id}/viewer-profile-replay.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       {:ok, replay_session} = Live.start_live_session(viewer, %{visibility: :followers})
 
@@ -205,6 +206,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
                  "node" => %{"id" => first_id, "canUnlink" => true}
                }
              ] = first_page["edges"]
+
       assert is_binary(first_cursor)
       assert is_binary(first_id)
       assert %{"hasNextPage" => true, "endCursor" => end_cursor} = first_page["pageInfo"]
@@ -224,6 +226,7 @@ defmodule LCGQL.Accounts.AccountQueriesTest do
                  "node" => %{"id" => second_id, "canUnlink" => true}
                }
              ] = second_page["edges"]
+
       assert is_binary(second_cursor)
       assert is_binary(second_id)
       assert first_id != second_id

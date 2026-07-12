@@ -12,17 +12,19 @@ defmodule LCApp do
   @spec start(Application.start_type(), [term()]) :: Supervisor.on_start()
   @impl true
   def start(_type, _args) do
-    base_children = [
-      LCWeb.Telemetry,
-      metrics_reporter_child(),
-      LC.repo_module(),
-      {LC.Accounts.ProviderAuth.JwksCache, []},
-      {DNSCluster, query: Application.get_env(:live_canvas, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: LC.PubSub},
-      LCWeb.Presence,
-      {LC.RealtimeRuntime.Supervisor, []},
-      {LC.Infra.SMS.FakeAdapter, []}
-    ]
+    base_children =
+      [
+        LCWeb.Telemetry,
+        metrics_reporter_child(),
+        LC.repo_module(),
+        {LC.Accounts.ProviderAuth.JwksCache, []},
+        {DNSCluster, query: Application.get_env(:live_canvas, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: LC.PubSub},
+        LCWeb.Presence,
+        {LC.RealtimeRuntime.Supervisor, []},
+        {LC.Infra.SMS.FakeAdapter, []}
+      ]
+      |> maybe_add_fake_object_storage()
 
     children =
       base_children
@@ -48,6 +50,19 @@ defmodule LCApp do
 
     if worker_enabled? do
       children ++ [{LC.Infra.AsyncJobs.Worker, []}]
+    else
+      children
+    end
+  end
+
+  defp maybe_add_fake_object_storage(children) when is_list(children) do
+    adapter =
+      :live_canvas
+      |> Application.get_env(LC.Infra.ObjectStorage, [])
+      |> Keyword.get(:adapter)
+
+    if adapter == LC.Infra.ObjectStorage.FakeAdapter do
+      children ++ [{LC.Infra.ObjectStorage.FakeAdapter, []}]
     else
       children
     end

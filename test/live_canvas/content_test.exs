@@ -1,10 +1,12 @@
 defmodule LC.ContentTest do
-  use LC.DataCase, async: true
+  use LC.DataCase, async: false
 
   import LC.AccountsFixtures
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
 
   alias LC.{Accounts, Content, Live}
   alias LC.Content.MediaProcessingJob
+  alias LC.Infra.ObjectStorage.FakeAdapter
   alias LCSchemas.Content.MediaAsset, as: MediaAssetSchema
   alias LCSchemas.Content.Post, as: PostSchema
   alias LCSchemas.Content.PostReport, as: PostReportSchema
@@ -12,6 +14,37 @@ defmodule LC.ContentTest do
   alias LCSchemas.Live.LiveSession
 
   @story_ttl_seconds 24 * 60 * 60
+
+  defmodule RejectingMediaProcessingQueue do
+    @moduledoc false
+
+    def enqueue(_kind, _payload, _opts), do: {:error, :forced_failure}
+  end
+
+  defmodule UnavailableObjectStorage do
+    @moduledoc false
+
+    def verify_upload(_request), do: {:error, :storage_unavailable}
+  end
+
+  defmodule BlockingMediaProcessing do
+    @moduledoc false
+
+    @behaviour LC.Content.MediaProcessing
+
+    def process_upload(media_asset) do
+      test_pid =
+        :live_canvas
+        |> Application.fetch_env!(__MODULE__)
+        |> Keyword.fetch!(:test_pid)
+
+      send(test_pid, {:media_processing_started, self(), media_asset.id})
+
+      receive do
+        :finish_media_processing -> {:ok, %{width: 640}}
+      end
+    end
+  end
 
   describe "create_post/2" do
     test "persists author-owned content" do
@@ -26,49 +59,63 @@ defmodule LC.ContentTest do
       assert is_binary(post.entropy_id)
     end
 
-    test "attaches viewer-owned uploaded and processed media assets to a new post" do
+    test "attaches only viewer-owned processed media assets to a new post" do
       author = user_fixture()
 
-      assert {:ok, uploaded_asset} =
-               Content.create_media_asset(author, %{
-                 storage_key: "uploads/users/#{author.id}/uploaded.jpg",
-                 mime_type: "image/jpeg",
-                 processing_state: :uploaded
-               })
-
-      assert {:ok, processed_asset} =
-               Content.create_media_asset(author, %{
-                 storage_key: "uploads/users/#{author.id}/processed.jpg",
-                 mime_type: "image/jpeg",
-                 processing_state: :processed
-               })
+      processed_asset =
+        media_asset_fixture(author, %{
+          storage_key: "uploads/users/#{author.id}/processed.jpg",
+          mime_type: "image/jpeg",
+          processing_state: :processed
+        })
 
       assert {:ok, post} =
                Content.create_post(author, %{
                  kind: :standard,
                  body_text: "with attachments",
-                 media_asset_ids: [uploaded_asset.id, processed_asset.id]
+                 media_asset_ids: [processed_asset.id]
                })
 
       attached_post = Repo.preload(post, :media_assets)
 
-      assert Enum.sort(Enum.map(attached_post.media_assets, & &1.id)) ==
-               Enum.sort([uploaded_asset.id, processed_asset.id])
+      assert Enum.map(attached_post.media_assets, & &1.id) == [processed_asset.id]
 
-      assert Repo.get!(MediaAssetSchema, uploaded_asset.id).post_id == post.id
       assert Repo.get!(MediaAssetSchema, processed_asset.id).post_id == post.id
+    end
+
+    test "rejects uploaded media until processing completes" do
+      author = user_fixture()
+
+      uploaded_asset =
+        media_asset_fixture(author, %{
+          storage_key: "uploads/users/#{author.id}/uploaded.jpg",
+          mime_type: "image/jpeg",
+          processing_state: :uploaded
+        })
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Content.create_post(author, %{
+                 kind: :standard,
+                 body_text: "not processed",
+                 media_asset_ids: [uploaded_asset.id]
+               })
+
+      assert %{media_asset_ids: ["must reference viewer-owned processed assets"]} =
+               errors_on(changeset)
+
+      assert Repo.get!(MediaAssetSchema, uploaded_asset.id).post_id == nil
     end
 
     test "rejects media assets owned by another viewer" do
       author = user_fixture()
       other_user = user_fixture()
 
-      assert {:ok, other_asset} =
-               Content.create_media_asset(other_user, %{
-                 storage_key: "uploads/users/#{other_user.id}/other.jpg",
-                 mime_type: "image/jpeg",
-                 processing_state: :uploaded
-               })
+      other_asset =
+        media_asset_fixture(other_user, %{
+          storage_key: "uploads/users/#{other_user.id}/other.jpg",
+          mime_type: "image/jpeg",
+          processing_state: :uploaded
+        })
 
       assert {:error, %Ecto.Changeset{} = changeset} =
                Content.create_post(author, %{
@@ -77,7 +124,7 @@ defmodule LC.ContentTest do
                  media_asset_ids: [other_asset.id]
                })
 
-      assert %{media_asset_ids: ["must reference viewer-owned uploaded or processed assets"]} =
+      assert %{media_asset_ids: ["must reference viewer-owned processed assets"]} =
                errors_on(changeset)
 
       assert Repo.aggregate(PostSchema, :count, :id) == 0
@@ -90,12 +137,12 @@ defmodule LC.ContentTest do
       assert {:ok, %{media_asset: pending_asset}} =
                Content.request_media_upload(author, %{mime_type: "image/jpeg"})
 
-      assert {:ok, failed_asset} =
-               Content.create_media_asset(author, %{
-                 storage_key: "uploads/users/#{author.id}/failed.jpg",
-                 mime_type: "image/jpeg",
-                 processing_state: :failed
-               })
+      failed_asset =
+        media_asset_fixture(author, %{
+          storage_key: "uploads/users/#{author.id}/failed.jpg",
+          mime_type: "image/jpeg",
+          processing_state: :failed
+        })
 
       for media_asset_id <- [pending_asset.id, failed_asset.id] do
         assert {:error, %Ecto.Changeset{} = changeset} =
@@ -105,7 +152,7 @@ defmodule LC.ContentTest do
                    media_asset_ids: [media_asset_id]
                  })
 
-        assert %{media_asset_ids: ["must reference viewer-owned uploaded or processed assets"]} =
+        assert %{media_asset_ids: ["must reference viewer-owned processed assets"]} =
                  errors_on(changeset)
       end
 
@@ -163,11 +210,11 @@ defmodule LC.ContentTest do
     test "stores object metadata without binary payload fields" do
       author = user_fixture()
 
-      assert {:ok, asset} =
-               Content.create_media_asset(author, %{
-                 storage_key: "uploads/a.jpg",
-                 mime_type: "image/jpeg"
-               })
+      asset =
+        media_asset_fixture(author, %{
+          storage_key: "uploads/a.jpg",
+          mime_type: "image/jpeg"
+        })
 
       assert asset.owner_id == author.id
       assert asset.storage_key == "uploads/a.jpg"
@@ -253,13 +300,13 @@ defmodule LC.ContentTest do
       owner = user_fixture()
       {:ok, post} = Content.create_post(owner, %{kind: :standard, body_text: "recorded post"})
 
-      assert {:ok, media_asset} =
-               Content.create_media_asset(owner, %{
-                 post_id: post.id,
-                 storage_key: "uploads/users/#{owner.id}/recorded-post.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :uploaded
-               })
+      media_asset =
+        media_asset_fixture(owner, %{
+          post_id: post.id,
+          storage_key: "uploads/users/#{owner.id}/recorded-post.mp4",
+          mime_type: "video/mp4",
+          processing_state: :uploaded
+        })
 
       assert {:ok, session} = Live.start_live_session(owner, %{visibility: :followers})
 
@@ -613,6 +660,33 @@ defmodule LC.ContentTest do
   end
 
   describe "request_media_upload/2" do
+    test "accepts only the shared image and video MIME allowlist" do
+      author = user_fixture()
+
+      for mime_type <- ["image/jpeg", "image/png", "image/webp", "video/mp4"] do
+        assert {:ok, %{media_asset: %{mime_type: ^mime_type}}} =
+                 Content.request_media_upload(author, %{mime_type: mime_type})
+      end
+
+      for mime_type <- [
+            "image/gif",
+            "image/heic",
+            "video/quicktime",
+            "application/octet-stream",
+            "image/*",
+            "video/*"
+          ] do
+        assert {:error, %Ecto.Changeset{} = changeset} =
+                 Content.request_media_upload(author, %{mime_type: mime_type})
+
+        assert %{mime_type: ["is not supported"]} = errors_on(changeset)
+      end
+    end
+
+    test "does not expose an arbitrary-state media creation boundary" do
+      refute function_exported?(Content, :create_media_asset, 2)
+    end
+
     test "creates pending upload metadata with a server-generated storage key" do
       author = user_fixture()
 
@@ -644,19 +718,31 @@ defmodule LC.ContentTest do
   end
 
   describe "media_asset_public_url/1" do
-    test "returns canonical public URL for a persisted media asset" do
+    test "returns no public URL until a media asset is processed" do
       owner = user_fixture()
 
       assert {:ok, %{media_asset: media_asset}} =
                Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
 
-      assert {:ok, public_url} = Content.media_asset_public_url(media_asset)
-      assert public_url == "https://object-storage.invalid/#{media_asset.storage_key}"
+      assert {:ok, nil} = Content.media_asset_public_url(media_asset)
+    end
+
+    test "returns the canonical public URL for processed media" do
+      owner = user_fixture()
+
+      processed_asset =
+        LC.ContentFixtures.media_asset_fixture(owner, %{processing_state: :processed})
+
+      assert {:ok, public_url} = Content.media_asset_public_url(processed_asset)
+      assert public_url == "https://object-storage.invalid/#{processed_asset.storage_key}"
     end
 
     test "returns invalid_storage_key when storage key is missing" do
       assert {:error, :invalid_storage_key} =
-               Content.media_asset_public_url(%MediaAssetSchema{storage_key: nil})
+               Content.media_asset_public_url(%MediaAssetSchema{
+                 processing_state: :processed,
+                 storage_key: nil
+               })
     end
   end
 
@@ -668,14 +754,15 @@ defmodule LC.ContentTest do
                Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
 
       assert asset.processing_state == :pending_upload
+      put_fake_upload!(asset, 1024)
 
       assert {:ok, finalized_asset} =
                Content.finalize_media_upload(owner, asset.id, %{width: 1080, height: 1920})
 
       assert finalized_asset.id == asset.id
       assert finalized_asset.processing_state == :uploaded
-      assert finalized_asset.width == 1080
-      assert finalized_asset.height == 1920
+      assert finalized_asset.width == nil
+      assert finalized_asset.height == nil
 
       assert Repo.aggregate(AsyncJob, :count, :id) == 1
 
@@ -684,6 +771,13 @@ defmodule LC.ContentTest do
       assert async_job.payload == %{"media_asset_id" => asset.id}
       assert async_job.dedupe_key == "media_asset_processing:#{asset.id}"
       assert async_job.max_attempts == 2
+
+      assert {:error, :precondition_failed} =
+               FakeAdapter.put_object(%{
+                 key: asset.storage_key,
+                 mime_type: asset.mime_type,
+                 content_length: 2048
+               })
     end
 
     test "returns not found for non-owners" do
@@ -702,6 +796,8 @@ defmodule LC.ContentTest do
       assert {:ok, %{media_asset: asset}} =
                Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
 
+      put_fake_upload!(asset, 1024)
+
       assert {:ok, uploaded_asset} = Content.finalize_media_upload(owner, asset.id, %{})
       assert uploaded_asset.processing_state == :uploaded
 
@@ -712,15 +808,140 @@ defmodule LC.ContentTest do
       assert Repo.aggregate(AsyncJob, :count, :id) == 1
     end
 
+    test "keeps pending state and enqueues nothing when storage verification fails" do
+      owner = user_fixture()
+
+      assert {:ok, %{media_asset: asset}} =
+               Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+      assert {:error, :upload_not_found} = Content.finalize_media_upload(owner, asset.id, %{})
+      assert Content.get_user_media_asset(owner, asset.id).processing_state == :pending_upload
+      assert Repo.aggregate(AsyncJob, :count, :id) == 0
+    end
+
+    test "rolls back the upload transition when durable enqueue fails" do
+      owner = user_fixture()
+
+      assert {:ok, %{media_asset: asset}} =
+               Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+      put_fake_upload!(asset, 1024)
+
+      previous_queue = Application.get_env(:live_canvas, :media_processing_queue)
+      Application.put_env(:live_canvas, :media_processing_queue, RejectingMediaProcessingQueue)
+
+      on_exit(fn ->
+        if previous_queue do
+          Application.put_env(:live_canvas, :media_processing_queue, previous_queue)
+        else
+          Application.delete_env(:live_canvas, :media_processing_queue)
+        end
+      end)
+
+      assert {:error, :enqueue_failed} = Content.finalize_media_upload(owner, asset.id, %{})
+      assert Content.get_user_media_asset(owner, asset.id).processing_state == :pending_upload
+      assert Repo.aggregate(AsyncJob, :count, :id) == 0
+    end
+
+    test "keeps pending state when storage verification is unavailable" do
+      owner = user_fixture()
+
+      assert {:ok, %{media_asset: asset}} =
+               Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+      previous_storage = Application.fetch_env!(:live_canvas, LC.Infra.ObjectStorage)
+
+      Application.put_env(
+        :live_canvas,
+        LC.Infra.ObjectStorage,
+        Keyword.put(previous_storage, :adapter, UnavailableObjectStorage)
+      )
+
+      on_exit(fn ->
+        Application.put_env(:live_canvas, LC.Infra.ObjectStorage, previous_storage)
+      end)
+
+      assert {:error, :storage_unavailable} =
+               Content.finalize_media_upload(owner, asset.id, %{})
+
+      assert Content.get_user_media_asset(owner, asset.id).processing_state == :pending_upload
+      assert Repo.aggregate(AsyncJob, :count, :id) == 0
+    end
+
+    test "rejects empty, oversized, and content-type-mismatched stored objects" do
+      owner = user_fixture()
+
+      cases = [
+        {"image/jpeg", 0, nil, :empty_upload},
+        {"image/jpeg", 25 * 1024 * 1024 + 1, nil, :upload_too_large},
+        {"video/mp4", 100 * 1024 * 1024 + 1, nil, :upload_too_large},
+        {"image/jpeg", 1024, "video/mp4", :content_type_mismatch}
+      ]
+
+      for {requested_mime, bytes, stored_mime, expected_error} <- cases do
+        assert {:ok, %{media_asset: asset}} =
+                 Content.request_media_upload(owner, %{mime_type: requested_mime})
+
+        put_fake_upload!(asset, bytes, stored_mime)
+
+        assert {:error, ^expected_error} =
+                 Content.finalize_media_upload(owner, asset.id, %{})
+
+        assert Content.get_user_media_asset(owner, asset.id).processing_state == :pending_upload
+      end
+
+      assert Repo.aggregate(AsyncJob, :count, :id) == 0
+    end
+
+    test "accepts exact image and video size boundaries" do
+      owner = user_fixture()
+
+      for {mime_type, max_bytes} <- [
+            {"image/jpeg", 25 * 1024 * 1024},
+            {"video/mp4", 100 * 1024 * 1024}
+          ] do
+        assert {:ok, %{media_asset: asset}} =
+                 Content.request_media_upload(owner, %{mime_type: mime_type})
+
+        put_fake_upload!(asset, max_bytes)
+
+        assert {:ok, %{processing_state: :uploaded}} =
+                 Content.finalize_media_upload(owner, asset.id, %{})
+      end
+
+      assert Repo.aggregate(AsyncJob, :count, :id) == 2
+    end
+
+    test "concurrent finalization commits one lifecycle transition and one job" do
+      owner = user_fixture()
+
+      assert {:ok, %{media_asset: asset}} =
+               Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+      put_fake_upload!(asset, 1024)
+
+      results =
+        1..2
+        |> Task.async_stream(
+          fn _ -> Content.finalize_media_upload(owner, asset.id, %{}) end,
+          ordered: false,
+          max_concurrency: 2
+        )
+        |> Enum.map(fn {:ok, result} -> result end)
+
+      assert Enum.all?(results, &match?({:ok, %{processing_state: :uploaded}}, &1))
+      assert Repo.aggregate(AsyncJob, :count, :id) == 1
+    end
+
     test "enqueues async processing for already-uploaded rows during finalize recovery" do
       owner = user_fixture()
 
-      assert {:ok, uploaded_asset} =
-               Content.create_media_asset(owner, %{
-                 storage_key: "uploads/users/#{owner.id}/already-uploaded.jpg",
-                 mime_type: "image/jpeg",
-                 processing_state: :uploaded
-               })
+      uploaded_asset =
+        media_asset_fixture(owner, %{
+          storage_key: "uploads/users/#{owner.id}/already-uploaded.jpg",
+          mime_type: "image/jpeg",
+          processing_state: :uploaded
+        })
 
       assert {:ok, finalized_asset} = Content.finalize_media_upload(owner, uploaded_asset.id, %{})
       assert finalized_asset.processing_state == :uploaded
@@ -732,18 +953,74 @@ defmodule LC.ContentTest do
 
       assert :ok = MediaProcessingJob.handle(job)
     end
+
+    test "the first terminal transition wins when queue processing races a webhook" do
+      previous_processing_config =
+        Application.fetch_env!(:live_canvas, LC.Content.MediaProcessing)
+
+      Application.put_env(:live_canvas, LC.Content.MediaProcessing,
+        adapter: BlockingMediaProcessing
+      )
+
+      Application.put_env(:live_canvas, BlockingMediaProcessing, test_pid: self())
+
+      on_exit(fn ->
+        Application.put_env(
+          :live_canvas,
+          LC.Content.MediaProcessing,
+          previous_processing_config
+        )
+
+        Application.delete_env(:live_canvas, BlockingMediaProcessing)
+      end)
+
+      owner = user_fixture()
+
+      media_asset =
+        media_asset_fixture(owner, %{
+          mime_type: "image/jpeg",
+          processing_state: :uploaded
+        })
+
+      assert {:ok, :accepted} =
+               Content.ingest_media_processing_webhook("evt_terminal_race", %{
+                 "event_type" => "media.failed",
+                 "media_asset_id" => media_asset.id,
+                 "processing_state" => "failed"
+               })
+
+      webhook_job = Repo.get_by!(AsyncJob, kind: "media_processing_webhook")
+
+      processing_job = %AsyncJob{
+        kind: "media_asset_processing",
+        payload: %{media_asset_id: media_asset.id}
+      }
+
+      processing_task = Task.async(fn -> MediaProcessingJob.handle(processing_job) end)
+
+      assert_receive {:media_processing_started, processing_pid, media_asset_id}
+      assert media_asset_id == media_asset.id
+      assert :ok = MediaProcessingJob.handle(webhook_job)
+
+      send(processing_pid, :finish_media_processing)
+      assert :ok = Task.await(processing_task)
+
+      persisted_media_asset = Repo.get!(MediaAssetSchema, media_asset.id)
+      assert persisted_media_asset.processing_state == :failed
+      assert persisted_media_asset.width == nil
+    end
   end
 
   describe "ingest_media_processing_webhook/2" do
     test "is idempotent for repeated provider event ids" do
       owner = user_fixture()
 
-      assert {:ok, media_asset} =
-               Content.create_media_asset(owner, %{
-                 storage_key: "uploads/users/#{owner.id}/duplicate-webhook.jpg",
-                 mime_type: "image/jpeg",
-                 processing_state: :uploaded
-               })
+      media_asset =
+        media_asset_fixture(owner, %{
+          storage_key: "uploads/users/#{owner.id}/duplicate-webhook.jpg",
+          mime_type: "image/jpeg",
+          processing_state: :uploaded
+        })
 
       payload = %{
         "event_type" => "media.processed",
@@ -765,5 +1042,14 @@ defmodule LC.ContentTest do
       assert async_job.kind == "media_processing_webhook"
       assert async_job.dedupe_key == "webhook_event:media_processing:evt_content_duplicate"
     end
+  end
+
+  defp put_fake_upload!(media_asset, content_length, stored_mime_type \\ nil) do
+    assert :ok =
+             FakeAdapter.put_object(%{
+               key: media_asset.storage_key,
+               mime_type: stored_mime_type || media_asset.mime_type,
+               content_length: content_length
+             })
   end
 end

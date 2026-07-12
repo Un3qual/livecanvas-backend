@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-11
-Status: Batch 3 Media Post Publishing planned; awaiting approval
+Status: Batch 4 Live-Chat Message Controls Task 1 next
 
 ## Lane Scope
 
@@ -11,45 +11,47 @@ Status: Batch 3 Media Post Publishing planned; awaiting approval
 
 ## Last Completed Batch
 
-- Design:
-  `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
 - Source plan:
-  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
-- Completed task: Task 1 proved `User.posts`, `User.storyFeed`, and
-  `User.replayFeed` cursor ordering, filtering, and authorization.
-- Write scope: `test/live_canvas_gql/relay/node_queries_test.exs`.
-- Conditional production scope: `lib/live_canvas/feed.ex` and
-  `lib/live_canvas_gql/accounts/user_resolver.ex` only if the focused test
-  reproduces a real defect.
-- Result: deterministic profile connection tests pass without widening viewer
-  visibility or accepting raw IDs; no backend production change was required.
+  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
+- Completed task: Task 1 completed the media upload lifecycle contract.
+- Result: uploads are write-once and storage-verified before idempotent durable
+  processing; attachments require owner-scoped processed assets; GraphQL keeps
+  storage and owner internals private.
 
 ## Verification
 
-- `mix format --check-formatted test/live_canvas_gql/relay/node_queries_test.exs`
-- `mix test test/live_canvas_gql/relay/node_queries_test.exs`
-- Result: 30 tests, 0 failures.
-- Repository-wide formatting remains red only in seven unrelated baseline
-  files: `config/runtime.exs`, `lib/live_canvas/dev/seed_data.ex`,
-  `test/integration/live/end_session_recording_atomicity_test.exs`,
-  `test/live_canvas/chat_test.exs`,
-  `test/live_canvas/dev/seed_data_test.exs`,
-  `test/live_canvas_gql/accounts/account_queries_test.exs`, and
-  `test/live_canvas_web/telemetry_test.exs`.
+- Original focused backend lifecycle suite: 239 tests, 0 failures.
+- Review-focused backend suite: 128 tests, 0 failures.
+- Full backend regression suite: 971 tests, 0 failures, 1 excluded.
+- `mix typecheck` and `mix compile --warnings-as-errors` passed.
+- Touched-file formatting and `git diff --check` passed.
+- Authenticated upload-ticket binding, terminal-state race safety, and
+  field-level `publicUrl` authorization have dedicated regression coverage.
+- Exported `mobile/schema.graphql` contains `finalizeMediaUpload` and omits
+  `MediaAsset.ownerId` and `MediaAsset.storageKey`.
+- Repository-wide formatting remains red only in three unrelated baseline
+  files: `lib/live_canvas/dev/seed_data.ex`, `test/live_canvas/chat_test.exs`,
+  and `test/live_canvas_web/telemetry_test.exs`.
+
+## Current Batch
+
+- Source plan:
+  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
+- Current task: Task 1, Prove Backend Authorization And Broadcast Semantics.
+- Write scope: chat mutation/channel tests plus the action-specific host-remove
+  authorizer and resolver paths named in the source plan.
+- Done condition: the authorization/broadcast matrix passes, ended sessions
+  cannot remove chat rows, touched types remain current, and typecheck passes.
 
 ## Next Action
 
-No backend implementation batch is active. Review
-`docs/superpowers/plans/2026-07-11-media-post-publishing.md`; after approval,
-promote Task 1's MIME allowlist validation, storage-verified upload finalization,
-processed-only attachment, and GraphQL schema-privacy work.
+Execute Task 1 from the Batch 4 source plan, then hand the verified mutation and
+broadcast contract to mobile Tasks 2-4.
 
 ## References
 
 - Mobile lane: `docs/plans/mobile/NOW.md`
-- Completed Batch 1 plan:
-  `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
-- Queued Batch 4 plan:
-  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
+- Completed Batch 3 plan:
+  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
 - Queued Batch 5 plan:
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`

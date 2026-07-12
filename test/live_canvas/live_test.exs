@@ -2,6 +2,7 @@ defmodule LC.LiveTest do
   use LC.DataCase, async: true
 
   import LC.AccountsFixtures
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
 
   alias LC.{Accounts, Content, Live}
   alias LC.Live.SessionServer
@@ -317,12 +318,12 @@ defmodule LC.LiveTest do
       host = user_fixture()
       {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/recording-uploaded.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :uploaded
-               })
+      recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/recording-uploaded.mp4",
+          mime_type: "video/mp4",
+          processing_state: :uploaded
+        })
 
       assert {:ok, ended_session} =
                Live.end_live_session(session, %{
@@ -337,12 +338,12 @@ defmodule LC.LiveTest do
       host = user_fixture()
       {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/recording-processed.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/recording-processed.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       assert {:ok, ended_session} =
                Live.end_live_session(session, %{
@@ -402,12 +403,12 @@ defmodule LC.LiveTest do
       other_user = user_fixture()
       {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(other_user, %{
-                 storage_key: "uploads/users/#{other_user.id}/foreign-recording.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :uploaded
-               })
+      recording_asset =
+        media_asset_fixture(other_user, %{
+          storage_key: "uploads/users/#{other_user.id}/foreign-recording.mp4",
+          mime_type: "video/mp4",
+          processing_state: :uploaded
+        })
 
       assert {:error, changeset} =
                Live.end_live_session(session, %{
@@ -424,12 +425,12 @@ defmodule LC.LiveTest do
       other_user = user_fixture()
       {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(other_user, %{
-                 storage_key: "uploads/users/#{other_user.id}/foreign-runtime-recording.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :uploaded
-               })
+      recording_asset =
+        media_asset_fixture(other_user, %{
+          storage_key: "uploads/users/#{other_user.id}/foreign-runtime-recording.mp4",
+          mime_type: "video/mp4",
+          processing_state: :uploaded
+        })
 
       assert {:ok, pid} = Live.lookup_session_server(session.id)
       assert Process.alive?(pid)
@@ -474,12 +475,12 @@ defmodule LC.LiveTest do
       host = user_fixture()
       {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
 
-      assert {:ok, recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/failed-recording.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :failed
-               })
+      recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/failed-recording.mp4",
+          mime_type: "video/mp4",
+          processing_state: :failed
+        })
 
       assert {:error, changeset} =
                Live.end_live_session(session, %{
@@ -495,19 +496,19 @@ defmodule LC.LiveTest do
       host = user_fixture()
       {:ok, session} = Live.start_live_session(host, %{visibility: :followers})
 
-      assert {:ok, first_recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/recording-first.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :uploaded
-               })
+      first_recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/recording-first.mp4",
+          mime_type: "video/mp4",
+          processing_state: :uploaded
+        })
 
-      assert {:ok, second_recording_asset} =
-               Content.create_media_asset(host, %{
-                 storage_key: "uploads/users/#{host.id}/recording-second.mp4",
-                 mime_type: "video/mp4",
-                 processing_state: :processed
-               })
+      second_recording_asset =
+        media_asset_fixture(host, %{
+          storage_key: "uploads/users/#{host.id}/recording-second.mp4",
+          mime_type: "video/mp4",
+          processing_state: :processed
+        })
 
       assert {:ok, ended_session} =
                Live.end_live_session(session, %{

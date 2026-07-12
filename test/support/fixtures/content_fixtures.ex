@@ -4,6 +4,7 @@ defmodule LC.ContentFixtures do
   import LC.AccountsFixtures, only: [user_fixture: 0]
 
   alias LC.Content
+  alias LC.Infra.Repo
   alias LCSchemas.Content.{MediaAsset, Post}
 
   @spec post_fixture(map()) :: Post.t()
@@ -29,10 +30,12 @@ defmodule LC.ContentFixtures do
     attrs =
       Enum.into(attrs, %{
         mime_type: "image/jpeg",
-        storage_key: "uploads/fixture.jpg"
+        processing_state: :uploaded,
+        storage_key: "uploads/users/#{owner.id}/fixture.jpg"
       })
 
-    {:ok, media_asset} = Content.create_media_asset(owner, attrs)
-    media_asset
+    %MediaAsset{}
+    |> Ecto.Changeset.change(Map.put(attrs, :owner_id, owner.id))
+    |> Repo.insert!()
   end
 end

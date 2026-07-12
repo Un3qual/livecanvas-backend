@@ -1,6 +1,7 @@
 defmodule LCGQL.Feed.Resolver do
   alias LC.{Chat, Content, Feed}
   alias LCGQL.Resolution
+  alias LCSchemas.Content.MediaAsset
 
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
 
@@ -84,10 +85,16 @@ defmodule LCGQL.Feed.Resolver do
 
   @spec durable_recording_media_asset(map() | nil) :: map() | nil
   defp durable_recording_media_asset(
-         %{processing_state: processing_state} = recording_media_asset
+         %MediaAsset{processing_state: processing_state} = recording_media_asset
        )
-       when processing_state in [:uploaded, :processed, "uploaded", "processed"],
-       do: recording_media_asset
+       when processing_state in [:uploaded, :processed, "uploaded", "processed"] do
+    # recording_media_asset/3 already re-authorized retained-history access.
+    # Preserve that decision for child fields without letting arbitrary media
+    # assets bypass their own field-level authorization.
+    recording_media_asset
+    |> Map.from_struct()
+    |> Map.put(:authorized_media_asset, recording_media_asset)
+  end
 
   defp durable_recording_media_asset(_recording_media_asset), do: nil
 end

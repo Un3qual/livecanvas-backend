@@ -29,6 +29,14 @@ config :live_canvas, LCWeb.Plugs.WebhookSignature,
 
 config :live_canvas, LC.Infra.AsyncJobs.Worker, enabled: false
 
+config :live_canvas, LC.Infra.ObjectStorage.ConfigurableAdapter,
+  upload_signing_request_options: [
+    plug: {Req.Test, LC.Infra.ObjectStorage.ConfigurableAdapter}
+  ],
+  verification_request_options: [
+    plug: {Req.Test, LC.Infra.ObjectStorage.ConfigurableAdapter}
+  ]
+
 # Keep explicit peer runtime defaults for tests so scenario tests can
 # temporarily override these values and restore deterministic baselines.
 config :live_canvas, LC.TestSupport.Live.PeerRuntimeHelper,

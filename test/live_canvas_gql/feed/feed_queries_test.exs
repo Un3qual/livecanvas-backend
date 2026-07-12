@@ -2,6 +2,7 @@ defmodule LCGQL.Feed.FeedQueriesTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
   import LC.SocialFixtures
 
   alias LC.{Accounts, Content, Live, Social}
@@ -861,8 +862,8 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       followed_host = user_fixture()
       _follow = accepted_follow_fixture(viewer, followed_host)
 
-      {:ok, public_asset} =
-        Content.create_media_asset(public_host, %{
+      public_asset =
+        media_asset_fixture(public_host, %{
           storage_key: "uploads/users/#{public_host.id}/replay-feed-public.mp4",
           mime_type: "video/mp4",
           processing_state: :processed
@@ -873,8 +874,8 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       {:ok, ended_public_session} =
         Live.end_live_session(public_session, %{recording_media_asset_id: public_asset.id})
 
-      {:ok, followed_asset} =
-        Content.create_media_asset(followed_host, %{
+      followed_asset =
+        media_asset_fixture(followed_host, %{
           storage_key: "uploads/users/#{followed_host.id}/replay-feed-followers.mp4",
           mime_type: "video/mp4",
           processing_state: :processed
@@ -966,8 +967,8 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       for index <- 1..2 do
         host = user_fixture(privacy_mode: :public)
 
-        {:ok, recording_asset} =
-          Content.create_media_asset(host, %{
+        recording_asset =
+          media_asset_fixture(host, %{
             storage_key: "uploads/users/#{host.id}/replay-batch-#{index}.mp4",
             mime_type: "video/mp4",
             processing_state: :processed
@@ -1015,8 +1016,8 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       follower_only_host = user_fixture()
       _follow = accepted_follow_fixture(viewer, follower_only_host)
 
-      {:ok, recording_asset} =
-        Content.create_media_asset(follower_only_host, %{
+      recording_asset =
+        media_asset_fixture(follower_only_host, %{
           storage_key: "uploads/users/#{follower_only_host.id}/replay-feed-private.mp4",
           mime_type: "video/mp4",
           processing_state: :processed
@@ -1072,8 +1073,8 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       _mute = mute_fixture(viewer, muted_host)
       _reverse_mute = mute_fixture(reverse_muter, viewer)
 
-      {:ok, muted_asset} =
-        Content.create_media_asset(muted_host, %{
+      muted_asset =
+        media_asset_fixture(muted_host, %{
           storage_key: "uploads/users/#{muted_host.id}/replay-feed-muted.mp4",
           mime_type: "video/mp4",
           processing_state: :processed
@@ -1084,8 +1085,8 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       {:ok, _ended_muted_session} =
         Live.end_live_session(muted_session, %{recording_media_asset_id: muted_asset.id})
 
-      {:ok, reverse_muted_asset} =
-        Content.create_media_asset(reverse_muter, %{
+      reverse_muted_asset =
+        media_asset_fixture(reverse_muter, %{
           storage_key: "uploads/users/#{reverse_muter.id}/replay-feed-reverse-muted.mp4",
           mime_type: "video/mp4",
           processing_state: :processed
@@ -1157,8 +1158,8 @@ defmodule LCGQL.Feed.FeedQueriesTest do
       viewer = user_fixture()
       host = user_fixture(privacy_mode: :public)
 
-      {:ok, recording_asset} =
-        Content.create_media_asset(host, %{
+      recording_asset =
+        media_asset_fixture(host, %{
           storage_key: "uploads/users/#{host.id}/replay-feed-failed.mp4",
           mime_type: "video/mp4",
           processing_state: :processed

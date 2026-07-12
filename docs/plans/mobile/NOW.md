@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-11
-Status: Batch 3 Media Post Publishing planned; awaiting approval
+Status: Batch 4 Live-Chat Message Controls active; backend Task 1 next
 
 ## Lane Scope
 
@@ -11,42 +11,31 @@ Status: Batch 3 Media Post Publishing planned; awaiting approval
 
 ## Last Completed Batch
 
-- Design:
-  `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
 - Source plan:
-  `docs/superpowers/plans/2026-07-09-profile-content-surfaces.md`
+  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Completed tasks: Tasks 1-7.
-- Deliver universal content state, cards, controls, and sections; migrate Home;
-  then add independent profile previews and shared paginated lists.
-- Controls appear in previews and lists: edit/delete for owned posts/stories,
-  report for non-owned posts/stories, and watch navigation for replays.
-- Done condition: Home remains regression-green; viewer and visible other-user
-  profiles show independently retryable previews plus stale-safe full lists.
+- Completed tasks: mobile Tasks 2-4 after the verified backend lifecycle Task 1.
+- Result: authenticated viewers can select one allowlisted image or MP4, upload
+  it through the exact signed storage contract, wait for processing, and
+  publish media-only or mixed text/media standard posts and stories.
 
 ## Verification
 
-- Relay: 49 reader and 45 normalization documents compiled.
-- Focused final gates: 13 Bun tests and 54 RNTL/Jest tests passed.
-- Full `bun run test:quality`: typechecks and lint passed; 464 Bun tests and
-  104 Jest tests passed.
-- `git diff --check` passed and the working tree was clean before closure.
-- Independent stacked-diff review found one Important Home refresh-retention
-  gap; commit `b8da57d` fixed it and re-review reported no remaining Critical
-  or Important findings.
+- Relay: 51 reader and 47 normalization documents compiled.
+- Focused final gates: 28 Bun tests and 25 RNTL/Jest tests passed.
+- Full `bun run test:quality`: typechecks and lint passed; 491 Bun tests and
+  128 Jest tests passed.
+- Focused Jest open-handle detection and `git diff --check` passed.
 
 ## Deferred Scope
 
-- Batches 3-5 now have implementation plans, but Batch 3 remains planning-only
-  pending approval and Batches 4-5 remain queued and non-executable.
-- Media publishing is the next planned batch, but remains non-executable until
-  approval. Content details, comments, reactions, replay management, native
-  address-book import, and release-candidate QA remain out of scope.
+- Batch 4 mobile Tasks 2-4 wait for the backend mutation/broadcast contract in
+  Task 1. Batch 5 remains queued.
+- Content details, comments, reactions, replay management, native address-book
+  import, and release-candidate QA remain out of scope.
 
 ## Next Action
 
-No mobile implementation batch is active. Review
-`docs/superpowers/plans/2026-07-11-media-post-publishing.md`; after approval,
-promote Batch 3 only. Keep
-`docs/superpowers/plans/2026-07-11-live-chat-message-controls.md` and
-`docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md` queued.
+Wait for backend Task 1 in
+`docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`, then execute
+mobile Tasks 2-4. Keep Batch 5 queued.

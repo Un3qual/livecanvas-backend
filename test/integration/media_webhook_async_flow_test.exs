@@ -2,9 +2,11 @@ defmodule LC.Integration.MediaWebhookAsyncFlowTest do
   use LC.DataCase
 
   import LC.AccountsFixtures
+  import LC.ContentFixtures, only: [media_asset_fixture: 2]
 
   alias LC.Content
   alias LC.Infra.AsyncJobs.Worker
+  alias LC.Infra.ObjectStorage.FakeAdapter
   alias LCSchemas.Infra.{AsyncJob, WebhookEvent}
 
   describe "media async processing flows" do
@@ -13,6 +15,8 @@ defmodule LC.Integration.MediaWebhookAsyncFlowTest do
 
       assert {:ok, %{media_asset: media_asset}} =
                Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+      put_fake_upload!(media_asset)
 
       assert {:ok, finalized_media_asset} =
                Content.finalize_media_upload(owner, media_asset.id, %{width: 320, height: 240})
@@ -28,13 +32,26 @@ defmodule LC.Integration.MediaWebhookAsyncFlowTest do
         processed_media_asset = Content.get_user_media_asset(owner, media_asset.id)
         processed_media_asset.processing_state == :processed
       end)
+
+      assert {:ok, post} =
+               Content.create_post(owner, %{
+                 kind: :standard,
+                 body_text: "processed upload",
+                 media_asset_ids: [media_asset.id]
+               })
+
+      assert [attached_media_asset] = Repo.preload(post, :media_assets).media_assets
+      assert attached_media_asset.id == media_asset.id
     end
 
     test "worker marks media assets failed after retries are exhausted" do
       owner = user_fixture()
 
-      assert {:ok, %{media_asset: media_asset}} =
-               Content.request_media_upload(owner, %{mime_type: "application/octet-stream"})
+      media_asset =
+        media_asset_fixture(owner, %{
+          mime_type: "application/octet-stream",
+          processing_state: :uploaded
+        })
 
       assert {:ok, finalized_media_asset} =
                Content.finalize_media_upload(owner, media_asset.id, %{})
@@ -65,12 +82,12 @@ defmodule LC.Integration.MediaWebhookAsyncFlowTest do
     test "worker applies webhook payload metadata to media assets" do
       owner = user_fixture()
 
-      assert {:ok, media_asset} =
-               Content.create_media_asset(owner, %{
-                 storage_key: "uploads/users/#{owner.id}/from-webhook.jpg",
-                 mime_type: "image/jpeg",
-                 processing_state: :uploaded
-               })
+      media_asset =
+        media_asset_fixture(owner, %{
+          storage_key: "uploads/users/#{owner.id}/from-webhook.jpg",
+          mime_type: "image/jpeg",
+          processing_state: :uploaded
+        })
 
       assert {:ok, :accepted} =
                Content.ingest_media_processing_webhook("evt_webhook_processed", %{
@@ -100,6 +117,48 @@ defmodule LC.Integration.MediaWebhookAsyncFlowTest do
           match?(%DateTime{}, webhook_event.processed_at)
       end)
     end
+
+    test "signed webhook jobs cannot process or fail unfinalized assets" do
+      owner = user_fixture()
+      worker = start_supervised!({Worker, worker_opts(claim_limit: 1)})
+
+      for processing_state <- ["processed", "failed"] do
+        assert {:ok, %{media_asset: media_asset}} =
+                 Content.request_media_upload(owner, %{mime_type: "image/jpeg"})
+
+        assert {:ok, :accepted} =
+                 Content.ingest_media_processing_webhook(
+                   "evt_pending_#{processing_state}",
+                   %{
+                     "event_type" => "media.#{processing_state}",
+                     "media_asset_id" => media_asset.id,
+                     "processing_state" => processing_state,
+                     "metadata" => %{"width" => 1234}
+                   }
+                 )
+
+        send(worker, :poll)
+
+        assert_eventually(fn ->
+          persisted_media_asset = Content.get_user_media_asset(owner, media_asset.id)
+
+          webhook_event =
+            Repo.get_by!(WebhookEvent, external_event_id: "evt_pending_#{processing_state}")
+
+          persisted_media_asset.processing_state == :pending_upload and
+            persisted_media_asset.width == nil and webhook_event.status == :failed
+        end)
+      end
+    end
+  end
+
+  defp put_fake_upload!(media_asset) do
+    assert :ok =
+             FakeAdapter.put_object(%{
+               key: media_asset.storage_key,
+               mime_type: media_asset.mime_type,
+               content_length: 1024
+             })
   end
 
   @spec worker_opts(keyword()) :: keyword()

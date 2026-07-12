@@ -10,6 +10,12 @@
     "plugins": [
       "expo-router",
       "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "LiveCanvas needs photo library access so you can add an image or video to a post."
+        }
+      ],
       "@config-plugins/react-native-webrtc"
     ],
     "splash": {

@@ -2,6 +2,7 @@ defmodule LC.Content.MediaProcessingJob do
   @moduledoc false
 
   import Ecto.Changeset
+  import Ecto.Query
 
   alias LC.Content.{MediaAsset, MediaProcessing}
   alias LC.Infra.Repo
@@ -92,16 +93,18 @@ defmodule LC.Content.MediaProcessingJob do
       |> normalize_processing_attrs()
       |> Map.put(:processing_state, :processed)
 
-    case update_media_asset(media_asset, attrs) do
+    case transition_uploaded_media_asset(media_asset, attrs) do
       {:ok, _updated_media_asset} -> :ok
+      {:terminal, state} when state in [:processed, :failed] -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
 
   @spec mark_media_asset_failed(MediaAssetSchema.t()) :: :ok | {:error, term()}
   defp mark_media_asset_failed(media_asset) do
-    case update_media_asset(media_asset, %{processing_state: :failed}) do
+    case transition_uploaded_media_asset(media_asset, %{processing_state: :failed}) do
       {:ok, _updated_media_asset} -> :ok
+      {:terminal, state} when state in [:processed, :failed] -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
@@ -136,31 +139,87 @@ defmodule LC.Content.MediaProcessingJob do
 
   @spec apply_webhook_state_update(MediaAssetSchema.t(), String.t(), webhook_payload()) ::
           :ok | {:drop, term()} | {:error, term()}
-  defp apply_webhook_state_update(media_asset, "processed", event_payload) do
+  defp apply_webhook_state_update(
+         %MediaAssetSchema{processing_state: :uploaded} = media_asset,
+         "processed",
+         event_payload
+       ) do
     metadata =
       event_payload
       |> Map.get("metadata", Map.get(event_payload, :metadata, %{}))
       |> normalize_processing_attrs()
       |> Map.put(:processing_state, :processed)
 
-    case update_media_asset(media_asset, metadata) do
+    case transition_uploaded_media_asset(media_asset, metadata) do
       {:ok, _updated_media_asset} -> :ok
+      {:terminal, :processed} -> :ok
+      {:terminal, _state} -> {:drop, :invalid_media_state}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp apply_webhook_state_update(media_asset, "failed", _event_payload),
-    do: mark_media_asset_failed(media_asset)
+  defp apply_webhook_state_update(
+         %MediaAssetSchema{processing_state: :processed},
+         "processed",
+         _event_payload
+       ),
+       do: :ok
+
+  defp apply_webhook_state_update(
+         %MediaAssetSchema{processing_state: :uploaded} = media_asset,
+         "failed",
+         _event_payload
+       ) do
+    case transition_uploaded_media_asset(media_asset, %{processing_state: :failed}) do
+      {:ok, _updated_media_asset} -> :ok
+      {:terminal, :failed} -> :ok
+      {:terminal, _state} -> {:drop, :invalid_media_state}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp apply_webhook_state_update(
+         %MediaAssetSchema{processing_state: :failed},
+         "failed",
+         _event_payload
+       ),
+       do: :ok
+
+  defp apply_webhook_state_update(_media_asset, state, _event_payload)
+       when state in ["processed", "failed"],
+       do: {:drop, :invalid_media_state}
 
   defp apply_webhook_state_update(_media_asset, _processing_state, _event_payload),
     do: {:drop, :invalid_processing_state}
 
-  @spec update_media_asset(MediaAssetSchema.t(), map()) ::
-          {:ok, MediaAssetSchema.t()} | {:error, Ecto.Changeset.t()}
-  defp update_media_asset(media_asset, attrs) do
-    media_asset
-    |> MediaAsset.changeset(attrs)
-    |> Repo.update()
+  @spec transition_uploaded_media_asset(MediaAssetSchema.t(), map()) ::
+          {:ok, MediaAssetSchema.t()} | {:terminal, atom()} | {:error, term()}
+  defp transition_uploaded_media_asset(%MediaAssetSchema{id: media_asset_id}, attrs)
+       when is_integer(media_asset_id) and media_asset_id > 0 and is_map(attrs) do
+    Repo.transaction(fn ->
+      media_asset =
+        MediaAssetSchema
+        |> where([media_asset], media_asset.id == ^media_asset_id)
+        |> lock("FOR UPDATE")
+        |> Repo.one()
+
+      case media_asset do
+        %MediaAssetSchema{processing_state: :uploaded} ->
+          media_asset
+          |> MediaAsset.processing_changeset(attrs)
+          |> Repo.update()
+
+        %MediaAssetSchema{processing_state: state} ->
+          {:terminal, state}
+
+        nil ->
+          {:error, :not_found}
+      end
+    end)
+    |> case do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp mark_webhook_event_processed(webhook_event) do
