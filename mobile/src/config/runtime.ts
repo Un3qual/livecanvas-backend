@@ -1,7 +1,7 @@
 import { Linking } from 'react-native';
 
 import type { AppEnvironment, BootSessionState } from './environment';
-import { storeContactInviteHandoff } from '../contacts/contactInviteHandoff';
+import { redactContactInviteSnapshotUrl } from '../contacts/contactInviteLink';
 
 const KNOWN_ROUTE_HREFS = new Set([
   '/sign-in',
@@ -48,9 +48,6 @@ export type StartupSnapshot = {
 
 type BootstrapOptions = {
   getInitialUrl?: () => Promise<string | null>;
-  storeInviteToken?: (
-    token: string,
-  ) => Promise<{ readonly handoffId: string }>;
 };
 
 export async function bootstrapRuntime(
@@ -66,26 +63,10 @@ export async function bootstrapRuntime(
     initialUrl = null;
   }
 
-  const inviteInput = parseContactInviteInput(initialUrl);
-
-  if (inviteInput.status !== 'not_invite') {
-    let rewrittenHref = '/invite';
-
-    if (inviteInput.status === 'valid') {
-      try {
-        const stored = await (
-          options.storeInviteToken ?? storeContactInviteHandoff
-        )(inviteInput.token);
-        rewrittenHref = `/invite?handoff=${encodeURIComponent(stored.handoffId)}`;
-      } catch {
-        // Invitation failures are deliberately collapsed to one token-free route.
-      }
-    }
-
-    return deriveStartupSnapshot(environment, rewrittenHref);
-  }
-
-  return deriveStartupSnapshot(environment, initialUrl);
+  return deriveStartupSnapshot(
+    environment,
+    redactContactInviteSnapshotUrl(initialUrl),
+  );
 }
 
 function deriveStartupSnapshot(
@@ -275,78 +256,6 @@ export function routeHrefFromUrl(initialUrl: string | null): string | null {
   return candidate === '/live-session' && query
     ? `${candidate}?${query}`
     : candidate;
-}
-
-type ContactInviteInput =
-  | { readonly status: 'invalid' | 'not_invite' }
-  | { readonly status: 'valid'; readonly token: string };
-
-function parseContactInviteInput(initialUrl: string | null): ContactInviteInput {
-  if (!initialUrl) {
-    return { status: 'not_invite' };
-  }
-
-  let parsed: URL;
-
-  try {
-    parsed = new URL(initialUrl);
-  } catch {
-    return { status: 'not_invite' };
-  }
-
-  if (
-    parsed.protocol === 'livecanvas-mobile:' &&
-    parsed.hostname === 'invite' &&
-    (parsed.pathname === '' || parsed.pathname === '/')
-  ) {
-    if (parsed.hash) {
-      return { status: 'invalid' };
-    }
-
-    return parseSingleTokenParameters(
-      initialUrl.slice(initialUrl.indexOf('?') + 1),
-    );
-  }
-
-  if (
-    parsed.protocol === 'https:' &&
-    Boolean(parsed.hostname) &&
-    parsed.pathname === '/invites'
-  ) {
-    if (parsed.search) {
-      return { status: 'invalid' };
-    }
-
-    return parseSingleTokenParameters(parsed.hash.slice(1));
-  }
-
-  return { status: 'not_invite' };
-}
-
-function parseSingleTokenParameters(rawParameters: string): ContactInviteInput {
-  const pairs = rawParameters.split('&');
-
-  if (pairs.length !== 1) {
-    return { status: 'invalid' };
-  }
-
-  const [rawKey = '', rawValue = '', ...extra] = pairs[0]!.split('=');
-
-  if (
-    rawKey !== 'token' ||
-    extra.length > 0 ||
-    !hasValidPercentEncoding(rawValue)
-  ) {
-    return { status: 'invalid' };
-  }
-
-  try {
-    const token = decodeURIComponent(rawValue.replace(/\+/g, ' ')).trim();
-
-    return token ? { status: 'valid', token } : { status: 'invalid' };
-  } catch {
-    return { status: 'invalid' };
-  }
 }
 
 function hasValidPercentEncoding(value: string): boolean {

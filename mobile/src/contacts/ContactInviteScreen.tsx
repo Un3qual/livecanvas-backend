@@ -86,11 +86,16 @@ export function ContactInviteScreen() {
       new Promise<ConsumeResult>((resolve, reject) => {
         commitConsume({
           variables: { input: { token } },
-          onCompleted: (payload) => {
+          onCompleted: (payload, errors) => {
             const result = payload.consumeContactInvite;
 
+            if (errors?.length || !result) {
+              reject(new Error('contact_invite_execution_failed'));
+              return;
+            }
+
             resolve(
-              result?.consumed && result.errors.length === 0
+              result.consumed && result.errors.length === 0
                 ? 'consumed'
                 : 'invalid',
             );

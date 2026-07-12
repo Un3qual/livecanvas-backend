@@ -11,15 +11,18 @@ import { ContactInviteScreen } from '../../src/contacts/ContactInviteScreen';
 
 type CommitConfig = {
   readonly variables: { readonly input: { readonly token: string } };
-  readonly onCompleted: (payload: {
-    readonly consumeContactInvite: {
-      readonly consumed: boolean;
-      readonly errors: ReadonlyArray<{
-        readonly field: string | null;
-        readonly message: string;
-      }>;
-    } | null;
-  }) => void;
+  readonly onCompleted: (
+    payload: {
+      readonly consumeContactInvite: {
+        readonly consumed: boolean;
+        readonly errors: ReadonlyArray<{
+          readonly field: string | null;
+          readonly message: string;
+        }>;
+      } | null;
+    },
+    errors?: ReadonlyArray<{ readonly message: string }> | null,
+  ) => void;
   readonly onError: (error: Error) => void;
 };
 
@@ -152,6 +155,76 @@ describe('ContactInviteScreen', () => {
     await waitFor(() => {
       expect(screen.getByText('Invitation accepted.')).toBeOnTheScreen();
     });
+  });
+
+  test('retains the token across top-level Relay execution errors', async () => {
+    mockAuthStatus = 'authenticated';
+
+    await render(<ContactInviteScreen />);
+    await waitFor(() => expect(mockCommitConsume).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      mockCommitConsume.mock.calls[0]?.[0].onCompleted(
+        { consumeContactInvite: null },
+        [{ message: 'resolver execution failed' }],
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockClearHandoff).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('We could not confirm the invitation. Try again.'),
+    ).toBeOnTheScreen();
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(mockCommitConsume).toHaveBeenCalledTimes(2));
+    expect(mockCommitConsume.mock.calls[1]?.[0].variables).toEqual({
+      input: { token: 'serialized-token' },
+    });
+  });
+
+  test('lets invite B consume after a stale pending invite A completes', async () => {
+    mockAuthStatus = 'authenticated';
+    mockHandoffParam = 'handoff-a';
+    mockTokenForConsumption = 'serialized-token-a';
+    const view = await render(<ContactInviteScreen />);
+    await waitFor(() => expect(mockCommitConsume).toHaveBeenCalledTimes(1));
+
+    mockHandoffParam = 'handoff-b';
+    mockTokenForConsumption = 'serialized-token-b';
+    await view.rerender(<ContactInviteScreen />);
+    await waitFor(() => expect(mockCommitConsume).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      mockCommitConsume.mock.calls[0]?.[0].onCompleted({
+        consumeContactInvite: { consumed: true, errors: [] },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockClearHandoff).not.toHaveBeenCalled();
+
+    await act(async () => {
+      mockCommitConsume.mock.calls[1]?.[0].onCompleted({
+        consumeContactInvite: { consumed: true, errors: [] },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Invitation accepted.')).toBeOnTheScreen();
+    });
+    expect(mockCommitConsume.mock.calls[0]?.[0].variables).toEqual({
+      input: { token: 'serialized-token-a' },
+    });
+    expect(mockCommitConsume.mock.calls[1]?.[0].variables).toEqual({
+      input: { token: 'serialized-token-b' },
+    });
+    expect(mockClearHandoff).toHaveBeenCalledTimes(1);
+    expect(mockClearHandoff).toHaveBeenCalledWith('handoff-b');
   });
 
   test('ignores an authenticated completion after the route unmounts', async () => {

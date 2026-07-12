@@ -546,22 +546,16 @@ describe('contact invite startup bootstrap', () => {
     bootSessionState: 'signed_out' as const,
   };
 
-  test('stores a deep-link token before returning a redacted handoff snapshot', async () => {
-    const seenTokens: string[] = [];
+  test('redacts a deep-link token without competing with native-intent storage', async () => {
     const snapshot = await bootstrapRuntime(environment, {
       getInitialUrl: () =>
         Promise.resolve('livecanvas-mobile://invite?token=serialized-secret'),
-      storeInviteToken: async (token) => {
-        seenTokens.push(token);
-        return { handoffId: '550e8400-e29b-41d4-a716-446655440000' };
-      },
     });
 
-    expect(seenTokens).toEqual(['serialized-secret']);
     expect(snapshot).toEqual({
-      initialUrl: '/invite?handoff=550e8400-e29b-41d4-a716-446655440000',
-      initialHref: '/invite?handoff=550e8400-e29b-41d4-a716-446655440000',
-      landingHref: '/invite?handoff=550e8400-e29b-41d4-a716-446655440000',
+      initialUrl: '/invite',
+      initialHref: '/invite',
+      landingHref: '/invite',
       defaultHref: '/sign-in',
       bootSessionState: 'signed_out',
       resetReason: null,
@@ -569,18 +563,13 @@ describe('contact invite startup bootstrap', () => {
     expect(JSON.stringify(snapshot)).not.toContain('serialized-secret');
   });
 
-  test('accepts one HTTPS fragment token and redacts it', async () => {
+  test('redacts one HTTPS fragment token from the startup snapshot', async () => {
     const snapshot = await bootstrapRuntime(environment, {
       getInitialUrl: () =>
         Promise.resolve('https://app.example.test/invites#token=https-secret'),
-      storeInviteToken: async () => ({
-        handoffId: '550e8400-e29b-41d4-a716-446655440001',
-      }),
     });
 
-    expect(snapshot.initialHref).toBe(
-      '/invite?handoff=550e8400-e29b-41d4-a716-446655440001',
-    );
+    expect(snapshot.initialHref).toBe('/invite');
     expect(JSON.stringify(snapshot)).not.toContain('https-secret');
   });
 
@@ -592,22 +581,12 @@ describe('contact invite startup bootstrap', () => {
     ]) {
       const snapshot = await bootstrapRuntime(environment, {
         getInitialUrl: () => Promise.resolve(initialUrl),
-        storeInviteToken: async () => ({ handoffId: 'unused-handoff' }),
       });
 
       expect(snapshot.initialUrl).toBe('/invite');
       expect(snapshot.initialHref).toBe('/invite');
     }
 
-    const failed = await bootstrapRuntime(environment, {
-      getInitialUrl: () =>
-        Promise.resolve('livecanvas-mobile://invite?token=storage-secret'),
-      storeInviteToken: () => Promise.reject(new Error('secret must not leak')),
-    });
-
-    expect(failed.initialHref).toBe('/invite');
-    expect(JSON.stringify(failed)).not.toContain('storage-secret');
-    expect(JSON.stringify(failed)).not.toContain('secret must not leak');
   });
 });
 
