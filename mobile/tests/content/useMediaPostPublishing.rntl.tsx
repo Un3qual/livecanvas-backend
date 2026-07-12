@@ -72,20 +72,22 @@ function createDependencies(
   overrides: Partial<MediaPostPublishingDependencies> = {},
 ): MediaPostPublishingDependencies {
   return {
-    createPost: jest.fn(async () => ({ errors: [], postId: 'post-id' })),
-    delay: async () => undefined,
-    fetchAsset: jest.fn(async () => ({
+    createPost: jest.fn(() =>
+      Promise.resolve({ errors: [], postId: 'post-id' }),
+    ),
+    delay: () => Promise.resolve(),
+    fetchAsset: jest.fn(() => Promise.resolve({
       processingState: 'PROCESSED' as const,
     })),
-    finalizeUpload: jest.fn(async () => ({
+    finalizeUpload: jest.fn(() => Promise.resolve({
       processingState: 'PROCESSED' as const,
     })),
-    pickMedia: jest.fn(async () => selection),
-    requestUpload: jest.fn(async () => ({
+    pickMedia: jest.fn(() => Promise.resolve(selection)),
+    requestUpload: jest.fn(() => Promise.resolve({
       mediaAssetId: 'asset-id',
       signedUpload,
     })),
-    upload: jest.fn(async () => undefined),
+    upload: jest.fn(() => Promise.resolve()),
     ...overrides,
   };
 }
@@ -156,7 +158,7 @@ describe('useMediaPostPublishing', () => {
     const dependencies = createDependencies({
       createPost,
       fetchAsset,
-      finalizeUpload: jest.fn(async () => ({
+      finalizeUpload: jest.fn(() => Promise.resolve({
         processingState: 'UPLOADED' as const,
       })),
     });
@@ -207,7 +209,7 @@ describe('useMediaPostPublishing', () => {
           'We could not upload this media. Try again.',
         ),
       )
-      .mockResolvedValueOnce(undefined);
+      .mockImplementationOnce(() => Promise.resolve());
     const dependencies = createDependencies({ requestUpload, upload });
 
     await render(<Harness dependencies={dependencies} />);
@@ -228,7 +230,7 @@ describe('useMediaPostPublishing', () => {
       .fn()
       .mockRejectedValueOnce(new Error('response lost'))
       .mockResolvedValueOnce({ processingState: 'PROCESSED' });
-    const fetchAsset = jest.fn(async () => ({
+    const fetchAsset = jest.fn(() => Promise.resolve({
       processingState: 'PENDING_UPLOAD' as const,
     }));
     const dependencies = createDependencies({ fetchAsset, finalizeUpload });
