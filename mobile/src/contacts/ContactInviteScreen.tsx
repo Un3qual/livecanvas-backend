@@ -179,7 +179,7 @@ export function ContactInviteScreen() {
 
     dispatch({ attemptId: attempt.id, handoffId, type: 'consuming' });
     withContactInviteToken(handoffId, commitToken)
-      .then(async (result) => {
+      .then((result) => {
         if (!isCurrentAttempt(attempt)) {
           return;
         }
@@ -191,14 +191,9 @@ export function ContactInviteScreen() {
         }
 
         if (result.value === 'invalid') {
-          await clearContactInviteHandoff(handoffId);
-
-          if (!isCurrentAttempt(attempt)) {
-            return;
-          }
-
           dispatch({ attemptId: attempt.id, handoffId, type: 'invalid' });
           finishAttempt(attempt);
+          clearContactInviteHandoffBestEffort(handoffId);
           return;
         }
 
@@ -212,14 +207,9 @@ export function ContactInviteScreen() {
           return;
         }
 
-        await clearContactInviteHandoff(handoffId);
-
-        if (!isCurrentAttempt(attempt)) {
-          return;
-        }
-
         dispatch({ attemptId: attempt.id, handoffId, type: 'consumed' });
         finishAttempt(attempt);
+        clearContactInviteHandoffBestEffort(handoffId);
       })
       .catch(() => {
         if (!isCurrentAttempt(attempt)) {
@@ -287,6 +277,10 @@ export function ContactInviteScreen() {
       </AppCard>
     </View>
   );
+}
+
+function clearContactInviteHandoffBestEffort(handoffId: string): void {
+  clearContactInviteHandoff(handoffId).catch(() => undefined);
 }
 
 function contactInviteContent(

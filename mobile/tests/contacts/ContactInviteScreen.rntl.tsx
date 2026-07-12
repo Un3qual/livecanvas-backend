@@ -118,6 +118,28 @@ describe('ContactInviteScreen', () => {
     expect(mockCommitConsume).toHaveBeenCalledTimes(1);
   });
 
+  test('shows an accepted invite when matching-slot cleanup fails', async () => {
+    mockAuthStatus = 'authenticated';
+    mockClearHandoff.mockRejectedValueOnce(new Error('secure storage unavailable'));
+
+    await render(<ContactInviteScreen />);
+    await waitFor(() => expect(mockCommitConsume).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      mockCommitConsume.mock.calls[0]?.[0].onCompleted({
+        consumeContactInvite: { consumed: true, errors: [] },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockClearHandoff).toHaveBeenCalledWith('handoff-one');
+    expect(screen.getByText('Invitation accepted.')).toBeOnTheScreen();
+    expect(
+      screen.queryByText('We could not confirm the invitation. Try again.'),
+    ).not.toBeOnTheScreen();
+  });
+
   test('retains the token after a lost response and retries the same serialization', async () => {
     mockAuthStatus = 'authenticated';
 
@@ -252,6 +274,33 @@ describe('ContactInviteScreen', () => {
     expect(
       screen.getByText('This invitation is invalid or has expired.'),
     ).toBeOnTheScreen();
+  });
+
+  test('shows an invalid invite when matching-slot cleanup fails', async () => {
+    mockAuthStatus = 'authenticated';
+    mockClearHandoff.mockRejectedValueOnce(new Error('secure storage unavailable'));
+
+    await render(<ContactInviteScreen />);
+    await waitFor(() => expect(mockCommitConsume).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      mockCommitConsume.mock.calls[0]?.[0].onCompleted({
+        consumeContactInvite: {
+          consumed: false,
+          errors: [{ field: null, message: 'invalid_contact_invite' }],
+        },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockClearHandoff).toHaveBeenCalledWith('handoff-one');
+    expect(
+      screen.getByText('This invitation is invalid or has expired.'),
+    ).toBeOnTheScreen();
+    expect(
+      screen.queryByText('We could not confirm the invitation. Try again.'),
+    ).not.toBeOnTheScreen();
   });
 
   test('lets invite B consume after a stale pending invite A completes', async () => {
