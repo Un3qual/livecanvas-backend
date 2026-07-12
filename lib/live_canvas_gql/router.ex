@@ -10,7 +10,7 @@ defmodule LCGQL.Router do
   ]
 
   plug(:match)
-  plug(LCGQL.Context)
+  plug(:put_graphql_context)
   plug(:dispatch)
 
   Code.ensure_compiled(LCGQL.Schema)
@@ -33,6 +33,15 @@ defmodule LCGQL.Router do
   end
 
   match(_, do: conn)
+
+  @spec put_graphql_context(Plug.Conn.t(), term()) :: Plug.Conn.t()
+  defp put_graphql_context(%Plug.Conn{path_info: ["graphql" | _rest]} = conn, _opts),
+    do: LCGQL.Context.call(conn, LCGQL.Context.init([]))
+
+  defp put_graphql_context(%Plug.Conn{path_info: ["graphiql"]} = conn, _opts),
+    do: LCGQL.Context.call(conn, LCGQL.Context.init([]))
+
+  defp put_graphql_context(conn, _opts), do: conn
 
   @spec graphiql_enabled?() :: boolean()
   defp graphiql_enabled? do

@@ -59,6 +59,14 @@ defmodule LCWeb.ContactInviteControllerTest do
     refute Map.has_key?(conn.assigns, :current_scope)
   end
 
+  test "the endpoint does not run GraphQL context for the public invite landing", %{conn: conn} do
+    conn = get(conn, ~p"/invites")
+
+    assert is_function(conn.private.plug_session_fetch, 1)
+    refute Map.has_key?(conn.assigns, :current_scope)
+    refute Map.has_key?(conn.private, :absinthe)
+  end
+
   test "GET /invites renders the same neutral page for unrelated query values", %{conn: conn} do
     first_body = conn |> get(~p"/invites") |> html_response(200)
     second_body = conn |> recycle() |> get(~p"/invites?source=unknown") |> html_response(200)
