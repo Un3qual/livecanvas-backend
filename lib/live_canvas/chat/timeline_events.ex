@@ -167,14 +167,16 @@ defmodule LC.Chat.TimelineEvents do
              is_map(attrs) and is_function(authorizer, 2) do
     with {:ok, target_event_id} <- target_event_id_from(timeline_event) do
       repo.transaction(fn ->
-        with %LiveSessionTimelineEventState{} = event_state <-
-               locked_event_state_query(target_event_id) |> repo.one(),
-             %LiveSessionTimelineEvent{} = target_event <-
+        # Keep mutable row locks ordered with edit_chat_message/5 so concurrent
+        # edit and removal transactions cannot wait on each other in a cycle.
+        with %LiveSessionTimelineEvent{} = target_event <-
                target_event_query(target_event_id) |> repo.one(),
              :ok <- require_removable_event_type(target_event),
              %LiveSession{} = live_session <-
                locked_live_session_query(target_event.live_session_id) |> repo.one(),
-             :ok <- authorizer.(live_session, actor) do
+             :ok <- authorizer.(live_session, actor),
+             %LiveSessionTimelineEventState{} = event_state <-
+               locked_event_state_query(target_event_id) |> repo.one() do
           remove_chat_message_projection(repo, target_event, event_state, actor_user_id, attrs)
         else
           nil -> repo.rollback(:not_found)
