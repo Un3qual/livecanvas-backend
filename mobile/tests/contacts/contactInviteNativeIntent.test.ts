@@ -14,18 +14,20 @@ mock.module('react-native', () => ({
 }));
 
 mock.module('expo-secure-store', () => ({
-  deleteItemAsync: async () => {
+  deleteItemAsync: () => {
     storedValue = null;
+    return Promise.resolve();
   },
-  getItemAsync: async () => storedValue,
-  setItemAsync: async (_key: string, value: string) => {
+  getItemAsync: () => Promise.resolve(storedValue),
+  setItemAsync: (_key: string, value: string) => {
     storageWrites += 1;
 
     if (storageShouldFail) {
-      throw new Error('storage details must remain private');
+      return Promise.reject(new Error('storage details must remain private'));
     }
 
     storedValue = value;
+    return Promise.resolve();
   },
 }));
 

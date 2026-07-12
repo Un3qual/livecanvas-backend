@@ -158,17 +158,17 @@ describe('contact invite handoff', () => {
 
     const first = await withContactInviteToken(
       'handoff-a',
-      async (token) => {
+      (token) => {
         seenTokens.push(token);
-        throw new Error('response lost');
+        return Promise.reject(new Error('response lost'));
       },
       { now: () => 2_000, storage },
     ).catch(() => 'retryable');
     const second = await withContactInviteToken(
       'handoff-a',
-      async (token) => {
+      (token) => {
         seenTokens.push(token);
-        return true;
+        return Promise.resolve(true);
       },
       { now: () => 3_000, storage },
     );
