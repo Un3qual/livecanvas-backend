@@ -32,6 +32,8 @@ export function parseContactInviteLink(
   }
 
   const parsedHttpsInviteCandidate = looksLikeParsedHttpsInviteCandidate(parsed);
+  const parsedCustomInviteCandidate =
+    looksLikeParsedCustomInviteCandidate(parsed);
 
   if (
     parsed.protocol === 'livecanvas-mobile:' &&
@@ -61,7 +63,7 @@ export function parseContactInviteLink(
     return parseSingleTokenParameters(parsed.hash.slice(1));
   }
 
-  return isInviteCandidate || parsedHttpsInviteCandidate
+  return isInviteCandidate || parsedCustomInviteCandidate || parsedHttpsInviteCandidate
     ? { status: 'invalid' }
     : { status: 'not_invite' };
 }
@@ -99,6 +101,18 @@ function looksLikeParsedHttpsInviteCandidate(parsed: URL): boolean {
     return /^\/invites(?:\/|$)/i.test(decodeURIComponent(parsed.pathname));
   } catch {
     return /^\/invites(?:\/|$)/i.test(parsed.pathname);
+  }
+}
+
+function looksLikeParsedCustomInviteCandidate(parsed: URL): boolean {
+  if (parsed.protocol !== 'livecanvas-mobile:') {
+    return false;
+  }
+
+  try {
+    return decodeURIComponent(parsed.hostname).toLowerCase() === 'invite';
+  } catch {
+    return parsed.hostname.toLowerCase() === 'invite';
   }
 }
 

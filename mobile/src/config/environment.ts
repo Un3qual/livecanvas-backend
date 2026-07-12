@@ -63,6 +63,7 @@ function normalizePublicAppOrigin(
     placeholderHostname ||
     parsed.username ||
     parsed.password ||
+    !hasValidPublicAppOriginPort(parsed) ||
     parsed.pathname !== '/' ||
     parsed.search ||
     parsed.hash
@@ -73,9 +74,19 @@ function normalizePublicAppOrigin(
   return candidate.replace(/\/$/, '');
 }
 
+function hasValidPublicAppOriginPort(parsed: URL): boolean {
+  if (!parsed.port) {
+    return true;
+  }
+
+  const port = Number(parsed.port);
+
+  return Number.isInteger(port) && port >= 1 && port <= 65_535;
+}
+
 function invalidPublicAppOrigin(): Error {
   return new Error(
-    'EXPO_PUBLIC_APP_ORIGIN must be an absolute HTTPS origin with no path, query, fragment, userinfo, or placeholder .invalid host.',
+    'EXPO_PUBLIC_APP_ORIGIN must be an absolute HTTPS origin with a valid port (1-65535) and no path, query, fragment, userinfo, or placeholder .invalid host.',
   );
 }
 

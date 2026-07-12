@@ -34,6 +34,7 @@ describe('public app origin environment', () => {
       'https://livecanvas.invalid',
       'https://placeholder.invalid/',
       'https://livecanvas.invalid.',
+      'https://app.livecanvas.example:0',
       'https://user@app.livecanvas.example',
       'https://app.livecanvas.example/invites',
       'https://app.livecanvas.example?token=visible',

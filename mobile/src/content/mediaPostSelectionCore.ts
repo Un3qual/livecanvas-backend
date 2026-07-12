@@ -1,4 +1,8 @@
-import type * as ImagePicker from 'expo-image-picker';
+import type {
+  ImagePickerAsset,
+  launchImageLibraryAsync,
+  requestMediaLibraryPermissionsAsync,
+} from 'expo-image-picker';
 
 export const MEDIA_POST_MIME_TYPES = [
   'image/jpeg',
@@ -19,10 +23,10 @@ export type PickedPostMedia = {
   readonly uri: string;
 };
 
-export type MediaPostPicker = Pick<
-  typeof ImagePicker,
-  'launchImageLibraryAsync' | 'requestMediaLibraryPermissionsAsync'
->;
+export type MediaPostPicker = {
+  readonly launchImageLibraryAsync: typeof launchImageLibraryAsync;
+  readonly requestMediaLibraryPermissionsAsync: typeof requestMediaLibraryPermissionsAsync;
+};
 
 export class MediaPostSelectionError extends Error {
   constructor(message: string) {
@@ -84,7 +88,7 @@ export async function pickPostMediaWithPicker(
 }
 
 function normalizePickedPostMedia(
-  asset: ImagePicker.ImagePickerAsset,
+  asset: ImagePickerAsset,
 ): PickedPostMedia {
   const mimeType = normalizeMimeType(
     asset.mimeType,

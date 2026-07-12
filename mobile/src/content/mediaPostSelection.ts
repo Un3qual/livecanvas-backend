@@ -1,9 +1,17 @@
-import * as ImagePicker from 'expo-image-picker';
+import {
+  launchImageLibraryAsync,
+  requestMediaLibraryPermissionsAsync,
+} from 'expo-image-picker';
 
 import {
   pickPostMediaWithPicker,
   type PickedPostMedia,
 } from './mediaPostSelectionCore';
+
+const mediaPostPicker = {
+  launchImageLibraryAsync,
+  requestMediaLibraryPermissionsAsync,
+};
 
 export {
   MEDIA_POST_MIME_TYPES,
@@ -17,5 +25,5 @@ export type {
 } from './mediaPostSelectionCore';
 
 export function pickPostMedia(): Promise<PickedPostMedia | null> {
-  return pickPostMediaWithPicker(ImagePicker);
+  return pickPostMediaWithPicker(mediaPostPicker);
 }
