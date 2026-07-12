@@ -84,6 +84,69 @@ describe('Expo Router contact invite native intent', () => {
     expect(storageWrites).toBe(1);
   });
 
+  test('accepts the exact configured HTTPS port through handoff and startup redaction', async () => {
+    process.env.EXPO_PUBLIC_APP_ORIGIN = 'https://app.example.test:4443/';
+    nextHandoffId = '550e8400-e29b-41d4-a716-446655440012';
+    const rawUrl =
+      'https://app.example.test:4443/invites#token=configured-port-secret';
+
+    const href = await redirectSystemPath({ initial: false, path: rawUrl });
+
+    expect(href).toBe(
+      '/invite?handoff=550e8400-e29b-41d4-a716-446655440012',
+    );
+    expect(storedValue).toContain('configured-port-secret');
+    expect(JSON.stringify(href)).not.toContain('configured-port-secret');
+    expect(storageWrites).toBe(1);
+
+    const snapshot = await bootstrapRuntime(
+      { ...environment, publicAppOrigin: 'https://app.example.test:4443' },
+      { getInitialUrl: () => Promise.resolve(rawUrl) },
+    );
+
+    expect(snapshot.initialUrl).toBe('/invite');
+    expect(snapshot.initialHref).toBe('/invite');
+    expect(JSON.stringify(snapshot)).not.toContain('configured-port-secret');
+    expect(storageWrites).toBe(1);
+  });
+
+  test('accepts the default localhost HTTPS port', async () => {
+    delete process.env.EXPO_PUBLIC_APP_ORIGIN;
+
+    const href = await redirectSystemPath({
+      initial: false,
+      path: 'https://localhost:4000/invites#token=localhost-secret',
+    });
+
+    expect(href).toBe(
+      '/invite?handoff=550e8400-e29b-41d4-a716-446655440010',
+    );
+    expect(storedValue).toContain('localhost-secret');
+    expect(storageWrites).toBe(1);
+  });
+
+  test('fails closed for a mismatched HTTPS port without writing protected storage', async () => {
+    process.env.EXPO_PUBLIC_APP_ORIGIN = 'https://app.example.test:4443';
+    const rawUrl =
+      'https://app.example.test:4444/invites#token=wrong-port-secret';
+
+    const href = await redirectSystemPath({ initial: false, path: rawUrl });
+
+    expect(href).toBe('/invite');
+    expect(JSON.stringify(href)).not.toContain('wrong-port-secret');
+    expect(storageWrites).toBe(0);
+
+    const snapshot = await bootstrapRuntime(
+      { ...environment, publicAppOrigin: 'https://app.example.test:4443' },
+      { getInitialUrl: () => Promise.resolve(rawUrl) },
+    );
+
+    expect(snapshot.initialUrl).toBe('/invite');
+    expect(snapshot.initialHref).toBe('/invite');
+    expect(JSON.stringify(snapshot)).not.toContain('wrong-port-secret');
+    expect(storageWrites).toBe(0);
+  });
+
   test('fails closed for a wrong-origin HTTPS invite without writing protected storage', async () => {
     const rawUrl =
       'https://wrong.example.test/invites#token=wrong-origin-secret';
@@ -133,7 +196,7 @@ describe('Expo Router contact invite native intent', () => {
     expect(JSON.stringify(failed)).not.toContain('storage-secret');
   });
 
-  test('rejects credentials and unexpected ports on exact invite URL forms', async () => {
+  test('rejects credentials, custom-scheme ports, and mismatched HTTPS ports', async () => {
     for (const path of [
       'livecanvas-mobile://user@invite?token=secret',
       'livecanvas-mobile://user:password@invite?token=secret',

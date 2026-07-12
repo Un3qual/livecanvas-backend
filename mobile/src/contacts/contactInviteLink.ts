@@ -73,7 +73,7 @@ function parseContactInviteLink(
     parsed.pathname === '/invites'
   ) {
     if (
-      hasUnexpectedAuthority(parsed) ||
+      hasUnexpectedCredentials(parsed) ||
       parsed.search ||
       !matchesPublicAppOrigin(parsed, publicAppOrigin)
     ) {
@@ -111,7 +111,11 @@ function looksLikeContactInviteCandidate(path: string): boolean {
 }
 
 function hasUnexpectedAuthority(parsed: URL): boolean {
-  return Boolean(parsed.username || parsed.password || parsed.port);
+  return hasUnexpectedCredentials(parsed) || Boolean(parsed.port);
+}
+
+function hasUnexpectedCredentials(parsed: URL): boolean {
+  return Boolean(parsed.username || parsed.password);
 }
 
 function parseSingleTokenParameters(

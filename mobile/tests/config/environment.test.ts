@@ -3,6 +3,12 @@ import { describe, expect, test } from 'bun:test';
 import { resolveEnvironment } from '../../src/config/environment';
 
 describe('public app origin environment', () => {
+  test('uses the valid explicit-port localhost origin by default', () => {
+    expect(resolveEnvironment({}).publicAppOrigin).toBe(
+      'https://localhost:4000',
+    );
+  });
+
   test('normalizes the configured HTTPS origin independently from the API origin', () => {
     const environment = resolveEnvironment({
       EXPO_PUBLIC_API_BASE_URL: 'https://api.livecanvas.example',
