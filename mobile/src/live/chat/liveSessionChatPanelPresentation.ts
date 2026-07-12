@@ -2,13 +2,31 @@ import type {
   LiveSessionChatChannelStatus,
   LiveSessionChatSendStatus,
 } from './liveSessionChatState';
+import {
+  canEditChatRow,
+  canRemoveChatRow,
+  type LiveSessionChatControlAction,
+  type LiveSessionChatControlsState,
+} from './liveSessionChatControlsState';
 import type { LiveSessionTimelineHistoryRow } from '../liveSessionTimelineHistory';
 
 export type LiveSessionChatPanelRowModel = {
+  readonly canEdit: boolean;
+  readonly canRemove: boolean;
   readonly detail: string;
+  readonly error: string | null;
   readonly id: string;
+  readonly isPending: boolean;
+  readonly pendingAction: LiveSessionChatControlAction | null;
   readonly title: string;
   readonly tone: 'chat' | 'lifecycle' | 'system';
+};
+
+export type LiveSessionChatPanelRowControlsInput = {
+  readonly controlsState: LiveSessionChatControlsState;
+  readonly hostId: string | null;
+  readonly sessionStatus: string | null;
+  readonly viewerId: string | null;
 };
 
 export type LiveSessionChatPanelModel = {
@@ -77,10 +95,34 @@ export function createLiveSessionChatPanelModel({
 
 export function formatLiveSessionChatPanelRow(
   row: LiveSessionTimelineHistoryRow,
+  controls?: LiveSessionChatPanelRowControlsInput,
 ): LiveSessionChatPanelRowModel {
+  const pendingAction = controls?.controlsState.pendingByEventId[row.id]?.action ?? null;
+  const controlModel = {
+    canEdit: controls
+      ? canEditChatRow({
+          row,
+          sessionStatus: controls.sessionStatus,
+          viewerId: controls.viewerId,
+        })
+      : false,
+    canRemove: controls
+      ? canRemoveChatRow({
+          hostId: controls.hostId,
+          row,
+          sessionStatus: controls.sessionStatus,
+          viewerId: controls.viewerId,
+        })
+      : false,
+    error: controls?.controlsState.errorsByEventId[row.id] ?? null,
+    isPending: pendingAction !== null,
+    pendingAction,
+  };
+
   switch (row.kind) {
     case 'chat_message':
       return {
+        ...controlModel,
         detail: row.edited ? 'Edited' : 'Message',
         id: row.id,
         title: row.body,
@@ -88,6 +130,7 @@ export function formatLiveSessionChatPanelRow(
       };
     case 'lifecycle':
       return {
+        ...controlModel,
         detail: 'System',
         id: row.id,
         title: row.label,
@@ -95,6 +138,7 @@ export function formatLiveSessionChatPanelRow(
       };
     default:
       return {
+        ...controlModel,
         detail: 'System',
         id: row.id,
         title: row.label,

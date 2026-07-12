@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-11
-Status: Batch 3 complete; Batch 4 Live-Chat Message Controls active
+Status: Batch 4 complete; Batch 5 End-to-End Contact Invitations active
 
 ## Purpose
 
@@ -14,7 +14,7 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 - Batch 2 design:
   `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
 - Latest completed implementation:
-  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
+  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - Batch 3 implementation plan:
   `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
 - Batch 4 implementation plan:
@@ -22,8 +22,7 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 - Batch 5 implementation plan:
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Batch 1 reversible social controls is complete in stacked base PR #115.
-- Remaining order after Batch 3: live-chat message controls, then end-to-end
-  contact invitations.
+- Remaining product batch: end-to-end contact invitations.
 - Release-candidate device QA remains deferred until all five batches close.
 
 ## Lane Pointers
@@ -31,24 +30,24 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 4 Task 1 backend authorization/broadcast proof is next.
-- Verification: Batch 3 backend lifecycle verification and the 966-test backend
-  regression suite pass.
+- State: Batch 5 Task 1 recipient-bound one-time consumption is next.
+- Verification: Batch 4's 53 focused and 980 full backend tests pass;
+  typecheck and warnings-as-errors compilation pass.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 3 Tasks 2-4 complete; wait for Batch 4 backend Task 1 before
-  executing mobile Tasks 2-4.
+- State: Batch 4 Tasks 2-4 complete; wait for Batch 5 backend Tasks 1-3 before
+  executing mobile Tasks 4-5.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: 27 focused Bun, 23 focused Jest, 490 full Bun, and 126 full
+- Verification: 33 focused Bun, 11 focused Jest, 508 full Bun, and 142 full
   Jest tests passed; Relay generation, typechecks, lint, and patch hygiene pass.
 
 ## Execution Rule
 
-Execute Batch 4 from
-`docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`. Complete
-backend Task 1 before mobile Tasks 2-4. Batch 5 remains queued.
+Execute Batch 5 from
+`docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`. Complete
+backend Tasks 1-3 before mobile Tasks 4-5.
 
 ## Cross-Lane Policy
 
@@ -58,8 +57,7 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Complete Batch 4, Live-Chat Message Controls, then close both lane pointers and
-promote Batch 5, End-to-End Contact Invitations.
+Execute Batch 5 Task 1, Add Recipient-Bound One-Time Consumption.
 
 ## Repair Conditions
 

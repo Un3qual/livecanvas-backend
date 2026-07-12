@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-11
-Status: Batch 4 Live-Chat Message Controls active; backend Task 1 next
+Status: Batch 4 complete; Batch 5 waits for backend Tasks 1-3
 
 ## Lane Scope
 
@@ -12,30 +12,31 @@ Status: Batch 4 Live-Chat Message Controls active; backend Task 1 next
 ## Last Completed Batch
 
 - Source plan:
-  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
+  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - Track: `docs/plans/mobile/TRACK.md`
-- Completed tasks: mobile Tasks 2-4 after the verified backend lifecycle Task 1.
-- Result: authenticated viewers can select one allowlisted image or MP4, upload
-  it through the exact signed storage contract, wait for processing, and
-  publish media-only or mixed text/media standard posts and stories.
+- Completed tasks: mobile Tasks 2-4 after the verified backend chat contract.
+- Result: authors can edit active-session chat rows and hosts can confirm their
+  removal while mutation responses and channel broadcasts reconcile through one
+  idempotent timeline boundary.
 
 ## Verification
 
-- Relay: 51 reader and 47 normalization documents compiled.
-- Focused final gates: 28 Bun tests and 25 RNTL/Jest tests passed.
-- Full `bun run test:quality`: typechecks and lint passed; 491 Bun tests and
-  128 Jest tests passed.
-- Focused Jest open-handle detection and `git diff --check` passed.
+- Relay: 53 reader and 49 normalization documents compiled.
+- Focused final gates: 33 Bun tests and 11 RNTL/Jest tests passed.
+- Full `bun run test:quality`: typechecks and lint passed; 508 Bun tests and
+  142 Jest tests passed.
+- The new focused Jest suites exit cleanly with open-handle detection;
+  `git diff --check` passed.
 
 ## Deferred Scope
 
-- Batch 4 mobile Tasks 2-4 wait for the backend mutation/broadcast contract in
-  Task 1. Batch 5 remains queued.
+- Batch 5 mobile Tasks 4-5 wait for the backend token, landing, and Relay
+  consumption contracts in Tasks 1-3.
 - Content details, comments, reactions, replay management, native address-book
   import, and release-candidate QA remain out of scope.
 
 ## Next Action
 
-Wait for backend Task 1 in
-`docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`, then execute
-mobile Tasks 2-4. Keep Batch 5 queued.
+Wait for backend Tasks 1-3 in
+`docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`, then
+execute mobile Tasks 4-5.

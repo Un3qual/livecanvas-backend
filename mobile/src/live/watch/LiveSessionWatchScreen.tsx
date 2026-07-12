@@ -32,6 +32,10 @@ import {
 } from '../chat/liveSessionChatSelectors';
 import { createLiveSessionChatState } from '../chat/liveSessionChatState';
 import { liveSessionChatTimelineReducer } from '../chat/liveSessionChatTimelineReducer';
+import {
+  useLiveSessionChatControls,
+  type LiveSessionChatTimelineMutationAction,
+} from '../chat/useLiveSessionChatControls';
 import { createLiveSessionChatChannelLifecycle } from '../liveSessionChatChannelLifecycle';
 import {
   createLiveSessionChannelClient,
@@ -308,6 +312,39 @@ function LiveSessionWatchContent({
     ? realtimeSessionStatuses.get(activeLiveSessionId ?? '') ??
       queriedNormalizedStatus
     : queriedNormalizedStatus;
+  const dispatchChatMutation = useCallback(
+    (action: LiveSessionChatTimelineMutationAction) => {
+      if (!activeLiveSessionId) {
+        return;
+      }
+
+      dispatchChatAction({
+        ...action,
+        sessionId: activeLiveSessionId,
+      });
+    },
+    [activeLiveSessionId],
+  );
+  const chatMessageControlsController = useLiveSessionChatControls({
+    dispatchTimeline: dispatchChatMutation,
+    hostId: session?.host.id ?? null,
+    sessionStatus: normalizedStatus,
+    viewerId: data.viewer?.id ?? null,
+  });
+  const chatMessageControls = useMemo(
+    () => ({
+      ...chatMessageControlsController,
+      hostId: session?.host.id ?? null,
+      sessionStatus: normalizedStatus,
+      viewerId: data.viewer?.id ?? null,
+    }),
+    [
+      chatMessageControlsController,
+      data.viewer?.id,
+      normalizedStatus,
+      session?.host.id,
+    ],
+  );
   const enterable = canEnterLiveSession(normalizedStatus);
   const isJoined = session !== null && watchController.isJoined;
   const isJoining = watchController.isJoining;
@@ -891,6 +928,7 @@ function LiveSessionWatchContent({
         channelStatus={chatChannelStatus}
         isJoined={canUseChat}
         isLoadingOlder={olderTimelinePageLoadState.isLoading}
+        messageControls={chatMessageControls}
         olderLoadError={olderTimelinePageLoadState.error}
         onLoadOlder={handleLoadOlderChatMessages}
         onSendMessage={handleSendChatMessage}
