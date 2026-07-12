@@ -38,7 +38,7 @@ describe('uploadSignedMedia', () => {
     await expect(
       readPickedMediaBody(selection, new AbortController().signal, (uri) => {
         openedUri = uri;
-        return { bytes: async () => bytes };
+        return { bytes: () => Promise.resolve(bytes) };
       }),
     ).resolves.toEqual(bytes);
 
@@ -49,15 +49,15 @@ describe('uploadSignedMedia', () => {
     for (const method of ['PUT', 'POST'] as const) {
       const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
       const rawBody = new Blob(['raw-binary']);
-      const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const fetchImpl = ((input: RequestInfo | URL, init?: RequestInit) => {
         calls.push({ input, init });
-        return new Response(null, { status: 204 });
+        return Promise.resolve(new Response(null, { status: 204 }));
       }) as typeof fetch;
 
       await expect(
         uploadSignedMedia({
           fetchImpl,
-          readSelectionBody: async () => rawBody,
+          readSelectionBody: () => Promise.resolve(rawBody),
           selection,
           signal: new AbortController().signal,
           signedUpload: { ...signedUpload, method },
@@ -89,13 +89,13 @@ describe('uploadSignedMedia', () => {
   });
 
   test('reports non-2xx responses and transport loss as retryable pre-confirmation failures', async () => {
-    const httpFetch = (async () =>
-      new Response(null, { status: 412 })) as typeof fetch;
+    const httpFetch = (() =>
+      Promise.resolve(new Response(null, { status: 412 }))) as typeof fetch;
 
     await expect(
       uploadSignedMedia({
         fetchImpl: httpFetch,
-        readSelectionBody: async () => new Blob(['raw']),
+        readSelectionBody: () => Promise.resolve(new Blob(['raw'])),
         selection,
         signal: new AbortController().signal,
         signedUpload,
@@ -107,14 +107,13 @@ describe('uploadSignedMedia', () => {
       ),
     );
 
-    const transportFetch = (async () => {
-      throw new TypeError('network detail');
-    }) as typeof fetch;
+    const transportFetch = (() =>
+      Promise.reject(new TypeError('network detail'))) as typeof fetch;
 
     await expect(
       uploadSignedMedia({
         fetchImpl: transportFetch,
-        readSelectionBody: async () => new Blob(['raw']),
+        readSelectionBody: () => Promise.resolve(new Blob(['raw'])),
         selection,
         signal: new AbortController().signal,
         signedUpload,
@@ -133,10 +132,11 @@ describe('uploadSignedMedia', () => {
 
     await expect(
       uploadSignedMedia({
-        fetchImpl: (async () => {
-          throw new DOMException('Aborted', 'AbortError');
-        }) as typeof fetch,
-        readSelectionBody: async () => new Blob(['raw']),
+        fetchImpl: (() =>
+          Promise.reject(
+            new DOMException('Aborted', 'AbortError'),
+          )) as typeof fetch,
+        readSelectionBody: () => Promise.resolve(new Blob(['raw'])),
         selection,
         signal: controller.signal,
         signedUpload,
@@ -180,10 +180,17 @@ describe('pollMediaAssetUntilTerminal', () => {
     await expect(
       pollMediaAssetUntilTerminal({
         assetId: 'opaque-id',
-        delay: async (milliseconds) => {
+        delay: (milliseconds) => {
           delays.push(milliseconds);
+          return Promise.resolve();
         },
-        fetchAsset: async () => ({ processingState: states.shift()! }),
+        fetchAsset: () => {
+          const processingState = states.shift();
+
+          return processingState
+            ? Promise.resolve({ processingState })
+            : Promise.reject(new Error('Missing test processing state.'));
+        },
         signal: new AbortController().signal,
       }),
     ).resolves.toEqual({ processingState: 'PROCESSED' });
@@ -195,8 +202,8 @@ describe('pollMediaAssetUntilTerminal', () => {
     await expect(
       pollMediaAssetUntilTerminal({
         assetId: 'failed-id',
-        delay: async () => undefined,
-        fetchAsset: async () => ({ processingState: 'FAILED' }),
+        delay: () => Promise.resolve(),
+        fetchAsset: () => Promise.resolve({ processingState: 'FAILED' }),
         signal: new AbortController().signal,
       }),
     ).rejects.toEqual(
@@ -209,8 +216,8 @@ describe('pollMediaAssetUntilTerminal', () => {
     await expect(
       pollMediaAssetUntilTerminal({
         assetId: 'missing-id',
-        delay: async () => undefined,
-        fetchAsset: async () => null,
+        delay: () => Promise.resolve(),
+        fetchAsset: () => Promise.resolve(null),
         signal: new AbortController().signal,
       }),
     ).rejects.toEqual(
@@ -228,12 +235,13 @@ describe('pollMediaAssetUntilTerminal', () => {
     await expect(
       pollMediaAssetUntilTerminal({
         assetId: 'pending-id',
-        delay: async () => {
+        delay: () => {
           delayCount += 1;
+          return Promise.resolve();
         },
-        fetchAsset: async () => {
+        fetchAsset: () => {
           fetchCount += 1;
-          return { processingState: 'UPLOADED' };
+          return Promise.resolve({ processingState: 'UPLOADED' });
         },
         maxAttempts: 3,
         signal: new AbortController().signal,
@@ -256,8 +264,8 @@ describe('pollMediaAssetUntilTerminal', () => {
     await expect(
       pollMediaAssetUntilTerminal({
         assetId: 'cancelled-id',
-        delay: async () => undefined,
-        fetchAsset: async () => ({ processingState: 'UPLOADED' }),
+        delay: () => Promise.resolve(),
+        fetchAsset: () => Promise.resolve({ processingState: 'UPLOADED' }),
         signal: controller.signal,
       }),
     ).rejects.toEqual(

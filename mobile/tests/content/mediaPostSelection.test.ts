@@ -11,8 +11,8 @@ function pickerWithResult(
   granted = true,
 ): MediaPostPicker {
   return {
-    launchImageLibraryAsync: async () => result,
-    requestMediaLibraryPermissionsAsync: async () => ({ granted }),
+    launchImageLibraryAsync: () => Promise.resolve(result),
+    requestMediaLibraryPermissionsAsync: () => Promise.resolve({ granted }),
   } as MediaPostPicker;
 }
 
@@ -20,11 +20,12 @@ describe('pickPostMedia', () => {
   test('normalizes picker cancellation to null without requesting camera access', async () => {
     let pickerOptions: unknown;
     const picker: MediaPostPicker = {
-      launchImageLibraryAsync: async (options) => {
+      launchImageLibraryAsync: (options) => {
         pickerOptions = options;
-        return { assets: null, canceled: true };
+        return Promise.resolve({ assets: null, canceled: true });
       },
-      requestMediaLibraryPermissionsAsync: async () => ({ granted: true }),
+      requestMediaLibraryPermissionsAsync: () =>
+        Promise.resolve({ granted: true }),
     } as MediaPostPicker;
 
     await expect(pickPostMedia(picker)).resolves.toBeNull();
@@ -89,7 +90,6 @@ describe('pickPostMedia', () => {
         assets: [
           {
             fileName: null,
-            fileSize: undefined,
             height: 100,
             mimeType,
             type: mimeType.startsWith('video/') ? 'video' : 'image',
@@ -200,7 +200,6 @@ describe('pickPostMedia', () => {
       assets: [
         {
           fileName: null,
-          fileSize: undefined,
           height: 100,
           mimeType: 'image/png',
           type: 'image',
@@ -225,10 +224,10 @@ describe('pickPostMedia', () => {
     );
 
     const failingPicker = {
-      launchImageLibraryAsync: async () => {
-        throw new Error('native details');
-      },
-      requestMediaLibraryPermissionsAsync: async () => ({ granted: true }),
+      launchImageLibraryAsync: () =>
+        Promise.reject(new Error('native details')),
+      requestMediaLibraryPermissionsAsync: () =>
+        Promise.resolve({ granted: true }),
     } as unknown as MediaPostPicker;
 
     await expect(pickPostMedia(failingPicker)).rejects.toEqual(
