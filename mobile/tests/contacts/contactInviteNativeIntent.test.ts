@@ -120,11 +120,17 @@ describe('Expo Router contact invite native intent', () => {
   });
 
   test('fails closed for structurally recognizable malformed custom-scheme invites', async () => {
+    const longSlashRunCandidates = [4, 12, 64].map(
+      (slashCount) =>
+        `livecanvas-mobile:${'/'.repeat(slashCount)}invite?token=raw-secret`,
+    );
+
     for (const path of [
       'livecanvas-mobile:/invite?token=raw-secret',
       'livecanvas-mobile:///invite?token=raw-secret',
       'livecanvas-mobile:invite?token=raw-secret',
       'livecanvas-mobile://user@invite:not-a-port?token=raw-secret',
+      ...longSlashRunCandidates,
     ]) {
       const href = await redirectSystemPath({ initial: false, path });
 

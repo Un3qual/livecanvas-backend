@@ -589,11 +589,17 @@ describe('contact invite startup bootstrap', () => {
   });
 
   test('redacts structurally recognizable malformed custom-scheme invite attempts', async () => {
+    const longSlashRunCandidates = [4, 12, 64].map(
+      (slashCount) =>
+        `livecanvas-mobile:${'/'.repeat(slashCount)}invite?token=raw-secret`,
+    );
+
     for (const initialUrl of [
       'livecanvas-mobile:/invite?token=raw-secret',
       'livecanvas-mobile:///invite?token=raw-secret',
       'livecanvas-mobile:invite?token=raw-secret',
       'livecanvas-mobile://user@invite:not-a-port?token=raw-secret',
+      ...longSlashRunCandidates,
     ]) {
       const snapshot = await bootstrapRuntime(environment, {
         getInitialUrl: () => Promise.resolve(initialUrl),

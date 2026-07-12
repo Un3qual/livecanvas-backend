@@ -79,7 +79,7 @@ function parseContactInviteLink(path: string): ParsedContactInviteLink {
 
 function looksLikeContactInviteCandidate(path: string): boolean {
   return (
-    /^livecanvas-mobile:(?:\/{0,3}invite(?:[/:?#]|$)|\/\/[^/?#]*@invite(?:[/:?#]|$))/i.test(
+    /^livecanvas-mobile:(?:\/*invite(?:[/:?#]|$)|\/\/[^/?#]*@invite(?:[/:?#]|$))/i.test(
       path,
     ) ||
     /^https:\/\/[^/?#]*\/invites(?:[?#]|$)/i.test(path)
