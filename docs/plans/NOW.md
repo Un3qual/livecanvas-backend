@@ -43,7 +43,7 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 - State: Batch 5 mobile Tasks 4-5 complete; release-candidate QA is active.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: configured-origin invite routing and the full mobile quality
-  gate pass with 544 Bun and 160 Jest tests; typechecks, lint, and patch hygiene
+  gate pass with 548 Bun and 160 Jest tests; typechecks, lint, and patch hygiene
   pass. Relay inputs were unchanged by the integration fixes.
 
 ## Execution Rule

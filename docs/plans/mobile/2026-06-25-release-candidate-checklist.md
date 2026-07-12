@@ -90,7 +90,7 @@ listed external prerequisites.
   public invite parser suite pass.
 - Mobile: the integration fixes did not change the GraphQL schema or Relay
   operations, so regeneration was not required. `bun run test:quality` passes
-  with both typechecks, lint, 544 Bun tests, and 160 Jest tests. Jest retains
+  with both typechecks, lint, 548 Bun tests, and 160 Jest tests. Jest retains
   the existing non-failing worker force-exit warning.
 - Repo root: `git diff --check` passes for the complete Batch 5 branch.
 - Target EAS environment values, preview-build availability, beta accounts, and
