@@ -362,6 +362,51 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     expect(screen.queryByText(/token=/)).toBeNull();
   });
 
+  test.each([0, 1])(
+    'shares one delivery when duplicate recipient row %i initiates',
+    async (initiatingIndex) => {
+      mockQueryData = {
+        viewerContactMatches: connection([
+          contactMatch({
+            contactName: 'First duplicate',
+            id: 'contact-match-duplicate-first',
+            inviteRecipient: ' Duplicate@Example.COM ',
+          }),
+          contactMatch({
+            contactName: 'Second duplicate',
+            id: 'contact-match-duplicate-second',
+            inviteRecipient: 'duplicate@example.com',
+          }),
+        ]),
+      };
+      await render(<ContactDiscoveryScreen />);
+
+      const sendButtons = screen.getAllByRole('button', {
+        name: 'Send invite',
+      });
+      await fireEvent.press(sendButtons[initiatingIndex]);
+      await fireEvent.press(sendButtons[initiatingIndex === 0 ? 1 : 0]);
+      await fireEvent.press(sendButtons[initiatingIndex]);
+
+      expect(mockDeliverInviteCommit).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getAllByRole('button', { name: 'Sending...' }),
+      ).toHaveLength(2);
+
+      await completeInviteDelivery({
+        deliverViewerContactInvite: { errors: [] },
+      });
+
+      const sentButtons = screen.getAllByRole('button', { name: 'Sent' });
+      expect(sentButtons).toHaveLength(2);
+      expect(sentButtons[0]).toBeDisabled();
+      expect(sentButtons[1]).toBeDisabled();
+      await fireEvent.press(sentButtons[0]);
+      await fireEvent.press(sentButtons[1]);
+      expect(mockDeliverInviteCommit).toHaveBeenCalledTimes(1);
+    },
+  );
+
   test('retries transport and delivery failures for the same recipient', async () => {
     mockQueryData = {
       viewerContactMatches: connection([

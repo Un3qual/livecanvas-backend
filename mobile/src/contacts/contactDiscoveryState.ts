@@ -148,11 +148,11 @@ export function completeContactInviteDelivery(
 export function readContactInviteDeliveryStatus(
   state: ContactInviteDeliveryState,
   recipient: string,
-  contactMatchId: string,
+  currentContactMatchIds: ReadonlySet<string>,
 ): ContactInviteDeliveryStatus {
   const delivery = state[normalizeContactDiscoveryEmail(recipient)];
 
-  return delivery?.contactMatchId === contactMatchId
+  return delivery && currentContactMatchIds.has(delivery.contactMatchId)
     ? delivery.status
     : 'idle';
 }

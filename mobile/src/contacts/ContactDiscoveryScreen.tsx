@@ -66,6 +66,8 @@ type LocalContactMatches = {
   readonly matches: ContactMatch[];
 };
 
+const EMPTY_CONTACT_MATCH_IDS: ReadonlySet<string> = new Set();
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -166,8 +168,9 @@ export function ContactDiscoveryScreen() {
     localMatches.fetchKey === routeFetchKey ? localMatches.matches : [],
     queryMatches.concat(extraMatches),
   );
-  const currentInviteRowsRef = useRef(new Map<string, string>());
-  currentInviteRowsRef.current = readCurrentInviteRows(contactMatches);
+  const currentInviteRows = readCurrentInviteRows(contactMatches);
+  const currentInviteRowsRef = useRef(currentInviteRows);
+  currentInviteRowsRef.current = currentInviteRows;
 
   useEffect(() => {
     if (paginationResetKeyRef.current === paginationResetKey) {
@@ -291,7 +294,9 @@ export function ContactDiscoveryScreen() {
 
         // A mutation result belongs only to the exact unmatched row that began it.
         if (
-          currentInviteRowsRef.current.get(input.recipient) !== contactMatchId
+          !currentInviteRowsRef.current
+            .get(input.recipient)
+            ?.has(contactMatchId)
         ) {
           return;
         }
@@ -337,7 +342,11 @@ export function ContactDiscoveryScreen() {
           inviteStatus={readContactInviteDeliveryStatus(
             inviteDeliveryState,
             contactMatch.inviteRecipient ?? '',
-            contactMatch.id,
+            currentInviteRows.get(
+              normalizeContactDiscoveryEmail(
+                contactMatch.inviteRecipient ?? '',
+              ),
+            ) ?? EMPTY_CONTACT_MATCH_IDS,
           )}
           onDeliverInvite={(recipient) =>
             deliverInvite(contactMatch, recipient)
@@ -351,7 +360,7 @@ export function ContactDiscoveryScreen() {
         />
       </View>
     ),
-    [deliverInvite, inviteDeliveryState, router],
+    [currentInviteRows, deliverInvite, inviteDeliveryState, router],
   );
 
   return (
@@ -535,8 +544,8 @@ function contactInviteButtonLabel(status: ContactInviteDeliveryStatus): string {
 
 function readCurrentInviteRows(
   contactMatches: ReadonlyArray<ContactMatch>,
-): Map<string, string> {
-  const rows = new Map<string, string>();
+): Map<string, Set<string>> {
+  const rows = new Map<string, Set<string>>();
 
   for (const match of contactMatches) {
     if (match.matchedUsers.length > 0 || !match.inviteRecipient) {
@@ -546,7 +555,10 @@ function readCurrentInviteRows(
     const input = buildContactInviteInput(match.inviteRecipient);
 
     if (input) {
-      rows.set(normalizeContactDiscoveryEmail(input.recipient), match.id);
+      const recipient = normalizeContactDiscoveryEmail(input.recipient);
+      const contactMatchIds = rows.get(recipient) ?? new Set<string>();
+      contactMatchIds.add(match.id);
+      rows.set(recipient, contactMatchIds);
     }
   }
 

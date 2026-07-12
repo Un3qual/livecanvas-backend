@@ -65,7 +65,7 @@ describe('contactDiscoveryState', () => {
     expect(buildContactInviteInput('invalid-recipient')).toBeNull();
   });
 
-  test('tracks independent invite delivery state per normalized recipient', () => {
+  test('shares invite delivery state across rows with one normalized recipient', () => {
     const initial = createContactInviteDeliveryState();
     const sending = beginContactInviteDelivery(initial, {
       attemptId: 1,
@@ -77,14 +77,14 @@ describe('contactDiscoveryState', () => {
       readContactInviteDeliveryStatus(
         sending,
         'friend@example.com',
-        'contact-1',
+        new Set(['contact-1', 'contact-duplicate']),
       ),
     ).toBe('sending');
     expect(
       readContactInviteDeliveryStatus(
         sending,
         'other@example.com',
-        'contact-2',
+        new Set(['contact-2']),
       ),
     ).toBe('idle');
 
@@ -99,7 +99,7 @@ describe('contactDiscoveryState', () => {
       readContactInviteDeliveryStatus(
         sent,
         'friend@example.com',
-        'contact-1',
+        new Set(['contact-1', 'contact-duplicate']),
       ),
     ).toBe('sent');
   });
@@ -130,9 +130,16 @@ describe('contactDiscoveryState', () => {
       readContactInviteDeliveryStatus(
         staleCompletion,
         'friend@example.com',
-        'contact-new',
+        new Set(['contact-new']),
       ),
     ).toBe('sending');
+    expect(
+      readContactInviteDeliveryStatus(
+        firstAttempt,
+        'friend@example.com',
+        new Set(['contact-new']),
+      ),
+    ).toBe('idle');
   });
 
   test('formats contact payload errors as viewer-safe copy', () => {
