@@ -59,8 +59,7 @@ CSRF meta tag. The parser remains a pure unit-tested module.
 Every behavior change begins with a failing regression test. Backend coverage
 includes foreign/matched contact delivery rejection, versioned token rejection,
 origin edge cases, row-lock SQL, migration indexes, and genuinely independent
-database consumers. Mobile coverage includes production Babel substitution,
+database consumers. Mobile coverage includes Expo's Babel environment rewrite,
 missing production origin, malformed invite-shaped paths, unauthenticated
 payload retention, and unknown payload retry. Asset verification asserts the
 dedicated bundle is built and the landing template no longer loads `app.js`.
-
