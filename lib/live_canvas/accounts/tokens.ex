@@ -152,7 +152,7 @@ defmodule LC.Accounts.Tokens do
   @spec valid_contact_invite_token?(UserToken.t(), binary()) :: boolean()
   def valid_contact_invite_token?(%UserToken{} = token, raw_secret) do
     valid_secret?(token, raw_secret) and
-      token.context == :contact_invite_token and
+      token.context == :contact_invite_fragment_token and
       token_fresh?(token.inserted_at, days: @contact_invite_validity_in_days)
   end
 

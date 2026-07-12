@@ -38,6 +38,9 @@ defmodule LCWeb.ContactInviteControllerTest do
     assert body =~ "Open this invite in LiveCanvas"
     assert body =~ "This invite is invalid or expired."
     assert body =~ "data-contact-invite-landing"
+    assert body =~ ~s(src="/assets/js/contact_invite_landing_entry.js")
+    refute body =~ ~s(src="/assets/js/app.js")
+    refute body =~ ~s(name="csrf-token")
     refute body =~ @raw_token
 
     assert_receive {:endpoint_request_path, endpoint_path}
@@ -90,6 +93,8 @@ defmodule LCWeb.ContactInviteControllerTest do
           "https://",
           "https://livecanvas.invalid",
           "https://placeholder.invalid/",
+          "https://livecanvas.invalid.",
+          "https://app.livecanvas.example:99999",
           "https://app.livecanvas.example/invites",
           "https://app.livecanvas.example?token=visible",
           "https://app.livecanvas.example#token=visible"

@@ -194,7 +194,7 @@ defmodule LCGQL.Accounts.Mutations do
 
     payload field :deliver_viewer_contact_invite do
       input do
-        field :recipient, non_null(:string)
+        field :contact_match_id, non_null(:id)
       end
 
       output do

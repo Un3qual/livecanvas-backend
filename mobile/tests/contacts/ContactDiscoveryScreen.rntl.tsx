@@ -347,7 +347,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
 
     expect(mockDeliverInviteCommit).toHaveBeenCalledTimes(1);
     expect(mockDeliverInviteCommit.mock.calls[0]?.[0].variables).toEqual({
-      input: { recipient: 'friend@example.com' },
+      input: { contactMatchId: 'contact-match-invite' },
     });
     expect(screen.getByRole('button', { name: 'Sending...' })).toBeDisabled();
 
@@ -450,7 +450,9 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Send invite' }));
     await completeInviteDelivery({
       deliverViewerContactInvite: {
-        errors: [{ field: 'recipient', message: 'invalid_recipient' }],
+        errors: [
+          { field: 'contactMatchId', message: 'invalid_contact_match' },
+        ],
       },
     });
 

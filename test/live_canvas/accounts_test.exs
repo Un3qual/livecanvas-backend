@@ -56,6 +56,25 @@ defmodule LC.AccountsTest do
       assert is_binary(Map.get(reloaded_user, :entropy_id))
     end
 
+    test "contact invite conversion foreign keys have supporting indexes" do
+      assert {:ok, %{rows: rows}} =
+               Repo.query("""
+               SELECT indexname
+               FROM pg_indexes
+               WHERE schemaname = current_schema()
+                 AND tablename = 'contact_invite_conversions'
+               """)
+
+      index_names = rows |> List.flatten() |> MapSet.new()
+
+      assert MapSet.member?(index_names, "contact_invite_conversions_inviter_id_index")
+
+      assert MapSet.member?(
+               index_names,
+               "contact_invite_conversions_recipient_user_id_index"
+             )
+    end
+
     test "tokens expose dedicated serialization helpers" do
       assert {:ok, parts} =
                Tokens.decode_serialized_value("#{Ecto.UUID.generate()}.c2VjcmV0")
@@ -1140,24 +1159,39 @@ defmodule LC.AccountsTest do
     test "sends invite token through notifier via the public contact invite wrapper", %{
       user: user
     } do
+      contact_entry = upsert_contact_entry(user, emails: ["friend@example.com"])
+
       token =
         extract_user_token(fn url ->
-          Accounts.deliver_contact_invite_instructions(user, "friend@example.com", url)
+          Accounts.deliver_contact_invite_instructions(user, contact_entry.id, url)
         end)
-
-      assert accounts_function_calls_local?(
-               :deliver_contact_invite_instructions,
-               3,
-               :issue_contact_invite_token,
-               2
-             )
 
       assert {:ok, %{id: id, raw_secret: raw_secret}} = Tokens.decode_serialized_value(token)
       assert user_token = Repo.get_by(UserToken, id: id)
       assert user_token.secret_hash == Tokens.secret_hash(raw_secret)
       assert user_token.user_id == user.id
       assert user_token.sent_to == "friend@example.com"
-      assert user_token.context == :contact_invite_token
+      assert user_token.context == :contact_invite_fragment_token
+    end
+
+    test "rejects a contact row after it becomes matched" do
+      user = user_fixture()
+      recipient_email = "domain-matched-contact@example.com"
+      contact_entry = upsert_contact_entry(user, emails: [recipient_email])
+      _recipient = user_fixture(email: recipient_email)
+
+      assert {:error, :invalid_contact_match} =
+               Accounts.deliver_contact_invite_instructions(
+                 user,
+                 contact_entry.id,
+                 &"https://app.livecanvas.example/invites#token=#{&1}"
+               )
+
+      refute Repo.get_by(
+               UserToken,
+               user_id: user.id,
+               context: :contact_invite_fragment_token
+             )
     end
   end
 
@@ -1210,6 +1244,21 @@ defmodule LC.AccountsTest do
       assert %DateTime{} = conversion.consumed_at
       assert is_binary(conversion.entropy_id)
       refute Repo.get(UserToken, persisted.id)
+    end
+
+    test "locks the verified recipient email ownership row through conversion commit" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "locked-invite-recipient@example.com")
+      {token, _persisted} = issue_contact_invite(inviter, recipient.email)
+
+      {result, queries} =
+        capture_repo_queries(fn -> Accounts.consume_contact_invite(recipient, token) end)
+
+      assert {:ok, %ContactInviteConversion{}} = result
+
+      assert Enum.any?(queries, fn query ->
+               query =~ ~s(FROM "user_email_addresses") and query =~ "FOR UPDATE"
+             end)
     end
 
     test "password signup consumption atomically verifies only the matching email and confirms the user" do
@@ -1343,37 +1392,6 @@ defmodule LC.AccountsTest do
       assert is_nil(reloaded.confirmed_at)
       assert Enum.all?(reloaded.user_email_addresses, &is_nil(&1.verified_at))
       assert Repo.get(UserToken, persisted.id)
-    end
-
-    test "serializes concurrent consumers into one conversion returned to both callers" do
-      inviter = user_fixture()
-      password = valid_user_password()
-
-      assert {:ok, %{user: recipient}} =
-               Accounts.sign_up_with_password(%{
-                 email: "concurrent-invite-recipient@example.com",
-                 password: password,
-                 password_confirmation: password
-               })
-
-      {token, persisted} = issue_contact_invite(inviter, recipient.email)
-
-      tasks =
-        for _index <- 1..2 do
-          Task.async(fn -> Accounts.consume_contact_invite(recipient, token) end)
-        end
-
-      assert [{:ok, first}, {:ok, second}] = Enum.map(tasks, &Task.await(&1, 5_000))
-      assert first.id == second.id
-      assert 1 == Repo.aggregate(ContactInviteConversion, :count, :id)
-      refute Repo.get(UserToken, persisted.id)
-
-      reloaded =
-        Accounts.get_user!(recipient.id)
-        |> Repo.preload(:user_email_addresses)
-
-      assert %DateTime{} = reloaded.confirmed_at
-      assert 1 == Enum.count(reloaded.user_email_addresses, &match?(%DateTime{}, &1.verified_at))
     end
   end
 

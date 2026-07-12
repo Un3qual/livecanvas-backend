@@ -31,7 +31,7 @@ type ActiveAttempt = {
   readonly id: number;
 };
 
-type ConsumeResult = 'consumed' | 'invalid';
+type ConsumeResult = 'consumed' | 'invalid' | 'requires_auth';
 
 const styles = StyleSheet.create({
   screen: {
@@ -94,11 +94,26 @@ export function ContactInviteScreen() {
               return;
             }
 
-            resolve(
-              result.consumed && result.errors.length === 0
-                ? 'consumed'
-                : 'invalid',
+            if (result.consumed && result.errors.length === 0) {
+              resolve('consumed');
+              return;
+            }
+
+            const errorCodes = new Set(
+              result.errors.map((error) => error.message),
             );
+
+            if (errorCodes.has('invalid_contact_invite')) {
+              resolve('invalid');
+              return;
+            }
+
+            if (errorCodes.has('unauthenticated')) {
+              resolve('requires_auth');
+              return;
+            }
+
+            reject(new Error('contact_invite_payload_failed'));
           },
           onError: reject,
         });
@@ -183,6 +198,16 @@ export function ContactInviteScreen() {
           }
 
           dispatch({ attemptId: attempt.id, handoffId, type: 'invalid' });
+          finishAttempt(attempt);
+          return;
+        }
+
+        if (result.value === 'requires_auth') {
+          dispatch({
+            attemptId: attempt.id,
+            handoffId,
+            type: 'requires_auth',
+          });
           finishAttempt(attempt);
           return;
         }

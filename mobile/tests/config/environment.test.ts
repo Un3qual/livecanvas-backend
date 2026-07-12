@@ -9,6 +9,12 @@ describe('public app origin environment', () => {
     );
   });
 
+  test('requires an explicit public app origin in production', () => {
+    expect(() => resolveEnvironment({ NODE_ENV: 'production' })).toThrow(
+      /EXPO_PUBLIC_APP_ORIGIN.*required for production/,
+    );
+  });
+
   test('normalizes the configured HTTPS origin independently from the API origin', () => {
     const environment = resolveEnvironment({
       EXPO_PUBLIC_API_BASE_URL: 'https://api.livecanvas.example',
@@ -27,6 +33,7 @@ describe('public app origin environment', () => {
       'https://',
       'https://livecanvas.invalid',
       'https://placeholder.invalid/',
+      'https://livecanvas.invalid.',
       'https://user@app.livecanvas.example',
       'https://app.livecanvas.example/invites',
       'https://app.livecanvas.example?token=visible',

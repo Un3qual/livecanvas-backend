@@ -55,6 +55,8 @@ function parseContactInviteLink(
       : { status: 'not_invite' };
   }
 
+  const parsedHttpsInviteCandidate = looksLikeParsedHttpsInviteCandidate(parsed);
+
   if (
     parsed.protocol === 'livecanvas-mobile:' &&
     parsed.hostname === 'invite' &&
@@ -83,7 +85,9 @@ function parseContactInviteLink(
     return parseSingleTokenParameters(parsed.hash.slice(1));
   }
 
-  return isInviteCandidate ? { status: 'invalid' } : { status: 'not_invite' };
+  return isInviteCandidate || parsedHttpsInviteCandidate
+    ? { status: 'invalid' }
+    : { status: 'not_invite' };
 }
 
 function matchesPublicAppOrigin(
@@ -108,6 +112,18 @@ function looksLikeContactInviteCandidate(path: string): boolean {
     ) ||
     /^https:\/\/[^/?#]*\/invites(?:[?#]|$)/i.test(path)
   );
+}
+
+function looksLikeParsedHttpsInviteCandidate(parsed: URL): boolean {
+  if (parsed.protocol !== 'https:') {
+    return false;
+  }
+
+  try {
+    return /^\/invites(?:\/|$)/i.test(decodeURIComponent(parsed.pathname));
+  } catch {
+    return /^\/invites(?:\/|$)/i.test(parsed.pathname);
+  }
 }
 
 function hasUnexpectedAuthority(parsed: URL): boolean {

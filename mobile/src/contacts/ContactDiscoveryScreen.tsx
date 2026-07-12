@@ -270,32 +270,37 @@ export function ContactDiscoveryScreen() {
 
   const deliverInvite = useCallback(
     (contactMatch: ContactMatch, recipient: string) => {
-      const input = buildContactInviteInput(recipient);
+      const input = buildContactInviteInput(contactMatch.id);
+      const normalizedRecipient = normalizeContactDiscoveryEmail(recipient);
 
-      if (!input || activeInviteRecipientsRef.current.has(input.recipient)) {
+      if (
+        !input ||
+        validateContactDiscoveryEmail(normalizedRecipient) ||
+        activeInviteRecipientsRef.current.has(normalizedRecipient)
+      ) {
         return;
       }
 
       const attemptId = ++inviteAttemptSequenceRef.current;
       const contactMatchId = contactMatch.id;
-      activeInviteRecipientsRef.current.add(input.recipient);
+      activeInviteRecipientsRef.current.add(normalizedRecipient);
       setInviteDeliveryState((current) =>
         beginContactInviteDelivery(current, {
           attemptId,
           contactMatchId,
-          recipient: input.recipient,
+          recipient: normalizedRecipient,
         }),
       );
 
       const finish = (
         status: 'retryable_error' | 'sent' | 'terminal_invalid_recipient',
       ) => {
-        activeInviteRecipientsRef.current.delete(input.recipient);
+        activeInviteRecipientsRef.current.delete(normalizedRecipient);
 
         // A mutation result belongs only to the exact unmatched row that began it.
         if (
           !currentInviteRowsRef.current
-            .get(input.recipient)
+            .get(normalizedRecipient)
             ?.has(contactMatchId)
         ) {
           return;
@@ -305,7 +310,7 @@ export function ContactDiscoveryScreen() {
           completeContactInviteDelivery(current, {
             attemptId,
             contactMatchId,
-            recipient: input.recipient,
+            recipient: normalizedRecipient,
             status,
           }),
         );
@@ -477,10 +482,11 @@ function ContactMatchCard({
 }) {
   const theme = useAppTheme();
   const hasMatches = contactMatch.matchedUsers.length > 0;
-  const inviteInput =
-    !hasMatches && inviteRecipient
-      ? buildContactInviteInput(inviteRecipient)
-      : null;
+  const inviteRecipientValue = inviteRecipient?.trim() ?? '';
+  const canInvite =
+    !hasMatches &&
+    Boolean(inviteRecipientValue) &&
+    validateContactDiscoveryEmail(inviteRecipientValue) === null;
 
   return (
     <AppCard style={styles.row}>
@@ -507,7 +513,7 @@ function ContactMatchCard({
           <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
             No LiveCanvas match yet.
           </Text>
-          {inviteInput ? (
+          {canInvite ? (
             <View style={styles.actions}>
               <AppButton
                 disabled={
@@ -516,7 +522,7 @@ function ContactMatchCard({
                   inviteStatus === 'terminal_invalid_recipient'
                 }
                 label={contactInviteButtonLabel(inviteStatus)}
-                onPress={() => onDeliverInvite(inviteInput.recipient)}
+                onPress={() => onDeliverInvite(inviteRecipientValue)}
                 variant="secondary"
               />
             </View>
@@ -552,10 +558,9 @@ function readCurrentInviteRows(
       continue;
     }
 
-    const input = buildContactInviteInput(match.inviteRecipient);
+    const recipient = normalizeContactDiscoveryEmail(match.inviteRecipient);
 
-    if (input) {
-      const recipient = normalizeContactDiscoveryEmail(input.recipient);
+    if (!validateContactDiscoveryEmail(recipient)) {
       const contactMatchIds = rows.get(recipient) ?? new Set<string>();
       contactMatchIds.add(match.id);
       rows.set(recipient, contactMatchIds);

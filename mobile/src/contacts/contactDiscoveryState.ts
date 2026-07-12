@@ -10,7 +10,7 @@ export type ManualEmailContactInput = {
 };
 
 export type ContactInviteInput = {
-  readonly recipient: string;
+  readonly contactMatchId: string;
 };
 
 export type ContactInviteDeliveryStatus =
@@ -47,6 +47,7 @@ const CONTACT_UPSERT_ERROR_MESSAGES: Readonly<Record<string, string>> = {
 };
 const CONTACT_INVITE_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   delivery_failed: CONTACT_INVITE_FALLBACK_ERROR,
+  invalid_contact_match: INVALID_EMAIL_ERROR,
   invalid_recipient: INVALID_EMAIL_ERROR,
   unauthenticated: 'Sign in again to invite this contact.',
 };
@@ -91,16 +92,12 @@ export function buildManualEmailContactInput({
   };
 }
 
-export function buildContactInviteInput(
-  email: string,
-): ContactInviteInput | null {
-  const normalizedEmail = normalizeContactDiscoveryEmail(email);
+export function buildContactInviteInput(contactMatchId: string): ContactInviteInput | null {
+  const normalizedContactMatchId = contactMatchId.trim();
 
-  if (validateContactDiscoveryEmail(normalizedEmail)) {
-    return null;
-  }
-
-  return { recipient: normalizedEmail };
+  return normalizedContactMatchId
+    ? { contactMatchId: normalizedContactMatchId }
+    : null;
 }
 
 export function createContactInviteDeliveryState(): ContactInviteDeliveryState {
@@ -162,7 +159,10 @@ export function contactInviteDeliveryFailureStatus(
 ): 'retryable_error' | 'terminal_invalid_recipient' {
   return errors?.some(
     (error) =>
-      error.message === 'invalid_recipient' || error.field === 'recipient',
+      error.message === 'invalid_contact_match' ||
+      error.message === 'invalid_recipient' ||
+      error.field === 'contactMatchId' ||
+      error.field === 'recipient',
   )
     ? 'terminal_invalid_recipient'
     : 'retryable_error';

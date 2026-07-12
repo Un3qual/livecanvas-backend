@@ -1,6 +1,6 @@
 defmodule LCGQL.Accounts.ContactResolver do
   alias LC.{Accounts, ReadPolicy}
-  alias LCGQL.MutationErrors
+  alias LCGQL.{MutationErrors, Relay}
   alias LCSchemas.Accounts.User
 
   @type mutation_error :: MutationErrors.user_error()
@@ -26,7 +26,8 @@ defmodule LCGQL.Accounts.ContactResolver do
           | :invalid_birthday
           | :invalid_phone_number
           | :invalid_email_list
-  @type invite_delivery_error_reason :: :invalid_recipient | :unauthenticated | :delivery_failed
+  @type invite_delivery_error_reason ::
+          :invalid_contact_match | :unauthenticated | :delivery_failed
 
   @spec upsert_viewer_contact_entry(
           term(),
@@ -74,26 +75,28 @@ defmodule LCGQL.Accounts.ContactResolver do
 
   @spec deliver_viewer_contact_invite(
           term(),
-          %{optional(:input) => map(), optional(:recipient) => String.t()},
+          %{optional(:input) => map(), optional(:contact_match_id) => term()},
           Absinthe.Resolution.t()
         ) :: invite_delivery_result()
   def deliver_viewer_contact_invite(parent, %{input: input}, resolution),
     do: deliver_viewer_contact_invite(parent, input, resolution)
 
-  def deliver_viewer_contact_invite(_parent, %{recipient: recipient}, %{
+  def deliver_viewer_contact_invite(_parent, %{contact_match_id: contact_match_id}, %{
         context: %{current_scope: %{user: %{id: _id} = user}}
       }) do
-    with {:ok, normalized_recipient} <- normalize_invite_recipient(recipient),
+    with {:ok, contact_entry_id} <-
+           Relay.decode_global_id(contact_match_id, :contact_match, LCGQL.Schema),
          {:ok, _email} <-
            Accounts.deliver_contact_invite_instructions(
              user,
-             normalized_recipient,
+             contact_entry_id,
              &contact_invite_url/1
            ) do
       {:ok, %{errors: []}}
     else
-      {:error, :invalid_recipient} ->
-        {:ok, %{errors: [invite_delivery_error(:invalid_recipient)]}}
+      {:error, reason}
+      when reason in [:invalid_id, :invalid_type, :invalid_contact_match] ->
+        {:ok, %{errors: [invite_delivery_error(:invalid_contact_match)]}}
 
       {:error, _reason} ->
         {:ok, %{errors: [invite_delivery_error(:delivery_failed)]}}
@@ -207,19 +210,6 @@ defmodule LCGQL.Accounts.ContactResolver do
   defp normalize_string_list(nil), do: []
   defp normalize_string_list(values), do: values
 
-  @spec normalize_invite_recipient(term()) :: {:ok, String.t()} | {:error, :invalid_recipient}
-  defp normalize_invite_recipient(recipient) when is_binary(recipient) do
-    normalized_recipient = recipient |> String.trim() |> String.downcase()
-
-    if Regex.match?(~r/^[^@\s]+@[^@\s]+$/, normalized_recipient) do
-      {:ok, normalized_recipient}
-    else
-      {:error, :invalid_recipient}
-    end
-  end
-
-  defp normalize_invite_recipient(_recipient), do: {:error, :invalid_recipient}
-
   # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
   # transport-agnostic while tests can assert invite delivery side effects.
   @spec contact_invite_url(String.t()) :: String.t()
@@ -233,8 +223,8 @@ defmodule LCGQL.Accounts.ContactResolver do
   end
 
   @spec invite_delivery_error(invite_delivery_error_reason()) :: mutation_error()
-  defp invite_delivery_error(:invalid_recipient),
-    do: MutationErrors.invalid_error("recipient")
+  defp invite_delivery_error(:invalid_contact_match),
+    do: MutationErrors.invalid_error("contactMatchId")
 
   defp invite_delivery_error(:unauthenticated),
     do: MutationErrors.user_error(nil, :unauthenticated)

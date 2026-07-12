@@ -425,7 +425,7 @@ type UpsertViewerContactEntryPayload {
 }
 
 input DeliverViewerContactInviteInput {
-  recipient: String!
+  contactMatchId: ID!
 }
 
 type DeliverViewerContactInvitePayload {

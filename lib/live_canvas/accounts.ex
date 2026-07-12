@@ -1015,7 +1015,7 @@ defmodule LC.Accounts do
     # Invite recipients are persisted in normalized form so token lookups stay deterministic.
     issue_user_token(
       user,
-      :contact_invite_token,
+      :contact_invite_fragment_token,
       sent_to: normalize_invite_recipient(recipient)
     )
   end
@@ -1473,22 +1473,25 @@ defmodule LC.Accounts do
   end
 
   @doc """
-  Delivers contact invite instructions to the provided recipient.
+  Delivers contact invite instructions for a viewer-owned unmatched contact.
   """
-  @spec deliver_contact_invite_instructions(User.t(), String.t(), (String.t() -> String.t())) ::
+  @spec deliver_contact_invite_instructions(User.t(), pos_integer(), (String.t() -> String.t())) ::
           {:ok, Swoosh.Email.t()} | {:error, changeset() | term()}
-  def deliver_contact_invite_instructions(%User{} = user, recipient, invite_url_fun)
-      when is_binary(recipient) and is_function(invite_url_fun, 1) do
-    normalized_recipient = normalize_invite_recipient(recipient)
-
-    with {:ok, %{token: serialized_value}} <-
-           issue_contact_invite_token(user, normalized_recipient) do
+  def deliver_contact_invite_instructions(%User{} = user, contact_entry_id, invite_url_fun)
+      when is_integer(contact_entry_id) and contact_entry_id > 0 and
+             is_function(invite_url_fun, 1) do
+    with {:ok, %{recipient: recipient, token: serialized_value}} <-
+           prepare_contact_invite_delivery(user, contact_entry_id) do
       UserNotifier.deliver_contact_invite_instructions(
-        normalized_recipient,
+        recipient,
         invite_url_fun.(serialized_value)
       )
     end
   end
+
+  def deliver_contact_invite_instructions(%User{}, _contact_entry_id, invite_url_fun)
+      when is_function(invite_url_fun, 1),
+      do: {:error, :invalid_contact_match}
 
   @doc """
   Delivers phone verification instructions to the given user.
@@ -2101,6 +2104,42 @@ defmodule LC.Accounts do
     )
   end
 
+  @spec prepare_contact_invite_delivery(User.t(), pos_integer()) ::
+          {:ok, %{recipient: String.t(), token: String.t()}}
+          | {:error, :invalid_contact_match | changeset() | term()}
+  defp prepare_contact_invite_delivery(%User{} = user, contact_entry_id) do
+    Repo.transact(fn ->
+      case locked_user_contact_match(user, contact_entry_id) do
+        %{invite_recipient: recipient, matched_users: []} when is_binary(recipient) ->
+          with {:ok, %{token: token}} <- issue_contact_invite_token(user, recipient) do
+            {:ok, %{recipient: recipient, token: token}}
+          end
+
+        _other ->
+          {:error, :invalid_contact_match}
+      end
+    end)
+  end
+
+  @spec locked_user_contact_match(User.t(), pos_integer()) :: contact_match() | nil
+  defp locked_user_contact_match(%User{} = user, contact_entry_id) do
+    user.id
+    |> user_contact_entry_by_id_query(contact_entry_id)
+    |> lock("FOR UPDATE")
+    |> Repo.one()
+    |> case do
+      nil ->
+        nil
+
+      contact_entry ->
+        build_contact_match(
+          user.id,
+          owner_email_address_ids(user.id),
+          preload_contact_entry(contact_entry)
+        )
+    end
+  end
+
   defp build_contact_match(owner_id, owner_email_address_ids, contact_entry) do
     %{
       id: contact_entry.id,
@@ -2570,7 +2609,8 @@ defmodule LC.Accounts do
       where:
         user_email_address.user_id == ^viewer_id and
           email_address.normalized_email == ^sent_to,
-      limit: 1
+      limit: 1,
+      lock: "FOR UPDATE"
     )
     |> Repo.one()
   end

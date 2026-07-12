@@ -77,14 +77,14 @@ defmodule LC.Accounts.UserTokenTest do
       assert persisted.user_id == user.id
     end
 
-    test "issue_contact_invite_token/2 uses the contact invite context and target recipient" do
+    test "issue_contact_invite_token/2 uses the fragment invite context and target recipient" do
       user = user_fixture()
 
       assert {:ok, %{token: token, user_token: %UserToken{} = persisted}} =
                Accounts.issue_contact_invite_token(user, "friend@example.com")
 
       assert is_binary(token)
-      assert persisted.context == :contact_invite_token
+      assert persisted.context == :contact_invite_fragment_token
       assert persisted.sent_to == "friend@example.com"
       assert persisted.user_id == user.id
     end
@@ -114,6 +114,11 @@ defmodule LC.Accounts.UserTokenTest do
 
       refute Accounts.Tokens.valid_contact_invite_token?(
                %{persisted | context: :password_reset_token},
+               raw_secret
+             )
+
+      refute Accounts.Tokens.valid_contact_invite_token?(
+               %{persisted | context: :contact_invite_token},
                raw_secret
              )
 

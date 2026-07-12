@@ -184,6 +184,76 @@ describe('ContactInviteScreen', () => {
     });
   });
 
+  test('retains the token and requests authentication for an unauthenticated payload', async () => {
+    mockAuthStatus = 'authenticated';
+
+    await render(<ContactInviteScreen />);
+    await waitFor(() => expect(mockCommitConsume).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      mockCommitConsume.mock.calls[0]?.[0].onCompleted({
+        consumeContactInvite: {
+          consumed: false,
+          errors: [{ field: null, message: 'unauthenticated' }],
+        },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockClearHandoff).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: 'Create account' }),
+    ).toBeOnTheScreen();
+  });
+
+  test('retains the token for unknown payload errors', async () => {
+    mockAuthStatus = 'authenticated';
+
+    await render(<ContactInviteScreen />);
+    await waitFor(() => expect(mockCommitConsume).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      mockCommitConsume.mock.calls[0]?.[0].onCompleted({
+        consumeContactInvite: {
+          consumed: false,
+          errors: [{ field: null, message: 'unexpected_failure' }],
+        },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockClearHandoff).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('We could not confirm the invitation. Try again.'),
+    ).toBeOnTheScreen();
+  });
+
+  test('clears the token only for an invalid contact invite payload', async () => {
+    mockAuthStatus = 'authenticated';
+
+    await render(<ContactInviteScreen />);
+    await waitFor(() => expect(mockCommitConsume).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      mockCommitConsume.mock.calls[0]?.[0].onCompleted({
+        consumeContactInvite: {
+          consumed: false,
+          errors: [{ field: null, message: 'invalid_contact_invite' }],
+        },
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockClearHandoff).toHaveBeenCalledWith('handoff-one');
+    expect(
+      screen.getByText('This invitation is invalid or has expired.'),
+    ).toBeOnTheScreen();
+  });
+
   test('lets invite B consume after a stale pending invite A completes', async () => {
     mockAuthStatus = 'authenticated';
     mockHandoffParam = 'handoff-a';

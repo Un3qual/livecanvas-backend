@@ -44,7 +44,7 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
   test "uses the generic mutation bucket for deliverViewerContactInvite", %{conn: conn} do
     mutation = """
     mutation {
-      deliverViewerContactInvite(input: {recipient: "friend@example.com"}) {
+      deliverViewerContactInvite(input: {contactMatchId: "invalid"}) {
         errors {
           message
         }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5efbb2504307db4eb2aa2b1b2250d2e2>>
+ * @generated SignedSource<<0abc748271828a87daee129f37f7c7ae>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type DeliverViewerContactInviteInput = {
-  recipient: string;
+  contactMatchId: string;
 };
 export type contactDiscoveryOperationsDeliverInviteMutation$variables = {
   input: DeliverViewerContactInviteInput;

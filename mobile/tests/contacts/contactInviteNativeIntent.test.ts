@@ -237,6 +237,29 @@ describe('Expo Router contact invite native intent', () => {
     expect(storageWrites).toBe(0);
   });
 
+  test('fails closed for malformed and encoded HTTPS invite paths', async () => {
+    for (const path of [
+      'https://app.example.test/invites/#token=trailing-slash-secret',
+      'https://app.example.test/invites/extra#token=nested-secret',
+      'https://app.example.test/%69nvites/#token=encoded-secret',
+    ]) {
+      const href = await redirectSystemPath({ initial: false, path });
+
+      expect(href).toBe('/invite');
+      expect(JSON.stringify(href)).not.toContain('secret');
+
+      const snapshot = await bootstrapRuntime(environment, {
+        getInitialUrl: () => Promise.resolve(path),
+      });
+
+      expect(snapshot.initialUrl).toBe('/invite');
+      expect(snapshot.initialHref).toBe('/invite');
+      expect(JSON.stringify(snapshot)).not.toContain('secret');
+    }
+
+    expect(storageWrites).toBe(0);
+  });
+
   test('passes unrelated incoming paths through unchanged', async () => {
     for (const path of [
       'livecanvas-mobile://profile',

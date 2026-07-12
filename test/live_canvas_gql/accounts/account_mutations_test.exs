@@ -1204,9 +1204,14 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
       assert_receive {:email, _login_email}
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
+      contact_entry =
+        upsert_contact_entry(viewer, emails: ["friend@example.com"])
+
+      contact_match_id = contact_match_id(contact_entry)
+
       mutation = """
-      mutation DeliverViewerContactInvite($recipient: String!) {
-        deliverViewerContactInvite(input: {recipient: $recipient}) {
+      mutation DeliverViewerContactInvite($contactMatchId: ID!) {
+        deliverViewerContactInvite(input: {contactMatchId: $contactMatchId}) {
           errors {
             field
             message
@@ -1232,7 +1237,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                  Absinthe.run(
                    mutation,
                    LCGQL.Schema,
-                   variables: %{"recipient" => "Friend@Example.com"},
+                   variables: %{"contactMatchId" => contact_match_id},
                    context: context
                  )
 
@@ -1262,9 +1267,12 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
       viewer = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
+      contact_entry =
+        upsert_contact_entry(viewer, emails: ["Friend@Example.com"])
+
       mutation = """
-      mutation DeliverViewerContactInvite($recipient: String!) {
-        deliverViewerContactInvite(input: {recipient: $recipient}) {
+      mutation DeliverViewerContactInvite($contactMatchId: ID!) {
+        deliverViewerContactInvite(input: {contactMatchId: $contactMatchId}) {
           errors {
             field
             message
@@ -1284,24 +1292,29 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                Absinthe.run(
                  mutation,
                  LCGQL.Schema,
-                 variables: %{"recipient" => "Friend@Example.com"},
+                 variables: %{"contactMatchId" => contact_match_id(contact_entry)},
                  context: context
                )
 
       assert %UserToken{} =
                user_token =
-               Repo.get_by(UserToken, user_id: viewer.id, context: :contact_invite_token)
+               Repo.get_by(
+                 UserToken,
+                 user_id: viewer.id,
+                 context: :contact_invite_fragment_token
+               )
 
       assert user_token.sent_to == "friend@example.com"
     end
 
-    test "returns structured errors for invalid recipient values" do
+    test "rejects invalid or wrong-type contact match ids" do
       viewer = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
+      wrong_type_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
       mutation = """
-      mutation {
-        deliverViewerContactInvite(input: {recipient: "   "}) {
+      mutation DeliverViewerContactInvite($contactMatchId: ID!) {
+        deliverViewerContactInvite(input: {contactMatchId: $contactMatchId}) {
           errors {
             field
             message
@@ -1314,19 +1327,34 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
               %{
                 data: %{
                   "deliverViewerContactInvite" => %{
-                    "errors" => [%{"field" => "recipient", "message" => "is invalid"}]
+                    "errors" => [%{"field" => "contactMatchId", "message" => "is invalid"}]
                   }
                 }
-              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"contactMatchId" => wrong_type_id},
+                 context: context
+               )
     end
 
-    test "does not persist invite tokens when the recipient is invalid" do
+    test "rejects foreign, self-owned, and newly matched contact rows without issuing tokens" do
       viewer = user_fixture()
+      outsider = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
+      foreign_contact =
+        upsert_contact_entry(outsider, emails: ["foreign-contact@example.com"])
+
+      self_contact =
+        upsert_contact_entry(viewer, emails: [viewer.email])
+
+      matched_email = "newly-matched-contact@example.com"
+      matched_contact = upsert_contact_entry(viewer, emails: [matched_email])
+      _matched_user = user_fixture(email: matched_email)
+
       mutation = """
-      mutation {
-        deliverViewerContactInvite(input: {recipient: "invalid-recipient"}) {
+      mutation DeliverViewerContactInvite($contactMatchId: ID!) {
+        deliverViewerContactInvite(input: {contactMatchId: $contactMatchId}) {
           errors {
             field
             message
@@ -1335,22 +1363,34 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
       }
       """
 
-      assert {:ok,
-              %{
-                data: %{
-                  "deliverViewerContactInvite" => %{
-                    "errors" => [%{"field" => "recipient", "message" => "is invalid"}]
+      for contact_entry <- [foreign_contact, self_contact, matched_contact] do
+        assert {:ok,
+                %{
+                  data: %{
+                    "deliverViewerContactInvite" => %{
+                      "errors" => [
+                        %{"field" => "contactMatchId", "message" => "is invalid"}
+                      ]
+                    }
                   }
-                }
-              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+                }} =
+                 Absinthe.run(mutation, LCGQL.Schema,
+                   variables: %{"contactMatchId" => contact_match_id(contact_entry)},
+                   context: context
+                 )
+      end
 
-      refute Repo.get_by(UserToken, user_id: viewer.id, context: :contact_invite_token)
+      refute Repo.get_by(
+               UserToken,
+               user_id: viewer.id,
+               context: :contact_invite_fragment_token
+             )
     end
 
     test "returns an unauthenticated error without a viewer scope" do
       mutation = """
       mutation {
-        deliverViewerContactInvite(input: {recipient: "friend@example.com"}) {
+        deliverViewerContactInvite(input: {contactMatchId: "invalid"}) {
           errors {
             field
             message
@@ -1386,7 +1426,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                Repo.one(ContactInviteConversion)
 
       assert recipient_id == recipient.id
-      refute Repo.get_by(UserToken, context: :contact_invite_token)
+      refute Repo.get_by(UserToken, context: :contact_invite_fragment_token)
     end
 
     test "atomically verifies and confirms a password-created matching recipient" do
@@ -1539,7 +1579,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
              } = consume_contact_invite(token)
 
-      assert Repo.get_by(UserToken, context: :contact_invite_token)
+      assert Repo.get_by(UserToken, context: :contact_invite_fragment_token)
       refute Repo.one(ContactInviteConversion)
     end
   end
@@ -2715,6 +2755,10 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
              Accounts.issue_contact_invite_token(inviter, recipient_email)
 
     token
+  end
+
+  defp contact_match_id(%{id: id}) when is_integer(id) do
+    Absinthe.Relay.Node.to_global_id(:contact_match, id, LCGQL.Schema)
   end
 
   defp consume_contact_invite(token, viewer \\ nil) do

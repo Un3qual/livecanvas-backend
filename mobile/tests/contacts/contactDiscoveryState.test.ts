@@ -59,10 +59,10 @@ describe('contactDiscoveryState', () => {
   });
 
   test('builds invite input without mixing it with upsert state', () => {
-    expect(buildContactInviteInput(' Friend@Example.COM ')).toEqual({
-      recipient: 'friend@example.com',
+    expect(buildContactInviteInput(' contact-match-id ')).toEqual({
+      contactMatchId: 'contact-match-id',
     });
-    expect(buildContactInviteInput('invalid-recipient')).toBeNull();
+    expect(buildContactInviteInput('   ')).toBeNull();
   });
 
   test('shares invite delivery state across rows with one normalized recipient', () => {

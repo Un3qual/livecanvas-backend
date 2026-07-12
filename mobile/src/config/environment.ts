@@ -14,11 +14,14 @@ const DEFAULT_PUBLIC_APP_ORIGIN = 'https://localhost:4000';
 const DEFAULT_WEBSOCKET_URL = 'ws://localhost:4000/socket';
 
 function readProcessEnvironment(): EnvironmentInput {
-  const maybeProcess = globalThis as {
-    process?: { env?: Record<string, string | undefined> };
+  return {
+    EXPO_PUBLIC_API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL,
+    EXPO_PUBLIC_APP_ORIGIN: process.env.EXPO_PUBLIC_APP_ORIGIN,
+    EXPO_PUBLIC_BOOT_SESSION_STATE:
+      process.env.EXPO_PUBLIC_BOOT_SESSION_STATE,
+    EXPO_PUBLIC_WEBSOCKET_URL: process.env.EXPO_PUBLIC_WEBSOCKET_URL,
+    NODE_ENV: process.env.NODE_ENV,
   };
-
-  return maybeProcess.process?.env ?? {};
 }
 
 function normalizeUrl(value: string | undefined, fallback: string): string {
@@ -27,8 +30,19 @@ function normalizeUrl(value: string | undefined, fallback: string): string {
   return trimmed && trimmed.length > 0 ? trimmed : fallback;
 }
 
-function normalizePublicAppOrigin(value: string | undefined): string {
-  const candidate = value?.trim() || DEFAULT_PUBLIC_APP_ORIGIN;
+function normalizePublicAppOrigin(
+  value: string | undefined,
+  nodeEnvironment: string | undefined,
+): string {
+  const configuredOrigin = value?.trim();
+
+  if (!configuredOrigin && nodeEnvironment === 'production') {
+    throw new Error(
+      'EXPO_PUBLIC_APP_ORIGIN is required for production builds.',
+    );
+  }
+
+  const candidate = configuredOrigin || DEFAULT_PUBLIC_APP_ORIGIN;
   let parsed: URL;
 
   try {
@@ -39,7 +53,9 @@ function normalizePublicAppOrigin(value: string | undefined): string {
 
   const hostname = parsed.hostname.toLowerCase();
   const placeholderHostname =
-    hostname === 'invalid' || hostname.endsWith('.invalid');
+    hostname === 'invalid' ||
+    hostname.endsWith('.invalid') ||
+    hostname.endsWith('.');
 
   if (
     parsed.protocol !== 'https:' ||
@@ -78,7 +94,10 @@ export function resolveEnvironment(
 ): AppEnvironment {
   return {
     apiBaseUrl: normalizeUrl(input.EXPO_PUBLIC_API_BASE_URL, DEFAULT_API_BASE_URL),
-    publicAppOrigin: normalizePublicAppOrigin(input.EXPO_PUBLIC_APP_ORIGIN),
+    publicAppOrigin: normalizePublicAppOrigin(
+      input.EXPO_PUBLIC_APP_ORIGIN,
+      input.NODE_ENV,
+    ),
     websocketUrl: normalizeUrl(
       input.EXPO_PUBLIC_WEBSOCKET_URL,
       DEFAULT_WEBSOCKET_URL,

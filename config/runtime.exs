@@ -31,13 +31,19 @@ if config_env() == :prod do
   public_app_origin = String.trim(public_app_origin)
   public_app_origin_uri = URI.parse(public_app_origin)
   public_app_origin_host = String.downcase(public_app_origin_uri.host || "")
+  public_app_origin_port = public_app_origin_uri.port
+  trailing_dot_host? = String.ends_with?(public_app_origin_host, ".")
 
   placeholder_origin? =
     public_app_origin_host == "invalid" or String.ends_with?(public_app_origin_host, ".invalid")
 
+  valid_port? =
+    is_integer(public_app_origin_port) and public_app_origin_port >= 1 and
+      public_app_origin_port <= 65_535
+
   unless public_app_origin_uri.scheme == "https" and
            is_binary(public_app_origin_uri.host) and public_app_origin_uri.host != "" and
-           not placeholder_origin? and
+           not trailing_dot_host? and not placeholder_origin? and valid_port? and
            public_app_origin_uri.userinfo == nil and public_app_origin_uri.query == nil and
            public_app_origin_uri.fragment == nil and
            public_app_origin_uri.path in [nil, "", "/"] do
