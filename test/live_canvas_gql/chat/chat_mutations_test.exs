@@ -15,6 +15,7 @@ defmodule LCGQL.Chat.ChatMutationsTest do
       {:ok, event} = Chat.create_timeline_chat_message(live_session, sender, %{body: "helo"})
 
       event_id = global_id(:chat_message_event, event.id)
+      actor_id = global_id(:user, sender.id)
 
       assert {:ok,
               %{
@@ -25,7 +26,8 @@ defmodule LCGQL.Chat.ChatMutationsTest do
                       "body" => "hello",
                       "edited" => true,
                       "editCount" => 1,
-                      "editedAt" => edited_at
+                      "editedAt" => edited_at,
+                      "actor" => %{"id" => ^actor_id}
                     },
                     "errors" => []
                   }
@@ -67,6 +69,70 @@ defmodule LCGQL.Chat.ChatMutationsTest do
                )
     end
 
+    test "rejects actor edits after the live session ends without changing the row" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(sender)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, event} = Chat.create_timeline_chat_message(live_session, sender, %{body: "original"})
+      {:ok, _ended_session} = Live.end_live_session(live_session)
+
+      event_id = global_id(:chat_message_event, event.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "editLiveChatMessage" => %{
+                    "chatMessageEvent" => nil,
+                    "errors" => [%{"field" => nil, "message" => "session_ended"}]
+                  }
+                }
+              }} =
+               Absinthe.run(edit_message_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => event_id, "body" => "too late"},
+                 context: context
+               )
+
+      assert %{body: "original", edited: false, edit_count: 0} =
+               Chat.get_timeline_event(sender, event.id)
+    end
+
+    test "maps malformed IDs to a chatMessageEventId validation error" do
+      actor = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(actor)}
+
+      assert {:ok,
+              %{
+                data: %{
+                  "editLiveChatMessage" => %{
+                    "chatMessageEvent" => nil,
+                    "errors" => [
+                      %{"field" => "chatMessageEventId", "message" => "is invalid"}
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(edit_message_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => "not-a-global-id", "body" => "invalid"},
+                 context: context
+               )
+    end
+
+    test "returns a viewer-safe error when unauthenticated" do
+      assert {:ok,
+              %{
+                data: %{
+                  "editLiveChatMessage" => %{
+                    "chatMessageEvent" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} =
+               Absinthe.run(edit_message_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => "opaque", "body" => "invalid"}
+               )
+    end
+
     test "maps invalid global ID types to a chatMessageEventId validation error" do
       actor = user_fixture(privacy_mode: :public)
       {:ok, live_session} = Live.start_live_session(actor, %{visibility: :public})
@@ -92,6 +158,72 @@ defmodule LCGQL.Chat.ChatMutationsTest do
   end
 
   describe "removeLiveChatMessageEvent" do
+    test "rejects host removal after the live session ends without hiding the row" do
+      host = user_fixture(privacy_mode: :public)
+      sender = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(host)}
+      {:ok, live_session} = Live.start_live_session(host, %{visibility: :public})
+      {:ok, event} = Chat.create_timeline_chat_message(live_session, sender, %{body: "retained"})
+      {:ok, _ended_session} = Live.end_live_session(live_session)
+
+      event_id = global_id(:chat_message_event, event.id)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => nil,
+                    "errors" => [%{"field" => nil, "message" => "session_ended"}]
+                  }
+                }
+              }} =
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => event_id},
+                 context: context
+               )
+
+      assert %{id: event_id_value, body: "retained"} =
+               Chat.get_timeline_event(sender, event.id)
+
+      assert event_id_value == event.id
+    end
+
+    test "maps malformed IDs to a chatMessageEventId validation error" do
+      host = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(host)}
+
+      assert {:ok,
+              %{
+                data: %{
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => nil,
+                    "errors" => [
+                      %{"field" => "chatMessageEventId", "message" => "is invalid"}
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => "not-a-global-id"},
+                 context: context
+               )
+    end
+
+    test "returns a viewer-safe error when unauthenticated" do
+      assert {:ok,
+              %{
+                data: %{
+                  "removeLiveChatMessageEvent" => %{
+                    "removedTimelineEventId" => nil,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} =
+               Absinthe.run(remove_message_event_mutation(), LCGQL.Schema,
+                 variables: %{"chatMessageEventId" => "opaque"}
+               )
+    end
+
     test "allows the session host to remove a viewer-authored chat message event" do
       host = user_fixture(privacy_mode: :public)
       sender = user_fixture()
@@ -317,6 +449,9 @@ defmodule LCGQL.Chat.ChatMutationsTest do
           edited
           editCount
           editedAt
+          actor {
+            id
+          }
         }
         errors {
           field

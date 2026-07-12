@@ -23,7 +23,8 @@ defmodule LC.Chat do
           | {:error, changeset() | :not_authorized | :not_found | :hidden | :session_ended}
   @type timeline_chat_message_removal_result ::
           {:ok, %{removed_event_id: pos_integer(), transitioned?: boolean()}}
-          | {:error, changeset() | :not_authorized | :not_found | :not_chat_message}
+          | {:error,
+             changeset() | :not_authorized | :not_found | :not_chat_message | :session_ended}
   @type lifecycle_timeline_event_opts :: [actor: User.t()]
   @type lifecycle_timeline_event_result ::
           {:ok, TimelineProjection.t()} | {:error, :not_authorized | changeset()}
@@ -167,7 +168,7 @@ defmodule LC.Chat do
       timeline_event,
       actor,
       attrs,
-      &authorize_timeline_host_actor/2
+      &authorize_timeline_chat_remove/2
     )
   end
 
@@ -299,6 +300,15 @@ defmodule LC.Chat do
 
   defp authorize_timeline_chat_edit_join(%User{} = actor, %LiveSession{} = live_session) do
     authorize_join(actor, live_session)
+  end
+
+  @spec authorize_timeline_chat_remove(LiveSession.t(), User.t()) ::
+          :ok | {:error, :not_authorized | :session_ended}
+  defp authorize_timeline_chat_remove(%LiveSession{status: :ended}, %User{}),
+    do: {:error, :session_ended}
+
+  defp authorize_timeline_chat_remove(%LiveSession{} = live_session, %User{} = actor) do
+    authorize_timeline_host_actor(live_session, actor)
   end
 
   @spec authorize_timeline_host_actor(LiveSession.t(), User.t()) ::
