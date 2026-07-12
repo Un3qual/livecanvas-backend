@@ -89,6 +89,40 @@ defmodule LC.Accounts.UserTokenTest do
       assert persisted.user_id == user.id
     end
 
+    test "valid_contact_invite_token?/2 accepts an exact fresh contact invite secret" do
+      user = user_fixture()
+
+      assert {:ok, %{token: token, user_token: persisted}} =
+               Accounts.issue_contact_invite_token(user, "friend@example.com")
+
+      assert {:ok, %{raw_secret: raw_secret}} =
+               Accounts.Tokens.decode_serialized_value(token)
+
+      assert Accounts.Tokens.valid_contact_invite_token?(persisted, raw_secret)
+    end
+
+    test "valid_contact_invite_token?/2 rejects tampered, wrong-context, and expired tokens" do
+      user = user_fixture()
+
+      assert {:ok, %{token: token, user_token: persisted}} =
+               Accounts.issue_contact_invite_token(user, "friend@example.com")
+
+      assert {:ok, %{raw_secret: raw_secret}} =
+               Accounts.Tokens.decode_serialized_value(token)
+
+      refute Accounts.Tokens.valid_contact_invite_token?(persisted, "tampered-secret")
+
+      refute Accounts.Tokens.valid_contact_invite_token?(
+               %{persisted | context: :password_reset_token},
+               raw_secret
+             )
+
+      refute Accounts.Tokens.valid_contact_invite_token?(
+               %{persisted | inserted_at: DateTime.add(DateTime.utc_now(), -8, :day)},
+               raw_secret
+             )
+    end
+
     test "issue_phone_verification_token/2 normalizes the phone and uses the phone verification context" do
       user = user_fixture()
       {:ok, _join} = Accounts.attach_user_phone_number(user, "(650) 253-0000")

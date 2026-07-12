@@ -16,6 +16,7 @@ defmodule LC.Accounts do
   alias LCSchemas.Infra.DataExportRequest, as: DataExportRequestSchema
 
   alias LCSchemas.Accounts.{
+    ContactInviteConversion,
     EmailAddress,
     PhoneNumber,
     StaffPermission,
@@ -57,6 +58,9 @@ defmodule LC.Accounts do
 
   @type token_payload :: %{token: String.t(), user_token: UserToken.t()}
   @type token_result :: {:ok, token_payload()} | {:error, changeset()}
+  @type contact_invite_consumption_result ::
+          {:ok, ContactInviteConversion.t()}
+          | {:error, LCSchemas.Accounts.contact_invite_consumption_error()}
   @type phone_token_payload :: %{
           token: String.t(),
           user_token: UserToken.t(),
@@ -1015,6 +1019,34 @@ defmodule LC.Accounts do
       sent_to: normalize_invite_recipient(recipient)
     )
   end
+
+  @doc """
+  Consumes a recipient-bound contact invite once.
+
+  A successful conversion may be read back by the same viewer with the exact
+  token for one hour so mobile handoff retries remain idempotent.
+  """
+  @spec consume_contact_invite(User.t(), String.t()) :: contact_invite_consumption_result()
+  def consume_contact_invite(%User{id: viewer_id} = viewer, serialized_token)
+      when is_integer(viewer_id) and is_binary(serialized_token) do
+    with {:ok, %{id: token_id, raw_secret: raw_secret}} <-
+           Tokens.decode_serialized_value(serialized_token) do
+      Repo.transact(fn ->
+        case locked_contact_invite_token(token_id) do
+          %UserToken{} = user_token ->
+            consume_locked_contact_invite(viewer, user_token, raw_secret)
+
+          nil ->
+            read_contact_invite_conversion(viewer, token_id, raw_secret)
+        end
+      end)
+    else
+      :error -> {:error, :invalid_contact_invite}
+    end
+  end
+
+  def consume_contact_invite(_viewer, _serialized_token),
+    do: {:error, :invalid_contact_invite}
 
   @doc """
   Persists and returns a phone verification token payload for the given user.
@@ -2500,6 +2532,130 @@ defmodule LC.Accounts do
         :ok
     end
   end
+
+  @spec locked_contact_invite_token(Ecto.UUID.t()) :: UserToken.t() | nil
+  defp locked_contact_invite_token(token_id) when is_binary(token_id) do
+    from(user_token in UserToken,
+      where: user_token.id == ^token_id,
+      lock: "FOR UPDATE"
+    )
+    |> Repo.one()
+  end
+
+  @spec consume_locked_contact_invite(User.t(), UserToken.t(), binary()) ::
+          contact_invite_consumption_result()
+  defp consume_locked_contact_invite(%User{} = viewer, %UserToken{} = user_token, raw_secret) do
+    with true <- Tokens.valid_contact_invite_token?(user_token, raw_secret),
+         %UserEmailAddress{} = matching_join <-
+           viewer_contact_invite_email_join(viewer.id, user_token.sent_to),
+         now = now_utc(),
+         {:ok, _verified_join} <- verify_contact_invite_email(matching_join, now),
+         {:ok, _confirmed_user} <- confirm_password_invite_recipient(viewer, now),
+         {:ok, %ContactInviteConversion{id: conversion_id} = conversion}
+         when is_integer(conversion_id) <-
+           insert_contact_invite_conversion(viewer, user_token, now),
+         {:ok, _deleted_token} <- Repo.delete(user_token) do
+      {:ok, conversion}
+    else
+      _reason -> {:error, :invalid_contact_invite}
+    end
+  end
+
+  @spec viewer_contact_invite_email_join(pos_integer(), String.t() | nil) ::
+          UserEmailAddress.t() | nil
+  defp viewer_contact_invite_email_join(viewer_id, sent_to)
+       when is_integer(viewer_id) and is_binary(sent_to) do
+    from(user_email_address in UserEmailAddress,
+      join: email_address in EmailAddress,
+      on: email_address.id == user_email_address.email_address_id,
+      where:
+        user_email_address.user_id == ^viewer_id and
+          email_address.normalized_email == ^sent_to,
+      limit: 1
+    )
+    |> Repo.one()
+  end
+
+  defp viewer_contact_invite_email_join(_viewer_id, _sent_to), do: nil
+
+  @spec verify_contact_invite_email(UserEmailAddress.t(), DateTime.t()) ::
+          {:ok, UserEmailAddress.t()} | {:error, changeset()}
+  defp verify_contact_invite_email(%UserEmailAddress{verified_at: %DateTime{}} = join, _now),
+    do: {:ok, join}
+
+  defp verify_contact_invite_email(%UserEmailAddress{} = join, %DateTime{} = now) do
+    join
+    |> change(verified_at: now)
+    |> Repo.update()
+  end
+
+  @spec confirm_password_invite_recipient(User.t(), DateTime.t()) ::
+          {:ok, User.t()} | {:error, changeset()}
+  defp confirm_password_invite_recipient(%User{id: viewer_id}, %DateTime{} = now) do
+    case Repo.get!(User, viewer_id) do
+      %User{confirmed_at: nil, hashed_password: hash} = user when is_binary(hash) ->
+        user
+        |> change(confirmed_at: now)
+        |> Repo.update()
+
+      %User{} = user ->
+        {:ok, user}
+    end
+  end
+
+  @spec insert_contact_invite_conversion(User.t(), UserToken.t(), DateTime.t()) ::
+          {:ok, ContactInviteConversion.t()} | {:error, changeset()}
+  defp insert_contact_invite_conversion(
+         %User{id: recipient_user_id},
+         %UserToken{} = user_token,
+         %DateTime{} = now
+       ) do
+    Repo.insert(
+      %ContactInviteConversion{
+        invite_token_id: user_token.id,
+        invite_secret_hash: user_token.secret_hash,
+        inviter_id: user_token.user_id,
+        recipient_user_id: recipient_user_id,
+        consumed_at: now
+      },
+      on_conflict: :nothing,
+      conflict_target: :invite_token_id,
+      returning: true
+    )
+  end
+
+  @spec read_contact_invite_conversion(User.t(), Ecto.UUID.t(), binary()) ::
+          contact_invite_consumption_result()
+  defp read_contact_invite_conversion(%User{id: viewer_id}, token_id, raw_secret)
+       when is_integer(viewer_id) and is_binary(token_id) and is_binary(raw_secret) do
+    conversion =
+      Repo.get_by(ContactInviteConversion,
+        invite_token_id: token_id,
+        recipient_user_id: viewer_id
+      )
+
+    if authenticated_contact_invite_conversion?(conversion, raw_secret) do
+      {:ok, conversion}
+    else
+      {:error, :invalid_contact_invite}
+    end
+  end
+
+  @spec authenticated_contact_invite_conversion?(ContactInviteConversion.t() | nil, binary()) ::
+          boolean()
+  defp authenticated_contact_invite_conversion?(
+         %ContactInviteConversion{
+           invite_secret_hash: stored_hash,
+           consumed_at: %DateTime{} = consumed_at
+         },
+         raw_secret
+       )
+       when is_binary(stored_hash) and is_binary(raw_secret) do
+    Plug.Crypto.secure_compare(stored_hash, Tokens.secret_hash(raw_secret)) and
+      DateTime.compare(consumed_at, DateTime.add(now_utc(), -1, :hour)) == :gt
+  end
+
+  defp authenticated_contact_invite_conversion?(_conversion, _raw_secret), do: false
 
   @spec refresh_token_secret_matches?(UserToken.t(), binary()) :: boolean()
   defp refresh_token_secret_matches?(%UserToken{context: :refresh_token} = user_token, raw_secret)

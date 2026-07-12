@@ -11,6 +11,7 @@ defmodule LC.Accounts.Tokens do
   @password_reset_validity_in_minutes 60
   @passkey_challenge_validity_in_minutes 10
   @change_email_validity_in_days 7
+  @contact_invite_validity_in_days 7
   @session_validity_in_days 14
   @refresh_validity_in_days 30
   @email_token_contexts [
@@ -145,6 +146,14 @@ defmodule LC.Accounts.Tokens do
     valid_secret?(token, raw_secret) and
       token.context == :email_verification_token and
       token_fresh?(token.inserted_at, days: @change_email_validity_in_days)
+  end
+
+  @doc false
+  @spec valid_contact_invite_token?(UserToken.t(), binary()) :: boolean()
+  def valid_contact_invite_token?(%UserToken{} = token, raw_secret) do
+    valid_secret?(token, raw_secret) and
+      token.context == :contact_invite_token and
+      token_fresh?(token.inserted_at, days: @contact_invite_validity_in_days)
   end
 
   @doc false

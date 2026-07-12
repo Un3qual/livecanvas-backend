@@ -11,6 +11,7 @@ defmodule LC.AccountsTest do
   alias LC.Accounts.Tokens
 
   alias LCSchemas.Accounts.{
+    ContactInviteConversion,
     StaffPermission,
     User,
     UserContactEntry,
@@ -41,6 +42,11 @@ defmodule LC.AccountsTest do
       assert :serialized_value in UserToken.__schema__(:virtual_fields)
       refute :entropy_id in UserToken.__schema__(:fields)
       refute :token in UserToken.__schema__(:virtual_fields)
+
+      assert :entropy_id in ContactInviteConversion.__schema__(:fields)
+      assert :invite_secret_hash in ContactInviteConversion.__schema__(:fields)
+      refute :raw_secret in ContactInviteConversion.__schema__(:fields)
+      refute :recipient_email in ContactInviteConversion.__schema__(:fields)
     end
 
     test "reloading a relational row returns a populated entropy_id" do
@@ -1155,6 +1161,222 @@ defmodule LC.AccountsTest do
     end
   end
 
+  describe "consume_contact_invite/2" do
+    test "rejects malformed, tampered, wrong-context, and expired tokens" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "invite-recipient@example.com")
+
+      assert {:error, :invalid_contact_invite} =
+               Accounts.consume_contact_invite(recipient, "malformed")
+
+      {token, persisted} = issue_contact_invite(inviter, recipient.email)
+      assert {:ok, %{id: token_id}} = Tokens.decode_serialized_value(token)
+      tampered = Tokens.encode_serialized_value(token_id, "tampered-secret")
+
+      assert {:error, :invalid_contact_invite} =
+               Accounts.consume_contact_invite(recipient, tampered)
+
+      assert Repo.get(UserToken, persisted.id)
+
+      assert {:ok, %{token: wrong_context_token}} =
+               Accounts.issue_password_reset_token(recipient)
+
+      assert {:error, :invalid_contact_invite} =
+               Accounts.consume_contact_invite(recipient, wrong_context_token)
+
+      {expired_token, expired_persisted} = issue_contact_invite(inviter, recipient.email)
+
+      Repo.update_all(
+        from(user_token in UserToken, where: user_token.id == ^expired_persisted.id),
+        set: [inserted_at: DateTime.add(DateTime.utc_now(), -8, :day)]
+      )
+
+      assert {:error, :invalid_contact_invite} =
+               Accounts.consume_contact_invite(recipient, expired_token)
+    end
+
+    test "consumes a verified recipient token once without storing raw token material" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "verified-invite-recipient@example.com")
+      {token, persisted} = issue_contact_invite(inviter, String.upcase(recipient.email))
+
+      assert {:ok, %{__struct__: ContactInviteConversion} = conversion} =
+               Accounts.consume_contact_invite(recipient, token)
+
+      assert conversion.invite_token_id == persisted.id
+      assert conversion.inviter_id == inviter.id
+      assert conversion.recipient_user_id == recipient.id
+      assert conversion.invite_secret_hash == persisted.secret_hash
+      assert %DateTime{} = conversion.consumed_at
+      assert is_binary(conversion.entropy_id)
+      refute Repo.get(UserToken, persisted.id)
+    end
+
+    test "password signup consumption atomically verifies only the matching email and confirms the user" do
+      inviter = user_fixture()
+      password = valid_user_password()
+
+      assert {:ok, %{user: recipient}} =
+               Accounts.sign_up_with_password(%{
+                 email: "password-invite-recipient@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      assert {:ok, other_join} =
+               Accounts.attach_user_email_address(recipient, "other-address@example.com")
+
+      {token, _persisted} = issue_contact_invite(inviter, String.upcase(recipient.email))
+
+      assert {:ok, %{recipient_user_id: recipient_id}} =
+               Accounts.consume_contact_invite(recipient, token)
+
+      assert recipient_id == recipient.id
+
+      reloaded =
+        Accounts.get_user!(recipient.id)
+        |> Repo.preload(user_email_addresses: :email_address)
+
+      assert %DateTime{} = reloaded.confirmed_at
+
+      matching_join =
+        Enum.find(reloaded.user_email_addresses, fn join ->
+          join.email_address.normalized_email == recipient.email
+        end)
+
+      assert %DateTime{} = matching_join.verified_at
+      assert is_nil(Repo.get!(UserEmailAddress, other_join.id).verified_at)
+    end
+
+    test "rejects a different recipient without changing verification" do
+      inviter = user_fixture()
+      password = valid_user_password()
+
+      assert {:ok, %{user: recipient}} =
+               Accounts.sign_up_with_password(%{
+                 email: "nonmatching-invite-recipient@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      {token, persisted} = issue_contact_invite(inviter, "someone-else@example.com")
+
+      assert {:error, :invalid_contact_invite} =
+               Accounts.consume_contact_invite(recipient, token)
+
+      reloaded =
+        Accounts.get_user!(recipient.id)
+        |> Repo.preload(:user_email_addresses)
+
+      assert is_nil(reloaded.confirmed_at)
+      assert Enum.all?(reloaded.user_email_addresses, &is_nil(&1.verified_at))
+      assert Repo.get(UserToken, persisted.id)
+    end
+
+    test "returns the exact conversion to the same viewer and secret during the handoff window" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "idempotent-invite-recipient@example.com")
+      {token, _persisted} = issue_contact_invite(inviter, recipient.email)
+
+      assert {:ok, first_conversion} = Accounts.consume_contact_invite(recipient, token)
+      assert {:ok, second_conversion} = Accounts.consume_contact_invite(recipient, token)
+      assert second_conversion.id == first_conversion.id
+    end
+
+    test "rejects conversion replay for a wrong secret, different viewer, or expired handoff" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "replay-invite-recipient@example.com")
+      other_user = user_fixture()
+      {token, _persisted} = issue_contact_invite(inviter, recipient.email)
+
+      assert {:ok, conversion} = Accounts.consume_contact_invite(recipient, token)
+      assert {:ok, %{id: token_id}} = Tokens.decode_serialized_value(token)
+
+      wrong_secret_token = Tokens.encode_serialized_value(token_id, "wrong-secret")
+
+      assert {:error, :invalid_contact_invite} =
+               Accounts.consume_contact_invite(recipient, wrong_secret_token)
+
+      assert {:error, :invalid_contact_invite} =
+               Accounts.consume_contact_invite(other_user, token)
+
+      Repo.update_all(
+        from(candidate in ContactInviteConversion, where: candidate.id == ^conversion.id),
+        set: [consumed_at: DateTime.add(DateTime.utc_now(), -61, :minute)]
+      )
+
+      assert {:error, :invalid_contact_invite} =
+               Accounts.consume_contact_invite(recipient, token)
+    end
+
+    test "rolls back email verification when conversion insertion cannot complete" do
+      inviter = user_fixture()
+      password = valid_user_password()
+
+      assert {:ok, %{user: recipient}} =
+               Accounts.sign_up_with_password(%{
+                 email: "rollback-invite-recipient@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      {token, persisted} = issue_contact_invite(inviter, recipient.email)
+
+      assert {:ok, _existing_conversion} =
+               Repo.insert(
+                 struct(ContactInviteConversion,
+                   invite_token_id: persisted.id,
+                   invite_secret_hash: persisted.secret_hash,
+                   inviter_id: inviter.id,
+                   recipient_user_id: recipient.id,
+                   consumed_at: DateTime.utc_now()
+                 )
+               )
+
+      assert {:error, :invalid_contact_invite} =
+               Accounts.consume_contact_invite(recipient, token)
+
+      reloaded =
+        Accounts.get_user!(recipient.id)
+        |> Repo.preload(:user_email_addresses)
+
+      assert is_nil(reloaded.confirmed_at)
+      assert Enum.all?(reloaded.user_email_addresses, &is_nil(&1.verified_at))
+      assert Repo.get(UserToken, persisted.id)
+    end
+
+    test "serializes concurrent consumers into one conversion returned to both callers" do
+      inviter = user_fixture()
+      password = valid_user_password()
+
+      assert {:ok, %{user: recipient}} =
+               Accounts.sign_up_with_password(%{
+                 email: "concurrent-invite-recipient@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      {token, persisted} = issue_contact_invite(inviter, recipient.email)
+
+      tasks =
+        for _index <- 1..2 do
+          Task.async(fn -> Accounts.consume_contact_invite(recipient, token) end)
+        end
+
+      assert [{:ok, first}, {:ok, second}] = Enum.map(tasks, &Task.await(&1, 5_000))
+      assert first.id == second.id
+      assert 1 == Repo.aggregate(ContactInviteConversion, :count, :id)
+      refute Repo.get(UserToken, persisted.id)
+
+      reloaded =
+        Accounts.get_user!(recipient.id)
+        |> Repo.preload(:user_email_addresses)
+
+      assert %DateTime{} = reloaded.confirmed_at
+      assert 1 == Enum.count(reloaded.user_email_addresses, &match?(%DateTime{}, &1.verified_at))
+    end
+  end
+
   describe "deliver_phone_verification_instructions/2" do
     setup do
       original_level = Logger.level()
@@ -1197,6 +1419,13 @@ defmodule LC.AccountsTest do
 
   defp assert_uuid_v7!(uuid) when is_binary(uuid) do
     assert String.at(uuid, 14) == "7"
+  end
+
+  defp issue_contact_invite(inviter, recipient_email) do
+    assert {:ok, %{token: token, user_token: persisted}} =
+             Accounts.issue_contact_invite_token(inviter, recipient_email)
+
+    {token, persisted}
   end
 
   defp accounts_function_calls_local?(caller_name, caller_arity, callee_name, callee_arity) do

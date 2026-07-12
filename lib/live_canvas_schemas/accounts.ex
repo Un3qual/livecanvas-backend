@@ -3,6 +3,8 @@ defmodule LCSchemas.Accounts do
 
   @type user_privacy_mode :: :private | :public
 
+  @type contact_invite_consumption_error :: :invalid_contact_invite
+
   @type staff_permission :: :post_report_moderation
 
   @type user_identity_provider ::
