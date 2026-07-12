@@ -193,7 +193,14 @@ defmodule LCGQL.Accounts.ContactResolver do
   # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
   # transport-agnostic while tests can assert invite delivery side effects.
   @spec contact_invite_url(String.t()) :: String.t()
-  defp contact_invite_url(token), do: "https://livecanvas.invalid/invites/#{token}"
+  defp contact_invite_url(token) do
+    public_app_origin =
+      :live_canvas
+      |> Application.fetch_env!(:public_app_origin)
+      |> String.trim_trailing("/")
+
+    "#{public_app_origin}/invites#token=#{URI.encode_www_form(token)}"
+  end
 
   @spec invite_delivery_error(invite_delivery_error_reason()) :: mutation_error()
   defp invite_delivery_error(:invalid_recipient),

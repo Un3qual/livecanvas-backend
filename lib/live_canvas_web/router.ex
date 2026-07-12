@@ -21,6 +21,7 @@ defmodule LCWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/invites", ContactInviteController, :show
   end
 
   scope "/api", LCWeb do

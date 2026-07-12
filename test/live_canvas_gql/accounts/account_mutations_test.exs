@@ -4,6 +4,7 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   import LC.AccountsFixtures
   import LC.PasskeyTestSupport
   import LC.ProviderAuthTestSupport
+  import Swoosh.TestAssertions
 
   alias LC.{Accounts, Social}
   alias LC.Infra.Repo
@@ -1187,6 +1188,73 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   end
 
   describe "deliverViewerContactInvite" do
+    setup do
+      previous_origin = Application.fetch_env!(:live_canvas, :public_app_origin)
+
+      on_exit(fn ->
+        Application.put_env(:live_canvas, :public_app_origin, previous_origin)
+      end)
+
+      :ok
+    end
+
+    test "places the percent-encoded invite token only in the configured HTTPS URL fragment" do
+      viewer = user_fixture()
+      assert_receive {:email, _login_email}
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation DeliverViewerContactInvite($recipient: String!) {
+        deliverViewerContactInvite(input: {recipient: $recipient}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      for configured_origin <- [
+            "https://app.livecanvas.example",
+            "https://app.livecanvas.example/"
+          ] do
+        Application.put_env(:live_canvas, :public_app_origin, configured_origin)
+
+        assert {:ok,
+                %{
+                  data: %{
+                    "deliverViewerContactInvite" => %{
+                      "errors" => []
+                    }
+                  }
+                }} =
+                 Absinthe.run(
+                   mutation,
+                   LCGQL.Schema,
+                   variables: %{"recipient" => "Friend@Example.com"},
+                   context: context
+                 )
+
+        assert_email_sent(fn email ->
+          [delivery_url] = Regex.run(~r{https://\S+/invites#token=\S+}, email.text_body)
+          uri = URI.parse(delivery_url)
+
+          assert delivery_url =~ ~r{^https://app\.livecanvas\.example/invites#token=}
+          assert uri.scheme == "https"
+          assert uri.host == "app.livecanvas.example"
+          assert uri.path == "/invites"
+          assert uri.query == nil
+          assert uri.userinfo == nil
+          assert uri.fragment =~ ~r/^token=[A-Za-z0-9._~-]+$/
+
+          assert %{"token" => raw_token} = URI.decode_query(uri.fragment)
+          refute URI.to_string(%{uri | fragment: nil}) =~ raw_token
+
+          true
+        end)
+      end
+    end
+
     test "delivers an invite for the authenticated viewer and persists a contact invite token" do
       viewer = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}

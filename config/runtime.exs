@@ -23,6 +23,26 @@ end
 config :live_canvas, LCWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+if config_env() == :prod do
+  public_app_origin =
+    System.get_env("LIVE_CANVAS_PUBLIC_ORIGIN") ||
+      raise "environment variable LIVE_CANVAS_PUBLIC_ORIGIN is required."
+
+  public_app_origin_uri = URI.parse(public_app_origin)
+
+  unless public_app_origin_uri.scheme == "https" and
+           is_binary(public_app_origin_uri.host) and public_app_origin_uri.host != "" and
+           public_app_origin_uri.userinfo == nil and public_app_origin_uri.query == nil and
+           public_app_origin_uri.fragment == nil and
+           public_app_origin_uri.path in [nil, "", "/"] do
+    raise """
+    environment variable LIVE_CANVAS_PUBLIC_ORIGIN must be an absolute HTTPS origin with no path, query, or fragment.
+    """
+  end
+
+  config :live_canvas, :public_app_origin, String.trim_trailing(public_app_origin, "/")
+end
+
 parse_boolean_env = fn env_name, default ->
   case System.get_env(env_name) do
     nil ->

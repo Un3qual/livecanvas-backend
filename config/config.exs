@@ -9,6 +9,8 @@ import Config
 
 config :live_canvas, namespace: LC
 
+config :live_canvas, :public_app_origin, "https://localhost:4000"
+
 config :live_canvas, LCGQL.Router, enable_graphiql: false
 
 config :live_canvas, LC.RateLimiter,

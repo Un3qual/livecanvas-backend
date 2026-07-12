@@ -24,6 +24,9 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/live_canvas"
 import topbar from "../vendor/topbar"
+import {initializeContactInviteLanding} from "./contact_invite_landing"
+
+initializeContactInviteLanding()
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
@@ -80,4 +83,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-
