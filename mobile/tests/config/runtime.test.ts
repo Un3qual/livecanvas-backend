@@ -1,8 +1,29 @@
 import { describe, expect, mock, test } from 'bun:test';
 import type { ReactElement } from 'react';
 
+function NullReactNativeComponent() {
+  return null;
+}
+
+mock.module('react-native', () => ({
+  ActivityIndicator: NullReactNativeComponent,
+  FlatList: NullReactNativeComponent,
+  Linking: { getInitialURL: () => Promise.resolve(null) },
+  Platform: { OS: 'ios' },
+  Pressable: NullReactNativeComponent,
+  RefreshControl: NullReactNativeComponent,
+  ScrollView: NullReactNativeComponent,
+  StyleSheet: {
+    create: <Styles>(styles: Styles): Styles => styles,
+  },
+  Text: NullReactNativeComponent,
+  TextInput: NullReactNativeComponent,
+  View: NullReactNativeComponent,
+}));
+
 const {
   authRouteHref,
+  bootstrapRuntime,
   readAuthReturnToParam,
   resolveLandingHrefForAuth,
   routeHrefFromUrl,
@@ -61,6 +82,17 @@ const { default: LiveSessionModal } = await import(
 );
 
 describe('routeHrefFromUrl', () => {
+  test('accepts only opaque handoff invite routes', () => {
+    expect(
+      routeHrefFromUrl(
+        'livecanvas-mobile://invite?handoff=550e8400-e29b-41d4-a716-446655440000',
+      ),
+    ).toBe('/invite?handoff=550e8400-e29b-41d4-a716-446655440000');
+    expect(
+      routeHrefFromUrl('livecanvas-mobile://invite?token=secret'),
+    ).toBeNull();
+    expect(routeHrefFromUrl('livecanvas-mobile://invite')).toBe('/invite');
+  });
   test('accepts the sign-up deep link route', () => {
     expect(routeHrefFromUrl('livecanvas-mobile://sign-up')).toBe('/sign-up');
   });
@@ -137,6 +169,21 @@ describe('routeHrefFromUrl', () => {
 });
 
 describe('resolveLandingHrefForAuth', () => {
+  test('keeps the neutral invite route public while signed out', () => {
+    expect(
+      resolveLandingHrefForAuth(
+        {
+          initialUrl: '/invite?handoff=550e8400-e29b-41d4-a716-446655440000',
+          initialHref: '/invite?handoff=550e8400-e29b-41d4-a716-446655440000',
+          landingHref: '/invite?handoff=550e8400-e29b-41d4-a716-446655440000',
+          defaultHref: '/sign-in',
+          bootSessionState: 'signed_out',
+          resetReason: null,
+        },
+        'unauthenticated',
+      ),
+    ).toBe('/invite?handoff=550e8400-e29b-41d4-a716-446655440000');
+  });
   test('sends unauthenticated cold starts to sign-in when the deep link is protected', () => {
     expect(
       resolveLandingHrefForAuth(
@@ -392,6 +439,35 @@ describe('resolveLandingHrefForAuth', () => {
 });
 
 describe('auth return targets', () => {
+  test('round trips only one opaque invite handoff', () => {
+    const inviteHref = '/invite?handoff=550e8400-e29b-41d4-a716-446655440000';
+
+    expect(authRouteHref('/sign-in', inviteHref)).toBe(
+      '/sign-in?returnTo=%2Finvite%3Fhandoff%3D550e8400-e29b-41d4-a716-446655440000',
+    );
+    expect(readAuthReturnToParam(inviteHref)).toBe(inviteHref);
+  });
+
+  test('rejects token-bearing, malformed, array, duplicate, and nested return targets', () => {
+    expect(readAuthReturnToParam('/invite?token=secret')).toBeNull();
+    expect(readAuthReturnToParam('/invite?handoff=%E0%A4%A')).toBeNull();
+    expect(
+      readAuthReturnToParam([
+        '/invite?handoff=550e8400-e29b-41d4-a716-446655440000',
+      ]),
+    ).toBeNull();
+    expect(
+      readAuthReturnToParam(
+        '/invite?handoff=550e8400-e29b-41d4-a716-446655440000&handoff=other-handoff',
+      ),
+    ).toBeNull();
+    expect(
+      readAuthReturnToParam(
+        '/invite?handoff=550e8400-e29b-41d4-a716-446655440000&returnTo=%2Fsettings',
+      ),
+    ).toBeNull();
+  });
+
   test('encodes live-session return targets on auth routes', () => {
     expect(
       authRouteHref(
@@ -430,13 +506,13 @@ describe('auth return targets', () => {
     );
   });
 
-  test('reads only the first live-session return target', () => {
+  test('rejects array return targets', () => {
     expect(
       readAuthReturnToParam([
         '/live-session?sessionId=TGl2ZVNlc3Npb246MTIz',
         '/profile',
       ]),
-    ).toBe('/live-session?sessionId=TGl2ZVNlc3Npb246MTIz');
+    ).toBeNull();
   });
 
   test('reads host-broadcast return targets', () => {
@@ -460,6 +536,78 @@ describe('auth return targets', () => {
     expect(readAuthReturnToParam('https://example.com')).toBeNull();
     expect(readAuthReturnToParam('/sign-in')).toBeNull();
     expect(readAuthReturnToParam('/profile')).toBeNull();
+  });
+});
+
+describe('contact invite startup bootstrap', () => {
+  const environment = {
+    apiBaseUrl: 'https://api.example.test',
+    websocketUrl: 'wss://api.example.test/socket',
+    bootSessionState: 'signed_out' as const,
+  };
+
+  test('stores a deep-link token before returning a redacted handoff snapshot', async () => {
+    const seenTokens: string[] = [];
+    const snapshot = await bootstrapRuntime(environment, {
+      getInitialUrl: () =>
+        Promise.resolve('livecanvas-mobile://invite?token=serialized-secret'),
+      storeInviteToken: async (token) => {
+        seenTokens.push(token);
+        return { handoffId: '550e8400-e29b-41d4-a716-446655440000' };
+      },
+    });
+
+    expect(seenTokens).toEqual(['serialized-secret']);
+    expect(snapshot).toEqual({
+      initialUrl: '/invite?handoff=550e8400-e29b-41d4-a716-446655440000',
+      initialHref: '/invite?handoff=550e8400-e29b-41d4-a716-446655440000',
+      landingHref: '/invite?handoff=550e8400-e29b-41d4-a716-446655440000',
+      defaultHref: '/sign-in',
+      bootSessionState: 'signed_out',
+      resetReason: null,
+    });
+    expect(JSON.stringify(snapshot)).not.toContain('serialized-secret');
+  });
+
+  test('accepts one HTTPS fragment token and redacts it', async () => {
+    const snapshot = await bootstrapRuntime(environment, {
+      getInitialUrl: () =>
+        Promise.resolve('https://app.example.test/invites#token=https-secret'),
+      storeInviteToken: async () => ({
+        handoffId: '550e8400-e29b-41d4-a716-446655440001',
+      }),
+    });
+
+    expect(snapshot.initialHref).toBe(
+      '/invite?handoff=550e8400-e29b-41d4-a716-446655440001',
+    );
+    expect(JSON.stringify(snapshot)).not.toContain('https-secret');
+  });
+
+  test('uses the generic invite state for malformed, duplicate, or failed storage', async () => {
+    for (const initialUrl of [
+      'livecanvas-mobile://invite?token=',
+      'livecanvas-mobile://invite?token=one&token=two',
+      'https://app.example.test/invites#token=%E0%A4%A',
+    ]) {
+      const snapshot = await bootstrapRuntime(environment, {
+        getInitialUrl: () => Promise.resolve(initialUrl),
+        storeInviteToken: async () => ({ handoffId: 'unused-handoff' }),
+      });
+
+      expect(snapshot.initialUrl).toBe('/invite');
+      expect(snapshot.initialHref).toBe('/invite');
+    }
+
+    const failed = await bootstrapRuntime(environment, {
+      getInitialUrl: () =>
+        Promise.resolve('livecanvas-mobile://invite?token=storage-secret'),
+      storeInviteToken: () => Promise.reject(new Error('secret must not leak')),
+    });
+
+    expect(failed.initialHref).toBe('/invite');
+    expect(JSON.stringify(failed)).not.toContain('storage-secret');
+    expect(JSON.stringify(failed)).not.toContain('secret must not leak');
   });
 });
 
