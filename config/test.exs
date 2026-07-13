@@ -3,6 +3,8 @@ import Config
 # Only in tests, remove the complexity from the password hashing algorithm
 config :argon2_elixir, t_cost: 1, m_cost: 8
 
+config :live_canvas, :public_app_origin, "https://test.livecanvas.local"
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

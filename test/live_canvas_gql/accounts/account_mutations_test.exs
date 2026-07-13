@@ -4,10 +4,12 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   import LC.AccountsFixtures
   import LC.PasskeyTestSupport
   import LC.ProviderAuthTestSupport
+  import Swoosh.TestAssertions
 
   alias LC.{Accounts, Social}
+  alias LC.Accounts.Tokens
   alias LC.Infra.Repo
-  alias LCSchemas.Accounts.UserToken
+  alias LCSchemas.Accounts.{ContactInviteConversion, UserEmailAddress, UserToken}
   alias LCSchemas.Infra.{AccountDeletionRequest, AsyncJob, DataExportRequest}
 
   describe "registerWithEmail" do
@@ -1187,13 +1189,90 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
   end
 
   describe "deliverViewerContactInvite" do
+    setup do
+      previous_origin = Application.fetch_env!(:live_canvas, :public_app_origin)
+
+      on_exit(fn ->
+        Application.put_env(:live_canvas, :public_app_origin, previous_origin)
+      end)
+
+      :ok
+    end
+
+    test "places the percent-encoded invite token only in the configured HTTPS URL fragment" do
+      viewer = user_fixture()
+      assert_receive {:email, _login_email}
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      contact_entry =
+        upsert_contact_entry(viewer, emails: ["friend@example.com"])
+
+      contact_match_id = contact_match_id(contact_entry)
+
+      mutation = """
+      mutation DeliverViewerContactInvite($contactMatchId: ID!) {
+        deliverViewerContactInvite(input: {contactMatchId: $contactMatchId}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      for configured_origin <- [
+            "https://app.livecanvas.example",
+            "https://app.livecanvas.example/"
+          ] do
+        Application.put_env(:live_canvas, :public_app_origin, configured_origin)
+
+        assert {:ok,
+                %{
+                  data: %{
+                    "deliverViewerContactInvite" => %{
+                      "errors" => []
+                    }
+                  }
+                }} =
+                 Absinthe.run(
+                   mutation,
+                   LCGQL.Schema,
+                   variables: %{"contactMatchId" => contact_match_id},
+                   context: context
+                 )
+
+        assert_email_sent(fn email ->
+          [delivery_url] = Regex.run(~r{https://\S+/invites#token=\S+}, email.text_body)
+          uri = URI.parse(delivery_url)
+
+          assert email.text_body =~ "You're invited to join LiveCanvas."
+          refute email.text_body =~ viewer.email
+          assert delivery_url =~ ~r{^https://app\.livecanvas\.example/invites#token=}
+          assert uri.scheme == "https"
+          assert uri.host == "app.livecanvas.example"
+          assert uri.path == "/invites"
+          assert uri.query == nil
+          assert uri.userinfo == nil
+          assert uri.fragment =~ ~r/^token=[A-Za-z0-9._~-]+$/
+
+          assert %{"token" => raw_token} = URI.decode_query(uri.fragment)
+          refute URI.to_string(%{uri | fragment: nil}) =~ raw_token
+
+          true
+        end)
+      end
+    end
+
     test "delivers an invite for the authenticated viewer and persists a contact invite token" do
       viewer = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
+      contact_entry =
+        upsert_contact_entry(viewer, emails: ["Friend@Example.com"])
+
       mutation = """
-      mutation DeliverViewerContactInvite($recipient: String!) {
-        deliverViewerContactInvite(input: {recipient: $recipient}) {
+      mutation DeliverViewerContactInvite($contactMatchId: ID!) {
+        deliverViewerContactInvite(input: {contactMatchId: $contactMatchId}) {
           errors {
             field
             message
@@ -1213,24 +1292,29 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                Absinthe.run(
                  mutation,
                  LCGQL.Schema,
-                 variables: %{"recipient" => "Friend@Example.com"},
+                 variables: %{"contactMatchId" => contact_match_id(contact_entry)},
                  context: context
                )
 
       assert %UserToken{} =
                user_token =
-               Repo.get_by(UserToken, user_id: viewer.id, context: :contact_invite_token)
+               Repo.get_by(
+                 UserToken,
+                 user_id: viewer.id,
+                 context: :contact_invite_fragment_token
+               )
 
       assert user_token.sent_to == "friend@example.com"
     end
 
-    test "returns structured errors for invalid recipient values" do
+    test "rejects invalid or wrong-type contact match ids" do
       viewer = user_fixture()
       context = %{current_scope: Accounts.scope_for_user(viewer)}
+      wrong_type_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
 
       mutation = """
-      mutation {
-        deliverViewerContactInvite(input: {recipient: "   "}) {
+      mutation DeliverViewerContactInvite($contactMatchId: ID!) {
+        deliverViewerContactInvite(input: {contactMatchId: $contactMatchId}) {
           errors {
             field
             message
@@ -1243,19 +1327,90 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
               %{
                 data: %{
                   "deliverViewerContactInvite" => %{
-                    "errors" => [%{"field" => "recipient", "message" => "is invalid"}]
+                    "errors" => [%{"field" => "contactMatchId", "message" => "is invalid"}]
                   }
                 }
-              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"contactMatchId" => wrong_type_id},
+                 context: context
+               )
     end
 
-    test "does not persist invite tokens when the recipient is invalid" do
+    test "rejects foreign and self-owned contact rows while suppressing newly matched rows" do
       viewer = user_fixture()
+      outsider = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      foreign_contact =
+        upsert_contact_entry(outsider, emails: ["foreign-contact@example.com"])
+
+      self_contact =
+        upsert_contact_entry(viewer, emails: [viewer.email])
+
+      matched_email = "newly-matched-contact@example.com"
+      matched_contact = upsert_contact_entry(viewer, emails: [matched_email])
+      _matched_user = user_fixture(email: matched_email)
+
+      mutation = """
+      mutation DeliverViewerContactInvite($contactMatchId: ID!) {
+        deliverViewerContactInvite(input: {contactMatchId: $contactMatchId}) {
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      for contact_entry <- [foreign_contact, self_contact] do
+        assert {:ok,
+                %{
+                  data: %{
+                    "deliverViewerContactInvite" => %{
+                      "errors" => [
+                        %{"field" => "contactMatchId", "message" => "is invalid"}
+                      ]
+                    }
+                  }
+                }} =
+                 Absinthe.run(mutation, LCGQL.Schema,
+                   variables: %{"contactMatchId" => contact_match_id(contact_entry)},
+                   context: context
+                 )
+      end
+
+      assert {:ok,
+              %{
+                data: %{
+                  "deliverViewerContactInvite" => %{
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"contactMatchId" => contact_match_id(matched_contact)},
+                 context: context
+               )
+
+      refute Repo.get_by(
+               UserToken,
+               user_id: viewer.id,
+               context: :contact_invite_fragment_token
+             )
+    end
+
+    test "suppresses delivery to a hidden matched account without revealing the match" do
+      viewer = user_fixture()
+      hidden_match = user_fixture(email: "hidden-contact@example.com")
+      assert {:ok, _block} = Social.block_user(hidden_match, viewer)
+
+      contact_entry = upsert_contact_entry(viewer, emails: [hidden_match.email])
       context = %{current_scope: Accounts.scope_for_user(viewer)}
 
       mutation = """
-      mutation {
-        deliverViewerContactInvite(input: {recipient: "invalid-recipient"}) {
+      mutation DeliverViewerContactInvite($contactMatchId: ID!) {
+        deliverViewerContactInvite(input: {contactMatchId: $contactMatchId}) {
           errors {
             field
             message
@@ -1268,18 +1423,25 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
               %{
                 data: %{
                   "deliverViewerContactInvite" => %{
-                    "errors" => [%{"field" => "recipient", "message" => "is invalid"}]
+                    "errors" => []
                   }
                 }
-              }} = Absinthe.run(mutation, LCGQL.Schema, context: context)
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"contactMatchId" => contact_match_id(contact_entry)},
+                 context: context
+               )
 
-      refute Repo.get_by(UserToken, user_id: viewer.id, context: :contact_invite_token)
+      refute Repo.get_by(UserToken,
+               user_id: viewer.id,
+               context: :contact_invite_fragment_token
+             )
     end
 
     test "returns an unauthenticated error without a viewer scope" do
       mutation = """
       mutation {
-        deliverViewerContactInvite(input: {recipient: "friend@example.com"}) {
+        deliverViewerContactInvite(input: {contactMatchId: "invalid"}) {
           errors {
             field
             message
@@ -1296,6 +1458,180 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                   }
                 }
               }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
+  describe "consumeContactInvite" do
+    test "consumes a verified recipient invite and supports exact-token idempotent readback" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "graphql-invite-recipient@example.com")
+      token = issue_contact_invite(inviter, recipient.email)
+
+      assert %{"consumed" => true, "errors" => []} =
+               consume_contact_invite(token, recipient)
+
+      assert %{"consumed" => true, "errors" => []} =
+               consume_contact_invite(token, recipient)
+
+      assert %ContactInviteConversion{recipient_user_id: recipient_id} =
+               Repo.one(ContactInviteConversion)
+
+      assert recipient_id == recipient.id
+      refute Repo.get_by(UserToken, context: :contact_invite_fragment_token)
+    end
+
+    test "atomically verifies and confirms a password-created matching recipient" do
+      inviter = user_fixture()
+      password = valid_user_password()
+
+      assert {:ok, %{user: recipient}} =
+               Accounts.sign_up_with_password(%{
+                 email: "graphql-password-invite@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      assert {:ok, other_join} =
+               Accounts.attach_user_email_address(recipient, "other-graphql-address@example.com")
+
+      token = issue_contact_invite(inviter, String.upcase(recipient.email))
+
+      assert %{"consumed" => true, "errors" => []} =
+               consume_contact_invite(token, recipient)
+
+      reloaded =
+        Accounts.get_user!(recipient.id)
+        |> Repo.preload(user_email_addresses: :email_address)
+
+      assert %DateTime{} = reloaded.confirmed_at
+
+      assert Enum.any?(reloaded.user_email_addresses, fn join ->
+               join.email_address.normalized_email == recipient.email and
+                 match?(%DateTime{}, join.verified_at)
+             end)
+
+      assert is_nil(Repo.get!(UserEmailAddress, other_join.id).verified_at)
+    end
+
+    test "returns one generic error for malformed, unknown, tampered, expired, and wrong-context tokens" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "graphql-invalid-invite@example.com")
+
+      valid_token = issue_contact_invite(inviter, recipient.email)
+      assert {:ok, %{id: token_id}} = Tokens.decode_serialized_value(valid_token)
+      tampered_token = Tokens.encode_serialized_value(token_id, "tampered-secret")
+
+      expired_token = issue_contact_invite(inviter, recipient.email)
+      assert {:ok, %{id: expired_token_id}} = Tokens.decode_serialized_value(expired_token)
+
+      Repo.update_all(
+        from(user_token in UserToken, where: user_token.id == ^expired_token_id),
+        set: [inserted_at: DateTime.add(DateTime.utc_now(), -8, :day)]
+      )
+
+      assert {:ok, %{token: wrong_context_token}} =
+               Accounts.issue_password_reset_token(recipient)
+
+      unknown_token = Tokens.encode_serialized_value(Ecto.UUID.generate(), "unknown-secret")
+
+      for token <- [
+            "malformed",
+            unknown_token,
+            tampered_token,
+            expired_token,
+            wrong_context_token
+          ] do
+        assert %{
+                 "consumed" => false,
+                 "errors" => [
+                   %{"field" => nil, "message" => "invalid_contact_invite"}
+                 ]
+               } = consume_contact_invite(token, recipient)
+      end
+    end
+
+    test "returns the generic error to the wrong recipient without changing verification" do
+      inviter = user_fixture()
+      intended_recipient = user_fixture(email: "graphql-intended-recipient@example.com")
+      password = valid_user_password()
+
+      assert {:ok, %{user: wrong_recipient}} =
+               Accounts.sign_up_with_password(%{
+                 email: "graphql-wrong-recipient@example.com",
+                 password: password,
+                 password_confirmation: password
+               })
+
+      token = issue_contact_invite(inviter, intended_recipient.email)
+
+      assert %{
+               "consumed" => false,
+               "errors" => [%{"field" => nil, "message" => "invalid_contact_invite"}]
+             } = consume_contact_invite(token, wrong_recipient)
+
+      reloaded =
+        Accounts.get_user!(wrong_recipient.id)
+        |> Repo.preload(:user_email_addresses)
+
+      assert is_nil(reloaded.confirmed_at)
+      assert Enum.all?(reloaded.user_email_addresses, &is_nil(&1.verified_at))
+    end
+
+    test "returns the generic error for wrong-secret and wrong-account conversion replay" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "graphql-replay-recipient@example.com")
+      wrong_recipient = user_fixture()
+      token = issue_contact_invite(inviter, recipient.email)
+
+      assert %{"consumed" => true, "errors" => []} =
+               consume_contact_invite(token, recipient)
+
+      assert {:ok, %{id: token_id}} = Tokens.decode_serialized_value(token)
+      wrong_secret_token = Tokens.encode_serialized_value(token_id, "wrong-secret")
+
+      for {replay_token, viewer} <- [
+            {wrong_secret_token, recipient},
+            {token, wrong_recipient}
+          ] do
+        assert %{
+                 "consumed" => false,
+                 "errors" => [
+                   %{"field" => nil, "message" => "invalid_contact_invite"}
+                 ]
+               } = consume_contact_invite(replay_token, viewer)
+      end
+    end
+
+    test "returns the generic error when exact-token replay is outside the handoff window" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "graphql-old-replay-recipient@example.com")
+      token = issue_contact_invite(inviter, recipient.email)
+
+      assert %{"consumed" => true, "errors" => []} =
+               consume_contact_invite(token, recipient)
+
+      Repo.update_all(ContactInviteConversion,
+        set: [consumed_at: DateTime.add(DateTime.utc_now(), -61, :minute)]
+      )
+
+      assert %{
+               "consumed" => false,
+               "errors" => [%{"field" => nil, "message" => "invalid_contact_invite"}]
+             } = consume_contact_invite(token, recipient)
+    end
+
+    test "returns the existing unauthenticated payload without consuming or looking up the token" do
+      inviter = user_fixture()
+      recipient = user_fixture(email: "graphql-unauthenticated-recipient@example.com")
+      token = issue_contact_invite(inviter, recipient.email)
+
+      assert %{
+               "consumed" => false,
+               "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+             } = consume_contact_invite(token)
+
+      assert Repo.get_by(UserToken, context: :contact_invite_fragment_token)
+      refute Repo.one(ContactInviteConversion)
     end
   end
 
@@ -2463,5 +2799,44 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
 
       assert {:error, :revoked_token} = Accounts.authenticate_refresh_token(refresh_token)
     end
+  end
+
+  defp issue_contact_invite(inviter, recipient_email) do
+    assert {:ok, %{token: token}} =
+             Accounts.issue_contact_invite_token(inviter, recipient_email)
+
+    token
+  end
+
+  defp contact_match_id(%{id: id}) when is_integer(id) do
+    Absinthe.Relay.Node.to_global_id(:contact_match, id, LCGQL.Schema)
+  end
+
+  defp consume_contact_invite(token, viewer \\ nil) do
+    mutation = """
+    mutation ConsumeContactInvite($token: String!) {
+      consumeContactInvite(input: {token: $token}) {
+        consumed
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    context =
+      case viewer do
+        nil -> %{}
+        viewer -> %{current_scope: Accounts.scope_for_user(viewer)}
+      end
+
+    assert {:ok, %{data: %{"consumeContactInvite" => payload}}} =
+             Absinthe.run(mutation, LCGQL.Schema,
+               variables: %{"token" => token},
+               context: context
+             )
+
+    payload
   end
 end

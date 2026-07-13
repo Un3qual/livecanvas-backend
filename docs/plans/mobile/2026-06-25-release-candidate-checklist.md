@@ -1,6 +1,6 @@
 # Mobile Release Candidate Checklist
 
-Last reviewed: 2026-06-30
+Last reviewed: 2026-07-11
 
 Source plan:
 `docs/plans/archive/completed/mobile/2026-06-05-testing-beta-release-readiness.md`
@@ -14,8 +14,10 @@ distribution build without `developmentClient`.
 No remote or authenticated EAS build or submit command is required by this
 checklist.
 
-Current status: deferred until product explicitly resumes release-candidate QA.
-Use `docs/plans/mobile/NOW.md` for the active non-QA product-batch selection.
+Current status: active after completion of all five approved product batches.
+Use `docs/plans/mobile/NOW.md` for the executable gate pointer. Begin with local
+entry criteria; remote EAS commands and physical-device work still require the
+listed external prerequisites.
 
 ## Entry Criteria
 
@@ -25,6 +27,10 @@ Use `docs/plans/mobile/NOW.md` for the active non-QA product-batch selection.
 - EAS environment values are configured for the target API and websocket
   endpoints. Do not rely on local `.env` or `.env.local` files for remote EAS
   jobs.
+- Backend `LIVE_CANVAS_PUBLIC_ORIGIN` and mobile
+  `EXPO_PUBLIC_APP_ORIGIN` are configured to the same normalized, non-placeholder
+  HTTPS origin. The API origin is a separate value and must not substitute for
+  the public app origin.
 - At least two test accounts exist: one host account and one separate viewer
   account.
 - A physical host device with camera and microphone is available. A physical
@@ -70,6 +76,27 @@ Use `docs/plans/mobile/NOW.md` for the active non-QA product-batch selection.
   worker environment, so the manual device QA sections below remain pending and
   the full release-candidate device QA is not marked complete.
 
+### 2026-07-11 Five Product Batch Closure
+
+- All five approved product batches are complete, including end-to-end contact
+  invitation delivery and authenticated one-time consumption.
+- Whole-branch review fixes keep delivered invite copy neutral, reject reserved
+  placeholder origins, require exact configured-origin HTTPS handoff on mobile,
+  and prevent the public landing endpoint from running GraphQL session/viewer
+  context.
+- Backend: a fresh test database reset and all migrations pass; `mix test`
+  reports 1,010 tests, zero failures, and one excluded; typecheck, warnings-as-errors
+  compilation, changed-file formatting, typespec checks, asset build, and the
+  public invite parser suite pass.
+- Mobile: the integration fixes did not change the GraphQL schema or Relay
+  operations, so regeneration was not required. `bun run test:quality` passes
+  with both typechecks, lint, 548 Bun tests, and 160 Jest tests. Jest retains
+  the existing non-failing worker force-exit warning.
+- Repo root: `git diff --check` passes for the complete Batch 5 branch.
+- Target EAS environment values, preview-build availability, beta accounts, and
+  physical host/viewer devices still require release-operator confirmation, so
+  the manual device sections remain pending.
+
 ## Launch Blockers
 
 Any item in this section blocks beta release until fixed or explicitly removed
@@ -113,6 +140,20 @@ from the release scope.
   without leaking the previous viewer.
 - Repeat sign-in for a separate viewer account on the second device or
   simulator.
+
+### Contact Invitations
+
+- From an authenticated inviter, send an invite to an unmatched email contact
+  and inspect the actual delivered email. Confirm the copy is neutral, does not
+  disclose the inviter's email, and links to the configured public app origin at
+  `/invites#token=...`.
+- Open that HTTPS link on the recipient device, confirm the neutral landing page
+  offers the LiveCanvas app handoff, and continue through the app without the raw
+  token appearing in visible navigation state.
+- Complete sign-in or account creation for the invited email, return through the
+  opaque handoff route, and confirm the invitation is consumed once. A forwarded
+  invite opened by an account that does not own the recipient email must remain
+  in the generic invalid state.
 
 ### Profiles
 

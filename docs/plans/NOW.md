@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-11
-Status: Batch 4 complete; Batch 5 End-to-End Contact Invitations active
+Status: all five product batches complete; release-candidate device QA active
 
 ## Purpose
 
@@ -14,7 +14,7 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 - Batch 2 design:
   `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
 - Latest completed implementation:
-  `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
+  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Batch 3 implementation plan:
   `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
 - Batch 4 implementation plan:
@@ -22,32 +22,35 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 - Batch 5 implementation plan:
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Batch 1 reversible social controls is complete in stacked base PR #115.
-- Remaining product batch: end-to-end contact invitations.
-- Release-candidate device QA remains deferred until all five batches close.
+- All five approved product batches are complete.
+- Release-candidate device QA resumes from
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`.
 
 ## Lane Pointers
 
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 5 Task 1 recipient-bound one-time consumption is next.
-- Verification: Batch 4's 53 focused and 980 full backend tests pass;
-  typecheck and warnings-as-errors compilation pass.
+- State: Batch 5 backend Tasks 1-3 complete; stand by only for defects found by
+  release-candidate QA.
+- Verification: neutral invite delivery, trusted public-origin configuration,
+  endpoint-neutral public landing, focused GraphQL behavior, assets, types, and
+  the 1,010-test backend suite pass.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 4 Tasks 2-4 complete; wait for Batch 5 backend Tasks 1-3 before
-  executing mobile Tasks 4-5.
+- State: Batch 5 mobile Tasks 4-5 complete; release-candidate QA is active.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: 33 focused Bun, 11 focused Jest, 508 full Bun, and 142 full
-  Jest tests passed; Relay generation, typechecks, lint, and patch hygiene pass.
+- Verification: configured-origin invite routing and the full mobile quality
+  gate pass with 548 Bun and 160 Jest tests; typechecks, lint, and patch hygiene
+  pass. Relay inputs were unchanged by the integration fixes.
 
 ## Execution Rule
 
-Execute Batch 5 from
-`docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`. Complete
-backend Tasks 1-3 before mobile Tasks 4-5.
+Execute the resumed release-candidate gate from
+`docs/plans/mobile/2026-06-25-release-candidate-checklist.md`. Do not run remote
+or authenticated EAS commands unless the user explicitly requests them.
 
 ## Cross-Lane Policy
 
@@ -57,7 +60,9 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Execute Batch 5 Task 1, Add Recipient-Bound One-Time Consumption.
+Run the release-candidate checklist's local entry gates, then inventory the
+remaining account, preview-build, and physical-device prerequisites for manual
+QA.
 
 ## Repair Conditions
 

@@ -17,10 +17,21 @@ defmodule LCWeb.Router do
     plug :accepts, ["json"]
   end
 
+  pipeline :public_html do
+    plug :accepts, ["html"]
+    plug :put_secure_browser_headers
+  end
+
   scope "/", LCWeb do
     pipe_through :browser
 
     get "/", PageController, :home
+  end
+
+  scope "/", LCWeb do
+    pipe_through :public_html
+
+    get "/invites", ContactInviteController, :show
   end
 
   scope "/api", LCWeb do

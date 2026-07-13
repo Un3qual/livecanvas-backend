@@ -2,6 +2,7 @@ defmodule LC.Accounts.UserTokenTest do
   use LC.DataCase
 
   alias LC.Accounts
+  alias LC.Infra.Repo
   alias LCSchemas.Accounts.UserToken
 
   import LC.AccountsFixtures
@@ -77,16 +78,67 @@ defmodule LC.Accounts.UserTokenTest do
       assert persisted.user_id == user.id
     end
 
-    test "issue_contact_invite_token/2 uses the contact invite context and target recipient" do
+    test "issue_contact_invite_token/2 uses the fragment invite context and target recipient" do
       user = user_fixture()
 
       assert {:ok, %{token: token, user_token: %UserToken{} = persisted}} =
                Accounts.issue_contact_invite_token(user, "friend@example.com")
 
       assert is_binary(token)
-      assert persisted.context == :contact_invite_token
+      assert persisted.context == :contact_invite_fragment_token
       assert persisted.sent_to == "friend@example.com"
       assert persisted.user_id == user.id
+    end
+
+    test "issue_contact_invite_token/2 rejects malformed recipients without persisting a token" do
+      user = user_fixture()
+
+      assert {:error, :invalid_recipient} =
+               Accounts.issue_contact_invite_token(user, "not-an-email")
+
+      refute Repo.get_by(UserToken,
+               user_id: user.id,
+               context: :contact_invite_fragment_token
+             )
+    end
+
+    test "valid_contact_invite_token?/2 accepts an exact fresh contact invite secret" do
+      user = user_fixture()
+
+      assert {:ok, %{token: token, user_token: persisted}} =
+               Accounts.issue_contact_invite_token(user, "friend@example.com")
+
+      assert {:ok, %{raw_secret: raw_secret}} =
+               Accounts.Tokens.decode_serialized_value(token)
+
+      assert Accounts.Tokens.valid_contact_invite_token?(persisted, raw_secret)
+    end
+
+    test "valid_contact_invite_token?/2 rejects tampered, wrong-context, and expired tokens" do
+      user = user_fixture()
+
+      assert {:ok, %{token: token, user_token: persisted}} =
+               Accounts.issue_contact_invite_token(user, "friend@example.com")
+
+      assert {:ok, %{raw_secret: raw_secret}} =
+               Accounts.Tokens.decode_serialized_value(token)
+
+      refute Accounts.Tokens.valid_contact_invite_token?(persisted, "tampered-secret")
+
+      refute Accounts.Tokens.valid_contact_invite_token?(
+               %{persisted | context: :password_reset_token},
+               raw_secret
+             )
+
+      refute Accounts.Tokens.valid_contact_invite_token?(
+               %{persisted | context: :contact_invite_token},
+               raw_secret
+             )
+
+      refute Accounts.Tokens.valid_contact_invite_token?(
+               %{persisted | inserted_at: DateTime.add(DateTime.utc_now(), -8, :day)},
+               raw_secret
+             )
     end
 
     test "issue_phone_verification_token/2 normalizes the phone and uses the phone verification context" do

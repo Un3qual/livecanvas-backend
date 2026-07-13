@@ -41,6 +41,35 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
            } = Jason.decode!(second_conn.resp_body)
   end
 
+  test "uses the generic mutation bucket for deliverViewerContactInvite", %{conn: conn} do
+    mutation = """
+    mutation {
+      deliverViewerContactInvite(input: {contactMatchId: "invalid"}) {
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    assert_second_graphql_request_rate_limited(conn, mutation)
+  end
+
+  test "uses the generic mutation bucket for consumeContactInvite", %{conn: conn} do
+    mutation = """
+    mutation {
+      consumeContactInvite(input: {token: "invalid-token"}) {
+        consumed
+        errors {
+          message
+        }
+      }
+    }
+    """
+
+    assert_second_graphql_request_rate_limited(conn, mutation)
+  end
+
   test "uses moderation-action limits for moderation mutations", %{conn: conn} do
     previous_config = Application.get_env(:live_canvas, LC.RateLimiter, [])
 
@@ -808,5 +837,21 @@ defmodule LCGQL.Relay.GraphQLRateLimitTest do
              Absinthe.run("{ __schema { mutationType { name } } }", LCGQL.Schema)
 
     name
+  end
+
+  defp assert_second_graphql_request_rate_limited(conn, mutation) do
+    conn = %{conn | remote_ip: {127, 0, 0, 1}}
+
+    first_conn = post(conn, "/graphql", %{"query" => mutation})
+    assert first_conn.status == 200
+
+    second_conn = post(conn, "/graphql", %{"query" => mutation})
+    assert second_conn.status == 429
+
+    assert %{
+             "errors" => [
+               %{"message" => "rate_limited", "extensions" => %{"code" => "RATE_LIMITED"}}
+             ]
+           } = Jason.decode!(second_conn.resp_body)
   end
 end

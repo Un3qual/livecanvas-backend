@@ -1,6 +1,7 @@
 import { Linking } from 'react-native';
 
 import type { AppEnvironment, BootSessionState } from './environment';
+import { redactContactInviteSnapshotUrl } from '../contacts/contactInviteLink';
 
 const KNOWN_ROUTE_HREFS = new Set([
   '/sign-in',
@@ -15,6 +16,7 @@ const KNOWN_ROUTE_HREFS = new Set([
   '/diagnostics',
   '/live-session',
   '/host-broadcast',
+  '/invite',
 ]);
 
 const AUTH_ROUTE_HREFS = new Set([
@@ -30,6 +32,7 @@ const AUTH_RETURN_TO_ROUTE_HREFS = new Set([
   '/live-session',
   '/settings',
   '/host-broadcast',
+  '/invite',
 ]);
 
 type ResolvedAuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
@@ -60,7 +63,10 @@ export async function bootstrapRuntime(
     initialUrl = null;
   }
 
-  return deriveStartupSnapshot(environment, initialUrl);
+  return deriveStartupSnapshot(
+    environment,
+    redactContactInviteSnapshotUrl(initialUrl, environment.publicAppOrigin),
+  );
 }
 
 function deriveStartupSnapshot(
@@ -115,6 +121,10 @@ export function resolveLandingHrefForAuth(
   }
 
   if (authStatus === 'unauthenticated') {
+    if (initialRoutePath === '/invite') {
+      return initialHref;
+    }
+
     if (
       initialHref &&
       initialRoutePath &&
@@ -149,9 +159,11 @@ export function authRouteHref(
 export function readAuthReturnToParam(
   rawReturnTo: string | string[] | undefined,
 ): string | null {
-  const value = Array.isArray(rawReturnTo) ? rawReturnTo[0] : rawReturnTo;
+  if (Array.isArray(rawReturnTo)) {
+    return null;
+  }
 
-  return normalizeAuthReturnToHref(value);
+  return normalizeAuthReturnToHref(rawReturnTo);
 }
 
 function normalizeAuthReturnToHref(returnToHref?: string | null): string | null {
@@ -161,9 +173,48 @@ function normalizeAuthReturnToHref(returnToHref?: string | null): string | null 
     return null;
   }
 
-  const routePath = routePathFromHref(trimmed);
+  if (
+    !trimmed.startsWith('/') ||
+    trimmed.startsWith('//') ||
+    trimmed.includes('#') ||
+    !hasValidPercentEncoding(trimmed)
+  ) {
+    return null;
+  }
 
-  return AUTH_RETURN_TO_ROUTE_HREFS.has(routePath) ? trimmed : null;
+  let parsed: URL;
+
+  try {
+    parsed = new URL(trimmed, 'https://mobile.livecanvas.invalid');
+  } catch {
+    return null;
+  }
+
+  const routePath = parsed.pathname;
+
+  if (!AUTH_RETURN_TO_ROUTE_HREFS.has(routePath)) {
+    return null;
+  }
+
+  if (routePath === '/invite') {
+    const handoffs = parsed.searchParams.getAll('handoff');
+    const handoff = handoffs[0];
+
+    return parsed.searchParams.size === 1 && isOpaqueHandoffId(handoff)
+      ? `/invite?handoff=${encodeURIComponent(handoff)}`
+      : null;
+  }
+
+  if (routePath === '/live-session') {
+    const sessionIds = parsed.searchParams.getAll('sessionId');
+    const sessionId = sessionIds[0];
+
+    return parsed.searchParams.size === 1 && Boolean(sessionId?.trim())
+      ? `/live-session?sessionId=${encodeURIComponent(sessionId ?? '')}`
+      : null;
+  }
+
+  return parsed.search ? null : routePath;
 }
 
 export function routeHrefFromUrl(initialUrl: string | null): string | null {
@@ -192,6 +243,14 @@ export function routeHrefFromUrl(initialUrl: string | null): string | null {
     );
   }
 
+  if (candidate === '/invite') {
+    if (!query) {
+      return candidate;
+    }
+
+    return normalizeAuthReturnToHref(`${candidate}?${query}`);
+  }
+
   if (candidate === '/reset-password' && query) {
     return `${candidate}?${query}`;
   }
@@ -199,6 +258,14 @@ export function routeHrefFromUrl(initialUrl: string | null): string | null {
   return candidate === '/live-session' && query
     ? `${candidate}?${query}`
     : candidate;
+}
+
+function hasValidPercentEncoding(value: string): boolean {
+  return !/%(?![0-9A-Fa-f]{2})/.test(value);
+}
+
+function isOpaqueHandoffId(value: string | undefined): value is string {
+  return Boolean(value && /^[A-Za-z0-9_-]{8,128}$/.test(value));
 }
 
 function resetPasswordHrefFromBackendPath(candidate: string): string | null {

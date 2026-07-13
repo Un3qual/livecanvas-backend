@@ -31,13 +31,23 @@ import {
 import {
   CONTACT_DISCOVERY_QUERY_VARIABLES,
   contactDiscoveryQuery,
+  contactDiscoveryDeliverInviteMutation,
   contactDiscoveryUpsertMutation,
+  type ContactDiscoveryDeliverInviteMutation,
   type ContactDiscoveryQuery,
   type ContactDiscoveryUpsertMutation,
 } from './contactDiscoveryOperations';
 import {
+  beginContactInviteDelivery,
+  buildContactInviteInput,
   buildManualEmailContactInput,
+  completeContactInviteDelivery,
+  contactInviteDeliveryFailureStatus,
+  createContactInviteDeliveryState,
   formatContactUpsertMutationErrors,
+  normalizeContactDiscoveryEmail,
+  readContactInviteDeliveryStatus,
+  type ContactInviteDeliveryStatus,
   validateContactDiscoveryEmail,
 } from './contactDiscoveryState';
 
@@ -55,6 +65,8 @@ type LocalContactMatches = {
   readonly fetchKey: number;
   readonly matches: ContactMatch[];
 };
+
+const EMPTY_CONTACT_MATCH_IDS: ReadonlySet<string> = new Set();
 
 const styles = StyleSheet.create({
   screen: {
@@ -127,7 +139,13 @@ export function ContactDiscoveryScreen() {
     useMutation<ContactDiscoveryUpsertMutation>(
       contactDiscoveryUpsertMutation,
     );
+  const [commitDeliverInvite] =
+    useMutation<ContactDiscoveryDeliverInviteMutation>(
+      contactDiscoveryDeliverInviteMutation,
+    );
   const activeSearchRef = useRef(false);
+  const activeInviteRecipientsRef = useRef(new Set<string>());
+  const inviteAttemptSequenceRef = useRef(0);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -140,6 +158,9 @@ export function ContactDiscoveryScreen() {
   const [pageInfo, setPageInfo] = useState(() => queryPageInfo);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const [inviteDeliveryState, setInviteDeliveryState] = useState(
+    createContactInviteDeliveryState,
+  );
   const queryMatches = readConnectionNodes<ContactMatch>(
     queryConnection,
   );
@@ -147,6 +168,9 @@ export function ContactDiscoveryScreen() {
     localMatches.fetchKey === routeFetchKey ? localMatches.matches : [],
     queryMatches.concat(extraMatches),
   );
+  const currentInviteRows = readCurrentInviteRows(contactMatches);
+  const currentInviteRowsRef = useRef(currentInviteRows);
+  currentInviteRowsRef.current = currentInviteRows;
 
   useEffect(() => {
     if (paginationResetKeyRef.current === paginationResetKey) {
@@ -244,12 +268,94 @@ export function ContactDiscoveryScreen() {
     });
   }
 
+  const deliverInvite = useCallback(
+    (contactMatch: ContactMatch, recipient: string) => {
+      const input = buildContactInviteInput(contactMatch.id);
+      const normalizedRecipient = normalizeContactDiscoveryEmail(recipient);
+
+      if (
+        !input ||
+        validateContactDiscoveryEmail(normalizedRecipient) ||
+        activeInviteRecipientsRef.current.has(normalizedRecipient)
+      ) {
+        return;
+      }
+
+      const attemptId = ++inviteAttemptSequenceRef.current;
+      const contactMatchId = contactMatch.id;
+      activeInviteRecipientsRef.current.add(normalizedRecipient);
+      setInviteDeliveryState((current) =>
+        beginContactInviteDelivery(current, {
+          attemptId,
+          contactMatchId,
+          recipient: normalizedRecipient,
+        }),
+      );
+
+      const finish = (
+        status: 'retryable_error' | 'sent' | 'terminal_invalid_recipient',
+      ) => {
+        activeInviteRecipientsRef.current.delete(normalizedRecipient);
+
+        // A mutation result belongs only to the exact unmatched row that began it.
+        if (
+          !currentInviteRowsRef.current
+            .get(normalizedRecipient)
+            ?.has(contactMatchId)
+        ) {
+          return;
+        }
+
+        setInviteDeliveryState((current) =>
+          completeContactInviteDelivery(current, {
+            attemptId,
+            contactMatchId,
+            recipient: normalizedRecipient,
+            status,
+          }),
+        );
+      };
+
+      commitDeliverInvite({
+        variables: { input },
+        onCompleted: (payload, errors) => {
+          const result = payload.deliverViewerContactInvite;
+
+          if (errors?.length || !result) {
+            finish('retryable_error');
+            return;
+          }
+
+          finish(
+            result.errors.length === 0
+              ? 'sent'
+              : contactInviteDeliveryFailureStatus(result.errors),
+          );
+        },
+        onError: () => finish('retryable_error'),
+      });
+    },
+    [commitDeliverInvite],
+  );
+
   const renderContactMatch = useCallback(
     ({ item: contactMatch }: ListRenderItemInfo<ContactMatch>) => (
       <View style={styles.section}>
         <ContactMatchCard
           contactMatch={contactMatch}
           inviteRecipient={contactMatch.inviteRecipient ?? null}
+          inviteStatus={readContactInviteDeliveryStatus(
+            inviteDeliveryState,
+            contactMatch.inviteRecipient ?? '',
+            currentInviteRows.get(
+              normalizeContactDiscoveryEmail(
+                contactMatch.inviteRecipient ?? '',
+              ),
+            ) ?? EMPTY_CONTACT_MATCH_IDS,
+          )}
+          onDeliverInvite={(recipient) =>
+            deliverInvite(contactMatch, recipient)
+          }
           onOpenProfile={(user) =>
             router.push({
               params: { id: user.id },
@@ -259,7 +365,7 @@ export function ContactDiscoveryScreen() {
         />
       </View>
     ),
-    [router],
+    [currentInviteRows, deliverInvite, inviteDeliveryState, router],
   );
 
   return (
@@ -364,14 +470,23 @@ function contactMatchKeyExtractor(contactMatch: ContactMatch): string {
 function ContactMatchCard({
   contactMatch,
   inviteRecipient,
+  inviteStatus,
+  onDeliverInvite,
   onOpenProfile,
 }: {
   contactMatch: ContactMatch;
   inviteRecipient: string | null;
+  inviteStatus: ContactInviteDeliveryStatus;
+  onDeliverInvite: (recipient: string) => void;
   onOpenProfile: (user: ContactMatchedUser) => void;
 }) {
   const theme = useAppTheme();
   const hasMatches = contactMatch.matchedUsers.length > 0;
+  const inviteRecipientValue = inviteRecipient?.trim() ?? '';
+  const canInvite =
+    !hasMatches &&
+    Boolean(inviteRecipientValue) &&
+    validateContactDiscoveryEmail(inviteRecipientValue) === null;
 
   return (
     <AppCard style={styles.row}>
@@ -394,12 +509,71 @@ function ContactMatchCard({
           </View>
         ))
       ) : (
-        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-          No LiveCanvas match yet.
-        </Text>
+        <>
+          <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+            No LiveCanvas match yet.
+          </Text>
+          {canInvite ? (
+            <View style={styles.actions}>
+              <AppButton
+                disabled={
+                  inviteStatus === 'sending' ||
+                  inviteStatus === 'sent' ||
+                  inviteStatus === 'terminal_invalid_recipient'
+                }
+                label={contactInviteButtonLabel(inviteStatus)}
+                onPress={() => onDeliverInvite(inviteRecipientValue)}
+                variant="secondary"
+              />
+            </View>
+          ) : null}
+        </>
       )}
     </AppCard>
   );
+}
+
+function contactInviteButtonLabel(status: ContactInviteDeliveryStatus): string {
+  switch (status) {
+    case 'idle':
+      return 'Send invite';
+    case 'sending':
+      return 'Sending...';
+    case 'sent':
+      return 'Sent';
+    case 'retryable_error':
+      return 'Retry';
+    case 'terminal_invalid_recipient':
+      return 'Cannot invite';
+    default:
+      return assertNever(status);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected contact invite status: ${String(value)}`);
+}
+
+function readCurrentInviteRows(
+  contactMatches: ReadonlyArray<ContactMatch>,
+): Map<string, Set<string>> {
+  const rows = new Map<string, Set<string>>();
+
+  for (const match of contactMatches) {
+    if (match.matchedUsers.length > 0 || !match.inviteRecipient) {
+      continue;
+    }
+
+    const recipient = normalizeContactDiscoveryEmail(match.inviteRecipient);
+
+    if (!validateContactDiscoveryEmail(recipient)) {
+      const contactMatchIds = rows.get(recipient) ?? new Set<string>();
+      contactMatchIds.add(match.id);
+      rows.set(recipient, contactMatchIds);
+    }
+  }
+
+  return rows;
 }
 
 function mergeContactMatches(

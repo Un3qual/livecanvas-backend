@@ -230,6 +230,7 @@ function screenModelInput(
     environment: {
       apiBaseUrl: 'https://preview-api.livecanvas.example',
       bootSessionState: 'authenticated',
+      publicAppOrigin: 'https://preview.livecanvas.example',
       websocketUrl: 'wss://preview-ws.livecanvas.example/socket',
     },
     snapshot: {

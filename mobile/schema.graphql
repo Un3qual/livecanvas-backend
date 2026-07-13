@@ -45,6 +45,7 @@ type RootMutationType {
   cancelViewerAccountDeletionRequest(input: CancelViewerAccountDeletionRequestInput!): CancelViewerAccountDeletionRequestPayload
   upsertViewerContactEntry(input: UpsertViewerContactEntryInput!): UpsertViewerContactEntryPayload
   deliverViewerContactInvite(input: DeliverViewerContactInviteInput!): DeliverViewerContactInvitePayload
+  consumeContactInvite(input: ConsumeContactInviteInput!): ConsumeContactInvitePayload
   issueViewerAuthTokens(input: IssueViewerAuthTokensInput!): IssueViewerAuthTokensPayload
   refreshAuthTokens(input: RefreshAuthTokensInput!): RefreshAuthTokensPayload
   revokeRefreshToken(input: RevokeRefreshTokenInput!): RevokeRefreshTokenPayload
@@ -424,10 +425,19 @@ type UpsertViewerContactEntryPayload {
 }
 
 input DeliverViewerContactInviteInput {
-  recipient: String!
+  contactMatchId: ID!
 }
 
 type DeliverViewerContactInvitePayload {
+  errors: [UserError!]!
+}
+
+input ConsumeContactInviteInput {
+  token: String!
+}
+
+type ConsumeContactInvitePayload {
+  consumed: Boolean!
   errors: [UserError!]!
 }
 

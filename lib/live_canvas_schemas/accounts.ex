@@ -3,6 +3,8 @@ defmodule LCSchemas.Accounts do
 
   @type user_privacy_mode :: :private | :public
 
+  @type contact_invite_consumption_error :: :invalid_contact_invite
+
   @type staff_permission :: :post_report_moderation
 
   @type user_identity_provider ::
@@ -19,6 +21,7 @@ defmodule LCSchemas.Accounts do
           | :password_reset_token
           | :email_one_time_code_token
           | :contact_invite_token
+          | :contact_invite_fragment_token
           | :phone_verification_token
           | :phone_mfa_token
           | :phone_magic_link_token

@@ -11,17 +11,18 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: Batches 1-3 complete; Batch 4 active; Batch 5 queued
+- Track state: all five product batches complete; release-candidate QA active
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
-- Current implementation: Batch 4, Live-Chat Message Controls. Backend Task 1
-  establishes the authorization/broadcast contract before mobile Tasks 2-4.
+  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+- Current gate:
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Last completed detailed plan:
-  `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
-- Recent theme: one-image-or-video post/story publishing now completes native
-  selection, exact signed upload, verified processing, and composer submission;
-  release-candidate QA remains deferred.
+  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+- Recent theme: end-to-end contact invitations now complete fragment-only HTTPS
+  delivery from one shared trusted public origin, neutral recipient email copy,
+  protected authentication handoff, one-time recipient-bound consumption, and
+  explicit contact-row delivery state.
 - Last completed workflow theme: mobile XState live workflow cleanup moved
   viewer membership, playback display state, chat channel/send status, and host
   preflight workflow state into feature-local machines while keeping IO in
@@ -58,10 +59,9 @@ and content discovery, live streaming, and chat.
   `docs/plans/archive/completed/mobile/2026-06-30-mobile-feed-content-discovery.md`.
 - Feed section refresh and pagination detail evidence is archived at
   `docs/plans/archive/completed/mobile/2026-07-01-feed-section-refresh-pagination.md`.
-- Release-candidate manual QA remains tracked in
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`, but it is
-  deferred until product explicitly resumes QA. No remote or authenticated EAS
-  build/submit command is required by that checklist.
+- Release-candidate manual QA is active in
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`. No remote or
+  authenticated EAS build/submit command is required by that checklist.
 
 ## Completed Detailed Plans
 
@@ -126,15 +126,17 @@ and content discovery, live streaming, and chat.
 28. End-to-end contact invitations.
 29. Release-candidate manual device QA using the one-host/one-viewer checklist.
 
-## Active And Queued Follow-Up Plans
+## Active Gate And Completed Follow-Up Plans
 
-Active product batch:
+Active release gate:
 
-- `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
-- Status: active; execute backend Task 1 before mobile Tasks 2-4.
+- `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+- Status: active; begin with local entry gates, then record manual device QA.
 
 Recently completed product batch:
 
+- `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+- `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
 - `docs/superpowers/plans/2026-07-09-reversible-social-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-account-settings-and-recovery.md`
@@ -143,17 +145,8 @@ Recently completed product batch:
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-Queued product batches after Live-Chat Message Controls:
-
-- `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
-
-These have implementation plans but remain non-executable until the prior batch
-closes and the next plan is explicitly promoted.
-
-All previously queued live-session and feed/content product follow-up plans are
-complete and archived. Deferred QA gate:
-
-- `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+All previously queued product follow-up plans are complete. No product batch is
+queued ahead of the active release-candidate gate.
 
 ## Shared Constraints
 
