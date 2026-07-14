@@ -39,12 +39,12 @@ whole suite or adding a Bun compatibility helper.
 - Produces: `pnpm test:unit`, `pnpm test:jest`, `pnpm test`, and `pnpm test:quality` commands.
 - Produces: Vitest setup that stubs the React Native boundary before unit modules load.
 
-- [ ] Run `pnpm test:unit -- tests/config/environment.test.ts`; verify it fails because `test:unit` does not exist.
-- [ ] Add Vitest as a development dependency, remove `@types/bun`, and replace the package scripts with pnpm-orchestrated `test:unit`, `test:jest`, `test`, and `test:quality` commands.
-- [ ] Add `vitest.config.ts` with Node environment, `tests/**/*.test.{ts,tsx,js}` inclusion, the shared setup file, mock restoration, and coverage disabled by default.
-- [ ] Change `tsconfig.tests.json` to Vitest types; convert the setup mock to `vi.mock` and the environment test to `vitest` imports.
-- [ ] Run `pnpm test:unit -- tests/config/environment.test.ts`; expect 4 passing tests.
-- [ ] Run `pnpm typecheck:tests` and commit with `build: add pnpm vitest test boundary`.
+- [x] Run `pnpm test:unit tests/config/environment.test.ts`; verify it fails because `test:unit` does not exist.
+- [x] Add Vitest as a development dependency, remove `@types/bun`, and replace the package scripts with pnpm-orchestrated `test:unit`, `test:jest`, `test`, and `test:quality` commands.
+- [x] Add `vitest.config.ts` with Node environment, `tests/**/*.test.{ts,tsx,js}` inclusion, the shared setup file, and mock restoration.
+- [x] Change `tsconfig.tests.json` to Vitest types; convert the setup mock to `vi.mock` and the environment test to `vitest` imports.
+- [x] Run `pnpm test:unit tests/config/environment.test.ts`; expect 4 passing tests.
+- [x] Lint the converted boundary files, run `git diff --check`, and commit with `build: add pnpm vitest test boundary`. Full test typecheck resumes after every Bun import is removed in Task 4.
 
 ### Task 2: Convert ordinary unit tests and function mocks
 
@@ -59,7 +59,7 @@ whole suite or adding a Bun compatibility helper.
 - [ ] Replace each ordinary `bun:test` import with the same named APIs from `vitest`.
 - [ ] Replace callable Bun `mock(...)` usages with `vi.fn(...)` and import `vi`; do not introduce a compatibility wrapper.
 - [ ] Run Vitest against the converted file set while excluding the eleven module-mock files; verify every selected test passes.
-- [ ] Run `pnpm typecheck:tests` and commit with `test: migrate unit tests to vitest`.
+- [ ] Run `git diff --check` and commit with `test: migrate unit tests to vitest`.
 
 ### Task 3: Convert fixed dependency-graph module mocks
 
@@ -81,7 +81,7 @@ whole suite or adding a Bun compatibility helper.
 - [ ] Preserve declaration-before-mock ordering and top-level dynamic imports so factories never depend on hoist-sensitive uninitialized values.
 - [ ] Remove or rewrite comments that describe Bun process-wide mock leakage.
 - [ ] Run Vitest against these eight files together; verify all pass without order dependence.
-- [ ] Run `pnpm typecheck:tests` and commit with `test: migrate module mocks to vitest`.
+- [ ] Run `git diff --check` and commit with `test: migrate module mocks to vitest`.
 
 ### Task 4: Replace Bun cache bypasses with explicit module isolation
 
