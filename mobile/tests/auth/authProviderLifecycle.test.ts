@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, vi, test } from 'vitest';
 
 import {
   forceUnauthenticated,
@@ -11,10 +11,10 @@ function returnUndefined(): undefined {
 
 describe('authProviderLifecycle', () => {
   test('forces an unauthenticated transition even if token clearing fails', async () => {
-    const clearTokens = mock(() => {
+    const clearTokens = vi.fn(() => {
       throw new Error('secure store unavailable');
     });
-    const onForcedLogout = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
 
     await expect(forceUnauthenticated(clearTokens, onForcedLogout)).resolves.toBeUndefined();
     expect(clearTokens).toHaveBeenCalledTimes(1);
@@ -23,11 +23,11 @@ describe('authProviderLifecycle', () => {
 
   test('runs cleanup before clearing tokens during a local auth loss', async () => {
     const calls: string[] = [];
-    const clearTokens = mock(() => {
+    const clearTokens = vi.fn(() => {
       calls.push('clearTokens');
       return Promise.resolve();
     });
-    const onForcedLogout = mock(() => {
+    const onForcedLogout = vi.fn(() => {
       calls.push('onForcedLogout');
     });
 
@@ -49,7 +49,7 @@ describe('authProviderLifecycle', () => {
     const pendingCleanup = new Promise<void>((resolve) => {
       resolveCleanup = resolve;
     });
-    const callback = mock(() => pendingCleanup);
+    const callback = vi.fn(() => pendingCleanup);
 
     await expect(
       runBestEffortBeforeUnauthenticatedCallback(callback, 1),

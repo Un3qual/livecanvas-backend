@@ -56,10 +56,10 @@ whole suite or adding a Bun compatibility helper.
 - Consumes: Vitest imports and `vi.fn` from Task 1.
 - Produces: runner-neutral ordinary unit tests with no Bun APIs.
 
-- [ ] Replace each ordinary `bun:test` import with the same named APIs from `vitest`.
-- [ ] Replace callable Bun `mock(...)` usages with `vi.fn(...)` and import `vi`; do not introduce a compatibility wrapper.
-- [ ] Run Vitest against the converted file set while excluding the eleven module-mock files; verify every selected test passes.
-- [ ] Run `git diff --check` and commit with `test: migrate unit tests to vitest`.
+- [x] Replace each ordinary `bun:test` import with the same named APIs from `vitest`.
+- [x] Replace callable Bun `mock(...)` usages with `vi.fn(...)` and import `vi`; do not introduce a compatibility wrapper.
+- [x] Run Vitest against the converted file set while excluding the eleven module-mock files; verify every selected test passes.
+- [x] Run `git diff --check` and commit with `test: migrate unit tests to vitest`.
 
 ### Task 3: Convert fixed dependency-graph module mocks
 
