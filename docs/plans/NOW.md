@@ -1,7 +1,7 @@
 # Current Execution
 
-Last reviewed: 2026-07-11
-Status: all five product batches complete; release-candidate device QA active
+Last reviewed: 2026-07-14
+Status: local release-candidate gates pass; operator and device QA pending
 
 ## Purpose
 
@@ -40,10 +40,12 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 5 mobile Tasks 4-5 complete; release-candidate QA is active.
+- State: Batch 5 mobile Tasks 4-5 and release-candidate local entry gates are
+  complete; operator-confirmed environment, account, build, and device QA is
+  pending.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: configured-origin invite routing and the full mobile quality
-  gate pass with 548 Bun and 160 Jest tests; typechecks, lint, and patch hygiene
+  gate pass with 552 Bun and 165 Jest tests; typechecks, lint, and patch hygiene
   pass. Relay inputs were unchanged by the integration fixes.
 
 ## Execution Rule
@@ -60,9 +62,10 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Run the release-candidate checklist's local entry gates, then inventory the
-remaining account, preview-build, and physical-device prerequisites for manual
-QA.
+Have the release operator confirm EAS project linkage, the target
+endpoint/public-origin values, preview artifact, host/viewer identities,
+unmatched recipient inbox, and physical devices, then run the
+release-candidate checklist's manual QA.
 
 ## Repair Conditions
 
