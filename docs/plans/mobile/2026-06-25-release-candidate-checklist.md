@@ -21,8 +21,8 @@ work still require the listed operator prerequisites.
 
 ## Entry Criteria
 
-- From `mobile/`, `bun run test:quality` passes.
-- From `mobile/`, `bun run typecheck` passes.
+- From `mobile/`, `pnpm test:quality` passes.
+- From `mobile/`, `pnpm typecheck` passes.
 - From the repo root, `git diff --check` passes.
 - EAS environment values are configured for the target API and websocket
   endpoints. Do not rely on local `.env` or `.env.local` files for remote EAS
@@ -101,13 +101,15 @@ work still require the listed operator prerequisites.
 
 ### 2026-07-14 Post-Batch Local Entry Gate Pass
 
-- The gate ran from merged `main` at `aeac169` after restoring the committed
-  dependency graph with `pnpm install --frozen-lockfile`; the lockfile remained
-  unchanged.
-- `mobile/`: `bun run test:quality` passes with app typecheck, test typecheck,
-  lint, 552 Bun tests, and 165 Jest tests. Jest retains the existing non-failing
-  worker force-exit warning.
-- `mobile/`: the separately required `bun run typecheck` passes.
+- The gate ran from merged `main` at `aeac169`; after the test-runtime migration,
+  `pnpm install --frozen-lockfile` restores the updated committed dependency
+  graph without lockfile changes.
+- `mobile/`: `pnpm test:quality` passes with app typecheck, test typecheck,
+  lint, 74 Vitest files containing 552 tests, and 24 Jest suites containing 165
+  tests. Jest retains the existing non-failing worker force-exit warning.
+- `mobile/`: the separately required `pnpm typecheck` passes.
+- The active mobile toolchain no longer requires Bun: pnpm owns every public
+  command, Vitest owns unit tests, and Jest/Expo retains the RNTL suite.
 - Repo root: `git diff --check` passes.
 - Committed config still defines `preview` as an internal-distribution profile
   without `developmentClient`; the native app config includes camera and

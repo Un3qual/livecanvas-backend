@@ -45,8 +45,9 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
   pending.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: configured-origin invite routing and the full mobile quality
-  gate pass with 552 Bun and 165 Jest tests; typechecks, lint, and patch hygiene
-  pass. Relay inputs were unchanged by the integration fixes.
+  gate pass with 552 Vitest and 165 Jest tests; typechecks, lint, frozen pnpm
+  install, and patch hygiene pass. Relay inputs were unchanged by the
+  integration fixes.
 
 ## Execution Rule
 

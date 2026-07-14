@@ -111,9 +111,9 @@ whole suite or adding a Bun compatibility helper.
 **Interfaces:**
 - Produces: one current release command, `pnpm test:quality`, and durable evidence for PR #123.
 
-- [ ] Search active mobile code/config for `bun:test`, `bun-types`, `test:bun`, `bun run`, and `bun test`; verify no active toolchain reference remains.
-- [ ] Run `pnpm test:quality`; require typechecks, lint, 552 Vitest tests, and 165 Jest tests to pass.
-- [ ] Run `pnpm typecheck`, `pnpm install --frozen-lockfile`, and repo-root `git diff --check`.
-- [ ] Update the release checklist and lane pointers from Bun counts/commands to pnpm/Vitest evidence while preserving earlier dated historical entries.
-- [ ] Re-run `pnpm test:quality` and `git diff --check` after documentation changes, mark this plan complete, and commit with `docs: record pnpm quality gate`.
-- [ ] Push the branch, refresh PR #123 metadata/checks, and update its title/body to describe both the release gate and Bun removal.
+- [x] Search active mobile code/config for `bun:test`, `bun-types`, `test:bun`, `bun run`, and `bun test`; verify no active toolchain reference remains.
+- [x] Run `pnpm test:quality`; require typechecks, lint, 552 Vitest tests, and 165 Jest tests to pass.
+- [x] Run `pnpm typecheck`, `pnpm install --frozen-lockfile`, and repo-root `git diff --check`.
+- [x] Update the release checklist and lane pointers from Bun counts/commands to pnpm/Vitest evidence while preserving earlier dated historical entries.
+- [x] Re-run `pnpm test:quality` and `git diff --check` after documentation changes, mark this plan complete, and commit with `docs: record pnpm quality gate`.
+- [x] Push the branch, refresh PR #123 metadata/checks, and update its title/body to describe both the release gate and Bun removal.

@@ -17,6 +17,8 @@ Status: local release-candidate gates pass; operator and device QA pending
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Current scope: local entry gates are complete; the checklist's manual
   one-host/one-viewer preview-build and device QA remains pending.
+- Local verification: `pnpm test:quality`, `pnpm typecheck`, frozen pnpm
+  dependency restore, and patch hygiene pass with 552 Vitest and 165 Jest tests.
 - Invite entry requirement: target `EXPO_PUBLIC_APP_ORIGIN` must match backend
   `LIVE_CANVAS_PUBLIC_ORIGIN`; manual evidence must exercise an actual delivered
   invite through the HTTPS landing and native app handoff.
