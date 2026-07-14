@@ -3,8 +3,9 @@
 ## Context
 
 LiveCanvas Mobile already uses pnpm for dependency resolution and commits only
-`pnpm-lock.yaml`, but its quality scripts and 75 unit-test files still require
-Bun. A second Jest/Expo suite owns the 24 React Native Testing Library files.
+`pnpm-lock.yaml`, but its quality scripts, 74 unit-test files, and shared unit
+setup still require Bun. A second Jest/Expo suite owns the 24 React Native
+Testing Library files.
 The remaining migration is therefore a test-runtime and command-orchestration
 change, not a package-lock conversion.
 

@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, describe, expect, vi, test } from 'vitest';
 import type { RequestParameters } from 'relay-runtime';
 
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
-  mock.restore();
+  vi.restoreAllMocks();
+  vi.resetModules();
   globalThis.fetch = originalFetch;
 });
 
@@ -21,7 +22,7 @@ class MockRelayStore {
 }
 
 function mockRelayRuntime() {
-  mock.module('relay-runtime', () => ({
+  vi.doMock('relay-runtime', () => ({
     Environment: MockRelayEnvironment,
     Network: { create: (fetchFn: unknown) => fetchFn },
     RecordSource: MockRelayRecordSource,
@@ -46,7 +47,7 @@ describe('createBasicFetch', () => {
 
     const { createBasicFetch } = await import('../../src/relay/environment');
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       expect(JSON.parse(String(init?.body))).toEqual({
         query: '',
         variables: { id: 'viewer-1' },
@@ -76,7 +77,7 @@ describe('createBasicFetch', () => {
 
     const { createBasicFetch } = await import('../../src/relay/environment');
 
-    globalThis.fetch = mock(() => {
+    globalThis.fetch = vi.fn(() => {
       return new Response('<html>bad gateway</html>', {
         status: 502,
         statusText: 'Bad Gateway',
@@ -100,7 +101,7 @@ describe('createBasicFetch', () => {
 
     const { createBasicFetch } = await import('../../src/relay/environment');
 
-    globalThis.fetch = mock(() => {
+    globalThis.fetch = vi.fn(() => {
       return new Response(JSON.stringify({ errors: [{ message: 'unauthenticated' }] }), {
         status: 401,
         statusText: 'Unauthorized',

@@ -93,12 +93,12 @@ whole suite or adding a Bun compatibility helper.
 **Interfaces:**
 - Produces: stable-path dynamic imports with `vi.doMock` factories and `vi.resetModules` lifecycle cleanup.
 
-- [ ] Convert Bun imports and function mocks to Vitest.
-- [ ] Replace random `?test=${crypto.randomUUID()}` imports with stable module paths.
-- [ ] Register each case-specific dependency with `vi.doMock`, reset the module cache between cases, restore spies, and continue restoring `globalThis.fetch` where applicable.
-- [ ] Run these three files together, then repeat them once to prove cache-independent behavior.
-- [ ] Run the complete `pnpm test:unit`; expect 75 files and 552 tests passing.
-- [ ] Run `pnpm typecheck:tests` and commit with `test: make vitest module isolation explicit`.
+- [x] Convert Bun imports and function mocks to Vitest.
+- [x] Replace random `?test=${crypto.randomUUID()}` imports with stable module paths.
+- [x] Register each case-specific dependency with `vi.doMock`, reset the module cache between cases, restore spies, and continue restoring `globalThis.fetch` where applicable.
+- [x] Run these three files together, then repeat them once to prove cache-independent behavior.
+- [x] Run the complete `pnpm test:unit`; expect 74 files and 552 tests passing.
+- [x] Run `pnpm typecheck:tests` and commit with `test: make vitest module isolation explicit`.
 
 ### Task 5: Close the active gate and update PR evidence
 

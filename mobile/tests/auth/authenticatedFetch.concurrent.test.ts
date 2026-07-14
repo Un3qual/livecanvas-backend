@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, describe, expect, vi, test } from 'vitest';
 
 const originalFetch = globalThis.fetch;
 
@@ -14,9 +14,7 @@ function textResponse(body: string, init: ResponseInit) {
 }
 
 function importAuthenticatedFetchModule() {
-  // Use a unique query string to bypass Bun's module cache so each test gets a
-  // fresh module instance wired to that case's mocked dependencies.
-  return import(`../../src/auth/authenticatedFetch?test=${crypto.randomUUID()}`);
+  return import('../../src/auth/authenticatedFetch');
 }
 
 function resolveVoid(): Promise<void> {
@@ -37,7 +35,8 @@ async function waitFor(predicate: () => boolean, label: string): Promise<void> {
 }
 
 afterEach(() => {
-  mock.restore();
+  vi.restoreAllMocks();
+  vi.resetModules();
   globalThis.fetch = originalFetch;
 });
 
@@ -56,15 +55,15 @@ describe('createAuthenticatedFetch', () => {
 
     const loadTokensDeferred = Promise.withResolvers<typeof initialTokens | null>();
     let storedTokens: typeof initialTokens | null = initialTokens;
-    const loadTokens = mock(() => loadTokensDeferred.promise);
-    const storeTokens = mock((pair) => {
+    const loadTokens = vi.fn(() => loadTokensDeferred.promise);
+    const storeTokens = vi.fn((pair) => {
       storedTokens = pair;
     });
-    const clearTokens = mock(() => {
+    const clearTokens = vi.fn(() => {
       storedTokens = null as typeof storedTokens;
     });
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -75,7 +74,7 @@ describe('createAuthenticatedFetch', () => {
     const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -99,8 +98,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -110,8 +109,8 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    const firstRequest = fetchFn(operation, {});
-    const secondRequest = fetchFn(operation, {});
+    const firstRequest = fetchFn(operation, {}, {});
+    const secondRequest = fetchFn(operation, {}, {});
 
     loadTokensDeferred.resolve(storedTokens);
 
@@ -159,15 +158,15 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let storedTokens: typeof initialTokens | null = initialTokens;
-    const loadTokens = mock(() => storedTokens);
-    const storeTokens = mock((pair) => {
+    const loadTokens = vi.fn(() => storedTokens);
+    const storeTokens = vi.fn((pair) => {
       storedTokens = pair;
     });
-    const clearTokens = mock(() => {
+    const clearTokens = vi.fn(() => {
       storedTokens = null as typeof storedTokens;
     });
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -180,7 +179,7 @@ describe('createAuthenticatedFetch', () => {
     const refreshTokensUsed: string[] = [];
     let staleAccessRequests = 0;
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
       const query = String(request.query);
@@ -219,8 +218,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -230,10 +229,10 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    const firstRequest = fetchFn(operation, {});
+    const firstRequest = fetchFn(operation, {}, {});
     await waitFor(() => refreshTokensUsed.length === 1, 'first refresh attempt');
 
-    const secondRequest = fetchFn(operation, {});
+    const secondRequest = fetchFn(operation, {}, {});
     await waitFor(() => staleAccessRequests === 2, 'second stale request');
 
     deferredRefresh.resolve(
@@ -280,11 +279,11 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let storageCleared = false;
-    const loadTokens = mock(() => (storageCleared ? null : initialTokens));
-    const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(resolveVoid);
+    const loadTokens = vi.fn(() => (storageCleared ? null : initialTokens));
+    const storeTokens = vi.fn(resolveVoid);
+    const clearTokens = vi.fn(resolveVoid);
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -295,7 +294,7 @@ describe('createAuthenticatedFetch', () => {
     const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -315,8 +314,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -326,7 +325,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    const request = fetchFn(operation, {});
+    const request = fetchFn(operation, {}, {});
     await waitFor(() => refreshCalls === 1, 'refresh attempt');
 
     storageCleared = true;
@@ -369,14 +368,14 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let loadCount = 0;
-    const loadTokens = mock(() => {
+    const loadTokens = vi.fn(() => {
       loadCount += 1;
       return loadCount === 1 ? initialTokens : null;
     });
-    const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(resolveVoid);
+    const storeTokens = vi.fn(resolveVoid);
+    const clearTokens = vi.fn(resolveVoid);
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -385,7 +384,7 @@ describe('createAuthenticatedFetch', () => {
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
     let refreshCalls = 0;
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -416,8 +415,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -427,7 +426,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    await expect(fetchFn(operation, {})).resolves.toEqual({
+    await expect(fetchFn(operation, {}, {})).resolves.toEqual({
       errors: [{ message: 'unauthenticated' }],
     });
     expect(refreshCalls).toBe(0);
@@ -445,15 +444,15 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let storedTokens = null as typeof signedInTokens | null;
-    const loadTokens = mock(() => storedTokens);
-    const storeTokens = mock((pair) => {
+    const loadTokens = vi.fn(() => storedTokens);
+    const storeTokens = vi.fn((pair) => {
       storedTokens = pair;
     });
-    const clearTokens = mock(() => {
+    const clearTokens = vi.fn(() => {
       storedTokens = null;
     });
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -462,7 +461,7 @@ describe('createAuthenticatedFetch', () => {
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
     const response = Promise.withResolvers<Response>();
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
       expect(authHeader).toBeNull();
@@ -470,8 +469,8 @@ describe('createAuthenticatedFetch', () => {
       return response.promise;
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -481,7 +480,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    const request = fetchFn(operation, {});
+    const request = fetchFn(operation, {}, {});
 
     storedTokens = signedInTokens;
     response.resolve(jsonResponse({ errors: [{ message: 'unauthenticated' }] }));
@@ -513,15 +512,15 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let storedTokens: typeof sessionATokens | null = sessionATokens;
-    const loadTokens = mock(() => storedTokens);
-    const storeTokens = mock((pair) => {
+    const loadTokens = vi.fn(() => storedTokens);
+    const storeTokens = vi.fn((pair) => {
       storedTokens = pair;
     });
-    const clearTokens = mock(() => {
+    const clearTokens = vi.fn(() => {
       storedTokens = null as typeof storedTokens;
     });
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -532,7 +531,7 @@ describe('createAuthenticatedFetch', () => {
     const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -556,8 +555,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -567,7 +566,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    const request = fetchFn(operation, {});
+    const request = fetchFn(operation, {}, {});
     await waitFor(() => refreshCalls === 1, 'stale refresh attempt');
 
     storedTokens = sessionBTokens;
@@ -610,14 +609,14 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let loadCount = 0;
-    const loadTokens = mock(() => {
+    const loadTokens = vi.fn(() => {
       loadCount += 1;
       return loadCount === 1 ? sessionATokens : sessionBTokens;
     });
-    const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(resolveVoid);
+    const storeTokens = vi.fn(resolveVoid);
+    const clearTokens = vi.fn(resolveVoid);
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -626,7 +625,7 @@ describe('createAuthenticatedFetch', () => {
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
     let refreshCalls = 0;
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -646,8 +645,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -657,7 +656,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    await expect(fetchFn(operation, {})).resolves.toEqual({
+    await expect(fetchFn(operation, {}, {})).resolves.toEqual({
       errors: [{ message: 'unauthenticated' }],
     });
     expect(refreshCalls).toBe(0);
@@ -680,15 +679,15 @@ describe('createAuthenticatedFetch', () => {
     };
 
     let storedTokens: typeof sessionATokens | null = sessionATokens;
-    const loadTokens = mock(() => storedTokens);
-    const storeTokens = mock((pair) => {
+    const loadTokens = vi.fn(() => storedTokens);
+    const storeTokens = vi.fn((pair) => {
       storedTokens = pair;
     });
-    const clearTokens = mock(() => {
+    const clearTokens = vi.fn(() => {
       storedTokens = null as typeof storedTokens;
     });
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -699,7 +698,7 @@ describe('createAuthenticatedFetch', () => {
     const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -719,8 +718,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -730,7 +729,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    const request = fetchFn(operation, {});
+    const request = fetchFn(operation, {}, {});
     await waitFor(() => refreshCalls === 1, 'stale refresh attempt');
 
     storedTokens = sessionBTokens;
@@ -764,11 +763,11 @@ describe('createAuthenticatedFetch', () => {
       expiresAt: '2026-04-01T00:00:00.000Z',
     };
 
-    const loadTokens = mock(() => initialTokens);
-    const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(resolveVoid);
+    const loadTokens = vi.fn(() => initialTokens);
+    const storeTokens = vi.fn(resolveVoid);
+    const clearTokens = vi.fn(resolveVoid);
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -776,7 +775,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -791,8 +790,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -802,7 +801,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    await expect(fetchFn(operation, {})).resolves.toEqual({
+    await expect(fetchFn(operation, {}, {})).resolves.toEqual({
       errors: [{ message: 'unauthenticated' }],
     });
     expect(storeTokens).not.toHaveBeenCalled();
@@ -818,11 +817,11 @@ describe('createAuthenticatedFetch', () => {
       expiresAt: '2026-04-01T00:00:00.000Z',
     };
 
-    const loadTokens = mock(() => initialTokens);
-    const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(resolveVoid);
+    const loadTokens = vi.fn(() => initialTokens);
+    const storeTokens = vi.fn(resolveVoid);
+    const clearTokens = vi.fn(resolveVoid);
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -830,7 +829,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -853,8 +852,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -864,7 +863,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    await expect(fetchFn(operation, {})).resolves.toEqual({
+    await expect(fetchFn(operation, {}, {})).resolves.toEqual({
       errors: [{ message: 'unauthenticated' }],
     });
     expect(storeTokens).not.toHaveBeenCalled();
@@ -880,11 +879,11 @@ describe('createAuthenticatedFetch', () => {
       expiresAt: '2026-04-01T00:00:00.000Z',
     };
 
-    const loadTokens = mock(() => initialTokens);
-    const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(resolveVoid);
+    const loadTokens = vi.fn(() => initialTokens);
+    const storeTokens = vi.fn(resolveVoid);
+    const clearTokens = vi.fn(resolveVoid);
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -892,7 +891,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -915,8 +914,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -926,8 +925,8 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    const firstRequest = fetchFn(operation, {});
-    const secondRequest = fetchFn(operation, {});
+    const firstRequest = fetchFn(operation, {}, {});
+    const secondRequest = fetchFn(operation, {}, {});
 
     await expect(firstRequest).resolves.toEqual({
       errors: [{ message: 'unauthenticated' }],
@@ -949,13 +948,13 @@ describe('createAuthenticatedFetch', () => {
       expiresAt: '2026-04-01T00:00:00.000Z',
     };
 
-    const loadTokens = mock(() => initialTokens);
-    const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(() => {
+    const loadTokens = vi.fn(() => initialTokens);
+    const storeTokens = vi.fn(resolveVoid);
+    const clearTokens = vi.fn(() => {
       throw new Error('secure store unavailable');
     });
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -963,7 +962,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const request = JSON.parse(String(init?.body));
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -986,8 +985,8 @@ describe('createAuthenticatedFetch', () => {
       throw new Error(`unexpected auth header ${authHeader}`);
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -997,7 +996,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    await expect(fetchFn(operation, {})).resolves.toEqual({
+    await expect(fetchFn(operation, {}, {})).resolves.toEqual({
       errors: [{ message: 'unauthenticated' }],
     });
 
@@ -1008,13 +1007,13 @@ describe('createAuthenticatedFetch', () => {
   });
 
   test('continues without auth headers when token storage reads fail', async () => {
-    const loadTokens = mock(() => {
+    const loadTokens = vi.fn(() => {
       throw new Error('secure store unavailable');
     });
-    const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(resolveVoid);
+    const storeTokens = vi.fn(resolveVoid);
+    const clearTokens = vi.fn(resolveVoid);
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -1022,7 +1021,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
       expect(authHeader).toBeNull();
@@ -1030,8 +1029,8 @@ describe('createAuthenticatedFetch', () => {
       return jsonResponse({ data: { viewer: null } });
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -1041,7 +1040,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    await expect(fetchFn(operation, {})).resolves.toEqual({
+    await expect(fetchFn(operation, {}, {})).resolves.toEqual({
       data: { viewer: null },
     });
     expect(storeTokens).not.toHaveBeenCalled();
@@ -1058,11 +1057,11 @@ describe('createAuthenticatedFetch', () => {
     };
 
     const authStatus: 'authenticated' | 'unauthenticated' = 'unauthenticated';
-    const loadTokens = mock(() => staleTokens);
-    const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(resolveVoid);
+    const loadTokens = vi.fn(() => staleTokens);
+    const storeTokens = vi.fn(resolveVoid);
+    const clearTokens = vi.fn(resolveVoid);
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -1070,7 +1069,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock((_url, init) => {
+    globalThis.fetch = vi.fn((_url, init) => {
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
       expect(authHeader).toBeNull();
@@ -1078,8 +1077,8 @@ describe('createAuthenticatedFetch', () => {
       return jsonResponse({ data: { viewer: null } });
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
-    const onTokensChanged = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
+    const onTokensChanged = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch(
       'https://api.example.com',
       onForcedLogout,
@@ -1090,7 +1089,7 @@ describe('createAuthenticatedFetch', () => {
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    await expect(fetchFn(operation, {})).resolves.toEqual({
+    await expect(fetchFn(operation, {}, {})).resolves.toEqual({
       data: { viewer: null },
     });
     expect(loadTokens).not.toHaveBeenCalled();
@@ -1101,11 +1100,11 @@ describe('createAuthenticatedFetch', () => {
   });
 
   test('throws an HTTP error instead of a JSON parse error for non-JSON failures', async () => {
-    const loadTokens = mock(() => null);
-    const storeTokens = mock(resolveVoid);
-    const clearTokens = mock(resolveVoid);
+    const loadTokens = vi.fn(() => null);
+    const storeTokens = vi.fn(resolveVoid);
+    const clearTokens = vi.fn(resolveVoid);
 
-    mock.module('../../src/auth/tokenStorage', () => ({
+    vi.doMock('../../src/auth/tokenStorage', () => ({
       loadTokens,
       storeTokens,
       clearTokens,
@@ -1113,7 +1112,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    globalThis.fetch = mock(() => {
+    globalThis.fetch = vi.fn(() => {
       return textResponse('<html>bad gateway</html>', {
         status: 502,
         statusText: 'Bad Gateway',
@@ -1121,13 +1120,13 @@ describe('createAuthenticatedFetch', () => {
       });
     }) as unknown as typeof globalThis.fetch;
 
-    const onForcedLogout = mock(returnUndefined);
+    const onForcedLogout = vi.fn(returnUndefined);
     const fetchFn = createAuthenticatedFetch('https://api.example.com', onForcedLogout);
     const operation = { text: 'query ViewerQuery { viewer { id } }' } as Parameters<
       ReturnType<typeof createAuthenticatedFetch>
     >[0];
 
-    await expect(fetchFn(operation, {})).rejects.toThrow('GraphQL request failed with 502 Bad Gateway');
+    await expect(fetchFn(operation, {}, {})).rejects.toThrow('GraphQL request failed with 502 Bad Gateway');
     expect(onForcedLogout).not.toHaveBeenCalled();
   });
 });
