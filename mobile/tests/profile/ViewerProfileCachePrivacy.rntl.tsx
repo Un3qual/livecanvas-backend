@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { act, render, screen, waitFor } from '@testing-library/react-native';
 import { RelayEnvironmentProvider } from 'react-relay';
 import {
   createOperationDescriptor,
@@ -54,16 +54,25 @@ test('renders cached viewer-owned profile data while social identity refreshes',
   expect(screen.queryByText('cached-follower@example.com')).toBeNull();
   expect(screen.queryByText('cached-requester@example.com')).toBeNull();
 
-  resolveNetwork(
-    networkResolvers,
-    'ViewerProfileScreenQuery',
-    cachedViewerProfile(),
-  );
-  resolveNetwork(
-    networkResolvers,
-    'ViewerProfileSocialSectionsQuery',
-    emptySocialProfiles(),
-  );
+  await act(async () => {
+    resolveNetwork(
+      networkResolvers,
+      'ViewerProfileScreenQuery',
+      cachedViewerProfile(),
+    );
+    resolveNetwork(
+      networkResolvers,
+      'ViewerProfileSocialSectionsQuery',
+      emptySocialProfiles(),
+    );
+    resolveNetwork(
+      networkResolvers,
+      'profileContentOperationsQuery',
+      emptyProfileContent(),
+    );
+  });
+
+  expect(networkResolvers.size).toBe(0);
 
   await waitFor(() => {
     expect(screen.getByText('No followers are visible yet.')).toBeOnTheScreen();
@@ -120,17 +129,31 @@ function emptySocialProfiles() {
   };
 }
 
+function emptyProfileContent() {
+  return {
+    node: {
+      __typename: 'User',
+      id: 'viewer-id',
+      posts: connection([]),
+      replayFeed: connection([]),
+      storyFeed: connection([]),
+    },
+    viewer: { id: 'viewer-id' },
+  };
+}
+
 function connection<Node>(nodes: ReadonlyArray<Node>) {
   return {
     edges: nodes.map((node) => ({ node })),
     pageInfo: {
+      endCursor: null,
       hasNextPage: false,
     },
   };
 }
 
 function resolveNetwork(
-  resolvers: ReadonlyMap<string, (response: GraphQLResponse) => void>,
+  resolvers: Map<string, (response: GraphQLResponse) => void>,
   operationName: string,
   data: object,
 ) {
@@ -141,4 +164,5 @@ function resolveNetwork(
   }
 
   resolve({ data });
+  resolvers.delete(operationName);
 }
