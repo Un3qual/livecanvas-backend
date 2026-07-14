@@ -77,11 +77,11 @@ whole suite or adding a Bun compatibility helper.
 - Consumes: Vitest setup and direct Vitest primitives.
 - Produces: fixed module factories installed before the existing top-level dynamic imports.
 
-- [ ] Replace `mock.module` with `vi.doMock`, callable mocks with `vi.fn`, and Bun imports with Vitest imports.
-- [ ] Preserve declaration-before-mock ordering and top-level dynamic imports so factories never depend on hoist-sensitive uninitialized values.
-- [ ] Remove or rewrite comments that describe Bun process-wide mock leakage.
-- [ ] Run Vitest against these eight files together; verify all pass without order dependence.
-- [ ] Run `git diff --check` and commit with `test: migrate module mocks to vitest`.
+- [x] Replace `mock.module` with `vi.doMock`, callable mocks with `vi.fn`, and Bun imports with Vitest imports.
+- [x] Preserve declaration-before-mock ordering and top-level dynamic imports so factories never depend on hoist-sensitive uninitialized values.
+- [x] Remove or rewrite comments that describe Bun process-wide mock leakage.
+- [x] Run Vitest against these eight files together; verify all pass without order dependence.
+- [x] Run `git diff --check` and commit with `test: migrate module mocks to vitest`.
 
 ### Task 4: Replace Bun cache bypasses with explicit module isolation
 

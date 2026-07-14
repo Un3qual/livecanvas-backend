@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, vi, test } from 'vitest';
 import {
   Fragment,
   createElement,
@@ -28,7 +28,7 @@ function FlatListMock(props: { [key: string]: unknown }) {
   return createElement('FlatList', props);
 }
 
-mock.module('react-native', () => ({
+vi.doMock('react-native', () => ({
   FlatList: FlatListMock,
   Pressable: NativeComponent,
   StyleSheet: {
@@ -47,7 +47,7 @@ mock.module('react-native', () => ({
   View: NativeComponent,
 }));
 
-mock.module('../../src/components/AppButton', () => ({
+vi.doMock('../../src/components/AppButton', () => ({
   AppButton: ({
     disabled,
     label,
@@ -64,12 +64,12 @@ mock.module('../../src/components/AppButton', () => ({
     ),
 }));
 
-mock.module('../../src/components/AppCard', () => ({
+vi.doMock('../../src/components/AppCard', () => ({
   AppCard: ({ children }: { children?: ReactNode }) =>
     createElement('View', null, children),
 }));
 
-mock.module('../../src/providers/ThemeProvider', () => ({
+vi.doMock('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
     colors: {
       accent: 'accent',
@@ -85,7 +85,7 @@ mock.module('../../src/providers/ThemeProvider', () => ({
   }),
 }));
 
-mock.module('../../src/theme/tokens', () => ({
+vi.doMock('../../src/theme/tokens', () => ({
   radius: { lg: 24, md: 14, pill: 999, sm: 8 },
   spacing: { lg: 16, md: 12, sm: 8, xs: 4 },
   touchTarget: { min: 44 },

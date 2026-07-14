@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, vi, test } from 'vitest';
 import { createElement, type ReactNode } from 'react';
 
 function NullComponent() {
@@ -46,10 +46,10 @@ function readLiveSessionIdParamMock(
   return trimmed && trimmed.length > 0 ? trimmed : null;
 }
 
-mock.module('expo-router', () => ({
+vi.doMock('expo-router', () => ({
   useRouter: () => ({ push: () => undefined }),
 }));
-mock.module('react-native', () => ({
+vi.doMock('react-native', () => ({
   FlatList: NullComponent,
   Linking: {
     canOpenURL: () => Promise.resolve(false),
@@ -64,7 +64,7 @@ mock.module('react-native', () => ({
   Text: 'Text',
   View: 'View',
 }));
-mock.module('react-relay', () => ({
+vi.doMock('react-relay', () => ({
   fetchQuery: () => ({
     toPromise: () => Promise.resolve(null),
   }),
@@ -76,19 +76,18 @@ mock.module('react-relay', () => ({
   useRelayEnvironment: () => ({}),
   useMutation: () => [() => undefined, false],
 }));
-// Bun keeps these module mocks process-wide in the full quality test run, so
-// keep shared UI mocks child-rendering for later component presentation tests.
-mock.module('../../src/components/AppButton', () => ({
+// Keep shared UI mocks child-rendering for component presentation tests.
+vi.doMock('../../src/components/AppButton', () => ({
   AppButton: AppButtonMock,
 }));
-mock.module('../../src/components/AppCard', () => ({ AppCard: AppCardMock }));
-mock.module('../../src/components/AppHeader', () => ({
+vi.doMock('../../src/components/AppCard', () => ({ AppCard: AppCardMock }));
+vi.doMock('../../src/components/AppHeader', () => ({
   AppHeader: AppHeaderMock,
 }));
-mock.module('../../src/components/ScreenState', () => ({
+vi.doMock('../../src/components/ScreenState', () => ({
   ScreenState: NullComponent,
 }));
-mock.module('../../src/providers/ThemeProvider', () => ({
+vi.doMock('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
     colors: {
       background: 'background',
@@ -97,22 +96,21 @@ mock.module('../../src/providers/ThemeProvider', () => ({
     },
   }),
 }));
-// Keep the shared token mock export-complete for later style imports in the
-// same Bun test process.
-mock.module('../../src/theme/tokens', () => ({
+// Keep the token mock export-complete for style imports exercised here.
+vi.doMock('../../src/theme/tokens', () => ({
   radius: { lg: 24, md: 14, pill: 999, sm: 8 },
   spacing: { lg: 16, md: 12, sm: 8 },
   touchTarget: { min: 44 },
   typography: { body: {}, label: {} },
 }));
-mock.module('../../src/live/liveSessionNavigation', () => ({
+vi.doMock('../../src/live/liveSessionNavigation', () => ({
   liveSessionHref: (sessionId: string) => ({
     params: { sessionId },
     pathname: '/live-session',
   }),
   readLiveSessionIdParam: readLiveSessionIdParamMock,
 }));
-mock.module('../../src/live/components/LiveSessionSummaryCard', () => ({
+vi.doMock('../../src/live/components/LiveSessionSummaryCard', () => ({
   LiveSessionSummaryCard: () => null,
 }));
 

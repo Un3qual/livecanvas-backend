@@ -1,19 +1,19 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { beforeEach, describe, expect, vi, test } from 'vitest';
 
 let storedValue: string | null = null;
 let storageShouldFail = false;
 let nextHandoffId = '550e8400-e29b-41d4-a716-446655440010';
 let storageWrites = 0;
 
-mock.module('expo-crypto', () => ({
+vi.doMock('expo-crypto', () => ({
   randomUUID: () => nextHandoffId,
 }));
 
-mock.module('react-native', () => ({
+vi.doMock('react-native', () => ({
   Linking: { getInitialURL: () => Promise.resolve(null) },
 }));
 
-mock.module('expo-secure-store', () => ({
+vi.doMock('expo-secure-store', () => ({
   deleteItemAsync: () => {
     storedValue = null;
     return Promise.resolve();

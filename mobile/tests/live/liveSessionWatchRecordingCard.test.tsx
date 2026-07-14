@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { beforeEach, describe, expect, vi, test } from 'vitest';
 import {
   createElement,
   isValidElement,
@@ -7,15 +7,15 @@ import {
 } from 'react';
 
 type LinkingMock = {
-  canOpenURL: ReturnType<typeof mock>;
-  getInitialURL: ReturnType<typeof mock>;
-  openURL: ReturnType<typeof mock>;
+  canOpenURL: ReturnType<typeof vi.fn>;
+  getInitialURL: ReturnType<typeof vi.fn>;
+  openURL: ReturnType<typeof vi.fn>;
 };
 
 const linkingMock: LinkingMock = {
-  canOpenURL: mock(() => Promise.resolve(false)),
-  getInitialURL: mock(() => Promise.resolve(null)),
-  openURL: mock(() => Promise.resolve()),
+  canOpenURL: vi.fn(() => Promise.resolve(false)),
+  getInitialURL: vi.fn(() => Promise.resolve(null)),
+  openURL: vi.fn(() => Promise.resolve()),
 };
 
 function NativeComponent({
@@ -28,7 +28,7 @@ function NativeComponent({
   return createElement('NativeComponent', props, children);
 }
 
-mock.module('react-native', () => ({
+vi.doMock('react-native', () => ({
   ActivityIndicator: NativeComponent,
   FlatList: NativeComponent,
   Linking: linkingMock,
@@ -61,7 +61,7 @@ mock.module('react-native', () => ({
   View: NativeComponent,
 }));
 
-mock.module('../../src/components/AppButton', () => ({
+vi.doMock('../../src/components/AppButton', () => ({
   AppButton: ({
     disabled,
     label,
@@ -78,7 +78,7 @@ mock.module('../../src/components/AppButton', () => ({
     ),
 }));
 
-mock.module('../../src/providers/ThemeProvider', () => ({
+vi.doMock('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
     colors: {
       accent: 'accent',
@@ -95,7 +95,7 @@ mock.module('../../src/providers/ThemeProvider', () => ({
   }),
 }));
 
-mock.module('../../src/theme/tokens', () => ({
+vi.doMock('../../src/theme/tokens', () => ({
   colors: {},
   radius: {
     lg: 24,
@@ -149,9 +149,9 @@ const reactInternals = (
 
 describe('LiveSessionWatchCards recording metadata', () => {
   beforeEach(() => {
-    linkingMock.canOpenURL = mock(() => Promise.resolve(false));
-    linkingMock.getInitialURL = mock(() => Promise.resolve(null));
-    linkingMock.openURL = mock(() => Promise.resolve());
+    linkingMock.canOpenURL = vi.fn(() => Promise.resolve(false));
+    linkingMock.getInitialURL = vi.fn(() => Promise.resolve(null));
+    linkingMock.openURL = vi.fn(() => Promise.resolve());
   });
 
   test('omits the recording section when the session has no recording asset', () => {
@@ -280,7 +280,7 @@ describe('LiveSessionWatchCards recording metadata', () => {
   });
 
   test('opens processed recording URLs and renders a retryable failure message', async () => {
-    linkingMock.openURL = mock(() =>
+    linkingMock.openURL = vi.fn(() =>
       Promise.reject(new Error('browser unavailable')),
     );
 
@@ -321,14 +321,14 @@ describe('LiveSessionWatchCards recording metadata', () => {
   });
 
   test('opens custom schemes only when the platform reports support', async () => {
-    linkingMock.canOpenURL = mock(() => Promise.resolve(false));
+    linkingMock.canOpenURL = vi.fn(() => Promise.resolve(false));
 
     await expect(
       openLiveSessionRecordingUrl('livecanvas://recording/1'),
     ).rejects.toThrow('Unsupported recording URL');
     expect(linkingMock.openURL).not.toHaveBeenCalled();
 
-    linkingMock.canOpenURL = mock(() => Promise.resolve(true));
+    linkingMock.canOpenURL = vi.fn(() => Promise.resolve(true));
 
     await openLiveSessionRecordingUrl('livecanvas://recording/1');
 

@@ -1,11 +1,11 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, vi, test } from 'vitest';
 import type { ReactElement } from 'react';
 
 function NullReactNativeComponent() {
   return null;
 }
 
-mock.module('react-native', () => ({
+vi.doMock('react-native', () => ({
   ActivityIndicator: NullReactNativeComponent,
   FlatList: NullReactNativeComponent,
   Linking: { getInitialURL: () => Promise.resolve(null) },
@@ -56,7 +56,7 @@ function LiveSessionWatchScreenMock(_props: { sessionId: string }) {
   return null;
 }
 
-mock.module('expo-router', () => ({
+vi.doMock('expo-router', () => ({
   Redirect: RedirectMock,
   Stack: StackMock,
   useLocalSearchParams: () => modalSearchParams,
@@ -64,15 +64,15 @@ mock.module('expo-router', () => ({
   useRouter: () => ({ push: () => undefined }),
 }));
 
-mock.module('../../src/auth/AuthProvider', () => ({
+vi.doMock('../../src/auth/AuthProvider', () => ({
   useAuth: () => ({ state: { status: modalAuthStatus } }),
 }));
 
-mock.module('../../src/components/ScreenState', () => ({
+vi.doMock('../../src/components/ScreenState', () => ({
   ScreenState: ScreenStateMock,
 }));
 
-mock.module('../../src/live/watch/LiveSessionWatchScreen', () => ({
+vi.doMock('../../src/live/watch/LiveSessionWatchScreen', () => ({
   LiveSessionWatchScreen: LiveSessionWatchScreenMock,
 }));
 
