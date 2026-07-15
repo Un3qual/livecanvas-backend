@@ -19,6 +19,21 @@ export const profileScreenStyles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
+  identityForm: {
+    gap: spacing.sm,
+  },
+  field: {
+    gap: spacing.xs,
+  },
+  fieldLabel: typography.label,
+  input: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    fontSize: 16,
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   avatar: {
     width: 84,
     height: 84,
@@ -149,4 +164,3 @@ export const profileScreenStyles = StyleSheet.create({
     marginHorizontal: spacing.lg,
   },
 });
-

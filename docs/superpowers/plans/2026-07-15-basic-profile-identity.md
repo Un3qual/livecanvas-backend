@@ -113,6 +113,7 @@ React Native, Relay, pnpm, Vitest, Jest/RNTL.
 
 **Files:**
 - Create: `mobile/src/profile/profileIdentityState.ts`
+- Create: `mobile/src/profile/viewer/ViewerProfileIdentity.tsx`
 - Create: `mobile/tests/profile/profileIdentityState.test.ts`
 - Modify: `mobile/src/profile/viewer/ViewerProfileScreen.tsx`
 - Test: `mobile/tests/profile/ViewerProfileScreen.rntl.tsx`
@@ -121,19 +122,19 @@ React Native, Relay, pnpm, Vitest, Jest/RNTL.
 - Pure validation mirrors backend handle/display-name rules.
 - The reducer tracks input, one active attempt ID, field/general errors, and
   canonical success while ignoring stale completion.
-- Relay operation `ViewerProfileScreenUpdateIdentityMutation` calls
+- Relay operation `ViewerProfileIdentityUpdateMutation` calls
   `updateViewerProfileIdentity`.
 
-- [ ] Add failing state tests for prefill, edits, validation, admission,
+- [x] Add failing state tests for prefill, edits, validation, admission,
   canonical success, username/display-name/general errors, retry, reset, and
   stale attempt rejection.
-- [ ] Add failing RNTL tests for prefilled inputs, duplicate-press admission,
+- [x] Add failing RNTL tests for prefilled inputs, duplicate-press admission,
   local validation, canonical successful header update, edit preservation while
   saving, payload/transport errors, retry, and unmount safety.
-- [ ] Implement the pure reducer/validation and a compact viewer-profile form;
+- [x] Implement the pure reducer/validation and a compact viewer-profile form;
   mutation callbacks must belong to the mounted attempt and successful values
   must update the visible header without a route refetch.
-- [ ] Regenerate Relay, run focused state/RNTL suites, both TypeScript checks,
+- [x] Regenerate Relay, run focused state/RNTL suites, both TypeScript checks,
   and lint; commit `feat: edit viewer profile identity`.
 
 ### Task 5: Full Verification And Lane Closure

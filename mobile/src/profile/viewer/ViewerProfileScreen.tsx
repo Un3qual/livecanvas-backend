@@ -1,27 +1,17 @@
-import React, {
-  Suspense,
-  useEffect,
-  useReducer,
-  type PropsWithChildren,
-} from 'react';
+import React, { Suspense, useEffect, useReducer, type PropsWithChildren } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, Text, View } from 'react-native';
 import { graphql, useLazyLoadQuery, useMutation } from 'react-relay';
 
 import { AppButton } from '../../components/AppButton';
 import { AppCard } from '../../components/AppCard';
-import { AppHeader } from '../../components/AppHeader';
 import { ScreenState } from '../../components/ScreenState';
 import { liveSessionHref } from '../../live/liveSessionNavigation';
 import { LiveSessionSummaryCard } from '../../live/components/LiveSessionSummaryCard';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import { ProfileContentPreviewSections } from '../ProfileContentPreviewSection';
-import { ProfileAvatar } from '../components/ProfileAvatar';
 import { profileScreenStyles as styles } from '../components/profileScreenStyles';
-import {
-  formatPrivacyModeLabel,
-  formatProfileIdentity,
-} from '../profilePresentation';
+import { formatPrivacyModeLabel } from '../profilePresentation';
 import {
   createPrivacyModeState,
   formatMutationErrors,
@@ -30,6 +20,7 @@ import {
 } from '../privacyModeReducer';
 import type { ViewerProfileScreenPrivacyModeMutation } from '../../__generated__/ViewerProfileScreenPrivacyModeMutation.graphql';
 import type { ViewerProfileScreenQuery } from '../../__generated__/ViewerProfileScreenQuery.graphql';
+import { ViewerProfileIdentity } from './ViewerProfileIdentity';
 import { ViewerProfileSocialSectionsBoundary } from './ViewerProfileSocialSections';
 
 const viewerProfileScreenPrivacyModeMutation = graphql`
@@ -146,7 +137,6 @@ function ViewerProfileContent({ fetchKey }: { fetchKey: number }) {
       dispatchPrivacyMode({ mode: viewer.privacyMode, type: 'reset' });
     }
   }, [viewer?.privacyMode]);
-
   function handlePrivacyModePress() {
     const requestedPrivacyMode = nextPrivacyMode(
       privacyModeState.currentMode,
@@ -199,7 +189,6 @@ function ViewerProfileContent({ fetchKey }: { fetchKey: number }) {
     );
   }
 
-  const identity = formatProfileIdentity(viewer);
   const displayedPrivacyMode =
     privacyModeState.pendingMode ??
     privacyModeState.currentMode ??
@@ -224,14 +213,7 @@ function ViewerProfileContent({ fetchKey }: { fetchKey: number }) {
       contentContainerStyle={styles.content}
     >
       <AppCard>
-        <View style={styles.identity}>
-          <ProfileAvatar initials={identity.initials} />
-          <AppHeader
-            eyebrow="Profile"
-            title={identity.title}
-            subtitle={identity.subtitle}
-          />
-        </View>
+        <ViewerProfileIdentity viewer={viewer} />
         <View
           style={[
             styles.privacyPanel,
