@@ -101,7 +101,15 @@ import type {
 
 const INITIAL_TIMELINE_HISTORY_COUNT = 30;
 
-type LiveSessionRealtimeStatusMap = ReadonlyMap<string, LiveSessionStatus>;
+type LiveSessionRealtimeState = Readonly<{
+  status: LiveSessionStatus;
+  viewerCount: number | null;
+}>;
+
+type LiveSessionRealtimeStateMap = ReadonlyMap<
+  string,
+  LiveSessionRealtimeState
+>;
 
 type PendingChatSend = {
   readonly sessionId: string;
@@ -211,8 +219,8 @@ function LiveSessionWatchContent({
     useMutation<LiveSessionWatchScreenEndMutation>(
       liveSessionWatchScreenEndMutation,
     );
-  const [realtimeSessionStatuses, setRealtimeSessionStatuses] =
-    useState<LiveSessionRealtimeStatusMap>(() => new Map());
+  const [realtimeSessionStates, setRealtimeSessionStates] =
+    useState<LiveSessionRealtimeStateMap>(() => new Map());
   const chatChannelClientRef = useRef<LiveSessionChannelClient | null>(null);
   const chatSendPendingRef = useRef<PendingChatSend | null>(null);
   const chatSendTokenRef = useRef(0);
@@ -308,10 +316,13 @@ function LiveSessionWatchContent({
   const queriedNormalizedStatus = normalizeLiveSessionStatus(
     session?.status ?? 'ENDED',
   );
+  const realtimeSessionState = activeLiveSessionId
+    ? realtimeSessionStates.get(activeLiveSessionId)
+    : null;
   const normalizedStatus = session
-    ? realtimeSessionStatuses.get(activeLiveSessionId ?? '') ??
-      queriedNormalizedStatus
+    ? realtimeSessionState?.status ?? queriedNormalizedStatus
     : queriedNormalizedStatus;
+  const viewerCount = realtimeSessionState?.viewerCount ?? null;
   const dispatchChatMutation = useCallback(
     (action: LiveSessionChatTimelineMutationAction) => {
       if (!activeLiveSessionId) {
@@ -402,14 +413,44 @@ function LiveSessionWatchContent({
 
   const markLiveSessionRealtimeStatus = useCallback(
     (liveSessionId: string, status: LiveSessionStatus) => {
-      setRealtimeSessionStatuses((statuses) => {
-        if (statuses.get(liveSessionId) === status) {
-          return statuses;
+      setRealtimeSessionStates((states) => {
+        const currentState = states.get(liveSessionId);
+        if (currentState?.status === status) {
+          return states;
         }
 
-        const nextStatuses = new Map(statuses);
-        nextStatuses.set(liveSessionId, status);
-        return nextStatuses;
+        const nextStates = new Map(states);
+        nextStates.set(liveSessionId, {
+          status,
+          viewerCount: currentState?.viewerCount ?? null,
+        });
+        return nextStates;
+      });
+    },
+    [],
+  );
+
+  const markLiveSessionRealtimeState = useCallback(
+    (
+      liveSessionId: string,
+      status: LiveSessionStatus,
+      nextViewerCount: number,
+    ) => {
+      setRealtimeSessionStates((states) => {
+        const currentState = states.get(liveSessionId);
+        if (
+          currentState?.status === status &&
+          currentState.viewerCount === nextViewerCount
+        ) {
+          return states;
+        }
+
+        const nextStates = new Map(states);
+        nextStates.set(liveSessionId, {
+          status,
+          viewerCount: nextViewerCount,
+        });
+        return nextStates;
       });
     },
     [],
@@ -492,7 +533,7 @@ function LiveSessionWatchContent({
     olderTimelinePageLoader.syncSession(sessionId);
     sendChatChannelEvent({ sessionId, type: 'SESSION_CHANGED' });
     chatSendPendingRef.current = null;
-    setRealtimeSessionStatuses(new Map());
+    setRealtimeSessionStates(new Map());
   }, [olderTimelinePageLoader, sendChatChannelEvent, sessionId]);
 
   useEffect(() => {
@@ -620,7 +661,11 @@ function LiveSessionWatchContent({
           return;
         }
 
-        markLiveSessionRealtimeStatus(activeLiveSessionId, event.status);
+        markLiveSessionRealtimeState(
+          activeLiveSessionId,
+          event.status,
+          event.viewerCount,
+        );
 
         if (event.status === 'ENDED') {
           handleEndedLiveSession(activeLiveSessionId, () => {
@@ -736,7 +781,7 @@ function LiveSessionWatchContent({
     handleEndedLiveSession,
     handleWatchMembershipLost,
     hostPublishingSessions,
-    markLiveSessionRealtimeStatus,
+    markLiveSessionRealtimeState,
     sendChatChannelEvent,
     shouldMaintainSessionRealtimeChannel,
   ]);
@@ -885,6 +930,7 @@ function LiveSessionWatchContent({
         session={liveSession}
         status={status}
         normalizedStatus={normalizedStatus}
+        viewerCount={viewerCount}
       />
 
       <LiveSessionViewerPlaybackSurface

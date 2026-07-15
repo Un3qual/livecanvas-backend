@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-14
-Status: release-depth Batch 2 live audience count active
+Status: release-depth Batch 3 app-lifecycle recovery active
 
 ## Lane Scope
 
@@ -15,14 +15,14 @@ Status: release-depth Batch 2 live audience count active
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
 - Source plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Current scope: Batch 2 renders the existing realtime `viewerCount` as
-  session-scoped live audience state, including zero and singular labels.
+- Current scope: Batch 3 suspends transient viewer playback and realtime/chat
+  resources while backgrounded, then refetches and reconnects once on resume.
 - Write scope: `mobile/src/live/watch/**`, `mobile/tests/live/**`, and this lane
   pointer. Promote backend work only if a focused contract test fails.
-- Done condition: realtime count updates render correctly and session changes
-  or stale channel callbacks cannot leak audience state between broadcasts.
-- Verification: focused live realtime Vitest and watch-screen Jest/RNTL suites,
-  mobile typechecks, lint, and patch hygiene.
+- Done condition: app-state noise cannot duplicate recovery, backgrounding does
+  not issue durable leave, and foreground recovery is generation-safe.
+- Verification: focused app-state, playback, chat lifecycle, and watch-screen
+  suites plus mobile typechecks, lint, and patch hygiene.
 
 ## Deferred Scope
 
@@ -31,5 +31,5 @@ Status: release-depth Batch 2 live audience count active
 
 ## Next Action
 
-Execute Batch 2. After its milestone commit, advance this pointer to Batch 3
-foreground/background recovery.
+Execute Batch 3. After its milestone commit, advance this pointer to Batch 4
+post and story media rendering.

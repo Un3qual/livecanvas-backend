@@ -267,11 +267,13 @@ export function LiveSessionHero({
   normalizedStatus,
   session,
   status,
+  viewerCount,
 }: {
   isJoined: boolean;
   normalizedStatus: LiveSessionStatus;
   session: LiveSessionNode;
   status: ReturnType<typeof formatLiveSessionStatus>;
+  viewerCount: number | null;
 }) {
   const theme = useAppTheme();
   const host = formatProfileIdentity(session.host);
@@ -308,9 +310,12 @@ export function LiveSessionHero({
           status: normalizedStatus,
         })}
       />
-      <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
-        Host
-      </Text>
+      <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>Host</Text>
+      {viewerCount != null ? (
+        <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
+          {viewerCount === 1 ? '1 viewer' : `${viewerCount} viewers`}
+        </Text>
+      ) : null}
     </AppCard>
   );
 }

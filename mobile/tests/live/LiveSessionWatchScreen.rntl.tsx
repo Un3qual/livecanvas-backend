@@ -1,6 +1,7 @@
 import {
   act,
   render,
+  screen,
   waitFor,
 } from '@testing-library/react-native';
 
@@ -32,6 +33,10 @@ let mockChatControlsInput: ChatControlsInput | null;
 let mockChatPanelProps: ChatPanelProps | null;
 let mockSessionStatus: 'ENDED' | 'LIVE';
 let mockQueryData: ReturnType<typeof createQueryData>;
+let mockIsJoined: boolean;
+let mockSessionStateCallbacks: Array<
+  (event: { status: 'ENDED' | 'LIVE'; viewerCount: number }) => void
+>;
 
 const mockControlsController: LiveSessionChatControlsController = {
   clearRowError: jest.fn(),
@@ -63,6 +68,19 @@ const mockOlderTimelinePageLoader = {
   syncSession: jest.fn(),
   unmount: jest.fn(),
 };
+const mockGetAccessToken = jest.fn();
+const mockHostPublishingSessions = {
+  controlsFor: jest.fn(() => null),
+  has: jest.fn(() => false),
+  release: jest.fn(),
+};
+const mockWatchControllerFunctions = {
+  handleMembershipLost: jest.fn(),
+  handleSessionEnded: jest.fn(),
+  requestEnd: jest.fn(),
+  requestJoin: jest.fn(),
+  requestLeave: jest.fn(),
+};
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
@@ -78,17 +96,13 @@ jest.mock('react-relay', () => ({
 
 jest.mock('../../src/auth/AuthProvider', () => ({
   useAuth: () => ({
-    getAccessToken: jest.fn(),
+    getAccessToken: mockGetAccessToken,
     state: { status: 'authenticated' },
   }),
 }));
 
 jest.mock('../../src/host/HostBroadcastPublishingSessionProvider', () => ({
-  useHostBroadcastPublishingSessions: () => ({
-    controlsFor: () => null,
-    has: () => false,
-    release: jest.fn(),
-  }),
+  useHostBroadcastPublishingSessions: () => mockHostPublishingSessions,
 }));
 
 jest.mock('../../src/providers/StartupGate', () => ({
@@ -96,8 +110,49 @@ jest.mock('../../src/providers/StartupGate', () => ({
 }));
 
 jest.mock('../../src/providers/ThemeProvider', () => ({
-  useAppTheme: () => ({ colors: { background: '#ffffff' } }),
+  useAppTheme: () => ({
+    colors: {
+      accent: '#3366ff',
+      background: '#ffffff',
+      border: '#cccccc',
+      surface: '#ffffff',
+      surfaceMuted: '#eeeeee',
+      text: '#111111',
+      textMuted: '#666666',
+    },
+  }),
 }));
+
+jest.mock('../../src/realtime/phoenixSocket', () => ({
+  createPhoenixSocket: () => ({
+    channel: jest.fn(),
+    connect: jest.fn(),
+    disconnect: jest.fn(),
+  }),
+}));
+
+jest.mock('../../src/live/liveSessionChannelClient', () => {
+  const actual = jest.requireActual(
+    '../../src/live/liveSessionChannelClient',
+  );
+
+  return {
+    ...actual,
+    createLiveSessionChannelClient: (options: {
+      onSessionState: (
+        event: { status: 'ENDED' | 'LIVE'; viewerCount: number },
+      ) => void;
+    }) => {
+      mockSessionStateCallbacks.push(options.onSessionState);
+
+      return {
+        join: () => Promise.resolve({ status: 'joined' }),
+        leave: jest.fn(),
+        sendChatMessage: jest.fn(),
+      };
+    },
+  };
+});
 
 jest.mock('../../src/live/chat/LiveSessionChatPanel', () => ({
   LiveSessionChatPanel: (props: ChatPanelProps) => {
@@ -121,13 +176,19 @@ jest.mock(
   }),
 );
 
-jest.mock('../../src/live/watch/components/LiveSessionWatchCards', () => ({
-  createLiveSessionWatchHostMediaControls: () => null,
-  LiveSessionDetailsCard: () => null,
-  LiveSessionHero: () => null,
-  LiveSessionWatchControlsCard: () => null,
-  UnavailableLiveSession: () => null,
-}));
+jest.mock('../../src/live/watch/components/LiveSessionWatchCards', () => {
+  const actual = jest.requireActual(
+    '../../src/live/watch/components/LiveSessionWatchCards',
+  );
+
+  return {
+    ...actual,
+    createLiveSessionWatchHostMediaControls: () => null,
+    LiveSessionDetailsCard: () => null,
+    LiveSessionWatchControlsCard: () => null,
+    UnavailableLiveSession: () => null,
+  };
+});
 
 jest.mock(
   '../../src/live/watch/components/LiveSessionViewerPlaybackSurface',
@@ -138,17 +199,13 @@ jest.mock('../../src/live/watch/hooks/useLiveSessionWatchController', () => ({
   createLiveSessionOlderTimelinePageLoader: () =>
     mockOlderTimelinePageLoader,
   useLiveSessionWatchController: () => ({
+    ...mockWatchControllerFunctions,
     error: null,
-    handleMembershipLost: jest.fn(),
-    handleSessionEnded: jest.fn(),
     hasActiveSubmission: false,
     isEnding: false,
-    isJoined: false,
+    isJoined: mockIsJoined,
     isJoining: false,
     isLeaving: false,
-    requestEnd: jest.fn(),
-    requestJoin: jest.fn(),
-    requestLeave: jest.fn(),
   }),
 }));
 
@@ -168,6 +225,8 @@ beforeEach(() => {
   mockChatPanelProps = null;
   mockSessionStatus = 'LIVE';
   mockQueryData = createQueryData(mockSessionStatus);
+  mockIsJoined = false;
+  mockSessionStateCallbacks = [];
   jest.clearAllMocks();
 });
 
@@ -232,14 +291,78 @@ describe('LiveSessionWatchScreen chat control wiring', () => {
   });
 });
 
-function createQueryData(status: 'ENDED' | 'LIVE') {
+describe('LiveSessionWatchScreen audience count', () => {
+  test('renders zero, singular, and plural realtime viewer counts', async () => {
+    mockIsJoined = true;
+    await render(<LiveSessionWatchScreen sessionId="session-1" />);
+
+    await waitFor(() => {
+      expect(mockSessionStateCallbacks).toHaveLength(1);
+    });
+
+    await act(() => {
+      mockSessionStateCallbacks[0]?.({ status: 'LIVE', viewerCount: 0 });
+    });
+    expect(screen.getByText('0 viewers')).toBeOnTheScreen();
+
+    await act(() => {
+      mockSessionStateCallbacks[0]?.({ status: 'LIVE', viewerCount: 1 });
+    });
+    expect(screen.getByText('1 viewer')).toBeOnTheScreen();
+
+    await act(() => {
+      mockSessionStateCallbacks[0]?.({ status: 'LIVE', viewerCount: 12 });
+    });
+    expect(screen.getByText('12 viewers')).toBeOnTheScreen();
+  });
+
+  test('resets viewer count and ignores stale channel callbacks after session change', async () => {
+    mockIsJoined = true;
+    const view = await render(
+      <LiveSessionWatchScreen sessionId="session-1" />,
+    );
+
+    await waitFor(() => {
+      expect(mockSessionStateCallbacks).toHaveLength(1);
+    });
+    const staleSessionStateCallback = mockSessionStateCallbacks[0];
+
+    await act(() => {
+      staleSessionStateCallback?.({ status: 'LIVE', viewerCount: 8 });
+    });
+    expect(screen.getByText('8 viewers')).toBeOnTheScreen();
+
+    mockQueryData = createQueryData('LIVE', 'session-2');
+    await view.rerender(<LiveSessionWatchScreen sessionId="session-2" />);
+
+    await waitFor(() => {
+      expect(mockSessionStateCallbacks).toHaveLength(2);
+    });
+    expect(screen.queryByText('8 viewers')).toBeNull();
+
+    await act(() => {
+      staleSessionStateCallback?.({ status: 'LIVE', viewerCount: 99 });
+    });
+    expect(screen.queryByText('99 viewers')).toBeNull();
+
+    await act(() => {
+      mockSessionStateCallbacks[1]?.({ status: 'LIVE', viewerCount: 2 });
+    });
+    expect(screen.getByText('2 viewers')).toBeOnTheScreen();
+  });
+});
+
+function createQueryData(
+  status: 'ENDED' | 'LIVE',
+  sessionId = 'session-1',
+) {
   return {
     node: {
       __typename: 'LiveSession' as const,
-      channelTopic: 'live_session:1',
+      channelTopic: `live_session:${sessionId}`,
       endedAt: status === 'ENDED' ? '2026-07-11T13:00:00Z' : null,
       host: { email: 'host@example.test', id: 'host-1' },
-      id: 'session-1',
+      id: sessionId,
       insertedAt: '2026-07-11T12:00:00Z',
       recordingMediaAsset: null,
       startedAt: '2026-07-11T12:00:00Z',

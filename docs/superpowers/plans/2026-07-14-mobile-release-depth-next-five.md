@@ -59,11 +59,11 @@ and readiness state.
 **Interfaces:** The existing `LiveSessionRealtimeSessionStateEvent.viewerCount`
 becomes a session-scoped `number | null` passed to `LiveSessionHero`.
 
-- [ ] Add failing screen tests for zero, singular, plural, reset, and stale
+- [x] Add failing screen tests for zero, singular, plural, reset, and stale
   channel callbacks.
-- [ ] Implement audience state without changing the backend/channel payload.
-- [ ] Run the focused realtime parser and watch-screen suites.
-- [ ] Commit `feat: show live audience count`.
+- [x] Implement audience state without changing the backend/channel payload.
+- [x] Run the focused realtime parser and watch-screen suites.
+- [x] Commit `feat: show live audience count`.
 
 ### Task 3: Foreground And Background Recovery
 
