@@ -11,10 +11,10 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: mobile release-depth five-batch sequence active
+- Track state: mobile release-depth sequence complete; operator/device QA pending
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Current gate:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Current release-depth design:
@@ -22,7 +22,7 @@ and content discovery, live streaming, and chat.
 - Current release-depth plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Last completed detailed plan:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Recent theme: end-to-end contact invitations now complete fragment-only HTTPS
   delivery from one shared trusted public origin, neutral recipient email copy,
   protected authentication handoff, one-time recipient-bound consumption, and
@@ -144,6 +144,7 @@ Active release gate:
 
 Recently completed product batch:
 
+- `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
@@ -154,9 +155,9 @@ Recently completed product batch:
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-The prior product follow-up plans are complete. The approved release-depth
-sequence now runs ahead of resumed operator/device QA because it closes gaps
-found while reviewing the launch checklist against current code.
+The prior product follow-up plans and approved release-depth sequence are
+complete. Operator/device QA now resumes from the release-candidate checklist;
+any reproduced defect should be promoted into its owning lane.
 
 ## Shared Constraints
 

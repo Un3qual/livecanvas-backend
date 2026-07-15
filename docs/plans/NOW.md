@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-14
-Status: mobile release-depth closure verification active
+Status: mobile release-depth complete; operator/device QA pending
 
 ## Purpose
 
@@ -13,8 +13,9 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
 - Current implementation plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Completed milestones: all five release-depth batches are implemented.
-- Current batch: full closure verification and evidence recording.
+- Completed milestones: all five release-depth batches are implemented and the
+  full local closure matrix passes.
+- Current batch: none; operator/device QA owns the next release gate.
 - Sequence design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Batch 2 design:
@@ -46,19 +47,18 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: release-depth Batches 1-5 are implemented; full closure verification is
-  active before the lane returns to device/operator QA.
+- State: release-depth Batches 1-5 and local closure verification are complete;
+  device/operator QA is pending.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: configured-origin invite routing and the full mobile quality
-  gate pass with 552 Vitest and 165 Jest tests; typechecks, lint, frozen pnpm
-  install, and patch hygiene pass. Relay inputs were unchanged by the
-  integration fixes.
+- Verification: frozen pnpm install, Relay generation, typechecks, lint, 76
+  Vitest files with 563 tests, 27 Jest suites with 182 tests, `nix flake check`,
+  and patch hygiene pass.
 
 ## Execution Rule
 
-Execute the five release-depth batches from
-`docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md` in order.
-Do not mark operator or physical-device QA complete from local evidence.
+Do not start another implementation batch until device/operator QA reproduces a
+defect or the coordinator explicitly promotes new work. Do not mark operator or
+physical-device QA complete from local evidence.
 
 ## Cross-Lane Policy
 
@@ -68,8 +68,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Run the full closure matrix, record evidence, then return the mobile lane to
-device/operator QA and publish a non-draft PR.
+The release operator should confirm the target-environment inventory and run
+the physical-device checklist. Promote reproduced defects to the owning lane.
 
 ## Repair Conditions
 

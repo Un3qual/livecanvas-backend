@@ -151,8 +151,8 @@ previous/next/progress without persisting seen state.
 - Modify: `docs/plans/INDEX.md`
 - Modify: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
-- [ ] Record each batch's completed commit and focused evidence, return the
+- [x] Record each batch's completed commit and focused evidence, return the
   mobile lane to operator/device QA, and leave backend lane state unchanged.
-- [ ] Run `CI=true pnpm install --frozen-lockfile`, `pnpm relay`,
+- [x] Run `CI=true pnpm install --frozen-lockfile`, `pnpm relay`,
   `pnpm test:quality`, `nix flake check`, and `git diff --check`.
-- [ ] Commit `docs: close mobile release depth batches`.
+- [x] Commit `docs: close mobile release depth batches`.
