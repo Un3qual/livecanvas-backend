@@ -11,8 +11,10 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: mobile magic-link authentication locally complete; device QA active
+- Track state: native contact import active
 - Lane pointer: `docs/plans/mobile/NOW.md`
+- Active implementation plan:
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
 - Latest completed implementation plan:
   `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
 - Current gate:

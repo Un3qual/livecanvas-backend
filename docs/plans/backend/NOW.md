@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-15
-Status: mobile magic-link delivery complete; release QA pending
+Status: native contact bulk import active
 
 ## Lane Scope
 
@@ -11,30 +11,27 @@ Status: mobile magic-link delivery complete; release QA pending
 
 ## Current Batch
 
-- Design: `docs/superpowers/specs/2026-07-15-mobile-magic-link-auth-design.md`
-- Source plan: `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
-- Completed scope: Task 1 replaced the placeholder magic-link URL with a
-  configured fragment-only HTTPS landing and added its minimal public endpoint.
-- Result: sign-in and sign-up challenge emails use the trusted origin,
-  raw tokens never reach request paths or queries, and the hardened landing
-  emits only the matching custom-scheme handoff.
+- Design: `docs/superpowers/specs/2026-07-15-native-contact-import-design.md`
+- Source plan: `docs/superpowers/plans/2026-07-15-native-contact-import.md`
+- Current scope: Task 1 only—viewer-scoped atomic bulk upsert over the existing
+  contact normalization and matching model.
+- Done condition: 1-100 entries validate before one transaction, retries remain
+  idempotent, and GraphQL never accepts a target user ID.
 
 ## Verification
 
-- Landing asset tests: 5 passed.
-- Repository-wide formatting and the production asset build pass.
-- `mix typecheck`: zero Dialyzer errors.
-- Full backend suite: 1,023 tests, zero failures, one excluded.
+- Run focused Accounts/GraphQL contact tests, repository-wide formatting,
+  warnings-as-errors compilation, `mix typecheck`, the full suite, and patch
+  hygiene.
 
 ## Next Action
 
-Stand by for operator/device email-link QA findings; no backend implementation
-is queued from this completed batch.
+Implement Task 1 and hand the bounded mutation contract to mobile Tasks 2-3.
 
 ## References
 
 - Mobile lane: `docs/plans/mobile/NOW.md`
-- Active magic-link plan:
-  `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
+- Active contact-import plan:
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
 - Active mobile QA gate:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`

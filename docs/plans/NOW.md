@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-15
-Status: mobile magic-link authentication complete; release QA pending
+Status: native contact import active
 
 ## Purpose
 
@@ -9,6 +9,12 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Approved Sequence
 
+- Current design:
+  `docs/superpowers/specs/2026-07-15-native-contact-import-design.md`
+- Current implementation:
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
+- Current batch: viewer-scoped atomic contact chunks, minimal native address-book
+  access, and generation-safe mobile import into existing discovery results.
 - Completed design:
   `docs/superpowers/specs/2026-07-15-mobile-magic-link-auth-design.md`
 - Completed implementation:
@@ -44,22 +50,19 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: magic-link delivery and public landing are locally complete; standby
-  for operator/device email-link QA findings.
+- State: native contact bulk-import contract active in Task 1.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: magic-link handoff, request, and redemption are locally complete;
-  operator/device email-link QA remains pending.
+- State: native adapter and import workflow active in Tasks 2-3.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: frozen install and Relay generation pass; typechecks and lint
-  pass; 81 Vitest files with 610 tests and 29 Jest suites with 208 tests pass;
-  `nix flake check` passes on aarch64-darwin.
+- Verification: focused backend/mobile contact suites, backend format and
+  typecheck/full tests, Relay generation, mobile quality, Nix, and patch hygiene.
 
 ## Execution Rule
 
-Do not start another implementation batch until the coordinator selects it.
+Execute `docs/superpowers/plans/2026-07-15-native-contact-import.md` in order.
 Do not mark operator or physical-device QA complete from local evidence.
 
 ## Cross-Lane Policy
@@ -70,9 +73,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Resume the release-candidate checklist with physical-device sign-in and sign-up
-email-link QA. Promote any reproduced contract or runtime defect to its owning
-lane.
+Complete the atomic backend contract, then the native adapter and mobile import
+workflow. Return to operator/device QA after full local closure verification.
 
 ## Repair Conditions
 

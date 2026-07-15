@@ -15,9 +15,9 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: mobile magic-link delivery complete; release QA pending
-- Latest completed source plan:
-  `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
+- State: native contact bulk import active
+- Active source plan:
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
   contract, resolver, runtime, or data issue.
@@ -25,10 +25,10 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: mobile magic-link authentication complete; device QA pending
+- State: native contact import active
 - Track: `docs/plans/mobile/TRACK.md`
-- Latest completed source plan:
-  `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
+- Active source plan:
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
 - Latest completed product theme: mobile magic-link authentication
 - Latest completed detailed plans: account settings and recovery, existing
   social controls, contact discovery, post owner controls, and profile
