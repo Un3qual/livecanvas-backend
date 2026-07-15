@@ -343,22 +343,28 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
       screen.getByRole('button', { name: 'Import device contacts' }),
     );
     await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(1));
-    await failContactImport(0);
+    await completeContactImport(100, 0);
+    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(2));
+    expect(
+      mockImportContactsCommit.mock.calls[1]?.[0].variables.input.entries[0]
+        ?.contactClientId,
+    ).toBe('device:100');
+    await failContactImport(1);
 
     expect(
       screen.getByText('We could not import your contacts. Try again.'),
     ).toBeOnTheScreen();
-    expect(mockImportContactsCommit).toHaveBeenCalledTimes(1);
+    expect(mockImportContactsCommit).toHaveBeenCalledTimes(2);
     expect(mockFetchQueryVariables).toBeNull();
 
     await fireEvent.press(
       screen.getByRole('button', { name: 'Try import again' }),
     );
 
-    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(3));
     expect(mockReadDeviceContacts).toHaveBeenCalledTimes(2);
     expect(
-      mockImportContactsCommit.mock.calls[1]?.[0].variables.input.entries[0]
+      mockImportContactsCommit.mock.calls[2]?.[0].variables.input.entries[0]
         ?.contactClientId,
     ).toBe('device:0');
   });
