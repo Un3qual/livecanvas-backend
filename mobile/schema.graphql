@@ -44,6 +44,7 @@ type RootMutationType {
   requestViewerAccountDeletion(input: RequestViewerAccountDeletionInput!): RequestViewerAccountDeletionPayload
   cancelViewerAccountDeletionRequest(input: CancelViewerAccountDeletionRequestInput!): CancelViewerAccountDeletionRequestPayload
   upsertViewerContactEntry(input: UpsertViewerContactEntryInput!): UpsertViewerContactEntryPayload
+  importViewerContactEntries(input: ImportViewerContactEntriesInput!): ImportViewerContactEntriesPayload
   deliverViewerContactInvite(input: DeliverViewerContactInviteInput!): DeliverViewerContactInvitePayload
   consumeContactInvite(input: ConsumeContactInviteInput!): ConsumeContactInvitePayload
   issueViewerAuthTokens(input: IssueViewerAuthTokensInput!): IssueViewerAuthTokensPayload
@@ -421,6 +422,15 @@ input UpsertViewerContactEntryInput {
 
 type UpsertViewerContactEntryPayload {
   contactMatch: ContactMatch
+  errors: [UserError!]!
+}
+
+input ImportViewerContactEntriesInput {
+  entries: [ViewerContactEntryInput!]!
+}
+
+type ImportViewerContactEntriesPayload {
+  importedCount: Int!
   errors: [UserError!]!
 }
 
@@ -946,6 +956,14 @@ input PasswordAuthInput {
 input MagicLinkAuthInput {
   email: String
   token: String
+}
+
+input ViewerContactEntryInput {
+  contactClientId: String!
+  contactName: String
+  birthday: String
+  emails: [String!]
+  phoneNumbers: [String!]
 }
 
 input OauthAuthInput {

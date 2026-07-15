@@ -102,17 +102,17 @@ normalization/persistence path.
 - `useDeviceContactImport({onImported})` exposes `importContacts`,
   `isImporting`, `status`, `message`, and `openSettings`.
 
-- [ ] Add failing state tests for admission, progress, exact count, denied and
+- [x] Add failing state tests for admission, progress, exact count, denied and
   unavailable states, retryable failure, success, and stale-attempt rejection.
-- [ ] Add failing RNTL tests for explicit permission timing, sequential chunks,
+- [x] Add failing RNTL tests for explicit permission timing, sequential chunks,
   stop-on-first-failure, retry/idempotency, refresh only after total success,
   settings action, disabled duplicate submission, and manual-entry regression.
-- [ ] Add the Relay mutation and implement a generation-safe hook that reads
+- [x] Add the Relay mutation and implement a generation-safe hook that reads
   once, uploads chunks sequentially, verifies each returned count, and ignores
   completion from a replaced/unmounted attempt.
-- [ ] Add the import action, progress/result copy, and settings affordance to the
+- [x] Add the import action, progress/result copy, and settings affordance to the
   current screen without replacing its manual form or connection pagination.
-- [ ] Regenerate Relay, run focused state/RNTL suites, both TypeScript checks,
+- [x] Regenerate Relay, run focused state/RNTL suites, both TypeScript checks,
   and lint; commit `feat: import device contacts`.
 
 ### Task 4: Full Verification And Lane Closure

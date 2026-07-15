@@ -50,6 +50,7 @@ import {
   type ContactInviteDeliveryStatus,
   validateContactDiscoveryEmail,
 } from './contactDiscoveryState';
+import { useDeviceContactImport } from './useDeviceContactImport';
 
 type ContactDiscoveryData = ContactDiscoveryQuery['response'];
 type ContactMatch = NonNullable<
@@ -63,6 +64,7 @@ type ContactMatchNode = NonNullable<
 type ContactMatchedUser = ContactMatch['matchedUsers'][number];
 type LocalContactMatches = {
   readonly fetchKey: number;
+  readonly isAuthoritative: boolean;
   readonly matches: ContactMatch[];
 };
 
@@ -144,6 +146,7 @@ export function ContactDiscoveryScreen() {
       contactDiscoveryDeliverInviteMutation,
     );
   const activeSearchRef = useRef(false);
+  const isMountedRef = useRef(true);
   const activeInviteRecipientsRef = useRef(new Set<string>());
   const inviteAttemptSequenceRef = useRef(0);
   const [email, setEmail] = useState('');
@@ -152,6 +155,7 @@ export function ContactDiscoveryScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const [localMatches, setLocalMatches] = useState<LocalContactMatches>({
     fetchKey: routeFetchKey,
+    isAuthoritative: false,
     matches: [],
   });
   const [extraMatches, setExtraMatches] = useState<ContactMatch[]>([]);
@@ -164,10 +168,14 @@ export function ContactDiscoveryScreen() {
   const queryMatches = readConnectionNodes<ContactMatch>(
     queryConnection,
   );
-  const contactMatches = mergeContactMatches(
-    localMatches.fetchKey === routeFetchKey ? localMatches.matches : [],
-    queryMatches.concat(extraMatches),
-  );
+  const currentLocalMatches =
+    localMatches.fetchKey === routeFetchKey ? localMatches : null;
+  const contactMatches = currentLocalMatches?.isAuthoritative
+    ? mergeContactMatches(currentLocalMatches.matches, extraMatches)
+    : mergeContactMatches(
+        currentLocalMatches?.matches ?? [],
+        queryMatches.concat(extraMatches),
+      );
   const currentInviteRows = readCurrentInviteRows(contactMatches);
   const currentInviteRowsRef = useRef(currentInviteRows);
   currentInviteRowsRef.current = currentInviteRows;
@@ -182,6 +190,49 @@ export function ContactDiscoveryScreen() {
     setPageInfo(queryPageInfo);
     setLoadMoreError(null);
   }, [paginationResetKey, queryPageInfo]);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const refreshContactsAfterImport = useCallback(async () => {
+    const refreshedData = (await fetchQuery(
+      relayEnvironment,
+      contactDiscoveryQuery,
+      CONTACT_DISCOVERY_QUERY_VARIABLES,
+      PRIVACY_SENSITIVE_FETCH_OPTIONS,
+    ).toPromise()) as ContactDiscoveryData | null | undefined;
+    const refreshedConnection = refreshedData?.viewerContactMatches;
+
+    if (!refreshedConnection) {
+      throw new Error('Contact discovery refresh returned no connection.');
+    }
+
+    if (!isMountedRef.current) {
+      return;
+    }
+
+    // This network result is a full first page, so it replaces stale query rows.
+    setLocalMatches({
+      fetchKey: routeFetchKey,
+      isAuthoritative: true,
+      matches: readConnectionNodes<ContactMatch>(refreshedConnection),
+    });
+    setExtraMatches([]);
+    setPageInfo(readProfileConnectionPageInfo(refreshedConnection));
+    setLoadMoreError(null);
+  }, [relayEnvironment, routeFetchKey]);
+  const {
+    importContacts,
+    isImporting: isImportingContacts,
+    message: importMessage,
+    openSettings,
+    status: importStatus,
+  } = useDeviceContactImport({ onImported: refreshContactsAfterImport });
 
   async function loadMore() {
     if (isLoadingMore || !pageInfo.hasNextPage || pageInfo.endCursor == null) {
@@ -254,6 +305,8 @@ export function ContactDiscoveryScreen() {
 
         setLocalMatches((current) => ({
           fetchKey: routeFetchKey,
+          isAuthoritative:
+            current.fetchKey === routeFetchKey && current.isAuthoritative,
           matches: upsertLocalContactMatch(
             current.fetchKey === routeFetchKey ? current.matches : [],
             contactMatch,
@@ -408,8 +461,57 @@ export function ContactDiscoveryScreen() {
             <AppHeader
               eyebrow="Contacts"
               title="Find contacts"
-              subtitle="Search one email contact at a time."
+              subtitle="Import your address book or search one email contact at a time."
             />
+          </View>
+          <View style={styles.section}>
+            <AppCard style={styles.form}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>
+                Import from device
+              </Text>
+              <Text
+                style={[styles.bodyText, { color: theme.colors.textMuted }]}
+              >
+                Find LiveCanvas matches from contact emails and phone numbers.
+              </Text>
+              <AppButton
+                disabled={isImportingContacts}
+                label={
+                  isImportingContacts
+                    ? 'Importing...'
+                    : importStatus === 'error'
+                      ? 'Try import again'
+                      : 'Import device contacts'
+                }
+                onPress={() => {
+                  void importContacts();
+                }}
+              />
+              {importMessage ? (
+                <Text
+                  style={[
+                    styles.metadataText,
+                    {
+                      color:
+                        importStatus === 'error'
+                          ? theme.colors.error
+                          : theme.colors.textMuted,
+                    },
+                  ]}
+                >
+                  {importMessage}
+                </Text>
+              ) : null}
+              {importStatus === 'denied' ? (
+                <AppButton
+                  label="Open Settings"
+                  onPress={() => {
+                    void openSettings();
+                  }}
+                  variant="secondary"
+                />
+              ) : null}
+            </AppCard>
           </View>
           <View style={styles.section}>
             <AppCard style={styles.form}>
