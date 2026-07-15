@@ -269,6 +269,57 @@ defmodule LCGQL.Social.SocialQueriesTest do
   end
 
   describe "user relationship connections" do
+    test "batches identity block visibility across a page of users" do
+      viewer = user_fixture(privacy_mode: :public)
+
+      followed_users =
+        Enum.map(1..3, fn index ->
+          followed_user = user_fixture(privacy_mode: :public)
+
+          assert {:ok, followed_user} =
+                   Accounts.update_user_profile_identity(followed_user, %{
+                     username: "batched_creator_#{index}",
+                     display_name: "Batched Creator #{index}"
+                   })
+
+          assert {:ok, _follow} = Social.follow_user(viewer, followed_user)
+          followed_user
+        end)
+
+      query = """
+      query {
+        viewer {
+          following(first: 10) {
+            edges {
+              node {
+                username
+                displayName
+              }
+            }
+          }
+        }
+      }
+      """
+
+      {result, queries} =
+        capture_repo_queries(fn ->
+          Absinthe.run(query, LCGQL.Schema,
+            context: %{current_scope: Accounts.scope_for_user(viewer)}
+          )
+        end)
+
+      assert {:ok, %{data: %{"viewer" => %{"following" => %{"edges" => edges}}}}} = result
+
+      assert Enum.map(edges, & &1["node"]) ==
+               Enum.map(followed_users, fn user ->
+                 %{"username" => user.username, "displayName" => user.display_name}
+               end)
+
+      # One block join scopes the relationship page; one batched lookup protects
+      # both identity fields for every returned user.
+      assert count_table_queries(queries, "blocks") == 2
+    end
+
     test "node.user.followers returns relay edges and pageInfo" do
       creator = user_fixture(privacy_mode: :public)
       follower_1 = user_fixture()

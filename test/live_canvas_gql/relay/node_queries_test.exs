@@ -99,6 +99,43 @@ defmodule LCGQL.Relay.NodeQueriesTest do
               }} = Absinthe.run(query, LCGQL.Schema, variables: %{"id" => global_id})
     end
 
+    test "does not refetch suspended users by Relay ID" do
+      suspended_user = user_fixture(privacy_mode: :public)
+      viewer = user_fixture()
+
+      assert {:ok, suspended_user} =
+               Accounts.update_user_profile_identity(suspended_user, %{
+                 username: "suspended_creator",
+                 display_name: "Suspended Creator"
+               })
+
+      assert {:ok, _suspended_user} = Accounts.suspend_user(suspended_user)
+
+      global_id =
+        Absinthe.Relay.Node.to_global_id(:user, suspended_user.id, LCGQL.Schema)
+
+      query = """
+      query($id: ID!) {
+        node(id: $id) {
+          id
+          ... on User {
+            username
+            displayName
+          }
+        }
+      }
+      """
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema, variables: %{"id" => global_id})
+
+      assert {:ok, %{data: %{"node" => nil}}} =
+               Absinthe.run(query, LCGQL.Schema,
+                 variables: %{"id" => global_id},
+                 context: %{current_scope: Accounts.scope_for_user(viewer)}
+               )
+    end
+
     test "returns nil when the target user blocked the authenticated viewer" do
       viewer = user_fixture()
       target = user_fixture(privacy_mode: :public)

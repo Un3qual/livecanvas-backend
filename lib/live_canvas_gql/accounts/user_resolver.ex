@@ -16,6 +16,8 @@ defmodule LCGQL.Accounts.UserResolver do
         }
   @type unlink_identity_result :: {:ok, unlink_identity_payload()}
   @type connection_result :: {:ok, Absinthe.Relay.Connection.t()} | {:error, term()}
+  @type public_identity_result ::
+          {:ok, String.t() | nil} | {:middleware, Absinthe.Middleware.Batch, term()}
   @type unlink_identity_error_reason ::
           :invalid_identity_id
           | :not_found
@@ -232,11 +234,11 @@ defmodule LCGQL.Accounts.UserResolver do
 
   def user_email(_user, _args, _resolution), do: {:ok, nil}
 
-  @spec user_username(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
+  @spec user_username(map(), map(), Absinthe.Resolution.t()) :: public_identity_result()
   def user_username(user, _args, resolution),
     do: public_profile_identity_value(user, :username, resolution)
 
-  @spec user_display_name(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
+  @spec user_display_name(map(), map(), Absinthe.Resolution.t()) :: public_identity_result()
   def user_display_name(user, _args, resolution),
     do: public_profile_identity_value(user, :display_name, resolution)
 
@@ -339,7 +341,11 @@ defmodule LCGQL.Accounts.UserResolver do
   end
 
   @spec public_profile_identity_value(map(), :display_name | :username, Absinthe.Resolution.t()) ::
-          {:ok, String.t() | nil}
+          public_identity_result()
+  defp public_profile_identity_value(%User{suspended_at: suspended_at}, _field, _resolution)
+       when not is_nil(suspended_at),
+       do: {:ok, nil}
+
   defp public_profile_identity_value(%User{id: owner_id} = owner, field, resolution)
        when is_integer(owner_id) and field in [:display_name, :username] do
     case Resolution.viewer(resolution) do
@@ -347,9 +353,17 @@ defmodule LCGQL.Accounts.UserResolver do
         {:ok, Map.get(owner, field)}
 
       {:ok, %User{} = viewer} ->
-        if ReadPolicy.viewer_blocked_by_owner?(viewer, owner),
-          do: {:ok, nil},
-          else: {:ok, Map.get(owner, field)}
+        # Both identity fields share this batch key, so an entire user page
+        # performs one directional-block lookup instead of one query per field.
+        Absinthe.Resolution.Helpers.batch(
+          {ReadPolicy, :blocking_owner_ids, viewer},
+          owner_id,
+          fn blocking_owner_ids ->
+            if owner_id in blocking_owner_ids,
+              do: {:ok, nil},
+              else: {:ok, Map.get(owner, field)}
+          end
+        )
 
       :error ->
         {:ok, Map.get(owner, field)}
