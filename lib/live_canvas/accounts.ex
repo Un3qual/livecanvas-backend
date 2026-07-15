@@ -76,7 +76,7 @@ defmodule LC.Accounts do
           optional(String.t()) => term()
         }
   @type profile_identity_attrs :: %{
-          optional(:display_name | :username | String.t()) => String.t()
+          optional(:display_name | :username | String.t()) => String.t() | nil
         }
   @type upsert_contact_entry_result ::
           {:ok, UserContactEntry.t()}
@@ -1259,7 +1259,9 @@ defmodule LC.Accounts do
          :ok <- validate_unique_contact_client_ids(normalized_entries) do
       Repo.transact(fn ->
         Enum.reduce_while(normalized_entries, {:ok, 0}, fn attrs, {:ok, count} ->
-          case persist_user_contact_entry(user, attrs) do
+          # The bulk contract returns only a count, so association preloads here
+          # would add two discarded queries for every imported contact.
+          case persist_user_contact_entry_data(user, attrs) do
             {:ok, _contact_entry} -> {:cont, {:ok, count + 1}}
             {:error, reason} -> {:halt, {:error, reason}}
           end
@@ -2099,6 +2101,14 @@ defmodule LC.Accounts do
   @spec persist_user_contact_entry(User.t(), normalized_contact_entry_attrs()) ::
           upsert_contact_entry_result()
   defp persist_user_contact_entry(%User{} = user, attrs) do
+    with {:ok, contact_entry} <- persist_user_contact_entry_data(user, attrs) do
+      {:ok, preload_contact_entry(contact_entry)}
+    end
+  end
+
+  @spec persist_user_contact_entry_data(User.t(), normalized_contact_entry_attrs()) ::
+          upsert_contact_entry_result()
+  defp persist_user_contact_entry_data(%User{} = user, attrs) do
     with {:ok, contact_entry} <-
            upsert_contact_entry_row(
              user,
@@ -2108,7 +2118,7 @@ defmodule LC.Accounts do
            ),
          :ok <- sync_contact_entry_emails(contact_entry.id, attrs.emails),
          :ok <- sync_contact_entry_phone_numbers(contact_entry.id, attrs.phone_numbers) do
-      {:ok, preload_contact_entry(contact_entry)}
+      {:ok, contact_entry}
     end
   end
 

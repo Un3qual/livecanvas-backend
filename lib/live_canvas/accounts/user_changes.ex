@@ -11,7 +11,7 @@ defmodule LC.Accounts.UserChanges do
             LCSchemas.Accounts.user_privacy_mode() | String.t()
         }
   @type profile_identity_attrs :: %{
-          optional(:display_name | :username | String.t()) => String.t()
+          optional(:display_name | :username | String.t()) => String.t() | nil
         }
   @type suspension_attrs :: %{
           optional(:suspended_at | String.t()) => DateTime.t() | nil
@@ -66,8 +66,8 @@ defmodule LC.Accounts.UserChanges do
   def profile_identity_changeset(user, attrs) do
     user
     |> cast(attrs, [:display_name, :username])
-    |> update_change(:display_name, &String.trim/1)
-    |> update_change(:username, &(String.trim(&1) |> String.downcase()))
+    |> update_change(:display_name, &normalize_display_name/1)
+    |> update_change(:username, &normalize_username/1)
     |> validate_required([:display_name, :username])
     |> validate_length(:display_name, min: 1, max: 50)
     |> validate_format(:display_name, ~r/^[^\x00-\x1F\x7F]+$/u, message: "must be a single line")
@@ -80,6 +80,16 @@ defmodule LC.Accounts.UserChanges do
     |> check_constraint(:username, name: :users_username_format_check)
     |> check_constraint(:display_name, name: :users_display_name_format_check)
   end
+
+  @spec normalize_display_name(String.t() | nil) :: String.t() | nil
+  defp normalize_display_name(value) when is_binary(value), do: String.trim(value)
+  defp normalize_display_name(nil), do: nil
+
+  @spec normalize_username(String.t() | nil) :: String.t() | nil
+  defp normalize_username(value) when is_binary(value),
+    do: value |> String.trim() |> String.downcase()
+
+  defp normalize_username(nil), do: nil
 
   @doc """
   A user changeset for applying a moderation suspension timestamp.

@@ -508,6 +508,32 @@ defmodule LC.AccountsTest do
                "updated@example.com"
              ]
     end
+
+    test "does not preload discarded associations for every imported contact" do
+      user = user_fixture()
+
+      entries =
+        Enum.map(1..2, fn index ->
+          %{
+            contact_client_id: "device:no-preload-#{index}",
+            emails: [],
+            phone_numbers: []
+          }
+        end)
+
+      {result, queries} =
+        capture_repo_queries(fn -> Accounts.import_user_contact_entries(user, entries) end)
+
+      association_reads =
+        Enum.filter(queries, fn query ->
+          String.starts_with?(query, "SELECT") and
+            (String.contains?(query, ~s(FROM "user_contact_entry_email_addresses")) or
+               String.contains?(query, ~s(FROM "user_contact_entry_phone_numbers")))
+        end)
+
+      assert result == {:ok, 2}
+      assert association_reads == []
+    end
   end
 
   describe "list_user_contact_matches/1" do
@@ -672,6 +698,31 @@ defmodule LC.AccountsTest do
       assert {:ok, first_update} = Accounts.update_user_profile_identity(user, attrs)
       assert {:ok, second_update} = Accounts.update_user_profile_identity(first_update, attrs)
       assert Map.take(second_update, [:display_name, :username]) == attrs
+    end
+
+    test "returns required errors for explicit nil identity fields" do
+      user = user_fixture()
+
+      assert {:ok, user_with_identity} =
+               Accounts.update_user_profile_identity(user, %{
+                 display_name: "Canvas Creator",
+                 username: "canvas_creator"
+               })
+
+      assert {:error, changeset} =
+               Accounts.update_user_profile_identity(user_with_identity, %{
+                 display_name: nil,
+                 username: nil
+               })
+
+      assert %{
+               display_name: ["can't be blank"],
+               username: ["can't be blank"]
+             } = errors_on(changeset)
+
+      persisted_user = Accounts.get_user!(user.id)
+      assert persisted_user.display_name == "Canvas Creator"
+      assert persisted_user.username == "canvas_creator"
     end
 
     test "rejects malformed handles and display names" do
