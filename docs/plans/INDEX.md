@@ -25,7 +25,7 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: all five product batches complete; release-candidate QA active
+- State: release-depth Batch 1 host local preview active
 - Track: `docs/plans/mobile/TRACK.md`
 - Latest completed source plan:
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
@@ -40,6 +40,18 @@ Use this file when:
   workflow cleanup are complete. The queued feature follow-ups through the July
   8 product-gap batch and reversible unfollow/unblock are complete for their
   selected scopes; release-candidate manual QA is now active.
+
+### Mobile Release Depth: Next Five Batches
+
+- Design:
+  `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
+- Implementation:
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- State: Batch 1 host local preview active
+- Order: host preview, audience count, app-lifecycle recovery, media rendering,
+  story viewer
+- Handoff: return to the release-candidate operator/device checklist after all
+  five local implementation batches close
 
 ## Track Registry
 

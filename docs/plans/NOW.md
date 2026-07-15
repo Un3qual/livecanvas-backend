@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-14
-Status: local release-candidate gates pass; operator and device QA pending
+Status: mobile release-depth Batch 1 active
 
 ## Purpose
 
@@ -9,6 +9,11 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Approved Sequence
 
+- Current sequence design:
+  `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
+- Current implementation plan:
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- Current batch: Batch 1 host local preview.
 - Sequence design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Batch 2 design:
@@ -40,9 +45,8 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 5 mobile Tasks 4-5 and release-candidate local entry gates are
-  complete; operator-confirmed environment, account, build, and device QA is
-  pending.
+- State: the prior five product batches and local entry gates are complete;
+  mobile release-depth Batch 1 host local preview is active.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: configured-origin invite routing and the full mobile quality
   gate pass with 552 Vitest and 165 Jest tests; typechecks, lint, frozen pnpm
@@ -51,9 +55,9 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Execution Rule
 
-Execute the resumed release-candidate gate from
-`docs/plans/mobile/2026-06-25-release-candidate-checklist.md`. Do not run remote
-or authenticated EAS commands unless the user explicitly requests them.
+Execute the five release-depth batches from
+`docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md` in order.
+Do not mark operator or physical-device QA complete from local evidence.
 
 ## Cross-Lane Policy
 
@@ -63,10 +67,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Have the release operator confirm EAS project linkage, the target
-endpoint/public-origin values, preview artifact, host/viewer identities,
-unmatched recipient inbox, and physical devices, then run the
-release-candidate checklist's manual QA.
+Complete Batch 1 host local preview, then advance the mobile lane through live
+audience count, app-lifecycle recovery, media rendering, and the story viewer.
 
 ## Repair Conditions
 

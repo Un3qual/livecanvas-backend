@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-14
-Status: local release-candidate gates pass; operator and device QA pending
+Status: release-depth Batch 1 host local preview active
 
 ## Lane Scope
 
@@ -9,21 +9,20 @@ Status: local release-candidate gates pass; operator and device QA pending
 - Consume explicitly promoted backend contracts recorded in the backend lane.
 - Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Current Gate
+## Current Batch
 
-- Source checklist:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
-- Batch 5 source plan, now complete:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
-- Current scope: local entry gates are complete; the checklist's manual
-  one-host/one-viewer preview-build and device QA remains pending.
-- Local verification: `pnpm test:quality`, `pnpm typecheck`, frozen pnpm
-  dependency restore, and patch hygiene pass with 552 Vitest and 165 Jest tests.
-- Invite entry requirement: target `EXPO_PUBLIC_APP_ORIGIN` must match backend
-  `LIVE_CANVAS_PUBLIC_ORIGIN`; manual evidence must exercise an actual delivered
-  invite through the HTTPS landing and native app handoff.
-- Done condition: every launch blocker is cleared or explicitly removed from
-  release scope, with manual evidence recorded in the checklist.
+- Design:
+  `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
+- Source plan:
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- Current scope: Batch 1 renders the already-acquired host camera stream in
+  preflight without acquiring or owning a second stream.
+- Write scope: `mobile/src/host/**`, `mobile/tests/host/**`, and this lane
+  pointer. Promote backend work only if a focused contract test fails.
+- Done condition: ready/unavailable/late/cleanup paths pass focused tests and
+  the host preview reuses the cached publishing stream.
+- Verification: focused host Vitest and Jest/RNTL suites, mobile typechecks,
+  lint, and patch hygiene.
 
 ## Deferred Scope
 
@@ -32,8 +31,5 @@ Status: local release-candidate gates pass; operator and device QA pending
 
 ## Next Action
 
-Have the release operator confirm EAS project linkage; the target API,
-websocket, and public-app origins; the matching backend public origin; an
-installable preview artifact; separate host/viewer identities; an unmatched
-recipient inbox; and physical devices. Then run the checklist's manual QA. Do
-not run remote EAS commands without explicit approval.
+Execute Batch 1. After its milestone commit, advance this pointer to Batch 2
+live audience count.
