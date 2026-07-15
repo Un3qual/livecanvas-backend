@@ -4,12 +4,13 @@ import { AuthEntryScreen } from '../../src/auth/screens/AuthEntryScreen';
 import { MAGIC_LINK_REQUEST_SUCCESS_COPY } from '../../src/auth/useMagicLinkAuth';
 
 let mockPushedRoutes: string[];
+let mockReturnTo: string | string[] | undefined;
 const mockSubmitMagicLink = jest.fn(() => Promise.resolve(true));
 const mockClearTransientErrors = jest.fn();
 let mockController: Record<string, unknown>;
 
 jest.mock('expo-router', () => ({
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => ({ returnTo: mockReturnTo }),
   useRouter: () => ({
     push: (route: string) => {
       mockPushedRoutes.push(route);
@@ -24,6 +25,7 @@ jest.mock('../../src/auth/useAuthEntryController', () => ({
 
 beforeEach(() => {
   mockPushedRoutes = [];
+  mockReturnTo = undefined;
   mockSubmitMagicLink.mockClear();
   mockClearTransientErrors.mockClear();
   mockController = {
@@ -77,7 +79,23 @@ describe('AuthEntryScreen magic-link action', () => {
     await user.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com');
     await user.press(screen.getByRole('button', { name: label }));
 
-    expect(mockSubmitMagicLink).toHaveBeenCalledWith('user@example.com');
+    expect(mockSubmitMagicLink).toHaveBeenCalledWith('user@example.com', '/home');
+  });
+
+  test('preserves a sanitized post-auth route for the requested link', async () => {
+    mockReturnTo = '/compose';
+    const user = userEvent.setup();
+
+    await render(<AuthEntryScreen mode="signIn" />);
+    await user.type(screen.getByPlaceholderText('you@example.com'), 'user@example.com');
+    await user.press(
+      screen.getByRole('button', { name: 'Email me a sign-in link' }),
+    );
+
+    expect(mockSubmitMagicLink).toHaveBeenCalledWith(
+      'user@example.com',
+      '/compose',
+    );
   });
 
   test('shows neutral success copy and shared email errors', async () => {

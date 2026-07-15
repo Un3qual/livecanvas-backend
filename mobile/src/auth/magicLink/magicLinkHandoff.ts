@@ -8,9 +8,11 @@ import {
 import type { MagicLinkPayload } from './magicLinkLink';
 import {
   clearMagicLinkHandoff as clearMagicLinkHandoffCore,
+  storePendingMagicLinkReturnTo as storePendingMagicLinkReturnToCore,
   storeMagicLinkHandoff as storeMagicLinkHandoffCore,
   withMagicLinkHandoff as withMagicLinkHandoffCore,
   type MagicLinkHandoffResultPolicy,
+  type MagicLinkHandoffPayload,
   type MagicLinkHandoffStorage,
 } from './magicLinkHandoffCore';
 
@@ -31,11 +33,20 @@ export function storeMagicLinkHandoff(
 
 export function withMagicLinkHandoff<Value>(
   requestedHandoffId: string,
-  callback: (payload: MagicLinkPayload) => Promise<Value>,
+  callback: (payload: MagicLinkHandoffPayload) => Promise<Value>,
   policy?: MagicLinkHandoffResultPolicy<Value>,
 ): ReturnType<typeof withMagicLinkHandoffCore<Value>> {
   return withMagicLinkHandoffCore(requestedHandoffId, callback, {
     ...policy,
+    storage: secureStorage,
+  });
+}
+
+export function storePendingMagicLinkReturnTo(
+  purpose: MagicLinkPayload['purpose'],
+  returnTo: string,
+): Promise<void> {
+  return storePendingMagicLinkReturnToCore(purpose, returnTo, {
     storage: secureStorage,
   });
 }

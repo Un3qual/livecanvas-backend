@@ -116,7 +116,7 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
   };
 
   const handleMagicLinkSubmit = () => {
-    void controller.submitMagicLink(email);
+    controller.submitMagicLink(email, successHref).catch(() => undefined);
   };
 
   const handleAppleSubmit = async () => {

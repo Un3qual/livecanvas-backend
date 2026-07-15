@@ -5,6 +5,9 @@ import { ScreenState } from '../../components/ScreenState';
 import { useStartupState } from '../../providers/StartupGate';
 import { useAuth } from '../AuthProvider';
 import {
+  readAuthReturnToParam,
+} from '../../config/runtime';
+import {
   redeemMagicLinkAuthMutation,
   type AuthMutationResult,
 } from '../authMutationClient';
@@ -13,7 +16,7 @@ import {
   clearMagicLinkHandoff,
   withMagicLinkHandoff,
 } from './magicLinkHandoff';
-import type { MagicLinkPayload } from './magicLinkLink';
+import type { MagicLinkHandoffPayload } from './magicLinkHandoffCore';
 import {
   isDefinitiveMagicLinkRejection,
   readMagicLinkHandoffParam,
@@ -33,10 +36,15 @@ type ActiveAttempt = {
 type RedemptionOutcome =
   | { readonly status: 'invalid' }
   | { readonly status: 'retryable_error' }
-  | { readonly status: 'tokens'; readonly tokens: AuthTokenPair };
+  | {
+      readonly status: 'tokens';
+      readonly successHref: string;
+      readonly tokens: AuthTokenPair;
+    };
 
 type PendingTokens = {
   readonly handoffId: string;
+  readonly successHref: string;
   readonly tokens: AuthTokenPair;
 };
 
@@ -74,12 +82,20 @@ export function MagicLinkScreen() {
   }, []);
 
   const persistAndEnterSession = useCallback(
-    async (attempt: ActiveAttempt, tokens: AuthTokenPair) => {
+    async (
+      attempt: ActiveAttempt,
+      tokens: AuthTokenPair,
+      successHref: string,
+    ) => {
       if (!attempt.handoffId || !isCurrentAttempt(attempt)) {
         return;
       }
 
-      pendingTokensRef.current = { handoffId: attempt.handoffId, tokens };
+      pendingTokensRef.current = {
+        handoffId: attempt.handoffId,
+        successHref,
+        tokens,
+      };
 
       try {
         await signIn(tokens);
@@ -100,14 +116,14 @@ export function MagicLinkScreen() {
 
       if (isCurrentAttempt(attempt)) {
         finishAttempt(attempt);
-        replace('/home');
+        replace(successHref);
       }
     },
     [clearBestEffort, finishAttempt, isCurrentAttempt, replace, signIn],
   );
 
   const redeemPayload = useCallback(
-    async (payload: MagicLinkPayload): Promise<RedemptionOutcome> => {
+    async (payload: MagicLinkHandoffPayload): Promise<RedemptionOutcome> => {
       const result: AuthMutationResult = await redeemMagicLinkAuthMutation({
         apiBaseUrl: environment.apiBaseUrl,
         mode: payload.purpose,
@@ -115,7 +131,11 @@ export function MagicLinkScreen() {
       });
 
       if (result.ok) {
-        return { status: 'tokens', tokens: result.tokens };
+        return {
+          status: 'tokens',
+          successHref: readAuthReturnToParam(payload.returnTo) ?? '/home',
+          tokens: result.tokens,
+        };
       }
 
       return isDefinitiveMagicLinkRejection(result.errors)
@@ -160,7 +180,11 @@ export function MagicLinkScreen() {
     const pendingTokens = pendingTokensRef.current;
 
     if (pendingTokens?.handoffId === handoffId) {
-      void persistAndEnterSession(attempt, pendingTokens.tokens);
+      persistAndEnterSession(
+        attempt,
+        pendingTokens.tokens,
+        pendingTokens.successHref,
+      ).catch(() => undefined);
       return;
     }
 
@@ -179,7 +203,11 @@ export function MagicLinkScreen() {
         }
 
         if (result.value.status === 'tokens') {
-          void persistAndEnterSession(attempt, result.value.tokens);
+          persistAndEnterSession(
+            attempt,
+            result.value.tokens,
+            result.value.successHref,
+          ).catch(() => undefined);
           return;
         }
 
@@ -187,7 +215,7 @@ export function MagicLinkScreen() {
         finishAttempt(attempt);
 
         if (result.value.status === 'invalid') {
-          void clearBestEffort(handoffId);
+          clearBestEffort(handoffId).catch(() => undefined);
         }
       })
       .catch(() => {
@@ -248,5 +276,11 @@ export function MagicLinkScreen() {
           onRetry={beginAttempt}
         />
       );
+    default:
+      return assertNever(status);
   }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected magic-link screen status: ${String(value)}`);
 }

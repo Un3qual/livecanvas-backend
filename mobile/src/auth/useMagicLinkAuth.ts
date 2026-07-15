@@ -6,6 +6,7 @@ import {
   requestMagicLinkAuthChallenge,
   type AuthFieldName,
 } from './authMutationClient';
+import { storePendingMagicLinkReturnTo } from './magicLink/magicLinkHandoff';
 
 type AuthMode = 'signIn' | 'signUp';
 
@@ -35,7 +36,7 @@ export function useMagicLinkAuth() {
   }, []);
 
   const request = useCallback(
-    async (mode: AuthMode, email: string) => {
+    async (mode: AuthMode, email: string, returnTo: string) => {
       clearErrors();
 
       try {
@@ -52,6 +53,11 @@ export function useMagicLinkAuth() {
           return false;
         }
 
+        // This is local routing intent, not an email-link credential. Attach it
+        // to the next same-purpose handoff on this device when the link opens.
+        await storePendingMagicLinkReturnTo(mode, returnTo).catch(
+          () => undefined,
+        );
         setMessage(MAGIC_LINK_REQUEST_SUCCESS_COPY);
         return true;
       } catch (error) {
@@ -67,7 +73,9 @@ export function useMagicLinkAuth() {
     fieldErrors,
     formError,
     message,
-    requestSignInLink: (email: string) => request('signIn', email),
-    requestSignUpLink: (email: string) => request('signUp', email),
+    requestSignInLink: (email: string, returnTo: string) =>
+      request('signIn', email, returnTo),
+    requestSignUpLink: (email: string, returnTo: string) =>
+      request('signUp', email, returnTo),
   };
 }

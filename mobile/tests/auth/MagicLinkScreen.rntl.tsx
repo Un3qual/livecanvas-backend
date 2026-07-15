@@ -12,7 +12,11 @@ import { MagicLinkScreen } from '../../src/auth/magicLink/MagicLinkScreen';
 let mockAuthStatus: 'authenticated' | 'loading' | 'unauthenticated';
 let mockHandoffParam: string | string[] | undefined;
 let mockHandoffStatus: 'expired' | 'matched' | 'mismatch' | 'missing';
-let mockPayload: { purpose: 'signIn' | 'signUp'; token: string };
+let mockPayload: {
+  purpose: 'signIn' | 'signUp';
+  returnTo?: string;
+  token: string;
+};
 type RedeemParams = {
   apiBaseUrl: string;
   mode: 'signIn' | 'signUp';
@@ -124,6 +128,30 @@ describe('MagicLinkScreen', () => {
       expiresAt: '2026-08-01T00:00:00.000Z',
     });
     expect(mockClearHandoff).toHaveBeenCalledWith('handoff-one');
+  });
+
+  test('routes to the locally retained post-auth target after redemption', async () => {
+    mockPayload = {
+      purpose: 'signIn',
+      returnTo: '/compose',
+      token: 'serialized-token',
+    };
+
+    await render(<MagicLinkScreen />);
+
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/compose'));
+  });
+
+  test('falls back home when a retained post-auth target is not allowed', async () => {
+    mockPayload = {
+      purpose: 'signIn',
+      returnTo: '//attacker.example',
+      token: 'serialized-token',
+    };
+
+    await render(<MagicLinkScreen />);
+
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/home'));
   });
 
   test.each(['missing', 'mismatch', 'expired'] as const)(

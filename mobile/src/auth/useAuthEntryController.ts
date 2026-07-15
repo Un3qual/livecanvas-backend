@@ -89,11 +89,11 @@ export function useAuthEntryController(mode: AuthEntryMode) {
   }, [googleAuth, mode, runAttempt]);
 
   const submitMagicLink = useCallback(
-    (email: string) => {
+    (email: string, returnTo: string) => {
       return runAttempt({ mode, provider: 'magicLink' }, () =>
         mode === 'signIn'
-          ? magicLinkAuth.requestSignInLink(email)
-          : magicLinkAuth.requestSignUpLink(email),
+          ? magicLinkAuth.requestSignInLink(email, returnTo)
+          : magicLinkAuth.requestSignUpLink(email, returnTo),
       );
     },
     [magicLinkAuth, mode, runAttempt],

@@ -2,23 +2,35 @@ import { describe, expect, test } from 'vitest';
 
 import {
   clearMagicLinkHandoff,
+  storePendingMagicLinkReturnTo,
   storeMagicLinkHandoff,
   withMagicLinkHandoff,
   type MagicLinkHandoffStorage,
 } from '../../src/auth/magicLink/magicLinkHandoffCore';
 
 function memoryStorage(): MagicLinkHandoffStorage & { value: string | null } {
+  const values = new Map<string, string>();
+
   return {
-    value: null,
-    deleteItem() {
-      this.value = null;
+    get value() {
+      return values.get('lc_pending_magic_link') ?? null;
+    },
+    set value(value: string | null) {
+      if (value === null) {
+        values.delete('lc_pending_magic_link');
+      } else {
+        values.set('lc_pending_magic_link', value);
+      }
+    },
+    deleteItem(key) {
+      values.delete(key);
       return Promise.resolve();
     },
-    getItem() {
-      return Promise.resolve(this.value);
+    getItem(key) {
+      return Promise.resolve(values.get(key) ?? null);
     },
-    setItem(_key, value) {
-      this.value = value;
+    setItem(key, value) {
+      values.set(key, value);
       return Promise.resolve();
     },
   };
@@ -40,6 +52,56 @@ describe('magic-link handoff', () => {
     expect(storage.value).toContain('raw-secret');
     expect(storage.value).toContain('signUp');
     expect(JSON.stringify(result)).not.toContain('raw-secret');
+  });
+
+  test('attaches and consumes the latest same-purpose return target', async () => {
+    const storage = memoryStorage();
+    const options = { now: () => 1_000, storage };
+
+    await storePendingMagicLinkReturnTo('signIn', '/compose', options);
+    await storeMagicLinkHandoff(
+      { purpose: 'signIn', token: 'first-token' },
+      {
+        createHandoffId: () => 'handoff-first',
+        ...options,
+      },
+    );
+
+    await expect(
+      withMagicLinkHandoff(
+        'handoff-first',
+        (payload) => Promise.resolve(payload),
+        options,
+      ),
+    ).resolves.toEqual({
+      status: 'matched',
+      value: {
+        purpose: 'signIn',
+        returnTo: '/compose',
+        token: 'first-token',
+      },
+    });
+
+    await clearMagicLinkHandoff('handoff-first', options);
+    await storeMagicLinkHandoff(
+      { purpose: 'signIn', token: 'second-token' },
+      {
+        createHandoffId: () => 'handoff-second',
+        now: () => 2_000,
+        storage,
+      },
+    );
+
+    await expect(
+      withMagicLinkHandoff(
+        'handoff-second',
+        (payload) => Promise.resolve(payload),
+        { now: () => 2_000, storage },
+      ),
+    ).resolves.toEqual({
+      status: 'matched',
+      value: { purpose: 'signIn', token: 'second-token' },
+    });
   });
 
   test('never gives a stale route access to or cleanup authority over a newer link', async () => {

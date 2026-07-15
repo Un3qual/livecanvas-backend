@@ -1,6 +1,7 @@
 import type { MagicLinkPayload } from './magicLinkLink';
 
 const MAGIC_LINK_HANDOFF_KEY = 'lc_pending_magic_link';
+const MAGIC_LINK_RETURN_TO_KEY_PREFIX = 'lc_pending_magic_link_return_to';
 const MAGIC_LINK_HANDOFF_TTL_MS = 15 * 60 * 1_000;
 const storageQueues = new WeakMap<object, Promise<void>>();
 const handoffAttempts = new WeakMap<
@@ -8,9 +9,18 @@ const handoffAttempts = new WeakMap<
   Map<string, Promise<MagicLinkHandoffResult<unknown>>>
 >();
 
-type PendingMagicLink = MagicLinkPayload & {
+export type MagicLinkHandoffPayload = MagicLinkPayload & {
+  readonly returnTo?: string;
+};
+
+type PendingMagicLink = MagicLinkHandoffPayload & {
   readonly expiresAt: number;
   readonly handoffId: string;
+};
+
+type PendingMagicLinkReturnTo = {
+  readonly expiresAt: number;
+  readonly returnTo: string;
 };
 
 export type MagicLinkHandoffStorage = {
@@ -46,24 +56,59 @@ export async function storeMagicLinkHandoff(
 ): Promise<{ readonly handoffId: string }> {
   const now = options.now?.() ?? Date.now();
   const handoffId = options.createHandoffId();
-  const record: PendingMagicLink = {
-    expiresAt: now + MAGIC_LINK_HANDOFF_TTL_MS,
-    handoffId,
-    purpose: payload.purpose,
-    token: payload.token,
-  };
+  await withStorageLock(options.storage, async () => {
+    const returnToKey = magicLinkReturnToKey(payload.purpose);
+    const returnTo = await readPendingReturnTo(
+      returnToKey,
+      now,
+      options.storage,
+    );
 
-  await withStorageLock(options.storage, () =>
-    options.storage.setItem(MAGIC_LINK_HANDOFF_KEY, JSON.stringify(record)),
-  );
+    if (returnTo) {
+      // Consume the local intent before publishing the handoff. A later link
+      // must not inherit a route from an earlier request.
+      await options.storage.deleteItem(returnToKey);
+    }
+
+    const record: PendingMagicLink = {
+      expiresAt: now + MAGIC_LINK_HANDOFF_TTL_MS,
+      handoffId,
+      purpose: payload.purpose,
+      ...(returnTo ? { returnTo } : {}),
+      token: payload.token,
+    };
+    await options.storage.setItem(
+      MAGIC_LINK_HANDOFF_KEY,
+      JSON.stringify(record),
+    );
+  });
   forgetAllHandoffAttempts(options.storage);
 
   return { handoffId };
 }
 
+export function storePendingMagicLinkReturnTo(
+  purpose: MagicLinkPayload['purpose'],
+  returnTo: string,
+  options: MagicLinkHandoffOptions,
+): Promise<void> {
+  const now = options.now?.() ?? Date.now();
+  const record: PendingMagicLinkReturnTo = {
+    expiresAt: now + MAGIC_LINK_HANDOFF_TTL_MS,
+    returnTo,
+  };
+
+  return withStorageLock(options.storage, () =>
+    options.storage.setItem(
+      magicLinkReturnToKey(purpose),
+      JSON.stringify(record),
+    ),
+  );
+}
+
 export function withMagicLinkHandoff<Value>(
   requestedHandoffId: string,
-  callback: (payload: MagicLinkPayload) => Promise<Value>,
+  callback: (payload: MagicLinkHandoffPayload) => Promise<Value>,
   options: WithMagicLinkHandoffOptions<Value>,
 ): Promise<MagicLinkHandoffResult<Value>> {
   const attempts = getHandoffAttempts(options.storage);
@@ -85,25 +130,27 @@ export function withMagicLinkHandoff<Value>(
 
   // A definitive redemption must survive a screen remount until its matching
   // handoff is cleared. Retryable or rejected attempts are released instead.
-  void attempt.then(
-    (result) => {
-      const retain =
-        result.status === 'matched' &&
-        options.shouldRetainResult?.(result.value) === true;
+  attempt
+    .then(
+      (result) => {
+        const retain =
+          result.status === 'matched' &&
+          options.shouldRetainResult?.(result.value) === true;
 
-      if (!retain) {
-        forgetHandoffAttempt(options.storage, requestedHandoffId, attempt);
-      }
-    },
-    () => forgetHandoffAttempt(options.storage, requestedHandoffId, attempt),
-  );
+        if (!retain) {
+          forgetHandoffAttempt(options.storage, requestedHandoffId, attempt);
+        }
+      },
+      () => forgetHandoffAttempt(options.storage, requestedHandoffId, attempt),
+    )
+    .catch(() => undefined);
 
   return attempt;
 }
 
 async function performMagicLinkHandoff<Value>(
   requestedHandoffId: string,
-  callback: (payload: MagicLinkPayload) => Promise<Value>,
+  callback: (payload: MagicLinkHandoffPayload) => Promise<Value>,
   options: MagicLinkHandoffOptions,
 ): Promise<MagicLinkHandoffResult<Value>> {
   const lookup = await withStorageLock(options.storage, async () => {
@@ -124,7 +171,11 @@ async function performMagicLinkHandoff<Value>(
 
     return {
       status: 'matched' as const,
-      payload: { purpose: record.purpose, token: record.token },
+      payload: {
+        purpose: record.purpose,
+        ...(record.returnTo ? { returnTo: record.returnTo } : {}),
+        token: record.token,
+      },
     };
   });
 
@@ -216,7 +267,9 @@ async function readRecord(
       !value.handoffId ||
       (value.purpose !== 'signIn' && value.purpose !== 'signUp') ||
       typeof value.token !== 'string' ||
-      !value.token
+      !value.token ||
+      (value.returnTo !== undefined &&
+        (typeof value.returnTo !== 'string' || !value.returnTo))
     ) {
       await storage.deleteItem(MAGIC_LINK_HANDOFF_KEY);
       return null;
@@ -226,12 +279,49 @@ async function readRecord(
       expiresAt: value.expiresAt,
       handoffId: value.handoffId,
       purpose: value.purpose,
+      ...(value.returnTo ? { returnTo: value.returnTo } : {}),
       token: value.token,
     };
   } catch {
     await storage.deleteItem(MAGIC_LINK_HANDOFF_KEY);
     return null;
   }
+}
+
+async function readPendingReturnTo(
+  key: string,
+  now: number,
+  storage: MagicLinkHandoffStorage,
+): Promise<string | null> {
+  const serialized = await storage.getItem(key);
+
+  if (!serialized) {
+    return null;
+  }
+
+  try {
+    const value = JSON.parse(serialized) as Partial<PendingMagicLinkReturnTo>;
+
+    if (
+      typeof value.expiresAt !== 'number' ||
+      !Number.isFinite(value.expiresAt) ||
+      value.expiresAt <= now ||
+      typeof value.returnTo !== 'string' ||
+      !value.returnTo
+    ) {
+      await storage.deleteItem(key);
+      return null;
+    }
+
+    return value.returnTo;
+  } catch {
+    await storage.deleteItem(key);
+    return null;
+  }
+}
+
+function magicLinkReturnToKey(purpose: MagicLinkPayload['purpose']): string {
+  return `${MAGIC_LINK_RETURN_TO_KEY_PREFIX}_${purpose}`;
 }
 
 function withStorageLock<Value>(
