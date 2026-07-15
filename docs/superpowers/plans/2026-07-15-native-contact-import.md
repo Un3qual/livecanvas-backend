@@ -75,16 +75,16 @@ normalization/persistence path.
 - `readDeviceContacts()` returns `granted`, `denied`, `unavailable`, or
   `failed`; only `granted` includes normalized entries.
 
-- [ ] Add `expo-contacts` through the pinned SDK/pnpm environment and configure
+- [x] Add `expo-contacts` through the pinned SDK/pnpm environment and configure
   neutral iOS/Android contacts permission copy.
-- [ ] Add failing pure tests for data minimization, ID/name normalization,
+- [x] Add failing pure tests for data minimization, ID/name normalization,
   email/phone deduplication, blank filtering, stable order, and 100-entry
   chunking.
-- [ ] Add failing adapter tests for module absence, permission denial, native
+- [x] Add failing adapter tests for module absence, permission denial, native
   read failure, and exact `Fields.Emails`/`Fields.PhoneNumbers` requests.
-- [ ] Implement the pure mapper and dynamic native adapter; do not import the
+- [x] Implement the pure mapper and dynamic native adapter; do not import the
   native module at file evaluation time.
-- [ ] Run focused unit tests, both TypeScript checks, and lint; commit
+- [x] Run focused unit tests, both TypeScript checks, and lint; commit
   `feat: read device contacts safely`.
 
 ### Task 3: Sequential Import Workflow And Contact UI
