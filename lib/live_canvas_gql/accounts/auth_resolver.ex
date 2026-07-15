@@ -119,7 +119,7 @@ defmodule LCGQL.Accounts.AuthResolver do
       case Accounts.begin_magic_link_challenge(
              purpose,
              Map.fetch!(magic_link_input, :email),
-             &magic_link_url/1
+             &magic_link_url(purpose, &1)
            ) do
         {:ok, %{dispatched: dispatched}} ->
           {:ok,
@@ -609,10 +609,19 @@ defmodule LCGQL.Accounts.AuthResolver do
     {:ok, %{revoked: true, errors: []}}
   end
 
-  # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
-  # transport-agnostic while tests can assert invite delivery side effects.
-  @spec magic_link_url(String.t()) :: String.t()
-  defp magic_link_url(token), do: "https://livecanvas.invalid/users/log-in/#{token}"
+  # The fragment keeps the credential out of Phoenix request paths, proxy logs,
+  # and referrers while the purpose path preserves the mutation the app must use.
+  @spec magic_link_url(:log_in | :sign_up, String.t()) :: String.t()
+  defp magic_link_url(purpose, token) when purpose in [:log_in, :sign_up] do
+    public_app_origin =
+      :live_canvas
+      |> Application.fetch_env!(:public_app_origin)
+      |> String.trim_trailing("/")
+
+    purpose_path = if purpose == :log_in, do: "sign-in", else: "sign-up"
+
+    "#{public_app_origin}/auth/magic-link/#{purpose_path}#token=#{URI.encode_www_form(token)}"
+  end
 
   # Keep URL construction deterministic at the GraphQL boundary so Accounts stays
   # transport-agnostic while tests can assert invite delivery side effects.

@@ -49,23 +49,23 @@ Expo Router, SecureStore, pnpm, Vitest, Jest/RNTL.
 - Landing produces `livecanvas-mobile://magic-link/<purpose>?token=...` only
   after parsing one nonblank token from the fragment.
 
-- [ ] Add failing resolver tests that capture delivered URLs, parse them with
+- [x] Add failing resolver tests that capture delivered URLs, parse them with
   `URI.new!/1`, and prove the configured origin/purpose path is correct while
   `query == nil` and the raw token exists only in `fragment`.
-- [ ] Add failing controller and JavaScript tests for both purpose paths,
+- [x] Add failing controller and JavaScript tests for both purpose paths,
   hardened no-store/CSP/no-referrer headers, valid single-token fragments,
   duplicated/malformed fragments, fragment clearing, and generic invalid copy.
-- [ ] Implement `magic_link_url/2`, the two explicit public routes, neutral
+- [x] Implement `magic_link_url/2`, the two explicit public routes, neutral
   landing controller/template, and dedicated asset entry. Build URLs as:
 
   ```elixir
   "#{Application.fetch_env!(:live_canvas, :public_app_origin)}/auth/magic-link/#{purpose_path}#token=#{URI.encode_www_form(token)}"
   ```
 
-- [ ] Run `node --test assets/js/magic_link_landing.test.js` and focused
+- [x] Run `node --test assets/js/magic_link_landing.test.js` and focused
   resolver/controller tests; verify the new tests pass without session or
   GraphQL-context plugs on the landing routes.
-- [ ] Commit `feat: deliver mobile magic links securely`.
+- [x] Commit `feat: deliver mobile magic links securely`.
 
 ### Task 2: Opaque Mobile Link Handoff
 

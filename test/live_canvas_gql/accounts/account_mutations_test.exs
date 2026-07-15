@@ -1672,6 +1672,13 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
 
     test "issues a magic-link signup challenge for a new email" do
+      previous_origin = Application.fetch_env!(:live_canvas, :public_app_origin)
+
+      on_exit(fn ->
+        Application.put_env(:live_canvas, :public_app_origin, previous_origin)
+      end)
+
+      Application.put_env(:live_canvas, :public_app_origin, "https://app.livecanvas.example/")
       email = unique_user_email()
 
       mutation = """
@@ -1727,6 +1734,87 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                )
 
       assert user_id == user.id
+
+      assert_email_sent(fn email_message ->
+        [delivery_url] =
+          Regex.run(~r{https://\S+/auth/magic-link/sign-up#token=\S+}, email_message.text_body)
+
+        uri = URI.parse(delivery_url)
+
+        assert uri.scheme == "https"
+        assert uri.host == "app.livecanvas.example"
+        assert uri.path == "/auth/magic-link/sign-up"
+        assert uri.query == nil
+        assert uri.userinfo == nil
+        assert %{"token" => raw_token} = URI.decode_query(uri.fragment)
+        refute URI.to_string(%{uri | fragment: nil}) =~ raw_token
+
+        true
+      end)
+    end
+
+    test "issues a configured fragment-only magic-link login challenge" do
+      previous_origin = Application.fetch_env!(:live_canvas, :public_app_origin)
+
+      on_exit(fn ->
+        Application.put_env(:live_canvas, :public_app_origin, previous_origin)
+      end)
+
+      Application.put_env(:live_canvas, :public_app_origin, "https://app.livecanvas.example")
+      user = user_fixture()
+      assert_receive {:email, _fixture_email}
+
+      mutation = """
+      mutation BeginAuthChallenge($email: String!) {
+        beginAuthChallenge(
+          input: {
+            provider: MAGIC_LINK
+            purpose: LOG_IN
+            magicLink: {email: $email}
+          }
+        ) {
+          challenge {
+            provider
+            purpose
+            dispatched
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "beginAuthChallenge" => %{
+                    "challenge" => %{
+                      "provider" => "MAGIC_LINK",
+                      "purpose" => "LOG_IN",
+                      "dispatched" => true
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema, variables: %{"email" => user.email})
+
+      assert_email_sent(fn email_message ->
+        [delivery_url] =
+          Regex.run(~r{https://\S+/auth/magic-link/sign-in#token=\S+}, email_message.text_body)
+
+        uri = URI.parse(delivery_url)
+
+        assert uri.path == "/auth/magic-link/sign-in"
+        assert uri.query == nil
+        assert %{"token" => raw_token} = URI.decode_query(uri.fragment)
+        refute URI.to_string(%{uri | fragment: nil}) =~ raw_token
+
+        true
+      end)
     end
 
     test "keeps missing magic-link login emails enumeration-safe" do
