@@ -110,6 +110,7 @@ export function formatContentMediaAssetPresentation(
   if (asset.processingState === 'PROCESSED') {
     const publicUrl = normalizeContentMediaPublicUrl(asset.publicUrl);
 
+    // A valid URL is not renderable until its media kind is recognized.
     if (publicUrl && kind !== 'unknown') {
       return {
         id: asset.id,

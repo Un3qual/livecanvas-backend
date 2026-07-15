@@ -9,6 +9,7 @@ export function readStoryIdParam(
   value?: string | string[],
 ): string | null {
   if (Array.isArray(value)) {
+    // Reject ambiguous duplicate parameters; exactly one story ID is valid.
     return value.length === 1 ? readStoryIdParam(value[0]) : null;
   }
 

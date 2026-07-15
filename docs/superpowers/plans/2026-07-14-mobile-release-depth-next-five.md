@@ -144,6 +144,9 @@ previous/next/progress without persisting seen state.
 
 ### Task 6: Close The Five-Batch Lane
 
+**Ownership:** Coordinator-owned. Worker agents hand off completion evidence;
+they do not edit the shared dashboard or registry files in this task.
+
 **Files:**
 - Modify: `docs/plans/NOW.md`
 - Modify: `docs/plans/mobile/NOW.md`

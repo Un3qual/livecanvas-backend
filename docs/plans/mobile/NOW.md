@@ -18,10 +18,8 @@ Status: local release gates complete; operator/device QA pending
 - Completed scope: host local preview, live audience count, foreground/background
   live-session recovery, post/story media rendering, and a dedicated story
   viewer.
-- Milestone commits: `078e501`, `5abdffa`, `43ea54b`, `0abc077`, and `e790acf`.
-- Local evidence: frozen pnpm install and Relay generation pass; app/test
-  typechecks and lint pass; Vitest passes 76 files and 563 tests; Jest/RNTL
-  passes 27 suites and 182 tests; `nix flake check` and patch hygiene pass.
+- Local verification passed: frozen install, Relay generation, typechecks,
+  lint, automated tests, Nix flake checks, and patch hygiene.
 - No implementation batch is active. Local evidence does not complete the
   physical-device or target-environment checks.
 

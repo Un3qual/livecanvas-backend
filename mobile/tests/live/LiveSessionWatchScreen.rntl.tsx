@@ -44,7 +44,15 @@ let mockSessionStateCallbacks: Array<
   (event: { status: 'ENDED' | 'LIVE'; viewerCount: number }) => void
 >;
 let mockChannelJoinResolvers: Array<
-  (result: { sessionState: null; status: 'joined' }) => void
+  (result: {
+    sessionState: {
+      kind: 'session_state';
+      status: 'ENDED' | 'LIVE';
+      viewerCount: number;
+      visibility: 'PUBLIC';
+    } | null;
+    status: 'joined';
+  }) => void
 >;
 
 const mockControlsController: LiveSessionChatControlsController = {
@@ -156,7 +164,15 @@ jest.mock('../../src/live/liveSessionChannelClient', () => {
 
       return {
         join: () =>
-          new Promise<{ sessionState: null; status: 'joined' }>((resolve) => {
+          new Promise<{
+            sessionState: {
+              kind: 'session_state';
+              status: 'ENDED' | 'LIVE';
+              viewerCount: number;
+              visibility: 'PUBLIC';
+            } | null;
+            status: 'joined';
+          }>((resolve) => {
             mockChannelJoinResolvers.push(resolve);
           }),
         leave: jest.fn(),
@@ -307,6 +323,29 @@ describe('LiveSessionWatchScreen chat control wiring', () => {
 });
 
 describe('LiveSessionWatchScreen audience count', () => {
+  test('seeds the viewer count from the channel join acknowledgement', async () => {
+    mockIsJoined = true;
+    await render(<LiveSessionWatchScreen sessionId="session-1" />);
+
+    await waitFor(() => {
+      expect(mockChannelJoinResolvers).toHaveLength(1);
+    });
+
+    await act(() => {
+      mockChannelJoinResolvers[0]?.({
+        sessionState: {
+          kind: 'session_state',
+          status: 'LIVE',
+          viewerCount: 7,
+          visibility: 'PUBLIC',
+        },
+        status: 'joined',
+      });
+    });
+
+    expect(screen.getByText('7 viewers')).toBeOnTheScreen();
+  });
+
   test('renders zero, singular, and plural realtime viewer counts', async () => {
     mockIsJoined = true;
     await render(<LiveSessionWatchScreen sessionId="session-1" />);

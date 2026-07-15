@@ -246,7 +246,10 @@ function useCompleteStoryFeed({
               storyAfter: cursor,
               storyFirst: STORY_VIEWER_FEED_SIZE,
             },
-            { fetchPolicy: 'network-only' },
+            {
+              ...PRIVACY_SENSITIVE_FETCH_OPTIONS,
+              fetchPolicy: 'network-only',
+            },
           ).toPromise();
 
           if (!isActive) {
@@ -277,7 +280,11 @@ function useCompleteStoryFeed({
       }
     }
 
-    void loadRemainingPages();
+    loadRemainingPages().catch(() => {
+      if (isActive) {
+        setState({ status: 'unavailable', stories: initialPage.stories });
+      }
+    });
 
     return () => {
       isActive = false;

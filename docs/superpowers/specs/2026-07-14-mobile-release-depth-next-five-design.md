@@ -83,8 +83,8 @@ recovery does not duplicate join or leave mutations.
 ## Batch 4: Post And Story Media Rendering
 
 Processed image and video assets render inside `ContentPostCard` through a
-shared media presentation component. Images use the React Native image surface;
-videos use the Expo-supported video package with native controls. The component
+shared media presentation component. Images use `expo-image`; videos use the
+Expo-supported video package with native controls. The component
 consumes only the already-normalized HTTP(S) URL and preserves processing,
 failed, unavailable, load-error, and native-module-unavailable states. Feed and
 profile surfaces inherit the behavior through the shared card.

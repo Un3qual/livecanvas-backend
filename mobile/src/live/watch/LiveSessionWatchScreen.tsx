@@ -781,6 +781,14 @@ function LiveSessionWatchContent({
         }
 
         if (result.status === 'joined') {
+          if (result.sessionState) {
+            markLiveSessionRealtimeState(
+              activeLiveSessionId,
+              result.sessionState.status,
+              result.sessionState.viewerCount,
+            );
+          }
+
           if (shouldCloseLiveSessionChatChannelAfterJoin(result)) {
             handleEndedLiveSession(activeLiveSessionId, () => {
               chatChannelLifecycle.closeForEndedSession();

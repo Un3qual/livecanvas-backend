@@ -39,11 +39,16 @@ export function useLiveSessionAppState(): LiveSessionAppState {
   );
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (status) => {
+    const updateStatus = (status: AppStateStatus) => {
       setState((currentState) =>
         reduceLiveSessionAppState(currentState, status),
       );
-    });
+    };
+    const subscription = AppState.addEventListener('change', updateStatus);
+
+    // Reconcile after subscribing so a transition between the initial render
+    // and this effect cannot leave recovery state stale.
+    updateStatus(AppState.currentState);
 
     return () => {
       subscription.remove();

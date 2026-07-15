@@ -132,6 +132,7 @@ function ContentVideoAsset({
 }
 
 function configureContentVideoPlayer(player: VideoPlayer) {
+  // Feed and story clips neither loop nor outlive the foreground surface.
   player.loop = false;
   player.staysActiveInBackground = false;
 }
