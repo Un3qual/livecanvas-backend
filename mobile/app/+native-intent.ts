@@ -1,4 +1,5 @@
 import { redirectContactInviteSystemPath } from '../src/contacts/contactInviteNativeLink';
+import { redirectMagicLinkSystemPath } from '../src/auth/magicLink/magicLinkNativeLink';
 import { resolveEnvironment } from '../src/config/environment';
 
 export function redirectSystemPath({ path }: {
@@ -13,5 +14,10 @@ export function redirectSystemPath({ path }: {
     // Invite-shaped HTTPS links fail closed below when deploy-time config is invalid.
   }
 
-  return redirectContactInviteSystemPath(path, publicAppOrigin);
+  return redirectContactInviteSystemPath(path, publicAppOrigin).then(
+    (invitePath) =>
+      invitePath === path
+        ? redirectMagicLinkSystemPath(path, publicAppOrigin)
+        : invitePath,
+  );
 }

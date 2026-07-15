@@ -1,6 +1,7 @@
 import { Linking } from 'react-native';
 
 import type { AppEnvironment, BootSessionState } from './environment';
+import { redactMagicLinkSnapshotUrl } from '../auth/magicLink/magicLinkLink';
 import { redactContactInviteSnapshotUrl } from '../contacts/contactInviteLink';
 
 const KNOWN_ROUTE_HREFS = new Set([
@@ -8,6 +9,7 @@ const KNOWN_ROUTE_HREFS = new Set([
   '/sign-up',
   '/password-recovery',
   '/reset-password',
+  '/magic-link',
   '/home',
   '/profile',
   '/settings',
@@ -24,6 +26,7 @@ const AUTH_ROUTE_HREFS = new Set([
   '/sign-up',
   '/password-recovery',
   '/reset-password',
+  '/magic-link',
 ]);
 const AUTH_RETURN_TO_ROUTE_HREFS = new Set([
   '/compose',
@@ -63,9 +66,17 @@ export async function bootstrapRuntime(
     initialUrl = null;
   }
 
+  const inviteSafeUrl = redactContactInviteSnapshotUrl(
+    initialUrl,
+    environment.publicAppOrigin,
+  );
+
   return deriveStartupSnapshot(
     environment,
-    redactContactInviteSnapshotUrl(initialUrl, environment.publicAppOrigin),
+    redactMagicLinkSnapshotUrl(
+      inviteSafeUrl,
+      environment.publicAppOrigin,
+    ),
   );
 }
 
@@ -251,6 +262,12 @@ export function routeHrefFromUrl(initialUrl: string | null): string | null {
     return normalizeAuthReturnToHref(`${candidate}?${query}`);
   }
 
+  if (candidate === '/magic-link') {
+    return query
+      ? normalizeOpaqueHandoffHref(candidate, query)
+      : candidate;
+  }
+
   if (candidate === '/reset-password' && query) {
     return `${candidate}?${query}`;
   }
@@ -266,6 +283,19 @@ function hasValidPercentEncoding(value: string): boolean {
 
 function isOpaqueHandoffId(value: string | undefined): value is string {
   return Boolean(value && /^[A-Za-z0-9_-]{8,128}$/.test(value));
+}
+
+function normalizeOpaqueHandoffHref(
+  routePath: string,
+  query: string,
+): string | null {
+  const parameters = new URLSearchParams(query);
+  const handoffs = parameters.getAll('handoff');
+  const handoff = handoffs[0];
+
+  return parameters.size === 1 && isOpaqueHandoffId(handoff)
+    ? `${routePath}?handoff=${encodeURIComponent(handoff)}`
+    : null;
 }
 
 function resetPasswordHrefFromBackendPath(candidate: string): string | null {

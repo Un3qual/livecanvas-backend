@@ -88,18 +88,18 @@ Expo Router, SecureStore, pnpm, Vitest, Jest/RNTL.
 - `withMagicLinkHandoff(handoffId, callback)` never gives a mismatched or stale
   route access to a newer payload.
 
-- [ ] Add failing pure parser tests for exact custom/HTTPS forms and every
+- [x] Add failing pure parser tests for exact custom/HTTPS forms and every
   rejected authority, origin, path, parameter, encoding, and duplicate shape.
-- [ ] Add failing handoff tests proving the fixed slot expires, replacement is
+- [x] Add failing handoff tests proving the fixed slot expires, replacement is
   serialized, a stale route cannot read/clear a newer payload, corrupt records
   are deleted, and returned route values never contain the token.
-- [ ] Add failing native-intent/startup tests proving cold and warm links become
+- [x] Add failing native-intent/startup tests proving cold and warm links become
   `/magic-link?handoff=<opaque-id>`, recognizable failures become token-free
   `/magic-link`, and authenticated startup never exposes the raw URL snapshot.
-- [ ] Implement the dedicated SecureStore boundary and compose it after the
+- [x] Implement the dedicated SecureStore boundary and compose it after the
   existing contact-invite native-intent handler; add `/magic-link` as an auth
   route that accepts exactly one opaque `handoff` parameter.
-- [ ] Run the four focused Vitest suites and commit
+- [x] Run the four focused Vitest suites and commit
   `feat: secure mobile magic-link handoff`.
 
 ### Task 3: Magic-Link Request Action
