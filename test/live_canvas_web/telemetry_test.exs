@@ -66,8 +66,7 @@ defmodule LCWeb.TelemetryTest do
       for {event_type, sample_metadata, expected_tags} <- [
             {:join, %{result: :error, reason: :rate_limited},
              %{event_type: :join, result: :error, reason: :rate_limited}},
-            {:chat_send, %{result: :ok},
-             %{event_type: :chat_send, result: :ok, reason: :none}}
+            {:chat_send, %{result: :ok}, %{event_type: :chat_send, result: :ok, reason: :none}}
           ] do
         metric_name = [:live_canvas, :live, :channel, event_type, :total]
         event_name = [:live_canvas, :live, :channel, event_type]
@@ -121,7 +120,10 @@ defmodule LCWeb.TelemetryTest do
   end
 
   defp auth_reason(:ok, _metadata), do: :none
-  defp auth_reason(:error, %{metadata: %{"reason" => "invalid_credentials"}}), do: :invalid_credentials
+
+  defp auth_reason(:error, %{metadata: %{"reason" => "invalid_credentials"}}),
+    do: :invalid_credentials
+
   defp auth_reason(:error, _metadata), do: :unknown
 
   defp assert_metric(

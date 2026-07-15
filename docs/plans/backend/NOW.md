@@ -22,11 +22,9 @@ Status: mobile magic-link delivery complete; release QA pending
 ## Verification
 
 - Landing asset tests: 5 passed.
-- Changed backend files are formatted and the production asset build passes.
+- Repository-wide formatting and the production asset build pass.
 - `mix typecheck`: zero Dialyzer errors.
 - Full backend suite: 1,023 tests, zero failures, one excluded.
-- Repository-wide formatting still reports three unchanged base-branch files;
-  no batch-owned file is affected.
 
 ## Next Action
 
