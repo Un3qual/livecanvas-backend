@@ -42,15 +42,15 @@ React Native, Relay, pnpm, Vitest, Jest/RNTL.
 - `Accounts.update_user_profile_identity(user, %{username: ..., display_name: ...})`
   returns the hydrated updated user or changeset.
 
-- [ ] Add failing Accounts tests for canonicalization, Unicode display names,
+- [x] Add failing Accounts tests for canonicalization, Unicode display names,
   malformed/blank/oversized fields, collision handling, repeat updates, and
   preservation of unrelated account state.
-- [ ] Add nullable columns, unique username index, and database checks matching
+- [x] Add nullable columns, unique username index, and database checks matching
   the canonical format/length contracts; update the schema type and table
   contract summary.
-- [ ] Implement the typed changeset and Accounts boundary function; keep
+- [x] Implement the typed changeset and Accounts boundary function; keep
   normalization pure and update both fields in one `Repo.update/1`.
-- [ ] Run migration reset, focused Accounts tests, formatting, warnings-as-errors
+- [x] Run migration reset, focused Accounts tests, formatting, warnings-as-errors
   compilation, and `mix typecheck`; commit `feat: persist basic profile identity`.
 
 ### Task 2: Expose The Viewer-Scoped Relay Contract

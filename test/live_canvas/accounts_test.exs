@@ -27,6 +27,11 @@ defmodule LC.AccountsTest do
       refute :email in User.__schema__(:fields)
     end
 
+    test "user exposes nullable basic profile identity fields" do
+      assert User.__schema__(:type, :username) == :string
+      assert User.__schema__(:type, :display_name) == :string
+    end
+
     test "contact entries expose through email and phone relationships" do
       assert :email_addresses in UserContactEntry.__schema__(:associations)
       assert :phone_numbers in UserContactEntry.__schema__(:associations)
@@ -637,6 +642,75 @@ defmodule LC.AccountsTest do
       user = user_fixture(privacy_mode: :public)
 
       assert user.privacy_mode == :public
+    end
+  end
+
+  describe "update_user_profile_identity/2" do
+    test "canonicalizes both fields atomically and preserves account state" do
+      user = user_fixture(privacy_mode: :public)
+
+      assert {:ok, updated_user} =
+               Accounts.update_user_profile_identity(user, %{
+                 display_name: "  🎨 Canvas Creator  ",
+                 username: "  Canvas_Creator  "
+               })
+
+      assert Map.get(updated_user, :display_name) == "🎨 Canvas Creator"
+      assert Map.get(updated_user, :username) == "canvas_creator"
+      assert updated_user.privacy_mode == :public
+      assert updated_user.email == user.email
+
+      persisted_user = Accounts.get_user!(user.id)
+      assert Map.get(persisted_user, :display_name) == "🎨 Canvas Creator"
+      assert Map.get(persisted_user, :username) == "canvas_creator"
+    end
+
+    test "accepts a stable repeat update" do
+      user = user_fixture()
+      attrs = %{display_name: "Canvas Creator", username: "canvas_creator"}
+
+      assert {:ok, first_update} = Accounts.update_user_profile_identity(user, attrs)
+      assert {:ok, second_update} = Accounts.update_user_profile_identity(first_update, attrs)
+      assert Map.take(second_update, [:display_name, :username]) == attrs
+    end
+
+    test "rejects malformed handles and display names" do
+      user = user_fixture()
+
+      invalid_attrs = [
+        {%{display_name: "Canvas", username: "ab"}, :username},
+        {%{display_name: "Canvas", username: "_canvas"}, :username},
+        {%{display_name: "Canvas", username: "canvas_"}, :username},
+        {%{display_name: "Canvas", username: "canvas-name"}, :username},
+        {%{display_name: "Canvas", username: "cánvas"}, :username},
+        {%{display_name: "   ", username: "canvas_user"}, :display_name},
+        {%{display_name: "Canvas\nCreator", username: "canvas_user"}, :display_name},
+        {%{display_name: String.duplicate("a", 51), username: "canvas_user"}, :display_name}
+      ]
+
+      for {attrs, field} <- invalid_attrs do
+        assert {:error, changeset} = Accounts.update_user_profile_identity(user, attrs)
+        assert Map.has_key?(errors_on(changeset), field)
+      end
+    end
+
+    test "returns a username error when the canonical handle is already taken" do
+      first_user = user_fixture()
+      second_user = user_fixture()
+
+      assert {:ok, _first_user} =
+               Accounts.update_user_profile_identity(first_user, %{
+                 display_name: "First Creator",
+                 username: "canvas_creator"
+               })
+
+      assert {:error, changeset} =
+               Accounts.update_user_profile_identity(second_user, %{
+                 display_name: "Second Creator",
+                 username: "CANVAS_CREATOR"
+               })
+
+      assert %{username: ["has already been taken"]} = errors_on(changeset)
     end
   end
 

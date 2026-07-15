@@ -75,6 +75,9 @@ defmodule LC.Accounts do
             term(),
           optional(String.t()) => term()
         }
+  @type profile_identity_attrs :: %{
+          optional(:display_name | :username | String.t()) => String.t()
+        }
   @type upsert_contact_entry_result ::
           {:ok, UserContactEntry.t()}
           | {:error,
@@ -739,6 +742,19 @@ defmodule LC.Accounts do
   def update_user_privacy_mode(%User{} = user, privacy_mode) do
     case user
          |> UserChanges.privacy_changeset(%{privacy_mode: privacy_mode})
+         |> Repo.update() do
+      {:ok, updated_user} -> {:ok, hydrate_loaded_user(updated_user)}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  @doc """
+  Updates the user's public display name and canonical handle atomically.
+  """
+  @spec update_user_profile_identity(User.t(), profile_identity_attrs()) :: user_result()
+  def update_user_profile_identity(%User{} = user, attrs) when is_map(attrs) do
+    case user
+         |> UserChanges.profile_identity_changeset(attrs)
          |> Repo.update() do
       {:ok, updated_user} -> {:ok, hydrate_loaded_user(updated_user)}
       {:error, changeset} -> {:error, changeset}
