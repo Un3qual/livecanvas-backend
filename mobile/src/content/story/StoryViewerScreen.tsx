@@ -1,6 +1,11 @@
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useLazyLoadQuery } from 'react-relay';
+import {
+  fetchQuery,
+  useLazyLoadQuery,
+  useRelayEnvironment,
+} from 'react-relay';
 
 import { AppButton } from '../../components/AppButton';
 import { AppHeader } from '../../components/AppHeader';
@@ -21,6 +26,49 @@ import {
 import { selectStoryViewerState } from './storyViewerState';
 
 const STORY_VIEWER_FEED_SIZE = 100;
+
+const styles = StyleSheet.create({
+  body: typography.body,
+  content: {
+    alignItems: 'stretch',
+    gap: spacing.lg,
+    marginHorizontal: 'auto',
+    maxWidth: 540,
+    padding: spacing.lg,
+    width: '100%',
+  },
+  controls: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  headerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  mediaList: {
+    gap: spacing.sm,
+  },
+  progress: typography.label,
+  screen: {
+    flex: 1,
+  },
+});
+
+type StoryViewerQueryResponse = StoryViewerOperationsQuery['response'];
+
+type StoryFeedPage = Readonly<{
+  endCursor: string | null;
+  hasNextPage: boolean;
+  stories: ReadonlyArray<ContentPost>;
+}>;
+
+type StoryFeedLoadState = Readonly<{
+  status: 'complete' | 'loading' | 'unavailable';
+  stories: ReadonlyArray<ContentPost>;
+}>;
 
 export function StoryViewerScreen({ storyId }: { readonly storyId: string }) {
   return (
@@ -48,18 +96,27 @@ function StoryViewerContent({
 }) {
   const router = useRouter();
   const theme = useAppTheme();
+  const relayEnvironment = useRelayEnvironment();
   const data = useLazyLoadQuery<StoryViewerOperationsQuery>(
     storyViewerQuery,
-    { id: storyId, storyFirst: STORY_VIEWER_FEED_SIZE },
+    { id: storyId, storyAfter: null, storyFirst: STORY_VIEWER_FEED_SIZE },
     { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey: queryFetchKey },
   );
   const selectedNode = data.node?.__typename === 'Post' ? data.node : null;
-  const feedStories = readConnectionNodes<ContentPost>(
-    selectedNode?.author.storyFeed,
-  );
+  const storyFeed = useCompleteStoryFeed({
+    initialData: data,
+    relayEnvironment,
+    storyId,
+  });
+
+  if (storyFeed.status === 'loading') {
+    return <ScreenState message="Loading story navigation..." state="loading" />;
+  }
+
   const state = selectStoryViewerState({
-    feedStories,
-    now: Date.now(),
+    feedStatus:
+      storyFeed.status === 'complete' ? 'complete' : 'unavailable',
+    feedStories: storyFeed.stories,
     selectedStory: selectedNode,
     selectedStoryId: storyId,
   });
@@ -136,32 +193,127 @@ function openStory(
   }
 }
 
-const styles = StyleSheet.create({
-  body: typography.body,
-  content: {
-    alignItems: 'stretch',
-    gap: spacing.lg,
-    marginHorizontal: 'auto',
-    maxWidth: 540,
-    padding: spacing.lg,
-    width: '100%',
-  },
-  controls: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-  },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'space-between',
-  },
-  mediaList: {
-    gap: spacing.sm,
-  },
-  progress: typography.label,
-  screen: {
-    flex: 1,
-  },
-});
+function useCompleteStoryFeed({
+  initialData,
+  relayEnvironment,
+  storyId,
+}: {
+  readonly initialData: StoryViewerQueryResponse;
+  readonly relayEnvironment: ReturnType<typeof useRelayEnvironment>;
+  readonly storyId: string;
+}): StoryFeedLoadState {
+  const initialPageRef = useRef(readStoryFeedPage(initialData, storyId));
+  const [state, setState] = useState<StoryFeedLoadState>(() =>
+    initialStoryFeedLoadState(initialPageRef.current),
+  );
+
+  useEffect(() => {
+    const initialPage = initialPageRef.current;
+
+    if (initialPage === null || !initialPage.hasNextPage) {
+      return undefined;
+    }
+
+    const firstPage = initialPage;
+    let isActive = true;
+
+    async function loadRemainingPages() {
+      let currentPage = firstPage;
+      let stories = [...currentPage.stories];
+      const requestedCursors = new Set<string>();
+
+      while (currentPage.hasNextPage) {
+        const cursor = currentPage.endCursor;
+
+        // A forward connection must advance its cursor. Treat a malformed or
+        // repeating page as unavailable instead of spinning forever or
+        // inventing incomplete navigation.
+        if (cursor == null || requestedCursors.has(cursor)) {
+          if (isActive) {
+            setState({ status: 'unavailable', stories });
+          }
+          return;
+        }
+
+        requestedCursors.add(cursor);
+
+        try {
+          const pageData = await fetchQuery<StoryViewerOperationsQuery>(
+            relayEnvironment,
+            storyViewerQuery,
+            {
+              id: storyId,
+              storyAfter: cursor,
+              storyFirst: STORY_VIEWER_FEED_SIZE,
+            },
+            { fetchPolicy: 'network-only' },
+          ).toPromise();
+
+          if (!isActive) {
+            return;
+          }
+
+          const nextPage = pageData
+            ? readStoryFeedPage(pageData, storyId)
+            : null;
+
+          if (!nextPage) {
+            setState({ status: 'unavailable', stories });
+            return;
+          }
+
+          stories = [...stories, ...nextPage.stories];
+          currentPage = nextPage;
+        } catch {
+          if (isActive) {
+            setState({ status: 'unavailable', stories });
+          }
+          return;
+        }
+      }
+
+      if (isActive) {
+        setState({ status: 'complete', stories });
+      }
+    }
+
+    void loadRemainingPages();
+
+    return () => {
+      isActive = false;
+    };
+  }, [relayEnvironment, storyId]);
+
+  return state;
+}
+
+function readStoryFeedPage(
+  data: StoryViewerQueryResponse,
+  storyId: string,
+): StoryFeedPage | null {
+  const selectedNode = data.node?.__typename === 'Post' ? data.node : null;
+  const connection = selectedNode?.author.storyFeed;
+
+  if (selectedNode?.id !== storyId || connection == null) {
+    return null;
+  }
+
+  return {
+    endCursor: connection.pageInfo.endCursor ?? null,
+    hasNextPage: connection.pageInfo.hasNextPage,
+    stories: readConnectionNodes<ContentPost>(connection),
+  };
+}
+
+function initialStoryFeedLoadState(
+  page: StoryFeedPage | null,
+): StoryFeedLoadState {
+  if (!page) {
+    return { status: 'unavailable', stories: [] };
+  }
+
+  return {
+    status: page.hasNextPage ? 'loading' : 'complete',
+    stories: page.stories,
+  };
+}

@@ -7,6 +7,28 @@ import { useAppTheme } from '../providers/ThemeProvider';
 import { radius, spacing, typography } from '../theme/tokens';
 import type { ContentMediaAssetPresentation } from './contentPostPresentation';
 
+const styles = StyleSheet.create({
+  body: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  fallback: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  label: typography.label,
+  mediaSurface: {
+    aspectRatio: 16 / 9,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    overflow: 'hidden',
+    width: '100%',
+  },
+});
+
 export type ContentMediaAssetViewProps = {
   readonly asset: ContentMediaAssetPresentation;
 };
@@ -132,25 +154,3 @@ function MediaFallback({ body, label }: { body: string; label: string }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  body: {
-    ...typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  fallback: {
-    borderRadius: radius.md,
-    borderWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-  },
-  label: typography.label,
-  mediaSurface: {
-    aspectRatio: 16 / 9,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    overflow: 'hidden',
-    width: '100%',
-  },
-});

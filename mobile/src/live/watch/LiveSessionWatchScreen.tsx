@@ -103,6 +103,7 @@ import type {
 const INITIAL_TIMELINE_HISTORY_COUNT = 30;
 
 type LiveSessionRealtimeState = Readonly<{
+  resumeGeneration: number;
   status: LiveSessionStatus;
   viewerCount: number | null;
 }>;
@@ -319,13 +320,24 @@ function LiveSessionWatchContent({
   const queriedNormalizedStatus = normalizeLiveSessionStatus(
     session?.status ?? 'ENDED',
   );
-  const realtimeSessionState = activeLiveSessionId
+  const storedRealtimeSessionState = activeLiveSessionId
     ? realtimeSessionStates.get(activeLiveSessionId)
     : null;
-  const normalizedStatus = session
-    ? realtimeSessionState?.status ?? queriedNormalizedStatus
-    : queriedNormalizedStatus;
-  const viewerCount = realtimeSessionState?.viewerCount ?? null;
+  const realtimeSessionState =
+    isAppActive &&
+    storedRealtimeSessionState?.resumeGeneration === resumeGeneration
+      ? storedRealtimeSessionState
+      : null;
+  // ENDED is terminal. A fresh query must win over any realtime LIVE event
+  // that raced with resume/reconnect, even within the current generation.
+  const normalizedStatus =
+    session && queriedNormalizedStatus !== 'ENDED'
+      ? realtimeSessionState?.status ?? queriedNormalizedStatus
+      : queriedNormalizedStatus;
+  const viewerCount =
+    normalizedStatus === 'ENDED'
+      ? null
+      : realtimeSessionState?.viewerCount ?? null;
   const dispatchChatMutation = useCallback(
     (action: LiveSessionChatTimelineMutationAction) => {
       if (!activeLiveSessionId) {
@@ -393,13 +405,15 @@ function LiveSessionWatchContent({
     isJoined,
   });
   const shouldMaintainSessionRealtimeChannel = canUseChat && isAppActive;
+  const isViewerPlaybackMembershipReady =
+    isJoined && chatChannelStatus === 'joined';
   const { retryViewerPlayback, stopViewerPlayback, viewerPlaybackState } =
     useLiveSessionViewerPlaybackController({
       authStatus: auth.state.status,
       commitPrepareLiveSessionMedia,
       getAccessToken: auth.getAccessToken,
       isAppActive,
-      isJoined,
+      isJoined: isViewerPlaybackMembershipReady,
       isLeaving,
       liveSessionId: activeLiveSessionId,
       normalizedStatus,
@@ -450,13 +464,17 @@ function LiveSessionWatchContent({
 
         const nextStates = new Map(states);
         nextStates.set(liveSessionId, {
+          resumeGeneration,
           status,
-          viewerCount: currentState?.viewerCount ?? null,
+          viewerCount:
+            currentState?.resumeGeneration === resumeGeneration
+              ? currentState.viewerCount
+              : null,
         });
         return nextStates;
       });
     },
-    [],
+    [resumeGeneration],
   );
 
   const markLiveSessionRealtimeState = useCallback(
@@ -469,20 +487,22 @@ function LiveSessionWatchContent({
         const currentState = states.get(liveSessionId);
         if (
           currentState?.status === status &&
-          currentState.viewerCount === nextViewerCount
+          currentState.viewerCount === nextViewerCount &&
+          currentState.resumeGeneration === resumeGeneration
         ) {
           return states;
         }
 
         const nextStates = new Map(states);
         nextStates.set(liveSessionId, {
+          resumeGeneration,
           status,
           viewerCount: nextViewerCount,
         });
         return nextStates;
       });
     },
-    [],
+    [resumeGeneration],
   );
 
   const markLiveSessionEnded = useCallback(

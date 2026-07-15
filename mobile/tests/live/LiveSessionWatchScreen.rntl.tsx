@@ -35,10 +35,16 @@ let mockSessionStatus: 'ENDED' | 'LIVE';
 let mockQueryData: ReturnType<typeof createQueryData>;
 let mockIsJoined: boolean;
 let mockAppState: { isActive: boolean; resumeGeneration: number };
-let mockPlaybackControllerInputs: Array<{ isAppActive: boolean }>;
+let mockPlaybackControllerInputs: Array<{
+  isAppActive: boolean;
+  isJoined: boolean;
+}>;
 let mockResumeFetches: unknown[][];
 let mockSessionStateCallbacks: Array<
   (event: { status: 'ENDED' | 'LIVE'; viewerCount: number }) => void
+>;
+let mockChannelJoinResolvers: Array<
+  (result: { sessionState: null; status: 'joined' }) => void
 >;
 
 const mockControlsController: LiveSessionChatControlsController = {
@@ -53,18 +59,6 @@ const mockControlsController: LiveSessionChatControlsController = {
   removeMessage: jest.fn(),
 };
 
-const mockChatChannelLifecycle = {
-  getState: () => ({
-    channelStatus: 'idle',
-    sendError: null,
-    sendStatus: 'idle',
-    sessionId: null,
-  }),
-  send: jest.fn(),
-  start: jest.fn(),
-  stop: jest.fn(),
-};
-
 const mockOlderTimelinePageLoader = {
   mount: jest.fn(),
   requestOlderPage: jest.fn(),
@@ -72,6 +66,7 @@ const mockOlderTimelinePageLoader = {
   unmount: jest.fn(),
 };
 const mockGetAccessToken = jest.fn();
+const mockRelayEnvironment = {};
 const mockHostPublishingSessions = {
   controlsFor: jest.fn(() => null),
   has: jest.fn(() => false),
@@ -101,7 +96,7 @@ jest.mock('react-relay', () => ({
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
   useLazyLoadQuery: () => mockQueryData,
   useMutation: () => [jest.fn(), false],
-  useRelayEnvironment: () => ({}),
+  useRelayEnvironment: () => mockRelayEnvironment,
 }));
 
 jest.mock('../../src/live/watch/liveSessionAppState', () => ({
@@ -160,7 +155,10 @@ jest.mock('../../src/live/liveSessionChannelClient', () => {
       mockSessionStateCallbacks.push(options.onSessionState);
 
       return {
-        join: () => Promise.resolve({ status: 'joined' }),
+        join: () =>
+          new Promise<{ sessionState: null; status: 'joined' }>((resolve) => {
+            mockChannelJoinResolvers.push(resolve);
+          }),
         leave: jest.fn(),
         sendChatMessage: jest.fn(),
       };
@@ -181,14 +179,6 @@ jest.mock('../../src/live/chat/useLiveSessionChatControls', () => ({
     return mockControlsController;
   },
 }));
-
-jest.mock(
-  '../../src/live/chat/state/liveSessionChatChannelActorLifecycle',
-  () => ({
-    createLiveSessionChatChannelActorLifecycle: () =>
-      mockChatChannelLifecycle,
-  }),
-);
 
 jest.mock('../../src/live/watch/components/LiveSessionWatchCards', () => {
   const actual = jest.requireActual(
@@ -228,6 +218,7 @@ jest.mock(
   () => ({
     useLiveSessionViewerPlaybackController: (input: {
       isAppActive: boolean;
+      isJoined: boolean;
     }) => {
       mockPlaybackControllerInputs.push(input);
 
@@ -250,6 +241,7 @@ beforeEach(() => {
   mockPlaybackControllerInputs = [];
   mockResumeFetches = [];
   mockSessionStateCallbacks = [];
+  mockChannelJoinResolvers = [];
   jest.clearAllMocks();
 });
 
@@ -409,6 +401,96 @@ describe('LiveSessionWatchScreen app lifecycle recovery', () => {
       isAppActive: true,
     });
     expect(mockWatchControllerFunctions.requestLeave).not.toHaveBeenCalled();
+  });
+
+  test('drops stale realtime status when a resume generation reads ended server state', async () => {
+    mockIsJoined = true;
+    const view = await render(
+      <LiveSessionWatchScreen sessionId="session-1" />,
+    );
+
+    await waitFor(() => {
+      expect(mockSessionStateCallbacks).toHaveLength(1);
+    });
+    await act(() => {
+      mockSessionStateCallbacks[0]?.({ status: 'LIVE', viewerCount: 4 });
+    });
+    expect(mockChatControlsInput).toMatchObject({ sessionStatus: 'LIVE' });
+
+    mockAppState = { isActive: false, resumeGeneration: 0 };
+    await view.rerender(<LiveSessionWatchScreen sessionId="session-1" />);
+
+    mockQueryData = createQueryData('ENDED');
+    mockAppState = { isActive: true, resumeGeneration: 1 };
+    await view.rerender(<LiveSessionWatchScreen sessionId="session-1" />);
+
+    expect(mockChatControlsInput).toMatchObject({ sessionStatus: 'ENDED' });
+    expect(screen.queryByText('4 viewers')).toBeNull();
+  });
+
+  test('keeps queried ended status terminal against a same-generation live event', async () => {
+    mockIsJoined = true;
+    const view = await render(
+      <LiveSessionWatchScreen sessionId="session-1" />,
+    );
+
+    await waitFor(() => {
+      expect(mockSessionStateCallbacks).toHaveLength(1);
+    });
+    await act(() => {
+      mockSessionStateCallbacks[0]?.({ status: 'LIVE', viewerCount: 4 });
+    });
+
+    mockQueryData = createQueryData('ENDED');
+    await view.rerender(<LiveSessionWatchScreen sessionId="session-1" />);
+
+    expect(mockChatControlsInput).toMatchObject({ sessionStatus: 'ENDED' });
+    expect(screen.queryByText('4 viewers')).toBeNull();
+  });
+
+  test('waits for membership rejoin before restarting viewer playback', async () => {
+    mockIsJoined = true;
+    const view = await render(
+      <LiveSessionWatchScreen sessionId="session-1" />,
+    );
+
+    await waitFor(() => {
+      expect(mockChannelJoinResolvers).toHaveLength(1);
+    });
+    expect(mockPlaybackControllerInputs.at(-1)).toMatchObject({
+      isJoined: false,
+    });
+
+    await act(() => {
+      mockChannelJoinResolvers[0]?.({ sessionState: null, status: 'joined' });
+    });
+    await waitFor(() => {
+      expect(mockPlaybackControllerInputs.at(-1)).toMatchObject({
+        isJoined: true,
+      });
+    });
+
+    mockAppState = { isActive: false, resumeGeneration: 0 };
+    await view.rerender(<LiveSessionWatchScreen sessionId="session-1" />);
+
+    mockAppState = { isActive: true, resumeGeneration: 1 };
+    await view.rerender(<LiveSessionWatchScreen sessionId="session-1" />);
+
+    await waitFor(() => {
+      expect(mockChannelJoinResolvers).toHaveLength(2);
+    });
+    expect(mockPlaybackControllerInputs.at(-1)).toMatchObject({
+      isJoined: false,
+    });
+
+    await act(() => {
+      mockChannelJoinResolvers[1]?.({ sessionState: null, status: 'joined' });
+    });
+    await waitFor(() => {
+      expect(mockPlaybackControllerInputs.at(-1)).toMatchObject({
+        isJoined: true,
+      });
+    });
   });
 });
 

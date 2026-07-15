@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<287c18c8a7a9286a9abbea8cc4046f3b>>
+ * @generated SignedSource<<e21621f5a8b3fdec99d037837a49286a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,6 +14,7 @@ export type PostKind = "STANDARD" | "STORY" | "%future added value";
 export type PostVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
 export type storyViewerOperationsQuery$variables = {
   id: string;
+  storyAfter?: string | null | undefined;
   storyFirst: number;
 };
 export type storyViewerOperationsQuery$data = {
@@ -78,6 +79,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "id"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "storyAfter"
   },
   {
     "defaultValue": null,
@@ -194,6 +200,11 @@ v11 = {
     {
       "alias": null,
       "args": [
+        {
+          "kind": "Variable",
+          "name": "after",
+          "variableName": "storyAfter"
+        },
         {
           "kind": "Variable",
           "name": "first",
@@ -352,16 +363,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "604e46e1c713c2476e14fbfa0a60cc21",
+    "cacheID": "6ea42b5e55a869221ef8d245118b3f25",
     "id": null,
     "metadata": {},
     "name": "storyViewerOperationsQuery",
     "operationKind": "query",
-    "text": "query storyViewerOperationsQuery(\n  $id: ID!\n  $storyFirst: Int!\n) {\n  node(id: $id) {\n    __typename\n    ... on Post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        email\n        storyFeed(first: $storyFirst) {\n          edges {\n            node {\n              id\n              kind\n              bodyText\n              visibility\n              expiresAt\n              insertedAt\n              author {\n                id\n                email\n              }\n              mediaAssets {\n                id\n                mimeType\n                processingState\n                publicUrl\n              }\n            }\n          }\n          pageInfo {\n            endCursor\n            hasNextPage\n          }\n        }\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query storyViewerOperationsQuery(\n  $id: ID!\n  $storyAfter: String\n  $storyFirst: Int!\n) {\n  node(id: $id) {\n    __typename\n    ... on Post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        email\n        storyFeed(first: $storyFirst, after: $storyAfter) {\n          edges {\n            node {\n              id\n              kind\n              bodyText\n              visibility\n              expiresAt\n              insertedAt\n              author {\n                id\n                email\n              }\n              mediaAssets {\n                id\n                mimeType\n                processingState\n                publicUrl\n              }\n            }\n          }\n          pageInfo {\n            endCursor\n            hasNextPage\n          }\n        }\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3fd50dd80b9f0bc7dbfea32939cfdb11";
+(node as any).hash = "32108d23c8ee76555439f81f29b438d5";
 
 export default node;

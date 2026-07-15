@@ -1,4 +1,9 @@
-import { render, screen, userEvent } from '@testing-library/react-native';
+import {
+  render,
+  screen,
+  userEvent,
+  waitFor,
+} from '@testing-library/react-native';
 
 import { StoryViewerScreen } from '../../src/content/story/StoryViewerScreen';
 import { storyHref } from '../../src/content/story/storyNavigation';
@@ -6,8 +11,19 @@ import { storyHref } from '../../src/content/story/storyNavigation';
 let mockBack: jest.Mock;
 let mockQueryData: ReturnType<typeof storyViewerData> | { node: null };
 let mockQueryShouldSuspend: boolean;
-let mockQueryVariables: Array<{ id: string; storyFirst: number }>;
+let mockQueryVariables: Array<{
+  id: string;
+  storyAfter?: string | null;
+  storyFirst: number;
+}>;
+let mockPageDataByCursor: Map<string, ReturnType<typeof storyViewerData>>;
+let mockPageQueryVariables: Array<{
+  id: string;
+  storyAfter?: string | null;
+  storyFirst: number;
+}>;
 let mockReplacedRoutes: unknown[];
+const mockRelayEnvironment = {};
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -17,10 +33,30 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('react-relay', () => ({
+  fetchQuery: (
+    _environment: unknown,
+    _query: unknown,
+    variables: {
+      id: string;
+      storyAfter?: string | null;
+      storyFirst: number;
+    },
+  ) => {
+    mockPageQueryVariables.push(variables);
+    const page = variables.storyAfter
+      ? mockPageDataByCursor.get(variables.storyAfter)
+      : undefined;
+
+    return { toPromise: () => Promise.resolve(page ?? null) };
+  },
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
   useLazyLoadQuery: (
     _query: unknown,
-    variables: { id: string; storyFirst: number },
+    variables: {
+      id: string;
+      storyAfter?: string | null;
+      storyFirst: number;
+    },
   ) => {
     mockQueryVariables.push(variables);
     if (mockQueryShouldSuspend) {
@@ -28,6 +64,7 @@ jest.mock('react-relay', () => ({
     }
     return mockQueryData;
   },
+  useRelayEnvironment: () => mockRelayEnvironment,
 }));
 
 jest.mock('../../src/content/ContentMediaAssetView', () => {
@@ -49,7 +86,13 @@ beforeEach(() => {
   mockQueryData = storyViewerData('story-2');
   mockQueryShouldSuspend = false;
   mockQueryVariables = [];
+  mockPageDataByCursor = new Map();
+  mockPageQueryVariables = [];
   mockReplacedRoutes = [];
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 describe('StoryViewerScreen', () => {
@@ -80,7 +123,9 @@ describe('StoryViewerScreen', () => {
 
     await render(<StoryViewerScreen storyId="story-2" />);
 
-    expect(mockQueryVariables).toEqual([{ id: 'story-2', storyFirst: 100 }]);
+    expect(mockQueryVariables).toEqual([
+      { id: 'story-2', storyAfter: null, storyFirst: 100 },
+    ]);
     expect(screen.getByText('2 of 3')).toBeOnTheScreen();
     expect(screen.getByText('Story story-2')).toBeOnTheScreen();
     expect(screen.getByTestId('story-media-story-2-media')).toHaveTextContent(
@@ -121,15 +166,74 @@ describe('StoryViewerScreen', () => {
       screen.getByRole('button', { name: 'Next story' }),
     ).toBeDisabled();
   });
+
+  test('loads every author story page before deriving navigation', async () => {
+    mockQueryData = storyViewerData(
+      'story-150',
+      storyConnection([story('story-1')], {
+        endCursor: 'cursor-1',
+        hasNextPage: true,
+      }),
+    );
+    mockPageDataByCursor.set(
+      'cursor-1',
+      storyViewerData(
+        'story-150',
+        storyConnection([story('story-150'), story('story-151')]),
+      ),
+    );
+
+    await render(<StoryViewerScreen storyId="story-150" />);
+
+    await waitFor(() => {
+      expect(screen.getByText('2 of 3')).toBeOnTheScreen();
+    });
+    expect(mockPageQueryVariables).toEqual([
+      { id: 'story-150', storyAfter: 'cursor-1', storyFirst: 100 },
+    ]);
+    expect(
+      screen.getByRole('button', { name: 'Previous story' }),
+    ).not.toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Next story' }),
+    ).not.toBeDisabled();
+  });
+
+  test('shows an explicit navigation fallback when the author feed is unavailable', async () => {
+    mockQueryData = storyViewerData('story-2', null);
+
+    await render(<StoryViewerScreen storyId="story-2" />);
+
+    expect(screen.getByText('Story story-2')).toBeOnTheScreen();
+    expect(screen.getByText('Story navigation unavailable')).toBeOnTheScreen();
+    expect(screen.queryByText('1 of 1')).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Previous story' }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: 'Next story' }),
+    ).toBeDisabled();
+  });
+
+  test('trusts server-authorized story data instead of the device clock', async () => {
+    jest
+      .spyOn(Date, 'now')
+      .mockReturnValue(Date.parse('2100-01-01T00:00:00.000Z'));
+
+    await render(<StoryViewerScreen storyId="story-2" />);
+
+    expect(screen.getByText('Story story-2')).toBeOnTheScreen();
+    expect(screen.getByText('2 of 3')).toBeOnTheScreen();
+  });
 });
 
-function storyViewerData(selectedId: string) {
-  const stories = ['story-1', 'story-2', 'story-3'].map(story);
-  const selectedStory = stories.find((candidate) => candidate.id === selectedId);
-
-  if (!selectedStory) {
-    return { node: null };
-  }
+function storyViewerData(
+  selectedId: string,
+  connection: ReturnType<typeof storyConnection> | null = storyConnection(
+    ['story-1', 'story-2', 'story-3'].map(story),
+  ),
+) {
+  const selectedStory = story(selectedId);
 
   return {
     node: {
@@ -137,12 +241,19 @@ function storyViewerData(selectedId: string) {
       __typename: 'Post' as const,
       author: {
         ...selectedStory.author,
-        storyFeed: {
-          edges: stories.map((node) => ({ node })),
-          pageInfo: { endCursor: null, hasNextPage: false },
-        },
+        storyFeed: connection,
       },
     },
+  };
+}
+
+function storyConnection(
+  stories: ReturnType<typeof story>[],
+  pageInfo = { endCursor: null as string | null, hasNextPage: false },
+) {
+  return {
+    edges: stories.map((node) => ({ node })),
+    pageInfo,
   };
 }
 

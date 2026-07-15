@@ -9,8 +9,6 @@ import {
 } from '../../src/content/story/storyNavigation';
 import type { ContentPost } from '../../src/content/ContentPostCard';
 
-const now = Date.parse('2026-07-14T12:00:00.000Z');
-
 describe('storyViewerState', () => {
   test('keeps story route IDs opaque and rejects ambiguous params', () => {
     expect(storyHref('opaque/story:id')).toEqual({
@@ -25,8 +23,8 @@ describe('storyViewerState', () => {
 
   test('selects an opaque ID and exposes middle-story boundaries and progress', () => {
     const state = selectStoryViewerState({
+      feedStatus: 'complete',
       feedStories: [story('story-1'), story('story-2'), story('story-3')],
-      now,
       selectedStory: story('story-2'),
       selectedStoryId: 'story-2',
     });
@@ -46,49 +44,53 @@ describe('storyViewerState', () => {
 
     expect(
       selectStoryViewerState({
+        feedStatus: 'complete',
         feedStories: stories,
-        now,
         selectedStory: stories[0],
         selectedStoryId: 'story-1',
       }),
     ).toMatchObject({ previousStoryId: null, nextStoryId: 'story-2' });
     expect(
       selectStoryViewerState({
+        feedStatus: 'complete',
         feedStories: stories,
-        now,
         selectedStory: stories[1],
         selectedStoryId: 'story-2',
       }),
     ).toMatchObject({ previousStoryId: 'story-1', nextStoryId: null });
   });
 
-  test('rejects expired, invalid, and non-story selections', () => {
-    for (const selectedStory of [
-      story('expired', { expiresAt: '2026-07-14T11:59:59.000Z' }),
-      story('invalid-expiry', { expiresAt: 'not-a-date' }),
-      story('post', { expiresAt: null, kind: 'STANDARD' }),
-    ]) {
-      expect(
-        selectStoryViewerState({
-          feedStories: [selectedStory],
-          now,
-          selectedStory,
-          selectedStoryId: selectedStory.id,
-        }).selectedStory,
-      ).toBeNull();
-    }
+  test('rejects mismatched and non-story selections', () => {
+    const selectedPost = story('post', { expiresAt: null, kind: 'STANDARD' });
+
+    expect(
+      selectStoryViewerState({
+        feedStatus: 'complete',
+        feedStories: [selectedPost],
+        selectedStory: selectedPost,
+        selectedStoryId: selectedPost.id,
+      }).selectedStory,
+    ).toBeNull();
+    expect(
+      selectStoryViewerState({
+        feedStatus: 'complete',
+        feedStories: [story('story-1')],
+        selectedStory: story('story-1'),
+        selectedStoryId: 'story-2',
+      }).selectedStory,
+    ).toBeNull();
   });
 
   test('recomputes selection and boundaries from replacement feed data', () => {
     const initial = selectStoryViewerState({
+      feedStatus: 'complete',
       feedStories: [story('story-1'), story('story-2')],
-      now,
       selectedStory: story('story-2'),
       selectedStoryId: 'story-2',
     });
     const replaced = selectStoryViewerState({
+      feedStatus: 'complete',
       feedStories: [story('story-3'), story('story-2'), story('story-1')],
-      now,
       selectedStory: story('story-2'),
       selectedStoryId: 'story-2',
     });
@@ -105,21 +107,33 @@ describe('storyViewerState', () => {
     });
   });
 
-  test('shows an active selected story alone when a bounded feed omits it', () => {
+  test('does not invent navigation when the author feed is unavailable', () => {
     const state = selectStoryViewerState({
-      feedStories: [story('story-1')],
-      now,
+      feedStatus: 'unavailable',
+      feedStories: [],
       selectedStory: story('deep-linked-story'),
       selectedStoryId: 'deep-linked-story',
     });
 
     expect(state).toMatchObject({
       nextStoryId: null,
+      navigationStatus: 'unavailable',
       previousStoryId: null,
-      progressLabel: '1 of 1',
-      total: 1,
+      progressLabel: 'Story navigation unavailable',
+      total: null,
     });
     expect(state.selectedStory?.id).toBe('deep-linked-story');
+  });
+
+  test('rejects a selected story missing from a complete server feed', () => {
+    const state = selectStoryViewerState({
+      feedStatus: 'complete',
+      feedStories: [story('story-1')],
+      selectedStory: story('deep-linked-story'),
+      selectedStoryId: 'deep-linked-story',
+    });
+
+    expect(state.selectedStory).toBeNull();
   });
 });
 

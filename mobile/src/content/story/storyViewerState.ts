@@ -1,68 +1,72 @@
 import type { ContentPost } from '../ContentPostCard';
 
 export type StoryViewerState = Readonly<{
+  navigationStatus: 'available' | 'unavailable';
   nextStoryId: string | null;
   previousStoryId: string | null;
   progressLabel: string | null;
   selectedIndex: number | null;
   selectedStory: ContentPost | null;
-  total: number;
+  total: number | null;
 }>;
 
 export function selectStoryViewerState({
+  feedStatus,
   feedStories,
-  now,
   selectedStory,
   selectedStoryId,
 }: {
+  readonly feedStatus: 'complete' | 'unavailable';
   readonly feedStories: ReadonlyArray<ContentPost>;
-  readonly now: number;
   readonly selectedStory: ContentPost | null;
   readonly selectedStoryId: string;
 }): StoryViewerState {
-  if (
-    selectedStory?.id !== selectedStoryId ||
-    !isActiveStory(selectedStory, now)
-  ) {
+  // The Relay node resolver and author story feed both enforce visibility and
+  // expiry using server time. Re-applying expiry with the device clock would
+  // incorrectly hide authorized stories on clock-skewed devices.
+  if (selectedStory?.id !== selectedStoryId || selectedStory.kind !== 'STORY') {
     return unavailableStoryViewerState();
   }
 
-  const activeStories = dedupeActiveStories(feedStories, now);
-  const selectedIndex = activeStories.findIndex(
+  if (feedStatus === 'unavailable') {
+    return {
+      navigationStatus: 'unavailable',
+      nextStoryId: null,
+      previousStoryId: null,
+      progressLabel: 'Story navigation unavailable',
+      selectedIndex: null,
+      selectedStory,
+      total: null,
+    };
+  }
+
+  const stories = dedupeStories(feedStories);
+  const selectedIndex = stories.findIndex(
     (story) => story.id === selectedStoryId,
   );
 
   if (selectedIndex === -1) {
-    // A bounded author feed can omit a valid deep-linked story. Show that
-    // selected node without inventing its ordering relative to the feed page.
-    return {
-      nextStoryId: null,
-      previousStoryId: null,
-      progressLabel: '1 of 1',
-      selectedIndex: 0,
-      selectedStory,
-      total: 1,
-    };
+    // A complete server-filtered feed that omits the selected node means the
+    // story is no longer active for this viewer.
+    return unavailableStoryViewerState();
   }
 
   return {
-    nextStoryId: activeStories[selectedIndex + 1]?.id ?? null,
-    previousStoryId: activeStories[selectedIndex - 1]?.id ?? null,
-    progressLabel: `${selectedIndex + 1} of ${activeStories.length}`,
+    navigationStatus: 'available',
+    nextStoryId: stories[selectedIndex + 1]?.id ?? null,
+    previousStoryId: stories[selectedIndex - 1]?.id ?? null,
+    progressLabel: `${selectedIndex + 1} of ${stories.length}`,
     selectedIndex,
-    selectedStory: activeStories[selectedIndex] ?? null,
-    total: activeStories.length,
+    selectedStory: stories[selectedIndex] ?? null,
+    total: stories.length,
   };
 }
 
-function dedupeActiveStories(
-  stories: ReadonlyArray<ContentPost>,
-  now: number,
-): ContentPost[] {
+function dedupeStories(stories: ReadonlyArray<ContentPost>): ContentPost[] {
   const seenIds = new Set<string>();
 
   return stories.filter((story) => {
-    if (seenIds.has(story.id) || !isActiveStory(story, now)) {
+    if (seenIds.has(story.id) || story.kind !== 'STORY') {
       return false;
     }
 
@@ -71,17 +75,9 @@ function dedupeActiveStories(
   });
 }
 
-function isActiveStory(story: ContentPost, now: number): boolean {
-  if (story.kind !== 'STORY' || !story.expiresAt) {
-    return false;
-  }
-
-  const expiresAt = Date.parse(story.expiresAt);
-  return Number.isFinite(expiresAt) && expiresAt > now;
-}
-
 function unavailableStoryViewerState(): StoryViewerState {
   return {
+    navigationStatus: 'unavailable',
     nextStoryId: null,
     previousStoryId: null,
     progressLabel: null,

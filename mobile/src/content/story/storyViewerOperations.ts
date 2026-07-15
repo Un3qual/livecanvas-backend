@@ -26,7 +26,11 @@ export const storyViewerPostFields = graphql`
 `;
 
 export const storyViewerQuery = graphql`
-  query storyViewerOperationsQuery($id: ID!, $storyFirst: Int!) {
+  query storyViewerOperationsQuery(
+    $id: ID!
+    $storyAfter: String
+    $storyFirst: Int!
+  ) {
     node(id: $id) {
       __typename
       ... on Post {
@@ -34,7 +38,7 @@ export const storyViewerQuery = graphql`
         author {
           id
           email
-          storyFeed(first: $storyFirst) {
+          storyFeed(first: $storyFirst, after: $storyAfter) {
             edges {
               node {
                 ...storyViewerOperationsPostFields @relay(mask: false)
