@@ -11,11 +11,11 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: basic profile identity active
+- Track state: release-candidate operator/device QA active
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Active implementation plan:
-  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - Latest completed implementation plan:
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
+- Previous completed implementation plan:
   `docs/superpowers/plans/2026-07-15-native-contact-import.md`
 - Previous completed implementation plan:
   `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
@@ -25,11 +25,12 @@ and content discovery, live streaming, and chat.
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
 - Current release-depth plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Current theme: basic display names and unique public handles establish shared
-  identity presentation and the safe prerequisite for later people search.
-- Latest completed theme: user-initiated device contact import reads only approved
-  native fields, uploads bounded atomic chunks, and refreshes the existing
-  privacy-aware discovery connection while preserving manual entry.
+- Latest completed theme: basic display names and unique public handles
+  establish shared identity presentation and the safe prerequisite for later
+  people search.
+- Previous completed theme: user-initiated device contact import reads only
+  approved native fields, uploads bounded atomic chunks, and refreshes the
+  existing privacy-aware discovery connection while preserving manual entry.
 - Recent theme: sign-in and sign-up magic links use fragment-only trusted
   delivery, an opaque SecureStore navigation handoff, and GraphQL redemption
   through the existing auth session owner.
@@ -156,13 +157,14 @@ Active release gate:
 - `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Status: active; local entry gates pass, so record operator/device QA next.
 
-Active product batch above that gate:
+Latest completed product batch above that gate:
 
 - `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
-- Status: Tasks 1-4 active; release QA resumes after local closure.
+- Status: all tasks and local closure verification complete; release QA resumed.
 
 Recently completed product batches:
 
+- `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - `docs/superpowers/plans/2026-07-15-native-contact-import.md`
 - `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
 - `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`

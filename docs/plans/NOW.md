@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-15
-Status: basic profile identity active
+Status: release-candidate operator/device QA active
 
 ## Purpose
 
@@ -9,11 +9,11 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Approved Sequence
 
-- Current design:
+- Completed design:
   `docs/superpowers/specs/2026-07-15-basic-profile-identity-design.md`
-- Current implementation:
+- Completed implementation:
   `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
-- Current batch: persisted display name and unique handle, authorized Relay
+- Completed batch: persisted display name and unique handle, authorized Relay
   fields, shared mobile presentation, and viewer-scoped editing.
 - Completed design:
   `docs/superpowers/specs/2026-07-15-native-contact-import-design.md`
@@ -57,21 +57,22 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: basic profile identity persistence and GraphQL contract active in
-  Tasks 1-2.
+- State: identity persistence and GraphQL contract complete; support
+  operator/device QA only for reproduced backend issues.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: shared identity presentation and viewer editing active in Tasks 3-4.
+- State: basic profile identity complete; release-candidate operator/device QA
+  is active.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: focused backend/mobile identity suites, backend format and
   typecheck/full tests, Relay generation, mobile quality, Nix, and patch hygiene.
 
 ## Execution Rule
 
-Execute `docs/superpowers/plans/2026-07-15-basic-profile-identity.md` in order.
-Do not mark operator or physical-device QA complete from local evidence.
+Execute the operator/device checklist from the mobile lane pointer. Do not mark
+operator or physical-device QA complete from local evidence.
 
 ## Cross-Lane Policy
 
@@ -81,8 +82,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Complete backend identity persistence/Relay, then shared mobile presentation
-and viewer editing. Return to operator/device QA after local closure.
+Confirm the target-environment inventory in the release-candidate checklist,
+then run the manual host/viewer device checks.
 
 ## Repair Conditions
 

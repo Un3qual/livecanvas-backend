@@ -15,8 +15,8 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: basic profile identity active
-- Active source plan:
+- State: no active implementation batch; supporting operator/device QA
+- Latest completed source plan:
   `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
@@ -25,13 +25,14 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: basic profile identity active above release-candidate QA
+- State: release-candidate operator/device QA active
 - Track: `docs/plans/mobile/TRACK.md`
-- Active source plan:
+- Latest completed source plan:
   `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
-- Latest completed product theme: native address-book contact import
+- Latest completed product theme: basic public profile identity and viewer
+  editing
 - Latest completed detailed plan:
-  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
   payload normalization, and a completed backend media runtime foundation. The
   completed chat batch adds retained timeline history and live chat channel

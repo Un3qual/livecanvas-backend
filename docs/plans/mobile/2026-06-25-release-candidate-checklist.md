@@ -1,6 +1,6 @@
 # Mobile Release Candidate Checklist
 
-Last reviewed: 2026-07-14
+Last reviewed: 2026-07-15
 
 Source plan:
 `docs/plans/archive/completed/mobile/2026-06-05-testing-beta-release-readiness.md`
@@ -14,8 +14,9 @@ distribution build without `developmentClient`.
 No remote or authenticated EAS build or submit command is required by this
 checklist.
 
-Current status: local entry gates pass after completion of all five approved
-product batches. Use `docs/plans/mobile/NOW.md` for the executable gate pointer.
+Current status: local entry gates pass after completion of all approved product
+batches, including basic public profile identity. Use `docs/plans/mobile/NOW.md`
+for the executable gate pointer.
 Remote EAS state, beta identities, delivered-email access, and physical-device
 work still require the listed operator prerequisites.
 
@@ -142,6 +143,22 @@ work still require the listed operator prerequisites.
 - `nix flake check`, branch-wide `git diff --check`, and post-verification
   worktree hygiene pass. No remote EAS or physical-device command was run, so
   the operator prerequisites and manual QA below remain pending.
+
+### 2026-07-15 Basic Profile Identity Closure
+
+- Nullable canonical display names and unique handles persist behind a
+  viewer-scoped atomic mutation; public fields reapply blocked-viewer policy.
+- Existing profile, content, live, social, and contact surfaces share one
+  public-identity presentation contract, and the viewer profile provides a
+  generation-safe editor without replacing opaque Relay navigation IDs.
+- Backend: clean migration reset, formatting, warnings-as-errors compile,
+  `mix typecheck`, 224 focused identity tests, and 1,044 full tests pass with
+  zero failures and one excluded.
+- Mobile under Nix Node 26.5.0: `CI=true pnpm install --frozen-lockfile`, Relay
+  generation, both TypeScript checks, lint, 634 Vitest tests, and 219 Jest tests
+  pass. `nix flake check` also passes.
+- No Bun-specific compatibility work was added. No remote EAS or physical-device
+  command was run, so operator prerequisites and manual QA remain pending.
 
 ## Remaining Operator Prerequisites
 

@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-15
-Status: basic profile identity active
+Status: release-candidate operator/device QA active
 
 ## Lane Scope
 
@@ -9,14 +9,14 @@ Status: basic profile identity active
 - Consume explicitly promoted backend contracts recorded in the backend lane.
 - Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Current Batch
+## Current Gate
 
-- Design: `docs/superpowers/specs/2026-07-15-basic-profile-identity-design.md`
-- Source plan: `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
-- Current scope: Tasks 3-4—shared profile identity presentation on every
-  existing person surface and a generation-safe viewer editor.
-- Done condition: public identity wins over email/opaque fallbacks, editing is
-  validated and viewer-scoped, and all navigation stays on opaque Relay IDs.
+- Checklist: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+- Completed plan: `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
+- Current scope: release-operator target-environment inventory, preview build,
+  and manual one-host/one-viewer device checks.
+- Done condition: every launch blocker and required manual check has recorded
+  operator evidence; local verification alone cannot close this gate.
 
 ## Deferred Scope
 
@@ -25,9 +25,12 @@ Status: basic profile identity active
 
 ## Verification
 
-- Run Relay generation, focused presentation/editor suites, frozen pnpm install,
-  both TypeScript checks, lint, full tests, Nix, and patch hygiene.
+- Closure evidence under Nix Node 26.5.0: frozen pnpm install and Relay
+  generation; 32 focused Vitest and 65 focused Jest tests; both TypeScript
+  checks, lint, 634 full Vitest tests, and 219 full Jest tests; `nix flake
+  check` passes.
 
 ## Next Action
 
-Begin Task 3 after the backend exports the identity schema contract.
+Release operator confirms the checklist prerequisites, then records the manual
+host/viewer device evidence. Keep every physical-device item pending until run.

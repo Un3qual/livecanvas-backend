@@ -147,12 +147,20 @@ React Native, Relay, pnpm, Vitest, Jest/RNTL.
 - Modify: `docs/plans/INDEX.md`
 - Modify: this plan
 
-- [ ] Run repository formatting, warnings-as-errors compilation, `mix
+- [x] Run repository formatting, warnings-as-errors compilation, `mix
   typecheck`, focused identity tests, a clean migration reset, and full backend
   tests.
-- [ ] From `mobile/`, run frozen pnpm installation, Relay generation, focused
+- [x] From `mobile/`, run frozen pnpm installation, Relay generation, focused
   identity suites, `pnpm test:quality`, and `nix flake check`.
-- [ ] Run `git diff --check`, record exact evidence, return lanes to
+- [x] Run `git diff --check`, record exact evidence, return lanes to
   operator/device QA, and leave physical/release evidence pending.
-- [ ] Commit `docs: close basic profile identity batch`; do not push until the
+- [x] Commit `docs: close basic profile identity batch`; do not push until the
   user explicitly requests it.
+
+**Closure evidence (2026-07-15):** A clean test database reset applied every
+migration. Backend format, warnings-as-errors compile, `mix typecheck`, 224
+focused identity tests, and 1,044 full tests passed with zero failures and one
+excluded. Under Nix Node 26.5.0, frozen pnpm install, Relay generation, both
+TypeScript checks, lint, 32 focused Vitest tests, 65 focused Jest tests, 634
+full Vitest tests, and 219 full Jest tests passed. `nix flake check` and patch
+hygiene passed. No remote EAS or physical-device evidence was claimed.

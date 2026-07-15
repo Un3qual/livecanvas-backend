@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-15
-Status: basic profile identity active
+Status: no active implementation batch; supporting operator/device QA
 
 ## Lane Scope
 
@@ -9,28 +9,30 @@ Status: basic profile identity active
 - Cross-lane mobile contract work must name its backend write scope explicitly.
 - Shared coordinator docs and contracts require explicit assignment.
 
-## Current Batch
+## Current State
 
 - Design: `docs/superpowers/specs/2026-07-15-basic-profile-identity-design.md`
-- Source plan: `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
-- Current scope: Tasks 1-2—nullable identity persistence, canonical validation,
+- Completed plan: `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
+- Completed scope: nullable identity persistence, canonical validation,
   authorized public fields, and viewer-scoped atomic editing.
-- Done condition: handles are canonical and race-safe unique, existing users
-  remain valid, and Relay cannot bypass blocked-viewer policy or ownership.
+- No backend implementation batch is active while release-candidate
+  operator/device QA is waiting on external prerequisites.
 
 ## Verification
 
-- Run migration reset, focused Accounts/GraphQL/node tests, formatting,
-  warnings-as-errors compilation, `mix typecheck`, full tests, and patch hygiene.
+- Closure evidence: clean test database reset; format and warnings-as-errors
+  compile; `mix typecheck`; 224 focused identity tests; 1,044 full tests with
+  zero failures and one excluded.
 
 ## Next Action
 
-Implement Task 1, then expose and export the Task 2 Relay contract for mobile.
+If device QA reproduces a backend contract, resolver, runtime, or data defect,
+promote a bounded backend repair batch here before implementation.
 
 ## References
 
 - Mobile lane: `docs/plans/mobile/NOW.md`
-- Active identity plan:
+- Completed identity plan:
   `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - Active mobile QA gate:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
