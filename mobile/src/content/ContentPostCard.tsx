@@ -24,6 +24,7 @@ export type { ContentPost } from './contentPostPresentation';
 
 export type ContentPostCardProps = {
   readonly controls: PostControls;
+  readonly onOpenStory?: (storyId: string) => void;
   readonly post: ContentPost;
   readonly viewerId: string | null;
 };
@@ -86,6 +87,7 @@ const styles = StyleSheet.create({
 
 export const ContentPostCard = memo(function ContentPostCard({
   controls,
+  onOpenStory,
   post,
   viewerId,
 }: ContentPostCardProps) {
@@ -200,6 +202,14 @@ export const ContentPostCard = memo(function ContentPostCard({
         </View>
       ) : null}
 
+      {onOpenStory ? (
+        <AppButton
+          label="View story"
+          onPress={() => onOpenStory(post.id)}
+          variant="secondary"
+        />
+      ) : null}
+
       {showReportAction ? (
         <View style={styles.reportPanel}>
           {controlState.isReportConfirmed ? (
@@ -284,6 +294,7 @@ function areContentPostCardPropsEqual(
 ): boolean {
   if (
     previous.post !== next.post ||
+    previous.onOpenStory !== next.onOpenStory ||
     previous.viewerId !== next.viewerId ||
     previous.controls.actions !== next.controls.actions
   ) {

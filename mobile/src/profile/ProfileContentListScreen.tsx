@@ -33,6 +33,7 @@ import type {
   ProfileContentKind,
 } from '../content/contentSurfaceTypes';
 import { applyContentPostChanges } from '../content/contentPostChanges';
+import { storyHref } from '../content/story/storyNavigation';
 import { usePostControls } from '../content/usePostControls';
 import {
   LiveSessionSummaryCard,
@@ -257,6 +258,11 @@ function ProfileContentListConnection({
     }
   }
 
+  const openStory = useCallback(
+    (storyId: string) => router.push(storyHref(storyId)),
+    [router],
+  );
+
   const renderRow = useCallback(
     ({ item }: ListRenderItemInfo<ProfileContentRow>) => {
       if (kind === 'replays' && isLiveSessionSummary(item)) {
@@ -276,6 +282,7 @@ function ProfileContentListConnection({
           <View style={styles.section}>
             <ContentPostCard
               controls={postControls}
+              onOpenStory={kind === 'stories' ? openStory : undefined}
               post={item}
               viewerId={viewerId}
             />
@@ -285,7 +292,7 @@ function ProfileContentListConnection({
 
       return null;
     },
-    [kind, postControls, router, viewerId],
+    [kind, openStory, postControls, router, viewerId],
   );
 
   return (

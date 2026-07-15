@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-14
-Status: release-depth Batch 5 dedicated story viewer active
+Status: five release-depth batches implemented; closure verification active
 
 ## Lane Scope
 
@@ -15,17 +15,16 @@ Status: release-depth Batch 5 dedicated story viewer active
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
 - Source plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Current scope: Batch 5 adds an opaque-ID story route with previous/next/close
-  navigation over the selected author's active story feed.
-- Write scope: `mobile/app/(app)/stories/**`, `mobile/src/content/**`, affected
-  feed/profile story entry points and tests, generated Relay artifacts, and this
-  lane pointer. Promote backend work only if a focused contract test fails.
+- Current scope: close the five-batch lane with full Relay, type, lint, unit,
+  Jest/RNTL, frozen-install, and Nix verification evidence.
+- Write scope: closure docs plus any directly reproduced regression in the five
+  implemented batches. Promote backend work only if a contract test fails.
   pointer. Promote backend work only if a focused contract test fails.
-- Done condition: feed/profile story cards open the viewer, opaque selection and
-  boundaries remain stable across replacement data, and shared media rendering
-  handles available/unavailable stories.
-- Verification: Relay generation, focused story/feed/profile suites, mobile
-  typechecks, lint, and patch hygiene.
+- Done condition: every local release-depth gate passes, detailed evidence is
+  recorded, and the lane returns to physical-device/operator QA without marking
+  that external QA complete.
+- Verification: `CI=true pnpm install --frozen-lockfile`, `pnpm relay`,
+  `pnpm test:quality`, `nix flake check`, and patch hygiene.
 
 ## Deferred Scope
 
@@ -34,5 +33,5 @@ Status: release-depth Batch 5 dedicated story viewer active
 
 ## Next Action
 
-Execute Batch 5. After its milestone commit, close the five-batch lane and run
-the full release-depth verification matrix.
+Run the full closure matrix, record results, and publish the sequence in one
+non-draft PR.

@@ -1,5 +1,6 @@
 import React, {
   Suspense,
+  useCallback,
   useReducer,
   type PropsWithChildren,
 } from 'react';
@@ -12,6 +13,7 @@ import { AppCard } from '../components/AppCard';
 import type { ContentPost } from '../content/ContentPostCard';
 import { ContentSection } from '../content/ContentSection';
 import { applyContentPostChanges } from '../content/contentPostChanges';
+import { storyHref } from '../content/story/storyNavigation';
 import { usePostControls } from '../content/usePostControls';
 import type { LiveSessionSummary } from '../live/components/LiveSessionSummaryCard';
 import { liveSessionHref } from '../live/liveSessionNavigation';
@@ -79,6 +81,10 @@ function ProfileContentPreviewContent({
   );
   const viewerId = data.viewer?.id ?? null;
   const postControls = usePostControls({ viewerId });
+  const openStory = useCallback(
+    (storyId: string) => router.push(storyHref(storyId)),
+    [router],
+  );
   const posts = applyContentPostChanges(
     readConnectionNodes<ContentPost>(
       selectProfileContentConnection(data, 'posts'),
@@ -109,6 +115,7 @@ function ProfileContentPreviewContent({
       <ContentSection
         emptyMessage="No active stories yet."
         kind="stories"
+        onOpenStory={openStory}
         onViewAll={() =>
           router.push(profileContentHref(profileId, 'stories', scope))
         }

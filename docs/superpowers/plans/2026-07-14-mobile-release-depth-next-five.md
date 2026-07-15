@@ -133,14 +133,14 @@ unnormalized URL.
 the author's active `storyFeed`; state selects the initial opaque ID and exposes
 previous/next/progress without persisting seen state.
 
-- [ ] Add failing pure tests for selected-ID lookup, previous/next boundaries,
+- [x] Add failing pure tests for selected-ID lookup, previous/next boundaries,
   expiry, and replacement data.
-- [ ] Add failing RNTL tests for loading, unavailable, first/middle/last story,
+- [x] Add failing RNTL tests for loading, unavailable, first/middle/last story,
   close, and media presentation.
-- [ ] Implement the Relay route and wire story-card entry from feed and profile
+- [x] Implement the Relay route and wire story-card entry from feed and profile
   surfaces without changing normal post cards.
-- [ ] Run Relay generation and all focused story/feed/profile tests.
-- [ ] Commit `feat: add dedicated story viewer`.
+- [x] Run Relay generation and all focused story/feed/profile tests.
+- [x] Commit `feat: add dedicated story viewer`.
 
 ### Task 6: Close The Five-Batch Lane
 

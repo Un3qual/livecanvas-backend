@@ -1,6 +1,7 @@
 import { act, render, screen, userEvent, within } from '@testing-library/react-native';
 
 import { liveSessionHref } from '../../src/live/liveSessionNavigation';
+import { storyHref } from '../../src/content/story/storyNavigation';
 import { ProfileContentPreviewSections } from '../../src/profile/ProfileContentPreviewSection';
 import { profileContentHref } from '../../src/profile/profileContentRouteParams';
 
@@ -105,15 +106,18 @@ describe('ProfileContentPreviewSections', () => {
     );
 
     const posts = within(screen.getByTestId('content-section-posts'));
+    const stories = within(screen.getByTestId('content-section-stories'));
     const replays = within(screen.getByTestId('content-section-replays'));
     expect(posts.getByRole('button', { name: 'Report post' })).toBeOnTheScreen();
     expect(posts.queryByRole('button', { name: 'Edit post' })).toBeNull();
 
+    await user.press(stories.getByRole('button', { name: 'View story' }));
     await user.press(replays.getByRole('button', { name: 'Watch replay' }));
     await user.press(posts.getByRole('button', { name: 'View all' }));
     await user.press(replays.getByRole('button', { name: 'View all' }));
 
     expect(mockPushedRoutes).toEqual([
+      storyHref('opaque-story-id'),
       liveSessionHref('opaque-replay-id'),
       profileContentHref('opaque-profile-id', 'posts', 'other'),
       profileContentHref('opaque-profile-id', 'replays', 'other'),

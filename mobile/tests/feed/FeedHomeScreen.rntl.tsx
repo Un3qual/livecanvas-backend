@@ -17,6 +17,7 @@ import {
   pushFeedHomeAction,
   shouldShowFeedHomeHostAction,
 } from '../../src/feed/FeedHomeScreen';
+import { storyHref } from '../../src/content/story/storyNavigation';
 
 type FeedHomeQueryData = {
   readonly homeFeed: Connection<PostNode> | null;
@@ -293,11 +294,13 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     expect(screen.getByText('viewer-host@example.com')).toBeOnTheScreen();
     expect(screen.queryByText('Host a live session')).toBeNull();
 
+    await user.press(screen.getByRole('button', { name: 'View story' }));
     await user.press(screen.getByRole('button', { name: 'Watch live' }));
     await user.press(screen.getByRole('button', { name: 'Watch replay' }));
     await user.press(screen.getByRole('button', { name: 'Open session' }));
 
     expect(mockPushedRoutes).toEqual([
+      storyHref('story-1'),
       { params: { sessionId: 'live-1' }, pathname: '/live-session' },
       { params: { sessionId: 'replay-1' }, pathname: '/live-session' },
       { params: { sessionId: 'viewer-live' }, pathname: '/live-session' },
