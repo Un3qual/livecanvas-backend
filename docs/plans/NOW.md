@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-15
-Status: release-candidate operator/device QA active
+Status: basic profile identity active
 
 ## Purpose
 
@@ -9,6 +9,12 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Approved Sequence
 
+- Current design:
+  `docs/superpowers/specs/2026-07-15-basic-profile-identity-design.md`
+- Current implementation:
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
+- Current batch: persisted display name and unique handle, authorized Relay
+  fields, shared mobile presentation, and viewer-scoped editing.
 - Completed design:
   `docs/superpowers/specs/2026-07-15-native-contact-import-design.md`
 - Completed implementation:
@@ -51,22 +57,21 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: native contact bulk-import contract complete; no backend product batch
-  is active while operator/device QA runs.
+- State: basic profile identity persistence and GraphQL contract active in
+  Tasks 1-2.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: native adapter and import workflow complete; release-candidate
-  operator/device QA active.
+- State: shared identity presentation and viewer editing active in Tasks 3-4.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: focused backend/mobile contact suites, backend format and
+- Verification: focused backend/mobile identity suites, backend format and
   typecheck/full tests, Relay generation, mobile quality, Nix, and patch hygiene.
 
 ## Execution Rule
 
-Execute `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`. Do not
-mark operator or physical-device QA complete from local evidence.
+Execute `docs/superpowers/plans/2026-07-15-basic-profile-identity.md` in order.
+Do not mark operator or physical-device QA complete from local evidence.
 
 ## Cross-Lane Policy
 
@@ -76,8 +81,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Confirm the release checklist's target environment, preview artifact, test
-identities, recipient inbox, and physical devices; then run operator/device QA.
+Complete backend identity persistence/Relay, then shared mobile presentation
+and viewer editing. Return to operator/device QA after local closure.
 
 ## Repair Conditions
 

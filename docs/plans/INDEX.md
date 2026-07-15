@@ -15,9 +15,9 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: native contact bulk import complete; release-candidate QA handoff
-- Latest completed source plan:
-  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
+- State: basic profile identity active
+- Active source plan:
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
   contract, resolver, runtime, or data issue.
@@ -25,10 +25,10 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: release-candidate operator/device QA active
+- State: basic profile identity active above release-candidate QA
 - Track: `docs/plans/mobile/TRACK.md`
 - Active source plan:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - Latest completed product theme: native address-book contact import
 - Latest completed detailed plan:
   `docs/superpowers/plans/2026-07-15-native-contact-import.md`

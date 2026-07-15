@@ -11,8 +11,10 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: release-candidate operator/device QA active
+- Track state: basic profile identity active
 - Lane pointer: `docs/plans/mobile/NOW.md`
+- Active implementation plan:
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - Latest completed implementation plan:
   `docs/superpowers/plans/2026-07-15-native-contact-import.md`
 - Previous completed implementation plan:
@@ -23,9 +25,9 @@ and content discovery, live streaming, and chat.
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
 - Current release-depth plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Last completed detailed plan:
-  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
-- Latest theme: user-initiated device contact import now reads only approved
+- Current theme: basic display names and unique public handles establish shared
+  identity presentation and the safe prerequisite for later people search.
+- Latest completed theme: user-initiated device contact import reads only approved
   native fields, uploads bounded atomic chunks, and refreshes the existing
   privacy-aware discovery connection while preserving manual entry.
 - Recent theme: sign-in and sign-up magic links use fragment-only trusted
@@ -145,6 +147,7 @@ and content discovery, live streaming, and chat.
 35. Post attribution and author-profile navigation.
 36. Mobile magic-link authentication completion.
 37. Native address-book import into contact discovery.
+38. Basic public profile identity and viewer editing.
 
 ## Active Gate And Completed Follow-Up Plans
 
@@ -152,6 +155,11 @@ Active release gate:
 
 - `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Status: active; local entry gates pass, so record operator/device QA next.
+
+Active product batch above that gate:
+
+- `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
+- Status: Tasks 1-4 active; release QA resumes after local closure.
 
 Recently completed product batches:
 

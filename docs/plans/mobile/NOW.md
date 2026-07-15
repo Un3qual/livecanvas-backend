@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-15
-Status: release-candidate operator/device QA active
+Status: basic profile identity active
 
 ## Lane Scope
 
@@ -9,17 +9,14 @@ Status: release-candidate operator/device QA active
 - Consume explicitly promoted backend contracts recorded in the backend lane.
 - Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Current Gate
+## Current Batch
 
-- Checklist: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
-- Latest completed plan:
-  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
-- Completed scope: minimal native contact read boundary, pure
-  normalization/chunking, sequential Relay import, and contact-screen feedback.
-- Local closure passed frozen pnpm install, Relay generation, both TypeScript
-  checks, lint, 84 Vitest files/626 tests, 29 Jest files/215 tests, and Nix.
-- Physical contact permission/import evidence remains pending with the rest of
-  operator/device QA and is not completed here.
+- Design: `docs/superpowers/specs/2026-07-15-basic-profile-identity-design.md`
+- Source plan: `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
+- Current scope: Tasks 3-4—shared profile identity presentation on every
+  existing person surface and a generation-safe viewer editor.
+- Done condition: public identity wins over email/opaque fallbacks, editing is
+  validated and viewer-scoped, and all navigation stays on opaque Relay IDs.
 
 ## Deferred Scope
 
@@ -28,10 +25,9 @@ Status: release-candidate operator/device QA active
 
 ## Verification
 
-- Use the checklist for target-environment inventory and physical-device
-  evidence; do not repeat completed local gates unless code changes.
+- Run Relay generation, focused presentation/editor suites, frozen pnpm install,
+  both TypeScript checks, lint, full tests, Nix, and patch hygiene.
 
 ## Next Action
 
-Confirm the target environment, preview artifact, test identities, recipient
-inbox, and physical devices; then begin checklist QA.
+Begin Task 3 after the backend exports the identity schema contract.
