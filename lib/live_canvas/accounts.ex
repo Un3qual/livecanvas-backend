@@ -82,6 +82,22 @@ defmodule LC.Accounts do
              | :invalid_birthday
              | :invalid_phone_number
              | :invalid_email_list}
+  @type contact_import_error ::
+          :invalid_contact_batch
+          | :too_many_contact_entries
+          | :duplicate_contact_client_id
+          | :invalid_contact_client_id
+          | :invalid_birthday
+          | :invalid_phone_number
+          | :invalid_email_list
+  @type contact_import_result :: {:ok, pos_integer()} | {:error, contact_import_error()}
+  @typep normalized_contact_entry_attrs :: %{
+           contact_client_id: binary(),
+           contact_name: String.t() | nil,
+           birthday: Date.t() | nil,
+           emails: [String.t()],
+           phone_numbers: [String.t()]
+         }
   @type contact_match :: %{
           required(:id) => pos_integer(),
           required(:contact_entry) => UserContactEntry.t(),
@@ -166,6 +182,8 @@ defmodule LC.Accounts do
   @type staff_permission :: LCSchemas.Accounts.staff_permission()
   @type staff_permission_result ::
           {:ok, StaffPermission.t()} | {:error, changeset() | :not_found}
+
+  @contact_import_batch_limit 100
 
   ## Database getters
 
@@ -1206,23 +1224,35 @@ defmodule LC.Accounts do
   @spec upsert_user_contact_entry(User.t(), contact_entry_attrs()) ::
           upsert_contact_entry_result()
   def upsert_user_contact_entry(%User{} = user, attrs) when is_map(attrs) do
-    with {:ok, contact_client_id} <-
-           normalize_contact_client_id(fetch_attr(attrs, :contact_client_id)),
-         {:ok, contact_name} <- normalize_contact_name(fetch_attr(attrs, :contact_name)),
-         {:ok, birthday} <- normalize_contact_birthday(fetch_attr(attrs, :birthday)),
-         {:ok, emails} <- normalize_contact_emails(fetch_attr(attrs, :emails, [])),
-         {:ok, phone_numbers} <-
-           normalize_contact_phone_numbers(fetch_attr(attrs, :phone_numbers, [])) do
+    with {:ok, normalized_attrs} <- normalize_contact_entry_attrs(attrs) do
+      Repo.transact(fn -> persist_user_contact_entry(user, normalized_attrs) end)
+    end
+  end
+
+  @doc """
+  Atomically imports one bounded chunk of normalized viewer contact entries.
+
+  Every entry is validated before the transaction begins, and duplicate client
+  IDs are rejected so a request cannot depend on last-write-wins ordering.
+  """
+  @spec import_user_contact_entries(User.t(), [contact_entry_attrs()]) ::
+          contact_import_result()
+  def import_user_contact_entries(%User{} = user, entries) when is_list(entries) do
+    with :ok <- validate_contact_import_batch_size(entries),
+         {:ok, normalized_entries} <- normalize_contact_import_entries(entries),
+         :ok <- validate_unique_contact_client_ids(normalized_entries) do
       Repo.transact(fn ->
-        with {:ok, contact_entry} <-
-               upsert_contact_entry_row(user, contact_client_id, contact_name, birthday),
-             :ok <- sync_contact_entry_emails(contact_entry.id, emails),
-             :ok <- sync_contact_entry_phone_numbers(contact_entry.id, phone_numbers) do
-          {:ok, preload_contact_entry(contact_entry)}
-        end
+        Enum.reduce_while(normalized_entries, {:ok, 0}, fn attrs, {:ok, count} ->
+          case persist_user_contact_entry(user, attrs) do
+            {:ok, _contact_entry} -> {:cont, {:ok, count + 1}}
+            {:error, reason} -> {:halt, {:error, reason}}
+          end
+        end)
       end)
     end
   end
+
+  def import_user_contact_entries(%User{}, _entries), do: {:error, :invalid_contact_batch}
 
   @doc """
   Lists imported contact entries with the matched users for each entry.
@@ -1981,6 +2011,88 @@ defmodule LC.Accounts do
 
       true ->
         :ok
+    end
+  end
+
+  @spec normalize_contact_entry_attrs(contact_entry_attrs()) ::
+          {:ok, normalized_contact_entry_attrs()} | {:error, contact_import_error()}
+  defp normalize_contact_entry_attrs(attrs) do
+    with {:ok, contact_client_id} <-
+           normalize_contact_client_id(fetch_attr(attrs, :contact_client_id)),
+         {:ok, contact_name} <- normalize_contact_name(fetch_attr(attrs, :contact_name)),
+         {:ok, birthday} <- normalize_contact_birthday(fetch_attr(attrs, :birthday)),
+         {:ok, emails} <- normalize_contact_emails(fetch_attr(attrs, :emails, [])),
+         {:ok, phone_numbers} <-
+           normalize_contact_phone_numbers(fetch_attr(attrs, :phone_numbers, [])) do
+      {:ok,
+       %{
+         contact_client_id: contact_client_id,
+         contact_name: contact_name,
+         birthday: birthday,
+         emails: emails,
+         phone_numbers: phone_numbers
+       }}
+    end
+  end
+
+  @spec normalize_contact_import_entries([contact_entry_attrs()]) ::
+          {:ok, [normalized_contact_entry_attrs()]} | {:error, contact_import_error()}
+  defp normalize_contact_import_entries(entries) do
+    Enum.reduce_while(entries, {:ok, []}, fn
+      attrs, {:ok, normalized_entries} when is_map(attrs) ->
+        case normalize_contact_entry_attrs(attrs) do
+          {:ok, normalized_attrs} ->
+            {:cont, {:ok, [normalized_attrs | normalized_entries]}}
+
+          {:error, _reason} = error ->
+            {:halt, error}
+        end
+
+      _attrs, {:ok, _normalized_entries} ->
+        {:halt, {:error, :invalid_contact_batch}}
+    end)
+    |> case do
+      {:ok, normalized_entries} -> {:ok, Enum.reverse(normalized_entries)}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  @spec validate_contact_import_batch_size([term()]) ::
+          :ok | {:error, :invalid_contact_batch | :too_many_contact_entries}
+  defp validate_contact_import_batch_size([]), do: {:error, :invalid_contact_batch}
+
+  defp validate_contact_import_batch_size(entries)
+       when length(entries) <= @contact_import_batch_limit,
+       do: :ok
+
+  defp validate_contact_import_batch_size(_entries),
+    do: {:error, :too_many_contact_entries}
+
+  @spec validate_unique_contact_client_ids([normalized_contact_entry_attrs()]) ::
+          :ok | {:error, :duplicate_contact_client_id}
+  defp validate_unique_contact_client_ids(entries) do
+    client_ids = Enum.map(entries, & &1.contact_client_id)
+
+    if length(client_ids) == MapSet.size(MapSet.new(client_ids)) do
+      :ok
+    else
+      {:error, :duplicate_contact_client_id}
+    end
+  end
+
+  @spec persist_user_contact_entry(User.t(), normalized_contact_entry_attrs()) ::
+          upsert_contact_entry_result()
+  defp persist_user_contact_entry(%User{} = user, attrs) do
+    with {:ok, contact_entry} <-
+           upsert_contact_entry_row(
+             user,
+             attrs.contact_client_id,
+             attrs.contact_name,
+             attrs.birthday
+           ),
+         :ok <- sync_contact_entry_emails(contact_entry.id, attrs.emails),
+         :ok <- sync_contact_entry_phone_numbers(contact_entry.id, attrs.phone_numbers) do
+      {:ok, preload_contact_entry(contact_entry)}
     end
   end
 

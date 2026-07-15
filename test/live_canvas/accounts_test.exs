@@ -381,6 +381,130 @@ defmodule LC.AccountsTest do
     end
   end
 
+  describe "import_user_contact_entries/2" do
+    test "imports a normalized contact chunk and returns the exact count" do
+      user = user_fixture()
+
+      assert {:ok, 2} =
+               Accounts.import_user_contact_entries(user, [
+                 %{
+                   contact_client_id: "device:first",
+                   contact_name: " First Friend ",
+                   emails: ["FIRST@EXAMPLE.COM", "first@example.com"],
+                   phone_numbers: []
+                 },
+                 %{
+                   contact_client_id: "device:second",
+                   contact_name: "Second Friend",
+                   emails: [],
+                   phone_numbers: ["+1 650 253 0000"]
+                 }
+               ])
+
+      assert [first, second] = Accounts.list_user_contact_matches(user)
+      assert first.contact_entry.contact_name == "First Friend"
+
+      assert Enum.map(first.contact_entry.email_addresses, & &1.normalized_email) == [
+               "first@example.com"
+             ]
+
+      assert second.contact_entry.contact_name == "Second Friend"
+
+      assert Enum.map(second.contact_entry.phone_numbers, & &1.normalized_e164) == [
+               "+16502530000"
+             ]
+    end
+
+    test "rejects empty and oversized chunks without writing" do
+      user = user_fixture()
+
+      assert {:error, :invalid_contact_batch} =
+               Accounts.import_user_contact_entries(user, [])
+
+      oversized_entries =
+        Enum.map(1..101, fn index ->
+          %{contact_client_id: "device:#{index}", emails: [], phone_numbers: []}
+        end)
+
+      assert {:error, :too_many_contact_entries} =
+               Accounts.import_user_contact_entries(user, oversized_entries)
+
+      assert Repo.aggregate(
+               from(contact_entry in UserContactEntry,
+                 where: contact_entry.user_id == ^user.id
+               ),
+               :count,
+               :id
+             ) == 0
+    end
+
+    test "rejects duplicate client ids before writing" do
+      user = user_fixture()
+
+      assert {:error, :duplicate_contact_client_id} =
+               Accounts.import_user_contact_entries(user, [
+                 %{contact_client_id: "device:duplicate", emails: [], phone_numbers: []},
+                 %{contact_client_id: "device:duplicate", emails: [], phone_numbers: []}
+               ])
+
+      assert Accounts.list_user_contact_matches(user) == []
+    end
+
+    test "validates every entry before writing any of them" do
+      user = user_fixture()
+
+      assert {:error, :invalid_phone_number} =
+               Accounts.import_user_contact_entries(user, [
+                 %{
+                   contact_client_id: "device:valid",
+                   emails: ["valid@example.com"],
+                   phone_numbers: []
+                 },
+                 %{
+                   contact_client_id: "device:invalid",
+                   emails: [],
+                   phone_numbers: ["123"]
+                 }
+               ])
+
+      assert Accounts.list_user_contact_matches(user) == []
+    end
+
+    test "repeating a chunk updates stable contact rows without duplicating them" do
+      user = user_fixture()
+
+      assert {:ok, 1} =
+               Accounts.import_user_contact_entries(user, [
+                 %{
+                   contact_client_id: "device:stable",
+                   contact_name: "Original",
+                   emails: ["original@example.com"],
+                   phone_numbers: []
+                 }
+               ])
+
+      assert [first] = Accounts.list_user_contact_matches(user)
+
+      assert {:ok, 1} =
+               Accounts.import_user_contact_entries(user, [
+                 %{
+                   contact_client_id: "device:stable",
+                   contact_name: "Updated",
+                   emails: ["updated@example.com"],
+                   phone_numbers: []
+                 }
+               ])
+
+      assert [second] = Accounts.list_user_contact_matches(user)
+      assert second.id == first.id
+      assert second.contact_entry.contact_name == "Updated"
+
+      assert Enum.map(second.contact_entry.email_addresses, & &1.normalized_email) == [
+               "updated@example.com"
+             ]
+    end
+  end
+
   describe "list_user_contact_matches/1" do
     test "returns deterministic match records and excludes self matches" do
       owner = user_fixture(email: "a-owner@example.com")

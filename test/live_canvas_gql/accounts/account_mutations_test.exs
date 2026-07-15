@@ -1188,6 +1188,187 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
   end
 
+  describe "importViewerContactEntries" do
+    test "imports a viewer-owned chunk and supports idempotent updates" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation ImportViewerContactEntries($entries: [ViewerContactEntryInput!]!) {
+        importViewerContactEntries(input: {entries: $entries}) {
+          importedCount
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      variables = %{
+        "entries" => [
+          %{
+            "contactClientId" => "device:first",
+            "contactName" => "First Import",
+            "emails" => ["first@example.com"],
+            "phoneNumbers" => []
+          },
+          %{
+            "contactClientId" => "device:second",
+            "contactName" => "Second Import",
+            "emails" => [],
+            "phoneNumbers" => ["+16502530000"]
+          }
+        ]
+      }
+
+      assert {:ok,
+              %{
+                data: %{
+                  "importViewerContactEntries" => %{
+                    "importedCount" => 2,
+                    "errors" => []
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, variables: variables, context: context)
+
+      updated_variables =
+        put_in(variables, ["entries", Access.at(0), "contactName"], "Updated Import")
+
+      assert {:ok,
+              %{
+                data: %{
+                  "importViewerContactEntries" => %{
+                    "importedCount" => 2,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: updated_variables,
+                 context: context
+               )
+
+      assert [first, second] = Accounts.list_user_contact_matches(viewer)
+      assert first.contact_entry.user_id == viewer.id
+      assert first.contact_entry.contact_name == "Updated Import"
+      assert second.contact_entry.user_id == viewer.id
+    end
+
+    test "returns a structured error and writes nothing for an invalid chunk" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation($entries: [ViewerContactEntryInput!]!) {
+        importViewerContactEntries(input: {entries: $entries}) {
+          importedCount
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "importViewerContactEntries" => %{
+                    "importedCount" => 0,
+                    "errors" => [
+                      %{"field" => "entries.phoneNumbers", "message" => "is invalid"}
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{
+                   "entries" => [
+                     %{
+                       "contactClientId" => "device:valid",
+                       "emails" => ["valid@example.com"],
+                       "phoneNumbers" => []
+                     },
+                     %{
+                       "contactClientId" => "device:invalid",
+                       "emails" => [],
+                       "phoneNumbers" => ["123"]
+                     }
+                   ]
+                 },
+                 context: context
+               )
+
+      assert Accounts.list_user_contact_matches(viewer) == []
+    end
+
+    test "rejects duplicate client ids as a batch error" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation($entries: [ViewerContactEntryInput!]!) {
+        importViewerContactEntries(input: {entries: $entries}) {
+          importedCount
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      duplicate = %{
+        "contactClientId" => "device:duplicate",
+        "emails" => [],
+        "phoneNumbers" => []
+      }
+
+      assert {:ok,
+              %{
+                data: %{
+                  "importViewerContactEntries" => %{
+                    "importedCount" => 0,
+                    "errors" => [%{"field" => "entries", "message" => "is invalid"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"entries" => [duplicate, duplicate]},
+                 context: context
+               )
+    end
+
+    test "returns an unauthenticated error without a viewer scope" do
+      mutation = """
+      mutation {
+        importViewerContactEntries(
+          input: {
+            entries: [{contactClientId: "device:anonymous", emails: [], phoneNumbers: []}]
+          }
+        ) {
+          importedCount
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "importViewerContactEntries" => %{
+                    "importedCount" => 0,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
   describe "deliverViewerContactInvite" do
     setup do
       previous_origin = Application.fetch_env!(:live_canvas, :public_app_origin)

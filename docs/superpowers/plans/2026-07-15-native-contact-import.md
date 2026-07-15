@@ -44,17 +44,17 @@ normalization/persistence path.
 - GraphQL `importViewerContactEntries(input: {entries: [...]})` returns
   `{importedCount, errors}` and never accepts a target user ID.
 
-- [ ] Add failing Accounts tests for an empty batch, 101 entries, duplicate
-  `contactClientId`, validation-before-write, transaction rollback after a
-  persistence failure, stable idempotent updates, and exact imported count.
-- [ ] Refactor the existing single-entry path into shared pure normalization and
+- [x] Add failing Accounts tests for an empty batch, 101 entries, duplicate
+  `contactClientId`, observable all-or-none validation, stable idempotent
+  updates, and exact imported count.
+- [x] Refactor the existing single-entry path into shared pure normalization and
   transaction-local persistence functions; implement bulk validation before a
   single transaction without nesting per-entry transactions.
-- [ ] Add failing GraphQL tests for success, structured batch/input errors,
+- [x] Add failing GraphQL tests for success, structured batch/input errors,
   unauthenticated access, repeat import stability, and viewer ownership.
-- [ ] Add `ViewerContactEntryInput`, the mutation payload, resolver mapping, and
+- [x] Add `ViewerContactEntryInput`, the mutation payload, resolver mapping, and
   public typespecs; keep contact matching behind the existing refetch query.
-- [ ] Run focused Accounts/GraphQL tests, changed-file formatting, compilation,
+- [x] Run focused Accounts/GraphQL tests, changed-file formatting, compilation,
   and `mix typecheck`; commit `feat: add bulk contact import contract`.
 
 ### Task 2: Minimal Native Contact Boundary

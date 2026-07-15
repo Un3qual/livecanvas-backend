@@ -175,6 +175,14 @@ defmodule LCGQL.Accounts.Types do
     field :token, :string
   end
 
+  input_object :viewer_contact_entry_input do
+    field :contact_client_id, non_null(:string)
+    field :contact_name, :string
+    field :birthday, :string
+    field :emails, list_of(non_null(:string))
+    field :phone_numbers, list_of(non_null(:string))
+  end
+
   input_object :oauth_auth_input do
     field :id_token, :string
   end
