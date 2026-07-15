@@ -1,6 +1,6 @@
 defmodule LCGQL.Accounts.UserResolver do
-  alias LC.{Accounts, Feed}
-  alias LCGQL.{MutationErrors, Relay, Resolution}
+  alias LC.{Accounts, Feed, ReadPolicy}
+  alias LCGQL.{FieldNames, MutationErrors, Relay, Resolution}
   alias LCSchemas.Accounts.{User, UserIdentity}
   alias LCSchemas.Live.LiveSession
 
@@ -106,6 +106,45 @@ defmodule LCGQL.Accounts.UserResolver do
     {:ok, %{user: nil, errors: [MutationErrors.user_error(nil, :unauthenticated)]}}
   end
 
+  @spec update_viewer_profile_identity(
+          term(),
+          %{
+            optional(:input) => map(),
+            optional(:username) => String.t(),
+            optional(:display_name) => String.t()
+          },
+          Absinthe.Resolution.t()
+        ) :: mutation_result()
+  def update_viewer_profile_identity(parent, %{input: input}, resolution),
+    do: update_viewer_profile_identity(parent, input, resolution)
+
+  def update_viewer_profile_identity(
+        _parent,
+        %{username: username, display_name: display_name},
+        %{context: %{current_scope: %{user: %{id: _id} = user}}}
+      ) do
+    case Accounts.update_user_profile_identity(user, %{
+           username: username,
+           display_name: display_name
+         }) do
+      {:ok, updated_user} ->
+        {:ok, %{user: updated_user, errors: []}}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:ok,
+         %{
+           user: nil,
+           errors: MutationErrors.changeset_errors(changeset, &FieldNames.lower_camel/1)
+         }}
+    end
+  end
+
+  # Identity updates are viewer-scoped so a payload cannot select an arbitrary
+  # account even though User nodes are globally refetchable.
+  def update_viewer_profile_identity(_parent, _args, _resolution) do
+    {:ok, %{user: nil, errors: [MutationErrors.user_error(nil, :unauthenticated)]}}
+  end
+
   @spec unlink_viewer_identity(
           term(),
           %{optional(:input) => map(), optional(:user_identity_id) => String.t()},
@@ -192,6 +231,14 @@ defmodule LCGQL.Accounts.UserResolver do
   end
 
   def user_email(_user, _args, _resolution), do: {:ok, nil}
+
+  @spec user_username(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
+  def user_username(user, _args, resolution),
+    do: public_profile_identity_value(user, :username, resolution)
+
+  @spec user_display_name(map(), map(), Absinthe.Resolution.t()) :: {:ok, String.t() | nil}
+  def user_display_name(user, _args, resolution),
+    do: public_profile_identity_value(user, :display_name, resolution)
 
   @spec user_posts(map(), map(), Absinthe.Resolution.t()) :: connection_result()
   def user_posts(%{id: owner_id} = owner, args, resolution) when is_integer(owner_id) do
@@ -290,6 +337,26 @@ defmodule LCGQL.Accounts.UserResolver do
       _other -> Absinthe.Relay.Connection.from_list([], args)
     end
   end
+
+  @spec public_profile_identity_value(map(), :display_name | :username, Absinthe.Resolution.t()) ::
+          {:ok, String.t() | nil}
+  defp public_profile_identity_value(%User{id: owner_id} = owner, field, resolution)
+       when is_integer(owner_id) and field in [:display_name, :username] do
+    case Resolution.viewer(resolution) do
+      {:ok, %User{id: ^owner_id}} ->
+        {:ok, Map.get(owner, field)}
+
+      {:ok, %User{} = viewer} ->
+        if ReadPolicy.viewer_blocked_by_owner?(viewer, owner),
+          do: {:ok, nil},
+          else: {:ok, Map.get(owner, field)}
+
+      :error ->
+        {:ok, Map.get(owner, field)}
+    end
+  end
+
+  defp public_profile_identity_value(_user, _field, _resolution), do: {:ok, nil}
 
   @spec unlink_identity_error(unlink_identity_error_reason()) :: mutation_error()
   defp unlink_identity_error(:invalid_identity_id),

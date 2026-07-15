@@ -60,6 +60,7 @@ React Native, Relay, pnpm, Vitest, Jest/RNTL.
 - Modify: `lib/live_canvas_gql/accounts/account_mutations.ex`
 - Modify: `lib/live_canvas_gql/accounts/user_resolver.ex`
 - Test: `test/live_canvas_gql/accounts/account_mutations_test.exs`
+- Test: `test/live_canvas_gql/accounts/user_resolver_test.exs`
 - Test: `test/live_canvas_gql/relay/node_queries_test.exs`
 - Modify: `mobile/schema.graphql`
 
@@ -69,12 +70,12 @@ React Native, Relay, pnpm, Vitest, Jest/RNTL.
 - `updateViewerProfileIdentity(input: {username!, displayName!})` returns
   `{user, errors}` and accepts no user ID.
 
-- [ ] Add failing GraphQL tests for authenticated success, canonical output,
+- [x] Add failing GraphQL tests for authenticated success, canonical output,
   field errors, uniqueness, unauthenticated access, repeat update stability,
   anonymous public reads, and blocked-viewer node resolution.
-- [ ] Add typed field resolvers and the viewer-scoped mutation, delegating all
+- [x] Add typed field resolvers and the viewer-scoped mutation, delegating all
   normalization/persistence to Accounts and existing mutation-error mapping.
-- [ ] Export `mobile/schema.graphql`, prove the exact public contract, run
+- [x] Export `mobile/schema.graphql`, prove the exact public contract, run
   focused mutation/node tests plus formatting/compile/typecheck, and commit
   `feat: expose profile identity contract`.
 

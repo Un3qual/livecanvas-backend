@@ -196,6 +196,112 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
   end
 
+  describe "updateViewerProfileIdentity" do
+    test "updates only the authenticated viewer and returns canonical values on repeat saves" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+
+      variables = %{
+        "username" => "  Canvas_Creator  ",
+        "displayName" => "  🎨 Canvas Creator  "
+      }
+
+      for _attempt <- 1..2 do
+        assert %{
+                 "user" => %{
+                   "id" => ^viewer_id,
+                   "username" => "canvas_creator",
+                   "displayName" => "🎨 Canvas Creator"
+                 },
+                 "errors" => []
+               } = run_profile_identity_mutation(variables, context)
+      end
+
+      assert %{username: "canvas_creator", display_name: "🎨 Canvas Creator"} =
+               Accounts.get_user!(viewer.id)
+    end
+
+    test "returns lower-camel field errors for invalid input" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert %{
+               "user" => nil,
+               "errors" => [%{"field" => "displayName", "message" => "must be a single line"}]
+             } =
+               run_profile_identity_mutation(
+                 %{"username" => "canvas_creator", "displayName" => "Canvas\nCreator"},
+                 context
+               )
+    end
+
+    test "returns a username collision as a structured payload error" do
+      first_user = user_fixture()
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _first_user} =
+               Accounts.update_user_profile_identity(first_user, %{
+                 username: "canvas_creator",
+                 display_name: "First Creator"
+               })
+
+      assert %{
+               "user" => nil,
+               "errors" => [%{"field" => "username", "message" => "has already been taken"}]
+             } =
+               run_profile_identity_mutation(
+                 %{"username" => "CANVAS_CREATOR", "displayName" => "Second Creator"},
+                 context
+               )
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      assert %{
+               "user" => nil,
+               "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+             } =
+               run_profile_identity_mutation(
+                 %{"username" => "canvas_creator", "displayName" => "Canvas Creator"},
+                 %{}
+               )
+    end
+
+    test "exposes required identity fields without accepting a target user ID" do
+      query = """
+      query {
+        __type(name: "UpdateViewerProfileIdentityInput") {
+          inputFields {
+            name
+            type {
+              kind
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "__type" => %{
+                    "inputFields" => input_fields
+                  }
+                }
+              }} = Absinthe.run(query, LCGQL.Schema)
+
+      assert Enum.sort(Enum.map(input_fields, & &1["name"])) == ["displayName", "username"]
+
+      required_fields =
+        input_fields
+        |> Enum.filter(&(&1["name"] in ["displayName", "username"]))
+        |> Enum.map(& &1["type"]["kind"])
+
+      assert required_fields == ["NON_NULL", "NON_NULL"]
+    end
+  end
+
   describe "requestPasswordReset" do
     test "issues a password reset token when the email exists" do
       user = user_fixture()
@@ -3075,6 +3181,29 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
              Accounts.issue_contact_invite_token(inviter, recipient_email)
 
     token
+  end
+
+  defp run_profile_identity_mutation(variables, context) do
+    mutation = """
+    mutation UpdateViewerProfileIdentity($username: String!, $displayName: String!) {
+      updateViewerProfileIdentity(input: {username: $username, displayName: $displayName}) {
+        user {
+          id
+          username
+          displayName
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok, %{data: %{"updateViewerProfileIdentity" => payload}}} =
+             Absinthe.run(mutation, LCGQL.Schema, variables: variables, context: context)
+
+    payload
   end
 
   defp contact_match_id(%{id: id}) when is_integer(id) do

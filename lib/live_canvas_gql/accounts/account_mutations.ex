@@ -96,6 +96,20 @@ defmodule LCGQL.Accounts.Mutations do
       resolve(&UserResolver.update_viewer_privacy_mode/3)
     end
 
+    payload field :update_viewer_profile_identity do
+      input do
+        field :username, non_null(:string)
+        field :display_name, non_null(:string)
+      end
+
+      output do
+        field :user, :user
+        field :errors, non_null(list_of(non_null(:user_error)))
+      end
+
+      resolve(&UserResolver.update_viewer_profile_identity/3)
+    end
+
     payload field :request_password_reset do
       input do
         field :email, non_null(:string)

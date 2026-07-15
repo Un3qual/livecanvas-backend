@@ -37,6 +37,7 @@ type RootMutationType {
   registerWithEmail(input: RegisterWithEmailInput!): RegisterWithEmailPayload
   attachUserPhoneNumber(input: AttachUserPhoneNumberInput!): AttachUserPhoneNumberPayload
   updateViewerPrivacyMode(input: UpdateViewerPrivacyModeInput!): UpdateViewerPrivacyModePayload
+  updateViewerProfileIdentity(input: UpdateViewerProfileIdentityInput!): UpdateViewerProfileIdentityPayload
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload
   unlinkViewerIdentity(input: UnlinkViewerIdentityInput!): UnlinkViewerIdentityPayload
@@ -353,6 +354,16 @@ input UpdateViewerPrivacyModeInput {
 }
 
 type UpdateViewerPrivacyModePayload {
+  user: User
+  errors: [UserError!]!
+}
+
+input UpdateViewerProfileIdentityInput {
+  username: String!
+  displayName: String!
+}
+
+type UpdateViewerProfileIdentityPayload {
   user: User
   errors: [UserError!]!
 }
@@ -849,6 +860,10 @@ type User implements Node {
   id: ID!
 
   email: String
+
+  username: String
+
+  displayName: String
 
   privacyMode: UserPrivacyMode!
 
