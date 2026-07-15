@@ -93,7 +93,31 @@ export function useDeviceContactImport({
     dispatch({ attemptId, type: 'started' });
 
     try {
-      const readResult = await readDeviceContacts();
+      let uploadedCount = 0;
+      const readResult = await readDeviceContacts({
+        onEntries: async (entries) => {
+          if (activeAttemptRef.current !== attemptId) {
+            throw new Error('Contact import attempt is no longer active.');
+          }
+
+          dispatch({
+            attemptId,
+            entryCount: entries.length,
+            type: 'page_prepared',
+          });
+
+          for (const chunk of chunkDeviceContactEntries(entries)) {
+            const importedCount = await uploadChunk(chunk);
+
+            if (activeAttemptRef.current !== attemptId) {
+              throw new Error('Contact import attempt is no longer active.');
+            }
+
+            uploadedCount += importedCount;
+            dispatch({ attemptId, importedCount, type: 'chunk_completed' });
+          }
+        },
+      });
 
       if (activeAttemptRef.current !== attemptId) {
         return;
@@ -105,28 +129,16 @@ export function useDeviceContactImport({
         return;
       }
 
-      dispatch({
-        attemptId,
-        totalCount: readResult.entries.length,
-        type: 'prepared',
-      });
+      if (readResult.entryCount !== uploadedCount) {
+        throw new Error('Contact import count did not match the native read.');
+      }
 
-      if (readResult.entries.length === 0) {
+      dispatch({ attemptId, type: 'reading_completed' });
+
+      if (readResult.entryCount === 0) {
         activeAttemptRef.current = null;
         return;
       }
-
-      for (const chunk of chunkDeviceContactEntries(readResult.entries)) {
-        const importedCount = await uploadChunk(chunk);
-
-        if (activeAttemptRef.current !== attemptId) {
-          return;
-        }
-
-        dispatch({ attemptId, importedCount, type: 'chunk_completed' });
-      }
-
-      dispatch({ attemptId, type: 'refreshing' });
       await onImported();
 
       if (activeAttemptRef.current !== attemptId) {

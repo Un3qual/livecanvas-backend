@@ -1,3 +1,5 @@
+import { parsePhoneNumberFromString } from 'libphonenumber-js/min';
+
 export const DEVICE_CONTACT_IMPORT_CHUNK_SIZE = 100;
 
 export type DeviceContactImportEntry = {
@@ -35,11 +37,7 @@ export function normalizeDeviceContacts(
     }
 
     const emails = normalizeContactValues(contact.emails, 'email', true);
-    const phoneNumbers = normalizeContactValues(
-      contact.phoneNumbers,
-      'number',
-      false,
-    );
+    const phoneNumbers = normalizePhoneNumbers(contact.phoneNumbers);
 
     if (emails.length === 0 && phoneNumbers.length === 0) {
       continue;
@@ -54,6 +52,34 @@ export function normalizeDeviceContacts(
   }
 
   return entries;
+}
+
+function normalizePhoneNumbers(
+  values: DeviceContactLike['phoneNumbers'],
+): readonly string[] {
+  const normalizedValues: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values ?? []) {
+    const rawPhoneNumber = normalizeRequiredString(value.number);
+
+    if (!rawPhoneNumber) {
+      continue;
+    }
+
+    // Match the backend's default region so the client never uploads a value
+    // that can poison an otherwise valid atomic contact chunk.
+    const phoneNumber = parsePhoneNumberFromString(rawPhoneNumber, 'US');
+
+    if (!phoneNumber?.isValid() || seen.has(phoneNumber.number)) {
+      continue;
+    }
+
+    seen.add(phoneNumber.number);
+    normalizedValues.push(phoneNumber.number);
+  }
+
+  return normalizedValues;
 }
 
 export function chunkDeviceContactEntries(

@@ -100,10 +100,15 @@ type ImportContactsMutationConfig = {
 };
 
 type MockDeviceContactEntry = ImportContactsMutationConfig['variables']['input']['entries'][number];
+type MockDeviceContactsReadOptions = {
+  readonly onEntries?: (
+    entries: readonly MockDeviceContactEntry[],
+  ) => Promise<void> | void;
+};
 type MockDeviceContactsReadResult =
   | {
+      readonly entryCount: number;
       readonly status: 'granted';
-      readonly entries: readonly MockDeviceContactEntry[];
     }
   | { readonly status: 'denied' | 'unavailable' | 'failed' };
 
@@ -122,7 +127,7 @@ const mockDeliverInviteCommit =
 const mockImportContactsCommit =
   jest.fn<undefined, [ImportContactsMutationConfig]>();
 const mockReadDeviceContacts =
-  jest.fn<Promise<MockDeviceContactsReadResult>, []>();
+  jest.fn<Promise<MockDeviceContactsReadResult>, [MockDeviceContactsReadOptions]>();
 
 jest.mock('expo-router', () => ({
   Redirect: function RedirectMock(_props: { href: string }) {
@@ -154,7 +159,8 @@ jest.mock('../../src/components/RelayRouteBoundary', () => {
 });
 
 jest.mock('../../src/contacts/deviceContactsNative', () => ({
-  readDeviceContacts: () => mockReadDeviceContacts(),
+  readDeviceContacts: (options: MockDeviceContactsReadOptions) =>
+    mockReadDeviceContacts(options),
 }));
 
 jest.mock('react-relay', () => ({
@@ -242,7 +248,7 @@ beforeEach(() => {
   mockDeliverInviteCommit.mockClear();
   mockImportContactsCommit.mockClear();
   mockReadDeviceContacts.mockReset();
-  mockReadDeviceContacts.mockResolvedValue({ entries: [], status: 'granted' });
+  mockDeviceContactPages([]);
 });
 
 describe('ContactDiscoveryScreen with React Native Testing Library', () => {
@@ -285,11 +291,12 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     expect(mockQueryOptions?.fetchKey).toBe(1);
   });
 
-  test('imports device contacts in sequential chunks and refreshes after total success', async () => {
-    mockReadDeviceContacts.mockResolvedValue({
-      entries: deviceContactEntries(205),
-      status: 'granted',
-    });
+  test('streams device-contact pages into sequential uploads and refreshes after total success', async () => {
+    mockDeviceContactPages(
+      deviceContactEntries(100),
+      deviceContactEntries(100, 100),
+      deviceContactEntries(5, 200),
+    );
 
     await render(<ContactDiscoveryScreen />);
 
@@ -313,7 +320,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     expect(
       mockImportContactsCommit.mock.calls[1]?.[0].variables.input.entries,
     ).toHaveLength(100);
-    expect(screen.getByText('Imported 100 of 205 contacts...')).toBeOnTheScreen();
+    expect(screen.getByText('Imported 100 contacts...')).toBeOnTheScreen();
     expect(mockFetchQueryVariables).toBeNull();
 
     await completeContactImport(100, 1);
@@ -333,10 +340,10 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
   });
 
   test('stops on the first failed chunk and retries idempotently from the start', async () => {
-    mockReadDeviceContacts.mockResolvedValue({
-      entries: deviceContactEntries(150),
-      status: 'granted',
-    });
+    mockDeviceContactPages(
+      deviceContactEntries(100),
+      deviceContactEntries(50, 100),
+    );
 
     await render(<ContactDiscoveryScreen />);
     await fireEvent.press(
@@ -384,10 +391,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
       },
     ],
   ] as const)('rejects a chunk with a %s', async (_label, payload) => {
-    mockReadDeviceContacts.mockResolvedValue({
-      entries: deviceContactEntries(1),
-      status: 'granted',
-    });
+    mockDeviceContactPages(deviceContactEntries(1));
 
     await render(<ContactDiscoveryScreen />);
     await fireEvent.press(
@@ -406,7 +410,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     mockReadDeviceContacts.mockResolvedValue({ status: 'denied' });
     const openSettings = jest
       .spyOn(Linking, 'openSettings')
-      .mockResolvedValue(undefined);
+      .mockImplementation(() => Promise.resolve());
 
     await render(<ContactDiscoveryScreen />);
     await fireEvent.press(
@@ -440,10 +444,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
   });
 
   test('ignores import completion after the contact screen unmounts', async () => {
-    mockReadDeviceContacts.mockResolvedValue({
-      entries: deviceContactEntries(1),
-      status: 'granted',
-    });
+    mockDeviceContactPages(deviceContactEntries(1));
 
     const view = await render(<ContactDiscoveryScreen />);
     await fireEvent.press(
@@ -892,13 +893,31 @@ async function failContactImport(callIndex = 0) {
   });
 }
 
-function deviceContactEntries(count: number): readonly MockDeviceContactEntry[] {
+function deviceContactEntries(
+  count: number,
+  offset = 0,
+): readonly MockDeviceContactEntry[] {
   return Array.from({ length: count }, (_, index) => ({
-    contactClientId: `device:${index}`,
-    contactName: `Contact ${index}`,
-    emails: [`contact-${index}@example.com`],
+    contactClientId: `device:${offset + index}`,
+    contactName: `Contact ${offset + index}`,
+    emails: [`contact-${offset + index}@example.com`],
     phoneNumbers: [],
   }));
+}
+
+function mockDeviceContactPages(
+  ...pages: readonly (readonly MockDeviceContactEntry[])[]
+): void {
+  mockReadDeviceContacts.mockImplementation(async ({ onEntries }) => {
+    let entryCount = 0;
+
+    for (const page of pages) {
+      await onEntries?.(page);
+      entryCount += page.length;
+    }
+
+    return { entryCount, status: 'granted' };
+  });
 }
 
 function connection<Node>(

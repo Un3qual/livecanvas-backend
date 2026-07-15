@@ -31,7 +31,33 @@ describe('normalizeDeviceContacts', () => {
         contactClientId: 'device:native-1',
         contactName: 'Friend One',
         emails: ['friend@example.com'],
-        phoneNumbers: ['+1 650 253 0000'],
+        phoneNumbers: ['+16502530000'],
+      },
+    ]);
+  });
+
+  test('drops invalid phones without discarding a contact with a valid email', () => {
+    expect(
+      normalizeDeviceContacts([
+        {
+          id: 'mixed-contact',
+          emails: [{ email: 'mixed@example.com' }],
+          phoneNumbers: [
+            { number: '123' },
+            { number: '(650) 253-0000' },
+          ],
+        },
+        {
+          id: 'invalid-phone-only',
+          phoneNumbers: [{ number: 'not a phone number' }],
+        },
+      ]),
+    ).toEqual([
+      {
+        contactClientId: 'device:mixed-contact',
+        contactName: null,
+        emails: ['mixed@example.com'],
+        phoneNumbers: ['+16502530000'],
       },
     ]);
   });

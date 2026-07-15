@@ -16,7 +16,8 @@ function contactsModule(
     SortTypes: {
       FirstName: 'firstName',
     },
-    getContactsAsync: () => Promise.resolve({ data: [] }),
+    getContactsAsync: () =>
+      Promise.resolve({ data: [], hasNextPage: false }),
     requestPermissionsAsync: () => Promise.resolve({ granted: true }),
     ...overrides,
   };
@@ -36,7 +37,7 @@ describe('readDeviceContacts', () => {
     const module = contactsModule({
       getContactsAsync: () => {
         readCalls += 1;
-        return Promise.resolve({ data: [] });
+        return Promise.resolve({ data: [], hasNextPage: false });
       },
       requestPermissionsAsync: () => Promise.resolve({ granted: false }),
     });
@@ -47,41 +48,101 @@ describe('readDeviceContacts', () => {
     expect(readCalls).toBe(0);
   });
 
-  test('reads only email and phone fields and returns normalized entries', async () => {
-    let options: unknown;
+  test('reads bounded pages and releases each normalized page to the consumer', async () => {
+    const options: unknown[] = [];
+    const releasedPages: unknown[] = [];
     const module = contactsModule({
       getContactsAsync: (receivedOptions) => {
-        options = receivedOptions;
-        return Promise.resolve({
-          data: [
-            {
-              id: 'native-contact',
-              name: 'Native Contact',
-              emails: [{ email: 'native@example.com' }],
-              phoneNumbers: [{ number: '+16502530000' }],
-            },
-          ],
-        });
+        options.push(receivedOptions);
+        const pageOffset = receivedOptions.pageOffset;
+
+        return Promise.resolve(
+          pageOffset === 0
+            ? {
+                data: [
+                  {
+                    id: 'native-contact-1',
+                    name: 'Native Contact 1',
+                    emails: [{ email: 'one@example.com' }],
+                  },
+                ],
+                hasNextPage: true,
+              }
+            : {
+                data: [
+                  {
+                    id: 'native-contact-2',
+                    name: 'Native Contact 2',
+                    phoneNumbers: [{ number: '+16502530000' }],
+                  },
+                ],
+                hasNextPage: false,
+              },
+        );
       },
     });
 
     await expect(
-      readDeviceContacts({ loadContactsModule: () => Promise.resolve(module) }),
+      readDeviceContacts({
+        loadContactsModule: () => Promise.resolve(module),
+        onEntries: (entries) => {
+          releasedPages.push(entries);
+        },
+      }),
     ).resolves.toEqual({
-      entries: [
+      entryCount: 2,
+      status: 'granted',
+    });
+    expect(options).toEqual([
+      {
+        fields: ['emails', 'phoneNumbers'],
+        pageOffset: 0,
+        pageSize: 100,
+        sort: 'firstName',
+      },
+      {
+        fields: ['emails', 'phoneNumbers'],
+        pageOffset: 1,
+        pageSize: 100,
+        sort: 'firstName',
+      },
+    ]);
+    expect(releasedPages).toEqual([
+      [
         {
-          contactClientId: 'device:native-contact',
-          contactName: 'Native Contact',
-          emails: ['native@example.com'],
+          contactClientId: 'device:native-contact-1',
+          contactName: 'Native Contact 1',
+          emails: ['one@example.com'],
+          phoneNumbers: [],
+        },
+      ],
+      [
+        {
+          contactClientId: 'device:native-contact-2',
+          contactName: 'Native Contact 2',
+          emails: [],
           phoneNumbers: ['+16502530000'],
         },
       ],
-      status: 'granted',
+    ]);
+  });
+
+  test('does not swallow consumer upload failures as native read failures', async () => {
+    const uploadFailure = new Error('upload failed');
+    const module = contactsModule({
+      getContactsAsync: () =>
+        Promise.resolve({
+          data: [{ id: 'native-contact', emails: [{ email: 'one@example.com' }] }],
+          hasNextPage: false,
+        }),
     });
-    expect(options).toEqual({
-      fields: ['emails', 'phoneNumbers'],
-      sort: 'firstName',
-    });
+
+    await expect(
+      readDeviceContacts({
+        loadContactsModule: () => Promise.resolve(module),
+        onEntries: () => Promise.reject(uploadFailure),
+      }),
+    ).rejects.toBe(uploadFailure);
   });
 
   test('maps permission and contact-read failures to failed', async () => {

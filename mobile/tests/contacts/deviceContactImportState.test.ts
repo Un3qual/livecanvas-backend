@@ -17,8 +17,8 @@ describe('device contact import state', () => {
 
     state = reduceDeviceContactImport(state, {
       attemptId: 1,
-      totalCount: 205,
-      type: 'prepared',
+      entryCount: 100,
+      type: 'page_prepared',
     });
     state = reduceDeviceContactImport(state, {
       attemptId: 1,
@@ -30,10 +30,15 @@ describe('device contact import state', () => {
       attemptId: 1,
       importedCount: 100,
       status: 'uploading',
-      totalCount: 205,
+      totalCount: 100,
     });
-    expect(deviceContactImportMessage(state)).toBe('Imported 100 of 205 contacts...');
+    expect(deviceContactImportMessage(state)).toBe('Imported 100 contacts...');
 
+    state = reduceDeviceContactImport(state, {
+      attemptId: 1,
+      entryCount: 100,
+      type: 'page_prepared',
+    });
     state = reduceDeviceContactImport(state, {
       attemptId: 1,
       importedCount: 100,
@@ -41,10 +46,18 @@ describe('device contact import state', () => {
     });
     state = reduceDeviceContactImport(state, {
       attemptId: 1,
+      entryCount: 5,
+      type: 'page_prepared',
+    });
+    state = reduceDeviceContactImport(state, {
+      attemptId: 1,
       importedCount: 5,
       type: 'chunk_completed',
     });
-    state = reduceDeviceContactImport(state, { attemptId: 1, type: 'refreshing' });
+    state = reduceDeviceContactImport(state, {
+      attemptId: 1,
+      type: 'reading_completed',
+    });
     state = reduceDeviceContactImport(state, { attemptId: 1, type: 'completed' });
 
     expect(state).toMatchObject({ importedCount: 205, status: 'success' });
@@ -60,8 +73,7 @@ describe('device contact import state', () => {
 
     state = reduceDeviceContactImport(state, {
       attemptId: 2,
-      totalCount: 0,
-      type: 'prepared',
+      type: 'reading_completed',
     });
 
     expect(state.status).toBe('empty');
@@ -96,8 +108,8 @@ describe('device contact import state', () => {
     state = reduceDeviceContactImport(state, { attemptId: 5, type: 'started' });
     state = reduceDeviceContactImport(state, {
       attemptId: 5,
-      totalCount: 1,
-      type: 'prepared',
+      entryCount: 1,
+      type: 'page_prepared',
     });
 
     expect(
@@ -119,8 +131,8 @@ describe('device contact import state', () => {
     });
     state = reduceDeviceContactImport(state, {
       attemptId: 6,
-      totalCount: 1,
-      type: 'prepared',
+      entryCount: 1,
+      type: 'page_prepared',
     });
 
     expect(

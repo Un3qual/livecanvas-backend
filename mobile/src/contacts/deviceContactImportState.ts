@@ -20,15 +20,18 @@ export type DeviceContactImportEvent =
   | { readonly attemptId: number; readonly type: 'started' }
   | {
       readonly attemptId: number;
-      readonly totalCount: number;
-      readonly type: 'prepared';
+      readonly entryCount: number;
+      readonly type: 'page_prepared';
     }
   | {
       readonly attemptId: number;
       readonly importedCount: number;
       readonly type: 'chunk_completed';
     }
-  | { readonly attemptId: number; readonly type: 'refreshing' | 'completed' }
+  | {
+      readonly attemptId: number;
+      readonly type: 'reading_completed' | 'completed';
+    }
   | {
       readonly attemptId: number;
       readonly type: 'denied' | 'unavailable' | 'failed';
@@ -69,16 +72,22 @@ export function reduceDeviceContactImport(
   }
 
   switch (event.type) {
-    case 'prepared':
-      if (state.status !== 'reading' || event.totalCount < 0) {
+    case 'page_prepared': {
+      if (
+        !['reading', 'uploading'].includes(state.status) ||
+        event.entryCount < 0
+      ) {
         return failedState(state);
       }
 
+      const totalCount = state.totalCount + event.entryCount;
+
       return {
         ...state,
-        status: event.totalCount === 0 ? 'empty' : 'uploading',
-        totalCount: event.totalCount,
+        status: totalCount === 0 ? 'reading' : 'uploading',
+        totalCount,
       };
+    }
     case 'chunk_completed': {
       if (state.status !== 'uploading' || event.importedCount <= 0) {
         return failedState(state);
@@ -90,7 +99,11 @@ export function reduceDeviceContactImport(
         ? { ...state, importedCount }
         : failedState(state);
     }
-    case 'refreshing':
+    case 'reading_completed':
+      if (state.totalCount === 0 && state.status === 'reading') {
+        return { ...state, status: 'empty' };
+      }
+
       return state.status === 'uploading' &&
         state.importedCount === state.totalCount
         ? { ...state, status: 'refreshing' }
@@ -105,6 +118,8 @@ export function reduceDeviceContactImport(
       return { ...state, status: 'unavailable' };
     case 'failed':
       return failedState(state);
+    default:
+      return assertNever(event);
   }
 }
 
@@ -117,7 +132,9 @@ export function deviceContactImportMessage(
     case 'reading':
       return 'Reading contacts...';
     case 'uploading':
-      return `Imported ${state.importedCount} of ${state.totalCount} contacts...`;
+      return state.importedCount === 0
+        ? 'Preparing contacts...'
+        : `Imported ${state.importedCount} contacts...`;
     case 'refreshing':
       return 'Refreshing contact matches...';
     case 'success':
@@ -130,6 +147,8 @@ export function deviceContactImportMessage(
       return 'Device contact import is unavailable on this device.';
     case 'error':
       return 'We could not import your contacts. Try again.';
+    default:
+      return assertNever(state.status);
   }
 }
 
@@ -137,4 +156,8 @@ function failedState(
   state: DeviceContactImportState,
 ): DeviceContactImportState {
   return { ...state, status: 'error' };
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected device contact import value: ${String(value)}`);
 }
