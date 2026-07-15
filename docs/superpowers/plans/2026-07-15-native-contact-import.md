@@ -125,11 +125,26 @@ normalization/persistence path.
 - Modify: `docs/plans/INDEX.md`
 - Modify: this plan
 
-- [ ] Run repository-wide backend formatting, asset-independent compilation,
+- [x] Run repository-wide backend formatting, asset-independent compilation,
   `mix typecheck`, focused contact tests, and the full backend suite.
-- [ ] From `mobile/`, run frozen pnpm installation, Relay generation, focused
+- [x] From `mobile/`, run frozen pnpm installation, Relay generation, focused
   contact suites, `pnpm test:quality`, and `nix flake check`.
-- [ ] Run `git diff --check`, record exact evidence, return both lanes to
+- [x] Run `git diff --check`, record exact evidence, return both lanes to
   operator/device QA, and leave device permission evidence unchecked.
-- [ ] Commit `docs: close native contact import batch`; do not push until the
+- [x] Commit `docs: close native contact import batch`; do not push until the
   user explicitly requests it.
+
+## Closure Evidence
+
+- Backend: repository formatting, warnings-as-errors compilation, and
+  `mix typecheck` passed; focused Accounts/GraphQL contact coverage reported
+  178 tests with 0 failures; the full suite reported 1,032 tests with 0
+  failures and 1 excluded.
+- Mobile: frozen pnpm installation and Relay generation passed; focused native
+  import coverage reported 16 Vitest tests and 22 RNTL tests; `pnpm
+  test:quality` passed both TypeScript checks, lint, 84 Vitest files containing
+  626 tests, and 29 Jest files containing 215 tests.
+- `nix flake check` and repository `git diff --check` passed. Nix reported only
+  its existing app-metadata and incompatible-system omission warnings.
+- No remote EAS command or physical-device action ran. Contact permission and
+  native import evidence remain pending with release-operator/device QA.

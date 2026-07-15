@@ -15,8 +15,8 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: native contact bulk import active
-- Active source plan:
+- State: native contact bulk import complete; release-candidate QA handoff
+- Latest completed source plan:
   `docs/superpowers/plans/2026-07-15-native-contact-import.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
@@ -25,14 +25,13 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: native contact import active
+- State: release-candidate operator/device QA active
 - Track: `docs/plans/mobile/TRACK.md`
 - Active source plan:
+  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+- Latest completed product theme: native address-book contact import
+- Latest completed detailed plan:
   `docs/superpowers/plans/2026-07-15-native-contact-import.md`
-- Latest completed product theme: mobile magic-link authentication
-- Latest completed detailed plans: account settings and recovery, existing
-  social controls, contact discovery, post owner controls, and profile
-  connection lists
 - Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
   payload normalization, and a completed backend media runtime foundation. The
   completed chat batch adds retained timeline history and live chat channel
@@ -119,8 +118,8 @@ Use this file when:
 - State: all five product batches and all five release-depth batches complete;
   release-candidate QA active
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
-- Latest completed theme: fragment-only mobile magic-link authentication
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
+- Latest completed theme: opt-in, bounded native contact import
 - Next gate: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
 ### Backend Code Quality Cleanup

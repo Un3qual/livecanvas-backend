@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-15
-Status: native contact import active
+Status: release-candidate operator/device QA active
 
 ## Lane Scope
 
@@ -9,15 +9,17 @@ Status: native contact import active
 - Consume explicitly promoted backend contracts recorded in the backend lane.
 - Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Current Batch
+## Current Gate
 
-- Design: `docs/superpowers/specs/2026-07-15-native-contact-import-design.md`
-- Source plan: `docs/superpowers/plans/2026-07-15-native-contact-import.md`
-- Current scope: Tasks 2-3—minimal native contact read boundary, pure
+- Checklist: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+- Latest completed plan:
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
+- Completed scope: minimal native contact read boundary, pure
   normalization/chunking, sequential Relay import, and contact-screen feedback.
-- Done condition: permission is user-initiated, only approved fields leave the
-  device, successful imports refresh existing matches, and manual entry remains.
-- Physical permission/device QA remains pending and is not completed here.
+- Local closure passed frozen pnpm install, Relay generation, both TypeScript
+  checks, lint, 84 Vitest files/626 tests, 29 Jest files/215 tests, and Nix.
+- Physical contact permission/import evidence remains pending with the rest of
+  operator/device QA and is not completed here.
 
 ## Deferred Scope
 
@@ -26,10 +28,10 @@ Status: native contact import active
 
 ## Verification
 
-- Run focused native-normalization/adapter/state/RNTL suites, frozen pnpm
-  installation, Relay generation, both TypeScript checks, lint, full Vitest and
-  Jest suites, `nix flake check`, and patch hygiene.
+- Use the checklist for target-environment inventory and physical-device
+  evidence; do not repeat completed local gates unless code changes.
 
 ## Next Action
 
-Begin Task 2 after the backend bulk contract passes focused verification.
+Confirm the target environment, preview artifact, test identities, recipient
+inbox, and physical devices; then begin checklist QA.

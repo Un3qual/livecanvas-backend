@@ -11,11 +11,11 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: native contact import active
+- Track state: release-candidate operator/device QA active
 - Lane pointer: `docs/plans/mobile/NOW.md`
-- Active implementation plan:
-  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
 - Latest completed implementation plan:
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
+- Previous completed implementation plan:
   `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
 - Current gate:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
@@ -24,8 +24,11 @@ and content discovery, live streaming, and chat.
 - Current release-depth plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Last completed detailed plan:
-  `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
-- Latest theme: sign-in and sign-up magic links now use fragment-only trusted
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
+- Latest theme: user-initiated device contact import now reads only approved
+  native fields, uploads bounded atomic chunks, and refreshes the existing
+  privacy-aware discovery connection while preserving manual entry.
+- Recent theme: sign-in and sign-up magic links use fragment-only trusted
   delivery, an opaque SecureStore navigation handoff, and GraphQL redemption
   through the existing auth session owner.
 - Recent theme: end-to-end contact invitations now complete fragment-only HTTPS
@@ -141,16 +144,18 @@ and content discovery, live streaming, and chat.
 34. Dedicated story viewer.
 35. Post attribution and author-profile navigation.
 36. Mobile magic-link authentication completion.
+37. Native address-book import into contact discovery.
 
 ## Active Gate And Completed Follow-Up Plans
 
 Active release gate:
 
 - `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
-- Status: active; begin with local entry gates, then record manual device QA.
+- Status: active; local entry gates pass, so record operator/device QA next.
 
 Recently completed product batches:
 
+- `docs/superpowers/plans/2026-07-15-native-contact-import.md`
 - `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
 - `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
@@ -164,9 +169,9 @@ Recently completed product batches:
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-The magic-link batch, attribution/navigation batch, prior product follow-ups,
-and approved release-depth sequence are complete. Operator/device QA resumes
-from the release-candidate checklist.
+The native contact-import batch, magic-link batch, attribution/navigation
+batch, prior product follow-ups, and approved release-depth sequence are
+complete. Operator/device QA resumes from the release-candidate checklist.
 
 ## Shared Constraints
 

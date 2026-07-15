@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-15
-Status: native contact import active
+Status: release-candidate operator/device QA active
 
 ## Purpose
 
@@ -9,12 +9,13 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Approved Sequence
 
-- Current design:
+- Completed design:
   `docs/superpowers/specs/2026-07-15-native-contact-import-design.md`
-- Current implementation:
+- Completed implementation:
   `docs/superpowers/plans/2026-07-15-native-contact-import.md`
-- Current batch: viewer-scoped atomic contact chunks, minimal native address-book
-  access, and generation-safe mobile import into existing discovery results.
+- Completed batch: viewer-scoped atomic contact chunks, minimal native
+  address-book access, and generation-safe mobile import into existing
+  discovery results.
 - Completed design:
   `docs/superpowers/specs/2026-07-15-mobile-magic-link-auth-design.md`
 - Completed implementation:
@@ -50,20 +51,22 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: native contact bulk-import contract active in Task 1.
+- State: native contact bulk-import contract complete; no backend product batch
+  is active while operator/device QA runs.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: native adapter and import workflow active in Tasks 2-3.
+- State: native adapter and import workflow complete; release-candidate
+  operator/device QA active.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: focused backend/mobile contact suites, backend format and
   typecheck/full tests, Relay generation, mobile quality, Nix, and patch hygiene.
 
 ## Execution Rule
 
-Execute `docs/superpowers/plans/2026-07-15-native-contact-import.md` in order.
-Do not mark operator or physical-device QA complete from local evidence.
+Execute `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`. Do not
+mark operator or physical-device QA complete from local evidence.
 
 ## Cross-Lane Policy
 
@@ -73,8 +76,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Complete the atomic backend contract, then the native adapter and mobile import
-workflow. Return to operator/device QA after full local closure verification.
+Confirm the release checklist's target environment, preview artifact, test
+identities, recipient inbox, and physical devices; then run operator/device QA.
 
 ## Repair Conditions
 
