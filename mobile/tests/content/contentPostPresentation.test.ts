@@ -110,6 +110,7 @@ describe('contentPostPresentation', () => {
       }),
     ).toEqual({
       id: 'TWVkaWFBc3NldDox',
+      kind: 'image',
       label: 'Image',
       state: 'available',
       publicUrl: 'https://media.example.test/post.jpg',
@@ -125,6 +126,7 @@ describe('contentPostPresentation', () => {
       }),
     ).toEqual({
       id: 'TWVkaWFBc3NldDFi',
+      kind: 'image',
       label: 'Image',
       state: 'available',
       publicUrl: 'HTTPS://media.example.test/post.jpg',
@@ -147,6 +149,7 @@ describe('contentPostPresentation', () => {
         }),
       ).toEqual({
         id: `unsafe-${publicUrl}`,
+        kind: 'image',
         label: 'Image',
         state: 'unavailable',
         publicUrl: null,
@@ -163,6 +166,7 @@ describe('contentPostPresentation', () => {
       }),
     ).toEqual({
       id: 'TWVkaWFBc3NldDoy',
+      kind: 'video',
       label: 'Video',
       state: 'processing',
       publicUrl: null,
@@ -178,6 +182,7 @@ describe('contentPostPresentation', () => {
       }),
     ).toEqual({
       id: 'TWVkaWFBc3NldDoz',
+      kind: 'unknown',
       label: 'Media',
       state: 'failed',
       publicUrl: null,
@@ -193,6 +198,7 @@ describe('contentPostPresentation', () => {
       }),
     ).toEqual({
       id: 'TWVkaWFBc3NldDo0',
+      kind: 'unknown',
       label: 'Media',
       state: 'unavailable',
       publicUrl: null,

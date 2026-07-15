@@ -30,6 +30,20 @@ let mockReportCommit: MutationCommit;
 let mockUpdateCommit: MutationCommit;
 let mockDeleteCommit: MutationCommit;
 
+jest.mock('../../src/content/ContentMediaAssetView', () => {
+  const { Text } = jest.requireActual<typeof import('react-native')>(
+    'react-native',
+  );
+
+  return {
+    ContentMediaAssetView: ({
+      asset,
+    }: {
+      asset: { id: string; publicUrl: string | null };
+    }) => <Text testID={`content-media-${asset.id}`}>{asset.publicUrl}</Text>,
+  };
+});
+
 jest.mock('react-relay', () => ({
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
   useMutation: (mutation: unknown) => {
@@ -74,6 +88,27 @@ beforeEach(() => {
 });
 
 describe('ContentPostCard with shared controls', () => {
+  test('renders validated media presentations through the shared media surface', async () => {
+    const post = contentPost({
+      authorId: 'viewer-id',
+      id: 'opaque-post-id',
+      mediaAssets: [
+        {
+          id: 'asset-id',
+          mimeType: 'image/jpeg',
+          processingState: 'PROCESSED',
+          publicUrl: 'https://media.example.test/post.jpg',
+        },
+      ],
+    });
+
+    await render(<Harness post={post} viewerId="viewer-id" />);
+
+    expect(screen.getByTestId('content-media-asset-id')).toHaveTextContent(
+      'https://media.example.test/post.jpg',
+    );
+  });
+
   test('keeps controller action identity stable while edit state changes', async () => {
     const user = userEvent.setup();
     const onActions = jest.fn();
@@ -241,9 +276,11 @@ function Harness({
 function contentPost({
   authorId,
   id,
+  mediaAssets = [],
 }: {
   authorId: string;
   id: string;
+  mediaAssets?: ContentPost['mediaAssets'];
 }): ContentPost {
   return {
     author: { email: 'creator@example.com', id: authorId },
@@ -252,7 +289,7 @@ function contentPost({
     id,
     insertedAt: '2026-07-09T12:00:00Z',
     kind: 'STANDARD',
-    mediaAssets: [],
+    mediaAssets,
     visibility: 'PUBLIC',
   };
 }

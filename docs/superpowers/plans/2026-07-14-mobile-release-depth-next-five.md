@@ -12,7 +12,8 @@ on the shared media surface from Batch 4; all other batches are independently
 testable.
 
 **Tech Stack:** Expo SDK 55, React Native 0.83, React 19, Relay, Phoenix
-Channels, XState, react-native-webrtc, pnpm, Vitest, Jest/RNTL.
+Channels, XState, react-native-webrtc, expo-image, expo-video, pnpm, Vitest,
+Jest/RNTL.
 
 ## Global Constraints
 
@@ -103,13 +104,14 @@ channel effect depends on the same state.
 The view selects image, video, or status fallback and never accepts an
 unnormalized URL.
 
-- [ ] Add failing component tests for processed image/video and every fallback
+- [x] Add failing component tests for processed image/video and every fallback
   state.
-- [ ] Install the Expo SDK 55-compatible video package through `expo install`.
-- [ ] Implement image/video rendering, accessibility labels, native controls,
+- [x] Install the Expo SDK 55-compatible image and video packages through
+  `expo install`.
+- [x] Implement image/video rendering, accessibility labels, native controls,
   and load-error fallback.
-- [ ] Run focused content tests plus `pnpm typecheck` and frozen installation.
-- [ ] Commit `feat: render post and story media`.
+- [x] Run focused content tests plus `pnpm typecheck` and frozen installation.
+- [x] Commit `feat: render post and story media`.
 
 ### Task 5: Dedicated Story Viewer
 

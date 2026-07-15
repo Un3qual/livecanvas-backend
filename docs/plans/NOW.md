@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-14
-Status: mobile release-depth Batch 4 active
+Status: mobile release-depth Batch 5 active
 
 ## Purpose
 
@@ -13,9 +13,9 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
 - Current implementation plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Completed milestones: Batches 1-3 host preview, audience count, and
-  foreground/background recovery.
-- Current batch: Batch 4 post and story media rendering.
+- Completed milestones: Batches 1-4 host preview, audience count, app-lifecycle
+  recovery, and content media rendering.
+- Current batch: Batch 5 dedicated story viewer.
 - Sequence design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Batch 2 design:
@@ -47,7 +47,7 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: release-depth Batches 1-3 are complete; Batch 4 content media rendering
+- State: release-depth Batches 1-4 are complete; Batch 5 dedicated story viewer
   is active.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: configured-origin invite routing and the full mobile quality
@@ -69,8 +69,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Complete Batch 4 media rendering, then advance the mobile lane to the dedicated
-story viewer.
+Complete Batch 5 dedicated story viewer, then close the sequence and return the
+mobile lane to device/operator QA.
 
 ## Repair Conditions
 

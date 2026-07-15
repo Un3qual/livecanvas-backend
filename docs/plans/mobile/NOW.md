@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-14
-Status: release-depth Batch 4 content media rendering active
+Status: release-depth Batch 5 dedicated story viewer active
 
 ## Lane Scope
 
@@ -15,16 +15,17 @@ Status: release-depth Batch 4 content media rendering active
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
 - Source plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Current scope: Batch 4 renders validated processed image and video assets in
-  post/story cards while preserving processing, failure, and invalid-URL states.
-- Write scope: `mobile/src/content/**`, `mobile/tests/content/**`, mobile package
-  metadata, and this lane pointer. Promote backend work only if a focused
-  contract test fails.
+- Current scope: Batch 5 adds an opaque-ID story route with previous/next/close
+  navigation over the selected author's active story feed.
+- Write scope: `mobile/app/(app)/stories/**`, `mobile/src/content/**`, affected
+  feed/profile story entry points and tests, generated Relay artifacts, and this
+  lane pointer. Promote backend work only if a focused contract test fails.
   pointer. Promote backend work only if a focused contract test fails.
-- Done condition: processed images and videos render through shared components,
-  load failures fall back safely, and unnormalized URLs never reach native UI.
-- Verification: focused content RNTL suites, mobile typechecks, lint, frozen
-  pnpm install, and patch hygiene.
+- Done condition: feed/profile story cards open the viewer, opaque selection and
+  boundaries remain stable across replacement data, and shared media rendering
+  handles available/unavailable stories.
+- Verification: Relay generation, focused story/feed/profile suites, mobile
+  typechecks, lint, and patch hygiene.
 
 ## Deferred Scope
 
@@ -33,5 +34,5 @@ Status: release-depth Batch 4 content media rendering active
 
 ## Next Action
 
-Execute Batch 4. After its milestone commit, advance this pointer to Batch 5
-dedicated story viewer.
+Execute Batch 5. After its milestone commit, close the five-batch lane and run
+the full release-depth verification matrix.

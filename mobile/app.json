@@ -16,7 +16,9 @@
           "photosPermission": "LiveCanvas needs photo library access so you can add an image or video to a post."
         }
       ],
-      "@config-plugins/react-native-webrtc"
+      "@config-plugins/react-native-webrtc",
+      "expo-image",
+      "expo-video"
     ],
     "splash": {
       "image": "./assets/splash-icon.png",

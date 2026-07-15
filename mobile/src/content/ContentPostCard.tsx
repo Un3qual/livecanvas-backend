@@ -5,9 +5,9 @@ import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { radius, spacing, typography } from '../theme/tokens';
+import { ContentMediaAssetView } from './ContentMediaAssetView';
 import {
   formatPostCardPresentation,
-  type ContentMediaAssetPresentation,
   type ContentPost,
 } from './contentPostPresentation';
 import {
@@ -195,7 +195,7 @@ export const ContentPostCard = memo(function ContentPostCard({
           ]}
         >
           {presentation.mediaAssets.map((asset) => (
-            <MediaAssetRow asset={asset} key={asset.id} />
+            <ContentMediaAssetView asset={asset} key={asset.id} />
           ))}
         </View>
       ) : null}
@@ -293,20 +293,5 @@ function areContentPostCardPropsEqual(
   return arePostControlViewStatesEqual(
     selectPostControlViewState(previous.controls.state, previous.post.id),
     selectPostControlViewState(next.controls.state, next.post.id),
-  );
-}
-
-function MediaAssetRow({ asset }: { asset: ContentMediaAssetPresentation }) {
-  const theme = useAppTheme();
-
-  return (
-    <View>
-      <Text style={[styles.metadataText, { color: theme.colors.text }]}>
-        {asset.label}
-      </Text>
-      <Text style={[styles.metadataText, { color: theme.colors.textMuted }]}>
-        {asset.body}
-      </Text>
-    </View>
   );
 }

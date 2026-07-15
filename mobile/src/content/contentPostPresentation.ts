@@ -29,6 +29,7 @@ export type ContentPostAuthorPresentation = {
 
 export type ContentMediaAssetPresentation = {
   readonly id: string;
+  readonly kind: 'image' | 'video' | 'unknown';
   readonly label: string;
   readonly state: 'available' | 'processing' | 'failed' | 'unavailable';
   readonly publicUrl: string | null;
@@ -104,20 +105,23 @@ export function formatStoryExpiryLabel(
 export function formatContentMediaAssetPresentation(
   asset: ContentMediaAsset,
 ): ContentMediaAssetPresentation {
+  const kind = formatMediaAssetKind(asset.mimeType);
+
   if (asset.processingState === 'PROCESSED') {
     const publicUrl = normalizeContentMediaPublicUrl(asset.publicUrl);
 
-    if (publicUrl) {
+    if (publicUrl && kind !== 'unknown') {
       return {
         id: asset.id,
-        label: formatMediaAssetLabel(asset.mimeType),
+        kind,
+        label: formatMediaAssetLabel(kind),
         state: 'available',
         publicUrl,
         body: 'Media is ready.',
       };
     }
 
-    return unavailableMedia(asset);
+    return unavailableMedia(asset, kind);
   }
 
   if (
@@ -126,7 +130,8 @@ export function formatContentMediaAssetPresentation(
   ) {
     return {
       id: asset.id,
-      label: formatMediaAssetLabel(asset.mimeType),
+      kind,
+      label: formatMediaAssetLabel(kind),
       state: 'processing',
       publicUrl: null,
       body: 'Media is still processing.',
@@ -136,14 +141,15 @@ export function formatContentMediaAssetPresentation(
   if (asset.processingState === 'FAILED') {
     return {
       id: asset.id,
-      label: formatMediaAssetLabel(asset.mimeType),
+      kind,
+      label: formatMediaAssetLabel(kind),
       state: 'failed',
       publicUrl: null,
       body: 'Media could not be processed.',
     };
   }
 
-  return unavailableMedia(asset);
+  return unavailableMedia(asset, kind);
 }
 
 function formatPostKindLabel(kind: string | null | undefined): string {
@@ -156,24 +162,30 @@ function formatPostBody(bodyText: string | null | undefined): string {
   return body || 'No caption provided.';
 }
 
-function formatMediaAssetLabel(mimeType: string | null | undefined): string {
-  if (mimeType?.startsWith('image/')) {
-    return 'Image';
-  }
+function formatMediaAssetKind(
+  mimeType: string | null | undefined,
+): ContentMediaAssetPresentation['kind'] {
+  return mimeType?.startsWith('image/')
+    ? 'image'
+    : mimeType?.startsWith('video/')
+      ? 'video'
+      : 'unknown';
+}
 
-  if (mimeType?.startsWith('video/')) {
-    return 'Video';
-  }
-
-  return 'Media';
+function formatMediaAssetLabel(
+  kind: ContentMediaAssetPresentation['kind'],
+): string {
+  return kind === 'image' ? 'Image' : kind === 'video' ? 'Video' : 'Media';
 }
 
 function unavailableMedia(
   asset: ContentMediaAsset,
+  kind: ContentMediaAssetPresentation['kind'],
 ): ContentMediaAssetPresentation {
   return {
     id: asset.id,
-    label: formatMediaAssetLabel(asset.mimeType),
+    kind,
+    label: formatMediaAssetLabel(kind),
     state: 'unavailable',
     publicUrl: null,
     body: 'Media is unavailable.',
