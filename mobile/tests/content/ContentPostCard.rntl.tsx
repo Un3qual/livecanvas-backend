@@ -133,6 +133,23 @@ describe('ContentPostCard with shared controls', () => {
     expect(onOpenAuthor).toHaveBeenCalledWith('opaque-author-id');
   });
 
+  test('distinguishes fallback author actions by opaque profile ID', async () => {
+    await render(<FallbackAuthorCollection />);
+
+    expect(screen.getByText('Profile ID VXNlcjox')).toBeOnTheScreen();
+    expect(screen.getByText('Profile ID VXNlcjoxMA==')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', {
+        name: 'Open author profile for LiveCanvas user, Profile ID VXNlcjox',
+      }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', {
+        name: 'Open author profile for LiveCanvas user, Profile ID VXNlcjoxMA==',
+      }),
+    ).toBeOnTheScreen();
+  });
+
   test('keeps controller action identity stable while edit state changes', async () => {
     const user = userEvent.setup();
     const onActions = jest.fn();
@@ -272,6 +289,39 @@ function ReportCollection() {
   );
 }
 
+function FallbackAuthorCollection() {
+  const controls = usePostControls({ viewerId: 'viewer-id' });
+
+  return (
+    <>
+      <ContentPostCard
+        controls={controls}
+        onOpenAuthor={() => undefined}
+        post={contentPost({
+          authorDisplayName: null,
+          authorEmail: null,
+          authorId: 'VXNlcjox',
+          authorUsername: null,
+          id: 'post-1',
+        })}
+        viewerId="viewer-id"
+      />
+      <ContentPostCard
+        controls={controls}
+        onOpenAuthor={() => undefined}
+        post={contentPost({
+          authorDisplayName: null,
+          authorEmail: null,
+          authorId: 'VXNlcjoxMA==',
+          authorUsername: null,
+          id: 'post-2',
+        })}
+        viewerId="viewer-id"
+      />
+    </>
+  );
+}
+
 function Harness({
   onActions,
   onOpenAuthor = () => undefined,
@@ -303,20 +353,26 @@ function Harness({
 }
 
 function contentPost({
+  authorDisplayName = 'Canvas Creator',
+  authorEmail = 'creator@example.com',
   authorId,
+  authorUsername = 'canvas_creator',
   id,
   mediaAssets = [],
 }: {
+  authorDisplayName?: string | null;
+  authorEmail?: string | null;
   authorId: string;
+  authorUsername?: string | null;
   id: string;
   mediaAssets?: ContentPost['mediaAssets'];
 }): ContentPost {
   return {
     author: {
-      displayName: 'Canvas Creator',
-      email: 'creator@example.com',
+      displayName: authorDisplayName,
+      email: authorEmail,
       id: authorId,
-      username: 'canvas_creator',
+      username: authorUsername,
     },
     bodyText: 'Original body',
     expiresAt: null,

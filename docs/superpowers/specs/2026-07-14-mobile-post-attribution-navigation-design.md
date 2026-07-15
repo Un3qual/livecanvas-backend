@@ -42,6 +42,12 @@ same privacy-safe formatting contract as profile screens. `profileHref/2` will
 be the sole author-destination decision: self when `viewerId === profileId`,
 otherwise the existing other-profile dynamic route.
 
+When public identity and email are unavailable, the shared profile identity
+formatter will include the complete opaque Relay ID in its fallback subtitle.
+It must not truncate, decode, or replace the ID with a short hash: distinct
+Relay IDs must remain visually and accessibly distinguishable on every surface
+that reuses the formatter. Named identity presentation remains unchanged.
+
 `ContentPostCard` will accept `onOpenAuthor(authorId)` and expose the author
 title as a minimum-touch-target `Pressable` with a descriptive accessibility
 label. `ContentSection` will require and forward that callback for post and
@@ -52,8 +58,9 @@ dedicated author-profile action because its layout does not use
 
 ## Failure and Privacy Behavior
 
-- Missing or unauthorized email data renders the existing neutral fallback;
-  the client never substitutes another private field.
+- Missing or unauthorized identity data renders the existing neutral fallback;
+  the client never substitutes another private field. The fallback exposes the
+  complete already-client-visible opaque Relay ID so it remains unique.
 - A missing viewer ID routes to the other-profile path, which is the only safe
   choice when ownership cannot be established locally.
 - Route helpers do not trim, decode, or reconstruct IDs. Invalid IDs continue
@@ -62,8 +69,11 @@ dedicated author-profile action because its layout does not use
 ## Verification
 
 - Unit tests cover real author input, neutral fallback, self routing, other-user
-  routing, and opaque-ID preservation.
+  routing, opaque-ID preservation, and Relay IDs whose first eight characters
+  collide (for example `VXNlcjox` and `VXNlcjoxMA==`).
 - React Native behavior tests cover the accessible author action and routing
-  from Home, profile content, and the dedicated story viewer.
+  from Home, profile content, and the dedicated story viewer. The post-card
+  test must prove that colliding prefixes still produce distinct visible
+  subtitles and accessible author-action names.
 - Relay generation, both TypeScript checks, lint, the full mobile test gate,
   Nix flake checks, and `git diff --check` must pass.
