@@ -11,11 +11,9 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: post attribution and author navigation active; operator/device QA follows
+- Track state: post attribution and author navigation complete; operator/device QA pending
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Active implementation plan:
   `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - Current gate:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
@@ -24,7 +22,10 @@ and content discovery, live streaming, and chat.
 - Current release-depth plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Last completed detailed plan:
-  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
+- Latest theme: post and story authors now use the established privacy-safe
+  identity presentation and route to self or other profiles without decoding
+  Relay IDs.
 - Recent theme: end-to-end contact invitations now complete fragment-only HTTPS
   delivery from one shared trusted public origin, neutral recipient email copy,
   protected authentication handoff, one-time recipient-bound consumption, and
@@ -140,18 +141,14 @@ and content discovery, live streaming, and chat.
 
 ## Active Gate And Completed Follow-Up Plans
 
-Active implementation batch:
-
-- `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
-- Status: active; use existing author identity data and opaque profile routes.
-
-Following release gate:
+Active release gate:
 
 - `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Status: active; begin with local entry gates, then record manual device QA.
 
 Recently completed product batch:
 
+- `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
@@ -163,9 +160,9 @@ Recently completed product batch:
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-The prior product follow-up plans and approved release-depth sequence are
-complete. Close the active attribution/navigation batch before operator/device
-QA resumes from the release-candidate checklist.
+The attribution/navigation batch, prior product follow-ups, and approved
+release-depth sequence are complete. Operator/device QA resumes from the
+release-candidate checklist.
 
 ## Shared Constraints
 

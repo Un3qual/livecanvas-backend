@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-14
-Status: mobile post attribution and author navigation active
+Status: mobile attribution/navigation complete; operator/device QA pending
 
 ## Purpose
 
@@ -11,20 +11,20 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 - Current sequence design:
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
-- Current implementation plan:
-  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- Latest completed implementation:
+  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - Completed milestones: all five release-depth batches are implemented and the
   full local closure matrix passes.
-- Current batch: post attribution and author-profile navigation.
-- Current design:
+- Completed batch: post attribution and author-profile navigation in PR #125.
+- Completed design:
   `docs/superpowers/specs/2026-07-14-mobile-post-attribution-navigation-design.md`
-- Current plan:
+- Completed plan:
   `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - Sequence design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Batch 2 design:
   `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
-- Latest completed implementation:
+- Previous completed implementation:
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Batch 3 implementation plan:
   `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
@@ -51,17 +51,17 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: attribution/navigation is active; device/operator QA follows batch
-  closure.
+- State: attribution/navigation is complete; device/operator QA is pending.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: frozen pnpm install, Relay generation, typechecks, lint, 76
-  Vitest files with 563 tests, 27 Jest suites with 182 tests, `nix flake check`,
-  and patch hygiene pass.
+- Verification: Relay generation, typechecks, lint, 77 Vitest files with 567
+  tests, 28 Jest suites with 194 tests, `nix flake check`, and patch hygiene
+  pass.
 
 ## Execution Rule
 
-Execute the active mobile source plan. Do not mark operator or physical-device
-QA complete from local evidence and do not run remote EAS commands.
+Do not start another implementation batch until device/operator QA reproduces a
+defect or the coordinator explicitly promotes new work. Do not mark operator or
+physical-device QA complete from local evidence.
 
 ## Cross-Lane Policy
 
@@ -71,8 +71,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Complete the attribution/navigation batch, then return the mobile lane to the
-target-environment inventory and physical-device checklist.
+The release operator should confirm the target-environment inventory and run
+the physical-device checklist. Promote reproduced defects to the owning lane.
 
 ## Repair Conditions
 

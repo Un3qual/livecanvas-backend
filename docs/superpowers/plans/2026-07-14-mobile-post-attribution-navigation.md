@@ -80,5 +80,5 @@
 - [x] Query `viewer { id }`, add the author-profile action, and route through `profileHref/2` without changing story pagination or privacy fetch behavior.
 - [x] Run Relay generation and the focused story/content suites.
 - [x] Run `pnpm test:quality`, `pnpm relay`, `nix flake check`, and repo-root `git diff --check`; confirm the worktree contains only intended changes.
-- [ ] Close the mobile lane batch, retain operator/device QA as the next gate, mark this plan complete, and commit the verified closure milestone.
-- [ ] Push the branch and open a non-draft pull request.
+- [x] Close the mobile lane batch, retain operator/device QA as the next gate, mark this plan complete, and commit the verified closure milestone.
+- [x] Push the branch and open a non-draft pull request.
