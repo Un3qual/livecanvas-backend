@@ -7,9 +7,12 @@ import {
 
 import { StoryViewerScreen } from '../../src/content/story/StoryViewerScreen';
 import { storyHref } from '../../src/content/story/storyNavigation';
+import { profileHref } from '../../src/profile/profileNavigation';
 
 let mockBack: jest.Mock;
-let mockQueryData: ReturnType<typeof storyViewerData> | { node: null };
+let mockQueryData:
+  | ReturnType<typeof storyViewerData>
+  | { node: null; viewer: { id: string } };
 let mockQueryShouldSuspend: boolean;
 let mockQueryVariables: Array<{
   id: string;
@@ -23,11 +26,13 @@ let mockPageQueryVariables: Array<{
   storyFirst: number;
 }>;
 let mockReplacedRoutes: unknown[];
+let mockPushedRoutes: unknown[];
 const mockRelayEnvironment = {};
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({
     back: mockBack,
+    push: (route: unknown) => mockPushedRoutes.push(route),
     replace: (route: unknown) => mockReplacedRoutes.push(route),
   }),
 }));
@@ -89,6 +94,7 @@ beforeEach(() => {
   mockPageDataByCursor = new Map();
   mockPageQueryVariables = [];
   mockReplacedRoutes = [];
+  mockPushedRoutes = [];
 });
 
 afterEach(() => {
@@ -105,7 +111,7 @@ describe('StoryViewerScreen', () => {
   });
 
   test('renders unavailable state when the opaque node cannot be selected', async () => {
-    mockQueryData = { node: null };
+    mockQueryData = { node: null, viewer: { id: 'viewer-id' } };
 
     await render(<StoryViewerScreen storyId="missing-story" />);
 
@@ -141,6 +147,33 @@ describe('StoryViewerScreen', () => {
       storyHref('story-3'),
     ]);
     expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  test('opens another author profile with its opaque Relay ID', async () => {
+    const user = userEvent.setup();
+
+    await render(<StoryViewerScreen storyId="story-2" />);
+    await user.press(
+      screen.getByRole('button', { name: 'View author profile' }),
+    );
+
+    expect(mockPushedRoutes).toEqual([
+      profileHref('author-id', 'viewer-id'),
+    ]);
+  });
+
+  test('opens the viewer profile for an owned story', async () => {
+    const user = userEvent.setup();
+    mockQueryData = storyViewerData('story-2', undefined, 'author-id');
+
+    await render(<StoryViewerScreen storyId="story-2" />);
+    await user.press(
+      screen.getByRole('button', { name: 'View author profile' }),
+    );
+
+    expect(mockPushedRoutes).toEqual([
+      profileHref('author-id', 'author-id'),
+    ]);
   });
 
   test('disables only the unavailable boundary action for first and last stories', async () => {
@@ -232,6 +265,7 @@ function storyViewerData(
   connection: ReturnType<typeof storyConnection> | null = storyConnection(
     ['story-1', 'story-2', 'story-3'].map(story),
   ),
+  viewerId = 'viewer-id',
 ) {
   const selectedStory = story(selectedId);
 
@@ -244,6 +278,7 @@ function storyViewerData(
         storyFeed: connection,
       },
     },
+    viewer: { id: viewerId },
   };
 }
 

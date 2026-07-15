@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e21621f5a8b3fdec99d037837a49286a>>
+ * @generated SignedSource<<058540bdaf9640485c2d0f33d214c807>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -67,6 +67,9 @@ export type storyViewerOperationsQuery$data = {
     // value in case none of the concrete values match.
     readonly __typename: "%other";
   } | null | undefined;
+  readonly viewer: {
+    readonly id: string;
+  } | null | undefined;
 };
 export type storyViewerOperationsQuery = {
   response: storyViewerOperationsQuery$data;
@@ -91,70 +94,82 @@ var v0 = [
     "name": "storyFirst"
   }
 ],
-v1 = [
-  {
-    "kind": "Variable",
-    "name": "id",
-    "variableName": "id"
-  }
-],
-v2 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
-  "storageKey": null
-},
-v3 = {
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
+v2 = {
+  "alias": null,
+  "args": null,
+  "concreteType": "User",
+  "kind": "LinkedField",
+  "name": "viewer",
+  "plural": false,
+  "selections": [
+    (v1/*: any*/)
+  ],
+  "storageKey": null
+},
+v3 = [
+  {
+    "kind": "Variable",
+    "name": "id",
+    "variableName": "id"
+  }
+],
 v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
+  "name": "__typename",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "bodyText",
+  "name": "kind",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "visibility",
+  "name": "bodyText",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "expiresAt",
+  "name": "visibility",
   "storageKey": null
 },
 v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "insertedAt",
+  "name": "expiresAt",
   "storageKey": null
 },
 v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "email",
+  "name": "insertedAt",
   "storageKey": null
 },
 v10 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "email",
+  "storageKey": null
+},
+v11 = {
   "alias": null,
   "args": null,
   "concreteType": "PostMediaAsset",
@@ -162,7 +177,7 @@ v10 = {
   "name": "mediaAssets",
   "plural": true,
   "selections": [
-    (v3/*: any*/),
+    (v1/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -187,7 +202,7 @@ v10 = {
   ],
   "storageKey": null
 },
-v11 = {
+v12 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -195,8 +210,8 @@ v11 = {
   "name": "author",
   "plural": false,
   "selections": [
-    (v3/*: any*/),
-    (v9/*: any*/),
+    (v1/*: any*/),
+    (v10/*: any*/),
     {
       "alias": null,
       "args": [
@@ -232,12 +247,12 @@ v11 = {
               "name": "node",
               "plural": false,
               "selections": [
-                (v3/*: any*/),
-                (v4/*: any*/),
+                (v1/*: any*/),
                 (v5/*: any*/),
                 (v6/*: any*/),
                 (v7/*: any*/),
                 (v8/*: any*/),
+                (v9/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -246,12 +261,12 @@ v11 = {
                   "name": "author",
                   "plural": false,
                   "selections": [
-                    (v3/*: any*/),
-                    (v9/*: any*/)
+                    (v1/*: any*/),
+                    (v10/*: any*/)
                   ],
                   "storageKey": null
                 },
-                (v10/*: any*/)
+                (v11/*: any*/)
               ],
               "storageKey": null
             }
@@ -296,26 +311,27 @@ return {
     "metadata": null,
     "name": "storyViewerOperationsQuery",
     "selections": [
+      (v2/*: any*/),
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
+          (v4/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v3/*: any*/),
-              (v4/*: any*/),
+              (v1/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
               (v7/*: any*/),
               (v8/*: any*/),
-              (v11/*: any*/),
-              (v10/*: any*/)
+              (v9/*: any*/),
+              (v12/*: any*/),
+              (v11/*: any*/)
             ],
             "type": "Post",
             "abstractKey": null
@@ -333,26 +349,27 @@ return {
     "kind": "Operation",
     "name": "storyViewerOperationsQuery",
     "selections": [
+      (v2/*: any*/),
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v3/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/),
+          (v4/*: any*/),
+          (v1/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v4/*: any*/),
               (v5/*: any*/),
               (v6/*: any*/),
               (v7/*: any*/),
               (v8/*: any*/),
-              (v11/*: any*/),
-              (v10/*: any*/)
+              (v9/*: any*/),
+              (v12/*: any*/),
+              (v11/*: any*/)
             ],
             "type": "Post",
             "abstractKey": null
@@ -363,16 +380,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6ea42b5e55a869221ef8d245118b3f25",
+    "cacheID": "3547e8b0f6b488f9ef3714e6aba52902",
     "id": null,
     "metadata": {},
     "name": "storyViewerOperationsQuery",
     "operationKind": "query",
-    "text": "query storyViewerOperationsQuery(\n  $id: ID!\n  $storyAfter: String\n  $storyFirst: Int!\n) {\n  node(id: $id) {\n    __typename\n    ... on Post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        email\n        storyFeed(first: $storyFirst, after: $storyAfter) {\n          edges {\n            node {\n              id\n              kind\n              bodyText\n              visibility\n              expiresAt\n              insertedAt\n              author {\n                id\n                email\n              }\n              mediaAssets {\n                id\n                mimeType\n                processingState\n                publicUrl\n              }\n            }\n          }\n          pageInfo {\n            endCursor\n            hasNextPage\n          }\n        }\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query storyViewerOperationsQuery(\n  $id: ID!\n  $storyAfter: String\n  $storyFirst: Int!\n) {\n  viewer {\n    id\n  }\n  node(id: $id) {\n    __typename\n    ... on Post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        email\n        storyFeed(first: $storyFirst, after: $storyAfter) {\n          edges {\n            node {\n              id\n              kind\n              bodyText\n              visibility\n              expiresAt\n              insertedAt\n              author {\n                id\n                email\n              }\n              mediaAssets {\n                id\n                mimeType\n                processingState\n                publicUrl\n              }\n            }\n          }\n          pageInfo {\n            endCursor\n            hasNextPage\n          }\n        }\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "32108d23c8ee76555439f81f29b438d5";
+(node as any).hash = "e715e3de074b750777032751ea013fd5";
 
 export default node;

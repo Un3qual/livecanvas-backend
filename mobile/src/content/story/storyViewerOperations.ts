@@ -31,6 +31,9 @@ export const storyViewerQuery = graphql`
     $storyAfter: String
     $storyFirst: Int!
   ) {
+    viewer {
+      id
+    }
     node(id: $id) {
       __typename
       ... on Post {

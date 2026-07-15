@@ -346,6 +346,28 @@ describe('ProfileContentListScreen pagination and controls', () => {
     expect(screen.getByText('New A base')).toBeOnTheScreen();
   });
 
+  test('routes a content author from the profile list', async () => {
+    const user = userEvent.setup();
+    mockQueryData = profileContentData({
+      kind: 'posts',
+      profileId: 'viewer-id',
+      rows: [post('viewer-post', 'viewer-id', 'Viewer post')],
+      viewerId: 'viewer-id',
+    });
+    const view = await render(
+      <ProfileContentListScreen kind="posts" profileId="viewer-id" />,
+    );
+
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Open author profile for creator@example.com',
+      }),
+    );
+
+    expect(mockPushedRoutes).toEqual([profileHref('viewer-id', 'viewer-id')]);
+    await view.unmount();
+  });
+
   test('shows viewer owner controls, other report controls, and replay navigation', async () => {
     const user = userEvent.setup();
     mockQueryData = profileContentData({
@@ -360,11 +382,6 @@ describe('ProfileContentListScreen pagination and controls', () => {
     expect(screen.getByRole('button', { name: 'Edit post' })).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Delete post' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Report post' })).toBeNull();
-    await user.press(
-      screen.getByRole('button', {
-        name: 'Open author profile for creator@example.com',
-      }),
-    );
 
     mockQueryData = profileContentData({
       kind: 'stories',
@@ -377,11 +394,6 @@ describe('ProfileContentListScreen pagination and controls', () => {
     );
     expect(screen.getByRole('button', { name: 'Report post' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Edit post' })).toBeNull();
-    await user.press(
-      screen.getByRole('button', {
-        name: 'Open author profile for creator@example.com',
-      }),
-    );
     await user.press(screen.getByRole('button', { name: 'View story' }));
 
     mockQueryData = profileContentData({
@@ -395,8 +407,6 @@ describe('ProfileContentListScreen pagination and controls', () => {
     );
     await user.press(screen.getByRole('button', { name: 'Watch replay' }));
     expect(mockPushedRoutes).toEqual([
-      profileHref('viewer-id', 'viewer-id'),
-      profileHref('other-id', 'viewer-id'),
       storyHref('other-story'),
       liveSessionHref('opaque-replay-id'),
     ]);

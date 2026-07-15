@@ -76,9 +76,9 @@
 - Consumes: `profileHref(profileId, viewerId)` and the selected story's author ID.
 - Produces: a dedicated story-viewer author-profile action with correct self/other routing.
 
-- [ ] Add story-viewer behavior tests for owned and other-author routing, then run the focused suite and confirm it fails because the viewer ID/action are absent.
-- [ ] Query `viewer { id }`, add the author-profile action, and route through `profileHref/2` without changing story pagination or privacy fetch behavior.
-- [ ] Run Relay generation and the focused story/content suites.
-- [ ] Run `pnpm test:quality`, `pnpm relay`, `nix flake check`, and repo-root `git diff --check`; confirm the worktree contains only intended changes.
+- [x] Add story-viewer behavior tests for owned and other-author routing, then run the focused suite and confirm it fails because the viewer ID/action are absent.
+- [x] Query `viewer { id }`, add the author-profile action, and route through `profileHref/2` without changing story pagination or privacy fetch behavior.
+- [x] Run Relay generation and the focused story/content suites.
+- [x] Run `pnpm test:quality`, `pnpm relay`, `nix flake check`, and repo-root `git diff --check`; confirm the worktree contains only intended changes.
 - [ ] Close the mobile lane batch, retain operator/device QA as the next gate, mark this plan complete, and commit the verified closure milestone.
 - [ ] Push the branch and open a non-draft pull request.
