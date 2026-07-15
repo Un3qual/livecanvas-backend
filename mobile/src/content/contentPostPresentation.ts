@@ -1,3 +1,5 @@
+import { formatProfileIdentity } from '../profile/profilePresentation';
+
 export type ContentPostAuthor = {
   readonly id: string;
   readonly email?: string | null;
@@ -57,7 +59,7 @@ export function formatPostCardPresentation(
     visibilityLabel: formatPostVisibilityLabel(post.visibility),
     timestampLabel: formatContentDate(post.insertedAt),
     storyExpiryLabel: formatStoryExpiryLabel(post.expiresAt),
-    author: formatPostAuthorPresentation(),
+    author: formatPostAuthorPresentation(post.author),
     mediaAssets:
       post.mediaAssets?.map((asset) =>
         formatContentMediaAssetPresentation(asset),
@@ -65,12 +67,10 @@ export function formatPostCardPresentation(
   };
 }
 
-export function formatPostAuthorPresentation(): ContentPostAuthorPresentation {
-  return {
-    title: 'LiveCanvas creator',
-    subtitle: 'Creator',
-    initials: 'LC',
-  };
+export function formatPostAuthorPresentation(
+  author: ContentPostAuthor,
+): ContentPostAuthorPresentation {
+  return formatProfileIdentity(author);
 }
 
 export function formatPostVisibilityLabel(

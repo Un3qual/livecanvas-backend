@@ -29,11 +29,11 @@
 - Produces: `formatPostAuthorPresentation(author: ContentPostAuthor)`.
 - Produces: `profileHref(profileId: string, viewerId: string | null)` returning `/profile` for self and `/profiles/[id]` with the unchanged ID otherwise.
 
-- [ ] Write unit tests showing that an authorized email uses the established profile identity, missing email uses the neutral fallback, self routes to `/profile`, and other/missing-viewer routes preserve the opaque ID.
-- [ ] Run the two focused Vitest files and confirm the new expectations fail for the missing contracts.
-- [ ] Pass `post.author` into `formatPostAuthorPresentation/1`, reuse `formatProfileIdentity`, and implement `profileHref/2` without parsing or normalizing IDs.
-- [ ] Re-run the focused tests and both mobile TypeScript checks.
-- [ ] Mark Task 1 complete and commit the presentation/navigation milestone.
+- [x] Write unit tests showing that an authorized email uses the established profile identity, missing email uses the neutral fallback, self routes to `/profile`, and other/missing-viewer routes preserve the opaque ID.
+- [x] Run the two focused Vitest files and confirm the new expectations fail for the missing contracts.
+- [x] Pass `post.author` into `formatPostAuthorPresentation/1`, reuse `formatProfileIdentity`, and implement `profileHref/2` without parsing or normalizing IDs.
+- [x] Re-run the focused tests and both mobile TypeScript checks.
+- [x] Mark Task 1 complete and commit the presentation/navigation milestone.
 
 ### Task 2: Author Actions on Shared Content Surfaces
 
