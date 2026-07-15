@@ -2,6 +2,7 @@ import { describe, expect, vi, test } from 'vitest';
 
 import {
   requestMagicLinkAuthChallenge,
+  redeemMagicLinkAuthMutation,
   normalizeAuthErrors,
   submitOauthAuthMutation,
   submitPasswordAuthMutation,
@@ -202,6 +203,95 @@ describe('authMutationClient', () => {
           ),
       }),
     ).rejects.toThrow('Auth request failed with 503 Unavailable');
+  });
+
+  test.each([
+    ['signIn', 'logIn'],
+    ['signUp', 'signUp'],
+  ] as const)('redeems a %s magic link through the matching mutation', async (mode, field) => {
+    const fetchImpl = vi.fn<TestFetch>(() =>
+      new Response(
+        JSON.stringify({
+          data: {
+            [field]: {
+              accessToken: {
+                serializedValue: 'magic-access-token',
+                expiresAt: '2026-08-01T00:00:00.000Z',
+              },
+              refreshToken: { serializedValue: 'magic-refresh-token' },
+              errors: [],
+            },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await expect(
+      redeemMagicLinkAuthMutation({
+        apiBaseUrl: 'http://localhost:4000',
+        mode,
+        token: 'serialized-magic-token',
+        fetchImpl,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      tokens: {
+        accessToken: 'magic-access-token',
+        refreshToken: 'magic-refresh-token',
+        expiresAt: '2026-08-01T00:00:00.000Z',
+      },
+    });
+
+    const [, init] = fetchImpl.mock.calls[0] ?? [];
+    const request = JSON.parse((init as RequestInit).body as string);
+    expect(request.variables).toEqual({
+      input: {
+        provider: 'MAGIC_LINK',
+        magicLink: { token: 'serialized-magic-token' },
+      },
+    });
+  });
+
+  test('returns invalid magic-link credentials without fabricating tokens', async () => {
+    const fetchImpl = vi.fn<TestFetch>(() =>
+      new Response(
+        JSON.stringify({
+          data: {
+            logIn: {
+              accessToken: null,
+              refreshToken: null,
+              errors: [
+                {
+                  field: 'magicLink.token',
+                  code: 'INVALID_CREDENTIALS',
+                  message: 'invalid_credentials',
+                },
+              ],
+            },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await expect(
+      redeemMagicLinkAuthMutation({
+        apiBaseUrl: 'http://localhost:4000',
+        mode: 'signIn',
+        token: 'expired-token',
+        fetchImpl,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      errors: [
+        {
+          field: 'magicLink.token',
+          code: 'INVALID_CREDENTIALS',
+          message: 'invalid_credentials',
+        },
+      ],
+    });
   });
 
   test('returns a validation error before calling sign-up when passwords do not match', async () => {

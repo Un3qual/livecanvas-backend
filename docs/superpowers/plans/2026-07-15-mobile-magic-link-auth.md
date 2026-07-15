@@ -150,17 +150,17 @@ Expo Router, SecureStore, pnpm, Vitest, Jest/RNTL.
 - The screen clears the matching handoff only after definitive invalidity or
   successful `AuthProvider.signIn`; transport failures remain retryable.
 
-- [ ] Add failing client tests proving stored purpose selects `logIn` or
+- [x] Add failing client tests proving stored purpose selects `logIn` or
   `signUp`, the token is sent only under `magicLink.token`, and invalid/expired
   payloads never fabricate auth tokens.
-- [ ] Add failing state/RNTL tests for missing/mismatched/expired handoffs,
+- [x] Add failing state/RNTL tests for missing/mismatched/expired handoffs,
   successful sign-in and sign-up, retry after transport failure, route
   replacement, successful handoff cleanup, and an authenticated session being
   routed home without redemption.
-- [ ] Implement the public auth route with generation-safe async completion,
+- [x] Implement the public auth route with generation-safe async completion,
   generic invalid copy, explicit retry, and session persistence through
   `AuthProvider.signIn`.
-- [ ] Run focused auth suites and commit `feat: redeem mobile magic links`.
+- [x] Run focused auth suites and commit `feat: redeem mobile magic links`.
 
 ### Task 5: Lane Closure And Full Verification
 

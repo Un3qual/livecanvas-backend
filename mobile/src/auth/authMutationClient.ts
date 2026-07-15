@@ -94,6 +94,13 @@ type MagicLinkChallengeParams = {
   fetchImpl?: FetchImpl;
 };
 
+type MagicLinkRedemptionParams = {
+  apiBaseUrl: string;
+  mode: AuthMode;
+  token: string;
+  fetchImpl?: FetchImpl;
+};
+
 const BEGIN_MAGIC_LINK_CHALLENGE_MUTATION = `
   mutation AuthBeginMagicLinkChallenge($input: BeginAuthChallengeInput!) {
     beginAuthChallenge(input: $input) {
@@ -475,6 +482,34 @@ export async function requestMagicLinkAuthChallenge(
   // `dispatched` is intentionally not exposed. Login responses remain neutral
   // whether or not an eligible account received mail.
   return { ok: true };
+}
+
+export function redeemMagicLinkAuthMutation(
+  params: MagicLinkRedemptionParams,
+): Promise<AuthMutationResult> {
+  const token = params.token.trim();
+
+  if (!token) {
+    return Promise.resolve({
+      ok: false,
+      errors: [
+        {
+          field: 'magicLink.token',
+          message: 'The email link is invalid or expired.',
+        },
+      ],
+    });
+  }
+
+  return executeAuthMutation(
+    params.apiBaseUrl,
+    params.mode,
+    {
+      provider: 'MAGIC_LINK',
+      magicLink: { token },
+    },
+    params.fetchImpl ?? fetch,
+  );
 }
 
 export function normalizeAuthErrors(errors: AuthMutationError[]): {
