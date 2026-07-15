@@ -3,6 +3,10 @@ import type { MagicLinkPayload } from './magicLinkLink';
 const MAGIC_LINK_HANDOFF_KEY = 'lc_pending_magic_link';
 const MAGIC_LINK_HANDOFF_TTL_MS = 15 * 60 * 1_000;
 const storageQueues = new WeakMap<object, Promise<void>>();
+const handoffAttempts = new WeakMap<
+  MagicLinkHandoffStorage,
+  Map<string, Promise<MagicLinkHandoffResult<unknown>>>
+>();
 
 type PendingMagicLink = MagicLinkPayload & {
   readonly expiresAt: number;
@@ -25,6 +29,16 @@ type StoreMagicLinkHandoffOptions = MagicLinkHandoffOptions & {
 };
 
 type MagicLinkHandoffStatus = 'expired' | 'mismatch' | 'missing';
+type MagicLinkHandoffResult<Value> =
+  | { readonly status: MagicLinkHandoffStatus }
+  | { readonly status: 'matched'; readonly value: Value };
+
+export type MagicLinkHandoffResultPolicy<Value> = {
+  readonly shouldRetainResult?: (value: Value) => boolean;
+};
+
+type WithMagicLinkHandoffOptions<Value> = MagicLinkHandoffOptions &
+  MagicLinkHandoffResultPolicy<Value>;
 
 export async function storeMagicLinkHandoff(
   payload: MagicLinkPayload,
@@ -42,18 +56,56 @@ export async function storeMagicLinkHandoff(
   await withStorageLock(options.storage, () =>
     options.storage.setItem(MAGIC_LINK_HANDOFF_KEY, JSON.stringify(record)),
   );
+  forgetAllHandoffAttempts(options.storage);
 
   return { handoffId };
 }
 
-export async function withMagicLinkHandoff<Value>(
+export function withMagicLinkHandoff<Value>(
+  requestedHandoffId: string,
+  callback: (payload: MagicLinkPayload) => Promise<Value>,
+  options: WithMagicLinkHandoffOptions<Value>,
+): Promise<MagicLinkHandoffResult<Value>> {
+  const attempts = getHandoffAttempts(options.storage);
+  const existing = attempts.get(requestedHandoffId);
+
+  if (existing) {
+    return existing as Promise<MagicLinkHandoffResult<Value>>;
+  }
+
+  const attempt = performMagicLinkHandoff(
+    requestedHandoffId,
+    callback,
+    options,
+  );
+  attempts.set(
+    requestedHandoffId,
+    attempt as Promise<MagicLinkHandoffResult<unknown>>,
+  );
+
+  // A definitive redemption must survive a screen remount until its matching
+  // handoff is cleared. Retryable or rejected attempts are released instead.
+  void attempt.then(
+    (result) => {
+      const retain =
+        result.status === 'matched' &&
+        options.shouldRetainResult?.(result.value) === true;
+
+      if (!retain) {
+        forgetHandoffAttempt(options.storage, requestedHandoffId, attempt);
+      }
+    },
+    () => forgetHandoffAttempt(options.storage, requestedHandoffId, attempt),
+  );
+
+  return attempt;
+}
+
+async function performMagicLinkHandoff<Value>(
   requestedHandoffId: string,
   callback: (payload: MagicLinkPayload) => Promise<Value>,
   options: MagicLinkHandoffOptions,
-): Promise<
-  | { readonly status: MagicLinkHandoffStatus }
-  | { readonly status: 'matched'; readonly value: Value }
-> {
+): Promise<MagicLinkHandoffResult<Value>> {
   const lookup = await withStorageLock(options.storage, async () => {
     const record = await readRecord(options.storage);
 
@@ -96,7 +148,53 @@ export function clearMagicLinkHandoff(
 
     await options.storage.deleteItem(MAGIC_LINK_HANDOFF_KEY);
     return true;
+  }).then((cleared) => {
+    forgetHandoffAttempt(options.storage, requestedHandoffId);
+    return cleared;
   });
+}
+
+function getHandoffAttempts(
+  storage: MagicLinkHandoffStorage,
+): Map<string, Promise<MagicLinkHandoffResult<unknown>>> {
+  const existing = handoffAttempts.get(storage);
+
+  if (existing) {
+    return existing;
+  }
+
+  const attempts = new Map<
+    string,
+    Promise<MagicLinkHandoffResult<unknown>>
+  >();
+  handoffAttempts.set(storage, attempts);
+  return attempts;
+}
+
+function forgetHandoffAttempt(
+  storage: MagicLinkHandoffStorage,
+  handoffId: string,
+  expectedAttempt?: Promise<MagicLinkHandoffResult<unknown>>,
+) {
+  const attempts = handoffAttempts.get(storage);
+
+  if (!attempts) {
+    return;
+  }
+
+  if (expectedAttempt && attempts.get(handoffId) !== expectedAttempt) {
+    return;
+  }
+
+  attempts.delete(handoffId);
+
+  if (attempts.size === 0) {
+    handoffAttempts.delete(storage);
+  }
+}
+
+function forgetAllHandoffAttempts(storage: MagicLinkHandoffStorage) {
+  handoffAttempts.delete(storage);
 }
 
 async function readRecord(

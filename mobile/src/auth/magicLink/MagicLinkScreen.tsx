@@ -164,7 +164,9 @@ export function MagicLinkScreen() {
       return;
     }
 
-    withMagicLinkHandoff(handoffId, redeemPayload)
+    withMagicLinkHandoff(handoffId, redeemPayload, {
+      shouldRetainResult: (outcome) => outcome.status !== 'retryable_error',
+    })
       .then((result) => {
         if (!isCurrentAttempt(attempt)) {
           return;

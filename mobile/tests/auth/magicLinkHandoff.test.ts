@@ -149,4 +149,82 @@ describe('magic-link handoff', () => {
       ),
     ).toEqual({ status: 'matched', value: 'token-b' });
   });
+
+  test('coalesces redemption and retains a definitive result until cleanup', async () => {
+    const storage = memoryStorage();
+    await storeMagicLinkHandoff(
+      { purpose: 'signIn', token: 'single-use-token' },
+      {
+        createHandoffId: () => 'handoff-a',
+        now: () => 1_000,
+        storage,
+      },
+    );
+    let resolveRedemption!: (value: string) => void;
+    const redemption = new Promise<string>((resolve) => {
+      resolveRedemption = resolve;
+    });
+    let callbackCalls = 0;
+    const redeem = () => {
+      callbackCalls += 1;
+      return redemption;
+    };
+    const options = {
+      now: () => 2_000,
+      shouldRetainResult: () => true,
+      storage,
+    };
+
+    const first = withMagicLinkHandoff('handoff-a', redeem, options);
+    const concurrent = withMagicLinkHandoff('handoff-a', redeem, options);
+
+    resolveRedemption('redeemed-tokens');
+    await expect(Promise.all([first, concurrent])).resolves.toEqual([
+      { status: 'matched', value: 'redeemed-tokens' },
+      { status: 'matched', value: 'redeemed-tokens' },
+    ]);
+    expect(callbackCalls).toBe(1);
+    await expect(
+      withMagicLinkHandoff('handoff-a', redeem, options),
+    ).resolves.toEqual({ status: 'matched', value: 'redeemed-tokens' });
+    expect(callbackCalls).toBe(1);
+
+    await expect(clearMagicLinkHandoff('handoff-a', { storage })).resolves.toBe(
+      true,
+    );
+    await expect(
+      withMagicLinkHandoff('handoff-a', redeem, options),
+    ).resolves.toEqual({ status: 'missing' });
+    expect(callbackCalls).toBe(1);
+  });
+
+  test('releases retryable redemption results for a later attempt', async () => {
+    const storage = memoryStorage();
+    await storeMagicLinkHandoff(
+      { purpose: 'signIn', token: 'retryable-token' },
+      {
+        createHandoffId: () => 'handoff-a',
+        now: () => 1_000,
+        storage,
+      },
+    );
+    let callbackCalls = 0;
+    const redeem = () => {
+      callbackCalls += 1;
+      return Promise.resolve(callbackCalls === 1 ? 'retryable' : 'redeemed');
+    };
+    const options = {
+      now: () => 2_000,
+      shouldRetainResult: (value: string) => value !== 'retryable',
+      storage,
+    };
+
+    await expect(
+      withMagicLinkHandoff('handoff-a', redeem, options),
+    ).resolves.toEqual({ status: 'matched', value: 'retryable' });
+    await expect(
+      withMagicLinkHandoff('handoff-a', redeem, options),
+    ).resolves.toEqual({ status: 'matched', value: 'redeemed' });
+    expect(callbackCalls).toBe(2);
+  });
 });
