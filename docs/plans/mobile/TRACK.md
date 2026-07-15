@@ -11,7 +11,7 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: post attribution and author navigation complete; operator/device QA pending
+- Track state: mobile magic-link authentication active
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
   `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
@@ -138,6 +138,7 @@ and content discovery, live streaming, and chat.
 33. Post and story media rendering.
 34. Dedicated story viewer.
 35. Post attribution and author-profile navigation.
+36. Mobile magic-link authentication completion.
 
 ## Active Gate And Completed Follow-Up Plans
 
@@ -145,6 +146,10 @@ Active release gate:
 
 - `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Status: active; begin with local entry gates, then record manual device QA.
+
+Active product batch:
+
+- `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
 
 Recently completed product batch:
 
