@@ -485,7 +485,7 @@ export function ContactDiscoveryScreen() {
                       : 'Import device contacts'
                 }
                 onPress={() => {
-                  void importContacts();
+                  importContacts().catch(() => undefined);
                 }}
               />
               {importMessage ? (
@@ -507,7 +507,7 @@ export function ContactDiscoveryScreen() {
                 <AppButton
                   label="Open Settings"
                   onPress={() => {
-                    void openSettings();
+                    openSettings().catch(() => undefined);
                   }}
                   variant="secondary"
                 />

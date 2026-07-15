@@ -180,6 +180,9 @@ export function profileIdentityReducer(
             values: confirmed,
           };
     }
+
+    default:
+      return assertNever(action);
   }
 }
 
@@ -188,7 +191,7 @@ function validateDisplayName(displayName: string): string | null {
     return 'Enter a display name.';
   }
 
-  if (/[\u0000-\u001F\u007F]/u.test(displayName)) {
+  if (hasControlCharacter(displayName)) {
     return 'Use a single-line display name.';
   }
 
@@ -197,6 +200,14 @@ function validateDisplayName(displayName: string): string | null {
   }
 
   return null;
+}
+
+function hasControlCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0);
+
+    return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
+  });
 }
 
 function validateUsername(username: string): string | null {
@@ -268,4 +279,8 @@ function joinedMessages(messages: ReadonlyArray<string>): string | null {
   const nonEmptyMessages = messages.filter((message) => message.length > 0);
 
   return nonEmptyMessages.length > 0 ? nonEmptyMessages.join('; ') : null;
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unexpected profile identity action: ${String(value)}`);
 }

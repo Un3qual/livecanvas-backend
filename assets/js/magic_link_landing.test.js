@@ -78,7 +78,7 @@ describe("initializeMagicLinkLanding", () => {
 
       initializeMagicLinkLanding(fixture.windowObject, fixture.documentObject)
 
-      assert.equal(fixture.action.href, undefined)
+      assert.equal(typeof fixture.action.href, "undefined")
       assert.equal(fixture.action.hidden, true)
       assert.equal(fixture.state.textContent, "This email link is invalid or expired.")
       assert.deepEqual(fixture.historyCalls, [
