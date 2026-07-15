@@ -10,12 +10,14 @@ import { storyHref } from '../../src/content/story/storyNavigation';
 describe('ContentSection', () => {
   test('renders post rows with controls and a view-all action', async () => {
     const user = userEvent.setup();
+    const onOpenAuthor = jest.fn();
     const onViewAll = jest.fn();
 
     await render(
       <ContentSection
         emptyMessage="No posts yet."
         kind="posts"
+        onOpenAuthor={onOpenAuthor}
         onViewAll={onViewAll}
         postControls={postControls()}
         posts={[post({ id: 'opaque-post-id' })]}
@@ -29,7 +31,13 @@ describe('ContentSection', () => {
     expect(screen.getByRole('button', { name: 'Edit post' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'View story' })).toBeNull();
 
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Open author profile for viewer@example.com',
+      }),
+    );
     await user.press(screen.getByRole('button', { name: 'View all' }));
+    expect(onOpenAuthor).toHaveBeenCalledWith('viewer-id');
     expect(onViewAll).toHaveBeenCalledTimes(1);
   });
 
@@ -73,6 +81,7 @@ describe('ContentSection', () => {
       <ContentSection
         emptyMessage="Nothing has been shared yet."
         kind="stories"
+        onOpenAuthor={jest.fn()}
         onOpenStory={jest.fn()}
         postControls={postControls()}
         posts={[]}
@@ -94,6 +103,7 @@ describe('ContentSection', () => {
       <ContentSection
         emptyMessage="No stories."
         kind="stories"
+        onOpenAuthor={jest.fn()}
         onOpenStory={(storyId) => pushedRoutes.push(storyHref(storyId))}
         postControls={postControls()}
         posts={[post({ id: 'opaque-story-id', kind: 'STORY' })]}
@@ -113,6 +123,7 @@ describe('ContentSection', () => {
     const baseProps = {
       emptyMessage: 'No stories.',
       kind: 'stories' as const,
+      onOpenAuthor: jest.fn(),
       onOpenStory: jest.fn(),
       postControls: postControls(),
       posts: [post({ id: 'story-id', kind: 'STORY' })],

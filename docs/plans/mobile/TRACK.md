@@ -11,10 +11,10 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: mobile release-depth sequence complete; operator/device QA pending
+- Track state: post attribution and author navigation complete; operator/device QA pending
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - Current gate:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Current release-depth design:
@@ -22,7 +22,10 @@ and content discovery, live streaming, and chat.
 - Current release-depth plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Last completed detailed plan:
-  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
+- Latest theme: post and story authors now use the established privacy-safe
+  identity presentation and route to self or other profiles without decoding
+  Relay IDs.
 - Recent theme: end-to-end contact invitations now complete fragment-only HTTPS
   delivery from one shared trusted public origin, neutral recipient email copy,
   protected authentication handoff, one-time recipient-bound consumption, and
@@ -134,6 +137,7 @@ and content discovery, live streaming, and chat.
 32. Foreground/background live-session recovery.
 33. Post and story media rendering.
 34. Dedicated story viewer.
+35. Post attribution and author-profile navigation.
 
 ## Active Gate And Completed Follow-Up Plans
 
@@ -144,6 +148,7 @@ Active release gate:
 
 Recently completed product batch:
 
+- `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
@@ -155,9 +160,9 @@ Recently completed product batch:
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-The prior product follow-up plans and approved release-depth sequence are
-complete. Operator/device QA now resumes from the release-candidate checklist;
-any reproduced defect should be promoted into its owning lane.
+The attribution/navigation batch, prior product follow-ups, and approved
+release-depth sequence are complete. Operator/device QA resumes from the
+release-candidate checklist.
 
 ## Shared Constraints
 

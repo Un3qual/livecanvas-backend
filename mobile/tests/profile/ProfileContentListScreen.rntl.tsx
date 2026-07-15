@@ -12,6 +12,7 @@ import OtherProfileContentRoute from '../../app/(app)/profiles/[id]/content';
 import { ProfileContentListScreen } from '../../src/profile/ProfileContentListScreen';
 import { liveSessionHref } from '../../src/live/liveSessionNavigation';
 import { storyHref } from '../../src/content/story/storyNavigation';
+import { profileHref } from '../../src/profile/profileNavigation';
 
 type QueryVariables = {
   readonly after: string | null;
@@ -343,6 +344,28 @@ describe('ProfileContentListScreen pagination and controls', () => {
 
     expect(screen.queryByText('Stale A page')).toBeNull();
     expect(screen.getByText('New A base')).toBeOnTheScreen();
+  });
+
+  test('routes a content author from the profile list', async () => {
+    const user = userEvent.setup();
+    mockQueryData = profileContentData({
+      kind: 'posts',
+      profileId: 'viewer-id',
+      rows: [post('viewer-post', 'viewer-id', 'Viewer post')],
+      viewerId: 'viewer-id',
+    });
+    const view = await render(
+      <ProfileContentListScreen kind="posts" profileId="viewer-id" />,
+    );
+
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Open author profile for creator@example.com',
+      }),
+    );
+
+    expect(mockPushedRoutes).toEqual([profileHref('viewer-id', 'viewer-id')]);
+    await view.unmount();
   });
 
   test('shows viewer owner controls, other report controls, and replay navigation', async () => {

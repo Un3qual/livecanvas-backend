@@ -14,6 +14,7 @@ import { ScreenState } from '../../components/ScreenState';
 import { useAppTheme } from '../../providers/ThemeProvider';
 import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../../relay/privacySensitiveFetch';
 import { readConnectionNodes } from '../../relay/readConnectionNodes';
+import { profileHref } from '../../profile/profileNavigation';
 import { spacing, typography } from '../../theme/tokens';
 import { ContentMediaAssetView } from '../ContentMediaAssetView';
 import type { ContentPost } from '../ContentPostCard';
@@ -103,6 +104,7 @@ function StoryViewerContent({
     { ...PRIVACY_SENSITIVE_FETCH_OPTIONS, fetchKey: queryFetchKey },
   );
   const selectedNode = data.node?.__typename === 'Post' ? data.node : null;
+  const viewerId = data.viewer?.id ?? null;
   const storyFeed = useCompleteStoryFeed({
     initialData: data,
     relayEnvironment,
@@ -120,8 +122,9 @@ function StoryViewerContent({
     selectedStory: selectedNode,
     selectedStoryId: storyId,
   });
+  const selectedStory = state.selectedStory;
 
-  if (!state.selectedStory) {
+  if (!selectedStory) {
     return (
       <ScreenState
         actionLabel="Close story"
@@ -132,7 +135,7 @@ function StoryViewerContent({
     );
   }
 
-  const presentation = formatPostCardPresentation(state.selectedStory);
+  const presentation = formatPostCardPresentation(selectedStory);
 
   return (
     <ScrollView
@@ -155,6 +158,14 @@ function StoryViewerContent({
         eyebrow="Story"
         subtitle={presentation.timestampLabel}
         title={presentation.author.title}
+      />
+
+      <AppButton
+        label="View author profile"
+        onPress={() =>
+          router.push(profileHref(selectedStory.author.id, viewerId))
+        }
+        variant="secondary"
       />
 
       <Text style={[styles.body, { color: theme.colors.text }]}>

@@ -109,6 +109,47 @@ describe('ContentPostCard with shared controls', () => {
     );
   });
 
+  test('opens the author profile with the opaque author ID', async () => {
+    const user = userEvent.setup();
+    const onOpenAuthor = jest.fn();
+    const post = contentPost({
+      authorId: 'opaque-author-id',
+      id: 'opaque-post-id',
+    });
+
+    await render(
+      <Harness
+        onOpenAuthor={onOpenAuthor}
+        post={post}
+        viewerId="viewer-id"
+      />,
+    );
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Open author profile for creator@example.com',
+      }),
+    );
+
+    expect(onOpenAuthor).toHaveBeenCalledWith('opaque-author-id');
+  });
+
+  test('distinguishes fallback author actions by opaque profile ID', async () => {
+    await render(<FallbackAuthorCollection />);
+
+    expect(screen.getByText('Profile ID VXNlcjox')).toBeOnTheScreen();
+    expect(screen.getByText('Profile ID VXNlcjoxMA==')).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', {
+        name: 'Open author profile for LiveCanvas user, Profile ID VXNlcjox',
+      }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', {
+        name: 'Open author profile for LiveCanvas user, Profile ID VXNlcjoxMA==',
+      }),
+    ).toBeOnTheScreen();
+  });
+
   test('keeps controller action identity stable while edit state changes', async () => {
     const user = userEvent.setup();
     const onActions = jest.fn();
@@ -234,12 +275,43 @@ function ReportCollection() {
     <>
       <ContentPostCard
         controls={controls}
+        onOpenAuthor={() => undefined}
         post={contentPost({ authorId: 'other-1', id: 'post-1' })}
         viewerId="viewer-id"
       />
       <ContentPostCard
         controls={controls}
+        onOpenAuthor={() => undefined}
         post={contentPost({ authorId: 'other-2', id: 'post-2' })}
+        viewerId="viewer-id"
+      />
+    </>
+  );
+}
+
+function FallbackAuthorCollection() {
+  const controls = usePostControls({ viewerId: 'viewer-id' });
+
+  return (
+    <>
+      <ContentPostCard
+        controls={controls}
+        onOpenAuthor={() => undefined}
+        post={contentPost({
+          authorEmail: null,
+          authorId: 'VXNlcjox',
+          id: 'post-1',
+        })}
+        viewerId="viewer-id"
+      />
+      <ContentPostCard
+        controls={controls}
+        onOpenAuthor={() => undefined}
+        post={contentPost({
+          authorEmail: null,
+          authorId: 'VXNlcjoxMA==',
+          id: 'post-2',
+        })}
         viewerId="viewer-id"
       />
     </>
@@ -248,10 +320,12 @@ function ReportCollection() {
 
 function Harness({
   onActions,
+  onOpenAuthor = () => undefined,
   post,
   viewerId,
 }: {
   onActions?: (actions: PostControls['actions']) => void;
+  onOpenAuthor?: (authorId: string) => void;
   post: ContentPost;
   viewerId: string;
 }) {
@@ -265,6 +339,7 @@ function Harness({
   return visiblePost ? (
     <ContentPostCard
       controls={controls}
+      onOpenAuthor={onOpenAuthor}
       post={visiblePost}
       viewerId={viewerId}
     />
@@ -274,16 +349,18 @@ function Harness({
 }
 
 function contentPost({
+  authorEmail = 'creator@example.com',
   authorId,
   id,
   mediaAssets = [],
 }: {
+  authorEmail?: string | null;
   authorId: string;
   id: string;
   mediaAssets?: ContentPost['mediaAssets'];
 }): ContentPost {
   return {
-    author: { email: 'creator@example.com', id: authorId },
+    author: { email: authorEmail, id: authorId },
     bodyText: 'Original body',
     expiresAt: null,
     id,

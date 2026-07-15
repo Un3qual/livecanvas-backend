@@ -27,6 +27,7 @@ type ContentSectionBaseProps = {
 
 type ContentPostSectionProps = ContentSectionBaseProps & {
   readonly kind: 'posts';
+  readonly onOpenAuthor: (authorId: string) => void;
   readonly postControls: PostControls;
   readonly posts: ReadonlyArray<ContentPost>;
   readonly viewerId: string | null;
@@ -34,6 +35,7 @@ type ContentPostSectionProps = ContentSectionBaseProps & {
 
 type ContentStorySectionProps = ContentSectionBaseProps & {
   readonly kind: 'stories';
+  readonly onOpenAuthor: (authorId: string) => void;
   readonly onOpenStory: (storyId: string) => void;
   readonly postControls: PostControls;
   readonly posts: ReadonlyArray<ContentPost>;
@@ -112,6 +114,7 @@ function ContentSectionRows(props: ContentSectionProps) {
         <ContentPostCard
           controls={props.postControls}
           key={post.id}
+          onOpenAuthor={props.onOpenAuthor}
           post={post}
           viewerId={props.viewerId}
         />
@@ -122,6 +125,7 @@ function ContentSectionRows(props: ContentSectionProps) {
         <ContentPostCard
           controls={props.postControls}
           key={post.id}
+          onOpenAuthor={props.onOpenAuthor}
           onOpenStory={props.onOpenStory}
           post={post}
           viewerId={props.viewerId}

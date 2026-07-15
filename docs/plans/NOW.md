@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-14
-Status: mobile release-depth complete; operator/device QA pending
+Status: mobile attribution/navigation complete; operator/device QA pending
 
 ## Purpose
 
@@ -11,16 +11,20 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 - Current sequence design:
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
-- Current implementation plan:
-  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- Latest completed implementation:
+  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - Completed milestones: all five release-depth batches are implemented and the
   full local closure matrix passes.
-- Current batch: none; operator/device QA owns the next release gate.
+- Completed batch: post attribution and author-profile navigation in PR #125.
+- Completed design:
+  `docs/superpowers/specs/2026-07-14-mobile-post-attribution-navigation-design.md`
+- Completed plan:
+  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - Sequence design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Batch 2 design:
   `docs/superpowers/specs/2026-07-09-profile-content-surfaces-design.md`
-- Latest completed implementation:
+- Previous completed implementation:
   `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - Batch 3 implementation plan:
   `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
@@ -47,12 +51,11 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: release-depth Batches 1-5 and local closure verification are complete;
-  device/operator QA is pending.
+- State: attribution/navigation is complete; device/operator QA is pending.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: frozen pnpm install, Relay generation, typechecks, lint, 76
-  Vitest files with 563 tests, 27 Jest suites with 182 tests, `nix flake check`,
-  and patch hygiene pass.
+- Verification: Relay generation, typechecks, lint, 77 Vitest files with 567
+  tests, 28 Jest suites with 194 tests, `nix flake check`, and patch hygiene
+  pass.
 
 ## Execution Rule
 

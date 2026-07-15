@@ -6,6 +6,7 @@ import {
   screen,
   userEvent,
   waitFor,
+  within,
 } from '@testing-library/react-native';
 
 import HomeRoute from '../../app/(app)/home';
@@ -18,6 +19,7 @@ import {
   shouldShowFeedHomeHostAction,
 } from '../../src/feed/FeedHomeScreen';
 import { storyHref } from '../../src/content/story/storyNavigation';
+import { profileHref } from '../../src/profile/profileNavigation';
 
 type FeedHomeQueryData = {
   readonly homeFeed: Connection<PostNode> | null;
@@ -294,12 +296,18 @@ describe('FeedHomeScreen with React Native Testing Library', () => {
     expect(screen.getByText('viewer-host@example.com')).toBeOnTheScreen();
     expect(screen.queryByText('Host a live session')).toBeNull();
 
+    await user.press(
+      within(screen.getByTestId('content-section-posts')).getByRole('button', {
+        name: 'Open author profile for creator@example.com',
+      }),
+    );
     await user.press(screen.getByRole('button', { name: 'View story' }));
     await user.press(screen.getByRole('button', { name: 'Watch live' }));
     await user.press(screen.getByRole('button', { name: 'Watch replay' }));
     await user.press(screen.getByRole('button', { name: 'Open session' }));
 
     expect(mockPushedRoutes).toEqual([
+      profileHref('author-1', 'viewer-1'),
       storyHref('story-1'),
       { params: { sessionId: 'live-1' }, pathname: '/live-session' },
       { params: { sessionId: 'replay-1' }, pathname: '/live-session' },

@@ -38,6 +38,7 @@ import { liveSessionHref } from '../live/liveSessionNavigation';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { PRIVACY_SENSITIVE_FETCH_OPTIONS } from '../relay/privacySensitiveFetch';
 import { readConnectionNodes } from '../relay/readConnectionNodes';
+import { profileHref } from '../profile/profileNavigation';
 import { spacing, typography } from '../theme/tokens';
 import {
   FEED_HOME_QUERY_VARIABLES,
@@ -428,6 +429,10 @@ export function FeedHomeContent({ fetchKey = 0 }: { fetchKey?: number }) {
     (sessionId: string) => router.push(liveSessionHref(sessionId)),
     [router],
   );
+  const openAuthor = useCallback(
+    (authorId: string) => router.push(profileHref(authorId, viewerId)),
+    [router, viewerId],
+  );
   const openStory = useCallback(
     (storyId: string) => router.push(storyHref(storyId)),
     [router],
@@ -670,6 +675,7 @@ export function FeedHomeContent({ fetchKey = 0 }: { fetchKey?: number }) {
         emptyMessage="No stories are available yet."
         kind="stories"
         loadMore={storiesLoadMoreControl}
+        onOpenAuthor={openAuthor}
         onOpenStory={openStory}
         postControls={postControls}
         posts={applyContentPostChanges(
@@ -684,6 +690,7 @@ export function FeedHomeContent({ fetchKey = 0 }: { fetchKey?: number }) {
         emptyMessage="No feed posts are available yet."
         kind="posts"
         loadMore={homeFeedLoadMoreControl}
+        onOpenAuthor={openAuthor}
         postControls={postControls}
         posts={applyContentPostChanges(
           contentPosts,

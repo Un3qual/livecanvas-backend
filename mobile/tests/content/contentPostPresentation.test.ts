@@ -32,9 +32,9 @@ describe('contentPostPresentation', () => {
       timestampLabel: 'Jun 30, 2026',
       storyExpiryLabel: null,
       author: {
-        title: 'LiveCanvas creator',
-        subtitle: 'Creator',
-        initials: 'LC',
+        title: 'creator@example.com',
+        subtitle: 'Signed in with email',
+        initials: 'C',
       },
       mediaAssets: [],
     });
@@ -61,8 +61,8 @@ describe('contentPostPresentation', () => {
       timestampLabel: 'Jun 30, 2026',
       storyExpiryLabel: 'Expires Jul 1, 2026',
       author: {
-        title: 'LiveCanvas creator',
-        subtitle: 'Creator',
+        title: 'LiveCanvas user',
+        subtitle: 'Profile ID VXNlcjoy',
         initials: 'LC',
       },
       mediaAssets: [],
@@ -92,8 +92,8 @@ describe('contentPostPresentation', () => {
       timestampLabel: 'Date unavailable',
       storyExpiryLabel: 'Expiry unavailable',
       author: {
-        title: 'LiveCanvas creator',
-        subtitle: 'Creator',
+        title: 'LiveCanvas user',
+        subtitle: 'Profile ID VXNlcjoz',
         initials: 'LC',
       },
       mediaAssets: [],
@@ -208,11 +208,14 @@ describe('contentPostPresentation', () => {
 
   test('formats author, visibility, and story expiry labels independently', () => {
     expect(
-      formatPostAuthorPresentation(),
+      formatPostAuthorPresentation({
+        id: 'opaque-author-id',
+        email: 'author@example.com',
+      }),
     ).toEqual({
-      title: 'LiveCanvas creator',
-      subtitle: 'Creator',
-      initials: 'LC',
+      title: 'author@example.com',
+      subtitle: 'Signed in with email',
+      initials: 'A',
     });
 
     expect(formatPostVisibilityLabel('PUBLIC')).toBe('Public');

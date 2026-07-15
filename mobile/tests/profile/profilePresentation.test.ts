@@ -31,17 +31,28 @@ describe('profilePresentation', () => {
     ).toBe('I');
   });
 
-  test('falls back to an opaque profile label when email is unavailable', () => {
-    expect(
+  test('keeps fallback labels unique when opaque IDs share a prefix', () => {
+    expect([
       formatProfileIdentity({
-        id: 'VXNlcjoxMjM0NTY3ODkw',
+        id: 'VXNlcjox',
         email: null,
       }),
-    ).toEqual({
-      title: 'LiveCanvas user',
-      subtitle: 'Profile ID VXNlcjox',
-      initials: 'LC',
-    });
+      formatProfileIdentity({
+        id: 'VXNlcjoxMA==',
+        email: null,
+      }),
+    ]).toEqual([
+      {
+        title: 'LiveCanvas user',
+        subtitle: 'Profile ID VXNlcjox',
+        initials: 'LC',
+      },
+      {
+        title: 'LiveCanvas user',
+        subtitle: 'Profile ID VXNlcjoxMA==',
+        initials: 'LC',
+      },
+    ]);
   });
 
   test('formats known privacy modes and keeps unknown modes explicit', () => {

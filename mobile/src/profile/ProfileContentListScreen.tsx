@@ -50,6 +50,7 @@ import {
   type ProfileContentData,
   type ProfileContentQuery,
 } from './profileContentOperations';
+import { profileHref } from './profileNavigation';
 
 type ProfileContentRow = ContentPost | LiveSessionSummary;
 
@@ -262,6 +263,10 @@ function ProfileContentListConnection({
     (storyId: string) => router.push(storyHref(storyId)),
     [router],
   );
+  const openAuthor = useCallback(
+    (authorId: string) => router.push(profileHref(authorId, viewerId)),
+    [router, viewerId],
+  );
 
   const renderRow = useCallback(
     ({ item }: ListRenderItemInfo<ProfileContentRow>) => {
@@ -282,6 +287,7 @@ function ProfileContentListConnection({
           <View style={styles.section}>
             <ContentPostCard
               controls={postControls}
+              onOpenAuthor={openAuthor}
               onOpenStory={kind === 'stories' ? openStory : undefined}
               post={item}
               viewerId={viewerId}
@@ -292,7 +298,7 @@ function ProfileContentListConnection({
 
       return null;
     },
-    [kind, openStory, postControls, router, viewerId],
+    [kind, openAuthor, openStory, postControls, router, viewerId],
   );
 
   return (

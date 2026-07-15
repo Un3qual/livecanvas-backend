@@ -30,6 +30,7 @@ import {
   profileContentHref,
   type ProfileContentScope,
 } from './profileContentRouteParams';
+import { profileHref } from './profileNavigation';
 
 type ProfileContentPreviewSectionsProps = {
   readonly profileId: string;
@@ -81,6 +82,10 @@ function ProfileContentPreviewContent({
   );
   const viewerId = data.viewer?.id ?? null;
   const postControls = usePostControls({ viewerId });
+  const openAuthor = useCallback(
+    (authorId: string) => router.push(profileHref(authorId, viewerId)),
+    [router, viewerId],
+  );
   const openStory = useCallback(
     (storyId: string) => router.push(storyHref(storyId)),
     [router],
@@ -106,6 +111,7 @@ function ProfileContentPreviewContent({
       <ContentSection
         emptyMessage="No visible posts yet."
         kind="posts"
+        onOpenAuthor={openAuthor}
         onViewAll={() => router.push(profileContentHref(profileId, 'posts', scope))}
         postControls={postControls}
         posts={posts}
@@ -115,6 +121,7 @@ function ProfileContentPreviewContent({
       <ContentSection
         emptyMessage="No active stories yet."
         kind="stories"
+        onOpenAuthor={openAuthor}
         onOpenStory={openStory}
         onViewAll={() =>
           router.push(profileContentHref(profileId, 'stories', scope))
