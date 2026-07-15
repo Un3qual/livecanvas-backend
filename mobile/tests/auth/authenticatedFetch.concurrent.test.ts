@@ -25,15 +25,6 @@ function returnUndefined(): undefined {
   return undefined;
 }
 
-function createDeferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void;
-  const promise = new Promise<T>((resolvePromise) => {
-    resolve = resolvePromise;
-  });
-
-  return { promise, resolve };
-}
-
 async function waitFor(predicate: () => boolean, label: string): Promise<void> {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     if (predicate()) return;
@@ -62,7 +53,7 @@ describe('createAuthenticatedFetch', () => {
       expiresAt: '2026-04-15T00:00:00.000Z',
     };
 
-    const loadTokensDeferred = createDeferred<typeof initialTokens | null>();
+    const loadTokensDeferred = Promise.withResolvers<typeof initialTokens | null>();
     let storedTokens: typeof initialTokens | null = initialTokens;
     const loadTokens = vi.fn(() => loadTokensDeferred.promise);
     const storeTokens = vi.fn((pair) => {
@@ -80,7 +71,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    const refreshResponse = createDeferred<Response>();
+    const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
     globalThis.fetch = vi.fn((_url, init) => {
@@ -183,8 +174,8 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    const deferredRefresh = createDeferred<Response>();
-    const deferredSecondOriginal = createDeferred<Response>();
+    const deferredRefresh = Promise.withResolvers<Response>();
+    const deferredSecondOriginal = Promise.withResolvers<Response>();
     const refreshTokensUsed: string[] = [];
     let staleAccessRequests = 0;
 
@@ -300,7 +291,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    const refreshResponse = createDeferred<Response>();
+    const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
     globalThis.fetch = vi.fn((_url, init) => {
@@ -469,7 +460,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    const response = createDeferred<Response>();
+    const response = Promise.withResolvers<Response>();
     globalThis.fetch = vi.fn((_url, init) => {
       const authHeader = (init?.headers as Record<string, string>)?.Authorization ?? null;
 
@@ -537,7 +528,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    const refreshResponse = createDeferred<Response>();
+    const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
     globalThis.fetch = vi.fn((_url, init) => {
@@ -704,7 +695,7 @@ describe('createAuthenticatedFetch', () => {
 
     const { createAuthenticatedFetch } = await importAuthenticatedFetchModule();
 
-    const refreshResponse = createDeferred<Response>();
+    const refreshResponse = Promise.withResolvers<Response>();
     let refreshCalls = 0;
 
     globalThis.fetch = vi.fn((_url, init) => {

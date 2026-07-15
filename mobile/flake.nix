@@ -15,11 +15,18 @@
       ];
 
       forAllSystems = nixpkgs.lib.genAttrs systems;
+      pnpmFor = pkgs:
+        pkgs.pnpm_10.override {
+          version = "10.32.1";
+          hash = "sha256-m5Q7lLyPVe+5k6rY5EtTjmsJHmCp5KlE3N6GmFXyM+M=";
+          nodejs-slim = pkgs.nodejs-slim_26;
+        };
     in
     {
       apps = forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };
+          pnpm = pnpmFor pkgs;
         in
         {
           pnpm = {
@@ -31,11 +38,12 @@
       devShells = forAllSystems (system:
         let
           pkgs = import nixpkgs { inherit system; };
+          pnpm = pnpmFor pkgs;
         in
         {
           default = pkgs.mkShellNoCC {
-            packages = with pkgs; [
-              nodejs_20
+            packages = [
+              pkgs.nodejs_26
               pnpm
             ];
 
