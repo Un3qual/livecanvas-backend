@@ -79,15 +79,15 @@ becomes a session-scoped `number | null` passed to `LiveSessionHero`.
 increasing `resumeGeneration`. Playback sync accepts `isAppActive`; the watch
 channel effect depends on the same state.
 
-- [ ] Add failing lifecycle tests for active-to-background-to-active and
+- [x] Add failing lifecycle tests for active-to-background-to-active and
   duplicate/noisy AppState events.
-- [ ] Add failing playback/channel tests proving suspension disposes transient
+- [x] Add failing playback/channel tests proving suspension disposes transient
   resources, resume starts one fresh generation, and no join/leave mutation is
   issued.
-- [ ] Implement app-state gating, pending-send cancellation, network-only
+- [x] Implement app-state gating, pending-send cancellation, network-only
   refetch on resume, and generation-safe playback restart.
-- [ ] Run all focused live watch, playback, chat lifecycle, and app-state tests.
-- [ ] Commit `feat: recover live sessions after app resume`.
+- [x] Run all focused live watch, playback, chat lifecycle, and app-state tests.
+- [x] Commit `feat: recover live sessions after app resume`.
 
 ### Task 4: Post And Story Media Rendering
 

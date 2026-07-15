@@ -169,6 +169,7 @@ function createHarness() {
   ) {
     return controller.syncViewerPlayback({
       authStatus: 'authenticated',
+      isAppActive: true,
       isJoined: true,
       isLeaving: false,
       liveSessionId: 'session-1',
@@ -314,6 +315,7 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
 
     firstLifecycle.syncViewerPlayback({
       authStatus: 'authenticated',
+      isAppActive: true,
       isJoined: true,
       isLeaving: false,
       liveSessionId: 'session-1',
@@ -388,6 +390,7 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
 
     firstLifecycle.syncViewerPlayback({
       authStatus: 'authenticated',
+      isAppActive: true,
       isJoined: true,
       isLeaving: false,
       liveSessionId: 'session-1',
@@ -428,6 +431,7 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
 
     rerenderLifecycle.syncViewerPlayback({
       authStatus: 'authenticated',
+      isAppActive: true,
       isJoined: true,
       isLeaving: false,
       liveSessionId: 'session-2',
@@ -557,6 +561,25 @@ describe('useLiveSessionViewerPlaybackController lifecycle', () => {
     expect(harness.runtimes[1].disposeCount).toBe(1);
     expect(harness.sockets[1].disconnectCount).toBe(1);
     expect(harness.state).toEqual(harness.initialState);
+  });
+
+  test('backgrounding suspends playback and one resume starts one fresh generation', () => {
+    const harness = createHarness();
+
+    harness.sync();
+    harness.completePrepare();
+    expect(harness.commits).toHaveLength(1);
+
+    harness.sync({ isAppActive: false });
+
+    expect(harness.runtimes[0].disposeCount).toBe(1);
+    expect(harness.sockets[0].disconnectCount).toBe(1);
+    expect(harness.state).toEqual(harness.initialState);
+
+    harness.sync({ isAppActive: true });
+
+    expect(harness.commits).toHaveLength(2);
+    expect(harness.commits[1].variables.input.liveSessionId).toBe('session-1');
   });
 
   test('unmount disposes playback and ignores later async callbacks', () => {

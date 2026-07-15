@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-14
-Status: release-depth Batch 3 app-lifecycle recovery active
+Status: release-depth Batch 4 content media rendering active
 
 ## Lane Scope
 
@@ -15,14 +15,16 @@ Status: release-depth Batch 3 app-lifecycle recovery active
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
 - Source plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Current scope: Batch 3 suspends transient viewer playback and realtime/chat
-  resources while backgrounded, then refetches and reconnects once on resume.
-- Write scope: `mobile/src/live/watch/**`, `mobile/tests/live/**`, and this lane
+- Current scope: Batch 4 renders validated processed image and video assets in
+  post/story cards while preserving processing, failure, and invalid-URL states.
+- Write scope: `mobile/src/content/**`, `mobile/tests/content/**`, mobile package
+  metadata, and this lane pointer. Promote backend work only if a focused
+  contract test fails.
   pointer. Promote backend work only if a focused contract test fails.
-- Done condition: app-state noise cannot duplicate recovery, backgrounding does
-  not issue durable leave, and foreground recovery is generation-safe.
-- Verification: focused app-state, playback, chat lifecycle, and watch-screen
-  suites plus mobile typechecks, lint, and patch hygiene.
+- Done condition: processed images and videos render through shared components,
+  load failures fall back safely, and unnormalized URLs never reach native UI.
+- Verification: focused content RNTL suites, mobile typechecks, lint, frozen
+  pnpm install, and patch hygiene.
 
 ## Deferred Scope
 
@@ -31,5 +33,5 @@ Status: release-depth Batch 3 app-lifecycle recovery active
 
 ## Next Action
 
-Execute Batch 3. After its milestone commit, advance this pointer to Batch 4
-post and story media rendering.
+Execute Batch 4. After its milestone commit, advance this pointer to Batch 5
+dedicated story viewer.

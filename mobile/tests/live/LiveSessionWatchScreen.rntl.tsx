@@ -34,6 +34,9 @@ let mockChatPanelProps: ChatPanelProps | null;
 let mockSessionStatus: 'ENDED' | 'LIVE';
 let mockQueryData: ReturnType<typeof createQueryData>;
 let mockIsJoined: boolean;
+let mockAppState: { isActive: boolean; resumeGeneration: number };
+let mockPlaybackControllerInputs: Array<{ isAppActive: boolean }>;
+let mockResumeFetches: unknown[][];
 let mockSessionStateCallbacks: Array<
   (event: { status: 'ENDED' | 'LIVE'; viewerCount: number }) => void
 >;
@@ -87,11 +90,22 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('react-relay', () => ({
-  fetchQuery: () => ({ toPromise: () => Promise.resolve(null) }),
+  fetchQuery: (...args: unknown[]) => {
+    mockResumeFetches.push(args);
+
+    return {
+      subscribe: () => ({ unsubscribe: jest.fn() }),
+      toPromise: () => Promise.resolve(null),
+    };
+  },
   graphql: jest.fn((query: TemplateStringsArray) => query.join('')),
   useLazyLoadQuery: () => mockQueryData,
   useMutation: () => [jest.fn(), false],
   useRelayEnvironment: () => ({}),
+}));
+
+jest.mock('../../src/live/watch/liveSessionAppState', () => ({
+  useLiveSessionAppState: () => mockAppState,
 }));
 
 jest.mock('../../src/auth/AuthProvider', () => ({
@@ -212,11 +226,17 @@ jest.mock('../../src/live/watch/hooks/useLiveSessionWatchController', () => ({
 jest.mock(
   '../../src/live/watch/hooks/useLiveSessionViewerPlaybackController',
   () => ({
-    useLiveSessionViewerPlaybackController: () => ({
-      retryViewerPlayback: jest.fn(),
-      stopViewerPlayback: jest.fn(),
-      viewerPlaybackState: { status: 'idle' },
-    }),
+    useLiveSessionViewerPlaybackController: (input: {
+      isAppActive: boolean;
+    }) => {
+      mockPlaybackControllerInputs.push(input);
+
+      return {
+        retryViewerPlayback: jest.fn(),
+        stopViewerPlayback: jest.fn(),
+        viewerPlaybackState: { status: 'idle' },
+      };
+    },
   }),
 );
 
@@ -226,6 +246,9 @@ beforeEach(() => {
   mockSessionStatus = 'LIVE';
   mockQueryData = createQueryData(mockSessionStatus);
   mockIsJoined = false;
+  mockAppState = { isActive: true, resumeGeneration: 0 };
+  mockPlaybackControllerInputs = [];
+  mockResumeFetches = [];
   mockSessionStateCallbacks = [];
   jest.clearAllMocks();
 });
@@ -349,6 +372,43 @@ describe('LiveSessionWatchScreen audience count', () => {
       mockSessionStateCallbacks[1]?.({ status: 'LIVE', viewerCount: 2 });
     });
     expect(screen.getByText('2 viewers')).toBeOnTheScreen();
+  });
+});
+
+describe('LiveSessionWatchScreen app lifecycle recovery', () => {
+  test('suspends transient work in background and refetches once on resume without leaving', async () => {
+    mockIsJoined = true;
+    const view = await render(
+      <LiveSessionWatchScreen sessionId="session-1" />,
+    );
+
+    await waitFor(() => {
+      expect(mockSessionStateCallbacks).toHaveLength(1);
+    });
+    expect(mockPlaybackControllerInputs.at(-1)).toMatchObject({
+      isAppActive: true,
+    });
+    expect(mockResumeFetches).toHaveLength(0);
+
+    mockAppState = { isActive: false, resumeGeneration: 0 };
+    await view.rerender(<LiveSessionWatchScreen sessionId="session-1" />);
+
+    expect(mockPlaybackControllerInputs.at(-1)).toMatchObject({
+      isAppActive: false,
+    });
+    expect(mockWatchControllerFunctions.requestLeave).not.toHaveBeenCalled();
+
+    mockAppState = { isActive: true, resumeGeneration: 1 };
+    await view.rerender(<LiveSessionWatchScreen sessionId="session-1" />);
+
+    await waitFor(() => {
+      expect(mockSessionStateCallbacks).toHaveLength(2);
+      expect(mockResumeFetches).toHaveLength(1);
+    });
+    expect(mockPlaybackControllerInputs.at(-1)).toMatchObject({
+      isAppActive: true,
+    });
+    expect(mockWatchControllerFunctions.requestLeave).not.toHaveBeenCalled();
   });
 });
 

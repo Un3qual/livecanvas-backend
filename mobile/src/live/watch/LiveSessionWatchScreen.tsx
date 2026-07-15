@@ -74,6 +74,7 @@ import {
   type LiveSessionOlderTimelinePageLoaderLifecycle,
 } from './hooks/useLiveSessionWatchController';
 import { useLiveSessionViewerPlaybackController } from './hooks/useLiveSessionViewerPlaybackController';
+import { useLiveSessionAppState } from './liveSessionAppState';
 import {
   liveSessionWatchScreenEndMutation,
   liveSessionWatchScreenJoinMutation,
@@ -182,6 +183,8 @@ function LiveSessionWatchContent({
   const { environment } = useStartupState();
   const relayEnvironment = useRelayEnvironment();
   const hostPublishingSessions = useHostBroadcastPublishingSessions();
+  const { isActive: isAppActive, resumeGeneration } =
+    useLiveSessionAppState();
   const data = useLazyLoadQuery<LiveSessionWatchScreenQuery>(
     liveSessionWatchScreenQuery,
     {
@@ -389,12 +392,13 @@ function LiveSessionWatchContent({
     hasRetainedHostPublishingSession,
     isJoined,
   });
-  const shouldMaintainSessionRealtimeChannel = canUseChat;
+  const shouldMaintainSessionRealtimeChannel = canUseChat && isAppActive;
   const { retryViewerPlayback, stopViewerPlayback, viewerPlaybackState } =
     useLiveSessionViewerPlaybackController({
       authStatus: auth.state.status,
       commitPrepareLiveSessionMedia,
       getAccessToken: auth.getAccessToken,
+      isAppActive,
       isJoined,
       isLeaving,
       liveSessionId: activeLiveSessionId,
@@ -403,6 +407,31 @@ function LiveSessionWatchContent({
     });
 
   stopViewerPlaybackRef.current = stopViewerPlayback;
+
+  useEffect(() => {
+    if (!isAppActive || resumeGeneration === 0) {
+      return undefined;
+    }
+
+    // Refresh session truth after the OS may have suspended network work. The
+    // existing screen stays mounted if this best-effort recovery request fails.
+    const subscription = fetchQuery<LiveSessionWatchScreenQuery>(
+      relayEnvironment,
+      liveSessionWatchScreenQuery,
+      {
+        id: sessionId,
+        timelineBefore: null,
+        timelineLast: INITIAL_TIMELINE_HISTORY_COUNT,
+      },
+      { fetchPolicy: 'network-only' },
+    ).subscribe({
+      error: () => undefined,
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [isAppActive, relayEnvironment, resumeGeneration, sessionId]);
 
   const sendChatChannelEvent = useCallback(
     (event: LiveSessionChatChannelMachineEvent) => {
