@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-14
-Status: local release gates complete; operator/device QA pending
+Status: post attribution and author navigation active
 
 ## Lane Scope
 
@@ -9,28 +9,33 @@ Status: local release gates complete; operator/device QA pending
 - Consume explicitly promoted backend contracts recorded in the backend lane.
 - Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Completed Batch
+## Current Batch
 
 - Design:
-  `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
+  `docs/superpowers/specs/2026-07-14-mobile-post-attribution-navigation-design.md`
 - Source plan:
-  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Completed scope: host local preview, live audience count, foreground/background
-  live-session recovery, post/story media rendering, and a dedicated story
-  viewer.
-- Local verification passed: frozen install, Relay generation, typechecks,
-  lint, automated tests, Nix flake checks, and patch hygiene.
-- No implementation batch is active. Local evidence does not complete the
-  physical-device or target-environment checks.
+  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
+- Write scope: post identity presentation, shared profile routing, Home/profile
+  content author actions, dedicated story-viewer author navigation, generated
+  Relay artifacts, and mobile lane documentation.
+- Done condition: privacy-safe attribution replaces the generic creator copy,
+  every post/story surface reaches self or other profiles through opaque Relay
+  IDs, and the full local mobile closure matrix passes.
+- Operator/device QA remains pending and is not completed by this batch.
 
 ## Deferred Scope
 
 - Native address-book import, bulk contact upload, multi-viewer scale, store
   submission, and other checklist-deferred follow-up remain out of scope.
 
+## Verification
+
+- Focused identity/navigation Vitest and content-surface RNTL suites.
+- Relay generation, both TypeScript checks, lint, full mobile automated tests,
+  `nix flake check`, and patch hygiene.
+
 ## Next Action
 
-The release operator should satisfy the target-environment inventory and run
-the physical-device QA in
-`docs/plans/mobile/2026-06-25-release-candidate-checklist.md`. Promote any
-reproduced defect into the owning lane before starting another feature batch.
+Execute Task 1 from the source plan. After batch closure, resume the
+target-environment inventory and physical-device QA in
+`docs/plans/mobile/2026-06-25-release-candidate-checklist.md`.

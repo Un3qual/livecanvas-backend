@@ -11,10 +11,12 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: mobile release-depth sequence complete; operator/device QA pending
+- Track state: post attribution and author navigation active; operator/device QA follows
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- Active implementation plan:
+  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - Current gate:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Current release-depth design:
@@ -134,10 +136,16 @@ and content discovery, live streaming, and chat.
 32. Foreground/background live-session recovery.
 33. Post and story media rendering.
 34. Dedicated story viewer.
+35. Post attribution and author-profile navigation.
 
 ## Active Gate And Completed Follow-Up Plans
 
-Active release gate:
+Active implementation batch:
+
+- `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
+- Status: active; use existing author identity data and opaque profile routes.
+
+Following release gate:
 
 - `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Status: active; begin with local entry gates, then record manual device QA.
@@ -156,8 +164,8 @@ Recently completed product batch:
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
 The prior product follow-up plans and approved release-depth sequence are
-complete. Operator/device QA now resumes from the release-candidate checklist;
-any reproduced defect should be promoted into its owning lane.
+complete. Close the active attribution/navigation batch before operator/device
+QA resumes from the release-candidate checklist.
 
 ## Shared Constraints
 

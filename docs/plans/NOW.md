@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-14
-Status: mobile release-depth complete; operator/device QA pending
+Status: mobile post attribution and author navigation active
 
 ## Purpose
 
@@ -15,7 +15,11 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Completed milestones: all five release-depth batches are implemented and the
   full local closure matrix passes.
-- Current batch: none; operator/device QA owns the next release gate.
+- Current batch: post attribution and author-profile navigation.
+- Current design:
+  `docs/superpowers/specs/2026-07-14-mobile-post-attribution-navigation-design.md`
+- Current plan:
+  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - Sequence design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Batch 2 design:
@@ -47,8 +51,8 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: release-depth Batches 1-5 and local closure verification are complete;
-  device/operator QA is pending.
+- State: attribution/navigation is active; device/operator QA follows batch
+  closure.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: frozen pnpm install, Relay generation, typechecks, lint, 76
   Vitest files with 563 tests, 27 Jest suites with 182 tests, `nix flake check`,
@@ -56,9 +60,8 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Execution Rule
 
-Do not start another implementation batch until device/operator QA reproduces a
-defect or the coordinator explicitly promotes new work. Do not mark operator or
-physical-device QA complete from local evidence.
+Execute the active mobile source plan. Do not mark operator or physical-device
+QA complete from local evidence and do not run remote EAS commands.
 
 ## Cross-Lane Policy
 
@@ -68,8 +71,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-The release operator should confirm the target-environment inventory and run
-the physical-device checklist. Promote reproduced defects to the owning lane.
+Complete the attribution/navigation batch, then return the mobile lane to the
+target-environment inventory and physical-device checklist.
 
 ## Repair Conditions
 
