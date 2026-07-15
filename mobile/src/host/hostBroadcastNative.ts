@@ -32,6 +32,7 @@ export type HostBroadcastMediaTrack = Readonly<{
 
 export type HostBroadcastMediaStream = Readonly<{
   getTracks?: () => ReadonlyArray<HostBroadcastMediaTrack>;
+  toURL?: () => string;
 }>;
 
 type HostBroadcastMediaDevices =
@@ -60,6 +61,19 @@ export function normalizeHostBroadcastPermission(
       return value;
     default:
       return 'unknown';
+  }
+}
+
+export function readHostBroadcastPreviewStreamUrl(
+  stream: HostBroadcastMediaStream | null,
+): string | null {
+  try {
+    const streamUrl = stream?.toURL?.().trim();
+    return streamUrl ? streamUrl : null;
+  } catch {
+    // A native stream can be disposed between readiness and rendering. Treat
+    // that race as an unavailable preview instead of failing preflight.
+    return null;
   }
 }
 

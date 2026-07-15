@@ -17,6 +17,7 @@ export type LiveWebRtcPeerConnectionFactory<
 > = (config: PeerConnectionConfig) => PeerConnection;
 
 export type LiveWebRtcRTCViewProps = {
+  readonly mirror?: boolean;
   readonly objectFit?: 'contain' | 'cover';
   readonly streamURL: string;
   readonly style?: unknown;

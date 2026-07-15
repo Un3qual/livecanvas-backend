@@ -34,19 +34,19 @@ Channels, XState, react-native-webrtc, pnpm, Vitest, Jest/RNTL.
 - Create: `mobile/src/host/preflight/components/HostPreviewCard.tsx`
 - Test: `mobile/tests/host/hostBroadcastNative.test.ts`
 - Test: `mobile/tests/host/useHostBroadcastPreflightController.test.ts`
-- Test: `mobile/tests/host/HostBroadcastPreflightScreen.rntl.tsx`
+- Test: `mobile/tests/host/HostPreviewCard.rntl.tsx`
 
 **Interfaces:** `HostBroadcastMediaStream.toURL?(): string` feeds a nullable
 `previewStreamUrl` controller result; `HostPreviewCard` receives only that URL
 and readiness state.
 
-- [ ] Add a failing native/controller test proving the cached preview stream
+- [x] Add a failing native/controller test proving the cached preview stream
   supplies one URL without a second `getUserMedia` call.
-- [ ] Add a failing RNTL test for ready and unavailable preview presentation.
-- [ ] Implement the stream URL/controller/card path with stale async result and
+- [x] Add a failing RNTL test for ready and unavailable preview presentation.
+- [x] Implement the stream URL/controller/card path with stale async result and
   cleanup guards.
-- [ ] Run `pnpm exec vitest run tests/host/hostBroadcastNative.test.ts tests/host/useHostBroadcastPreflightController.test.ts` and `pnpm exec jest --config ./jest.config.js --runInBand tests/host/HostBroadcastPreflightScreen.rntl.tsx`.
-- [ ] Commit `feat: show host camera preview`.
+- [x] Run `pnpm exec vitest run tests/host/hostBroadcastNative.test.ts tests/host/useHostBroadcastPreflightController.test.ts` and `pnpm exec jest --config ./jest.config.js --runInBand tests/host/HostPreviewCard.rntl.tsx`.
+- [x] Commit `feat: show host camera preview`.
 
 ### Task 2: Live Audience Count
 

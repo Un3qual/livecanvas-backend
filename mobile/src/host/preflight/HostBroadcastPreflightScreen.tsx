@@ -14,6 +14,7 @@ import {
   HostControlsCard,
   PreflightReadinessCard,
 } from './components/HostPreflightCards';
+import { HostPreviewCard } from './components/HostPreviewCard';
 import {
   hostBroadcastPreflightScreenEndMutation,
   hostBroadcastPreflightScreenGoLiveMutation,
@@ -91,6 +92,8 @@ export function HostBroadcastPreflightScreen() {
         title="Host live session"
         subtitle="Check camera, microphone, and media readiness before going live."
       />
+
+      <HostPreviewCard {...controller.previewCardProps} />
 
       <PreflightReadinessCard {...controller.readinessCardProps} />
 

@@ -17,6 +17,7 @@ import {
 } from '../../hostBroadcastMediaSignaling';
 import {
   createHostBroadcastNative,
+  readHostBroadcastPreviewStreamUrl,
   type HostBroadcastNative,
 } from '../../hostBroadcastNative';
 import {
@@ -44,6 +45,7 @@ import type {
   HostBroadcastControlsCardProps,
   HostBroadcastPreflightReadinessCardProps,
 } from '../components/HostPreflightCards';
+import type { HostPreviewCardProps } from '../components/HostPreviewCard';
 import {
   useHostBroadcastPublishingController,
   type HostBroadcastPublishingStatus,
@@ -79,9 +81,17 @@ export type HostBroadcastPreflightController = {
   readonly handleNavigationRemovalAttempt: (
     continueNavigation: () => void,
   ) => void;
+  readonly previewCardProps: HostPreviewCardProps;
   readonly readinessCardProps: HostBroadcastPreflightReadinessCardProps;
   readonly shouldPreventNavigationRemoval: boolean;
 };
+
+export async function loadHostBroadcastPreviewStreamUrl(
+  native: Pick<HostBroadcastNative, 'getPreviewStream'>,
+): Promise<string | null> {
+  const previewStream = await native.getPreviewStream();
+  return readHostBroadcastPreviewStreamUrl(previewStream);
+}
 
 export type HostBroadcastPreflightControllerOptions = {
   readonly authStatus: AuthState['status'];
@@ -621,6 +631,7 @@ export function useHostBroadcastPreflightController({
     useState<HostBroadcastMediaPreparation | null>(null);
   const [publishingStatus, setPublishingStatus] =
     useState<HostBroadcastPublishingStatus>('idle');
+  const [previewStreamUrl, setPreviewStreamUrl] = useState<string | null>(null);
   const hasRetainedHostPublishingResourceRef = useRef(false);
   const retainedHostPublishingResourceRef =
     useRef<HostBroadcastPublishingResource | null>(null);
@@ -748,10 +759,16 @@ export function useHostBroadcastPreflightController({
         permissions.camera === 'granted' && permissions.microphone === 'granted'
           ? await native.preparePreview()
           : { status: 'native_media_unavailable' as const };
+      const nextPreviewStreamUrl =
+        preview.status === 'native_media_ready'
+          ? await loadHostBroadcastPreviewStreamUrl(native)
+          : null;
 
       if (!isMounted) {
         return;
       }
+
+      setPreviewStreamUrl(nextPreviewStreamUrl);
 
       preflightLifecycle.sendWorkflowEvent({
         permission: 'camera',
@@ -774,6 +791,7 @@ export function useHostBroadcastPreflightController({
         return;
       }
 
+      setPreviewStreamUrl(null);
       preflightLifecycle.sendWorkflowEvent({
         ready: false,
         type: 'NATIVE_MEDIA_CHANGED',
@@ -810,6 +828,10 @@ export function useHostBroadcastPreflightController({
       preflightState,
       publishingStatus,
       sessionState,
+    },
+    previewCardProps: {
+      nativeMediaReady: preflightState.nativeMediaReady,
+      previewStreamUrl,
     },
     shouldPreventNavigationRemoval:
       preflightLifecycle.shouldPreventNavigationRemoval(),

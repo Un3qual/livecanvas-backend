@@ -37,6 +37,24 @@ export const hostBroadcastPreflightScreenStyles = StyleSheet.create({
   },
   badgeText: typography.label,
   bodyText: typography.body,
+  previewFrame: {
+    alignItems: 'center',
+    aspectRatio: 16 / 9,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    width: '100%',
+  },
+  previewVideo: {
+    height: '100%',
+    width: '100%',
+  },
+  previewFallback: {
+    ...typography.body,
+    padding: spacing.lg,
+    textAlign: 'center',
+  },
   errorText: {
     ...typography.body,
     fontSize: 14,
@@ -46,4 +64,3 @@ export const hostBroadcastPreflightScreenStyles = StyleSheet.create({
     gap: spacing.sm,
   },
 });
-

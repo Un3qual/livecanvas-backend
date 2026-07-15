@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-14
-Status: mobile release-depth Batch 1 active
+Status: mobile release-depth Batch 2 active
 
 ## Purpose
 
@@ -13,7 +13,8 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
   `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
 - Current implementation plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Current batch: Batch 1 host local preview.
+- Completed milestone: Batch 1 host local preview.
+- Current batch: Batch 2 live audience count.
 - Sequence design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Batch 2 design:
@@ -45,8 +46,8 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: the prior five product batches and local entry gates are complete;
-  mobile release-depth Batch 1 host local preview is active.
+- State: release-depth Batch 1 host local preview is complete; Batch 2 live
+  audience count is active.
 - Track: `docs/plans/mobile/TRACK.md`
 - Verification: configured-origin invite routing and the full mobile quality
   gate pass with 552 Vitest and 165 Jest tests; typechecks, lint, frozen pnpm
@@ -67,8 +68,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Complete Batch 1 host local preview, then advance the mobile lane through live
-audience count, app-lifecycle recovery, media rendering, and the story viewer.
+Complete Batch 2 live audience count, then advance the mobile lane through
+app-lifecycle recovery, media rendering, and the story viewer.
 
 ## Repair Conditions
 
