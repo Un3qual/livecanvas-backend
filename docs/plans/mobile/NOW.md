@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-15
-Status: mobile magic-link authentication active
+Status: mobile magic-link authentication complete; device QA pending
 
 ## Lane Scope
 
@@ -13,9 +13,10 @@ Status: mobile magic-link authentication active
 
 - Design: `docs/superpowers/specs/2026-07-15-mobile-magic-link-auth-design.md`
 - Source plan: `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
-- Current scope: Tasks 2-4—strict link parsing and SecureStore handoff, auth
-  entry request actions, and login/signup redemption into `AuthProvider`.
-- Done condition: no raw credential reaches navigation/startup snapshots, both
+- Completed scope: Tasks 2-4 delivered strict link parsing and SecureStore
+  handoff, auth-entry request actions, and login/signup redemption into
+  `AuthProvider`.
+- Result: no raw credential reaches navigation/startup snapshots, both
   purposes complete through the existing GraphQL contract, and focused/full
   mobile gates pass.
 - Operator/device email-link QA remains pending and is not completed here.
@@ -27,10 +28,13 @@ Status: mobile magic-link authentication active
 
 ## Verification
 
-- Run focused parser/handoff/client/state/RNTL suites, Relay generation, both
-  TypeScript checks, lint, the full Vitest and Jest suites, `nix flake check`,
-  and patch hygiene.
+- Frozen pnpm installation and Relay generation pass under the Nix shell.
+- Both TypeScript checks and lint pass.
+- Full Vitest suite: 81 files, 610 tests passed.
+- Full Jest/RNTL suite: 29 suites, 208 tests passed.
+- `nix flake check` passes on aarch64-darwin.
 
 ## Next Action
 
-Begin Task 2 after the backend landing contract passes focused verification.
+Run physical-device sign-in and sign-up email-link QA from the release-candidate
+checklist; leave manual evidence unchecked until it is observed.

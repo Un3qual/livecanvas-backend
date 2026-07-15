@@ -15,8 +15,8 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: mobile magic-link delivery contract active
-- Active source plan:
+- State: mobile magic-link delivery complete; release QA pending
+- Latest completed source plan:
   `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
@@ -25,11 +25,11 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: mobile magic-link authentication active
+- State: mobile magic-link authentication complete; device QA pending
 - Track: `docs/plans/mobile/TRACK.md`
-- Active source plan:
+- Latest completed source plan:
   `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
-- Latest completed product theme: Mobile Release Depth Next Five Batches
+- Latest completed product theme: mobile magic-link authentication
 - Latest completed detailed plans: account settings and recovery, existing
   social controls, contact discovery, post owner controls, and profile
   connection lists
@@ -119,8 +119,8 @@ Use this file when:
 - State: all five product batches and all five release-depth batches complete;
   release-candidate QA active
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Latest completed theme: Mobile Release Depth Next Five Batches
+  `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
+- Latest completed theme: fragment-only mobile magic-link authentication
 - Next gate: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
 ### Backend Code Quality Cleanup

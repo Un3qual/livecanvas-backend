@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
 Last reviewed: 2026-07-15
-Status: mobile magic-link delivery contract active
+Status: mobile magic-link delivery complete; release QA pending
 
 ## Lane Scope
 
@@ -13,23 +13,25 @@ Status: mobile magic-link delivery contract active
 
 - Design: `docs/superpowers/specs/2026-07-15-mobile-magic-link-auth-design.md`
 - Source plan: `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
-- Current scope: Task 1 only—replace the placeholder magic-link URL with a
-  configured fragment-only HTTPS landing and add its minimal public endpoint.
-- Write scope: `LCGQL.Accounts.AuthResolver`, public magic-link
-  controller/template/routes, dedicated landing assets, and focused tests.
-- Done condition: sign-in and sign-up challenge emails use the trusted origin,
+- Completed scope: Task 1 replaced the placeholder magic-link URL with a
+  configured fragment-only HTTPS landing and added its minimal public endpoint.
+- Result: sign-in and sign-up challenge emails use the trusted origin,
   raw tokens never reach request paths or queries, and the hardened landing
   emits only the matching custom-scheme handoff.
 
 ## Verification
 
-- Run focused resolver/controller/asset tests, changed-file formatting,
-  warnings-as-errors compilation, `mix typecheck`, the full backend suite, and
-  patch hygiene.
+- Landing asset tests: 5 passed.
+- Changed backend files are formatted and the production asset build passes.
+- `mix typecheck`: zero Dialyzer errors.
+- Full backend suite: 1,023 tests, zero failures, one excluded.
+- Repository-wide formatting still reports three unchanged base-branch files;
+  no batch-owned file is affected.
 
 ## Next Action
 
-Implement Task 1, record its evidence, then hand off to mobile Tasks 2-4.
+Stand by for operator/device email-link QA findings; no backend implementation
+is queued from this completed batch.
 
 ## References
 

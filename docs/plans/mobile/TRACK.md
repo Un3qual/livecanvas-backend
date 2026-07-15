@@ -11,10 +11,10 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: mobile magic-link authentication active
+- Track state: mobile magic-link authentication locally complete; device QA active
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
+  `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
 - Current gate:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Current release-depth design:
@@ -22,10 +22,10 @@ and content discovery, live streaming, and chat.
 - Current release-depth plan:
   `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Last completed detailed plan:
-  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
-- Latest theme: post and story authors now use the established privacy-safe
-  identity presentation and route to self or other profiles without decoding
-  Relay IDs.
+  `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
+- Latest theme: sign-in and sign-up magic links now use fragment-only trusted
+  delivery, an opaque SecureStore navigation handoff, and GraphQL redemption
+  through the existing auth session owner.
 - Recent theme: end-to-end contact invitations now complete fragment-only HTTPS
   delivery from one shared trusted public origin, neutral recipient email copy,
   protected authentication handoff, one-time recipient-bound consumption, and
@@ -147,12 +147,9 @@ Active release gate:
 - `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 - Status: active; begin with local entry gates, then record manual device QA.
 
-Active product batch:
+Recently completed product batches:
 
 - `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
-
-Recently completed product batch:
-
 - `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
 - `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
@@ -165,9 +162,9 @@ Recently completed product batch:
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-The attribution/navigation batch, prior product follow-ups, and approved
-release-depth sequence are complete. Operator/device QA resumes from the
-release-candidate checklist.
+The magic-link batch, attribution/navigation batch, prior product follow-ups,
+and approved release-depth sequence are complete. Operator/device QA resumes
+from the release-candidate checklist.
 
 ## Shared Constraints
 

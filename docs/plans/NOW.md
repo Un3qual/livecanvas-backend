@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-15
-Status: mobile magic-link authentication active
+Status: mobile magic-link authentication complete; release QA pending
 
 ## Purpose
 
@@ -9,11 +9,11 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Approved Sequence
 
-- Current design:
+- Completed design:
   `docs/superpowers/specs/2026-07-15-mobile-magic-link-auth-design.md`
-- Current implementation:
+- Completed implementation:
   `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
-- Current batch: configured fragment-only magic-link delivery, strict mobile
+- Completed batch: configured fragment-only magic-link delivery, strict mobile
   handoff, request UI, and GraphQL redemption into the existing auth session.
 - Completed milestones: all five release-depth batches are implemented and the
   full local closure matrix passes.
@@ -44,22 +44,22 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: magic-link delivery and public landing are active in Task 1.
-- Write scope: auth resolver URL construction, public magic-link landing,
-  focused assets, routes, and tests only.
+- State: magic-link delivery and public landing are locally complete; standby
+  for operator/device email-link QA findings.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: magic-link handoff, request, and redemption Tasks 2-4 are active.
+- State: magic-link handoff, request, and redemption are locally complete;
+  operator/device email-link QA remains pending.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: Relay generation, typechecks, lint, 77 Vitest files with 567
-  tests, 28 Jest suites with 194 tests, `nix flake check`, and patch hygiene
-  pass.
+- Verification: frozen install and Relay generation pass; typechecks and lint
+  pass; 81 Vitest files with 610 tests and 29 Jest suites with 208 tests pass;
+  `nix flake check` passes on aarch64-darwin.
 
 ## Execution Rule
 
-Execute `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md` in order.
+Do not start another implementation batch until the coordinator selects it.
 Do not mark operator or physical-device QA complete from local evidence.
 
 ## Cross-Lane Policy
@@ -70,9 +70,9 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Complete backend fragment-only delivery first, then the mobile credential
-handoff, request action, and redemption route. Return to physical-device QA
-after full local closure verification.
+Resume the release-candidate checklist with physical-device sign-in and sign-up
+email-link QA. Promote any reproduced contract or runtime defect to its owning
+lane.
 
 ## Repair Conditions
 

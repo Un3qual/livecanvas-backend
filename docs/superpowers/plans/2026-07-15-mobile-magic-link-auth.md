@@ -172,11 +172,11 @@ Expo Router, SecureStore, pnpm, Vitest, Jest/RNTL.
 - Modify: `docs/plans/INDEX.md`
 - Modify: this plan
 
-- [ ] Run backend format, asset tests, focused tests, `mix typecheck`, and the
+- [x] Run backend format, asset tests, focused tests, `mix typecheck`, and the
   full backend test suite for the typed resolver/controller changes.
-- [ ] From `mobile/`, run frozen installation, `pnpm relay`, focused auth tests,
+- [x] From `mobile/`, run frozen installation, `pnpm relay`, focused auth tests,
   `pnpm test:quality`, and `nix flake check`.
-- [ ] Run `git diff --check`, record exact evidence, return both lanes to
+- [x] Run `git diff --check`, record exact evidence, return both lanes to
   operator/device QA, and leave manual email/device evidence unchecked.
-- [ ] Commit `docs: close mobile magic-link batch`; do not push until the user
+- [x] Commit `docs: close mobile magic-link batch`; do not push until the user
   explicitly requests it.
