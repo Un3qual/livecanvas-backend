@@ -53,12 +53,12 @@
 - Consumes: `profileHref(profileId, viewerId)` from Task 1.
 - Produces: required `onOpenAuthor(authorId: string)` on `ContentPostCard` and the post/story `ContentSection` variants.
 
-- [ ] Add behavior tests that press the accessible author action, receive the unchanged author ID, route an owned author to `/profile`, and route another author to `/profiles/[id]` from Home and profile content.
-- [ ] Run the five focused RNTL suites and confirm failures occur because author actions are absent.
-- [ ] Render the author title as a minimum-touch-target `Pressable`, include a descriptive accessibility label, compare the new callback in the memo comparator, and forward it through `ContentSection`.
-- [ ] In Home and both profile-content owners, create stable callbacks that push `profileHref(authorId, viewerId)` and pass them to every post/story card.
-- [ ] Re-run the focused RNTL suites, lint, and both TypeScript checks.
-- [ ] Mark Task 2 complete and commit the shared-surface milestone.
+- [x] Add behavior tests that press the accessible author action, receive the unchanged author ID, route an owned author to `/profile`, and route another author to `/profiles/[id]` from Home and profile content.
+- [x] Run the five focused RNTL suites and confirm failures occur because author actions are absent.
+- [x] Render the author title as a minimum-touch-target `Pressable`, include a descriptive accessibility label, compare the new callback in the memo comparator, and forward it through `ContentSection`.
+- [x] In Home and both profile-content owners, create stable callbacks that push `profileHref(authorId, viewerId)` and pass them to every post/story card.
+- [x] Re-run the focused RNTL suites, lint, and both TypeScript checks.
+- [x] Mark Task 2 complete and commit the shared-surface milestone.
 
 ### Task 3: Dedicated Story Viewer and Lane Closure
 

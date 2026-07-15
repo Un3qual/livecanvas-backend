@@ -4,6 +4,7 @@ import { liveSessionHref } from '../../src/live/liveSessionNavigation';
 import { storyHref } from '../../src/content/story/storyNavigation';
 import { ProfileContentPreviewSections } from '../../src/profile/ProfileContentPreviewSection';
 import { profileContentHref } from '../../src/profile/profileContentRouteParams';
+import { profileHref } from '../../src/profile/profileNavigation';
 
 type QueryVariables = {
   readonly after: string | null;
@@ -70,6 +71,7 @@ beforeEach(() => {
 
 describe('ProfileContentPreviewSections', () => {
   test('loads all previews with one query and one shared owner controller', async () => {
+    const user = userEvent.setup();
     await render(
       <ProfileContentPreviewSections profileId="viewer-id" scope="viewer" />,
     );
@@ -94,6 +96,12 @@ describe('ProfileContentPreviewSections', () => {
         name: 'Edit post',
       }),
     ).toBeOnTheScreen();
+    await user.press(
+      within(screen.getByTestId('content-section-posts')).getByRole('button', {
+        name: 'Open author profile for creator@example.com',
+      }),
+    );
+    expect(mockPushedRoutes).toEqual([profileHref('viewer-id', 'viewer-id')]);
   });
 
   test('reports other-user posts and routes replay and view-all actions', async () => {
@@ -111,12 +119,18 @@ describe('ProfileContentPreviewSections', () => {
     expect(posts.getByRole('button', { name: 'Report post' })).toBeOnTheScreen();
     expect(posts.queryByRole('button', { name: 'Edit post' })).toBeNull();
 
+    await user.press(
+      posts.getByRole('button', {
+        name: 'Open author profile for creator@example.com',
+      }),
+    );
     await user.press(stories.getByRole('button', { name: 'View story' }));
     await user.press(replays.getByRole('button', { name: 'Watch replay' }));
     await user.press(posts.getByRole('button', { name: 'View all' }));
     await user.press(replays.getByRole('button', { name: 'View all' }));
 
     expect(mockPushedRoutes).toEqual([
+      profileHref('opaque-profile-id', 'viewer-id'),
       storyHref('opaque-story-id'),
       liveSessionHref('opaque-replay-id'),
       profileContentHref('opaque-profile-id', 'posts', 'other'),

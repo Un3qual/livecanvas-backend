@@ -1,10 +1,10 @@
 import { memo } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { useAppTheme } from '../providers/ThemeProvider';
-import { radius, spacing, typography } from '../theme/tokens';
+import { radius, spacing, touchTarget, typography } from '../theme/tokens';
 import { ContentMediaAssetView } from './ContentMediaAssetView';
 import {
   formatPostCardPresentation,
@@ -24,12 +24,22 @@ export type { ContentPost } from './contentPostPresentation';
 
 export type ContentPostCardProps = {
   readonly controls: PostControls;
+  readonly onOpenAuthor: (authorId: string) => void;
   readonly onOpenStory?: (storyId: string) => void;
   readonly post: ContentPost;
   readonly viewerId: string | null;
 };
 
 const styles = StyleSheet.create({
+  authorAction: {
+    alignSelf: 'flex-start',
+    gap: spacing.xs,
+    justifyContent: 'center',
+    minHeight: touchTarget.min,
+  },
+  authorActionPressed: {
+    opacity: 0.7,
+  },
   badge: {
     alignSelf: 'flex-start',
     borderRadius: radius.pill,
@@ -87,6 +97,7 @@ const styles = StyleSheet.create({
 
 export const ContentPostCard = memo(function ContentPostCard({
   controls,
+  onOpenAuthor,
   onOpenStory,
   post,
   viewerId,
@@ -112,12 +123,22 @@ export const ContentPostCard = memo(function ContentPostCard({
             {presentation.kindLabel}
           </Text>
         </View>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          {presentation.author.title}
-        </Text>
-        <Text style={[styles.metadataText, { color: theme.colors.textMuted }]}>
-          {presentation.author.subtitle}
-        </Text>
+        <Pressable
+          accessibilityLabel={`Open author profile for ${presentation.author.title}`}
+          accessibilityRole="button"
+          onPress={() => onOpenAuthor(post.author.id)}
+          style={({ pressed }) => [
+            styles.authorAction,
+            pressed ? styles.authorActionPressed : null,
+          ]}
+        >
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            {presentation.author.title}
+          </Text>
+          <Text style={[styles.metadataText, { color: theme.colors.textMuted }]}>
+            {presentation.author.subtitle}
+          </Text>
+        </Pressable>
       </View>
 
       {controlState.isEditing && controlState.editState ? (
@@ -294,6 +315,7 @@ function areContentPostCardPropsEqual(
 ): boolean {
   if (
     previous.post !== next.post ||
+    previous.onOpenAuthor !== next.onOpenAuthor ||
     previous.onOpenStory !== next.onOpenStory ||
     previous.viewerId !== next.viewerId ||
     previous.controls.actions !== next.controls.actions

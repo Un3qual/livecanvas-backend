@@ -109,6 +109,30 @@ describe('ContentPostCard with shared controls', () => {
     );
   });
 
+  test('opens the author profile with the opaque author ID', async () => {
+    const user = userEvent.setup();
+    const onOpenAuthor = jest.fn();
+    const post = contentPost({
+      authorId: 'opaque-author-id',
+      id: 'opaque-post-id',
+    });
+
+    await render(
+      <Harness
+        onOpenAuthor={onOpenAuthor}
+        post={post}
+        viewerId="viewer-id"
+      />,
+    );
+    await user.press(
+      screen.getByRole('button', {
+        name: 'Open author profile for creator@example.com',
+      }),
+    );
+
+    expect(onOpenAuthor).toHaveBeenCalledWith('opaque-author-id');
+  });
+
   test('keeps controller action identity stable while edit state changes', async () => {
     const user = userEvent.setup();
     const onActions = jest.fn();
@@ -234,11 +258,13 @@ function ReportCollection() {
     <>
       <ContentPostCard
         controls={controls}
+        onOpenAuthor={() => undefined}
         post={contentPost({ authorId: 'other-1', id: 'post-1' })}
         viewerId="viewer-id"
       />
       <ContentPostCard
         controls={controls}
+        onOpenAuthor={() => undefined}
         post={contentPost({ authorId: 'other-2', id: 'post-2' })}
         viewerId="viewer-id"
       />
@@ -248,10 +274,12 @@ function ReportCollection() {
 
 function Harness({
   onActions,
+  onOpenAuthor = () => undefined,
   post,
   viewerId,
 }: {
   onActions?: (actions: PostControls['actions']) => void;
+  onOpenAuthor?: (authorId: string) => void;
   post: ContentPost;
   viewerId: string;
 }) {
@@ -265,6 +293,7 @@ function Harness({
   return visiblePost ? (
     <ContentPostCard
       controls={controls}
+      onOpenAuthor={onOpenAuthor}
       post={visiblePost}
       viewerId={viewerId}
     />

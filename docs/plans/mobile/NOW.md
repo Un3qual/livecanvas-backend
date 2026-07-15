@@ -36,6 +36,6 @@ Status: post attribution and author navigation active
 
 ## Next Action
 
-Execute Task 1 from the source plan. After batch closure, resume the
+Execute Task 3 from the source plan. After batch closure, resume the
 target-environment inventory and physical-device QA in
 `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`.
