@@ -196,6 +196,112 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
   end
 
+  describe "updateViewerProfileIdentity" do
+    test "updates only the authenticated viewer and returns canonical values on repeat saves" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+      viewer_id = Absinthe.Relay.Node.to_global_id(:user, viewer.id, LCGQL.Schema)
+
+      variables = %{
+        "username" => "  Canvas_Creator  ",
+        "displayName" => "  🎨 Canvas Creator  "
+      }
+
+      for _attempt <- 1..2 do
+        assert %{
+                 "user" => %{
+                   "id" => ^viewer_id,
+                   "username" => "canvas_creator",
+                   "displayName" => "🎨 Canvas Creator"
+                 },
+                 "errors" => []
+               } = run_profile_identity_mutation(variables, context)
+      end
+
+      assert %{username: "canvas_creator", display_name: "🎨 Canvas Creator"} =
+               Accounts.get_user!(viewer.id)
+    end
+
+    test "returns lower-camel field errors for invalid input" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert %{
+               "user" => nil,
+               "errors" => [%{"field" => "displayName", "message" => "must be a single line"}]
+             } =
+               run_profile_identity_mutation(
+                 %{"username" => "canvas_creator", "displayName" => "Canvas\nCreator"},
+                 context
+               )
+    end
+
+    test "returns a username collision as a structured payload error" do
+      first_user = user_fixture()
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      assert {:ok, _first_user} =
+               Accounts.update_user_profile_identity(first_user, %{
+                 username: "canvas_creator",
+                 display_name: "First Creator"
+               })
+
+      assert %{
+               "user" => nil,
+               "errors" => [%{"field" => "username", "message" => "has already been taken"}]
+             } =
+               run_profile_identity_mutation(
+                 %{"username" => "CANVAS_CREATOR", "displayName" => "Second Creator"},
+                 context
+               )
+    end
+
+    test "returns unauthenticated errors without a viewer scope" do
+      assert %{
+               "user" => nil,
+               "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+             } =
+               run_profile_identity_mutation(
+                 %{"username" => "canvas_creator", "displayName" => "Canvas Creator"},
+                 %{}
+               )
+    end
+
+    test "exposes required identity fields without accepting a target user ID" do
+      query = """
+      query {
+        __type(name: "UpdateViewerProfileIdentityInput") {
+          inputFields {
+            name
+            type {
+              kind
+            }
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "__type" => %{
+                    "inputFields" => input_fields
+                  }
+                }
+              }} = Absinthe.run(query, LCGQL.Schema)
+
+      assert Enum.sort(Enum.map(input_fields, & &1["name"])) == ["displayName", "username"]
+
+      required_fields =
+        input_fields
+        |> Enum.filter(&(&1["name"] in ["displayName", "username"]))
+        |> Enum.map(& &1["type"]["kind"])
+
+      assert required_fields == ["NON_NULL", "NON_NULL"]
+    end
+  end
+
   describe "requestPasswordReset" do
     test "issues a password reset token when the email exists" do
       user = user_fixture()
@@ -1188,6 +1294,187 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
   end
 
+  describe "importViewerContactEntries" do
+    test "imports a viewer-owned chunk and supports idempotent updates" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation ImportViewerContactEntries($entries: [ViewerContactEntryInput!]!) {
+        importViewerContactEntries(input: {entries: $entries}) {
+          importedCount
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      variables = %{
+        "entries" => [
+          %{
+            "contactClientId" => "device:first",
+            "contactName" => "First Import",
+            "emails" => ["first@example.com"],
+            "phoneNumbers" => []
+          },
+          %{
+            "contactClientId" => "device:second",
+            "contactName" => "Second Import",
+            "emails" => [],
+            "phoneNumbers" => ["+16502530000"]
+          }
+        ]
+      }
+
+      assert {:ok,
+              %{
+                data: %{
+                  "importViewerContactEntries" => %{
+                    "importedCount" => 2,
+                    "errors" => []
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema, variables: variables, context: context)
+
+      updated_variables =
+        put_in(variables, ["entries", Access.at(0), "contactName"], "Updated Import")
+
+      assert {:ok,
+              %{
+                data: %{
+                  "importViewerContactEntries" => %{
+                    "importedCount" => 2,
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: updated_variables,
+                 context: context
+               )
+
+      assert [first, second] = Accounts.list_user_contact_matches(viewer)
+      assert first.contact_entry.user_id == viewer.id
+      assert first.contact_entry.contact_name == "Updated Import"
+      assert second.contact_entry.user_id == viewer.id
+    end
+
+    test "returns a structured error and writes nothing for an invalid chunk" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation($entries: [ViewerContactEntryInput!]!) {
+        importViewerContactEntries(input: {entries: $entries}) {
+          importedCount
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "importViewerContactEntries" => %{
+                    "importedCount" => 0,
+                    "errors" => [
+                      %{"field" => "entries.phoneNumbers", "message" => "is invalid"}
+                    ]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{
+                   "entries" => [
+                     %{
+                       "contactClientId" => "device:valid",
+                       "emails" => ["valid@example.com"],
+                       "phoneNumbers" => []
+                     },
+                     %{
+                       "contactClientId" => "device:invalid",
+                       "emails" => [],
+                       "phoneNumbers" => ["123"]
+                     }
+                   ]
+                 },
+                 context: context
+               )
+
+      assert Accounts.list_user_contact_matches(viewer) == []
+    end
+
+    test "rejects duplicate client ids as a batch error" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      mutation = """
+      mutation($entries: [ViewerContactEntryInput!]!) {
+        importViewerContactEntries(input: {entries: $entries}) {
+          importedCount
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      duplicate = %{
+        "contactClientId" => "device:duplicate",
+        "emails" => [],
+        "phoneNumbers" => []
+      }
+
+      assert {:ok,
+              %{
+                data: %{
+                  "importViewerContactEntries" => %{
+                    "importedCount" => 0,
+                    "errors" => [%{"field" => "entries", "message" => "is invalid"}]
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema,
+                 variables: %{"entries" => [duplicate, duplicate]},
+                 context: context
+               )
+    end
+
+    test "returns an unauthenticated error without a viewer scope" do
+      mutation = """
+      mutation {
+        importViewerContactEntries(
+          input: {
+            entries: [{contactClientId: "device:anonymous", emails: [], phoneNumbers: []}]
+          }
+        ) {
+          importedCount
+          errors {
+            field
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "importViewerContactEntries" => %{
+                    "importedCount" => 0,
+                    "errors" => [%{"field" => nil, "message" => "unauthenticated"}]
+                  }
+                }
+              }} = Absinthe.run(mutation, LCGQL.Schema)
+    end
+  end
+
   describe "deliverViewerContactInvite" do
     setup do
       previous_origin = Application.fetch_env!(:live_canvas, :public_app_origin)
@@ -1672,6 +1959,13 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
     end
 
     test "issues a magic-link signup challenge for a new email" do
+      previous_origin = Application.fetch_env!(:live_canvas, :public_app_origin)
+
+      on_exit(fn ->
+        Application.put_env(:live_canvas, :public_app_origin, previous_origin)
+      end)
+
+      Application.put_env(:live_canvas, :public_app_origin, "https://app.livecanvas.example/")
       email = unique_user_email()
 
       mutation = """
@@ -1727,6 +2021,87 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
                )
 
       assert user_id == user.id
+
+      assert_email_sent(fn email_message ->
+        [delivery_url] =
+          Regex.run(~r{https://\S+/auth/magic-link/sign-up#token=\S+}, email_message.text_body)
+
+        uri = URI.parse(delivery_url)
+
+        assert uri.scheme == "https"
+        assert uri.host == "app.livecanvas.example"
+        assert uri.path == "/auth/magic-link/sign-up"
+        assert uri.query == nil
+        assert uri.userinfo == nil
+        assert %{"token" => raw_token} = URI.decode_query(uri.fragment)
+        refute URI.to_string(%{uri | fragment: nil}) =~ raw_token
+
+        true
+      end)
+    end
+
+    test "issues a configured fragment-only magic-link login challenge" do
+      previous_origin = Application.fetch_env!(:live_canvas, :public_app_origin)
+
+      on_exit(fn ->
+        Application.put_env(:live_canvas, :public_app_origin, previous_origin)
+      end)
+
+      Application.put_env(:live_canvas, :public_app_origin, "https://app.livecanvas.example")
+      user = user_fixture()
+      assert_receive {:email, _fixture_email}
+
+      mutation = """
+      mutation BeginAuthChallenge($email: String!) {
+        beginAuthChallenge(
+          input: {
+            provider: MAGIC_LINK
+            purpose: LOG_IN
+            magicLink: {email: $email}
+          }
+        ) {
+          challenge {
+            provider
+            purpose
+            dispatched
+          }
+          errors {
+            field
+            code
+            message
+          }
+        }
+      }
+      """
+
+      assert {:ok,
+              %{
+                data: %{
+                  "beginAuthChallenge" => %{
+                    "challenge" => %{
+                      "provider" => "MAGIC_LINK",
+                      "purpose" => "LOG_IN",
+                      "dispatched" => true
+                    },
+                    "errors" => []
+                  }
+                }
+              }} =
+               Absinthe.run(mutation, LCGQL.Schema, variables: %{"email" => user.email})
+
+      assert_email_sent(fn email_message ->
+        [delivery_url] =
+          Regex.run(~r{https://\S+/auth/magic-link/sign-in#token=\S+}, email_message.text_body)
+
+        uri = URI.parse(delivery_url)
+
+        assert uri.path == "/auth/magic-link/sign-in"
+        assert uri.query == nil
+        assert %{"token" => raw_token} = URI.decode_query(uri.fragment)
+        refute URI.to_string(%{uri | fragment: nil}) =~ raw_token
+
+        true
+      end)
     end
 
     test "keeps missing magic-link login emails enumeration-safe" do
@@ -2806,6 +3181,29 @@ defmodule LCGQL.Accounts.AccountMutationsTest do
              Accounts.issue_contact_invite_token(inviter, recipient_email)
 
     token
+  end
+
+  defp run_profile_identity_mutation(variables, context) do
+    mutation = """
+    mutation UpdateViewerProfileIdentity($username: String!, $displayName: String!) {
+      updateViewerProfileIdentity(input: {username: $username, displayName: $displayName}) {
+        user {
+          id
+          username
+          displayName
+        }
+        errors {
+          field
+          message
+        }
+      }
+    }
+    """
+
+    assert {:ok, %{data: %{"updateViewerProfileIdentity" => payload}}} =
+             Absinthe.run(mutation, LCGQL.Schema, variables: variables, context: context)
+
+    payload
   end
 
   defp contact_match_id(%{id: id}) when is_integer(id) do

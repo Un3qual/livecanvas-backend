@@ -49,7 +49,8 @@ test('renders cached viewer-owned profile data while social identity refreshes',
     </RelayEnvironmentProvider>,
   );
 
-  expect(screen.getByText('viewer@example.com')).toBeOnTheScreen();
+  expect(screen.getByText('Canvas Viewer')).toBeOnTheScreen();
+  expect(screen.getByText('@canvas_viewer')).toBeOnTheScreen();
   expect(screen.getByText('Refreshing social activity...')).toBeOnTheScreen();
   expect(screen.queryByText('cached-follower@example.com')).toBeNull();
   expect(screen.queryByText('cached-requester@example.com')).toBeNull();
@@ -83,9 +84,11 @@ function cachedViewerProfile() {
   return {
     viewer: {
       currentLiveSession: null,
+      displayName: 'Canvas Viewer',
       email: 'viewer@example.com',
       id: 'viewer-id',
       privacyMode: 'PUBLIC',
+      username: 'canvas_viewer',
     },
   };
 }
@@ -95,9 +98,11 @@ function cachedSocialProfiles() {
     viewer: {
       followers: connection([
         {
+          displayName: null,
           email: 'cached-follower@example.com',
           id: 'cached-follower-id',
           privacyMode: 'PUBLIC',
+          username: null,
         },
       ]),
       following: connection([]),
@@ -106,9 +111,11 @@ function cachedSocialProfiles() {
     viewerPendingFollowRequests: connection([
       {
         follower: {
+          displayName: null,
           email: 'cached-requester@example.com',
           id: 'cached-requester-id',
           privacyMode: 'PRIVATE',
+          username: null,
         },
         id: 'cached-request-id',
         requestedAt: '2026-07-01T00:00:00Z',

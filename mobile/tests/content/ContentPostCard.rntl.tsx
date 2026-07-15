@@ -126,7 +126,7 @@ describe('ContentPostCard with shared controls', () => {
     );
     await user.press(
       screen.getByRole('button', {
-        name: 'Open author profile for creator@example.com',
+        name: 'Open author profile for Canvas Creator',
       }),
     );
 
@@ -298,8 +298,10 @@ function FallbackAuthorCollection() {
         controls={controls}
         onOpenAuthor={() => undefined}
         post={contentPost({
+          authorDisplayName: null,
           authorEmail: null,
           authorId: 'VXNlcjox',
+          authorUsername: null,
           id: 'post-1',
         })}
         viewerId="viewer-id"
@@ -308,8 +310,10 @@ function FallbackAuthorCollection() {
         controls={controls}
         onOpenAuthor={() => undefined}
         post={contentPost({
+          authorDisplayName: null,
           authorEmail: null,
           authorId: 'VXNlcjoxMA==',
+          authorUsername: null,
           id: 'post-2',
         })}
         viewerId="viewer-id"
@@ -349,18 +353,27 @@ function Harness({
 }
 
 function contentPost({
+  authorDisplayName = 'Canvas Creator',
   authorEmail = 'creator@example.com',
   authorId,
+  authorUsername = 'canvas_creator',
   id,
   mediaAssets = [],
 }: {
+  authorDisplayName?: string | null;
   authorEmail?: string | null;
   authorId: string;
+  authorUsername?: string | null;
   id: string;
   mediaAssets?: ContentPost['mediaAssets'];
 }): ContentPost {
   return {
-    author: { email: authorEmail, id: authorId },
+    author: {
+      displayName: authorDisplayName,
+      email: authorEmail,
+      id: authorId,
+      username: authorUsername,
+    },
     bodyText: 'Original body',
     expiresAt: null,
     id,

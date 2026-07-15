@@ -6,6 +6,7 @@ import {
   userEvent,
   waitFor,
 } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 
 import ContactsRoute from '../../app/(app)/contacts';
 import { ContactDiscoveryScreen } from '../../src/contacts/ContactDiscoveryScreen';
@@ -27,9 +28,11 @@ type ContactMatchNode = {
   readonly id: string;
   readonly inviteRecipient: string | null;
   readonly matchedUsers: ReadonlyArray<{
+    readonly displayName: string | null;
     readonly email: string | null;
     readonly id: string;
     readonly privacyMode: string;
+    readonly username: string | null;
   }>;
 };
 
@@ -73,6 +76,42 @@ type DeliverInviteMutationConfig = {
   readonly onError?: (error: Error) => void;
 };
 
+type ImportContactsMutationConfig = {
+  readonly variables: {
+    readonly input: {
+      readonly entries: ReadonlyArray<{
+        readonly contactClientId: string;
+        readonly contactName: string | null;
+        readonly emails: readonly string[];
+        readonly phoneNumbers: readonly string[];
+      }>;
+    };
+  };
+  readonly onCompleted?: (payload: {
+    readonly importViewerContactEntries: {
+      readonly importedCount: number;
+      readonly errors: ReadonlyArray<{
+        readonly field: string | null;
+        readonly message: string;
+      }>;
+    } | null;
+  }) => void;
+  readonly onError?: (error: Error) => void;
+};
+
+type MockDeviceContactEntry = ImportContactsMutationConfig['variables']['input']['entries'][number];
+type MockDeviceContactsReadOptions = {
+  readonly onEntries?: (
+    entries: readonly MockDeviceContactEntry[],
+  ) => Promise<void> | void;
+};
+type MockDeviceContactsReadResult =
+  | {
+      readonly entryCount: number;
+      readonly status: 'granted';
+    }
+  | { readonly status: 'denied' | 'unavailable' | 'failed' };
+
 let mockQueryData: ContactDiscoveryQueryData;
 let mockQueryVariables: QueryVariables | null;
 let mockQueryOptions: QueryOptions | null;
@@ -85,6 +124,10 @@ const mockUpsertContactCommit =
   jest.fn<undefined, [UpsertContactMutationConfig]>();
 const mockDeliverInviteCommit =
   jest.fn<undefined, [DeliverInviteMutationConfig]>();
+const mockImportContactsCommit =
+  jest.fn<undefined, [ImportContactsMutationConfig]>();
+const mockReadDeviceContacts =
+  jest.fn<Promise<MockDeviceContactsReadResult>, [MockDeviceContactsReadOptions]>();
 
 jest.mock('expo-router', () => ({
   Redirect: function RedirectMock(_props: { href: string }) {
@@ -114,6 +157,11 @@ jest.mock('../../src/components/RelayRouteBoundary', () => {
     },
   };
 });
+
+jest.mock('../../src/contacts/deviceContactsNative', () => ({
+  readDeviceContacts: (options: MockDeviceContactsReadOptions) =>
+    mockReadDeviceContacts(options),
+}));
 
 jest.mock('react-relay', () => ({
   fetchQuery: (
@@ -146,6 +194,10 @@ jest.mock('react-relay', () => ({
 
     if (operationName.includes('DeliverInvite')) {
       return [mockDeliverInviteCommit, false];
+    }
+
+    if (operationName.includes('Import')) {
+      return [mockImportContactsCommit, false];
     }
 
     return [mockUpsertContactCommit, false];
@@ -194,6 +246,9 @@ beforeEach(() => {
   mockPushedRoutes = [];
   mockUpsertContactCommit.mockClear();
   mockDeliverInviteCommit.mockClear();
+  mockImportContactsCommit.mockClear();
+  mockReadDeviceContacts.mockReset();
+  mockDeviceContactPages([]);
 });
 
 describe('ContactDiscoveryScreen with React Native Testing Library', () => {
@@ -236,6 +291,172 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     expect(mockQueryOptions?.fetchKey).toBe(1);
   });
 
+  test('streams device-contact pages into sequential uploads and refreshes after total success', async () => {
+    mockDeviceContactPages(
+      deviceContactEntries(100),
+      deviceContactEntries(100, 100),
+      deviceContactEntries(5, 200),
+    );
+
+    await render(<ContactDiscoveryScreen />);
+
+    expect(mockReadDeviceContacts).not.toHaveBeenCalled();
+    const importButton = screen.getByRole('button', {
+      name: 'Import device contacts',
+    });
+    await fireEvent.press(importButton);
+    await fireEvent.press(importButton);
+
+    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(1));
+    expect(mockReadDeviceContacts).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Importing...' })).toBeDisabled();
+    expect(
+      mockImportContactsCommit.mock.calls[0]?.[0].variables.input.entries,
+    ).toHaveLength(100);
+    expect(mockFetchQueryVariables).toBeNull();
+
+    await completeContactImport(100, 0);
+    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(2));
+    expect(
+      mockImportContactsCommit.mock.calls[1]?.[0].variables.input.entries,
+    ).toHaveLength(100);
+    expect(screen.getByText('Imported 100 contacts...')).toBeOnTheScreen();
+    expect(mockFetchQueryVariables).toBeNull();
+
+    await completeContactImport(100, 1);
+    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(3));
+    expect(
+      mockImportContactsCommit.mock.calls[2]?.[0].variables.input.entries,
+    ).toHaveLength(5);
+    expect(mockFetchQueryVariables).toBeNull();
+
+    await completeContactImport(5, 2);
+
+    await waitFor(() => {
+      expect(screen.getByText('Imported 205 contacts.')).toBeOnTheScreen();
+      expect(screen.getByText('Later Match')).toBeOnTheScreen();
+    });
+    expect(mockFetchQueryVariables).toEqual({ after: null, first: 20 });
+  });
+
+  test('stops on the first failed chunk and retries idempotently from the start', async () => {
+    mockDeviceContactPages(
+      deviceContactEntries(100),
+      deviceContactEntries(50, 100),
+    );
+
+    await render(<ContactDiscoveryScreen />);
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Import device contacts' }),
+    );
+    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(1));
+    await completeContactImport(100, 0);
+    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(2));
+    expect(
+      mockImportContactsCommit.mock.calls[1]?.[0].variables.input.entries[0]
+        ?.contactClientId,
+    ).toBe('device:100');
+    await failContactImport(1);
+
+    expect(
+      screen.getByText('We could not import your contacts. Try again.'),
+    ).toBeOnTheScreen();
+    expect(mockImportContactsCommit).toHaveBeenCalledTimes(2);
+    expect(mockFetchQueryVariables).toBeNull();
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Try import again' }),
+    );
+
+    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(3));
+    expect(mockReadDeviceContacts).toHaveBeenCalledTimes(2);
+    expect(
+      mockImportContactsCommit.mock.calls[2]?.[0].variables.input.entries[0]
+        ?.contactClientId,
+    ).toBe('device:0');
+  });
+
+  test.each([
+    [
+      'count mismatch',
+      { importViewerContactEntries: { errors: [], importedCount: 0 } },
+    ],
+    [
+      'payload error',
+      {
+        importViewerContactEntries: {
+          errors: [{ field: 'entries', message: 'Invalid contact batch.' }],
+          importedCount: 1,
+        },
+      },
+    ],
+  ] as const)('rejects a chunk with a %s', async (_label, payload) => {
+    mockDeviceContactPages(deviceContactEntries(1));
+
+    await render(<ContactDiscoveryScreen />);
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Import device contacts' }),
+    );
+    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(1));
+    await completeContactImportPayload(payload);
+
+    expect(
+      screen.getByText('We could not import your contacts. Try again.'),
+    ).toBeOnTheScreen();
+    expect(mockFetchQueryVariables).toBeNull();
+  });
+
+  test('shows denied permission with an explicit Settings action', async () => {
+    mockReadDeviceContacts.mockResolvedValue({ status: 'denied' });
+    const openSettings = jest
+      .spyOn(Linking, 'openSettings')
+      .mockImplementation(() => Promise.resolve());
+
+    await render(<ContactDiscoveryScreen />);
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Import device contacts' }),
+    );
+
+    expect(
+      await screen.findByText(
+        'Allow contacts access in Settings to import your address book.',
+      ),
+    ).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Open Settings' }));
+    expect(openSettings).toHaveBeenCalledTimes(1);
+  });
+
+  test('keeps manual discovery usable when native contacts are unavailable', async () => {
+    mockReadDeviceContacts.mockResolvedValue({ status: 'unavailable' });
+    const user = userEvent.setup();
+
+    await render(<ContactDiscoveryScreen />);
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Import device contacts' }),
+    );
+
+    expect(
+      await screen.findByText('Device contact import is unavailable on this device.'),
+    ).toBeOnTheScreen();
+    await user.type(screen.getByLabelText('Contact email'), 'manual@example.com');
+    await user.press(screen.getByRole('button', { name: 'Search contacts' }));
+    expect(mockUpsertContactCommit).toHaveBeenCalledTimes(1);
+  });
+
+  test('ignores import completion after the contact screen unmounts', async () => {
+    mockDeviceContactPages(deviceContactEntries(1));
+
+    const view = await render(<ContactDiscoveryScreen />);
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Import device contacts' }),
+    );
+    await waitFor(() => expect(mockImportContactsCommit).toHaveBeenCalledTimes(1));
+    await view.unmount();
+    await completeContactImport(1, 0);
+
+    expect(mockFetchQueryVariables).toBeNull();
+  });
+
   test('submits one normalized manual email contact and opens matched profiles', async () => {
     const user = userEvent.setup();
 
@@ -264,9 +485,11 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
           id: 'contact-match-1',
           matchedUsers: [
             {
+              displayName: 'Matched Creator',
               email: 'matched@example.com',
               id: 'opaque-user-id',
               privacyMode: 'PUBLIC',
+              username: 'matched_creator',
             },
           ],
         }),
@@ -275,7 +498,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     });
 
     expect(screen.getByText('Friend Name')).toBeOnTheScreen();
-    expect(screen.getByText('matched@example.com')).toBeOnTheScreen();
+    expect(screen.getByText('Matched Creator')).toBeOnTheScreen();
 
     await user.press(screen.getByRole('button', { name: 'Open profile' }));
 
@@ -298,9 +521,11 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
           id: 'contact-match-privacy',
           matchedUsers: [
             {
+              displayName: null,
               email: 'hidden@example.com',
               id: 'hidden-user-id',
               privacyMode: 'PUBLIC',
+              username: null,
             },
           ],
         }),
@@ -468,9 +693,11 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
           inviteRecipient: 'matched@example.com',
           matchedUsers: [
             {
+              displayName: null,
               email: 'matched@example.com',
               id: 'matched-user',
               privacyMode: 'PUBLIC',
+              username: null,
             },
           ],
         }),
@@ -505,9 +732,11 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
           inviteRecipient: null,
           matchedUsers: [
             {
+              displayName: null,
               email: 'stale@example.com',
               id: 'matched-user',
               privacyMode: 'PUBLIC',
+              username: null,
             },
           ],
         }),
@@ -629,6 +858,65 @@ async function failInviteDelivery(callIndex = 0) {
 
   await act(() => {
     config?.onError?.(new Error('network failed'));
+  });
+}
+
+async function completeContactImport(importedCount: number, callIndex = 0) {
+  await completeContactImportPayload(
+    { importViewerContactEntries: { errors: [], importedCount } },
+    callIndex,
+  );
+}
+
+async function completeContactImportPayload(
+  payload: Parameters<
+    NonNullable<ImportContactsMutationConfig['onCompleted']>
+  >[0],
+  callIndex = 0,
+) {
+  const config = mockImportContactsCommit.mock.calls[callIndex]?.[0];
+
+  expect(config).toBeDefined();
+
+  await act(() => {
+    config?.onCompleted?.(payload);
+  });
+}
+
+async function failContactImport(callIndex = 0) {
+  const config = mockImportContactsCommit.mock.calls[callIndex]?.[0];
+
+  expect(config).toBeDefined();
+
+  await act(() => {
+    config?.onError?.(new Error('network failed'));
+  });
+}
+
+function deviceContactEntries(
+  count: number,
+  offset = 0,
+): readonly MockDeviceContactEntry[] {
+  return Array.from({ length: count }, (_, index) => ({
+    contactClientId: `device:${offset + index}`,
+    contactName: `Contact ${offset + index}`,
+    emails: [`contact-${offset + index}@example.com`],
+    phoneNumbers: [],
+  }));
+}
+
+function mockDeviceContactPages(
+  ...pages: readonly (readonly MockDeviceContactEntry[])[]
+): void {
+  mockReadDeviceContacts.mockImplementation(async ({ onEntries }) => {
+    let entryCount = 0;
+
+    for (const page of pages) {
+      await onEntries?.(page);
+      entryCount += page.length;
+    }
+
+    return { entryCount, status: 'granted' };
   });
 }
 

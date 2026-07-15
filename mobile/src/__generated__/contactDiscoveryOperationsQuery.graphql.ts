@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0f228db63ef50d6662c6e36c6a64feca>>
+ * @generated SignedSource<<53b9130d9fb5bf751ad10425903626c8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,9 +22,11 @@ export type contactDiscoveryOperationsQuery$data = {
         readonly id: string;
         readonly inviteRecipient: string | null | undefined;
         readonly matchedUsers: ReadonlyArray<{
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
           readonly privacyMode: UserPrivacyMode;
+          readonly username: string | null | undefined;
         }>;
       } | null | undefined;
     } | null | undefined> | null | undefined;
@@ -123,6 +125,13 @@ v2 = [
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "displayName",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "email",
                     "storageKey": null
                   },
@@ -131,6 +140,13 @@ v2 = [
                     "args": null,
                     "kind": "ScalarField",
                     "name": "privacyMode",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "username",
                     "storageKey": null
                   }
                 ],
@@ -189,12 +205,12 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "fee626e2645c3a3df301a28cd6fef22d",
+    "cacheID": "1f83a447e3b37de5fae19140a4d32cd4",
     "id": null,
     "metadata": {},
     "name": "contactDiscoveryOperationsQuery",
     "operationKind": "query",
-    "text": "query contactDiscoveryOperationsQuery(\n  $after: String\n  $first: Int!\n) {\n  viewerContactMatches(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        contactName\n        inviteRecipient\n        matchedUsers {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query contactDiscoveryOperationsQuery(\n  $after: String\n  $first: Int!\n) {\n  viewerContactMatches(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        contactName\n        inviteRecipient\n        matchedUsers {\n          id\n          displayName\n          email\n          privacyMode\n          username\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

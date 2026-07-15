@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a9143facaac0fe00ae8b49c375c4b2ae>>
+ * @generated SignedSource<<04a0bb518b27cec3aeb5cc3e6be7fe14>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -17,9 +17,11 @@ export type ViewerProfileSocialSectionsQuery$data = {
     readonly followers: {
       readonly edges: ReadonlyArray<{
         readonly node: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
           readonly privacyMode: UserPrivacyMode;
+          readonly username: string | null | undefined;
         } | null | undefined;
       } | null | undefined> | null | undefined;
       readonly pageInfo: {
@@ -29,9 +31,11 @@ export type ViewerProfileSocialSectionsQuery$data = {
     readonly following: {
       readonly edges: ReadonlyArray<{
         readonly node: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
           readonly privacyMode: UserPrivacyMode;
+          readonly username: string | null | undefined;
         } | null | undefined;
       } | null | undefined> | null | undefined;
       readonly pageInfo: {
@@ -44,9 +48,11 @@ export type ViewerProfileSocialSectionsQuery$data = {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly follower: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
           readonly privacyMode: UserPrivacyMode;
+          readonly username: string | null | undefined;
         };
         readonly id: string;
         readonly requestedAt: string;
@@ -81,6 +87,13 @@ v2 = [
     "alias": null,
     "args": null,
     "kind": "ScalarField",
+    "name": "displayName",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
     "name": "email",
     "storageKey": null
   },
@@ -89,6 +102,13 @@ v2 = [
     "args": null,
     "kind": "ScalarField",
     "name": "privacyMode",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
     "storageKey": null
   }
 ],
@@ -249,16 +269,16 @@ return {
     "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "1932ae484e2fcbb4444215c10fbbc167",
+    "cacheID": "0a4ad9c36386db1a7c7b16535bdcdee5",
     "id": null,
     "metadata": {},
     "name": "ViewerProfileSocialSectionsQuery",
     "operationKind": "query",
-    "text": "query ViewerProfileSocialSectionsQuery {\n  viewer {\n    id\n    followers(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    following(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n  viewerPendingFollowRequests(first: 3) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query ViewerProfileSocialSectionsQuery {\n  viewer {\n    id\n    followers(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          displayName\n          email\n          privacyMode\n          username\n        }\n      }\n    }\n    following(first: 10) {\n      pageInfo {\n        hasNextPage\n      }\n      edges {\n        node {\n          id\n          displayName\n          email\n          privacyMode\n          username\n        }\n      }\n    }\n  }\n  viewerPendingFollowRequests(first: 3) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          displayName\n          email\n          privacyMode\n          username\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b197a9bdb4f5c44b85817f7e49a50e06";
+(node as any).hash = "29b2f9f9fe9ec4ff4ad79075c2a284f0";
 
 export default node;

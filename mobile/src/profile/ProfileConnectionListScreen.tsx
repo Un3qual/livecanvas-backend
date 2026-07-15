@@ -35,6 +35,7 @@ import {
   readProfileConnectionPageInfo,
   type ProfileConnectionPageInfo,
 } from './profileConnectionPagination';
+import { formatProfileIdentity } from './profilePresentation';
 
 export type ProfileConnectionListKind =
   | 'viewerFollowers'
@@ -43,9 +44,11 @@ export type ProfileConnectionListKind =
   | 'otherFollowing';
 
 type ProfileConnectionUser = {
+  readonly displayName: string | null | undefined;
   readonly email: string | null | undefined;
   readonly id: string;
   readonly privacyMode: string;
+  readonly username: string | null | undefined;
 };
 
 type UserConnection = {
@@ -282,12 +285,12 @@ function ProfileConnectionRow({
   user: ProfileConnectionUser;
 }) {
   const theme = useAppTheme();
-  const label = user.email || 'LiveCanvas profile';
+  const identity = formatProfileIdentity(user);
 
   return (
     <AppCard>
       <Pressable
-        accessibilityLabel={label}
+        accessibilityLabel={identity.title}
         accessibilityRole="button"
         onPress={onOpen}
         style={({ pressed }) => [
@@ -297,7 +300,7 @@ function ProfileConnectionRow({
       >
         <View style={styles.rowBody}>
           <Text style={[styles.rowTitle, { color: theme.colors.text }]}>
-            {label}
+            {identity.title}
           </Text>
           <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
             {user.privacyMode === 'PRIVATE' ? 'Private' : 'Public'}

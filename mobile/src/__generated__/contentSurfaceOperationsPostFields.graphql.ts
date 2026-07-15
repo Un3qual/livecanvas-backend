@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<80c5aced879e2d1322b211d65b1cc556>>
+ * @generated SignedSource<<4ee623b8261b6b5e76e3f931215af57e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,8 +15,10 @@ export type PostVisibility = "FOLLOWERS" | "PUBLIC" | "%future added value";
 import { FragmentRefs } from "relay-runtime";
 export type contentSurfaceOperationsPostFields$data = {
   readonly author: {
+    readonly displayName: string | null | undefined;
     readonly email: string | null | undefined;
     readonly id: string;
+    readonly username: string | null | undefined;
   };
   readonly bodyText: string | null | undefined;
   readonly expiresAt: string | null | undefined;
@@ -100,7 +102,21 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
+          "name": "displayName",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
           "name": "email",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "username",
           "storageKey": null
         }
       ],
@@ -145,6 +161,6 @@ return {
 };
 })();
 
-(node as any).hash = "49971f34a55af7728258cda128f80d32";
+(node as any).hash = "1c275b76da40f27fa1610db1fd0efb30";
 
 export default node;

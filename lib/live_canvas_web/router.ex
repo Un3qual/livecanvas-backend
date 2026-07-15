@@ -32,6 +32,8 @@ defmodule LCWeb.Router do
     pipe_through :public_html
 
     get "/invites", ContactInviteController, :show
+    get "/auth/magic-link/sign-in", MagicLinkController, :show
+    get "/auth/magic-link/sign-up", MagicLinkController, :show
   end
 
   scope "/api", LCWeb do

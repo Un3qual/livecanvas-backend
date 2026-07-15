@@ -360,8 +360,10 @@ function sessionWithRecording(
     channelTopic: 'session:1',
     endedAt: '2026-06-01T17:10:00Z',
     host: {
+      displayName: null,
       email: 'host@example.test',
       id: 'host-1',
+      username: null,
     },
     id: 'session-1',
     insertedAt: '2026-06-01T16:00:00Z',

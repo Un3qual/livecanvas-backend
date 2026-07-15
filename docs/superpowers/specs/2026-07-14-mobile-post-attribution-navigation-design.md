@@ -42,11 +42,11 @@ same privacy-safe formatting contract as profile screens. `profileHref/2` will
 be the sole author-destination decision: self when `viewerId === profileId`,
 otherwise the existing other-profile dynamic route.
 
-When email is unavailable, the shared profile identity formatter will include
-the complete opaque Relay ID in its fallback subtitle. It must not truncate,
-decode, or replace the ID with a short hash: distinct Relay IDs must remain
-visually and accessibly distinguishable on every surface that reuses the
-formatter. Email-backed identity presentation remains unchanged.
+When public identity and email are unavailable, the shared profile identity
+formatter will include the complete opaque Relay ID in its fallback subtitle.
+It must not truncate, decode, or replace the ID with a short hash: distinct
+Relay IDs must remain visually and accessibly distinguishable on every surface
+that reuses the formatter. Named identity presentation remains unchanged.
 
 `ContentPostCard` will accept `onOpenAuthor(authorId)` and expose the author
 title as a minimum-touch-target `Pressable` with a descriptive accessibility
@@ -58,7 +58,7 @@ dedicated author-profile action because its layout does not use
 
 ## Failure and Privacy Behavior
 
-- Missing or unauthorized email data renders the existing neutral fallback;
+- Missing or unauthorized identity data renders the existing neutral fallback;
   the client never substitutes another private field. The fallback exposes the
   complete already-client-visible opaque Relay ID so it remains unique.
 - A missing viewer ID routes to the other-profile path, which is the only safe

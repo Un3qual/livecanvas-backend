@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<acecbce901d3f6fc8b152cc5a1537d36>>
+ * @generated SignedSource<<4556e9cc7a59a0227c3417a0da304df0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,8 +30,10 @@ export type postComposerOperationsCreatePostMutation$data = {
     }>;
     readonly post: {
       readonly author: {
+        readonly displayName: string | null | undefined;
         readonly email: string | null | undefined;
         readonly id: string;
+        readonly username: string | null | undefined;
       };
       readonly bodyText: string | null | undefined;
       readonly expiresAt: string | null | undefined;
@@ -140,7 +142,21 @@ v2 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
+                "name": "displayName",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
                 "name": "email",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "username",
                 "storageKey": null
               }
             ],
@@ -229,16 +245,16 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "8e9a7cc5891f91b8af59d2207c636575",
+    "cacheID": "4cec122761c3a8a78a2a1fdf5a8fde69",
     "id": null,
     "metadata": {},
     "name": "postComposerOperationsCreatePostMutation",
     "operationKind": "mutation",
-    "text": "mutation postComposerOperationsCreatePostMutation(\n  $input: CreatePostInput!\n) {\n  createPost(input: $input) {\n    post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        email\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation postComposerOperationsCreatePostMutation(\n  $input: CreatePostInput!\n) {\n  createPost(input: $input) {\n    post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        displayName\n        email\n        username\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "a25c79f8eba57fb359852a1b7746379f";
+(node as any).hash = "0ecae450a72d4c5af1eb787bd9a691b2";
 
 export default node;

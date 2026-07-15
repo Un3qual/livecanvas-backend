@@ -109,9 +109,14 @@ export const ContentPostCard = memo(function ContentPostCard({
   const isOwnPost = isViewerOwnedPost(viewerId, post.author.id);
   const showReportAction = viewerId != null && !isOwnPost;
   const showOwnerControls = viewerId != null && isOwnPost;
+  const hasNamedAuthorIdentity = Boolean(
+    post.author.displayName?.trim() ||
+      post.author.username?.trim() ||
+      post.author.email?.trim(),
+  );
   // The generic fallback title is shared, so include its opaque-ID subtitle to
   // keep adjacent author actions distinguishable to screen-reader users.
-  const authorAccessibilityName = post.author.email?.trim()
+  const authorAccessibilityName = hasNamedAuthorIdentity
     ? presentation.author.title
     : `${presentation.author.title}, ${presentation.author.subtitle}`;
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c77e78968c828aec4c7fab207462f0da>>
+ * @generated SignedSource<<7ef933f209e95dbf8911a9525035bca9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,8 +21,10 @@ export type LiveDiscoveryScreenQuery$data = {
         readonly channelTopic: string | null | undefined;
         readonly endedAt: string | null | undefined;
         readonly host: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
+          readonly username: string | null | undefined;
         };
         readonly id: string;
         readonly insertedAt: string;
@@ -37,8 +39,10 @@ export type LiveDiscoveryScreenQuery$data = {
       readonly channelTopic: string | null | undefined;
       readonly endedAt: string | null | undefined;
       readonly host: {
+        readonly displayName: string | null | undefined;
         readonly email: string | null | undefined;
         readonly id: string;
+        readonly username: string | null | undefined;
       };
       readonly id: string;
       readonly insertedAt: string;
@@ -126,7 +130,21 @@ v2 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
+        "name": "displayName",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
         "name": "email",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "username",
         "storageKey": null
       }
     ],
@@ -213,16 +231,16 @@ return {
     "selections": (v3/*: any*/)
   },
   "params": {
-    "cacheID": "0ad383164e7c19b8f461f82eedfdeaff",
+    "cacheID": "3d8d502b3fed82c3fb81aa5d364b48fb",
     "id": null,
     "metadata": {},
     "name": "LiveDiscoveryScreenQuery",
     "operationKind": "query",
-    "text": "query LiveDiscoveryScreenQuery(\n  $first: Int!\n) {\n  liveNow(first: $first) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n  }\n  viewer {\n    id\n    currentLiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n  }\n}\n"
+    "text": "query LiveDiscoveryScreenQuery(\n  $first: Int!\n) {\n  liveNow(first: $first) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          displayName\n          email\n          username\n        }\n      }\n    }\n  }\n  viewer {\n    id\n    currentLiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        displayName\n        email\n        username\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f6ee6ea41f5048de8adfb409247d637c";
+(node as any).hash = "3c17b3449487f3bdc200fd8bfd7c82e2";
 
 export default node;

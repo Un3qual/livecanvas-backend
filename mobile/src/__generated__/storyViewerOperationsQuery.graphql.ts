@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<058540bdaf9640485c2d0f33d214c807>>
+ * @generated SignedSource<<0d5d1b6313c0e332e08deec191d26b89>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,14 +21,17 @@ export type storyViewerOperationsQuery$data = {
   readonly node: {
     readonly __typename: "Post";
     readonly author: {
+      readonly displayName: string | null | undefined;
       readonly email: string | null | undefined;
       readonly id: string;
       readonly storyFeed: {
         readonly edges: ReadonlyArray<{
           readonly node: {
             readonly author: {
+              readonly displayName: string | null | undefined;
               readonly email: string | null | undefined;
               readonly id: string;
+              readonly username: string | null | undefined;
             };
             readonly bodyText: string | null | undefined;
             readonly expiresAt: string | null | undefined;
@@ -49,6 +52,7 @@ export type storyViewerOperationsQuery$data = {
           readonly hasNextPage: boolean;
         };
       } | null | undefined;
+      readonly username: string | null | undefined;
     };
     readonly bodyText: string | null | undefined;
     readonly expiresAt: string | null | undefined;
@@ -166,10 +170,24 @@ v10 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "email",
+  "name": "displayName",
   "storageKey": null
 },
 v11 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "email",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "username",
+  "storageKey": null
+},
+v13 = {
   "alias": null,
   "args": null,
   "concreteType": "PostMediaAsset",
@@ -202,7 +220,7 @@ v11 = {
   ],
   "storageKey": null
 },
-v12 = {
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "User",
@@ -212,6 +230,8 @@ v12 = {
   "selections": [
     (v1/*: any*/),
     (v10/*: any*/),
+    (v11/*: any*/),
+    (v12/*: any*/),
     {
       "alias": null,
       "args": [
@@ -262,11 +282,13 @@ v12 = {
                   "plural": false,
                   "selections": [
                     (v1/*: any*/),
-                    (v10/*: any*/)
+                    (v10/*: any*/),
+                    (v11/*: any*/),
+                    (v12/*: any*/)
                   ],
                   "storageKey": null
                 },
-                (v11/*: any*/)
+                (v13/*: any*/)
               ],
               "storageKey": null
             }
@@ -330,8 +352,8 @@ return {
               (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
-              (v12/*: any*/),
-              (v11/*: any*/)
+              (v14/*: any*/),
+              (v13/*: any*/)
             ],
             "type": "Post",
             "abstractKey": null
@@ -368,8 +390,8 @@ return {
               (v7/*: any*/),
               (v8/*: any*/),
               (v9/*: any*/),
-              (v12/*: any*/),
-              (v11/*: any*/)
+              (v14/*: any*/),
+              (v13/*: any*/)
             ],
             "type": "Post",
             "abstractKey": null
@@ -380,16 +402,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3547e8b0f6b488f9ef3714e6aba52902",
+    "cacheID": "5f075b903c88cb6337df7a3bfa001216",
     "id": null,
     "metadata": {},
     "name": "storyViewerOperationsQuery",
     "operationKind": "query",
-    "text": "query storyViewerOperationsQuery(\n  $id: ID!\n  $storyAfter: String\n  $storyFirst: Int!\n) {\n  viewer {\n    id\n  }\n  node(id: $id) {\n    __typename\n    ... on Post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        email\n        storyFeed(first: $storyFirst, after: $storyAfter) {\n          edges {\n            node {\n              id\n              kind\n              bodyText\n              visibility\n              expiresAt\n              insertedAt\n              author {\n                id\n                email\n              }\n              mediaAssets {\n                id\n                mimeType\n                processingState\n                publicUrl\n              }\n            }\n          }\n          pageInfo {\n            endCursor\n            hasNextPage\n          }\n        }\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query storyViewerOperationsQuery(\n  $id: ID!\n  $storyAfter: String\n  $storyFirst: Int!\n) {\n  viewer {\n    id\n  }\n  node(id: $id) {\n    __typename\n    ... on Post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        displayName\n        email\n        username\n        storyFeed(first: $storyFirst, after: $storyAfter) {\n          edges {\n            node {\n              id\n              kind\n              bodyText\n              visibility\n              expiresAt\n              insertedAt\n              author {\n                id\n                displayName\n                email\n                username\n              }\n              mediaAssets {\n                id\n                mimeType\n                processingState\n                publicUrl\n              }\n            }\n          }\n          pageInfo {\n            endCursor\n            hasNextPage\n          }\n        }\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e715e3de074b750777032751ea013fd5";
+(node as any).hash = "a92109b038c6fa45f6bc8c18a8a43363";
 
 export default node;

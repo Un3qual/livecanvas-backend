@@ -20,6 +20,8 @@ describe('contentPostPresentation', () => {
         insertedAt: '2026-06-30T17:15:30Z',
         author: {
           id: 'VXNlcjox',
+          displayName: 'Canvas Creator',
+          username: 'canvas_creator',
           email: 'creator@example.com',
         },
         mediaAssets: [],
@@ -32,9 +34,9 @@ describe('contentPostPresentation', () => {
       timestampLabel: 'Jun 30, 2026',
       storyExpiryLabel: null,
       author: {
-        title: 'creator@example.com',
-        subtitle: 'Signed in with email',
-        initials: 'C',
+        title: 'Canvas Creator',
+        subtitle: '@canvas_creator',
+        initials: 'CC',
       },
       mediaAssets: [],
     });
@@ -210,12 +212,14 @@ describe('contentPostPresentation', () => {
     expect(
       formatPostAuthorPresentation({
         id: 'opaque-author-id',
+        displayName: 'Author Name',
+        username: 'author_name',
         email: 'author@example.com',
       }),
     ).toEqual({
-      title: 'author@example.com',
-      subtitle: 'Signed in with email',
-      initials: 'A',
+      title: 'Author Name',
+      subtitle: '@author_name',
+      initials: 'AN',
     });
 
     expect(formatPostVisibilityLabel('PUBLIC')).toBe('Public');

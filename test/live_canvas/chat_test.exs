@@ -194,5 +194,4 @@ defmodule LC.ChatTest do
       assert ReadPolicy.viewer_can_read_owner?(viewer, reverse_muter, :public)
     end
   end
-
 end

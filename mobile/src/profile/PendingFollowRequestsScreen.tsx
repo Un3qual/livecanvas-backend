@@ -37,6 +37,7 @@ import {
   appendProfileConnectionNodes,
   readProfileConnectionPageInfo,
 } from './profileConnectionPagination';
+import { formatProfileIdentity } from './profilePresentation';
 
 type PendingFollowRequest = NonNullable<
   ReturnType<typeof readConnectionNodes<PendingFollowRequestNode>>[number]
@@ -327,14 +328,14 @@ function PendingRequestRow({
   request: PendingFollowRequest;
 }) {
   const theme = useAppTheme();
-  const label = request.follower.email || 'LiveCanvas profile';
+  const identity = formatProfileIdentity(request.follower);
   const isActive = activeAction?.requestId === request.id;
   const isBlocked = activeAction !== null && activeAction.requestId !== request.id;
 
   return (
     <AppCard style={styles.row}>
       <Pressable
-        accessibilityLabel={label}
+        accessibilityLabel={identity.title}
         accessibilityRole="button"
         onPress={() => onOpenProfile(request.follower.id)}
         style={({ pressed }) => [
@@ -343,7 +344,7 @@ function PendingRequestRow({
         ]}
       >
         <Text style={[styles.title, { color: theme.colors.text }]}>
-          {label}
+          {identity.title}
         </Text>
         <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>
           Pending

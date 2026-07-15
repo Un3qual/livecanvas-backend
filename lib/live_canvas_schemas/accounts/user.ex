@@ -16,12 +16,15 @@ defmodule LCSchemas.Accounts.User do
 
   Table contract:
   - Uses the standard relational table contract: bigint `id`, database-generated UUIDv7 `entropy_id` with a unique index, and `:utc_datetime_usec` timestamps.
+  - `username` is nullable for legacy accounts and has a unique index plus a canonical lowercase-handle check; `display_name` is nullable and has a trimmed single-line length check.
   - `suspended_at` is indexed for account-state filtering.
   """
 
   @type t :: %__MODULE__{
           id: pos_integer() | nil,
           entropy_id: Ecto.UUID.t() | nil,
+          username: String.t() | nil,
+          display_name: String.t() | nil,
           email: String.t() | nil,
           password: String.t() | nil,
           hashed_password: String.t() | nil,
@@ -42,6 +45,8 @@ defmodule LCSchemas.Accounts.User do
 
   schema "users" do
     field :entropy_id, Ecto.UUID, read_after_writes: true
+    field :username, :string
+    field :display_name, :string
     field :email, :string, virtual: true
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true

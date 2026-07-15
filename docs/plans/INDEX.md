@@ -15,9 +15,9 @@ Use this file when:
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 5 backend complete; release-candidate QA support only
+- State: no active implementation batch; supporting operator/device QA
 - Latest completed source plan:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - Notes: backend lane owns backend code and backend planning docs, and should be
   promoted when active frontend/mobile product work exposes a verified backend
   contract, resolver, runtime, or data issue.
@@ -25,14 +25,14 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: release-depth sequence complete; operator/device QA pending
+- State: release-candidate operator/device QA active
 - Track: `docs/plans/mobile/TRACK.md`
 - Latest completed source plan:
-  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Latest completed product theme: Mobile Release Depth Next Five Batches
-- Latest completed detailed plans: account settings and recovery, existing
-  social controls, contact discovery, post owner controls, and profile
-  connection lists
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
+- Latest completed product theme: basic public profile identity and viewer
+  editing
+- Latest completed detailed plan:
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - Notes: mobile has Relay prepare/go-live retry wiring, tested media channel
   payload normalization, and a completed backend media runtime foundation. The
   completed chat batch adds retained timeline history and live chat channel
@@ -119,8 +119,8 @@ Use this file when:
 - State: all five product batches and all five release-depth batches complete;
   release-candidate QA active
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
-- Latest completed theme: Mobile Release Depth Next Five Batches
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
+- Latest completed theme: opt-in, bounded native contact import
 - Next gate: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
 ### Backend Code Quality Cleanup

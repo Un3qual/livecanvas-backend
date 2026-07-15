@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1c1548c359fb93d11d0b06639498b911>>
+ * @generated SignedSource<<172907c63b9316a690e779ced307f904>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,9 +12,11 @@ import { ReaderFragment } from 'relay-runtime';
 export type UserPrivacyMode = "PRIVATE" | "PUBLIC" | "%future added value";
 import { FragmentRefs } from "relay-runtime";
 export type profileConnectionOperationsUserFields$data = {
+  readonly displayName: string | null | undefined;
   readonly email: string | null | undefined;
   readonly id: string;
   readonly privacyMode: UserPrivacyMode;
+  readonly username: string | null | undefined;
   readonly " $fragmentType": "profileConnectionOperationsUserFields";
 };
 export type profileConnectionOperationsUserFields$key = {
@@ -39,6 +41,13 @@ const node: ReaderFragment = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
+      "name": "displayName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
       "name": "email",
       "storageKey": null
     },
@@ -48,12 +57,19 @@ const node: ReaderFragment = {
       "kind": "ScalarField",
       "name": "privacyMode",
       "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "username",
+      "storageKey": null
     }
   ],
   "type": "User",
   "abstractKey": null
 };
 
-(node as any).hash = "f5db5ac40a955ba6a546a24f40e4da02";
+(node as any).hash = "d4e83ba43e988eb7bf805bde2ce2e5c4";
 
 export default node;

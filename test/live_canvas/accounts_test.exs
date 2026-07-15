@@ -27,6 +27,11 @@ defmodule LC.AccountsTest do
       refute :email in User.__schema__(:fields)
     end
 
+    test "user exposes nullable basic profile identity fields" do
+      assert User.__schema__(:type, :username) == :string
+      assert User.__schema__(:type, :display_name) == :string
+    end
+
     test "contact entries expose through email and phone relationships" do
       assert :email_addresses in UserContactEntry.__schema__(:associations)
       assert :phone_numbers in UserContactEntry.__schema__(:associations)
@@ -381,6 +386,156 @@ defmodule LC.AccountsTest do
     end
   end
 
+  describe "import_user_contact_entries/2" do
+    test "imports a normalized contact chunk and returns the exact count" do
+      user = user_fixture()
+
+      assert {:ok, 2} =
+               Accounts.import_user_contact_entries(user, [
+                 %{
+                   contact_client_id: "device:first",
+                   contact_name: " First Friend ",
+                   emails: ["FIRST@EXAMPLE.COM", "first@example.com"],
+                   phone_numbers: []
+                 },
+                 %{
+                   contact_client_id: "device:second",
+                   contact_name: "Second Friend",
+                   emails: [],
+                   phone_numbers: ["+1 650 253 0000"]
+                 }
+               ])
+
+      assert [first, second] = Accounts.list_user_contact_matches(user)
+      assert first.contact_entry.contact_name == "First Friend"
+
+      assert Enum.map(first.contact_entry.email_addresses, & &1.normalized_email) == [
+               "first@example.com"
+             ]
+
+      assert second.contact_entry.contact_name == "Second Friend"
+
+      assert Enum.map(second.contact_entry.phone_numbers, & &1.normalized_e164) == [
+               "+16502530000"
+             ]
+    end
+
+    test "rejects empty and oversized chunks without writing" do
+      user = user_fixture()
+
+      assert {:error, :invalid_contact_batch} =
+               Accounts.import_user_contact_entries(user, [])
+
+      oversized_entries =
+        Enum.map(1..101, fn index ->
+          %{contact_client_id: "device:#{index}", emails: [], phone_numbers: []}
+        end)
+
+      assert {:error, :too_many_contact_entries} =
+               Accounts.import_user_contact_entries(user, oversized_entries)
+
+      assert Repo.aggregate(
+               from(contact_entry in UserContactEntry,
+                 where: contact_entry.user_id == ^user.id
+               ),
+               :count,
+               :id
+             ) == 0
+    end
+
+    test "rejects duplicate client ids before writing" do
+      user = user_fixture()
+
+      assert {:error, :duplicate_contact_client_id} =
+               Accounts.import_user_contact_entries(user, [
+                 %{contact_client_id: "device:duplicate", emails: [], phone_numbers: []},
+                 %{contact_client_id: "device:duplicate", emails: [], phone_numbers: []}
+               ])
+
+      assert Accounts.list_user_contact_matches(user) == []
+    end
+
+    test "validates every entry before writing any of them" do
+      user = user_fixture()
+
+      assert {:error, :invalid_phone_number} =
+               Accounts.import_user_contact_entries(user, [
+                 %{
+                   contact_client_id: "device:valid",
+                   emails: ["valid@example.com"],
+                   phone_numbers: []
+                 },
+                 %{
+                   contact_client_id: "device:invalid",
+                   emails: [],
+                   phone_numbers: ["123"]
+                 }
+               ])
+
+      assert Accounts.list_user_contact_matches(user) == []
+    end
+
+    test "repeating a chunk updates stable contact rows without duplicating them" do
+      user = user_fixture()
+
+      assert {:ok, 1} =
+               Accounts.import_user_contact_entries(user, [
+                 %{
+                   contact_client_id: "device:stable",
+                   contact_name: "Original",
+                   emails: ["original@example.com"],
+                   phone_numbers: []
+                 }
+               ])
+
+      assert [first] = Accounts.list_user_contact_matches(user)
+
+      assert {:ok, 1} =
+               Accounts.import_user_contact_entries(user, [
+                 %{
+                   contact_client_id: "device:stable",
+                   contact_name: "Updated",
+                   emails: ["updated@example.com"],
+                   phone_numbers: []
+                 }
+               ])
+
+      assert [second] = Accounts.list_user_contact_matches(user)
+      assert second.id == first.id
+      assert second.contact_entry.contact_name == "Updated"
+
+      assert Enum.map(second.contact_entry.email_addresses, & &1.normalized_email) == [
+               "updated@example.com"
+             ]
+    end
+
+    test "does not preload discarded associations for every imported contact" do
+      user = user_fixture()
+
+      entries =
+        Enum.map(1..2, fn index ->
+          %{
+            contact_client_id: "device:no-preload-#{index}",
+            emails: [],
+            phone_numbers: []
+          }
+        end)
+
+      {result, queries} =
+        capture_repo_queries(fn -> Accounts.import_user_contact_entries(user, entries) end)
+
+      association_reads =
+        Enum.filter(queries, fn query ->
+          String.starts_with?(query, "SELECT") and
+            (String.contains?(query, ~s(FROM "user_contact_entry_email_addresses")) or
+               String.contains?(query, ~s(FROM "user_contact_entry_phone_numbers")))
+        end)
+
+      assert result == {:ok, 2}
+      assert association_reads == []
+    end
+  end
+
   describe "list_user_contact_matches/1" do
     test "returns deterministic match records and excludes self matches" do
       owner = user_fixture(email: "a-owner@example.com")
@@ -513,6 +668,100 @@ defmodule LC.AccountsTest do
       user = user_fixture(privacy_mode: :public)
 
       assert user.privacy_mode == :public
+    end
+  end
+
+  describe "update_user_profile_identity/2" do
+    test "canonicalizes both fields atomically and preserves account state" do
+      user = user_fixture(privacy_mode: :public)
+
+      assert {:ok, updated_user} =
+               Accounts.update_user_profile_identity(user, %{
+                 display_name: "  🎨 Canvas Creator  ",
+                 username: "  Canvas_Creator  "
+               })
+
+      assert Map.get(updated_user, :display_name) == "🎨 Canvas Creator"
+      assert Map.get(updated_user, :username) == "canvas_creator"
+      assert updated_user.privacy_mode == :public
+      assert updated_user.email == user.email
+
+      persisted_user = Accounts.get_user!(user.id)
+      assert Map.get(persisted_user, :display_name) == "🎨 Canvas Creator"
+      assert Map.get(persisted_user, :username) == "canvas_creator"
+    end
+
+    test "accepts a stable repeat update" do
+      user = user_fixture()
+      attrs = %{display_name: "Canvas Creator", username: "canvas_creator"}
+
+      assert {:ok, first_update} = Accounts.update_user_profile_identity(user, attrs)
+      assert {:ok, second_update} = Accounts.update_user_profile_identity(first_update, attrs)
+      assert Map.take(second_update, [:display_name, :username]) == attrs
+    end
+
+    test "returns required errors for explicit nil identity fields" do
+      user = user_fixture()
+
+      assert {:ok, user_with_identity} =
+               Accounts.update_user_profile_identity(user, %{
+                 display_name: "Canvas Creator",
+                 username: "canvas_creator"
+               })
+
+      assert {:error, changeset} =
+               Accounts.update_user_profile_identity(user_with_identity, %{
+                 display_name: nil,
+                 username: nil
+               })
+
+      assert %{
+               display_name: ["can't be blank"],
+               username: ["can't be blank"]
+             } = errors_on(changeset)
+
+      persisted_user = Accounts.get_user!(user.id)
+      assert persisted_user.display_name == "Canvas Creator"
+      assert persisted_user.username == "canvas_creator"
+    end
+
+    test "rejects malformed handles and display names" do
+      user = user_fixture()
+
+      invalid_attrs = [
+        {%{display_name: "Canvas", username: "ab"}, :username},
+        {%{display_name: "Canvas", username: "_canvas"}, :username},
+        {%{display_name: "Canvas", username: "canvas_"}, :username},
+        {%{display_name: "Canvas", username: "canvas-name"}, :username},
+        {%{display_name: "Canvas", username: "cánvas"}, :username},
+        {%{display_name: "   ", username: "canvas_user"}, :display_name},
+        {%{display_name: "Canvas\nCreator", username: "canvas_user"}, :display_name},
+        {%{display_name: String.duplicate("a", 51), username: "canvas_user"}, :display_name}
+      ]
+
+      for {attrs, field} <- invalid_attrs do
+        assert {:error, changeset} = Accounts.update_user_profile_identity(user, attrs)
+        assert Map.has_key?(errors_on(changeset), field)
+      end
+    end
+
+    test "returns a username error when the canonical handle is already taken" do
+      first_user = user_fixture()
+      second_user = user_fixture()
+
+      assert {:ok, _first_user} =
+               Accounts.update_user_profile_identity(first_user, %{
+                 display_name: "First Creator",
+                 username: "canvas_creator"
+               })
+
+      assert {:error, changeset} =
+               Accounts.update_user_profile_identity(second_user, %{
+                 display_name: "Second Creator",
+                 username: "CANVAS_CREATOR"
+               })
+
+      assert %{username: ["has already been taken"]} = errors_on(changeset)
     end
   end
 

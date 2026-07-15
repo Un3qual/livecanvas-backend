@@ -26,4 +26,17 @@ describe('authEntryControllerReducer', () => {
       authEntryControllerReducer(busyState, { type: 'attemptFinished' }),
     ).toEqual(initialAuthEntryControllerState);
   });
+
+  test('tracks magic-link requests as a distinct provider attempt', () => {
+    const active = authEntryControllerReducer(
+      initialAuthEntryControllerState,
+      {
+        type: 'attemptStarted',
+        attempt: { mode: 'signUp', provider: 'magicLink' },
+      },
+    );
+
+    expect(isAuthProviderSubmitting(active, 'magicLink')).toBe(true);
+    expect(isAuthProviderSubmitting(active, 'password')).toBe(false);
+  });
 });

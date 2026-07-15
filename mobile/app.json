@@ -16,6 +16,12 @@
           "photosPermission": "LiveCanvas needs photo library access so you can add an image or video to a post."
         }
       ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "LiveCanvas uses contacts you choose to find people you may know."
+        }
+      ],
       "@config-plugins/react-native-webrtc",
       "expo-image",
       "expo-video"
@@ -31,13 +37,15 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "LiveCanvas uses the camera so hosts can preview and broadcast live sessions.",
+        "NSContactsUsageDescription": "LiveCanvas uses contacts you choose to find people you may know.",
         "NSMicrophoneUsageDescription": "LiveCanvas uses the microphone so hosts can include audio in live sessions."
       }
     },
     "android": {
       "package": "com.livecanvas.mobile",
       "versionCode": 1,
-      "permissions": ["CAMERA", "RECORD_AUDIO"],
+      "blockedPermissions": ["android.permission.WRITE_CONTACTS"],
+      "permissions": ["CAMERA", "READ_CONTACTS", "RECORD_AUDIO"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

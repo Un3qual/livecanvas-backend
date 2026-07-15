@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eaa89a50044ea9e86f6cb662b1bd9177>>
+ * @generated SignedSource<<5471e99759ac3cd8c73852665aba0016>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,9 +20,11 @@ export type profileConnectionOperationsPendingRequestsQuery$data = {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly follower: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
           readonly privacyMode: UserPrivacyMode;
+          readonly username: string | null | undefined;
         };
         readonly id: string;
         readonly requestedAt: string;
@@ -124,6 +126,13 @@ v2 = [
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "displayName",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "email",
                     "storageKey": null
                   },
@@ -132,6 +141,13 @@ v2 = [
                     "args": null,
                     "kind": "ScalarField",
                     "name": "privacyMode",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "username",
                     "storageKey": null
                   }
                 ],
@@ -190,12 +206,12 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "ee47064c7a601195f261f61bb5705deb",
+    "cacheID": "7fb6941aea1ab7b6fa51ea5352a81618",
     "id": null,
     "metadata": {},
     "name": "profileConnectionOperationsPendingRequestsQuery",
     "operationKind": "query",
-    "text": "query profileConnectionOperationsPendingRequestsQuery(\n  $after: String\n  $first: Int!\n) {\n  viewerPendingFollowRequests(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          email\n          privacyMode\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query profileConnectionOperationsPendingRequestsQuery(\n  $after: String\n  $first: Int!\n) {\n  viewerPendingFollowRequests(first: $first, after: $after) {\n    edges {\n      node {\n        id\n        state\n        requestedAt\n        follower {\n          id\n          displayName\n          email\n          privacyMode\n          username\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

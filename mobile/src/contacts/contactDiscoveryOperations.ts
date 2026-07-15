@@ -9,6 +9,9 @@ export type {
 export type {
   contactDiscoveryOperationsDeliverInviteMutation as ContactDiscoveryDeliverInviteMutation,
 } from '../__generated__/contactDiscoveryOperationsDeliverInviteMutation.graphql';
+export type {
+  contactDiscoveryOperationsImportMutation as ContactDiscoveryImportMutation,
+} from '../__generated__/contactDiscoveryOperationsImportMutation.graphql';
 
 export const CONTACT_DISCOVERY_QUERY_VARIABLES = {
   after: null,
@@ -22,8 +25,10 @@ export const contactDiscoveryContactMatchFields = graphql`
     inviteRecipient
     matchedUsers {
       id
+      displayName
       email
       privacyMode
+      username
     }
   }
 `;
@@ -65,6 +70,20 @@ export const contactDiscoveryDeliverInviteMutation = graphql`
     $input: DeliverViewerContactInviteInput!
   ) {
     deliverViewerContactInvite(input: $input) {
+      errors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export const contactDiscoveryImportMutation = graphql`
+  mutation contactDiscoveryOperationsImportMutation(
+    $input: ImportViewerContactEntriesInput!
+  ) {
+    importViewerContactEntries(input: $input) {
+      importedCount
       errors {
         field
         message

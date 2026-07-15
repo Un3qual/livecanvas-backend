@@ -28,6 +28,10 @@ export const authScreenStyles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  successText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
   dividerRow: {
     alignItems: 'center',
     flexDirection: 'row',

@@ -350,12 +350,12 @@ describe('ProfileContentListScreen pagination and controls', () => {
     const user = userEvent.setup();
     mockQueryData = profileContentData({
       kind: 'posts',
-      profileId: 'viewer-id',
-      rows: [post('viewer-post', 'viewer-id', 'Viewer post')],
+      profileId: 'creator-id',
+      rows: [post('creator-post', 'creator-id', 'Creator post')],
       viewerId: 'viewer-id',
     });
     const view = await render(
-      <ProfileContentListScreen kind="posts" profileId="viewer-id" />,
+      <ProfileContentListScreen kind="posts" profileId="creator-id" />,
     );
 
     await user.press(
@@ -364,7 +364,7 @@ describe('ProfileContentListScreen pagination and controls', () => {
       }),
     );
 
-    expect(mockPushedRoutes).toEqual([profileHref('viewer-id', 'viewer-id')]);
+    expect(mockPushedRoutes).toEqual([profileHref('creator-id', 'viewer-id')]);
     await view.unmount();
   });
 

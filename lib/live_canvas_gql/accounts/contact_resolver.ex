@@ -17,6 +17,11 @@ defmodule LCGQL.Accounts.ContactResolver do
           errors: [mutation_error()]
         }
   @type contact_upsert_result :: {:ok, contact_upsert_payload()}
+  @type contact_import_payload :: %{
+          imported_count: non_neg_integer(),
+          errors: [mutation_error()]
+        }
+  @type contact_import_result :: {:ok, contact_import_payload()}
   @type invite_delivery_payload :: %{errors: [mutation_error()]}
   @type invite_delivery_result :: {:ok, invite_delivery_payload()}
   @type invite_consumption_payload :: %{consumed: boolean(), errors: [mutation_error()]}
@@ -71,6 +76,34 @@ defmodule LCGQL.Accounts.ContactResolver do
 
   def upsert_viewer_contact_entry(_parent, _args, _resolution) do
     {:ok, %{contact_match: nil, errors: [MutationErrors.user_error(nil, :unauthenticated)]}}
+  end
+
+  @spec import_viewer_contact_entries(
+          term(),
+          %{optional(:input) => map(), optional(:entries) => [map()]},
+          Absinthe.Resolution.t()
+        ) :: contact_import_result()
+  def import_viewer_contact_entries(parent, %{input: input}, resolution),
+    do: import_viewer_contact_entries(parent, input, resolution)
+
+  def import_viewer_contact_entries(_parent, %{entries: entries}, %{
+        context: %{current_scope: %{user: %{id: _id} = user}}
+      }) do
+    case Accounts.import_user_contact_entries(user, entries) do
+      {:ok, imported_count} ->
+        {:ok, %{imported_count: imported_count, errors: []}}
+
+      {:error, reason} ->
+        {:ok, %{imported_count: 0, errors: [contact_import_error(reason)]}}
+    end
+  end
+
+  def import_viewer_contact_entries(_parent, _args, _resolution) do
+    {:ok,
+     %{
+       imported_count: 0,
+       errors: [MutationErrors.user_error(nil, :unauthenticated)]
+     }}
   end
 
   @spec deliver_viewer_contact_invite(
@@ -141,9 +174,15 @@ defmodule LCGQL.Accounts.ContactResolver do
         context: %{current_scope: %{user: %{id: _id} = user}}
       }) do
     user
-    |> Accounts.list_user_contact_matches()
-    |> visible_contact_match_nodes(user)
-    |> Absinthe.Relay.Connection.from_list(args)
+    |> Accounts.user_contact_matches_query()
+    |> Absinthe.Relay.Connection.from_query(
+      fn paged_query ->
+        user
+        |> Accounts.run_user_contact_matches_query(paged_query)
+        |> visible_contact_match_nodes(user)
+      end,
+      args
+    )
   end
 
   def viewer_contact_matches(_parent, args, _resolution) do
@@ -205,6 +244,27 @@ defmodule LCGQL.Accounts.ContactResolver do
     do: MutationErrors.invalid_error("phoneNumbers")
 
   defp contact_upsert_error(:invalid_email_list), do: MutationErrors.invalid_error("emails")
+
+  @spec contact_import_error(Accounts.contact_import_error()) :: mutation_error()
+  defp contact_import_error(reason)
+       when reason in [
+              :invalid_contact_batch,
+              :too_many_contact_entries,
+              :duplicate_contact_client_id
+            ],
+       do: MutationErrors.invalid_error("entries")
+
+  defp contact_import_error(:invalid_contact_client_id),
+    do: MutationErrors.invalid_error("entries.contactClientId")
+
+  defp contact_import_error(:invalid_birthday),
+    do: MutationErrors.invalid_error("entries.birthday")
+
+  defp contact_import_error(:invalid_phone_number),
+    do: MutationErrors.invalid_error("entries.phoneNumbers")
+
+  defp contact_import_error(:invalid_email_list),
+    do: MutationErrors.invalid_error("entries.emails")
 
   @spec normalize_string_list([String.t()] | nil) :: [String.t()]
   defp normalize_string_list(nil), do: []

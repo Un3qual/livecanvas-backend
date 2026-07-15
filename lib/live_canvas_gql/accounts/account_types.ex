@@ -64,6 +64,14 @@ defmodule LCGQL.Accounts.Types do
       resolve(&UserResolver.user_email/3)
     end
 
+    field :username, :string do
+      resolve(&UserResolver.user_username/3)
+    end
+
+    field :display_name, :string do
+      resolve(&UserResolver.user_display_name/3)
+    end
+
     field :privacy_mode, non_null(:user_privacy_mode)
     field :inserted_at, non_null(:string)
 
@@ -173,6 +181,14 @@ defmodule LCGQL.Accounts.Types do
   input_object :magic_link_auth_input do
     field :email, :string
     field :token, :string
+  end
+
+  input_object :viewer_contact_entry_input do
+    field :contact_client_id, non_null(:string)
+    field :contact_name, :string
+    field :birthday, :string
+    field :emails, list_of(non_null(:string))
+    field :phone_numbers, list_of(non_null(:string))
   end
 
   input_object :oauth_auth_input do

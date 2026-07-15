@@ -37,6 +37,7 @@ type RootMutationType {
   registerWithEmail(input: RegisterWithEmailInput!): RegisterWithEmailPayload
   attachUserPhoneNumber(input: AttachUserPhoneNumberInput!): AttachUserPhoneNumberPayload
   updateViewerPrivacyMode(input: UpdateViewerPrivacyModeInput!): UpdateViewerPrivacyModePayload
+  updateViewerProfileIdentity(input: UpdateViewerProfileIdentityInput!): UpdateViewerProfileIdentityPayload
   requestPasswordReset(input: RequestPasswordResetInput!): RequestPasswordResetPayload
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload
   unlinkViewerIdentity(input: UnlinkViewerIdentityInput!): UnlinkViewerIdentityPayload
@@ -44,6 +45,7 @@ type RootMutationType {
   requestViewerAccountDeletion(input: RequestViewerAccountDeletionInput!): RequestViewerAccountDeletionPayload
   cancelViewerAccountDeletionRequest(input: CancelViewerAccountDeletionRequestInput!): CancelViewerAccountDeletionRequestPayload
   upsertViewerContactEntry(input: UpsertViewerContactEntryInput!): UpsertViewerContactEntryPayload
+  importViewerContactEntries(input: ImportViewerContactEntriesInput!): ImportViewerContactEntriesPayload
   deliverViewerContactInvite(input: DeliverViewerContactInviteInput!): DeliverViewerContactInvitePayload
   consumeContactInvite(input: ConsumeContactInviteInput!): ConsumeContactInvitePayload
   issueViewerAuthTokens(input: IssueViewerAuthTokensInput!): IssueViewerAuthTokensPayload
@@ -356,6 +358,16 @@ type UpdateViewerPrivacyModePayload {
   errors: [UserError!]!
 }
 
+input UpdateViewerProfileIdentityInput {
+  username: String!
+  displayName: String!
+}
+
+type UpdateViewerProfileIdentityPayload {
+  user: User
+  errors: [UserError!]!
+}
+
 input RequestPasswordResetInput {
   email: String!
 }
@@ -421,6 +433,15 @@ input UpsertViewerContactEntryInput {
 
 type UpsertViewerContactEntryPayload {
   contactMatch: ContactMatch
+  errors: [UserError!]!
+}
+
+input ImportViewerContactEntriesInput {
+  entries: [ViewerContactEntryInput!]!
+}
+
+type ImportViewerContactEntriesPayload {
+  importedCount: Int!
   errors: [UserError!]!
 }
 
@@ -840,6 +861,10 @@ type User implements Node {
 
   email: String
 
+  username: String
+
+  displayName: String
+
   privacyMode: UserPrivacyMode!
 
   insertedAt: String!
@@ -946,6 +971,14 @@ input PasswordAuthInput {
 input MagicLinkAuthInput {
   email: String
   token: String
+}
+
+input ViewerContactEntryInput {
+  contactClientId: String!
+  contactName: String
+  birthday: String
+  emails: [String!]
+  phoneNumbers: [String!]
 }
 
 input OauthAuthInput {

@@ -176,14 +176,23 @@ defmodule LCGQL.Schema do
     with {:ok, local_id} <- cast_node_local_id(id) do
       user = Accounts.get_user!(local_id)
 
-      case Resolution.viewer(resolution) do
-        {:ok, viewer} ->
-          if ReadPolicy.viewer_blocked_by_owner?(viewer, user),
-            do: {:ok, nil},
-            else: {:ok, user}
+      case user do
+        %User{suspended_at: nil} ->
+          case Resolution.viewer(resolution) do
+            {:ok, %User{id: ^local_id}} ->
+              {:ok, user}
 
-        :error ->
-          {:ok, user}
+            {:ok, viewer} ->
+              if ReadPolicy.viewer_blocked_by_owner?(viewer, user),
+                do: {:ok, nil},
+                else: {:ok, user}
+
+            :error ->
+              {:ok, user}
+          end
+
+        %User{} ->
+          {:ok, nil}
       end
     else
       :error -> {:ok, nil}

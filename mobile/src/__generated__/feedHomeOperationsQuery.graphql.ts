@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b895c5c7398649902753f5167100051a>>
+ * @generated SignedSource<<f2d8605e822acf712657e79970d876be>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,8 +28,10 @@ export type feedHomeOperationsQuery$data = {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly author: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
+          readonly username: string | null | undefined;
         };
         readonly bodyText: string | null | undefined;
         readonly expiresAt: string | null | undefined;
@@ -56,8 +58,10 @@ export type feedHomeOperationsQuery$data = {
         readonly channelTopic: string | null | undefined;
         readonly endedAt: string | null | undefined;
         readonly host: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
+          readonly username: string | null | undefined;
         };
         readonly id: string;
         readonly insertedAt: string;
@@ -73,8 +77,10 @@ export type feedHomeOperationsQuery$data = {
         readonly channelTopic: string | null | undefined;
         readonly endedAt: string | null | undefined;
         readonly host: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
+          readonly username: string | null | undefined;
         };
         readonly id: string;
         readonly insertedAt: string;
@@ -92,8 +98,10 @@ export type feedHomeOperationsQuery$data = {
     readonly edges: ReadonlyArray<{
       readonly node: {
         readonly author: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
+          readonly username: string | null | undefined;
         };
         readonly bodyText: string | null | undefined;
         readonly expiresAt: string | null | undefined;
@@ -119,8 +127,10 @@ export type feedHomeOperationsQuery$data = {
       readonly channelTopic: string | null | undefined;
       readonly endedAt: string | null | undefined;
       readonly host: {
+        readonly displayName: string | null | undefined;
         readonly email: string | null | undefined;
         readonly id: string;
+        readonly username: string | null | undefined;
       };
       readonly id: string;
       readonly insertedAt: string;
@@ -201,7 +211,21 @@ v4 = [
     "alias": null,
     "args": null,
     "kind": "ScalarField",
+    "name": "displayName",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
     "name": "email",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
     "storageKey": null
   }
 ],
@@ -512,12 +536,12 @@ return {
     "selections": (v9/*: any*/)
   },
   "params": {
-    "cacheID": "5ab885132e5de3ff2909a30677341498",
+    "cacheID": "6287cd40e1716dcaac65662f27205b45",
     "id": null,
     "metadata": {},
     "name": "feedHomeOperationsQuery",
     "operationKind": "query",
-    "text": "query feedHomeOperationsQuery(\n  $feedAfter: String\n  $feedFirst: Int!\n  $liveFirst: Int!\n  $replayAfter: String\n  $replayFirst: Int!\n  $storyAfter: String\n  $storyFirst: Int!\n) {\n  viewer {\n    id\n    currentLiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n  }\n  storyFeed(first: $storyFirst, after: $storyAfter) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          email\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  homeFeed(first: $feedFirst, after: $feedAfter) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          email\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  liveNow(first: $liveFirst) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n  }\n  replayFeed(first: $replayFirst, after: $replayAfter) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          email\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query feedHomeOperationsQuery(\n  $feedAfter: String\n  $feedFirst: Int!\n  $liveFirst: Int!\n  $replayAfter: String\n  $replayFirst: Int!\n  $storyAfter: String\n  $storyFirst: Int!\n) {\n  viewer {\n    id\n    currentLiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        displayName\n        email\n        username\n      }\n    }\n  }\n  storyFeed(first: $storyFirst, after: $storyAfter) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          displayName\n          email\n          username\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  homeFeed(first: $feedFirst, after: $feedAfter) {\n    edges {\n      node {\n        id\n        kind\n        bodyText\n        visibility\n        expiresAt\n        insertedAt\n        author {\n          id\n          displayName\n          email\n          username\n        }\n        mediaAssets {\n          id\n          mimeType\n          processingState\n          publicUrl\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  liveNow(first: $liveFirst) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          displayName\n          email\n          username\n        }\n      }\n    }\n  }\n  replayFeed(first: $replayFirst, after: $replayAfter) {\n    edges {\n      node {\n        id\n        channelTopic\n        status\n        visibility\n        insertedAt\n        startedAt\n        endedAt\n        host {\n          id\n          displayName\n          email\n          username\n        }\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();

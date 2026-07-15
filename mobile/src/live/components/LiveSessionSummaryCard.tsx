@@ -16,7 +16,12 @@ import {
 
 export type LiveSessionSummary = {
   readonly endedAt?: string | null;
-  readonly host: { readonly email?: string | null; readonly id: string };
+  readonly host: {
+    readonly displayName?: string | null;
+    readonly email?: string | null;
+    readonly id: string;
+    readonly username?: string | null;
+  };
   readonly id: string;
   readonly insertedAt: string;
   readonly startedAt?: string | null;

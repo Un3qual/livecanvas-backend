@@ -109,7 +109,7 @@ defmodule LC.Dev.SeedData do
         case Accounts.register_user_with_email(%{email: email}) do
           {:ok, %User{} = user} -> user
           {:error, reason} -> raise "failed to seed development user #{email}: #{inspect(reason)}"
-      end
+        end
     end
   end
 
@@ -279,8 +279,11 @@ defmodule LC.Dev.SeedData do
     |> Repo.one()
   end
 
-  defp ensure_live_session_entropy_id!(%LiveSession{entropy_id: entropy_id} = session, entropy_id),
-    do: session
+  defp ensure_live_session_entropy_id!(
+         %LiveSession{entropy_id: entropy_id} = session,
+         entropy_id
+       ),
+       do: session
 
   defp ensure_live_session_entropy_id!(%LiveSession{} = session, entropy_id) do
     session
@@ -309,7 +312,8 @@ defmodule LC.Dev.SeedData do
     end
   end
 
-  defp rotate_live_session_entropy_id!(%LiveSession{id: session_id}) when is_integer(session_id) do
+  defp rotate_live_session_entropy_id!(%LiveSession{id: session_id})
+       when is_integer(session_id) do
     {updated_count, _rows} =
       from(live_session in LiveSession,
         where: live_session.id == ^session_id,
@@ -326,8 +330,11 @@ defmodule LC.Dev.SeedData do
     end
   end
 
-  defp normalize_live_session_visibility!(%LiveSession{visibility: visibility} = session, visibility),
-    do: session
+  defp normalize_live_session_visibility!(
+         %LiveSession{visibility: visibility} = session,
+         visibility
+       ),
+       do: session
 
   defp normalize_live_session_visibility!(%LiveSession{} = session, visibility) do
     session

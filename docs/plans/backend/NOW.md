@@ -1,7 +1,7 @@
 # Backend Lane NOW
 
-Last reviewed: 2026-07-11
-Status: Batch 5 backend complete; release-candidate QA support only
+Last reviewed: 2026-07-15
+Status: no active implementation batch; supporting operator/device QA
 
 ## Lane Scope
 
@@ -11,32 +11,28 @@ Status: Batch 5 backend complete; release-candidate QA support only
 
 ## Current State
 
-- Source plan:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
-- Completed scope: Tasks 1-3 delivered recipient-bound one-time consumption,
-  neutral invite delivery, the trusted configured fragment-only HTTPS landing
-  contract, authenticated Relay consumption, and a public endpoint that bypasses
-  GraphQL session/viewer context.
-- No backend implementation batch is active. Promote only a reproduced backend
-  defect from release-candidate QA with an explicit write scope.
+- Design: `docs/superpowers/specs/2026-07-15-basic-profile-identity-design.md`
+- Completed plan: `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
+- Completed scope: nullable identity persistence, canonical validation,
+  authorized public fields, and viewer-scoped atomic editing.
+- No backend implementation batch is active while release-candidate
+  operator/device QA is waiting on external prerequisites.
 
 ## Verification
 
-- Batch 5 database reset, focused token/Accounts/controller/GraphQL suites,
-  1,010 full backend tests, typecheck, warnings-as-errors compilation, typespec
-  checks, asset build, landing parser, changed-file formatting, and patch
-  hygiene pass.
+- Closure evidence: clean test database reset; format and warnings-as-errors
+  compile; `mix typecheck`; 224 focused identity tests; 1,044 full tests with
+  zero failures and one excluded.
 
 ## Next Action
 
-Stand by for release-candidate QA. If QA reproduces a backend contract,
-authorization, token-lifecycle, or runtime defect, promote that defect here
-before implementation.
+If device QA reproduces a backend contract, resolver, runtime, or data defect,
+promote a bounded backend repair batch here before implementation.
 
 ## References
 
 - Mobile lane: `docs/plans/mobile/NOW.md`
-- Active Batch 5 plan:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+- Completed identity plan:
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
 - Active mobile QA gate:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`

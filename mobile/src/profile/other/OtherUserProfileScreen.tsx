@@ -69,7 +69,9 @@ const otherUserProfileScreenQuery = graphql`
       __typename
       ... on User {
         id
+        displayName
         privacyMode
+        username
         currentLiveSession {
           id
           status
@@ -79,7 +81,9 @@ const otherUserProfileScreenQuery = graphql`
           endedAt
           host {
             id
+            displayName
             email
+            username
           }
         }
         followers(first: 3) {

@@ -9,6 +9,7 @@ import {
 } from './authEntryControllerReducer';
 import { useAppleAuth } from './useAppleAuth';
 import { useGoogleAuth } from './useGoogleAuth';
+import { useMagicLinkAuth } from './useMagicLinkAuth';
 import {
   usePasswordAuth,
   type PasswordAuthFields,
@@ -20,6 +21,7 @@ export function useAuthEntryController(mode: AuthEntryMode) {
   const passwordAuth = usePasswordAuth();
   const googleAuth = useGoogleAuth();
   const appleAuth = useAppleAuth();
+  const magicLinkAuth = useMagicLinkAuth();
   const [state, dispatch] = useReducer(
     authEntryControllerReducer,
     initialAuthEntryControllerState,
@@ -29,16 +31,23 @@ export function useAuthEntryController(mode: AuthEntryMode) {
   const activeAttemptRef = useRef<AuthEntryAttempt | null>(null);
 
   const formError =
-    passwordAuth.formError ?? googleAuth.error ?? appleAuth.error;
+    passwordAuth.formError ??
+    magicLinkAuth.formError ??
+    googleAuth.error ??
+    appleAuth.error;
+  const fieldErrors = {
+    ...passwordAuth.fieldErrors,
+    ...magicLinkAuth.fieldErrors,
+  };
   const isBusy = state.activeAttempt !== null;
   const canSwitchScreens = !isBusy;
-  const showOauthDivider = googleAuth.isSupported || appleAuth.isAvailable;
 
   const clearTransientErrors = useCallback(() => {
     passwordAuth.clearErrors();
+    magicLinkAuth.clearErrors();
     googleAuth.clearError();
     appleAuth.clearError();
-  }, [appleAuth, googleAuth, passwordAuth]);
+  }, [appleAuth, googleAuth, magicLinkAuth, passwordAuth]);
 
   const runAttempt = useCallback(
     async (attempt: AuthEntryAttempt, task: () => Promise<boolean>) => {
@@ -79,6 +88,17 @@ export function useAuthEntryController(mode: AuthEntryMode) {
     );
   }, [googleAuth, mode, runAttempt]);
 
+  const submitMagicLink = useCallback(
+    (email: string, returnTo: string) => {
+      return runAttempt({ mode, provider: 'magicLink' }, () =>
+        mode === 'signIn'
+          ? magicLinkAuth.requestSignInLink(email, returnTo)
+          : magicLinkAuth.requestSignUpLink(email, returnTo),
+      );
+    },
+    [magicLinkAuth, mode, runAttempt],
+  );
+
   const submitApple = useCallback(() => {
     return runAttempt({ mode, provider: 'apple' }, () =>
       mode === 'signIn'
@@ -100,7 +120,7 @@ export function useAuthEntryController(mode: AuthEntryMode) {
 
   return {
     clearTransientErrors,
-    fieldErrors: passwordAuth.fieldErrors,
+    fieldErrors,
     formError,
     handleAlternateScreenPress,
     hasAppleAuthOption: appleAuth.isAvailable,
@@ -108,11 +128,13 @@ export function useAuthEntryController(mode: AuthEntryMode) {
     isAppleSubmitting: isAuthProviderSubmitting(state, 'apple'),
     isBusy,
     isGoogleSubmitting: isAuthProviderSubmitting(state, 'google'),
+    isMagicLinkSubmitting: isAuthProviderSubmitting(state, 'magicLink'),
     isPasswordSubmitting: isAuthProviderSubmitting(state, 'password'),
     canSwitchScreens,
-    showOauthDivider,
+    magicLinkMessage: magicLinkAuth.message,
     submitApple,
     submitGoogle,
+    submitMagicLink,
     submitPassword,
   };
 }

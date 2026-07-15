@@ -1,7 +1,7 @@
 # Current Execution
 
-Last reviewed: 2026-07-14
-Status: mobile attribution/navigation complete; operator/device QA pending
+Last reviewed: 2026-07-15
+Status: release-candidate operator/device QA active
 
 ## Purpose
 
@@ -9,10 +9,25 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Approved Sequence
 
-- Current sequence design:
-  `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
-- Latest completed implementation:
-  `docs/superpowers/plans/2026-07-14-mobile-post-attribution-navigation.md`
+- Completed design:
+  `docs/superpowers/specs/2026-07-15-basic-profile-identity-design.md`
+- Completed implementation:
+  `docs/superpowers/plans/2026-07-15-basic-profile-identity.md`
+- Completed batch: persisted display name and unique handle, authorized Relay
+  fields, shared mobile presentation, and viewer-scoped editing.
+- Completed design:
+  `docs/superpowers/specs/2026-07-15-native-contact-import-design.md`
+- Completed implementation:
+  `docs/superpowers/plans/2026-07-15-native-contact-import.md`
+- Completed batch: viewer-scoped atomic contact chunks, minimal native
+  address-book access, and generation-safe mobile import into existing
+  discovery results.
+- Completed design:
+  `docs/superpowers/specs/2026-07-15-mobile-magic-link-auth-design.md`
+- Completed implementation:
+  `docs/superpowers/plans/2026-07-15-mobile-magic-link-auth.md`
+- Completed batch: configured fragment-only magic-link delivery, strict mobile
+  handoff, request UI, and GraphQL redemption into the existing auth session.
 - Completed milestones: all five release-depth batches are implemented and the
   full local closure matrix passes.
 - Completed batch: post attribution and author-profile navigation in PR #125.
@@ -42,26 +57,22 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Backend Lane
 
 - Pointer: `docs/plans/backend/NOW.md`
-- State: Batch 5 backend Tasks 1-3 complete; stand by only for defects found by
-  release-candidate QA.
-- Verification: neutral invite delivery, trusted public-origin configuration,
-  endpoint-neutral public landing, focused GraphQL behavior, assets, types, and
-  the 1,010-test backend suite pass.
+- State: identity persistence and GraphQL contract complete; support
+  operator/device QA only for reproduced backend issues.
 
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: attribution/navigation is complete; device/operator QA is pending.
+- State: basic profile identity complete; release-candidate operator/device QA
+  is active.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: Relay generation, typechecks, lint, 77 Vitest files with 567
-  tests, 28 Jest suites with 194 tests, `nix flake check`, and patch hygiene
-  pass.
+- Verification: focused backend/mobile identity suites, backend format and
+  typecheck/full tests, Relay generation, mobile quality, Nix, and patch hygiene.
 
 ## Execution Rule
 
-Do not start another implementation batch until device/operator QA reproduces a
-defect or the coordinator explicitly promotes new work. Do not mark operator or
-physical-device QA complete from local evidence.
+Execute the operator/device checklist from the mobile lane pointer. Do not mark
+operator or physical-device QA complete from local evidence.
 
 ## Cross-Lane Policy
 
@@ -71,8 +82,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-The release operator should confirm the target-environment inventory and run
-the physical-device checklist. Promote reproduced defects to the owning lane.
+Confirm the target-environment inventory in the release-candidate checklist,
+then run the manual host/viewer device checks.
 
 ## Repair Conditions
 

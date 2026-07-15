@@ -36,6 +36,8 @@ type AuthEntryCopy = {
   passwordTextContentType: 'password' | 'newPassword';
   primaryBusyLabel: string;
   primaryLabel: string;
+  magicLinkBusyLabel: string;
+  magicLinkLabel: string;
   subtitle: string;
   title: string;
 };
@@ -53,8 +55,10 @@ const AUTH_ENTRY_COPY: Record<AuthEntryMode, AuthEntryCopy> = {
     passwordTextContentType: 'password',
     primaryBusyLabel: 'Signing in...',
     primaryLabel: 'Sign in',
+    magicLinkBusyLabel: 'Sending sign-in link...',
+    magicLinkLabel: 'Email me a sign-in link',
     subtitle:
-      'Use your LiveCanvas password or continue with a linked provider.',
+      'Use your password, an email link, or a linked provider.',
     title: 'Sign in',
   },
   signUp: {
@@ -67,8 +71,10 @@ const AUTH_ENTRY_COPY: Record<AuthEntryMode, AuthEntryCopy> = {
     passwordTextContentType: 'newPassword',
     primaryBusyLabel: 'Creating account...',
     primaryLabel: 'Create account',
+    magicLinkBusyLabel: 'Sending sign-up link...',
+    magicLinkLabel: 'Email me a sign-up link',
     subtitle:
-      'Create a LiveCanvas account with password or a supported provider.',
+      'Create an account with a password, an email link, or a supported provider.',
     title: 'Sign up',
   },
 };
@@ -107,6 +113,10 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
     if (success) {
       router.replace(successHref);
     }
+  };
+
+  const handleMagicLinkSubmit = () => {
+    controller.submitMagicLink(email, successHref).catch(() => undefined);
   };
 
   const handleAppleSubmit = async () => {
@@ -153,6 +163,7 @@ export function AuthEntryScreen({ mode }: AuthEntryScreenProps) {
         onAppleSubmit={handleAppleSubmit}
         onEmailChange={handleEmailChange}
         onGoogleSubmit={handleGoogleSubmit}
+        onMagicLinkSubmit={handleMagicLinkSubmit}
         onPasswordRecoveryPress={handlePasswordRecoveryPress}
         onPasswordChange={handlePasswordChange}
         onPasswordConfirmationChange={handlePasswordConfirmationChange}
@@ -173,6 +184,7 @@ type AuthEntryCardProps = {
   onAppleSubmit: () => void;
   onEmailChange: (value: string) => void;
   onGoogleSubmit: () => void;
+  onMagicLinkSubmit: () => void;
   onPasswordChange: (value: string) => void;
   onPasswordConfirmationChange: (value: string) => void;
   onPasswordRecoveryPress: () => void;
@@ -217,6 +229,7 @@ function AuthEntryCard({
   onAppleSubmit,
   onEmailChange,
   onGoogleSubmit,
+  onMagicLinkSubmit,
   onPasswordChange,
   onPasswordConfirmationChange,
   onPasswordRecoveryPress,
@@ -239,6 +252,7 @@ function AuthEntryCard({
         onAppleSubmit={onAppleSubmit}
         onEmailChange={onEmailChange}
         onGoogleSubmit={onGoogleSubmit}
+        onMagicLinkSubmit={onMagicLinkSubmit}
         onPasswordChange={onPasswordChange}
         onPasswordConfirmationChange={onPasswordConfirmationChange}
         onPasswordRecoveryPress={onPasswordRecoveryPress}
@@ -268,6 +282,7 @@ function AuthEntryForm({
   onAppleSubmit,
   onEmailChange,
   onGoogleSubmit,
+  onMagicLinkSubmit,
   onPasswordChange,
   onPasswordConfirmationChange,
   onPasswordRecoveryPress,
@@ -310,6 +325,7 @@ function AuthEntryForm({
         />
       ) : null}
       <AuthEntryFormError error={controller.formError} />
+      <AuthEntryFormMessage message={controller.magicLinkMessage} />
       <AppButton
         disabled={controller.isBusy}
         label={
@@ -327,10 +343,12 @@ function AuthEntryForm({
           variant="secondary"
         />
       ) : null}
-      <AuthEntryOauthActions
+      <AuthEntryAlternativeActions
         controller={controller}
+        copy={copy}
         onAppleSubmit={onAppleSubmit}
         onGoogleSubmit={onGoogleSubmit}
+        onMagicLinkSubmit={onMagicLinkSubmit}
       />
     </View>
   );
@@ -360,18 +378,40 @@ function AuthEntryFormError({ error }: { error: string | null }) {
   );
 }
 
-function AuthEntryOauthActions({
+function AuthEntryFormMessage({ message }: { message: string | null }) {
+  const theme = useAppTheme();
+
+  return message ? (
+    <Text style={[styles.successText, { color: theme.colors.text }]}>{message}</Text>
+  ) : null;
+}
+
+function AuthEntryAlternativeActions({
   controller,
+  copy,
   onAppleSubmit,
   onGoogleSubmit,
+  onMagicLinkSubmit,
 }: {
   controller: AuthEntryController;
+  copy: AuthEntryCopy;
   onAppleSubmit: () => void;
   onGoogleSubmit: () => void;
+  onMagicLinkSubmit: () => void;
 }) {
   return (
     <>
-      {controller.showOauthDivider ? <AuthEntryOauthDivider /> : null}
+      <AuthEntryAlternativeDivider />
+      <AppButton
+        disabled={controller.isBusy}
+        label={
+          controller.isMagicLinkSubmitting
+            ? copy.magicLinkBusyLabel
+            : copy.magicLinkLabel
+        }
+        onPress={onMagicLinkSubmit}
+        variant="secondary"
+      />
       {controller.hasGoogleAuthOption ? (
         <AppButton
           disabled={controller.isBusy}
@@ -400,7 +440,7 @@ function AuthEntryOauthActions({
   );
 }
 
-function AuthEntryOauthDivider() {
+function AuthEntryAlternativeDivider() {
   const theme = useAppTheme();
 
   return (
@@ -417,7 +457,7 @@ function AuthEntryOauthDivider() {
           { color: theme.colors.textMuted },
         ]}
       >
-        or continue with
+        or use another method
       </Text>
       <View
         style={[

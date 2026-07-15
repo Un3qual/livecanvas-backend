@@ -9,9 +9,11 @@ import {
 import { ProfileConnectionListScreen } from '../../src/profile/ProfileConnectionListScreen';
 
 type UserNode = {
+  readonly displayName?: string | null;
   readonly email: string | null;
   readonly id: string;
   readonly privacyMode: string;
+  readonly username?: string | null;
 };
 
 type UserConnection = {
@@ -81,7 +83,13 @@ beforeEach(() => {
   mockQueryData = {
     viewer: {
       followers: connection([
-        { email: 'first@example.com', id: 'opaque-user-1', privacyMode: 'PUBLIC' },
+        {
+          displayName: 'First Creator',
+          email: 'first@example.com',
+          id: 'opaque-user-1',
+          privacyMode: 'PUBLIC',
+          username: 'first_creator',
+        },
       ], { endCursor: 'cursor-1', hasNextPage: true }),
       id: 'viewer-id',
     },
@@ -89,7 +97,13 @@ beforeEach(() => {
   mockFetchQueryResult = {
     viewer: {
       followers: connection([
-        { email: 'second@example.com', id: 'opaque-user-2', privacyMode: 'PRIVATE' },
+        {
+          displayName: 'Second Creator',
+          email: 'second@example.com',
+          id: 'opaque-user-2',
+          privacyMode: 'PRIVATE',
+          username: 'second_creator',
+        },
       ]),
       id: 'viewer-id',
     },
@@ -108,7 +122,7 @@ describe('ProfileConnectionListScreen with React Native Testing Library', () => 
 
     expect(screen.getByTestId('profile-connection-list')).toBeOnTheScreen();
     expect(screen.getByText('Followers')).toBeOnTheScreen();
-    expect(screen.getByText('first@example.com')).toBeOnTheScreen();
+    expect(screen.getByText('First Creator')).toBeOnTheScreen();
     expect(mockQueryVariables).toEqual({ after: null, first: 20 });
 
     await user.press(screen.getByRole('button', { name: 'Load more' }));
@@ -116,7 +130,7 @@ describe('ProfileConnectionListScreen with React Native Testing Library', () => 
     expect(mockFetchQueryVariables).toEqual({ after: 'cursor-1', first: 20 });
 
     await waitFor(() => {
-      expect(screen.getByText('second@example.com')).toBeOnTheScreen();
+      expect(screen.getByText('Second Creator')).toBeOnTheScreen();
     });
   });
 
@@ -162,7 +176,7 @@ describe('ProfileConnectionListScreen with React Native Testing Library', () => 
     await user.press(screen.getByRole('button', { name: 'Load more' }));
 
     await waitFor(() => {
-      expect(screen.getByText('second@example.com')).toBeOnTheScreen();
+      expect(screen.getByText('Second Creator')).toBeOnTheScreen();
     });
 
     mockQueryData = {
@@ -185,8 +199,8 @@ describe('ProfileConnectionListScreen with React Native Testing Library', () => 
     await waitFor(() => {
       expect(screen.getByText('following@example.com')).toBeOnTheScreen();
     });
-    expect(screen.queryByText('first@example.com')).toBeNull();
-    expect(screen.queryByText('second@example.com')).toBeNull();
+    expect(screen.queryByText('First Creator')).toBeNull();
+    expect(screen.queryByText('Second Creator')).toBeNull();
   });
 
   test('ignores an in-flight page after the connection route changes', async () => {
@@ -231,8 +245,8 @@ describe('ProfileConnectionListScreen with React Native Testing Library', () => 
     });
 
     expect(screen.getByText('following@example.com')).toBeOnTheScreen();
-    expect(screen.queryByText('first@example.com')).toBeNull();
-    expect(screen.queryByText('second@example.com')).toBeNull();
+    expect(screen.queryByText('First Creator')).toBeNull();
+    expect(screen.queryByText('Second Creator')).toBeNull();
   });
 
   test('renders unavailable empty state without leaking private relationship detail', async () => {

@@ -93,6 +93,19 @@ describe('routeHrefFromUrl', () => {
     ).toBeNull();
     expect(routeHrefFromUrl('livecanvas-mobile://invite')).toBe('/invite');
   });
+  test('accepts only opaque magic-link handoff routes', () => {
+    expect(
+      routeHrefFromUrl(
+        'livecanvas-mobile://magic-link?handoff=550e8400-e29b-41d4-a716-446655440000',
+      ),
+    ).toBe('/magic-link?handoff=550e8400-e29b-41d4-a716-446655440000');
+    expect(
+      routeHrefFromUrl('livecanvas-mobile://magic-link?token=secret'),
+    ).toBeNull();
+    expect(routeHrefFromUrl('livecanvas-mobile://magic-link')).toBe(
+      '/magic-link',
+    );
+  });
   test('accepts the sign-up deep link route', () => {
     expect(routeHrefFromUrl('livecanvas-mobile://sign-up')).toBe('/sign-up');
   });
@@ -183,6 +196,24 @@ describe('resolveLandingHrefForAuth', () => {
         'unauthenticated',
       ),
     ).toBe('/invite?handoff=550e8400-e29b-41d4-a716-446655440000');
+  });
+  test('keeps an opaque magic-link handoff public only while signed out', () => {
+    const snapshot = {
+      initialUrl:
+        '/magic-link?handoff=550e8400-e29b-41d4-a716-446655440000',
+      initialHref:
+        '/magic-link?handoff=550e8400-e29b-41d4-a716-446655440000',
+      landingHref:
+        '/magic-link?handoff=550e8400-e29b-41d4-a716-446655440000',
+      defaultHref: '/sign-in',
+      bootSessionState: 'signed_out' as const,
+      resetReason: null,
+    };
+
+    expect(resolveLandingHrefForAuth(snapshot, 'unauthenticated')).toBe(
+      '/magic-link?handoff=550e8400-e29b-41d4-a716-446655440000',
+    );
+    expect(resolveLandingHrefForAuth(snapshot, 'authenticated')).toBe('/home');
   });
   test('sends unauthenticated cold starts to sign-in when the deep link is protected', () => {
     expect(

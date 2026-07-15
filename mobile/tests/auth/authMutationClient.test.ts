@@ -1,6 +1,8 @@
 import { describe, expect, vi, test } from 'vitest';
 
 import {
+  requestMagicLinkAuthChallenge,
+  redeemMagicLinkAuthMutation,
   normalizeAuthErrors,
   submitOauthAuthMutation,
   submitPasswordAuthMutation,
@@ -12,6 +14,286 @@ type TestFetch = (
 ) => Response | Promise<Response>;
 
 describe('authMutationClient', () => {
+  test('requests an enumeration-safe magic-link login challenge', async () => {
+    const fetchImpl = vi.fn<TestFetch>((_url, _init) =>
+      new Response(
+        JSON.stringify({
+          data: {
+            beginAuthChallenge: {
+              challenge: {
+                provider: 'MAGIC_LINK',
+                purpose: 'LOG_IN',
+                dispatched: false,
+              },
+              errors: [],
+            },
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+
+    await expect(
+      requestMagicLinkAuthChallenge({
+        apiBaseUrl: 'http://localhost:4000',
+        mode: 'signIn',
+        email: '  user@example.com  ',
+        fetchImpl,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    const [, init] = fetchImpl.mock.calls[0] ?? [];
+    const request = JSON.parse((init as RequestInit).body as string);
+
+    expect(request.variables).toEqual({
+      input: {
+        provider: 'MAGIC_LINK',
+        purpose: 'LOG_IN',
+        magicLink: { email: 'user@example.com' },
+      },
+    });
+  });
+
+  test('requests a magic-link signup challenge with the signup purpose', async () => {
+    const fetchImpl = vi.fn<TestFetch>(() =>
+      new Response(
+        JSON.stringify({
+          data: {
+            beginAuthChallenge: {
+              challenge: {
+                provider: 'MAGIC_LINK',
+                purpose: 'SIGN_UP',
+                dispatched: true,
+              },
+              errors: [],
+            },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await expect(
+      requestMagicLinkAuthChallenge({
+        apiBaseUrl: 'http://localhost:4000',
+        mode: 'signUp',
+        email: 'new@example.com',
+        fetchImpl,
+      }),
+    ).resolves.toEqual({ ok: true });
+
+    const [, init] = fetchImpl.mock.calls[0] ?? [];
+    const request = JSON.parse((init as RequestInit).body as string);
+    expect(request.variables.input.purpose).toBe('SIGN_UP');
+  });
+
+  test('validates a magic-link email before network access', async () => {
+    const fetchImpl = vi.fn(() => {
+      throw new Error('network should not run');
+    });
+
+    await expect(
+      requestMagicLinkAuthChallenge({
+        apiBaseUrl: 'http://localhost:4000',
+        mode: 'signIn',
+        email: '   ',
+        fetchImpl,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      errors: [{ field: 'email', message: 'Email is required.' }],
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  test('returns magic-link challenge payload errors and rejects malformed success', async () => {
+    const payloadErrorFetch = vi.fn<TestFetch>(() =>
+      new Response(
+        JSON.stringify({
+          data: {
+            beginAuthChallenge: {
+              challenge: null,
+              errors: [
+                {
+                  field: 'magicLink.email',
+                  code: 'EMAIL_TAKEN',
+                  message: 'has already been taken',
+                },
+              ],
+            },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await expect(
+      requestMagicLinkAuthChallenge({
+        apiBaseUrl: 'http://localhost:4000',
+        mode: 'signUp',
+        email: 'used@example.com',
+        fetchImpl: payloadErrorFetch,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      errors: [
+        {
+          field: 'magicLink.email',
+          code: 'EMAIL_TAKEN',
+          message: 'has already been taken',
+        },
+      ],
+    });
+
+    const malformedFetch = vi.fn<TestFetch>(() =>
+      new Response(
+        JSON.stringify({
+          data: {
+            beginAuthChallenge: { challenge: null, errors: [] },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await expect(
+      requestMagicLinkAuthChallenge({
+        apiBaseUrl: 'http://localhost:4000',
+        mode: 'signIn',
+        email: 'user@example.com',
+        fetchImpl: malformedFetch,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      errors: [{ message: 'The server did not confirm the email link request.' }],
+    });
+  });
+
+  test('returns top-level challenge errors and rejects HTTP failures', async () => {
+    const topLevelErrorFetch = vi.fn<TestFetch>(() =>
+      new Response(
+        JSON.stringify({ errors: [{ message: 'Rate limit exceeded.' }] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await expect(
+      requestMagicLinkAuthChallenge({
+        apiBaseUrl: 'http://localhost:4000',
+        mode: 'signIn',
+        email: 'user@example.com',
+        fetchImpl: topLevelErrorFetch,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      errors: [{ message: 'Rate limit exceeded.' }],
+    });
+
+    await expect(
+      requestMagicLinkAuthChallenge({
+        apiBaseUrl: 'http://localhost:4000',
+        mode: 'signIn',
+        email: 'user@example.com',
+        fetchImpl: () =>
+          Promise.resolve(
+            new Response(null, { status: 503, statusText: 'Unavailable' }),
+          ),
+      }),
+    ).rejects.toThrow('Auth request failed with 503 Unavailable');
+  });
+
+  test.each([
+    ['signIn', 'logIn'],
+    ['signUp', 'signUp'],
+  ] as const)('redeems a %s magic link through the matching mutation', async (mode, field) => {
+    const fetchImpl = vi.fn<TestFetch>(() =>
+      new Response(
+        JSON.stringify({
+          data: {
+            [field]: {
+              accessToken: {
+                serializedValue: 'magic-access-token',
+                expiresAt: '2026-08-01T00:00:00.000Z',
+              },
+              refreshToken: { serializedValue: 'magic-refresh-token' },
+              errors: [],
+            },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await expect(
+      redeemMagicLinkAuthMutation({
+        apiBaseUrl: 'http://localhost:4000',
+        mode,
+        token: 'serialized-magic-token',
+        fetchImpl,
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      tokens: {
+        accessToken: 'magic-access-token',
+        refreshToken: 'magic-refresh-token',
+        expiresAt: '2026-08-01T00:00:00.000Z',
+      },
+    });
+
+    const [, init] = fetchImpl.mock.calls[0] ?? [];
+    const request = JSON.parse((init as RequestInit).body as string);
+    expect(request.variables).toEqual({
+      input: {
+        provider: 'MAGIC_LINK',
+        magicLink: { token: 'serialized-magic-token' },
+      },
+    });
+  });
+
+  test('returns invalid magic-link credentials without fabricating tokens', async () => {
+    const fetchImpl = vi.fn<TestFetch>(() =>
+      new Response(
+        JSON.stringify({
+          data: {
+            logIn: {
+              accessToken: null,
+              refreshToken: null,
+              errors: [
+                {
+                  field: 'magicLink.token',
+                  code: 'INVALID_CREDENTIALS',
+                  message: 'invalid_credentials',
+                },
+              ],
+            },
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+
+    await expect(
+      redeemMagicLinkAuthMutation({
+        apiBaseUrl: 'http://localhost:4000',
+        mode: 'signIn',
+        token: 'expired-token',
+        fetchImpl,
+      }),
+    ).resolves.toEqual({
+      ok: false,
+      errors: [
+        {
+          field: 'magicLink.token',
+          code: 'INVALID_CREDENTIALS',
+          message: 'invalid_credentials',
+        },
+      ],
+    });
+  });
+
   test('returns a validation error before calling sign-up when passwords do not match', async () => {
     const fetchImpl = vi.fn(() => {
       throw new Error('network should not run');
@@ -240,6 +522,20 @@ describe('authMutationClient', () => {
         passwordConfirmation: 'Passwords must match.',
       },
       formError: 'The email or password was incorrect.',
+    });
+  });
+
+  test('normalizes a magic-link email path into the shared email field', () => {
+    expect(
+      normalizeAuthErrors([
+        {
+          field: 'magicLink.email',
+          message: 'has already been taken',
+        },
+      ]),
+    ).toEqual({
+      fieldErrors: { email: 'has already been taken' },
+      formError: null,
     });
   });
 });
