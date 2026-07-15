@@ -6,6 +6,7 @@ const GRAPHQL_ENDPOINT_PATH = '/graphql';
 type MutationField = 'logIn' | 'signUp';
 type AuthMode = 'signIn' | 'signUp';
 type OauthProvider = 'GOOGLE' | 'APPLE';
+type AuthChallengePurpose = 'LOG_IN' | 'SIGN_UP';
 type FetchImpl = (
   input: Parameters<typeof fetch>[0],
   init?: Parameters<typeof fetch>[1],
@@ -37,6 +38,16 @@ type GraphQLResponse = {
   errors?: GraphQLErrorLike[] | null;
 };
 
+type AuthChallengePayload = {
+  challenge?: unknown;
+  errors?: GraphQLAuthError[] | null;
+};
+
+type AuthChallengeResponse = {
+  data?: { beginAuthChallenge?: AuthChallengePayload | null } | null;
+  errors?: GraphQLErrorLike[] | null;
+};
+
 export type AuthFieldName = 'email' | 'password' | 'passwordConfirmation';
 
 export type AuthMutationError = {
@@ -55,6 +66,10 @@ export type AuthMutationResult =
       errors: AuthMutationError[];
     };
 
+export type MagicLinkChallengeResult =
+  | { ok: true }
+  | { ok: false; errors: AuthMutationError[] };
+
 type PasswordAuthParams = {
   apiBaseUrl: string;
   mode: AuthMode;
@@ -71,6 +86,30 @@ type OauthAuthParams = {
   idToken: string;
   fetchImpl?: FetchImpl;
 };
+
+type MagicLinkChallengeParams = {
+  apiBaseUrl: string;
+  mode: AuthMode;
+  email: string;
+  fetchImpl?: FetchImpl;
+};
+
+const BEGIN_MAGIC_LINK_CHALLENGE_MUTATION = `
+  mutation AuthBeginMagicLinkChallenge($input: BeginAuthChallengeInput!) {
+    beginAuthChallenge(input: $input) {
+      challenge {
+        provider
+        purpose
+        dispatched
+      }
+      errors {
+        field
+        code
+        message
+      }
+    }
+  }
+`;
 
 const LOG_IN_MUTATION = `
   mutation AuthPasswordLogIn($input: LogInInput!) {
@@ -146,7 +185,9 @@ function parseErrorEntry(value: unknown): AuthMutationError | null {
   };
 }
 
-function parseTopLevelErrors(response: GraphQLResponse): AuthMutationError[] {
+function parseTopLevelErrors(response: {
+  errors?: GraphQLErrorLike[] | null;
+}): AuthMutationError[] {
   if (!Array.isArray(response.errors)) {
     return [];
   }
@@ -154,6 +195,16 @@ function parseTopLevelErrors(response: GraphQLResponse): AuthMutationError[] {
   return response.errors
     .map(parseErrorEntry)
     .filter((error): error is AuthMutationError => error !== null);
+}
+
+function parsePayloadErrors(
+  errors: GraphQLAuthError[] | null | undefined,
+): AuthMutationError[] {
+  return Array.isArray(errors)
+    ? errors
+        .map(parseErrorEntry)
+        .filter((error): error is AuthMutationError => error !== null)
+    : [];
 }
 
 function extractPayload(
@@ -257,11 +308,7 @@ async function executeAuthMutation(
 
   const parsed = (await response.json()) as GraphQLResponse;
   const payload = extractPayload(parsed, mutationFieldForMode(mode));
-  const payloadErrors = Array.isArray(payload?.errors)
-    ? payload.errors
-        .map(parseErrorEntry)
-        .filter((error): error is AuthMutationError => error !== null)
-    : [];
+  const payloadErrors = parsePayloadErrors(payload?.errors);
 
   if (payloadErrors.length > 0) {
     return {
@@ -360,6 +407,76 @@ export async function submitOauthAuthMutation(
   );
 }
 
+export async function requestMagicLinkAuthChallenge(
+  params: MagicLinkChallengeParams,
+): Promise<MagicLinkChallengeResult> {
+  const email = params.email.trim();
+
+  if (!email) {
+    return {
+      ok: false,
+      errors: [{ field: 'email', message: 'Email is required.' }],
+    };
+  }
+
+  const purpose: AuthChallengePurpose =
+    params.mode === 'signIn' ? 'LOG_IN' : 'SIGN_UP';
+  const response = await (params.fetchImpl ?? fetch)(
+    `${params.apiBaseUrl}${GRAPHQL_ENDPOINT_PATH}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: BEGIN_MAGIC_LINK_CHALLENGE_MUTATION,
+        variables: {
+          input: {
+            provider: 'MAGIC_LINK',
+            purpose,
+            magicLink: { email },
+          },
+        },
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Auth request failed with ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const parsed = (await response.json()) as AuthChallengeResponse;
+  const payload = parsed.data?.beginAuthChallenge;
+  const payloadErrors = parsePayloadErrors(payload?.errors);
+
+  if (payloadErrors.length > 0) {
+    return { ok: false, errors: payloadErrors };
+  }
+
+  const topLevelErrors = parseTopLevelErrors(parsed);
+  if (topLevelErrors.length > 0) {
+    return { ok: false, errors: topLevelErrors };
+  }
+
+  const challenge = asRecord(payload?.challenge);
+  if (
+    challenge?.provider !== 'MAGIC_LINK' ||
+    challenge.purpose !== purpose ||
+    typeof challenge.dispatched !== 'boolean'
+  ) {
+    return {
+      ok: false,
+      errors: [
+        { message: 'The server did not confirm the email link request.' },
+      ],
+    };
+  }
+
+  // `dispatched` is intentionally not exposed. Login responses remain neutral
+  // whether or not an eligible account received mail.
+  return { ok: true };
+}
+
 export function normalizeAuthErrors(errors: AuthMutationError[]): {
   fieldErrors: Partial<Record<AuthFieldName, string>>;
   formError: string | null;
@@ -371,6 +488,8 @@ export function normalizeAuthErrors(errors: AuthMutationError[]): {
     const field =
       error.field === 'password.email'
         ? 'email'
+        : error.field === 'magicLink.email'
+          ? 'email'
         : error.field === 'password.password'
           ? 'password'
           : error.field === 'password.passwordConfirmation'

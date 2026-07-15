@@ -120,16 +120,16 @@ Expo Router, SecureStore, pnpm, Vitest, Jest/RNTL.
 - The controller exposes `submitMagicLink(email)`,
   `isMagicLinkSubmitting`, and neutral `magicLinkMessage` state.
 
-- [ ] Add failing client tests for trimmed email, required-email validation,
+- [x] Add failing client tests for trimmed email, required-email validation,
   `MAGIC_LINK` plus `LOG_IN`/`SIGN_UP` variables, neutral dispatched false,
   payload errors, top-level errors, HTTP failure, and malformed responses.
-- [ ] Add failing controller/screen tests for the correct action copy in each
+- [x] Add failing controller/screen tests for the correct action copy in each
   mode, busy admission, success copy, shared email-field errors, error clearing,
   and no password requirement for an email-link request.
-- [ ] Extend the existing checked unauthenticated fetch client and controller;
+- [x] Extend the existing checked unauthenticated fetch client and controller;
   render one secondary action after an alternative-auth divider while keeping
   password and OAuth behavior unchanged.
-- [ ] Run focused client/reducer/RNTL suites and commit
+- [x] Run focused client/reducer/RNTL suites and commit
   `feat: request mobile magic links`.
 
 ### Task 4: Magic-Link Redemption And Session Entry

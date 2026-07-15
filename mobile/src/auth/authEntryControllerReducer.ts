@@ -1,5 +1,5 @@
 export type AuthEntryMode = 'signIn' | 'signUp';
-export type AuthProvider = 'password' | 'google' | 'apple';
+export type AuthProvider = 'password' | 'magicLink' | 'google' | 'apple';
 
 export type AuthEntryAttempt = {
   mode: AuthEntryMode;
