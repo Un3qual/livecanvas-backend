@@ -1277,17 +1277,35 @@ defmodule LC.Accounts do
   """
   @spec list_user_contact_matches(User.t()) :: [contact_match()]
   def list_user_contact_matches(%User{} = user) do
+    user
+    |> user_contact_matches_query()
+    |> then(&run_user_contact_matches_query(user, &1))
+  end
+
+  @doc """
+  Returns the deterministic viewer-owned query used to page contact matches.
+  """
+  @spec user_contact_matches_query(User.t()) :: Ecto.Query.t()
+  def user_contact_matches_query(%User{id: user_id}) do
+    user_contact_entries_query(user_id)
+  end
+
+  @doc false
+  @spec run_user_contact_matches_query(User.t(), Ecto.Query.t()) :: [contact_match()]
+  def run_user_contact_matches_query(%User{id: user_id}, query) do
+    # The runner accepts a Relay-decorated query, but reapplies ownership here
+    # so an altered query cannot turn pagination into an IDOR primitive.
     contact_entries =
-      user.id
-      |> user_contact_entries_query()
+      query
+      |> where([contact_entry], contact_entry.user_id == ^user_id)
       |> Repo.all()
       |> Repo.preload([:email_addresses, :phone_numbers])
 
-    owner_email_address_ids = owner_email_address_ids(user.id)
+    owner_email_address_ids = owner_email_address_ids(user_id)
 
     Enum.map(
       contact_entries,
-      &build_contact_match(user.id, owner_email_address_ids, &1)
+      &build_contact_match(user_id, owner_email_address_ids, &1)
     )
   end
 

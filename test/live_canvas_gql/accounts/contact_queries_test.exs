@@ -230,5 +230,53 @@ defmodule LCGQL.Accounts.ContactQueriesTest do
       assert {:ok, %{data: %{"viewerContactMatches" => %{"edges" => [_, _, _]}}}} = result
       assert count_table_queries(queries, "blocks") == 1
     end
+
+    test "applies the relay page boundary before hydrating contact matches" do
+      viewer = user_fixture()
+      context = %{current_scope: Accounts.scope_for_user(viewer)}
+
+      Enum.each(1..3, fn index ->
+        assert {:ok, _contact_entry} =
+                 Accounts.upsert_user_contact_entry(viewer, %{
+                   contact_client_id: "paged-contact-#{index}",
+                   contact_name: "Paged Match #{index}",
+                   emails: ["paged-#{index}@example.com"],
+                   phone_numbers: []
+                 })
+      end)
+
+      query = """
+      query {
+        viewerContactMatches(first: 1) {
+          edges {
+            node {
+              id
+            }
+          }
+          pageInfo {
+            hasNextPage
+          }
+        }
+      }
+      """
+
+      {result, queries} =
+        capture_repo_queries(fn -> Absinthe.run(query, LCGQL.Schema, context: context) end)
+
+      assert {:ok,
+              %{
+                data: %{
+                  "viewerContactMatches" => %{
+                    "edges" => [_one_edge],
+                    "pageInfo" => %{"hasNextPage" => true}
+                  }
+                }
+              }} = result
+
+      assert Enum.any?(queries, fn sql ->
+               String.contains?(sql, ~s(FROM "user_contact_entries" AS)) and
+                 String.contains?(sql, "LIMIT")
+             end)
+    end
   end
 end

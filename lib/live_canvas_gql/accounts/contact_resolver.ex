@@ -174,9 +174,15 @@ defmodule LCGQL.Accounts.ContactResolver do
         context: %{current_scope: %{user: %{id: _id} = user}}
       }) do
     user
-    |> Accounts.list_user_contact_matches()
-    |> visible_contact_match_nodes(user)
-    |> Absinthe.Relay.Connection.from_list(args)
+    |> Accounts.user_contact_matches_query()
+    |> Absinthe.Relay.Connection.from_query(
+      fn paged_query ->
+        user
+        |> Accounts.run_user_contact_matches_query(paged_query)
+        |> visible_contact_match_nodes(user)
+      end,
+      args
+    )
   end
 
   def viewer_contact_matches(_parent, args, _resolution) do
