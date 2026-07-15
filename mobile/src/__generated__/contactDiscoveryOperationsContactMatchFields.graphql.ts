@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9a9fc9d8285149d16a609b776042e88f>>
+ * @generated SignedSource<<50e4d31b70f05f01bd11934329017b70>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,9 +16,11 @@ export type contactDiscoveryOperationsContactMatchFields$data = {
   readonly id: string;
   readonly inviteRecipient: string | null | undefined;
   readonly matchedUsers: ReadonlyArray<{
+    readonly displayName: string | null | undefined;
     readonly email: string | null | undefined;
     readonly id: string;
     readonly privacyMode: UserPrivacyMode;
+    readonly username: string | null | undefined;
   }>;
   readonly " $fragmentType": "contactDiscoveryOperationsContactMatchFields";
 };
@@ -69,6 +71,13 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
+          "name": "displayName",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
           "name": "email",
           "storageKey": null
         },
@@ -77,6 +86,13 @@ return {
           "args": null,
           "kind": "ScalarField",
           "name": "privacyMode",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "username",
           "storageKey": null
         }
       ],
@@ -88,6 +104,6 @@ return {
 };
 })();
 
-(node as any).hash = "df30ee2cae16500663df2676359d98e2";
+(node as any).hash = "8d0d29e12e099c0b4411776057e73a6c";
 
 export default node;

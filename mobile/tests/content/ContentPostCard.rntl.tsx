@@ -126,7 +126,7 @@ describe('ContentPostCard with shared controls', () => {
     );
     await user.press(
       screen.getByRole('button', {
-        name: 'Open author profile for creator@example.com',
+        name: 'Open author profile for Canvas Creator',
       }),
     );
 
@@ -312,7 +312,12 @@ function contentPost({
   mediaAssets?: ContentPost['mediaAssets'];
 }): ContentPost {
   return {
-    author: { email: 'creator@example.com', id: authorId },
+    author: {
+      displayName: 'Canvas Creator',
+      email: 'creator@example.com',
+      id: authorId,
+      username: 'canvas_creator',
+    },
     bodyText: 'Original body',
     expiresAt: null,
     id,

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e597cdd8be6b8d7dfffcecf42f684a15>>
+ * @generated SignedSource<<73837bd1b46fea36e24c6d8bbffe2f17>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,8 +24,10 @@ export type liveSessionWatchOperationsQuery$data = {
     readonly channelTopic: string | null | undefined;
     readonly endedAt: string | null | undefined;
     readonly host: {
+      readonly displayName: string | null | undefined;
       readonly email: string | null | undefined;
       readonly id: string;
+      readonly username: string | null | undefined;
     };
     readonly id: string;
     readonly insertedAt: string;
@@ -180,7 +182,21 @@ v14 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
+      "name": "displayName",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
       "name": "email",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "username",
       "storageKey": null
     }
   ],
@@ -451,16 +467,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f40f70dd7cd194e9294aed94e47f6ad7",
+    "cacheID": "8256a2e6f97bff5a1db93ad6e76aba09",
     "id": null,
     "metadata": {},
     "name": "liveSessionWatchOperationsQuery",
     "operationKind": "query",
-    "text": "query liveSessionWatchOperationsQuery(\n  $id: ID!\n  $timelineLast: Int!\n  $timelineBefore: String\n) {\n  viewer {\n    id\n  }\n  node(id: $id) {\n    __typename\n    ... on LiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n      recordingMediaAsset {\n        id\n        processingState\n        publicUrl\n      }\n      timelineEvents(last: $timelineLast, before: $timelineBefore) {\n        edges {\n          cursor\n          node {\n            __typename\n            id\n            eventType\n            occurredAt\n            actor {\n              id\n            }\n            ... on ChatMessageEvent {\n              body\n              edited\n              editCount\n              editedAt\n            }\n          }\n        }\n        pageInfo {\n          startCursor\n          endCursor\n          hasNextPage\n          hasPreviousPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query liveSessionWatchOperationsQuery(\n  $id: ID!\n  $timelineLast: Int!\n  $timelineBefore: String\n) {\n  viewer {\n    id\n  }\n  node(id: $id) {\n    __typename\n    ... on LiveSession {\n      id\n      channelTopic\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        displayName\n        email\n        username\n      }\n      recordingMediaAsset {\n        id\n        processingState\n        publicUrl\n      }\n      timelineEvents(last: $timelineLast, before: $timelineBefore) {\n        edges {\n          cursor\n          node {\n            __typename\n            id\n            eventType\n            occurredAt\n            actor {\n              id\n            }\n            ... on ChatMessageEvent {\n              body\n              edited\n              editCount\n              editedAt\n            }\n          }\n        }\n        pageInfo {\n          startCursor\n          endCursor\n          hasNextPage\n          hasPreviousPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e50925e186787de7480f2b4d8dfb3d02";
+(node as any).hash = "8e7349feac3e5020c92a8a85f51c182f";
 
 export default node;

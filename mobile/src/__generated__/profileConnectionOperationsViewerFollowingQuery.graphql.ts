@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e99ee12350bbc89017b443b9e11a1867>>
+ * @generated SignedSource<<67eb9206f7f445fd420ae9b07b0e5634>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,9 +19,11 @@ export type profileConnectionOperationsViewerFollowingQuery$data = {
     readonly following: {
       readonly edges: ReadonlyArray<{
         readonly node: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
           readonly privacyMode: UserPrivacyMode;
+          readonly username: string | null | undefined;
         } | null | undefined;
       } | null | undefined> | null | undefined;
       readonly pageInfo: {
@@ -107,6 +109,13 @@ v2 = [
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "displayName",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "email",
                     "storageKey": null
                   },
@@ -115,6 +124,13 @@ v2 = [
                     "args": null,
                     "kind": "ScalarField",
                     "name": "privacyMode",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "username",
                     "storageKey": null
                   }
                 ],
@@ -173,12 +189,12 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "8b50897c3bd2956174e7e635e6c9fe66",
+    "cacheID": "212a0f88484a46021d02be21bff4206f",
     "id": null,
     "metadata": {},
     "name": "profileConnectionOperationsViewerFollowingQuery",
     "operationKind": "query",
-    "text": "query profileConnectionOperationsViewerFollowingQuery(\n  $after: String\n  $first: Int!\n) {\n  viewer {\n    id\n    following(first: $first, after: $after) {\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query profileConnectionOperationsViewerFollowingQuery(\n  $after: String\n  $first: Int!\n) {\n  viewer {\n    id\n    following(first: $first, after: $after) {\n      edges {\n        node {\n          id\n          displayName\n          email\n          privacyMode\n          username\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();

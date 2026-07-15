@@ -14,7 +14,9 @@ export const contentSurfacePostFields = graphql`
     insertedAt
     author {
       id
+      displayName
       email
+      username
     }
     mediaAssets {
       id
@@ -36,7 +38,9 @@ export const contentSurfaceLiveSessionFields = graphql`
     endedAt
     host {
       id
+      displayName
       email
+      username
     }
   }
 `;

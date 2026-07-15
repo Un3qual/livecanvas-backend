@@ -14,7 +14,9 @@ export const storyViewerPostFields = graphql`
     insertedAt
     author {
       id
+      displayName
       email
+      username
     }
     mediaAssets {
       id
@@ -40,7 +42,9 @@ export const storyViewerQuery = graphql`
         ...storyViewerOperationsPostFields @relay(mask: false)
         author {
           id
+          displayName
           email
+          username
           storyFeed(first: $storyFirst, after: $storyAfter) {
             edges {
               node {

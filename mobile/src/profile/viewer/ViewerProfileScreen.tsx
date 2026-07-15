@@ -106,8 +106,10 @@ function ViewerProfileContent({ fetchKey }: { fetchKey: number }) {
       query ViewerProfileScreenQuery {
         viewer {
           id
+          displayName
           email
           privacyMode
+          username
           currentLiveSession {
             id
             status
@@ -117,7 +119,9 @@ function ViewerProfileContent({ fetchKey }: { fetchKey: number }) {
             endedAt
             host {
               id
+              displayName
               email
+              username
             }
           }
         }

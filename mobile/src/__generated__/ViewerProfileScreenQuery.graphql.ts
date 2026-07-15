@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1446ca8a1cec763c3ac7282b896fdc24>>
+ * @generated SignedSource<<0864b1bd1655b4a09f65933af4f15617>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -18,8 +18,10 @@ export type ViewerProfileScreenQuery$data = {
     readonly currentLiveSession: {
       readonly endedAt: string | null | undefined;
       readonly host: {
+        readonly displayName: string | null | undefined;
         readonly email: string | null | undefined;
         readonly id: string;
+        readonly username: string | null | undefined;
       };
       readonly id: string;
       readonly insertedAt: string;
@@ -27,9 +29,11 @@ export type ViewerProfileScreenQuery$data = {
       readonly status: LiveSessionStatus;
       readonly visibility: LiveSessionVisibility;
     } | null | undefined;
+    readonly displayName: string | null | undefined;
     readonly email: string | null | undefined;
     readonly id: string;
     readonly privacyMode: UserPrivacyMode;
+    readonly username: string | null | undefined;
   } | null | undefined;
 };
 export type ViewerProfileScreenQuery = {
@@ -49,10 +53,24 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "displayName",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "email",
   "storageKey": null
 },
-v2 = [
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "username",
+  "storageKey": null
+},
+v4 = [
   {
     "alias": null,
     "args": null,
@@ -63,6 +81,7 @@ v2 = [
     "selections": [
       (v0/*: any*/),
       (v1/*: any*/),
+      (v2/*: any*/),
       {
         "alias": null,
         "args": null,
@@ -70,6 +89,7 @@ v2 = [
         "name": "privacyMode",
         "storageKey": null
       },
+      (v3/*: any*/),
       {
         "alias": null,
         "args": null,
@@ -123,7 +143,9 @@ v2 = [
             "plural": false,
             "selections": [
               (v0/*: any*/),
-              (v1/*: any*/)
+              (v1/*: any*/),
+              (v2/*: any*/),
+              (v3/*: any*/)
             ],
             "storageKey": null
           }
@@ -140,7 +162,7 @@ return {
     "kind": "Fragment",
     "metadata": null,
     "name": "ViewerProfileScreenQuery",
-    "selections": (v2/*: any*/),
+    "selections": (v4/*: any*/),
     "type": "RootQueryType",
     "abstractKey": null
   },
@@ -149,19 +171,19 @@ return {
     "argumentDefinitions": [],
     "kind": "Operation",
     "name": "ViewerProfileScreenQuery",
-    "selections": (v2/*: any*/)
+    "selections": (v4/*: any*/)
   },
   "params": {
-    "cacheID": "ca2faf8956ba2ab5dcbbc7afe7858b2d",
+    "cacheID": "fc1b707d67bfe32cae40b861aa7a4bf7",
     "id": null,
     "metadata": {},
     "name": "ViewerProfileScreenQuery",
     "operationKind": "query",
-    "text": "query ViewerProfileScreenQuery {\n  viewer {\n    id\n    email\n    privacyMode\n    currentLiveSession {\n      id\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n  }\n}\n"
+    "text": "query ViewerProfileScreenQuery {\n  viewer {\n    id\n    displayName\n    email\n    privacyMode\n    username\n    currentLiveSession {\n      id\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        displayName\n        email\n        username\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "52d79f1b1f4e499fb39d21833ab06421";
+(node as any).hash = "25ad31e9585fd9a8d1e0a8f3dceea535";
 
 export default node;

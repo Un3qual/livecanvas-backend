@@ -28,9 +28,11 @@ type ContactMatchNode = {
   readonly id: string;
   readonly inviteRecipient: string | null;
   readonly matchedUsers: ReadonlyArray<{
+    readonly displayName: string | null;
     readonly email: string | null;
     readonly id: string;
     readonly privacyMode: string;
+    readonly username: string | null;
   }>;
 };
 
@@ -476,9 +478,11 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
           id: 'contact-match-1',
           matchedUsers: [
             {
+              displayName: 'Matched Creator',
               email: 'matched@example.com',
               id: 'opaque-user-id',
               privacyMode: 'PUBLIC',
+              username: 'matched_creator',
             },
           ],
         }),
@@ -487,7 +491,7 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
     });
 
     expect(screen.getByText('Friend Name')).toBeOnTheScreen();
-    expect(screen.getByText('matched@example.com')).toBeOnTheScreen();
+    expect(screen.getByText('Matched Creator')).toBeOnTheScreen();
 
     await user.press(screen.getByRole('button', { name: 'Open profile' }));
 
@@ -510,9 +514,11 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
           id: 'contact-match-privacy',
           matchedUsers: [
             {
+              displayName: null,
               email: 'hidden@example.com',
               id: 'hidden-user-id',
               privacyMode: 'PUBLIC',
+              username: null,
             },
           ],
         }),
@@ -680,9 +686,11 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
           inviteRecipient: 'matched@example.com',
           matchedUsers: [
             {
+              displayName: null,
               email: 'matched@example.com',
               id: 'matched-user',
               privacyMode: 'PUBLIC',
+              username: null,
             },
           ],
         }),
@@ -717,9 +725,11 @@ describe('ContactDiscoveryScreen with React Native Testing Library', () => {
           inviteRecipient: null,
           matchedUsers: [
             {
+              displayName: null,
               email: 'stale@example.com',
               id: 'matched-user',
               privacyMode: 'PUBLIC',
+              username: null,
             },
           ],
         }),

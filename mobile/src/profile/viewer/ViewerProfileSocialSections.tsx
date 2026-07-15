@@ -57,8 +57,10 @@ const viewerProfileSocialSectionsQuery = graphql`
         edges {
           node {
             id
+            displayName
             email
             privacyMode
+            username
           }
         }
       }
@@ -69,8 +71,10 @@ const viewerProfileSocialSectionsQuery = graphql`
         edges {
           node {
             id
+            displayName
             email
             privacyMode
+            username
           }
         }
       }
@@ -83,8 +87,10 @@ const viewerProfileSocialSectionsQuery = graphql`
           requestedAt
           follower {
             id
+            displayName
             email
             privacyMode
+            username
           }
         }
       }

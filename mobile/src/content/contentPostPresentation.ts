@@ -1,8 +1,10 @@
 import { formatProfileIdentity } from '../profile/profilePresentation';
 
 export type ContentPostAuthor = {
+  readonly displayName?: string | null;
   readonly id: string;
   readonly email?: string | null;
+  readonly username?: string | null;
 };
 
 export type ContentMediaAsset = {

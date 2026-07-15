@@ -25,8 +25,10 @@ export const contactDiscoveryContactMatchFields = graphql`
     inviteRecipient
     matchedUsers {
       id
+      displayName
       email
       privacyMode
+      username
     }
   }
 `;

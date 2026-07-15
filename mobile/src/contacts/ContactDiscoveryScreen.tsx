@@ -28,6 +28,7 @@ import {
   appendProfileConnectionNodes,
   readProfileConnectionPageInfo,
 } from '../profile/profileConnectionPagination';
+import { formatProfileIdentity } from '../profile/profilePresentation';
 import {
   CONTACT_DISCOVERY_QUERY_VARIABLES,
   contactDiscoveryQuery,
@@ -596,20 +597,29 @@ function ContactMatchCard({
         {contactMatch.contactName || inviteRecipient || 'Manual contact'}
       </Text>
       {hasMatches ? (
-        contactMatch.matchedUsers.map((user) => (
-          <View key={user.id} style={styles.row}>
-            <Text style={[styles.bodyText, { color: theme.colors.text }]}>
-              {user.email || 'LiveCanvas profile'}
-            </Text>
-            <View style={styles.actions}>
-              <AppButton
-                label="Open profile"
-                onPress={() => onOpenProfile(user)}
-                variant="secondary"
-              />
+        contactMatch.matchedUsers.map((user) => {
+          const identity = formatProfileIdentity(user);
+
+          return (
+            <View key={user.id} style={styles.row}>
+              <Text style={[styles.bodyText, { color: theme.colors.text }]}>
+                {identity.title}
+              </Text>
+              <Text
+                style={[styles.metadataText, { color: theme.colors.textMuted }]}
+              >
+                {identity.subtitle}
+              </Text>
+              <View style={styles.actions}>
+                <AppButton
+                  label="Open profile"
+                  onPress={() => onOpenProfile(user)}
+                  variant="secondary"
+                />
+              </View>
             </View>
-          </View>
-        ))
+          );
+        })
       ) : (
         <>
           <Text style={[styles.bodyText, { color: theme.colors.textMuted }]}>

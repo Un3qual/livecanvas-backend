@@ -1,6 +1,8 @@
-type ProfileIdentityInput = {
+export type ProfileIdentityInput = {
   id: string;
+  displayName?: string | null;
   email?: string | null;
+  username?: string | null;
 };
 
 type ProfileIdentity = {
@@ -36,13 +38,31 @@ type NullableConnection = {
 export function formatProfileIdentity(
   input: ProfileIdentityInput,
 ): ProfileIdentity {
+  const displayName = input.displayName?.trim();
+  const username = input.username?.trim();
   const email = input.email?.trim();
+
+  if (displayName) {
+    return {
+      title: displayName,
+      subtitle: username ? `@${username}` : 'LiveCanvas profile',
+      initials: initialsFromDisplayName(displayName),
+    };
+  }
+
+  if (username) {
+    return {
+      title: `@${username}`,
+      subtitle: 'LiveCanvas profile',
+      initials: firstInitial(username),
+    };
+  }
 
   if (email) {
     return {
       title: email,
       subtitle: 'Signed in with email',
-      initials: email.charAt(0).toUpperCase(),
+      initials: firstInitial(email),
     };
   }
 
@@ -51,6 +71,23 @@ export function formatProfileIdentity(
     subtitle: `Profile ID ${input.id.slice(0, 8)}`,
     initials: 'LC',
   };
+}
+
+function initialsFromDisplayName(displayName: string): string {
+  return displayName
+    .split(/\s+/u)
+    .slice(0, 2)
+    .map(firstInitial)
+    .join('');
+}
+
+function firstInitial(value: string): string {
+  const [firstCodePoint = ''] = Array.from(value);
+  const [upperCodePoint = firstCodePoint] = Array.from(
+    firstCodePoint.toUpperCase(),
+  );
+
+  return upperCodePoint;
 }
 
 export function formatPrivacyModeLabel(mode: string): PrivacyModeLabel {

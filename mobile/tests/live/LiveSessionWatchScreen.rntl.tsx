@@ -268,6 +268,7 @@ describe('LiveSessionWatchScreen chat control wiring', () => {
     await waitFor(() => {
       expect(mockChatPanelProps?.rows).toHaveLength(1);
     });
+    expect(screen.getByText('Canvas Host')).toBeOnTheScreen();
     expect(mockChatControlsInput).toMatchObject({
       hostId: 'host-1',
       sessionStatus: 'LIVE',
@@ -542,7 +543,12 @@ function createQueryData(
       __typename: 'LiveSession' as const,
       channelTopic: `live_session:${sessionId}`,
       endedAt: status === 'ENDED' ? '2026-07-11T13:00:00Z' : null,
-      host: { email: 'host@example.test', id: 'host-1' },
+      host: {
+        displayName: 'Canvas Host',
+        email: 'host@example.test',
+        id: 'host-1',
+        username: 'canvas_host',
+      },
       id: sessionId,
       insertedAt: '2026-07-11T12:00:00Z',
       recordingMediaAsset: null,

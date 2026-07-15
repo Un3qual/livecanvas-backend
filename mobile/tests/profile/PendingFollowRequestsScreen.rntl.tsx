@@ -11,9 +11,11 @@ import { PendingFollowRequestsScreen } from '../../src/profile/PendingFollowRequ
 
 type PendingRequestNode = {
   readonly follower: {
+    readonly displayName: string | null;
     readonly email: string | null;
     readonly id: string;
     readonly privacyMode: string;
+    readonly username: string | null;
   };
   readonly id: string;
   readonly requestedAt: string;
@@ -128,9 +130,11 @@ beforeEach(() => {
     viewerPendingFollowRequests: connection([
       pendingRequest({
         follower: {
+          displayName: 'Canvas Requester',
           email: 'requester@example.com',
           id: 'opaque-user-1',
           privacyMode: 'PRIVATE',
+          username: 'canvas_requester',
         },
         id: 'request-1',
       }),
@@ -140,9 +144,11 @@ beforeEach(() => {
     viewerPendingFollowRequests: connection([
       pendingRequest({
         follower: {
+          displayName: 'Later Requester',
           email: 'later-requester@example.com',
           id: 'opaque-user-2',
           privacyMode: 'PUBLIC',
+          username: 'later_requester',
         },
         id: 'request-2',
       }),
@@ -161,7 +167,7 @@ describe('PendingFollowRequestsScreen with React Native Testing Library', () => 
 
     expect(screen.getByTestId('pending-follow-request-list')).toBeOnTheScreen();
     expect(screen.getByText('Follow requests')).toBeOnTheScreen();
-    expect(screen.getByText('requester@example.com')).toBeOnTheScreen();
+    expect(screen.getByText('Canvas Requester')).toBeOnTheScreen();
     expect(mockQueryVariables).toEqual({ after: null, first: 20 });
 
     const acceptButton = screen.getByRole('button', { name: 'Accept' });
@@ -182,7 +188,7 @@ describe('PendingFollowRequestsScreen with React Native Testing Library', () => 
       },
     });
 
-    expect(screen.queryByText('requester@example.com')).toBeNull();
+    expect(screen.queryByText('Canvas Requester')).toBeNull();
   });
 
   test('keeps decline errors row-local and retryable', async () => {
@@ -214,7 +220,7 @@ describe('PendingFollowRequestsScreen with React Native Testing Library', () => 
 
     await render(<PendingFollowRequestsScreen />);
 
-    await user.press(screen.getByRole('button', { name: 'requester@example.com' }));
+    await user.press(screen.getByRole('button', { name: 'Canvas Requester' }));
 
     expect(mockPushedRoutes).toEqual([
       { params: { id: 'opaque-user-1' }, pathname: '/profiles/[id]' },
@@ -228,9 +234,11 @@ describe('PendingFollowRequestsScreen with React Native Testing Library', () => 
         [
           pendingRequest({
             follower: {
+              displayName: 'Canvas Requester',
               email: 'requester@example.com',
               id: 'opaque-user-1',
               privacyMode: 'PRIVATE',
+              username: 'canvas_requester',
             },
             id: 'request-1',
           }),
@@ -249,7 +257,7 @@ describe('PendingFollowRequestsScreen with React Native Testing Library', () => 
     });
 
     await waitFor(() => {
-      expect(screen.getByText('later-requester@example.com')).toBeOnTheScreen();
+      expect(screen.getByText('Later Requester')).toBeOnTheScreen();
     });
   });
 });
@@ -298,9 +306,11 @@ function pendingRequest(
 ): PendingRequestNode {
   return {
     follower: {
+      displayName: 'Canvas Requester',
       email: 'requester@example.com',
       id: 'opaque-user-1',
       privacyMode: 'PRIVATE',
+      username: 'canvas_requester',
     },
     id: 'request-1',
     requestedAt: '2026-07-01T00:00:00Z',

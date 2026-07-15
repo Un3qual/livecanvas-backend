@@ -30,8 +30,10 @@ export const PROFILE_CONNECTION_QUERY_VARIABLES = {
 export const profileConnectionUserFields = graphql`
   fragment profileConnectionOperationsUserFields on User {
     id
+    displayName
     email
     privacyMode
+    username
   }
 `;
 

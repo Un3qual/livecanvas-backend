@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c0fed6e5901042853c107fe361a2e8be>>
+ * @generated SignedSource<<a3c93dcdd50e7b04bbe1c6d72495619f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,8 +30,10 @@ export type profileContentOperationsQuery$data = {
       readonly edges: ReadonlyArray<{
         readonly node: {
           readonly author: {
+            readonly displayName: string | null | undefined;
             readonly email: string | null | undefined;
             readonly id: string;
+            readonly username: string | null | undefined;
           };
           readonly bodyText: string | null | undefined;
           readonly expiresAt: string | null | undefined;
@@ -58,8 +60,10 @@ export type profileContentOperationsQuery$data = {
           readonly channelTopic: string | null | undefined;
           readonly endedAt: string | null | undefined;
           readonly host: {
+            readonly displayName: string | null | undefined;
             readonly email: string | null | undefined;
             readonly id: string;
+            readonly username: string | null | undefined;
           };
           readonly id: string;
           readonly insertedAt: string;
@@ -77,8 +81,10 @@ export type profileContentOperationsQuery$data = {
       readonly edges: ReadonlyArray<{
         readonly node: {
           readonly author: {
+            readonly displayName: string | null | undefined;
             readonly email: string | null | undefined;
             readonly id: string;
+            readonly username: string | null | undefined;
           };
           readonly bodyText: string | null | undefined;
           readonly expiresAt: string | null | undefined;
@@ -211,7 +217,21 @@ v8 = [
     "alias": null,
     "args": null,
     "kind": "ScalarField",
+    "name": "displayName",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
     "name": "email",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "username",
     "storageKey": null
   }
 ],
@@ -516,12 +536,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "daf48838755628bcc195159fb1b7d320",
+    "cacheID": "3bb5cf59b189f19eb1422868793ec474",
     "id": null,
     "metadata": {},
     "name": "profileContentOperationsQuery",
     "operationKind": "query",
-    "text": "query profileContentOperationsQuery(\n  $after: String\n  $first: Int!\n  $id: ID!\n  $includePosts: Boolean!\n  $includeReplays: Boolean!\n  $includeStories: Boolean!\n) {\n  viewer {\n    id\n  }\n  node(id: $id) {\n    __typename\n    ... on User {\n      id\n      posts(first: $first, after: $after) @include(if: $includePosts) {\n        edges {\n          node {\n            id\n            kind\n            bodyText\n            visibility\n            expiresAt\n            insertedAt\n            author {\n              id\n              email\n            }\n            mediaAssets {\n              id\n              mimeType\n              processingState\n              publicUrl\n            }\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n      storyFeed(first: $first, after: $after) @include(if: $includeStories) {\n        edges {\n          node {\n            id\n            kind\n            bodyText\n            visibility\n            expiresAt\n            insertedAt\n            author {\n              id\n              email\n            }\n            mediaAssets {\n              id\n              mimeType\n              processingState\n              publicUrl\n            }\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n      replayFeed(first: $first, after: $after) @include(if: $includeReplays) {\n        edges {\n          node {\n            id\n            channelTopic\n            status\n            visibility\n            insertedAt\n            startedAt\n            endedAt\n            host {\n              id\n              email\n            }\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query profileContentOperationsQuery(\n  $after: String\n  $first: Int!\n  $id: ID!\n  $includePosts: Boolean!\n  $includeReplays: Boolean!\n  $includeStories: Boolean!\n) {\n  viewer {\n    id\n  }\n  node(id: $id) {\n    __typename\n    ... on User {\n      id\n      posts(first: $first, after: $after) @include(if: $includePosts) {\n        edges {\n          node {\n            id\n            kind\n            bodyText\n            visibility\n            expiresAt\n            insertedAt\n            author {\n              id\n              displayName\n              email\n              username\n            }\n            mediaAssets {\n              id\n              mimeType\n              processingState\n              publicUrl\n            }\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n      storyFeed(first: $first, after: $after) @include(if: $includeStories) {\n        edges {\n          node {\n            id\n            kind\n            bodyText\n            visibility\n            expiresAt\n            insertedAt\n            author {\n              id\n              displayName\n              email\n              username\n            }\n            mediaAssets {\n              id\n              mimeType\n              processingState\n              publicUrl\n            }\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n      replayFeed(first: $first, after: $after) @include(if: $includeReplays) {\n        edges {\n          node {\n            id\n            channelTopic\n            status\n            visibility\n            insertedAt\n            startedAt\n            endedAt\n            host {\n              id\n              displayName\n              email\n              username\n            }\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();

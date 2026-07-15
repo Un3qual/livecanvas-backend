@@ -16,9 +16,11 @@ import { SmallProfileAvatar } from './ProfileAvatar';
 import { profileScreenStyles as styles } from './profileScreenStyles';
 
 type ProfilePreviewUser = {
+  readonly displayName: string | null | undefined;
   readonly email: string | null | undefined;
   readonly id: string;
   readonly privacyMode: string;
+  readonly username: string | null | undefined;
 };
 
 type PendingFollowRequestPreview = {

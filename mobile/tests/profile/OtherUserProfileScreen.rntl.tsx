@@ -116,6 +116,13 @@ describe('OtherUserProfileScreen social controls', () => {
     expect(screen.queryByRole('button', { name: 'View following' })).toBeNull();
   });
 
+  test('renders the profile public display identity', async () => {
+    await render(<OtherUserProfileScreen id="opaque-profile-id" />);
+
+    expect(screen.getByText('Canvas Creator')).toBeOnTheScreen();
+    expect(screen.getByText('@canvas_creator')).toBeOnTheScreen();
+  });
+
   test('blocks a social control submitted in the same tick as follow', async () => {
     mockQueryData = profileQueryData({
       isBlockedByViewer: false,
@@ -505,10 +512,12 @@ function profileQueryData({
     node: {
       __typename: 'User',
       currentLiveSession: null,
+      displayName: 'Canvas Creator',
       followers: connection([]),
       following: connection([]),
       id: profileId,
       privacyMode: 'PUBLIC',
+      username: 'canvas_creator',
     },
     relationshipState,
     viewer: { id: 'viewer-id' },

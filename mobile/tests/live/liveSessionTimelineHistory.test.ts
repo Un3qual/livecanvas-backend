@@ -65,8 +65,10 @@ describe('readLiveSessionTimelineHistory', () => {
       channelTopic: 'live:session:opaque',
       endedAt: null,
       host: {
+        displayName: null,
         email: 'host@example.com',
         id: 'relay-user-id:host',
+        username: null,
       },
       id: 'relay-live-session-id:opaque',
       insertedAt: '2026-06-04T16:55:00.000000Z',

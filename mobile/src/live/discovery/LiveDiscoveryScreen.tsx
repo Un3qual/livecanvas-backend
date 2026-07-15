@@ -162,7 +162,9 @@ function LiveDiscoveryContent({ fetchKey }: { fetchKey: number }) {
               endedAt
               host {
                 id
+                displayName
                 email
+                username
               }
             }
           }
@@ -179,7 +181,9 @@ function LiveDiscoveryContent({ fetchKey }: { fetchKey: number }) {
             endedAt
             host {
               id
+              displayName
               email
+              username
             }
           }
         }

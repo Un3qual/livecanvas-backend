@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b5129546273972587756266076a0c7b3>>
+ * @generated SignedSource<<1c95effd2b55a3591030529057b499df>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -28,8 +28,10 @@ export type postOwnerControlOperationsUpdatePostMutation$data = {
     }>;
     readonly post: {
       readonly author: {
+        readonly displayName: string | null | undefined;
         readonly email: string | null | undefined;
         readonly id: string;
+        readonly username: string | null | undefined;
       };
       readonly bodyText: string | null | undefined;
       readonly expiresAt: string | null | undefined;
@@ -138,7 +140,21 @@ v2 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
+                "name": "displayName",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
                 "name": "email",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "username",
                 "storageKey": null
               }
             ],
@@ -227,12 +243,12 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "58705008e582505278ac4c39f730d003",
+    "cacheID": "721199c6c3977f547ed86ff072aaa46d",
     "id": null,
     "metadata": {},
     "name": "postOwnerControlOperationsUpdatePostMutation",
     "operationKind": "mutation",
-    "text": "mutation postOwnerControlOperationsUpdatePostMutation(\n  $input: UpdatePostInput!\n) {\n  updatePost(input: $input) {\n    post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        email\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation postOwnerControlOperationsUpdatePostMutation(\n  $input: UpdatePostInput!\n) {\n  updatePost(input: $input) {\n    post {\n      id\n      kind\n      bodyText\n      visibility\n      expiresAt\n      insertedAt\n      author {\n        id\n        displayName\n        email\n        username\n      }\n      mediaAssets {\n        id\n        mimeType\n        processingState\n        publicUrl\n      }\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();

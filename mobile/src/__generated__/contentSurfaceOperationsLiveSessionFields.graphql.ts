@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7bdc5cdf7dca675cad29e4f3e674eff4>>
+ * @generated SignedSource<<fec4ff3f41bd5b778b9b772ea6772451>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,8 +16,10 @@ export type contentSurfaceOperationsLiveSessionFields$data = {
   readonly channelTopic: string | null | undefined;
   readonly endedAt: string | null | undefined;
   readonly host: {
+    readonly displayName: string | null | undefined;
     readonly email: string | null | undefined;
     readonly id: string;
+    readonly username: string | null | undefined;
   };
   readonly id: string;
   readonly insertedAt: string;
@@ -101,7 +103,21 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
+          "name": "displayName",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
           "name": "email",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "username",
           "storageKey": null
         }
       ],
@@ -113,6 +129,6 @@ return {
 };
 })();
 
-(node as any).hash = "0232b224d0811ec0aab9b5070ab905ea";
+(node as any).hash = "7725dfadfb1f059421252b0264502f76";
 
 export default node;

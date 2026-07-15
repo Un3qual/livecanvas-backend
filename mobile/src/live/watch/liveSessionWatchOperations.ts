@@ -37,7 +37,9 @@ export const liveSessionWatchScreenQuery = graphql`
         endedAt
         host {
           id
+          displayName
           email
+          username
         }
         recordingMediaAsset {
           id
@@ -89,7 +91,9 @@ export const liveSessionWatchScreenJoinMutation = graphql`
         endedAt
         host {
           id
+          displayName
           email
+          username
         }
       }
       errors {

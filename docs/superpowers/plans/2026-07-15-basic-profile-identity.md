@@ -84,6 +84,7 @@ React Native, Relay, pnpm, Vitest, Jest/RNTL.
 **Files:**
 - Modify: `mobile/src/profile/profilePresentation.ts`
 - Modify user selections in `mobile/src/profile/{profileConnectionOperations.ts,viewer/ViewerProfileScreen.tsx,viewer/ViewerProfileSocialSections.tsx,other/OtherUserProfileScreen.tsx}`
+- Modify: `mobile/src/profile/{ProfileConnectionListScreen.tsx,PendingFollowRequestsScreen.tsx}`
 - Modify: `mobile/src/content/{contentPostPresentation.ts,contentSurfaceOperations.ts}`
 - Modify: `mobile/src/content/story/storyViewerOperations.ts`
 - Modify: `mobile/src/feed/postComposerOperations.ts`
@@ -98,14 +99,14 @@ React Native, Relay, pnpm, Vitest, Jest/RNTL.
   identity, returns at most two stable initials, and retains legacy fallbacks.
 - All rendered `User` authors/hosts/matches request `displayName` and `username`.
 
-- [ ] Add failing pure tests for presentation priority, blank/null fallback,
+- [x] Add failing pure tests for presentation priority, blank/null fallback,
   Unicode display names, multi-word initials, handle initials, and authorized
   email fallback; add representative RNTL expectations on profile, post, live,
   connection, and contact surfaces.
-- [ ] Extend the pure identity input/formatter and every user-bearing Relay
+- [x] Extend the pure identity input/formatter and every user-bearing Relay
   selection that feeds an existing rendered identity; do not create a second
   formatter or change route keys.
-- [ ] Regenerate Relay, run the focused presentation/RNTL suites, both
+- [x] Regenerate Relay, run the focused presentation/RNTL suites, both
   TypeScript checks, and lint; commit `feat: present public profile identity`.
 
 ### Task 4: Edit Identity From The Viewer Profile

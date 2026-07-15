@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<261ad3e92f6ad60cef47b5c0ce2ce3e1>>
+ * @generated SignedSource<<5f27f1ab9bfba2c29f6a2b94b398e420>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,9 +19,11 @@ export type profileConnectionOperationsViewerFollowersQuery$data = {
     readonly followers: {
       readonly edges: ReadonlyArray<{
         readonly node: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
           readonly privacyMode: UserPrivacyMode;
+          readonly username: string | null | undefined;
         } | null | undefined;
       } | null | undefined> | null | undefined;
       readonly pageInfo: {
@@ -107,6 +109,13 @@ v2 = [
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "displayName",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "email",
                     "storageKey": null
                   },
@@ -115,6 +124,13 @@ v2 = [
                     "args": null,
                     "kind": "ScalarField",
                     "name": "privacyMode",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "username",
                     "storageKey": null
                   }
                 ],
@@ -173,12 +189,12 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "9f14037f778246176afc609aa7fe6431",
+    "cacheID": "90dc3a7fa2dd099cae7fc807066a8eb4",
     "id": null,
     "metadata": {},
     "name": "profileConnectionOperationsViewerFollowersQuery",
     "operationKind": "query",
-    "text": "query profileConnectionOperationsViewerFollowersQuery(\n  $after: String\n  $first: Int!\n) {\n  viewer {\n    id\n    followers(first: $first, after: $after) {\n      edges {\n        node {\n          id\n          email\n          privacyMode\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
+    "text": "query profileConnectionOperationsViewerFollowersQuery(\n  $after: String\n  $first: Int!\n) {\n  viewer {\n    id\n    followers(first: $first, after: $after) {\n      edges {\n        node {\n          id\n          displayName\n          email\n          privacyMode\n          username\n        }\n      }\n      pageInfo {\n        endCursor\n        hasNextPage\n      }\n    }\n  }\n}\n"
   }
 };
 })();

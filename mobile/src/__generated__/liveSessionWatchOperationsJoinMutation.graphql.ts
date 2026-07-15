@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c67f4e7046203b2417192ce2058897c1>>
+ * @generated SignedSource<<e5f596a3f9ee5cce63b3e0f0d0d4c1c2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,8 +26,10 @@ export type liveSessionWatchOperationsJoinMutation$data = {
     readonly liveSession: {
       readonly endedAt: string | null | undefined;
       readonly host: {
+        readonly displayName: string | null | undefined;
         readonly email: string | null | undefined;
         readonly id: string;
+        readonly username: string | null | undefined;
       };
       readonly id: string;
       readonly insertedAt: string;
@@ -129,7 +131,21 @@ v2 = [
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
+                "name": "displayName",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
                 "name": "email",
+                "storageKey": null
+              },
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "username",
                 "storageKey": null
               }
             ],
@@ -185,16 +201,16 @@ return {
     "selections": (v2/*: any*/)
   },
   "params": {
-    "cacheID": "c0ed2e2a520cef7f71d849ce3092d1e7",
+    "cacheID": "4444c0b112ce40124602533d49d17c5e",
     "id": null,
     "metadata": {},
     "name": "liveSessionWatchOperationsJoinMutation",
     "operationKind": "mutation",
-    "text": "mutation liveSessionWatchOperationsJoinMutation(\n  $input: JoinLiveSessionInput!\n) {\n  joinLiveSession(input: $input) {\n    liveSession {\n      id\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        email\n      }\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
+    "text": "mutation liveSessionWatchOperationsJoinMutation(\n  $input: JoinLiveSessionInput!\n) {\n  joinLiveSession(input: $input) {\n    liveSession {\n      id\n      status\n      visibility\n      insertedAt\n      startedAt\n      endedAt\n      host {\n        id\n        displayName\n        email\n        username\n      }\n    }\n    errors {\n      field\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "f6806a5b99780e91abaf146b49b465a3";
+(node as any).hash = "4329f635fb2e6a922bf780da78c5c81b";
 
 export default node;

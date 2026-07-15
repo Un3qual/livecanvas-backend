@@ -94,7 +94,9 @@ export const postComposerCreatePostMutation = graphql`
         insertedAt
         author {
           id
+          displayName
           email
+          username
         }
         mediaAssets {
           id

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<67695b333d16edf3524430d48ad20d45>>
+ * @generated SignedSource<<3206578ddf101e67185d42a339a65761>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,9 +21,11 @@ export type profileConnectionOperationsOtherFollowersQuery$data = {
     readonly followers: {
       readonly edges: ReadonlyArray<{
         readonly node: {
+          readonly displayName: string | null | undefined;
           readonly email: string | null | undefined;
           readonly id: string;
           readonly privacyMode: UserPrivacyMode;
+          readonly username: string | null | undefined;
         } | null | undefined;
       } | null | undefined> | null | undefined;
       readonly pageInfo: {
@@ -122,6 +124,13 @@ v4 = {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
+              "name": "displayName",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
               "name": "email",
               "storageKey": null
             },
@@ -130,6 +139,13 @@ v4 = {
               "args": null,
               "kind": "ScalarField",
               "name": "privacyMode",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "username",
               "storageKey": null
             }
           ],
@@ -228,12 +244,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "533f57ab786d48ecef4a2043c43368ff",
+    "cacheID": "9ee8dcf8a30f9c9c55398dfd981694ed",
     "id": null,
     "metadata": {},
     "name": "profileConnectionOperationsOtherFollowersQuery",
     "operationKind": "query",
-    "text": "query profileConnectionOperationsOtherFollowersQuery(\n  $after: String\n  $first: Int!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on User {\n      id\n      followers(first: $first, after: $after) {\n        edges {\n          node {\n            id\n            email\n            privacyMode\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query profileConnectionOperationsOtherFollowersQuery(\n  $after: String\n  $first: Int!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on User {\n      id\n      followers(first: $first, after: $after) {\n        edges {\n          node {\n            id\n            displayName\n            email\n            privacyMode\n            username\n          }\n        }\n        pageInfo {\n          endCursor\n          hasNextPage\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();

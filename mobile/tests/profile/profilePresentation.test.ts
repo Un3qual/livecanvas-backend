@@ -9,10 +9,50 @@ import {
 } from '../../src/profile/profilePresentation';
 
 describe('profilePresentation', () => {
+  test('prioritizes public display identity and derives two stable Unicode initials', () => {
+    expect(
+      formatProfileIdentity({
+        id: 'VXNlcjoxMjM=',
+        displayName: '  🎨 Canvas Creator  ',
+        username: '  canvas_creator  ',
+        email: 'viewer@example.com',
+      }),
+    ).toEqual({
+      title: '🎨 Canvas Creator',
+      subtitle: '@canvas_creator',
+      initials: '🎨C',
+    });
+
+    expect(
+      formatProfileIdentity({
+        id: 'VXNlcjoxMjM=',
+        displayName: 'Élodie 山田',
+        username: 'elodie',
+      }).initials,
+    ).toBe('É山');
+  });
+
+  test('uses a handle when display name is unavailable', () => {
+    expect(
+      formatProfileIdentity({
+        id: 'VXNlcjoxMjM=',
+        displayName: '  ',
+        username: 'canvas_creator',
+        email: 'viewer@example.com',
+      }),
+    ).toEqual({
+      title: '@canvas_creator',
+      subtitle: 'LiveCanvas profile',
+      initials: 'C',
+    });
+  });
+
   test('uses viewer email as the stable profile identity when available', () => {
     expect(
       formatProfileIdentity({
         id: 'VXNlcjoxMjM=',
+        displayName: null,
+        username: null,
         email: 'viewer@example.com',
       }),
     ).toEqual({
@@ -26,6 +66,8 @@ describe('profilePresentation', () => {
     expect(
       formatProfileIdentity({
         id: 'VXNlcjoxMjM=',
+        displayName: '',
+        username: '   ',
         email: 'i@example.com',
       }).initials,
     ).toBe('I');
@@ -35,6 +77,8 @@ describe('profilePresentation', () => {
     expect(
       formatProfileIdentity({
         id: 'VXNlcjoxMjM0NTY3ODkw',
+        displayName: null,
+        username: null,
         email: null,
       }),
     ).toEqual({
