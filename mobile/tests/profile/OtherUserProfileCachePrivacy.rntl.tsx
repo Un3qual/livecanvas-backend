@@ -161,10 +161,12 @@ function visibleProfileData() {
     node: {
       __typename: 'User',
       currentLiveSession: null,
+      displayName: null,
       followers: emptyConnection(),
       following: emptyConnection(),
       id: profileId,
       privacyMode: 'PUBLIC',
+      username: null,
     },
     relationshipState: 'PUBLIC',
     viewer: { id: 'viewer-id' },
