@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, vi, test } from 'vitest';
 
 import type { AuthTokenPair } from '../../src/auth/types';
 import { REFRESH_MUTATION } from '../../src/auth/authenticatedFetchHelpers';
@@ -25,7 +25,7 @@ describe('restoreStoredSession', () => {
       refreshToken: 'refreshed-refresh-token',
       expiresAt: '2026-05-02T00:00:00.000Z',
     };
-    const fetchImpl = mock<TestFetch>((_url, _init) =>
+    const fetchImpl = vi.fn<TestFetch>((_url, _init) =>
       new Response(
         JSON.stringify({
           data: {
@@ -44,8 +44,8 @@ describe('restoreStoredSession', () => {
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
     );
-    const storeTokens = mock(returnUndefined);
-    const clearTokens = mock(returnUndefined);
+    const storeTokens = vi.fn(returnUndefined);
+    const clearTokens = vi.fn(returnUndefined);
 
     const state = await restoreStoredSession('http://localhost:4000', {
       readTokens: () => storedTokens,
@@ -73,7 +73,7 @@ describe('restoreStoredSession', () => {
   });
 
   test('clears stored tokens when refreshAuthTokens rejects the session', async () => {
-    const fetchImpl = mock(() =>
+    const fetchImpl = vi.fn(() =>
       new Response(
         JSON.stringify({
           data: {
@@ -92,7 +92,7 @@ describe('restoreStoredSession', () => {
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       ),
     );
-    const clearTokens = mock(returnUndefined);
+    const clearTokens = vi.fn(returnUndefined);
 
     const state = await restoreStoredSession('http://localhost:4000', {
       readTokens: () => ({
@@ -123,17 +123,17 @@ describe('restoreStoredSession', () => {
     }> = [
       {
         name: 'transport error',
-        fetchImpl: mock(() => {
+        fetchImpl: vi.fn(() => {
           throw new Error('offline');
         }),
       },
       {
         name: 'HTTP 503',
-        fetchImpl: mock(() => new Response('unavailable', { status: 503 })),
+        fetchImpl: vi.fn(() => new Response('unavailable', { status: 503 })),
       },
       {
         name: 'invalid JSON',
-        fetchImpl: mock(
+        fetchImpl: vi.fn(
           () =>
             new Response('not json', {
               status: 200,
@@ -143,7 +143,7 @@ describe('restoreStoredSession', () => {
       },
       {
         name: 'malformed response',
-        fetchImpl: mock(
+        fetchImpl: vi.fn(
           () =>
             new Response(JSON.stringify({ data: { refreshAuthTokens: null } }), {
               status: 200,
@@ -154,8 +154,8 @@ describe('restoreStoredSession', () => {
     ];
 
     for (const { name, fetchImpl } of cases) {
-      const storeTokens = mock(returnUndefined);
-      const clearTokens = mock(returnUndefined);
+      const storeTokens = vi.fn(returnUndefined);
+      const clearTokens = vi.fn(returnUndefined);
 
       const state = await restoreStoredSession('http://localhost:4000', {
         readTokens: () => storedTokens,
@@ -174,7 +174,7 @@ describe('restoreStoredSession', () => {
   });
 
   test('does not call the network when no stored tokens exist', async () => {
-    const fetchImpl = mock(() => {
+    const fetchImpl = vi.fn(() => {
       throw new Error('network should not run');
     });
 

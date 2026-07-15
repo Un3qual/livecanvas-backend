@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { beforeEach, describe, expect, vi, test } from 'vitest';
 import {
   Fragment,
   Suspense,
@@ -69,7 +69,7 @@ function AppButtonMock({
   );
 }
 
-mock.module('react-relay', () => ({
+vi.doMock('react-relay', () => ({
   fetchQuery: () => ({
     toPromise: () => Promise.resolve(null),
   }),
@@ -89,7 +89,7 @@ mock.module('react-relay', () => ({
   useMutation: () => [() => undefined, false],
 }));
 
-mock.module('../../src/auth/AuthProvider', () => ({
+vi.doMock('../../src/auth/AuthProvider', () => ({
   useAuth: () => ({
     getAccessToken: () => authState.status === 'authenticated'
       ? authState.tokens.accessToken
@@ -99,7 +99,7 @@ mock.module('../../src/auth/AuthProvider', () => ({
   }),
 }));
 
-mock.module('../../src/providers/ThemeProvider', () => ({
+vi.doMock('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
     colors: {
       accent: 'accent',
@@ -112,7 +112,7 @@ mock.module('../../src/providers/ThemeProvider', () => ({
   }),
 }));
 
-mock.module('../../src/components/AppButton', () => ({
+vi.doMock('../../src/components/AppButton', () => ({
   AppButton: AppButtonMock,
 }));
 

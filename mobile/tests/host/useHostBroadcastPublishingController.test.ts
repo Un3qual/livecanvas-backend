@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 
 import type { HostBroadcastMediaPreparation } from '../../src/host/hostBroadcastMediaSignaling';
 import type { HostBroadcastNative } from '../../src/host/hostBroadcastNative';

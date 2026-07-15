@@ -1,6 +1,6 @@
 # Mobile Release Candidate Checklist
 
-Last reviewed: 2026-07-11
+Last reviewed: 2026-07-14
 
 Source plan:
 `docs/plans/archive/completed/mobile/2026-06-05-testing-beta-release-readiness.md`
@@ -14,15 +14,15 @@ distribution build without `developmentClient`.
 No remote or authenticated EAS build or submit command is required by this
 checklist.
 
-Current status: active after completion of all five approved product batches.
-Use `docs/plans/mobile/NOW.md` for the executable gate pointer. Begin with local
-entry criteria; remote EAS commands and physical-device work still require the
-listed external prerequisites.
+Current status: local entry gates pass after completion of all five approved
+product batches. Use `docs/plans/mobile/NOW.md` for the executable gate pointer.
+Remote EAS state, beta identities, delivered-email access, and physical-device
+work still require the listed operator prerequisites.
 
 ## Entry Criteria
 
-- From `mobile/`, `bun run test:quality` passes.
-- From `mobile/`, `bun run typecheck` passes.
+- From `mobile/`, `pnpm test:quality` passes.
+- From `mobile/`, `pnpm typecheck` passes.
 - From the repo root, `git diff --check` passes.
 - EAS environment values are configured for the target API and websocket
   endpoints. Do not rely on local `.env` or `.env.local` files for remote EAS
@@ -33,6 +33,8 @@ listed external prerequisites.
   the public app origin.
 - At least two test accounts exist: one host account and one separate viewer
   account.
+- An email address not yet associated with LiveCanvas and an inbox accessible
+  from the recipient device are available for the delivered-invite flow.
 - A physical host device with camera and microphone is available. A physical
   viewer device is preferred for WebRTC validation; a simulator can supplement
   non-media checks.
@@ -96,6 +98,51 @@ listed external prerequisites.
 - Target EAS environment values, preview-build availability, beta accounts, and
   physical host/viewer devices still require release-operator confirmation, so
   the manual device sections remain pending.
+
+### 2026-07-14 Post-Batch Local Entry Gate Pass
+
+- The gate ran from merged `main` at `aeac169`; after the test-runtime migration,
+  `pnpm install --frozen-lockfile` restores the updated committed dependency
+  graph without lockfile changes.
+- `mobile/`: `pnpm test:quality` passes with app typecheck, test typecheck,
+  lint, 74 Vitest files containing 552 tests, and 24 Jest suites containing 165
+  tests. Jest retains the existing non-failing worker force-exit warning.
+- `mobile/`: the separately required `pnpm typecheck` passes.
+- The active mobile toolchain no longer requires Bun: pnpm owns every public
+  command, Vitest owns unit tests, and Jest/Expo retains the RNTL suite.
+- Repo root: `git diff --check` passes.
+- Committed config still defines `preview` as an internal-distribution profile
+  without `developmentClient`; the native app config includes camera and
+  microphone permission copy plus the WebRTC config plugin.
+- The committed app config does not contain an EAS owner or project ID, so
+  project linkage and any existing preview artifact cannot be proven locally.
+- No local `.env*` file is present in the isolated worktree. No remote or
+  authenticated EAS command was run, so target environment values and preview
+  artifact availability remain operator-confirmed state rather than local
+  evidence.
+
+## Remaining Operator Prerequisites
+
+The local gate is complete. Before manual device QA starts, a release operator
+must confirm all of the following as one target-environment inventory:
+
+- The EAS `preview` environment provides non-localhost
+  `EXPO_PUBLIC_API_BASE_URL`, `EXPO_PUBLIC_WEBSOCKET_URL`, and
+  `EXPO_PUBLIC_APP_ORIGIN` values reachable from the target devices.
+- Backend `LIVE_CANVAS_PUBLIC_ORIGIN` exactly matches the normalized mobile
+  `EXPO_PUBLIC_APP_ORIGIN`; the configured HTTPS landing is publicly reachable.
+- The mobile app is linked to the intended EAS project, or the release operator
+  is ready to establish that association before building.
+- An installable `preview` artifact exists for the target beta platform, or an
+  authenticated release operator is ready to create one.
+- Separate host and viewer identities are available, along with an unmatched
+  recipient email inbox that can receive the real invitation delivery.
+- A physical camera/microphone-capable host device is available. A second
+  physical viewer device is preferred; a simulator may supplement only the
+  non-media checks.
+
+Until those items are confirmed, every manual device section below remains
+pending and the release candidate is not signed off.
 
 ## Launch Blockers
 

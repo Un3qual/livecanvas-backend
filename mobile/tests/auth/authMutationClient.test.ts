@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, vi, test } from 'vitest';
 
 import {
   normalizeAuthErrors,
@@ -13,7 +13,7 @@ type TestFetch = (
 
 describe('authMutationClient', () => {
   test('returns a validation error before calling sign-up when passwords do not match', async () => {
-    const fetchImpl = mock(() => {
+    const fetchImpl = vi.fn(() => {
       throw new Error('network should not run');
     });
 
@@ -39,7 +39,7 @@ describe('authMutationClient', () => {
   });
 
   test('preserves matching password confirmation spacing during sign-up', async () => {
-    const fetchImpl = mock<TestFetch>((_url, _init) =>
+    const fetchImpl = vi.fn<TestFetch>((_url, _init) =>
       new Response(
         JSON.stringify({
           data: {
@@ -97,7 +97,7 @@ describe('authMutationClient', () => {
   });
 
   test('posts password sign-in variables and returns the issued tokens', async () => {
-    const fetchImpl = mock<TestFetch>((_url, _init) =>
+    const fetchImpl = vi.fn<TestFetch>((_url, _init) =>
       new Response(
         JSON.stringify({
           data: {
@@ -153,7 +153,7 @@ describe('authMutationClient', () => {
   });
 
   test('returns backend payload errors for oauth sign-in attempts', async () => {
-    const fetchImpl = mock(() =>
+    const fetchImpl = vi.fn(() =>
       new Response(
         JSON.stringify({
           data: {

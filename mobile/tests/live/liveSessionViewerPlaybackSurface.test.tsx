@@ -1,9 +1,9 @@
 import '../setup/reactNative';
 
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, vi, test } from 'vitest';
 import React from 'react';
 
-mock.module('../../src/providers/ThemeProvider', () => ({
+vi.doMock('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
     colors: {
       error: 'error',

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'vitest';
 import { transformFileSync } from '@babel/core';
 
 const originalOrigin = process.env.EXPO_PUBLIC_APP_ORIGIN;

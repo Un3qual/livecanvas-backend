@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, vi, test } from 'vitest';
 import { createElement, type ReactNode } from 'react';
 
 import {
@@ -16,7 +16,7 @@ function NativeComponent({
   return createElement('NativeComponent', props, children);
 }
 
-mock.module('react-native', () => ({
+vi.doMock('react-native', () => ({
   Linking: {
     canOpenURL: () => Promise.resolve(false),
     openURL: () => Promise.resolve(),
@@ -28,7 +28,7 @@ mock.module('react-native', () => ({
   Text: NativeComponent,
   View: NativeComponent,
 }));
-mock.module('../../src/components/AppButton', () => ({
+vi.doMock('../../src/components/AppButton', () => ({
   AppButton: ({
     disabled,
     label,
@@ -44,11 +44,11 @@ mock.module('../../src/components/AppButton', () => ({
       label,
     ),
 }));
-mock.module('../../src/components/AppCard', () => ({
+vi.doMock('../../src/components/AppCard', () => ({
   AppCard: ({ children }: { children?: ReactNode }) =>
     createElement('View', null, children),
 }));
-mock.module('../../src/components/AppHeader', () => ({
+vi.doMock('../../src/components/AppHeader', () => ({
   AppHeader: ({
     eyebrow,
     subtitle,
@@ -59,13 +59,13 @@ mock.module('../../src/components/AppHeader', () => ({
     title: string;
   }) => createElement('View', null, eyebrow, title, subtitle),
 }));
-mock.module('../../src/theme/tokens', () => ({
+vi.doMock('../../src/theme/tokens', () => ({
   radius: { md: 8 },
   spacing: { lg: 16, sm: 8 },
   touchTarget: { min: 44 },
   typography: { label: {} },
 }));
-mock.module('../../src/live/watch/liveSessionWatchScreenStyles', () => ({
+vi.doMock('../../src/live/watch/liveSessionWatchScreenStyles', () => ({
   liveSessionWatchScreenStyles: {
     badge: {},
     badgeText: {},
@@ -80,7 +80,7 @@ mock.module('../../src/live/watch/liveSessionWatchScreenStyles', () => ({
     unavailable: {},
   },
 }));
-mock.module('../../src/providers/ThemeProvider', () => ({
+vi.doMock('../../src/providers/ThemeProvider', () => ({
   useAppTheme: () => ({
     colors: {
       error: 'error',

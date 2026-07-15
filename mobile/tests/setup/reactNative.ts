@@ -1,10 +1,10 @@
-import { mock } from 'bun:test';
+import { vi } from 'vitest';
 
 function NullComponent() {
   return null;
 }
 
-mock.module('react-native', () => ({
+vi.mock('react-native', () => ({
   ActivityIndicator: NullComponent,
   FlatList: NullComponent,
   Linking: {

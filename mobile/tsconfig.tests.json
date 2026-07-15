@@ -2,7 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "types": ["bun-types/test"]
+    "types": ["vitest/globals"]
   },
   "exclude": ["tests/**/*.rntl.tsx"],
   "include": ["tests/**/*.ts", "tests/**/*.tsx"]

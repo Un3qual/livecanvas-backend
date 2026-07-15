@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -71,13 +72,20 @@ test('withholds cached profile data until current authorization is confirmed', a
 
 test('retries a failed privacy-sensitive profile request with a fresh fetch', async () => {
   let networkAttempts = 0;
+  let rejectInitialRequest: ((reason?: unknown) => void) | undefined;
   let resolveRetry: ((response: GraphQLResponse) => void) | undefined;
   const environment = new Environment({
+    // Failed suspense queries are intentionally retained for five minutes on
+    // clients. This test owns the retry lifecycle, so avoid carrying that
+    // production cache timer into Jest after the assertions complete.
+    isServer: true,
     network: Network.create(() => {
       networkAttempts += 1;
 
       if (networkAttempts === 1) {
-        return Promise.reject(new Error('offline'));
+        return new Promise<GraphQLResponse>((_resolve, reject) => {
+          rejectInitialRequest = reject;
+        });
       }
 
       return new Promise<GraphQLResponse>((resolve) => {
@@ -87,14 +95,28 @@ test('retries a failed privacy-sensitive profile request with a fresh fetch', as
     store: new Store(new RecordSource()),
   });
 
+  const { unmount } = await render(
+    <RelayEnvironmentProvider environment={environment}>
+      <Suspense fallback={<Text>Checking profile access...</Text>}>
+        <OtherUserProfileScreen id={profileId} />
+      </Suspense>
+    </RelayEnvironmentProvider>,
+  );
+
+  await waitFor(() => {
+    expect(networkAttempts).toBe(1);
+  });
+
+  const rejectInitial = rejectInitialRequest;
+
+  if (!rejectInitial) {
+    throw new Error('Missing initial network rejecter');
+  }
+
   await withSuppressedConsoleError(async () => {
-    render(
-      <RelayEnvironmentProvider environment={environment}>
-        <Suspense fallback={<Text>Checking profile access...</Text>}>
-          <OtherUserProfileScreen id={profileId} />
-        </Suspense>
-      </RelayEnvironmentProvider>,
-    );
+    await act(() => {
+      rejectInitial(new Error('offline'));
+    });
 
     await waitFor(() => {
       expect(
@@ -113,14 +135,22 @@ test('retries a failed privacy-sensitive profile request with a fresh fetch', as
     });
   });
 
-  if (!resolveRetry) {
+  const resolveRetryRequest = resolveRetry;
+
+  if (!resolveRetryRequest) {
     throw new Error('Missing retry network resolver');
   }
 
-  resolveRetry(hiddenProfilePayload());
+  await act(() => {
+    resolveRetryRequest(hiddenProfilePayload());
+  });
 
   await waitFor(() => {
     expect(screen.getByText('This profile is unavailable.')).toBeOnTheScreen();
+  });
+
+  await act(() => {
+    unmount();
   });
 });
 

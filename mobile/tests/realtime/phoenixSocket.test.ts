@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, describe, expect, vi, test } from 'vitest';
 
 type FakePhoenixSocketOptions = {
   readonly params?: Record<string, unknown> | (() => Record<string, unknown>);
@@ -28,17 +28,18 @@ class FakePhoenixSocket {
 }
 
 function importPhoenixSocketModule() {
-  return import(`../../src/realtime/phoenixSocket?test=${crypto.randomUUID()}`);
+  return import('../../src/realtime/phoenixSocket');
 }
 
 afterEach(() => {
-  mock.restore();
+  vi.restoreAllMocks();
+  vi.resetModules();
   socketInstances.length = 0;
 });
 
 describe('createPhoenixSocket', () => {
   test('uses the exact websocket URL and reads auth params at connect time', async () => {
-    mock.module('phoenix', () => ({
+    vi.doMock('phoenix', () => ({
       Socket: FakePhoenixSocket,
     }));
 
