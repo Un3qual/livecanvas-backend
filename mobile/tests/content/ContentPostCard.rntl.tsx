@@ -136,6 +136,8 @@ describe('ContentPostCard with shared controls', () => {
   test('distinguishes fallback author actions by opaque profile ID', async () => {
     await render(<FallbackAuthorCollection />);
 
+    expect(screen.getByText('Profile ID VXNlcjox')).toBeOnTheScreen();
+    expect(screen.getByText('Profile ID VXNlcjoxMA==')).toBeOnTheScreen();
     expect(
       screen.getByRole('button', {
         name: 'Open author profile for LiveCanvas user, Profile ID VXNlcjox',
@@ -143,7 +145,7 @@ describe('ContentPostCard with shared controls', () => {
     ).toBeOnTheScreen();
     expect(
       screen.getByRole('button', {
-        name: 'Open author profile for LiveCanvas user, Profile ID VXNlcjoy',
+        name: 'Open author profile for LiveCanvas user, Profile ID VXNlcjoxMA==',
       }),
     ).toBeOnTheScreen();
   });
@@ -307,7 +309,7 @@ function FallbackAuthorCollection() {
         onOpenAuthor={() => undefined}
         post={contentPost({
           authorEmail: null,
-          authorId: 'VXNlcjoy',
+          authorId: 'VXNlcjoxMA==',
           id: 'post-2',
         })}
         viewerId="viewer-id"

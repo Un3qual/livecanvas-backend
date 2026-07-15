@@ -48,7 +48,9 @@ export function formatProfileIdentity(
 
   return {
     title: 'LiveCanvas user',
-    subtitle: `Profile ID ${input.id.slice(0, 8)}`,
+    // Relay global IDs share encoded type prefixes, so truncation can make
+    // distinct profiles visually and accessibly indistinguishable.
+    subtitle: `Profile ID ${input.id}`,
     initials: 'LC',
   };
 }
