@@ -1,7 +1,7 @@
 # Current Execution
 
 Last reviewed: 2026-07-14
-Status: local release-candidate gates pass; operator and device QA pending
+Status: mobile release-depth complete; operator/device QA pending
 
 ## Purpose
 
@@ -9,6 +9,13 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 
 ## Approved Sequence
 
+- Current sequence design:
+  `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
+- Current implementation plan:
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- Completed milestones: all five release-depth batches are implemented and the
+  full local closure matrix passes.
+- Current batch: none; operator/device QA owns the next release gate.
 - Sequence design:
   `docs/superpowers/specs/2026-07-09-next-five-product-batches-design.md`
 - Batch 2 design:
@@ -40,20 +47,18 @@ This is the coordinator dashboard. Lane `NOW.md` files own executable details.
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: Batch 5 mobile Tasks 4-5 and release-candidate local entry gates are
-  complete; operator-confirmed environment, account, build, and device QA is
-  pending.
+- State: release-depth Batches 1-5 and local closure verification are complete;
+  device/operator QA is pending.
 - Track: `docs/plans/mobile/TRACK.md`
-- Verification: configured-origin invite routing and the full mobile quality
-  gate pass with 552 Vitest and 165 Jest tests; typechecks, lint, frozen pnpm
-  install, and patch hygiene pass. Relay inputs were unchanged by the
-  integration fixes.
+- Verification: frozen pnpm install, Relay generation, typechecks, lint, 76
+  Vitest files with 563 tests, 27 Jest suites with 182 tests, `nix flake check`,
+  and patch hygiene pass.
 
 ## Execution Rule
 
-Execute the resumed release-candidate gate from
-`docs/plans/mobile/2026-06-25-release-candidate-checklist.md`. Do not run remote
-or authenticated EAS commands unless the user explicitly requests them.
+Do not start another implementation batch until device/operator QA reproduces a
+defect or the coordinator explicitly promotes new work. Do not mark operator or
+physical-device QA complete from local evidence.
 
 ## Cross-Lane Policy
 
@@ -63,10 +68,8 @@ state the write scope, and verify both affected sides.
 
 ## Next Coordinator Action
 
-Have the release operator confirm EAS project linkage, the target
-endpoint/public-origin values, preview artifact, host/viewer identities,
-unmatched recipient inbox, and physical devices, then run the
-release-candidate checklist's manual QA.
+The release operator should confirm the target-environment inventory and run
+the physical-device checklist. Promote reproduced defects to the owning lane.
 
 ## Repair Conditions
 

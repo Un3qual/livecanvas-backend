@@ -4,6 +4,7 @@ import {
   createHostBroadcastNative,
   createUnavailableHostBroadcastNative,
   normalizeHostBroadcastPermission,
+  readHostBroadcastPreviewStreamUrl,
 } from '../../src/host/hostBroadcastNative';
 import {
   createLiveWebRtcPeerConnectionFactory,
@@ -54,6 +55,25 @@ describe('liveWebRtcAdapter', () => {
 });
 
 describe('hostBroadcastNative', () => {
+  test('reads a non-blank preview URL and fails closed for unavailable native streams', () => {
+    expect(
+      readHostBroadcastPreviewStreamUrl({
+        toURL() {
+          return '  stream://host-preview  ';
+        },
+      }),
+    ).toBe('stream://host-preview');
+    expect(readHostBroadcastPreviewStreamUrl({})).toBeNull();
+    expect(
+      readHostBroadcastPreviewStreamUrl({
+        toURL() {
+          throw new Error('stream disposed');
+        },
+      }),
+    ).toBeNull();
+    expect(readHostBroadcastPreviewStreamUrl(null)).toBeNull();
+  });
+
   test('normalizes booleans and known string permission states', () => {
     expect(normalizeHostBroadcastPermission(true)).toBe('granted');
     expect(normalizeHostBroadcastPermission(false)).toBe('denied');

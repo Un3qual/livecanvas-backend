@@ -121,6 +121,28 @@ work still require the listed operator prerequisites.
   artifact availability remain operator-confirmed state rather than local
   evidence.
 
+### 2026-07-14 Mobile Release-Depth Five-Batch Closure
+
+- Host local preview (`078e501`) renders the cached preflight stream without
+  taking ownership of it or requesting a second capture stream.
+- Live audience count (`5abdffa`) preserves session-scoped room state and
+  rejects stale callbacks after a session change.
+- App lifecycle recovery (`43ea54b`) suspends transient viewer resources in the
+  background and creates one fresh generation on a real resume without issuing
+  a durable leave mutation or disrupting retained host publishing.
+- Post and story media (`0abc077`) use SDK-compatible `expo-image` and
+  `expo-video` rendering behind validated media presentation data, with explicit
+  processing, unavailable, and load-failure states.
+- The dedicated story viewer (`e790acf`) uses opaque Relay IDs, active-story
+  validation, bounded previous/next navigation, and the shared media renderer.
+- `CI=true pnpm install --frozen-lockfile` and Relay generation pass without
+  lockfile or generated-artifact drift. The full mobile quality gate passes app
+  and test typechecks, lint, 76 Vitest files containing 563 tests, and 27 Jest
+  suites containing 182 tests.
+- `nix flake check`, branch-wide `git diff --check`, and post-verification
+  worktree hygiene pass. No remote EAS or physical-device command was run, so
+  the operator prerequisites and manual QA below remain pending.
+
 ## Remaining Operator Prerequisites
 
 The local gate is complete. Before manual device QA starts, a release operator

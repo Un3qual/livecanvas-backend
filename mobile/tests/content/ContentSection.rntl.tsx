@@ -5,6 +5,7 @@ import type { ContentPost } from '../../src/content/ContentPostCard';
 import { createPostOwnerControlsState } from '../../src/content/postOwnerControlsReducer';
 import type { PostControls } from '../../src/content/usePostControls';
 import { createReportPostState } from '../../src/content/reportPostReducer';
+import { storyHref } from '../../src/content/story/storyNavigation';
 
 describe('ContentSection', () => {
   test('renders post rows with controls and a view-all action', async () => {
@@ -26,6 +27,7 @@ describe('ContentSection', () => {
     expect(screen.getByTestId('content-section-posts')).toBeOnTheScreen();
     expect(screen.getByText('Post body')).toBeOnTheScreen();
     expect(screen.getByRole('button', { name: 'Edit post' })).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'View story' })).toBeNull();
 
     await user.press(screen.getByRole('button', { name: 'View all' }));
     expect(onViewAll).toHaveBeenCalledTimes(1);
@@ -71,6 +73,7 @@ describe('ContentSection', () => {
       <ContentSection
         emptyMessage="Nothing has been shared yet."
         kind="stories"
+        onOpenStory={jest.fn()}
         postControls={postControls()}
         posts={[]}
         title="Stories"
@@ -83,12 +86,34 @@ describe('ContentSection', () => {
     expect(screen.queryByRole('button', { name: 'Report post' })).toBeNull();
   });
 
+  test('routes story rows through the opaque story action', async () => {
+    const user = userEvent.setup();
+    const pushedRoutes: unknown[] = [];
+
+    await render(
+      <ContentSection
+        emptyMessage="No stories."
+        kind="stories"
+        onOpenStory={(storyId) => pushedRoutes.push(storyHref(storyId))}
+        postControls={postControls()}
+        posts={[post({ id: 'opaque-story-id', kind: 'STORY' })]}
+        title="Stories"
+        viewerId="viewer-id"
+      />,
+    );
+
+    await user.press(screen.getByRole('button', { name: 'View story' }));
+
+    expect(pushedRoutes).toEqual([storyHref('opaque-story-id')]);
+  });
+
   test('renders load-more, retryable error, and disabled loading states', async () => {
     const user = userEvent.setup();
     const onLoadMore = jest.fn();
     const baseProps = {
       emptyMessage: 'No stories.',
       kind: 'stories' as const,
+      onOpenStory: jest.fn(),
       postControls: postControls(),
       posts: [post({ id: 'story-id', kind: 'STORY' })],
       title: 'Stories',

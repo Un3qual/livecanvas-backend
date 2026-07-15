@@ -11,6 +11,7 @@ import ViewerProfileContentRoute from '../../app/(app)/profile/content';
 import OtherProfileContentRoute from '../../app/(app)/profiles/[id]/content';
 import { ProfileContentListScreen } from '../../src/profile/ProfileContentListScreen';
 import { liveSessionHref } from '../../src/live/liveSessionNavigation';
+import { storyHref } from '../../src/content/story/storyNavigation';
 
 type QueryVariables = {
   readonly after: string | null;
@@ -370,6 +371,7 @@ describe('ProfileContentListScreen pagination and controls', () => {
     );
     expect(screen.getByRole('button', { name: 'Report post' })).toBeOnTheScreen();
     expect(screen.queryByRole('button', { name: 'Edit post' })).toBeNull();
+    await user.press(screen.getByRole('button', { name: 'View story' }));
 
     mockQueryData = profileContentData({
       kind: 'replays',
@@ -381,7 +383,10 @@ describe('ProfileContentListScreen pagination and controls', () => {
       <ProfileContentListScreen kind="replays" profileId="other-id" />,
     );
     await user.press(screen.getByRole('button', { name: 'Watch replay' }));
-    expect(mockPushedRoutes).toEqual([liveSessionHref('opaque-replay-id')]);
+    expect(mockPushedRoutes).toEqual([
+      storyHref('other-story'),
+      liveSessionHref('opaque-replay-id'),
+    ]);
   });
 });
 

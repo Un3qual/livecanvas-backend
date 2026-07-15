@@ -59,6 +59,7 @@ type ViewerPlaybackStateSetter = (state: ViewerPlaybackStateUpdate) => void;
 
 type LiveSessionViewerPlaybackControllerSyncOptions = {
   readonly authStatus: AuthState['status'];
+  readonly isAppActive: boolean;
   readonly isJoined: boolean;
   readonly isLeaving: boolean;
   readonly liveSessionId: string | null;
@@ -165,6 +166,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
 
   function syncViewerPlayback({
     authStatus,
+    isAppActive,
     isJoined,
     isLeaving,
     liveSessionId,
@@ -172,6 +174,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
   }: LiveSessionViewerPlaybackControllerSyncOptions) {
     currentSyncOptions = {
       authStatus,
+      isAppActive,
       isJoined,
       isLeaving,
       liveSessionId,
@@ -180,6 +183,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
 
     if (
       !liveSessionId ||
+      !isAppActive ||
       !isJoined ||
       isLeaving ||
       normalizedStatus === 'ENDED' ||
@@ -205,6 +209,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
 
     const {
       authStatus,
+      isAppActive,
       isJoined,
       isLeaving,
       liveSessionId,
@@ -213,6 +218,7 @@ export function createLiveSessionViewerPlaybackControllerLifecycle({
 
     if (
       !liveSessionId ||
+      !isAppActive ||
       isLeaving ||
       authStatus !== 'authenticated' ||
       !canRetryLiveSessionViewerPlayback({
@@ -479,6 +485,7 @@ export function useLiveSessionViewerPlaybackController({
   authStatus,
   commitPrepareLiveSessionMedia,
   getAccessToken,
+  isAppActive,
   isJoined,
   isLeaving,
   liveSessionId,
@@ -518,6 +525,7 @@ export function useLiveSessionViewerPlaybackController({
     () =>
       controller.syncViewerPlayback({
         authStatus,
+        isAppActive,
         isJoined,
         isLeaving,
         liveSessionId,
@@ -527,6 +535,7 @@ export function useLiveSessionViewerPlaybackController({
       authStatus,
       commitPrepareLiveSessionMedia,
       getAccessToken,
+      isAppActive,
       isJoined,
       isLeaving,
       liveSessionId,

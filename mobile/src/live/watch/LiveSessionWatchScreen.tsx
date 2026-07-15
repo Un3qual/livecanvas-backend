@@ -74,6 +74,7 @@ import {
   type LiveSessionOlderTimelinePageLoaderLifecycle,
 } from './hooks/useLiveSessionWatchController';
 import { useLiveSessionViewerPlaybackController } from './hooks/useLiveSessionViewerPlaybackController';
+import { useLiveSessionAppState } from './liveSessionAppState';
 import {
   liveSessionWatchScreenEndMutation,
   liveSessionWatchScreenJoinMutation,
@@ -101,7 +102,16 @@ import type {
 
 const INITIAL_TIMELINE_HISTORY_COUNT = 30;
 
-type LiveSessionRealtimeStatusMap = ReadonlyMap<string, LiveSessionStatus>;
+type LiveSessionRealtimeState = Readonly<{
+  resumeGeneration: number;
+  status: LiveSessionStatus;
+  viewerCount: number | null;
+}>;
+
+type LiveSessionRealtimeStateMap = ReadonlyMap<
+  string,
+  LiveSessionRealtimeState
+>;
 
 type PendingChatSend = {
   readonly sessionId: string;
@@ -174,6 +184,8 @@ function LiveSessionWatchContent({
   const { environment } = useStartupState();
   const relayEnvironment = useRelayEnvironment();
   const hostPublishingSessions = useHostBroadcastPublishingSessions();
+  const { isActive: isAppActive, resumeGeneration } =
+    useLiveSessionAppState();
   const data = useLazyLoadQuery<LiveSessionWatchScreenQuery>(
     liveSessionWatchScreenQuery,
     {
@@ -211,8 +223,8 @@ function LiveSessionWatchContent({
     useMutation<LiveSessionWatchScreenEndMutation>(
       liveSessionWatchScreenEndMutation,
     );
-  const [realtimeSessionStatuses, setRealtimeSessionStatuses] =
-    useState<LiveSessionRealtimeStatusMap>(() => new Map());
+  const [realtimeSessionStates, setRealtimeSessionStates] =
+    useState<LiveSessionRealtimeStateMap>(() => new Map());
   const chatChannelClientRef = useRef<LiveSessionChannelClient | null>(null);
   const chatSendPendingRef = useRef<PendingChatSend | null>(null);
   const chatSendTokenRef = useRef(0);
@@ -308,10 +320,24 @@ function LiveSessionWatchContent({
   const queriedNormalizedStatus = normalizeLiveSessionStatus(
     session?.status ?? 'ENDED',
   );
-  const normalizedStatus = session
-    ? realtimeSessionStatuses.get(activeLiveSessionId ?? '') ??
-      queriedNormalizedStatus
-    : queriedNormalizedStatus;
+  const storedRealtimeSessionState = activeLiveSessionId
+    ? realtimeSessionStates.get(activeLiveSessionId)
+    : null;
+  const realtimeSessionState =
+    isAppActive &&
+    storedRealtimeSessionState?.resumeGeneration === resumeGeneration
+      ? storedRealtimeSessionState
+      : null;
+  // ENDED is terminal. A fresh query must win over any realtime LIVE event
+  // that raced with resume/reconnect, even within the current generation.
+  const normalizedStatus =
+    session && queriedNormalizedStatus !== 'ENDED'
+      ? realtimeSessionState?.status ?? queriedNormalizedStatus
+      : queriedNormalizedStatus;
+  const viewerCount =
+    normalizedStatus === 'ENDED'
+      ? null
+      : realtimeSessionState?.viewerCount ?? null;
   const dispatchChatMutation = useCallback(
     (action: LiveSessionChatTimelineMutationAction) => {
       if (!activeLiveSessionId) {
@@ -378,13 +404,16 @@ function LiveSessionWatchContent({
     hasRetainedHostPublishingSession,
     isJoined,
   });
-  const shouldMaintainSessionRealtimeChannel = canUseChat;
+  const shouldMaintainSessionRealtimeChannel = canUseChat && isAppActive;
+  const isViewerPlaybackMembershipReady =
+    isJoined && chatChannelStatus === 'joined';
   const { retryViewerPlayback, stopViewerPlayback, viewerPlaybackState } =
     useLiveSessionViewerPlaybackController({
       authStatus: auth.state.status,
       commitPrepareLiveSessionMedia,
       getAccessToken: auth.getAccessToken,
-      isJoined,
+      isAppActive,
+      isJoined: isViewerPlaybackMembershipReady,
       isLeaving,
       liveSessionId: activeLiveSessionId,
       normalizedStatus,
@@ -392,6 +421,31 @@ function LiveSessionWatchContent({
     });
 
   stopViewerPlaybackRef.current = stopViewerPlayback;
+
+  useEffect(() => {
+    if (!isAppActive || resumeGeneration === 0) {
+      return undefined;
+    }
+
+    // Refresh session truth after the OS may have suspended network work. The
+    // existing screen stays mounted if this best-effort recovery request fails.
+    const subscription = fetchQuery<LiveSessionWatchScreenQuery>(
+      relayEnvironment,
+      liveSessionWatchScreenQuery,
+      {
+        id: sessionId,
+        timelineBefore: null,
+        timelineLast: INITIAL_TIMELINE_HISTORY_COUNT,
+      },
+      { fetchPolicy: 'network-only' },
+    ).subscribe({
+      error: () => undefined,
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [isAppActive, relayEnvironment, resumeGeneration, sessionId]);
 
   const sendChatChannelEvent = useCallback(
     (event: LiveSessionChatChannelMachineEvent) => {
@@ -402,17 +456,53 @@ function LiveSessionWatchContent({
 
   const markLiveSessionRealtimeStatus = useCallback(
     (liveSessionId: string, status: LiveSessionStatus) => {
-      setRealtimeSessionStatuses((statuses) => {
-        if (statuses.get(liveSessionId) === status) {
-          return statuses;
+      setRealtimeSessionStates((states) => {
+        const currentState = states.get(liveSessionId);
+        if (currentState?.status === status) {
+          return states;
         }
 
-        const nextStatuses = new Map(statuses);
-        nextStatuses.set(liveSessionId, status);
-        return nextStatuses;
+        const nextStates = new Map(states);
+        nextStates.set(liveSessionId, {
+          resumeGeneration,
+          status,
+          viewerCount:
+            currentState?.resumeGeneration === resumeGeneration
+              ? currentState.viewerCount
+              : null,
+        });
+        return nextStates;
       });
     },
-    [],
+    [resumeGeneration],
+  );
+
+  const markLiveSessionRealtimeState = useCallback(
+    (
+      liveSessionId: string,
+      status: LiveSessionStatus,
+      nextViewerCount: number,
+    ) => {
+      setRealtimeSessionStates((states) => {
+        const currentState = states.get(liveSessionId);
+        if (
+          currentState?.status === status &&
+          currentState.viewerCount === nextViewerCount &&
+          currentState.resumeGeneration === resumeGeneration
+        ) {
+          return states;
+        }
+
+        const nextStates = new Map(states);
+        nextStates.set(liveSessionId, {
+          resumeGeneration,
+          status,
+          viewerCount: nextViewerCount,
+        });
+        return nextStates;
+      });
+    },
+    [resumeGeneration],
   );
 
   const markLiveSessionEnded = useCallback(
@@ -492,7 +582,7 @@ function LiveSessionWatchContent({
     olderTimelinePageLoader.syncSession(sessionId);
     sendChatChannelEvent({ sessionId, type: 'SESSION_CHANGED' });
     chatSendPendingRef.current = null;
-    setRealtimeSessionStatuses(new Map());
+    setRealtimeSessionStates(new Map());
   }, [olderTimelinePageLoader, sendChatChannelEvent, sessionId]);
 
   useEffect(() => {
@@ -620,7 +710,11 @@ function LiveSessionWatchContent({
           return;
         }
 
-        markLiveSessionRealtimeStatus(activeLiveSessionId, event.status);
+        markLiveSessionRealtimeState(
+          activeLiveSessionId,
+          event.status,
+          event.viewerCount,
+        );
 
         if (event.status === 'ENDED') {
           handleEndedLiveSession(activeLiveSessionId, () => {
@@ -687,6 +781,14 @@ function LiveSessionWatchContent({
         }
 
         if (result.status === 'joined') {
+          if (result.sessionState) {
+            markLiveSessionRealtimeState(
+              activeLiveSessionId,
+              result.sessionState.status,
+              result.sessionState.viewerCount,
+            );
+          }
+
           if (shouldCloseLiveSessionChatChannelAfterJoin(result)) {
             handleEndedLiveSession(activeLiveSessionId, () => {
               chatChannelLifecycle.closeForEndedSession();
@@ -736,7 +838,7 @@ function LiveSessionWatchContent({
     handleEndedLiveSession,
     handleWatchMembershipLost,
     hostPublishingSessions,
-    markLiveSessionRealtimeStatus,
+    markLiveSessionRealtimeState,
     sendChatChannelEvent,
     shouldMaintainSessionRealtimeChannel,
   ]);
@@ -885,6 +987,7 @@ function LiveSessionWatchContent({
         session={liveSession}
         status={status}
         normalizedStatus={normalizedStatus}
+        viewerCount={viewerCount}
       />
 
       <LiveSessionViewerPlaybackSurface

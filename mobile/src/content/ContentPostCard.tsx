@@ -5,9 +5,9 @@ import { AppButton } from '../components/AppButton';
 import { AppCard } from '../components/AppCard';
 import { useAppTheme } from '../providers/ThemeProvider';
 import { radius, spacing, typography } from '../theme/tokens';
+import { ContentMediaAssetView } from './ContentMediaAssetView';
 import {
   formatPostCardPresentation,
-  type ContentMediaAssetPresentation,
   type ContentPost,
 } from './contentPostPresentation';
 import {
@@ -24,6 +24,7 @@ export type { ContentPost } from './contentPostPresentation';
 
 export type ContentPostCardProps = {
   readonly controls: PostControls;
+  readonly onOpenStory?: (storyId: string) => void;
   readonly post: ContentPost;
   readonly viewerId: string | null;
 };
@@ -86,6 +87,7 @@ const styles = StyleSheet.create({
 
 export const ContentPostCard = memo(function ContentPostCard({
   controls,
+  onOpenStory,
   post,
   viewerId,
 }: ContentPostCardProps) {
@@ -195,9 +197,17 @@ export const ContentPostCard = memo(function ContentPostCard({
           ]}
         >
           {presentation.mediaAssets.map((asset) => (
-            <MediaAssetRow asset={asset} key={asset.id} />
+            <ContentMediaAssetView asset={asset} key={asset.id} />
           ))}
         </View>
+      ) : null}
+
+      {onOpenStory ? (
+        <AppButton
+          label="View story"
+          onPress={() => onOpenStory(post.id)}
+          variant="secondary"
+        />
       ) : null}
 
       {showReportAction ? (
@@ -284,6 +294,7 @@ function areContentPostCardPropsEqual(
 ): boolean {
   if (
     previous.post !== next.post ||
+    previous.onOpenStory !== next.onOpenStory ||
     previous.viewerId !== next.viewerId ||
     previous.controls.actions !== next.controls.actions
   ) {
@@ -293,20 +304,5 @@ function areContentPostCardPropsEqual(
   return arePostControlViewStatesEqual(
     selectPostControlViewState(previous.controls.state, previous.post.id),
     selectPostControlViewState(next.controls.state, next.post.id),
-  );
-}
-
-function MediaAssetRow({ asset }: { asset: ContentMediaAssetPresentation }) {
-  const theme = useAppTheme();
-
-  return (
-    <View>
-      <Text style={[styles.metadataText, { color: theme.colors.text }]}>
-        {asset.label}
-      </Text>
-      <Text style={[styles.metadataText, { color: theme.colors.textMuted }]}>
-        {asset.body}
-      </Text>
-    </View>
   );
 }

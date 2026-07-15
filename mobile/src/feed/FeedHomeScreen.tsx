@@ -1,5 +1,6 @@
 import React, {
   Suspense,
+  useCallback,
   useEffect,
   useMemo,
   useReducer,
@@ -26,6 +27,7 @@ import {
   type ContentSectionLoadMore,
 } from '../content/ContentSection';
 import { applyContentPostChanges } from '../content/contentPostChanges';
+import { storyHref } from '../content/story/storyNavigation';
 import type { ContentRequestIdentity } from '../content/contentSurfaceTypes';
 import { usePostControls } from '../content/usePostControls';
 import {
@@ -422,9 +424,14 @@ export function FeedHomeContent({ fetchKey = 0 }: { fetchKey?: number }) {
     }
   }, [data, refreshedHomeData]);
 
-  function openLiveSession(sessionId: string) {
-    router.push(liveSessionHref(sessionId));
-  }
+  const openLiveSession = useCallback(
+    (sessionId: string) => router.push(liveSessionHref(sessionId)),
+    [router],
+  );
+  const openStory = useCallback(
+    (storyId: string) => router.push(storyHref(storyId)),
+    [router],
+  );
 
   function clearActiveLoadMoreRequests() {
     // Refresh is the invalidation boundary: clearing request identities makes
@@ -663,6 +670,7 @@ export function FeedHomeContent({ fetchKey = 0 }: { fetchKey?: number }) {
         emptyMessage="No stories are available yet."
         kind="stories"
         loadMore={storiesLoadMoreControl}
+        onOpenStory={openStory}
         postControls={postControls}
         posts={applyContentPostChanges(
           contentStories,

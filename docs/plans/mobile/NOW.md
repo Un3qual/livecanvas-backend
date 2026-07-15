@@ -1,7 +1,7 @@
 # Mobile Lane NOW
 
 Last reviewed: 2026-07-14
-Status: local release-candidate gates pass; operator and device QA pending
+Status: local release gates complete; operator/device QA pending
 
 ## Lane Scope
 
@@ -9,21 +9,19 @@ Status: local release-candidate gates pass; operator and device QA pending
 - Consume explicitly promoted backend contracts recorded in the backend lane.
 - Keep Relay IDs/cursors opaque and durable reads/writes Relay-first.
 
-## Current Gate
+## Completed Batch
 
-- Source checklist:
-  `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
-- Batch 5 source plan, now complete:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
-- Current scope: local entry gates are complete; the checklist's manual
-  one-host/one-viewer preview-build and device QA remains pending.
-- Local verification: `pnpm test:quality`, `pnpm typecheck`, frozen pnpm
-  dependency restore, and patch hygiene pass with 552 Vitest and 165 Jest tests.
-- Invite entry requirement: target `EXPO_PUBLIC_APP_ORIGIN` must match backend
-  `LIVE_CANVAS_PUBLIC_ORIGIN`; manual evidence must exercise an actual delivered
-  invite through the HTTPS landing and native app handoff.
-- Done condition: every launch blocker is cleared or explicitly removed from
-  release scope, with manual evidence recorded in the checklist.
+- Design:
+  `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
+- Source plan:
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- Completed scope: host local preview, live audience count, foreground/background
+  live-session recovery, post/story media rendering, and a dedicated story
+  viewer.
+- Local verification passed: frozen install, Relay generation, typechecks,
+  lint, automated tests, Nix flake checks, and patch hygiene.
+- No implementation batch is active. Local evidence does not complete the
+  physical-device or target-environment checks.
 
 ## Deferred Scope
 
@@ -32,8 +30,7 @@ Status: local release-candidate gates pass; operator and device QA pending
 
 ## Next Action
 
-Have the release operator confirm EAS project linkage; the target API,
-websocket, and public-app origins; the matching backend public origin; an
-installable preview artifact; separate host/viewer identities; an unmatched
-recipient inbox; and physical devices. Then run the checklist's manual QA. Do
-not run remote EAS commands without explicit approval.
+The release operator should satisfy the target-environment inventory and run
+the physical-device QA in
+`docs/plans/mobile/2026-06-25-release-candidate-checklist.md`. Promote any
+reproduced defect into the owning lane before starting another feature batch.

@@ -26,7 +26,15 @@ type ContentSectionBaseProps = {
 };
 
 type ContentPostSectionProps = ContentSectionBaseProps & {
-  readonly kind: 'posts' | 'stories';
+  readonly kind: 'posts';
+  readonly postControls: PostControls;
+  readonly posts: ReadonlyArray<ContentPost>;
+  readonly viewerId: string | null;
+};
+
+type ContentStorySectionProps = ContentSectionBaseProps & {
+  readonly kind: 'stories';
+  readonly onOpenStory: (storyId: string) => void;
   readonly postControls: PostControls;
   readonly posts: ReadonlyArray<ContentPost>;
   readonly viewerId: string | null;
@@ -40,6 +48,7 @@ type ContentSessionSectionProps = ContentSectionBaseProps & {
 
 export type ContentSectionProps =
   | ContentPostSectionProps
+  | ContentStorySectionProps
   | ContentSessionSectionProps;
 
 const styles = StyleSheet.create({
@@ -99,11 +108,21 @@ export function ContentSection(props: ContentSectionProps) {
 function ContentSectionRows(props: ContentSectionProps) {
   switch (props.kind) {
     case 'posts':
+      return props.posts.map((post) => (
+        <ContentPostCard
+          controls={props.postControls}
+          key={post.id}
+          post={post}
+          viewerId={props.viewerId}
+        />
+      ));
+
     case 'stories':
       return props.posts.map((post) => (
         <ContentPostCard
           controls={props.postControls}
           key={post.id}
+          onOpenStory={props.onOpenStory}
           post={post}
           viewerId={props.viewerId}
         />

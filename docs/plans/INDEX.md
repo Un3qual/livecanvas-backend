@@ -25,11 +25,11 @@ Use this file when:
 ### Mobile Lane
 
 - Pointer: `docs/plans/mobile/NOW.md`
-- State: all five product batches complete; release-candidate QA active
+- State: release-depth sequence complete; operator/device QA pending
 - Track: `docs/plans/mobile/TRACK.md`
 - Latest completed source plan:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
-- Latest completed product theme: Batch 5 End-to-End Contact Invitations
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- Latest completed product theme: Mobile Release Depth Next Five Batches
 - Latest completed detailed plans: account settings and recovery, existing
   social controls, contact discovery, post owner controls, and profile
   connection lists
@@ -38,8 +38,21 @@ Use this file when:
   completed chat batch adds retained timeline history and live chat channel
   integration. Frontend structure, TypeScript readability, and XState live
   workflow cleanup are complete. The queued feature follow-ups through the July
-  8 product-gap batch and reversible unfollow/unblock are complete for their
-  selected scopes; release-candidate manual QA is now active.
+  8 product-gap batch, reversible unfollow/unblock, and the five release-depth
+  batches are complete for their selected scopes; release-candidate manual QA
+  is now active.
+
+### Mobile Release Depth: Next Five Batches
+
+- Design:
+  `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
+- Implementation:
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- State: all five batches and local closure verification complete
+- Order: host preview, audience count, app-lifecycle recovery, media rendering,
+  story viewer
+- Handoff: return to the release-candidate operator/device checklist after all
+  five local implementation batches close
 
 ## Track Registry
 
@@ -103,10 +116,11 @@ Use this file when:
 ### Mobile Expo Frontend Planning Track
 
 - Track: `docs/plans/mobile/TRACK.md`
-- State: all five product batches complete; release-candidate QA active
+- State: all five product batches and all five release-depth batches complete;
+  release-candidate QA active
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
-- Latest completed theme: End-to-End Contact Invitations
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
+- Latest completed theme: Mobile Release Depth Next Five Batches
 - Next gate: `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
 
 ### Backend Code Quality Cleanup

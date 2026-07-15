@@ -9,12 +9,37 @@ import type { HostBroadcastPublishingResource } from '../../src/host/publishing/
 import type { HostBroadcastPublishingStatus } from '../../src/host/preflight/hooks/useHostBroadcastPublishingController';
 import {
   createHostBroadcastPreflightControllerLifecycle,
+  loadHostBroadcastPreviewStreamUrl,
   type HostBroadcastEndLiveSessionCommit,
   type HostBroadcastGoLiveCommit,
   type HostBroadcastPrepareMediaCommit,
   type HostBroadcastPreflightControllerLifecycle,
   type HostBroadcastStartLiveSessionCommit,
 } from '../../src/host/preflight/hooks/useHostBroadcastPreflightController';
+
+test('loads the preview URL from the native stream without owning its lifecycle', async () => {
+  let getPreviewStreamCalls = 0;
+  let releasePreviewStreamCalls = 0;
+  const native = {
+    getPreviewStream() {
+      getPreviewStreamCalls += 1;
+      return Promise.resolve({
+        toURL() {
+          return 'stream://host-preview';
+        },
+      });
+    },
+    releasePreviewStream() {
+      releasePreviewStreamCalls += 1;
+    },
+  };
+
+  await expect(
+    loadHostBroadcastPreviewStreamUrl(native),
+  ).resolves.toBe('stream://host-preview');
+  expect(getPreviewStreamCalls).toBe(1);
+  expect(releasePreviewStreamCalls).toBe(0);
+});
 
 type StartLiveSessionCommitConfig = {
   readonly onCompleted?: (payload: StartLiveSessionPayload) => void;

@@ -11,14 +11,18 @@ and content discovery, live streaming, and chat.
 
 ## Status
 
-- Track state: all five product batches complete; release-candidate QA active
+- Track state: mobile release-depth sequence complete; operator/device QA pending
 - Lane pointer: `docs/plans/mobile/NOW.md`
 - Latest completed implementation plan:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Current gate:
   `docs/plans/mobile/2026-06-25-release-candidate-checklist.md`
+- Current release-depth design:
+  `docs/superpowers/specs/2026-07-14-mobile-release-depth-next-five-design.md`
+- Current release-depth plan:
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Last completed detailed plan:
-  `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
+  `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - Recent theme: end-to-end contact invitations now complete fragment-only HTTPS
   delivery from one shared trusted public origin, neutral recipient email copy,
   protected authentication handoff, one-time recipient-bound consumption, and
@@ -125,6 +129,11 @@ and content discovery, live streaming, and chat.
 27. Live-chat message controls.
 28. End-to-end contact invitations.
 29. Release-candidate manual device QA using the one-host/one-viewer checklist.
+30. Host local camera/microphone preview.
+31. Live audience count from channel room state.
+32. Foreground/background live-session recovery.
+33. Post and story media rendering.
+34. Dedicated story viewer.
 
 ## Active Gate And Completed Follow-Up Plans
 
@@ -135,6 +144,7 @@ Active release gate:
 
 Recently completed product batch:
 
+- `docs/superpowers/plans/2026-07-14-mobile-release-depth-next-five.md`
 - `docs/superpowers/plans/2026-07-11-end-to-end-contact-invitations.md`
 - `docs/superpowers/plans/2026-07-11-live-chat-message-controls.md`
 - `docs/superpowers/plans/2026-07-11-media-post-publishing.md`
@@ -145,8 +155,9 @@ Recently completed product batch:
 - `docs/plans/mobile/2026-07-08-mobile-post-owner-controls.md`
 - `docs/plans/mobile/2026-07-08-mobile-profile-connection-lists.md`
 
-All previously queued product follow-up plans are complete. No product batch is
-queued ahead of the active release-candidate gate.
+The prior product follow-up plans and approved release-depth sequence are
+complete. Operator/device QA now resumes from the release-candidate checklist;
+any reproduced defect should be promoted into its owning lane.
 
 ## Shared Constraints
 
