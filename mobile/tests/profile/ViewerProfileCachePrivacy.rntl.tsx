@@ -54,7 +54,7 @@ test('renders cached viewer-owned profile data while social identity refreshes',
   expect(screen.queryByText('cached-follower@example.com')).toBeNull();
   expect(screen.queryByText('cached-requester@example.com')).toBeNull();
 
-  await act(async () => {
+  await act(() => {
     resolveNetwork(
       networkResolvers,
       'ViewerProfileScreenQuery',

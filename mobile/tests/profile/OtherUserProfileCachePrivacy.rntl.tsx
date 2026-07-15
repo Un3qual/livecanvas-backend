@@ -114,7 +114,7 @@ test('retries a failed privacy-sensitive profile request with a fresh fetch', as
   }
 
   await withSuppressedConsoleError(async () => {
-    await act(async () => {
+    await act(() => {
       rejectInitial(new Error('offline'));
     });
 
@@ -141,7 +141,7 @@ test('retries a failed privacy-sensitive profile request with a fresh fetch', as
     throw new Error('Missing retry network resolver');
   }
 
-  await act(async () => {
+  await act(() => {
     resolveRetryRequest(hiddenProfilePayload());
   });
 
@@ -149,7 +149,7 @@ test('retries a failed privacy-sensitive profile request with a fresh fetch', as
     expect(screen.getByText('This profile is unavailable.')).toBeOnTheScreen();
   });
 
-  await act(async () => {
+  await act(() => {
     unmount();
   });
 });
