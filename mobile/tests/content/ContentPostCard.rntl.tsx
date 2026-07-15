@@ -133,6 +133,21 @@ describe('ContentPostCard with shared controls', () => {
     expect(onOpenAuthor).toHaveBeenCalledWith('opaque-author-id');
   });
 
+  test('distinguishes fallback author actions by opaque profile ID', async () => {
+    await render(<FallbackAuthorCollection />);
+
+    expect(
+      screen.getByRole('button', {
+        name: 'Open author profile for LiveCanvas user, Profile ID VXNlcjox',
+      }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', {
+        name: 'Open author profile for LiveCanvas user, Profile ID VXNlcjoy',
+      }),
+    ).toBeOnTheScreen();
+  });
+
   test('keeps controller action identity stable while edit state changes', async () => {
     const user = userEvent.setup();
     const onActions = jest.fn();
@@ -272,6 +287,35 @@ function ReportCollection() {
   );
 }
 
+function FallbackAuthorCollection() {
+  const controls = usePostControls({ viewerId: 'viewer-id' });
+
+  return (
+    <>
+      <ContentPostCard
+        controls={controls}
+        onOpenAuthor={() => undefined}
+        post={contentPost({
+          authorEmail: null,
+          authorId: 'VXNlcjox',
+          id: 'post-1',
+        })}
+        viewerId="viewer-id"
+      />
+      <ContentPostCard
+        controls={controls}
+        onOpenAuthor={() => undefined}
+        post={contentPost({
+          authorEmail: null,
+          authorId: 'VXNlcjoy',
+          id: 'post-2',
+        })}
+        viewerId="viewer-id"
+      />
+    </>
+  );
+}
+
 function Harness({
   onActions,
   onOpenAuthor = () => undefined,
@@ -303,16 +347,18 @@ function Harness({
 }
 
 function contentPost({
+  authorEmail = 'creator@example.com',
   authorId,
   id,
   mediaAssets = [],
 }: {
+  authorEmail?: string | null;
   authorId: string;
   id: string;
   mediaAssets?: ContentPost['mediaAssets'];
 }): ContentPost {
   return {
-    author: { email: 'creator@example.com', id: authorId },
+    author: { email: authorEmail, id: authorId },
     bodyText: 'Original body',
     expiresAt: null,
     id,
